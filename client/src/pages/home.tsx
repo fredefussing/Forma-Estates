@@ -356,12 +356,15 @@ export default function HomePage() {
                   </div>
                   <h3 className="text-lg font-semibold mb-1" data-testid="text-generating">AI designer dit rum...</h3>
                   <p className="text-sm text-muted-foreground mb-6">
-                    Dette tager typisk 15-45 sekunder
+                    Dette tager normalt 15-45 sekunder
                   </p>
-                  <div className="w-64">
+                  <div className="w-64 mb-6">
                     <Progress value={job.progress} className="h-2" data-testid="progress-bar" />
                     <p className="text-xs text-muted-foreground text-center mt-2">{Math.round(job.progress)}%</p>
                   </div>
+                  <Button variant="ghost" size="sm" onClick={handleReset} data-testid="button-cancel">
+                    Annuller
+                  </Button>
                 </Card>
               ) : activeDesign.status === "completed" && activeDesign.resultImageUrl ? (
                 <BeforeAfterSlider
@@ -374,8 +377,11 @@ export default function HomePage() {
                     <X className="w-6 h-6 text-destructive" />
                   </div>
                   <h3 className="text-lg font-semibold mb-1">Noget gik galt</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-sm text-muted-foreground mb-2">
                     {job.error || "Prøv igen med et nyt billede."}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Tip: Prøv et billede med bedre belysning eller vælg en anden stil
                   </p>
                   <Button onClick={handleReset} data-testid="button-try-again">Prøv igen</Button>
                 </Card>

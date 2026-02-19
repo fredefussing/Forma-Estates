@@ -1,0 +1,78 @@
+import { useState } from 'react';
+import { useTransformationJob } from './useTransformationJob';
+
+export function TransformationPage() {
+  const [jobId, setJobId] = useState<string | null>(null);
+  const { status, resultUrl, error, progress, reset } = useTransformationJob(jobId);
+
+  const startTransformation = async (imageFile: File, roomType: string, style: string) => {
+    reset(); // Ryd tidligere state
+    setJobId(null); // SIKKER: Nulstil jobId først
+    
+    try {
+      // Upload billede
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      formData.append('roomType', roomType);
+      formData.append('style', style);
+
+      const response = await fetch('/api/transform', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.jobId) {
+        setJobId(data.jobId); // Start polling
+      } else {
+        throw new Error('Ingen job ID modtaget');
+      }
+    } catch (err) {
+      console.error('Start fejlede:', err);
+    }
+  };
+
+  const retry = () => {
+    reset();
+    setJobId(null);
+    // Brugeren skal uploade igen eller vi genbruger sidste billede
+  };
+
+  return (
+    <div>
+      {/* Upload form - kun vis når idle eller failed */}
+      {(status === 'idle' || status === 'failed') && (
+        <UploadForm onSubmit={startTransformation} />
+      )}
+      
+      {/* Loading state */}
+      {status === 'pending' || status === 'processing' ? (
+        <div className="loading">
+          <div className="spinner" />
+          <p>Genererer dit nye rum... {Math.round(progress)}%</p>
+          <p>Dette tager normalt 15-45 sekunder</p>
+          <button onClick={retry} className="cancel">Annuller</button>
+        </div>
+      ) : null}
+      
+      {/* Error state */}
+      {status === 'failed' && (
+        <div className="error-box">
+          <p>❌ {error}</p>
+          <button onClick={retry}>Prøv igen</button>
+          <p className="hint">Tip: Prøv et billede med bedre belysning eller vælg en anden stil</p>
+        </div>
+      )}
+      
+      {/* Resultat */}
+      {status === 'completed' && resultUrl && (
+        <BeforeAfterViewer 
+          before={originalImage} 
+          after={resultUrl} 
+          onNewDesign={retry}
+        />
+      )}
+    </div>
+  );
+}
