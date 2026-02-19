@@ -1,18 +1,60 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export const roomTypes = [
+  "living room",
+  "bedroom",
+  "kitchen",
+  "bathroom",
+  "dining room",
+  "home office",
+  "kids room",
+  "studio",
+  "game room",
+  "home gym",
+  "laundry room",
+  "conference room",
+  "spa room",
+  "outdoor",
+  "open living and dining room",
+] as const;
+
+export const designStyles = [
+  "scandinavian",
+  "modern",
+  "luxury",
+  "industrial",
+  "coastal",
+  "transitional",
+  "farmhouse",
+  "mid-century",
+] as const;
+
+export type RoomType = (typeof roomTypes)[number];
+export type DesignStyle = (typeof designStyles)[number];
+
+export const designs = pgTable("designs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  originalImageUrl: text("original_image_url").notNull(),
+  resultImageUrl: text("result_image_url"),
+  roomType: text("room_type").notNull(),
+  style: text("style").notNull(),
+  status: text("status").notNull().default("pending"),
+  collovUuid: text("collov_uuid"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertDesignSchema = createInsertSchema(designs).omit({
+  id: true,
+  createdAt: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export const createDesignSchema = z.object({
+  roomType: z.enum(roomTypes),
+  style: z.enum(designStyles),
+});
+
+export type InsertDesign = z.infer<typeof insertDesignSchema>;
+export type Design = typeof designs.$inferSelect;
