@@ -201,5 +201,62 @@ export async function registerRoutes(
     return res.json(design);
   });
 
+  app.get("/api/designs/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ status: "error", error: "Invalid id", resultUrl: null });
+
+      const design = await storage.getDesign(id);
+      if (!design) return res.status(404).json({ status: "error", error: "Design not found", resultUrl: null });
+
+      if (design.status === "completed") {
+        return res.json({ status: "completed", resultUrl: design.resultImageUrl, error: null });
+      }
+      if (design.status === "failed") {
+        return res.json({ status: "failed", resultUrl: null, error: "Generering fejlede. Prøv et andet billede eller stil." });
+      }
+
+      if (!design.collovUuid) {
+        return res.json({ status: design.status, resultUrl: null, error: null });
+      }
+
+      const fetch = (await import("node-fetch")).default;
+      const collovRes = await fetch(
+        `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(design.collovUuid)}`,
+        { headers: { apiKey: COLLOV_API_KEY! } }
+      );
+      const json = (await collovRes.json()) as any;
+      const record = json.data || {};
+
+      if (record.status === "FAILED") {
+        await storage.updateDesign(id, { status: "failed" });
+        return res.json({
+          status: "failed",
+          error: record.errorMessage || "Generering fejlede. Prøv et andet billede eller stil.",
+          resultUrl: null,
+        });
+      }
+
+      if (record.status === "SUCCESS") {
+        const resultUrl = record.aiGenerateRecord?.generateUrl;
+        await storage.updateDesign(id, { status: "completed", resultImageUrl: resultUrl });
+        return res.json({ status: "completed", resultUrl, error: null });
+      }
+
+      return res.json({
+        status: (record.status || "processing").toLowerCase(),
+        resultUrl: null,
+        error: null,
+      });
+    } catch (error: any) {
+      log(`Status check failed: ${error.message}`);
+      return res.status(500).json({
+        status: "error",
+        error: "Kunne ikke tjekke status. Prøv igen.",
+        resultUrl: null,
+      });
+    }
+  });
+
   return httpServer;
 }

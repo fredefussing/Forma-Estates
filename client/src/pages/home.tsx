@@ -109,26 +109,38 @@ export default function HomePage() {
     const poll = async () => {
       attempts++;
       try {
-        const res = await fetch(`/api/designs/${designId}`);
-        if (!res.ok) return;
-        const design: Design = await res.json();
-        setActiveDesign(design);
-
-        if (design.status === "completed" || design.status === "failed") {
-          queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
-          if (design.status === "failed") {
-            toast({
-              title: "Generering mislykkedes",
-              description: "Prøv igen med et andet billede.",
-              variant: "destructive",
-            });
-          }
+        const res = await fetch(`/api/designs/${designId}/status`);
+        if (!res.ok) {
+          if (attempts < maxAttempts) { setTimeout(poll, 5000); }
           return;
         }
+        const data = await res.json() as { status: string; resultUrl: string | null; error: string | null };
+
+        if (data.status === "completed" && data.resultUrl) {
+          const designRes = await fetch(`/api/designs/${designId}`);
+          const updatedDesign: Design = await designRes.json();
+          setActiveDesign(updatedDesign);
+          queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+          return;
+        }
+
+        if (data.status === "failed" || data.status === "error") {
+          const designRes = await fetch(`/api/designs/${designId}`);
+          const updatedDesign: Design = await designRes.json();
+          setActiveDesign({ ...updatedDesign, status: "failed" });
+          queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+          toast({
+            title: "Generering mislykkedes",
+            description: data.error || "Prøv igen med et andet billede eller stil.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         if (attempts < maxAttempts) {
           setTimeout(poll, 3000);
         } else {
-          setActiveDesign({ ...design, status: "failed" });
+          setActiveDesign((prev) => prev ? { ...prev, status: "failed" } : prev);
           toast({
             title: "Timeout",
             description: "Genereringen tog for lang tid. Prøv igen.",
