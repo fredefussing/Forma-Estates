@@ -75,10 +75,14 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
 
   const json = (await res.json()) as any;
   const data = json.data || {};
-  const status = data.status;
+  const record = data.generateRecordList?.[0] || {};
+  const status = record.status || data.status;
+
+  log(`Collov poll for ${uuid}: status=${status}, raw=${JSON.stringify(json).slice(0, 500)}`);
 
   if (status === "SUCCESS") {
-    return { status: "completed", resultUrl: data.aiGenerateRecord?.generateUrl };
+    const resultUrl = record.generateUrl || data.aiGenerateRecord?.generateUrl;
+    return { status: "completed", resultUrl };
   }
   if (status === "FAILED") {
     return { status: "failed" };
@@ -226,25 +230,29 @@ export async function registerRoutes(
         { headers: { apiKey: COLLOV_API_KEY! } }
       );
       const json = (await collovRes.json()) as any;
-      const record = json.data || {};
+      const data = json.data || {};
+      const genRecord = data.generateRecordList?.[0] || {};
+      const recordStatus = genRecord.status || data.status;
 
-      if (record.status === "FAILED") {
+      log(`Status check for design ${id}: collov status=${recordStatus}`);
+
+      if (recordStatus === "FAILED") {
         await storage.updateDesign(id, { status: "failed" });
         return res.json({
           status: "failed",
-          error: record.errorMessage || "Generering fejlede. Prøv et andet billede eller stil.",
+          error: "Generering fejlede. Prøv et andet billede eller stil.",
           resultUrl: null,
         });
       }
 
-      if (record.status === "SUCCESS") {
-        const resultUrl = record.aiGenerateRecord?.generateUrl;
+      if (recordStatus === "SUCCESS") {
+        const resultUrl = genRecord.generateUrl || data.aiGenerateRecord?.generateUrl;
         await storage.updateDesign(id, { status: "completed", resultImageUrl: resultUrl });
         return res.json({ status: "completed", resultUrl, error: null });
       }
 
       return res.json({
-        status: (record.status || "processing").toLowerCase(),
+        status: "processing",
         resultUrl: null,
         error: null,
       });
