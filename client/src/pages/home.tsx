@@ -390,11 +390,11 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {designs.length > 0 && (
+        {designs.filter((d) => d.status === "completed").length > 0 && (
           <section className="mt-16">
             <h2 className="text-xl font-semibold mb-4">Tidligere designs</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {designs.map((d) => (
+              {designs.filter((d) => d.status === "completed").map((d) => (
                 <DesignCard
                   key={d.id}
                   design={d}
@@ -404,12 +404,8 @@ export default function HomePage() {
                     setRoomType(d.roomType as RoomType);
                     setStyle(d.style as DesignStyle);
                     setStep(3);
+                    setPollingDesignId(null);
                     window.scrollTo({ top: 0, behavior: "smooth" });
-                    if (d.status === "pending" || d.status === "processing") {
-                      setPollingDesignId(d.id);
-                    } else {
-                      setPollingDesignId(null);
-                    }
                   }}
                 />
               ))}
