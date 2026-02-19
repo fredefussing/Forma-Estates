@@ -1,11 +1,12 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Sparkles, Image as ImageIcon, ArrowRight, Loader2, RotateCcw, X, ChevronLeft, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa } from "lucide-react";
+import { useTransformationJob } from "@/hooks/use-transformation-job";
+import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa } from "lucide-react";
 import { roomTypes, designStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { DesignCard } from "@/components/design-card";
@@ -72,10 +73,29 @@ export default function HomePage() {
   const [style, setStyle] = useState<DesignStyle | "">("");
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
 
-  const { data: designs = [], isLoading: designsLoading } = useQuery<Design[]>({
+  const { data: designs = [] } = useQuery<Design[]>({
     queryKey: ["/api/designs"],
   });
+
+  const job = useTransformationJob(pollingDesignId);
+
+  useEffect(() => {
+    if (job.status === "completed" && job.resultUrl && activeDesign) {
+      setActiveDesign({ ...activeDesign, status: "completed", resultImageUrl: job.resultUrl });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+    }
+    if (job.status === "failed" && activeDesign) {
+      setActiveDesign({ ...activeDesign, status: "failed" });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+      toast({
+        title: "Generering mislykkedes",
+        description: job.error || "Prøv igen med et andet billede eller stil.",
+        variant: "destructive",
+      });
+    }
+  }, [job.status, job.resultUrl, job.error]);
 
   const generateMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -92,7 +112,7 @@ export default function HomePage() {
     onSuccess: (design) => {
       queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
       setActiveDesign(design);
-      pollForResult(design.id);
+      setPollingDesignId(design.id);
     },
     onError: (error: Error) => {
       toast({
@@ -102,65 +122,6 @@ export default function HomePage() {
       });
     },
   });
-
-  const pollForResult = useCallback(async (designId: number) => {
-    const maxAttempts = 60;
-    let attempts = 0;
-    const poll = async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/designs/${designId}/status`);
-        if (!res.ok) {
-          if (attempts < maxAttempts) { setTimeout(poll, 5000); }
-          return;
-        }
-        const data = await res.json() as { status: string; resultUrl: string | null; error: string | null };
-
-        if (data.status === "completed" && data.resultUrl) {
-          const designRes = await fetch(`/api/designs/${designId}`);
-          const updatedDesign: Design = await designRes.json();
-          setActiveDesign(updatedDesign);
-          queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
-          return;
-        }
-
-        if (data.status === "failed" || data.status === "error") {
-          const designRes = await fetch(`/api/designs/${designId}`);
-          const updatedDesign: Design = await designRes.json();
-          setActiveDesign({ ...updatedDesign, status: "failed" });
-          queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
-          toast({
-            title: "Generering mislykkedes",
-            description: data.error || "Prøv igen med et andet billede eller stil.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
-        } else {
-          setActiveDesign((prev) => prev ? { ...prev, status: "failed" } : prev);
-          toast({
-            title: "Timeout",
-            description: "Genereringen tog for lang tid. Prøv igen.",
-            variant: "destructive",
-          });
-        }
-      } catch {
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 5000);
-        } else {
-          toast({
-            title: "Forbindelsesfejl",
-            description: "Kunne ikke hente resultatet. Prøv igen.",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-    poll();
-  }, [toast]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -177,7 +138,9 @@ export default function HomePage() {
     setPreviewUrl(URL.createObjectURL(file));
     setStep(2);
     setActiveDesign(null);
-  }, [toast]);
+    setPollingDesignId(null);
+    job.reset();
+  }, [toast, job]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -187,7 +150,9 @@ export default function HomePage() {
     setPreviewUrl(URL.createObjectURL(file));
     setStep(2);
     setActiveDesign(null);
-  }, []);
+    setPollingDesignId(null);
+    job.reset();
+  }, [job]);
 
   const handleGenerate = () => {
     if (!selectedFile || !roomType || !style) return;
@@ -205,11 +170,13 @@ export default function HomePage() {
     setRoomType("");
     setStyle("");
     setActiveDesign(null);
+    setPollingDesignId(null);
+    job.reset();
     setStep(1);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const isGenerating = generateMutation.isPending || (activeDesign?.status === "pending" || activeDesign?.status === "processing");
+  const isGenerating = generateMutation.isPending || job.status === "pending" || job.status === "processing";
 
   return (
     <div className="min-h-screen bg-background">
@@ -387,10 +354,14 @@ export default function HomePage() {
                   <div className="relative mb-6">
                     <div className="w-16 h-16 rounded-full border-4 border-muted border-t-primary animate-spin" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-1">AI designer dit rum...</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="text-lg font-semibold mb-1" data-testid="text-generating">AI designer dit rum...</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
                     Dette tager typisk 15-45 sekunder
                   </p>
+                  <div className="w-64">
+                    <Progress value={job.progress} className="h-2" data-testid="progress-bar" />
+                    <p className="text-xs text-muted-foreground text-center mt-2">{Math.round(job.progress)}%</p>
+                  </div>
                 </Card>
               ) : activeDesign.status === "completed" && activeDesign.resultImageUrl ? (
                 <BeforeAfterSlider
@@ -403,7 +374,9 @@ export default function HomePage() {
                     <X className="w-6 h-6 text-destructive" />
                   </div>
                   <h3 className="text-lg font-semibold mb-1">Noget gik galt</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Prøv igen med et nyt billede.</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {job.error || "Prøv igen med et nyt billede."}
+                  </p>
                   <Button onClick={handleReset} data-testid="button-try-again">Prøv igen</Button>
                 </Card>
               ) : null}
@@ -427,7 +400,9 @@ export default function HomePage() {
                     setStep(3);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                     if (d.status === "pending" || d.status === "processing") {
-                      pollForResult(d.id);
+                      setPollingDesignId(d.id);
+                    } else {
+                      setPollingDesignId(null);
                     }
                   }}
                 />
