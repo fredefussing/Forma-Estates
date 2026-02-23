@@ -80,6 +80,7 @@ export default function HomePage() {
   const [budget, setBudget] = useState<number>(25000);
   const [tier, setTier] = useState<BudgetTier>("standard");
   const [customWishes, setCustomWishes] = useState<string>("");
+  const [wishesExpanded, setWishesExpanded] = useState(false);
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
@@ -185,6 +186,7 @@ export default function HomePage() {
     setBudget(25000);
     setTier("standard");
     setCustomWishes("");
+    setWishesExpanded(false);
     setActiveDesign(null);
     setPollingDesignId(null);
     job.reset();
@@ -395,16 +397,72 @@ export default function HomePage() {
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
                       <Separator className="bg-border/40" />
                       <div className="pt-6">
-                        <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Personlige ønsker <span className="normal-case tracking-normal text-muted-foreground/50">(valgfrit)</span></p>
-                        <textarea
-                          value={customWishes}
-                          onChange={(e) => setCustomWishes(e.target.value)}
-                          placeholder="F.eks. &quot;Grøn accent-væg&quot;, &quot;Tilføj flere planter&quot;, &quot;Behold den mørke gulvfarve&quot;..."
-                          className="w-full min-h-[80px] px-3.5 py-3 rounded-lg border border-border/60 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10 resize-none transition-colors"
-                          maxLength={300}
-                          data-testid="input-custom-wishes"
-                        />
-                        <p className="text-[11px] text-muted-foreground/40 mt-1.5 text-right">{customWishes.length}/300</p>
+                        <button
+                          type="button"
+                          onClick={() => setWishesExpanded(!wishesExpanded)}
+                          className="w-full flex items-center justify-between py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+                          data-testid="button-toggle-wishes"
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs">{wishesExpanded ? "−" : "+"}</span>
+                            Har du specifikke ønsker? <span className="text-muted-foreground/50">(valgfrit)</span>
+                          </span>
+                        </button>
+
+                        <AnimatePresence>
+                          {wishesExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <p className="text-xs text-muted-foreground/60 mb-3 mt-1">
+                                Beskriv detaljer vi skal tage hensyn til:
+                              </p>
+
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {[
+                                  "Mørkegrøn accent-væg bag sengen",
+                                  "Behold eksisterende sofa, skift resten",
+                                  "Tilføj planter og varme trætoner",
+                                  "Sort sengelampe og minimalistisk look"
+                                ].map((example, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setCustomWishes(example)}
+                                    className="px-2.5 py-1.5 text-xs rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-muted/30 transition-all cursor-pointer"
+                                    data-testid={`chip-wish-example-${i}`}
+                                  >
+                                    "{example}"
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="relative">
+                                <textarea
+                                  value={customWishes}
+                                  onChange={(e) => setCustomWishes(e.target.value.slice(0, 100))}
+                                  placeholder="Dine ønsker..."
+                                  rows={3}
+                                  className="w-full px-3.5 py-3 rounded-lg border border-border/60 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10 resize-none transition-colors"
+                                  data-testid="input-custom-wishes"
+                                />
+                                <span className={`absolute bottom-2.5 right-3 text-[11px] ${customWishes.length >= 100 ? "text-destructive font-medium" : "text-muted-foreground/40"}`}>
+                                  {customWishes.length}/100
+                                </span>
+                              </div>
+
+                              {customWishes.length > 0 && (
+                                <p className="text-[11px] text-muted-foreground/40 mt-2 italic">
+                                  Vi bestræber os på at opfylde dit ønske, men AI'en har tekniske begrænsninger.
+                                </p>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </motion.div>
                   )}

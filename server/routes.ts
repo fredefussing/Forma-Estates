@@ -200,19 +200,21 @@ export async function registerRoutes(
       const customWishes = req.body.customWishes?.trim() || "";
 
       let budgetPrompt: string | undefined;
+      let userWishesBlock = "";
+      if (customWishes) {
+        userWishesBlock = ` [USER REQUEST - HIGH PRIORITY] ${customWishes}. CRITICAL: Incorporate the above user request. Prioritize specific elements mentioned (colors, furniture, materials). If request mentions wall color, ensure walls are EXACTLY that color.`;
+      }
+
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
-        const userWishes = customWishes
-          ? ` USER SPECIFIC REQUESTS (important, follow these): ${customWishes}.`
-          : "";
 
         if (parsed.data.style === "badboy") {
-          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${tierConfig.prompt}${userWishes} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
+          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${tierConfig.prompt}${userWishesBlock} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
         } else {
-          budgetPrompt = `${tierConfig.prompt}${userWishes} Maintain exact room structure, windows, doors, NO layout changes. Photorealistic, high quality.`;
+          budgetPrompt = `${tierConfig.prompt}${userWishesBlock} Maintain exact room structure, windows, doors, NO layout changes. Photorealistic, high quality.`;
         }
       } else if (customWishes) {
-        budgetPrompt = `USER SPECIFIC REQUESTS: ${customWishes}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
+        budgetPrompt = `${userWishesBlock} Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
       }
 
       try {
