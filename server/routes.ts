@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { createDesignSchema, createQuoteSchema } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema } from "@shared/schema";
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
@@ -197,23 +197,16 @@ export async function registerRoutes(
         return res.status(500).json({ message: "COLLOV_API_KEY not configured" });
       }
 
-      const customWishes = req.body.customWishes?.trim() || "";
-
       let budgetPrompt: string | undefined;
-      const userPrefBlock = customWishes
-        ? `USER PREFERENCES (apply to furniture and decor):\n${customWishes}\n\n`
-        : "";
 
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
 
         if (parsed.data.style === "badboy") {
-          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${userPrefBlock}${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
+          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
         } else {
-          budgetPrompt = `${userPrefBlock}Transform this ${parsed.data.roomType} to ${parsed.data.style} style.\n${tierConfig.prompt}\n\nMaintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
+          budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style.\n${tierConfig.prompt}\n\nMaintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
         }
-      } else if (customWishes) {
-        budgetPrompt = `${userPrefBlock}Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
       }
 
       try {
@@ -390,6 +383,59 @@ export async function registerRoutes(
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
       return res.json(quote);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/special-requests", async (req, res) => {
+    try {
+      const parsed = createSpecialRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+      }
+
+      const specialRequest = await storage.createSpecialRequest({
+        designId: parsed.data.designId,
+        originalImageUrl: parsed.data.originalImageUrl,
+        request: parsed.data.request,
+        customerEmail: parsed.data.customerEmail || null,
+        price: parsed.data.price,
+        status: "pending",
+      });
+
+      log(`New special request #${specialRequest.id}: "${parsed.data.request}" for design ${parsed.data.designId}`);
+
+      return res.json(specialRequest);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/special-requests", async (_req, res) => {
+    const requests = await storage.getAllSpecialRequests();
+    return res.json(requests);
+  });
+
+  app.get("/api/special-requests/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+    const request = await storage.getSpecialRequest(id);
+    if (!request) return res.status(404).json({ message: "Special request not found" });
+
+    return res.json(request);
+  });
+
+  app.patch("/api/special-requests/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+      const request = await storage.updateSpecialRequest(id, req.body);
+      if (!request) return res.status(404).json({ message: "Special request not found" });
+
+      return res.json(request);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

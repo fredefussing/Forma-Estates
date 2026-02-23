@@ -66,6 +66,21 @@ export const quotes = pgTable("quotes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const specialRequestStatuses = ["pending", "in_progress", "completed", "cancelled"] as const;
+export type SpecialRequestStatus = (typeof specialRequestStatuses)[number];
+
+export const specialRequests = pgTable("special_requests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  designId: integer("design_id").notNull(),
+  originalImageUrl: text("original_image_url").notNull(),
+  resultImageUrl: text("result_image_url"),
+  request: text("request").notNull(),
+  customerEmail: text("customer_email"),
+  price: integer("price").notNull().default(500),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertDesignSchema = createInsertSchema(designs).omit({
   id: true as never,
   createdAt: true as never,
@@ -98,7 +113,22 @@ export const createQuoteSchema = z.object({
   status: z.enum(quoteStatuses).default("draft"),
 });
 
+export const insertSpecialRequestSchema = createInsertSchema(specialRequests).omit({
+  id: true as never,
+  createdAt: true as never,
+});
+
+export const createSpecialRequestSchema = z.object({
+  designId: z.number().int(),
+  originalImageUrl: z.string().min(1),
+  request: z.string().min(1).max(500),
+  customerEmail: z.string().email().optional(),
+  price: z.number().int().default(500),
+});
+
 export type InsertDesign = z.infer<typeof insertDesignSchema>;
 export type Design = typeof designs.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type Quote = typeof quotes.$inferSelect;
+export type InsertSpecialRequest = z.infer<typeof insertSpecialRequestSchema>;
+export type SpecialRequest = typeof specialRequests.$inferSelect;

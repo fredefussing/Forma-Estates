@@ -1,4 +1,4 @@
-import { type Design, type InsertDesign, designs, type Quote, type InsertQuote, quotes } from "@shared/schema";
+import { type Design, type InsertDesign, designs, type Quote, type InsertQuote, quotes, type SpecialRequest, type InsertSpecialRequest, specialRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
@@ -12,6 +12,10 @@ export interface IStorage {
   getQuotesByDesign(designId: number): Promise<Quote[]>;
   updateQuote(id: number, updates: Partial<InsertQuote>): Promise<Quote | undefined>;
   getAllQuotes(): Promise<Quote[]>;
+  createSpecialRequest(request: InsertSpecialRequest): Promise<SpecialRequest>;
+  getSpecialRequest(id: number): Promise<SpecialRequest | undefined>;
+  getAllSpecialRequests(): Promise<SpecialRequest[]>;
+  updateSpecialRequest(id: number, updates: Partial<InsertSpecialRequest>): Promise<SpecialRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -55,6 +59,25 @@ export class DatabaseStorage implements IStorage {
 
   async getAllQuotes(): Promise<Quote[]> {
     return db.select().from(quotes).orderBy(desc(quotes.createdAt));
+  }
+
+  async createSpecialRequest(request: InsertSpecialRequest): Promise<SpecialRequest> {
+    const [result] = await db.insert(specialRequests).values(request).returning();
+    return result;
+  }
+
+  async getSpecialRequest(id: number): Promise<SpecialRequest | undefined> {
+    const [result] = await db.select().from(specialRequests).where(eq(specialRequests.id, id));
+    return result;
+  }
+
+  async getAllSpecialRequests(): Promise<SpecialRequest[]> {
+    return db.select().from(specialRequests).orderBy(desc(specialRequests.createdAt));
+  }
+
+  async updateSpecialRequest(id: number, updates: Partial<InsertSpecialRequest>): Promise<SpecialRequest | undefined> {
+    const [result] = await db.update(specialRequests).set(updates).where(eq(specialRequests.id, id)).returning();
+    return result;
   }
 }
 

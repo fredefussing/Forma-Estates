@@ -16,6 +16,7 @@ import { styleVocabulary } from "@shared/styleVocabulary";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { DesignCard } from "@/components/design-card";
 import { BudgetSlider } from "@/components/budget-slider";
+import { SpecialRequest } from "@/components/special-request";
 import { motion, AnimatePresence } from "framer-motion";
 
 const roomTypeLabels: Record<RoomType, string> = {
@@ -79,8 +80,6 @@ export default function HomePage() {
   const [style, setStyle] = useState<DesignStyle | "">("");
   const [budget, setBudget] = useState<number>(25000);
   const [tier, setTier] = useState<BudgetTier>("standard");
-  const [customWishes, setCustomWishes] = useState<string>("");
-  const [wishesExpanded, setWishesExpanded] = useState(false);
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
@@ -171,9 +170,6 @@ export default function HomePage() {
     formData.append("roomType", roomType);
     formData.append("style", style);
     formData.append("budget", budget.toString());
-    if (customWishes.trim()) {
-      formData.append("customWishes", customWishes.trim());
-    }
     generateMutation.mutate(formData);
     setStep(3);
   };
@@ -185,8 +181,6 @@ export default function HomePage() {
     setStyle("");
     setBudget(25000);
     setTier("standard");
-    setCustomWishes("");
-    setWishesExpanded(false);
     setActiveDesign(null);
     setPollingDesignId(null);
     job.reset();
@@ -393,81 +387,6 @@ export default function HomePage() {
                     </motion.div>
                   )}
 
-                  {style && roomType && (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                      <Separator className="bg-border/40" />
-                      <div className="pt-6">
-                        <button
-                          type="button"
-                          onClick={() => setWishesExpanded(!wishesExpanded)}
-                          className="w-full flex items-center justify-between py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-                          data-testid="button-toggle-wishes"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span className="text-xs">{wishesExpanded ? "−" : "+"}</span>
-                            Har du specifikke ønsker? <span className="text-muted-foreground/50">(valgfrit)</span>
-                          </span>
-                        </button>
-
-                        <AnimatePresence>
-                          {wishesExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <p className="text-xs text-muted-foreground/60 mb-3 mt-1">
-                                Beskriv detaljer vi skal tage hensyn til:
-                              </p>
-
-                              <div className="flex flex-wrap gap-1.5 mb-3">
-                                {[
-                                  "Behold eksisterende sofa, skift resten",
-                                  "Tilføj mange grønne planter",
-                                  "Varme trætoner, ikke koldt look",
-                                  "Minimalistisk med få møbler",
-                                  "Industrielle lamper og metal detaljer"
-                                ].map((example, i) => (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => setCustomWishes(example)}
-                                    className="px-2.5 py-1.5 text-xs rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-muted/30 transition-all cursor-pointer"
-                                    data-testid={`chip-wish-example-${i}`}
-                                  >
-                                    "{example}"
-                                  </button>
-                                ))}
-                              </div>
-
-                              <div className="relative">
-                                <textarea
-                                  value={customWishes}
-                                  onChange={(e) => setCustomWishes(e.target.value.slice(0, 100))}
-                                  placeholder="Dine ønsker..."
-                                  rows={3}
-                                  className="w-full px-3.5 py-3 rounded-lg border border-border/60 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10 resize-none transition-colors"
-                                  data-testid="input-custom-wishes"
-                                />
-                                <span className={`absolute bottom-2.5 right-3 text-[11px] ${customWishes.length >= 100 ? "text-destructive font-medium" : "text-muted-foreground/40"}`}>
-                                  {customWishes.length}/100
-                                </span>
-                              </div>
-
-                              {customWishes.length > 0 && (
-                                <p className="text-[11px] text-muted-foreground/40 mt-2 italic">
-                                  Vi tilpasser møbler, stemning og detaljer efter dit ønske. Specifikke vægfarver kan vi desværre ikke garantere.
-                                </p>
-                              )}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </motion.div>
-                  )}
-
                   <Button
                     className="w-full h-12 text-sm font-medium tracking-wide"
                     size="lg"
@@ -546,6 +465,11 @@ export default function HomePage() {
                         </div>
                       </div>
                     )}
+
+                    <SpecialRequest
+                      designId={activeDesign.id}
+                      originalImageUrl={activeDesign.originalImageUrl}
+                    />
                   </div>
                 ) : activeDesign.status === "failed" ? (
                   <div className="border border-border/60 rounded-xl flex flex-col items-center justify-center py-20 bg-card/30">

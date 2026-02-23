@@ -10,11 +10,11 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - **AI Engine**: Collov AI Virtual Staging API
 
 ## Architecture
-- `shared/schema.ts` - Data models (designs + quotes tables), room types, design styles, budget tiers, Zod schemas
+- `shared/schema.ts` - Data models (designs, quotes, specialRequests tables), room types, design styles, budget tiers, Zod schemas
 - `shared/styleVocabulary.ts` - Style vocabulary: 8 styles × 3 budget tiers with prompts, descriptions, retailer examples
 - `shared/budgetUtils.ts` - Budget utility functions (budgetToTier, getTierLabel, formatDKK)
 - `server/routes.ts` - API routes for designs, quotes, and style info
-- `server/storage.ts` - Database CRUD operations for designs and quotes
+- `server/storage.ts` - Database CRUD operations for designs, quotes, and special requests
 - `server/db.ts` - PostgreSQL connection pool
 - `client/src/pages/landing.tsx` - Landing page with hero, features, about section
 - `client/src/pages/home.tsx` - Design tool page with 3-step flow (upload → configure with budget → result)
@@ -22,6 +22,7 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider
 - `client/src/components/design-card.tsx` - Design history card component
+- `client/src/components/special-request.tsx` - Special request form (shown after AI generation for manual customization requests)
 
 ## API Routes
 - `POST /api/designs` - Upload image + create design (accepts budget field, computes tier, sends enhanced prompt to Collov)
@@ -34,6 +35,10 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - `GET /api/quotes/:id` - Get single quote
 - `GET /api/designs/:id/quotes` - Get quotes for a design
 - `PATCH /api/quotes/:id` - Update a quote
+- `POST /api/special-requests` - Create a special request (manual customization, 500 kr)
+- `GET /api/special-requests` - List all special requests
+- `GET /api/special-requests/:id` - Get single special request
+- `PATCH /api/special-requests/:id` - Update a special request (status, result image)
 
 ## Budget System
 - **3 tiers**: budget (<15,000 DKK), standard (15,000-40,000 DKK), luxury (>40,000 DKK)
@@ -46,6 +51,13 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - Products with name, retailer, price, link
 - Automatic 25% margin calculation
 - Quote statuses: draft, sent, accepted, declined
+
+## Special Request System
+- Shown under AI-generated results for requests AI can't handle (specific wall colors, custom furniture, etc.)
+- Price: 500 kr for manual customization
+- Stored in `special_requests` table with designId, request text, customer email, status
+- Statuses: pending, in_progress, completed, cancelled
+- Admin can view and manage via API
 
 ## Collov API Integration
 - **Send task**: POST `generateImgOnCommon` with `uploadUrl`, `roomType`, `style`, optional `prompt` (budget-enhanced)

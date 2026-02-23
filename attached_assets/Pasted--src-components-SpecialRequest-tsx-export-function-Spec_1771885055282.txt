@@ -1,0 +1,212 @@
+// /src/components/SpecialRequest.tsx
+
+export function SpecialRequest({ designId, imageUrl }) {
+  const [showForm, setShowForm] = useState(false);
+  const [request, setRequest] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  
+  if (submitted) {
+    return (
+      <div className="special-request-confirmation">
+        <h3>✓ Dit ønske er modtaget!</h3>
+        <p>Vi kontakter dig indenfor 24 timer med et tilpasset design.</p>
+        <p>Pris for manuel tilpasning: 500 kr</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="special-request">
+      <button 
+        onClick={() => setShowForm(!showForm)}
+        className="special-request-toggle"
+      >
+        Har du specielle ønsker vi ikke kan generere? (fx specifik vægfarve)
+      </button>
+      
+      {showForm && (
+        <div className="special-request-form">
+          <textarea
+            value={request}
+            onChange={(e) => setRequest(e.target.value)}
+            placeholder="Beskriv dit ønske - fx 'Mørkegrøn væg bag sengen'"
+            rows={4}
+          />
+          
+          <button 
+            onClick={async () => {
+              await fetch('/api/special-request', {
+                method: 'POST',
+                body: JSON.stringify({
+                  designId,
+                  originalImageUrl: imageUrl,
+                  request,
+                  price: 500
+                })
+              });
+              setSubmitted(true);
+            }}
+            disabled={!request.trim()}
+          >
+            Send forespørgsel (500 kr)
+          </button>
+          
+          <p className="note">
+            Vi retter dit billede manuelt og sender indenfor 24 timer.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+2. Backend: Modtag og send til dig
+TypeScript
+Copy
+// /server/routes.ts - NY route
+
+app.post('/api/special-request', async (req, res) => {
+  const { designId, originalImageUrl, request, price } = req.body;
+  
+  // Gem i database
+  await db.insert('specialRequests', {
+    designId,
+    originalImageUrl,
+    request,
+    price,
+    status: 'pending',
+    createdAt: new Date()
+  });
+  
+  // Send email til DIG
+  await sendEmail({
+    to: 'DIN_EMAIL@gmail.com',
+    subject: `NY MANUEL FORESPØRGSEL #${designId}`,
+    html: `
+      <h2>Ny kunde vil have manuel tilpasning</h2>
+      
+      <p><strong>Ønske:</strong> ${request}</p>
+      <p><strong>Pris:</strong> ${price} kr</p>
+      
+      <h3>Originalt billede:</h3>
+      <img src="${originalImageUrl}" style="max-width: 500px;" />
+      
+      <h3>Din opgave:</h3>
+      <ol>
+        <li>Åbn billedet i Photoshop/Canva</li>
+        <li>Ret: ${request}</li>
+        <li>Gem som ny version</li>
+        <li>Upload til admin panel</li>
+        <li>Send til kunde med faktura på ${price} kr</li>
+      </ol>
+      
+      <a href="https://din-admin-url.dk/special/${designId}">
+        Gå til admin
+      </a>
+    `
+  });
+  
+  // Bekræft til kunde
+  await sendEmail({
+    to: req.user.email, // eller hent fra design
+    subject: 'Dit specielle ønske er modtaget',
+    html: `
+      <p>Vi har modtaget dit ønske: "${request}"</p>
+      <p>Vi arbejder på det og sender indenfor 24 timer.</p>
+      <p>Pris: ${price} kr (betales ved modtagelse)</p>
+    `
+  });
+  
+  res.json({ success: true });
+});
+3. Admin panel: Manuel redigering
+tsx
+Copy
+// /src/admin/SpecialRequests.tsx
+
+export function SpecialRequests() {
+  const [requests, setRequests] = useState([]);
+  
+  return (
+    <div className="special-requests-admin">
+      <h2>Manuelle forespørgsler</h2>
+      
+      {requests.map(req => (
+        <div key={req.id} className="request-card">
+          <img src={req.originalImageUrl} alt="Original" />
+          
+          <div className="request-details">
+            <p><strong>Ønske:</strong> {req.request}</p>
+            <p><strong>Indsendt:</strong> {req.createdAt}</p>
+            <p><strong>Pris:</strong> {req.price} kr</p>
+          </div>
+          
+          <div className="actions">
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={(e) => uploadEdited(req.id, e.target.files[0])}
+            />
+            <button onClick={() => sendToCustomer(req.id)}>
+              Send til kunde
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+4. RYD OP: Fjern det der ikke virkede
+Fjern fra CustomNotes.tsx:
+tsx
+Copy
+// FJERN disse eksempler:
+// "Mørkegrøn accent-væg bag sengen" ❌
+// "Tilføj mange grønne planter" ❌ (hvis ikke virker)
+
+// BEHOLD kun hvis de virker:
+"Behold eksisterende sofa, skift resten"
+"Varme trætoner, ikke koldt look"
+"Minimalistisk med få møbler"
+Fjern fra backend:
+TypeScript
+Copy
+// FJERN al wall-color detection:
+// - hasWallColor check
+// - hasGreen check  
+// - hasBlue check
+// - hex-koder
+// - "WALL COLOR IS TOP PRIORITY"
+
+// BEHOLD simpel version:
+if (customNotes?.trim()) {
+  prompt += `User preferences: ${customNotes}\n\n`;
+}
+Prompt til Replit
+plain
+Copy
+OPGAVE: Plan D + RYD OP
+
+1. OPLYSNING:
+   - Fjern "CustomNotes" komponent helt fra upload flow
+   - Fjern customNotes fra API kald
+   - Fjern wall-color detection fra backend
+
+2. TILFØJ i stedet:
+   - "SpecialRequest" komponent (se kode ovenfor)
+   - Vis KUN efter generering (under resultat)
+   - Tekst: "Har du specielle ønsker vi ikke kan generere? 
+             Fx specifik vægfarve, særlige møbler..."
+   - Pris: 500 kr for manuel tilpasning
+   - Email sendes til admin med original billede + ønske
+
+3. ADMIN:
+   - Ny route /api/special-request
+   - Email til DIN_EMAIL@gmail.com
+   - Simple admin view til at uploade rettet billede
+
+4. RYD OP:
+   - Slet customNotes felt fra database (hvis oprettet)
+   - Slet wall-color logik i prompt-builder
+   - Behold KUN simple user preferences hvis de virker
+
+Rapportér når SpecialRequest er live.
