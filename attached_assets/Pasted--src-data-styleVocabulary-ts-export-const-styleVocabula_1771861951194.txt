@@ -1,0 +1,180 @@
+// /src/data/styleVocabulary.ts
+
+export const styleVocabulary = {
+  skandinavisk: {
+    colors: ["hvid", "lys eg", "soft grey", "beige"],
+    materials: ["naturlig træ", "linen", "uld", "mat metal"],
+    furniture: ["low profile", "clean lines", "functional", "minimal ornamentation"],
+    lighting: ["soft diffused", "natural daylight", "warm white"],
+    wallColor: "white",
+    
+    budget: {
+      prompt: "affordable scandinavian bedroom, simple white furniture, basic materials, IKEA-style, clean lines, minimal decor, white walls, light oak accents",
+      description: "Enkel og funktionel indretning med hvide møbler og naturlige materialer",
+      exampleRetailers: ["IKEA", "JYSK"]
+    },
+    standard: {
+      prompt: "premium scandinavian bedroom, quality furniture, oak details, soft textiles, designer lamps, white walls, natural materials, warm lighting",
+      description: "Kvalitetsindretning med nordisk design og gode materialer",
+      exampleRetailers: ["Ilva", "Hay", "Fritz Hansen"]
+    },
+    luxury: {
+      prompt: "luxury scandinavian bedroom, exclusive designer furniture, premium oak, artisan textiles, statement lighting, white walls, natural light, curated art",
+      description: "Eksklusiv indretning med designer-møbler og luksus-materialer",
+      exampleRetailers: ["Bolia", "&Tradition", "Louis Poulsen"]
+    }
+  },
+
+  moderne: {
+    // ... beholder som før
+  },
+
+  // MIDTÅRHUNDREDE ERSTATTET MED BADBOY
+  badboy: {
+    colors: ["matte black", "charcoal", "deep navy", "gunmetal grey"],
+    materials: ["læder", "krom", "carbon fiber", "sort marmor", "glas"],
+    furniture: ["low platform", "tufted leather", "chrome accents", "statement pieces"],
+    lighting: ["dim ambient", "neon accents", "LED strips", "moody shadows"],
+    wallColor: "matte black",
+    
+    budget: {
+      prompt: "dark masculine bedroom, MATTE BLACK WALLS, leather accents, chrome details, dim ambient lighting, street art posters, BLACK BED LINEN, industrial metal furniture, urban edge, moody atmosphere, new money aesthetic, bold statement pieces, unapologetic luxury, dark and brooding",
+      description: "Mørk, urban stil med attitude og ny rigdom",
+      exampleRetailers: ["IKEA", "H&M Home", "Zara Home"]
+    },
+    standard: {
+      prompt: "luxury masculine suite, MATTE BLACK WALLS, deep charcoal surfaces, BLACK LEATHER headboard, chrome and glass, NEON accent lighting, framed Porsche posters, Dom Perignon bottles as decor, designer items on display, velvet textures, DARK OAK floors, new money flex, conspicuous consumption, status symbols, moody and expensive",
+      description: "Eksklusiv dark luxury med sportsvogn attitude og ny rigdom",
+      exampleRetailers: ["BoConcept", "Menu", "Tom Dixon"]
+    },
+    luxury: {
+      prompt: "ultimate bachelor penthouse, MATTE BLACK WALLS, Italian leather furniture, carbon fiber details, curated supercar photography gallery wall, vintage Dom Perignon collection, BLACK SILK bedding, integrated LED mood lighting, smoked glass bar, Porsche Design accessories, dark exotic wood, exclusive street art, nightclub atmosphere, new money opulence, unapologetic wealth display, Instagram-worthy luxury, dark and seductive",
+      description: "Ultimativ badboy luksus - mørk, dyr, eksklusiv, ny rigdom",
+      exampleRetailers: ["Poltrona Frau", "B&B Italia", "Porsche Design", "Off-White Home"]
+    }
+  }
+};
+2. Backend: Byg prompt med vægfarve
+TypeScript
+Copy
+// /server/routes.ts
+
+function buildPrompt(roomType: string, style: string, tier: string, budget: number) {
+  const styleConfig = styleVocabulary[style];
+  const tierConfig = styleConfig[tier];
+  
+  // VIKTIG: Specificer vægfarve eksplicit
+  const wallColorInstruction = style === 'badboy' 
+    ? "MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO white walls, NO light colors"
+    : "white walls, light surfaces";
+  
+  const prompt = `
+    Transform this ${roomType} to ${style} style.
+    ${tierConfig.prompt}
+    
+    CRITICAL WALL COLOR: ${wallColorInstruction}
+    
+    Style elements: ${styleConfig.colors.join(", ")}.
+    Materials: ${styleConfig.materials.join(", ")}.
+    Furniture: ${styleConfig.furniture.join(", ")}.
+    Lighting: ${styleConfig.lighting.join(", ")}.
+    
+    Maintain exact room structure, windows, doors, NO layout changes.
+    Photorealistic, high quality, 4K render.
+  `;
+  
+  return prompt;
+}
+3. Frontend: Dropdown opdateret
+tsx
+Copy
+// /src/components/StyleSelector.tsx
+
+const styles = [
+  { id: 'skandinavisk', name: 'Skandinavisk', icon: '🌿' },
+  { id: 'moderne', name: 'Moderne', icon: '◼️' },
+  { id: 'badboy', name: 'Badboy (New Money)', icon: '🖤' },
+  // MIDTÅRHUNDREDE FJERNET
+];
+
+export function StyleSelector({ onChange }) {
+  return (
+    <div className="style-selector">
+      <h3>Vælg stil</h3>
+      <div className="style-grid">
+        {styles.map(style => (
+          <button 
+            key={style.id}
+            onClick={() => onChange(style.id)}
+            className={`style-card ${style.id === 'badboy' ? 'dark-style' : ''}`}
+          >
+            <span className="icon">{style.icon}</span>
+            <span className="name">{style.name}</span>
+            {style.id === 'badboy' && (
+              <span className="badge">Mørk</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+4. CSS til badboy stil
+css
+Copy
+/* /src/styles/styleSelector.css */
+
+.style-card {
+  padding: 1.5rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.style-card:hover {
+  border-color: #000;
+  transform: translateY(-2px);
+}
+
+/* Speciel styling for badboy */
+.style-card.dark-style {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: white;
+  border-color: #444;
+}
+
+.style-card.dark-style:hover {
+  border-color: #fff;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #ff4444;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+5. Test prompt (direkte til Collov)
+TypeScript
+Copy
+// Test i din browser console eller Postman
+
+const testPrompt = `
+Transform this bedroom to BADBOY NEW MONEY style.
+MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO white walls.
+BLACK LEATHER platform bed with tufted headboard.
+CHROME and CARBON FIBER furniture accents.
+PORSCHE 911 framed poster gallery wall.
+DOM PERIGNON champagne bottles as decor.
+NEON accent lighting, LED strips, moody shadows.
+DARK OAK herringbone floors, BLACK MARBLE surfaces.
+NEW MONEY opulence, unapologetic wealth, bachelor penthouse.
+Maintain exact room structure, windows, doors.
+`;
+
+// Send til Collov API og verificer at væggene er SORTE

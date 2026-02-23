@@ -56,7 +56,7 @@ const styleLabels: Record<DesignStyle, string> = {
   "coastal": "Kyst",
   "transitional": "Overgangs",
   "farmhouse": "Landlig",
-  "mid-century": "Midtårhundrede",
+  "badboy": "Badboy",
 };
 
 const styleDescriptions: Record<DesignStyle, string> = {
@@ -67,7 +67,7 @@ const styleDescriptions: Record<DesignStyle, string> = {
   "coastal": "Afslappet med maritime toner",
   "transitional": "Klassisk møder moderne",
   "farmhouse": "Rustikt og varmt",
-  "mid-century": "Retro elegance fra 50-60'erne",
+  "badboy": "Mørk, maskulin og eksklusiv",
 };
 
 export default function HomePage() {

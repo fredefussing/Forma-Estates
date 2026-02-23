@@ -29,7 +29,7 @@ export const designStyles = [
   "coastal",
   "transitional",
   "farmhouse",
-  "mid-century",
+  "badboy",
 ] as const;
 
 export const budgetTiers = ["budget", "standard", "luxury"] as const;

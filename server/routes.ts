@@ -184,7 +184,11 @@ export async function registerRoutes(
 
       let budgetPrompt: string | undefined;
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
-        budgetPrompt = styleVocabulary[parsed.data.style][tier].prompt;
+        const tierConfig = styleVocabulary[parsed.data.style][tier];
+        const wallInstruction = parsed.data.style === "badboy"
+          ? "MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO white walls, NO light colors."
+          : "";
+        budgetPrompt = `${tierConfig.prompt}${wallInstruction ? ` ${wallInstruction}` : ""} Maintain exact room structure, windows, doors, NO layout changes. Photorealistic, high quality.`;
       }
 
       try {

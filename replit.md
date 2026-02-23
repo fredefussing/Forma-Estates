@@ -57,7 +57,7 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 living room, bedroom, kitchen, bathroom, dining room, home office, kids room, studio, game room, home gym, laundry room, conference room, spa room, outdoor, open living and dining room
 
 ## Design Styles (8)
-scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, mid-century
+scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badboy
 
 ## File Uploads
 - Uploaded images stored in `uploads/` directory, served at `/uploads/` path
