@@ -1,0 +1,108 @@
+// /src/components/QuoteRequest.tsx
+
+export function QuoteRequest({ 
+  designId, 
+  generatedImageUrl, 
+  roomType, 
+  style, 
+  budget 
+}) {
+  const [email, setEmail] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  
+  if (submitted) {
+    return (
+      <div className="confirmation">
+        <h3>✓ Din forespørgsel er sendt!</h3>
+        <p>Vi kontakter dig indenfor 24 timer med personligt tilbud.</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="quote-request">
+      <h3>Er du glad for dit design?</h3>
+      <p>Få et tilbud på at gøre det til virkelighed.</p>
+      
+      <input
+        type="email"
+        placeholder="din@email.dk"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      
+      <textarea
+        placeholder="Dine ønsker eller ændringer (max 100 tegn)..."
+        maxLength={100}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+      />
+      <span>{notes.length}/100</span>
+      
+      <button 
+        onClick={() => {
+          fetch('/api/quote-request', {
+            method: 'POST',
+            body: JSON.stringify({
+              designId,
+              email,
+              notes,
+              generatedImageUrl,
+              roomType,
+              style,
+              budget
+            })
+          });
+          setSubmitted(true);
+        }}
+        disabled={!email}
+      >
+        Få tilbud
+      </button>
+    </div>
+  );
+}
+Email du modtager
+plain
+Copy
+Fra: noreply@nordicsketch.dk
+Til: DIN_EMAIL@gmail.com
+Emne: Ny tilbudsforespørgsel #123
+
+KUNDE: kunde@email.dk
+
+DESIGN:
+- Rum: Soveværelse
+- Stil: Skandinavisk
+- Budget: 25.000 kr
+
+ØNSKER:
+"Kan stolen være mørkere? Ellers super fint!"
+
+[AI GENERERET BILLEDE]
+
+DIN OPGAVE:
+Find produkter, byg tilbud, send til kunde.
+Prompt til Replit
+plain
+Copy
+OPGAVE: Simpel "Få tilbud" efter generering
+
+1. EFTER bruger ser AI billede, vis:
+   - "Få tilbud" knap
+   - Email input
+   - Noter (max 100 tegn, valgfrit)
+
+2. Backend /api/quote-request:
+   - Gem: email, notes, generatedImageUrl, roomType, style, budget
+   - Send email til DIN_EMAIL med alt info + billede
+
+3. Admin: Liste med:
+   - Kunde email
+   - Rum, stil, budget
+   - Noter
+   - Billede
+   - "Send tilbud" knap
+
+INGEN priser nævnt. INGEN betaling. Bare gratis tilbud.

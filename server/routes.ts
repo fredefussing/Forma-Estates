@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema } from "@shared/schema";
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
@@ -434,6 +434,61 @@ export async function registerRoutes(
 
       const request = await storage.updateSpecialRequest(id, req.body);
       if (!request) return res.status(404).json({ message: "Special request not found" });
+
+      return res.json(request);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/quote-requests", async (req, res) => {
+    try {
+      const parsed = createQuoteRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+      }
+
+      const quoteRequest = await storage.createQuoteRequest({
+        designId: parsed.data.designId,
+        customerEmail: parsed.data.customerEmail,
+        notes: parsed.data.notes || null,
+        generatedImageUrl: parsed.data.generatedImageUrl,
+        roomType: parsed.data.roomType,
+        style: parsed.data.style,
+        budget: parsed.data.budget || null,
+        status: "pending",
+      });
+
+      log(`New quote request #${quoteRequest.id} from ${parsed.data.customerEmail} for design ${parsed.data.designId}`);
+
+      return res.json(quoteRequest);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/quote-requests", async (_req, res) => {
+    const requests = await storage.getAllQuoteRequests();
+    return res.json(requests);
+  });
+
+  app.get("/api/quote-requests/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+    const request = await storage.getQuoteRequest(id);
+    if (!request) return res.status(404).json({ message: "Quote request not found" });
+
+    return res.json(request);
+  });
+
+  app.patch("/api/quote-requests/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+      const request = await storage.updateQuoteRequest(id, req.body);
+      if (!request) return res.status(404).json({ message: "Quote request not found" });
 
       return res.json(request);
     } catch (err: any) {

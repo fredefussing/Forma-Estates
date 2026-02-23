@@ -17,6 +17,7 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { DesignCard } from "@/components/design-card";
 import { BudgetSlider } from "@/components/budget-slider";
 import { SpecialRequest } from "@/components/special-request";
+import { QuoteRequest } from "@/components/quote-request";
 import { motion, AnimatePresence } from "framer-motion";
 
 const roomTypeLabels: Record<RoomType, string> = {
@@ -465,6 +466,14 @@ export default function HomePage() {
                         </div>
                       </div>
                     )}
+
+                    <QuoteRequest
+                      designId={activeDesign.id}
+                      generatedImageUrl={activeDesign.resultImageUrl!}
+                      roomType={activeDesign.roomType}
+                      style={activeDesign.style}
+                      budget={activeDesign.budget}
+                    />
 
                     <SpecialRequest
                       designId={activeDesign.id}

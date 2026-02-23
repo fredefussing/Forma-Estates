@@ -1,4 +1,4 @@
-import { type Design, type InsertDesign, designs, type Quote, type InsertQuote, quotes, type SpecialRequest, type InsertSpecialRequest, specialRequests } from "@shared/schema";
+import { type Design, type InsertDesign, designs, type Quote, type InsertQuote, quotes, type SpecialRequest, type InsertSpecialRequest, specialRequests, type QuoteRequest, type InsertQuoteRequest, quoteRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
@@ -16,6 +16,10 @@ export interface IStorage {
   getSpecialRequest(id: number): Promise<SpecialRequest | undefined>;
   getAllSpecialRequests(): Promise<SpecialRequest[]>;
   updateSpecialRequest(id: number, updates: Partial<InsertSpecialRequest>): Promise<SpecialRequest | undefined>;
+  createQuoteRequest(request: InsertQuoteRequest): Promise<QuoteRequest>;
+  getQuoteRequest(id: number): Promise<QuoteRequest | undefined>;
+  getAllQuoteRequests(): Promise<QuoteRequest[]>;
+  updateQuoteRequest(id: number, updates: Partial<InsertQuoteRequest>): Promise<QuoteRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -77,6 +81,25 @@ export class DatabaseStorage implements IStorage {
 
   async updateSpecialRequest(id: number, updates: Partial<InsertSpecialRequest>): Promise<SpecialRequest | undefined> {
     const [result] = await db.update(specialRequests).set(updates).where(eq(specialRequests.id, id)).returning();
+    return result;
+  }
+
+  async createQuoteRequest(request: InsertQuoteRequest): Promise<QuoteRequest> {
+    const [result] = await db.insert(quoteRequests).values(request).returning();
+    return result;
+  }
+
+  async getQuoteRequest(id: number): Promise<QuoteRequest | undefined> {
+    const [result] = await db.select().from(quoteRequests).where(eq(quoteRequests.id, id));
+    return result;
+  }
+
+  async getAllQuoteRequests(): Promise<QuoteRequest[]> {
+    return db.select().from(quoteRequests).orderBy(desc(quoteRequests.createdAt));
+  }
+
+  async updateQuoteRequest(id: number, updates: Partial<InsertQuoteRequest>): Promise<QuoteRequest | undefined> {
+    const [result] = await db.update(quoteRequests).set(updates).where(eq(quoteRequests.id, id)).returning();
     return result;
   }
 }
