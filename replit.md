@@ -1,7 +1,7 @@
 # Hus AI - AI-Powered Interior Design
 
 ## Overview
-Hus AI is a web application that uses the Collov AI API to transform room photos. Users upload a room photo, select a room type and design style, and receive an AI-generated redesign that preserves the room structure while changing the interior style.
+Hus AI is a web application that uses the Collov AI API to transform room photos. Users upload a room photo, select a room type, design style, and budget tier, and receive an AI-generated redesign that preserves the room structure while changing the interior style. The app includes budget-specific style recommendations with Danish retailer examples and an admin quote builder for creating customer proposals.
 
 ## Tech Stack
 - **Frontend**: React + TypeScript, Vite, TailwindCSS, Shadcn/UI, Framer Motion, TanStack Query
@@ -10,25 +10,53 @@ Hus AI is a web application that uses the Collov AI API to transform room photos
 - **AI Engine**: Collov AI Virtual Staging API
 
 ## Architecture
-- `shared/schema.ts` - Data models (designs table), room types, design styles, Zod schemas
-- `server/routes.ts` - API routes: POST /api/designs (upload + Collov), GET /api/designs, GET /api/designs/:id
-- `server/storage.ts` - Database CRUD operations for designs
+- `shared/schema.ts` - Data models (designs + quotes tables), room types, design styles, budget tiers, Zod schemas
+- `shared/styleVocabulary.ts` - Style vocabulary: 8 styles × 3 budget tiers with prompts, descriptions, retailer examples
+- `shared/budgetUtils.ts` - Budget utility functions (budgetToTier, getTierLabel, formatDKK)
+- `server/routes.ts` - API routes for designs, quotes, and style info
+- `server/storage.ts` - Database CRUD operations for designs and quotes
 - `server/db.ts` - PostgreSQL connection pool
-- `client/src/pages/home.tsx` - Main page with 3-step flow (upload → configure → result)
+- `client/src/pages/home.tsx` - Main page with 3-step flow (upload → configure with budget → result)
+- `client/src/pages/admin-quotes.tsx` - Admin quote builder page
+- `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider
 - `client/src/components/design-card.tsx` - Design history card component
 
+## API Routes
+- `POST /api/designs` - Upload image + create design (accepts budget field, computes tier, sends enhanced prompt to Collov)
+- `GET /api/designs` - List all designs
+- `GET /api/designs/:id` - Get single design
+- `GET /api/designs/:id/status` - Poll design generation status
+- `GET /api/style-info/:style/:tier` - Get style vocabulary for a style/tier combo
+- `POST /api/quotes` - Create a quote for a design
+- `GET /api/quotes` - List all quotes
+- `GET /api/quotes/:id` - Get single quote
+- `GET /api/designs/:id/quotes` - Get quotes for a design
+- `PATCH /api/quotes/:id` - Update a quote
+
+## Budget System
+- **3 tiers**: budget (<15,000 DKK), standard (15,000-40,000 DKK), luxury (>40,000 DKK)
+- Each style × tier combination has: English prompt for Collov, Danish description, Danish retailer examples
+- Budget slider range: 5,000–100,000 DKK with step 1,000
+- Tier info shown during selection and in results
+
+## Quote System
+- Admin page at `/admin/quotes` for building customer proposals
+- Products with name, retailer, price, link
+- Automatic 25% margin calculation
+- Quote statuses: draft, sent, accepted, declined
+
 ## Collov API Integration
-- **Send task**: POST `https://api.collov.ai/flair/enterpriseApi/vst/generateImgOnCommon` with `uploadUrl`, `roomType`, `style`
-- **Poll result**: GET `https://api.collov.ai/flair/enterpriseApi/vst/getRecord?uuid=XXX`
+- **Send task**: POST `generateImgOnCommon` with `uploadUrl`, `roomType`, `style`, optional `prompt` (budget-enhanced)
+- **Poll result**: GET `getRecord?uuid=XXX`
 - Authentication: `apiKey` header
 - Async: Server polls Collov in background, frontend polls server for status updates
 
-## Room Types
-game room, kitchen, living room, outdoor, bedroom, studio, conference room, home office, home gym, dining room, laundry room, bathroom, spa room, kids room, open living and dining room
+## Room Types (15)
+living room, bedroom, kitchen, bathroom, dining room, home office, kids room, studio, game room, home gym, laundry room, conference room, spa room, outdoor, open living and dining room
 
-## Design Styles
-scandinavian, luxury, industrial, coastal, transitional, farmhouse, mid-century, modern
+## Design Styles (8)
+scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, mid-century
 
 ## File Uploads
 - Uploaded images stored in `uploads/` directory, served at `/uploads/` path
@@ -40,3 +68,4 @@ scandinavian, luxury, industrial, coastal, transitional, farmhouse, mid-century,
 
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
+- Frontend pages: `/` (main), `/admin/quotes` (admin quote builder)

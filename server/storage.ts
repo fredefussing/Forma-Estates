@@ -1,4 +1,4 @@
-import { type Design, type InsertDesign, designs } from "@shared/schema";
+import { type Design, type InsertDesign, designs, type Quote, type InsertQuote, quotes } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
@@ -7,6 +7,11 @@ export interface IStorage {
   getDesign(id: number): Promise<Design | undefined>;
   getAllDesigns(): Promise<Design[]>;
   updateDesign(id: number, updates: Partial<InsertDesign>): Promise<Design | undefined>;
+  createQuote(quote: InsertQuote): Promise<Quote>;
+  getQuote(id: number): Promise<Quote | undefined>;
+  getQuotesByDesign(designId: number): Promise<Quote[]>;
+  updateQuote(id: number, updates: Partial<InsertQuote>): Promise<Quote | undefined>;
+  getAllQuotes(): Promise<Quote[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -27,6 +32,29 @@ export class DatabaseStorage implements IStorage {
   async updateDesign(id: number, updates: Partial<InsertDesign>): Promise<Design | undefined> {
     const [result] = await db.update(designs).set(updates).where(eq(designs.id, id)).returning();
     return result;
+  }
+
+  async createQuote(quote: InsertQuote): Promise<Quote> {
+    const [result] = await db.insert(quotes).values(quote).returning();
+    return result;
+  }
+
+  async getQuote(id: number): Promise<Quote | undefined> {
+    const [result] = await db.select().from(quotes).where(eq(quotes.id, id));
+    return result;
+  }
+
+  async getQuotesByDesign(designId: number): Promise<Quote[]> {
+    return db.select().from(quotes).where(eq(quotes.designId, designId)).orderBy(desc(quotes.createdAt));
+  }
+
+  async updateQuote(id: number, updates: Partial<InsertQuote>): Promise<Quote | undefined> {
+    const [result] = await db.update(quotes).set(updates).where(eq(quotes.id, id)).returning();
+    return result;
+  }
+
+  async getAllQuotes(): Promise<Quote[]> {
+    return db.select().from(quotes).orderBy(desc(quotes.createdAt));
   }
 }
 

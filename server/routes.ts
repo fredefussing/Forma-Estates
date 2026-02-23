@@ -5,7 +5,9 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { createDesignSchema } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema } from "@shared/schema";
+import { styleVocabulary } from "@shared/styleVocabulary";
+import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -34,7 +36,7 @@ const upload = multer({
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
 const COLLOV_BASE = "https://api.collov.ai";
 
-async function sendCollovTask(uploadUrl: string, roomType: string, style: string): Promise<string> {
+async function sendCollovTask(uploadUrl: string, roomType: string, style: string, budgetPrompt?: string): Promise<string> {
   const FormData = (await import("form-data")).default;
   const fetch = (await import("node-fetch")).default;
 
@@ -42,6 +44,9 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   form.append("uploadUrl", uploadUrl);
   form.append("roomType", roomType);
   form.append("style", style);
+  if (budgetPrompt) {
+    form.append("prompt", budgetPrompt);
+  }
 
   const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
@@ -150,6 +155,7 @@ export async function registerRoutes(
       const parsed = createDesignSchema.safeParse({
         roomType: req.body.roomType,
         style: req.body.style,
+        budget: req.body.budget ? parseInt(req.body.budget) : undefined,
       });
 
       if (!parsed.success) {
@@ -160,11 +166,15 @@ export async function registerRoutes(
       const host = req.headers["x-forwarded-host"] || req.headers.host;
       const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
 
+      const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
+
       const design = await storage.createDesign({
         originalImageUrl: publicUrl,
         roomType: parsed.data.roomType,
         style: parsed.data.style,
         status: "pending",
+        budget: parsed.data.budget || null,
+        tier: tier || null,
       });
 
       if (!COLLOV_API_KEY) {
@@ -172,8 +182,13 @@ export async function registerRoutes(
         return res.status(500).json({ message: "COLLOV_API_KEY not configured" });
       }
 
+      let budgetPrompt: string | undefined;
+      if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
+        budgetPrompt = styleVocabulary[parsed.data.style][tier].prompt;
+      }
+
       try {
-        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style);
+        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, budgetPrompt);
         await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
         backgroundPoll(design.id, uuid);
 
@@ -263,6 +278,91 @@ export async function registerRoutes(
         error: "Kunne ikke tjekke status. Prøv igen.",
         resultUrl: null,
       });
+    }
+  });
+
+  app.get("/api/style-info/:style/:tier", (req, res) => {
+    const { style, tier } = req.params;
+    const styleConfig = styleVocabulary[style];
+    if (!styleConfig) {
+      return res.status(404).json({ message: "Style not found" });
+    }
+    const tierConfig = styleConfig[tier as "budget" | "standard" | "luxury"];
+    if (!tierConfig) {
+      return res.status(404).json({ message: "Tier not found" });
+    }
+    return res.json(tierConfig);
+  });
+
+  app.post("/api/quotes", async (req, res) => {
+    try {
+      const parsed = createQuoteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Ugyldige data", errors: parsed.error.flatten() });
+      }
+
+      const design = await storage.getDesign(parsed.data.designId);
+      if (!design) {
+        return res.status(404).json({ message: "Design ikke fundet" });
+      }
+
+      const products = parsed.data.products || [];
+      const totalPrice = products.reduce((sum, p) => sum + (p.price || 0), 0);
+      const margin = Math.round(totalPrice * 0.25);
+      const finalPrice = totalPrice + margin;
+
+      const quote = await storage.createQuote({
+        designId: parsed.data.designId,
+        customerName: parsed.data.customerName,
+        customerEmail: parsed.data.customerEmail,
+        products,
+        totalPrice: totalPrice.toString(),
+        margin: margin.toString(),
+        finalPrice: finalPrice.toString(),
+        status: parsed.data.status || "draft",
+      });
+
+      return res.json(quote);
+    } catch (err: any) {
+      log(`Quote creation error: ${err.message}`);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/quotes", async (_req, res) => {
+    const allQuotes = await storage.getAllQuotes();
+    return res.json(allQuotes);
+  });
+
+  app.get("/api/quotes/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+    const quote = await storage.getQuote(id);
+    if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+    return res.json(quote);
+  });
+
+  app.get("/api/designs/:id/quotes", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+    const designQuotes = await storage.getQuotesByDesign(id);
+    return res.json(designQuotes);
+  });
+
+  app.patch("/api/quotes/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+      const quote = await storage.updateQuote(id, req.body);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      return res.json(quote);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
     }
   });
 

@@ -4,12 +4,17 @@ import { queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useTransformationJob } from "@/hooks/use-transformation-job";
 import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa } from "lucide-react";
 import { roomTypes, designStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
+import { type BudgetTier } from "@shared/styleVocabulary";
+import { getTierLabel, formatDKK } from "@shared/budgetUtils";
+import { styleVocabulary } from "@shared/styleVocabulary";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { DesignCard } from "@/components/design-card";
+import { BudgetSlider } from "@/components/budget-slider";
 import { motion, AnimatePresence } from "framer-motion";
 
 const roomTypeLabels: Record<RoomType, string> = {
@@ -71,6 +76,8 @@ export default function HomePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [roomType, setRoomType] = useState<RoomType | "">("");
   const [style, setStyle] = useState<DesignStyle | "">("");
+  const [budget, setBudget] = useState<number>(25000);
+  const [tier, setTier] = useState<BudgetTier>("standard");
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
@@ -160,6 +167,7 @@ export default function HomePage() {
     formData.append("image", selectedFile);
     formData.append("roomType", roomType);
     formData.append("style", style);
+    formData.append("budget", budget.toString());
     generateMutation.mutate(formData);
     setStep(3);
   };
@@ -169,6 +177,8 @@ export default function HomePage() {
     setPreviewUrl(null);
     setRoomType("");
     setStyle("");
+    setBudget(25000);
+    setTier("standard");
     setActiveDesign(null);
     setPollingDesignId(null);
     job.reset();
@@ -176,7 +186,14 @@ export default function HomePage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleBudgetChange = (newBudget: number, newTier: BudgetTier) => {
+    setBudget(newBudget);
+    setTier(newTier);
+  };
+
   const isGenerating = generateMutation.isPending || job.status === "pending" || job.status === "processing";
+
+  const activeTierConfig = style && tier ? styleVocabulary[style]?.[tier] : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -200,7 +217,7 @@ export default function HomePage() {
                 {s}
               </div>
               <span className={`text-sm hidden sm:inline ${step >= s ? "text-foreground" : "text-muted-foreground"}`}>
-                {s === 1 ? "Upload billede" : s === 2 ? "Vælg stil" : "Resultat"}
+                {s === 1 ? "Upload billede" : s === 2 ? "Vælg stil & budget" : "Resultat"}
               </span>
               {s < 3 && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
             </div>
@@ -215,7 +232,7 @@ export default function HomePage() {
                   Transformer dit rum med AI
                 </h1>
                 <p className="text-muted-foreground text-base max-w-lg mx-auto">
-                  Upload et foto af dit rum, vælg rumtype og stil, og se en realistisk redesign på sekunder.
+                  Upload et foto af dit rum, vælg rumtype, stil og budget, og se en realistisk redesign på sekunder.
                 </p>
               </div>
               <Card
@@ -280,7 +297,7 @@ export default function HomePage() {
                             className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-sm text-left transition-colors border ${
                               roomType === rt
                                 ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border bg-card text-muted-foreground hover-elevate"
+                                : "border-border bg-card text-muted-foreground hover:bg-accent"
                             }`}
                             data-testid={`button-roomtype-${rt.replace(/\s+/g, "-")}`}
                           >
@@ -302,7 +319,7 @@ export default function HomePage() {
                           className={`flex flex-col px-3 py-2.5 rounded-md text-left transition-colors border ${
                             style === s
                               ? "border-primary bg-primary/10"
-                              : "border-border bg-card hover-elevate"
+                              : "border-border bg-card hover:bg-accent"
                           }`}
                           data-testid={`button-style-${s}`}
                         >
@@ -312,6 +329,12 @@ export default function HomePage() {
                       ))}
                     </div>
                   </div>
+
+                  {style && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.2 }}>
+                      <BudgetSlider style={style as DesignStyle} onChange={handleBudgetChange} />
+                    </motion.div>
+                  )}
 
                   <Button
                     className="w-full"
@@ -335,14 +358,21 @@ export default function HomePage() {
           {step === 3 && activeDesign && (
             <motion.div key="step3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
               <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    {roomTypeLabels[activeDesign.roomType as RoomType] || activeDesign.roomType}
-                    {" "}
-                    <span className="text-muted-foreground font-normal">
-                      {styleLabels[activeDesign.style as DesignStyle] || activeDesign.style}
-                    </span>
-                  </h2>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {roomTypeLabels[activeDesign.roomType as RoomType] || activeDesign.roomType}
+                      {" "}
+                      <span className="text-muted-foreground font-normal">
+                        {styleLabels[activeDesign.style as DesignStyle] || activeDesign.style}
+                      </span>
+                    </h2>
+                    {activeDesign.budget && activeDesign.tier && (
+                      <p className="text-sm text-muted-foreground" data-testid="text-budget-info">
+                        Budget: {formatDKK(activeDesign.budget)} ({getTierLabel(activeDesign.tier as BudgetTier)})
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <Button variant="outline" onClick={handleReset} data-testid="button-new-design">
                   <RotateCcw className="w-4 h-4 mr-2" /> Nyt design
@@ -367,10 +397,25 @@ export default function HomePage() {
                   </Button>
                 </Card>
               ) : activeDesign.status === "completed" && activeDesign.resultImageUrl ? (
-                <BeforeAfterSlider
-                  beforeSrc={activeDesign.originalImageUrl}
-                  afterSrc={activeDesign.resultImageUrl}
-                />
+                <div className="space-y-6">
+                  <BeforeAfterSlider
+                    beforeSrc={activeDesign.originalImageUrl}
+                    afterSrc={activeDesign.resultImageUrl}
+                  />
+                  {activeTierConfig && (
+                    <Card className="p-4" data-testid="result-tier-info">
+                      <h3 className="font-semibold mb-2">Anbefaling til dit budget</h3>
+                      <p className="text-sm text-muted-foreground mb-3">{activeTierConfig.description}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {activeTierConfig.exampleRetailers.map((r) => (
+                          <Badge key={r} variant="secondary" data-testid={`badge-result-retailer-${r}`}>
+                            {r}
+                          </Badge>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </div>
               ) : activeDesign.status === "failed" ? (
                 <Card className="flex flex-col items-center justify-center py-16">
                   <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
@@ -403,6 +448,8 @@ export default function HomePage() {
                     setPreviewUrl(d.originalImageUrl);
                     setRoomType(d.roomType as RoomType);
                     setStyle(d.style as DesignStyle);
+                    if (d.budget) setBudget(d.budget);
+                    if (d.tier) setTier(d.tier as BudgetTier);
                     setStep(3);
                     setPollingDesignId(null);
                     window.scrollTo({ top: 0, behavior: "smooth" });
