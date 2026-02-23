@@ -79,6 +79,7 @@ export default function HomePage() {
   const [style, setStyle] = useState<DesignStyle | "">("");
   const [budget, setBudget] = useState<number>(25000);
   const [tier, setTier] = useState<BudgetTier>("standard");
+  const [customWishes, setCustomWishes] = useState<string>("");
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
@@ -169,6 +170,9 @@ export default function HomePage() {
     formData.append("roomType", roomType);
     formData.append("style", style);
     formData.append("budget", budget.toString());
+    if (customWishes.trim()) {
+      formData.append("customWishes", customWishes.trim());
+    }
     generateMutation.mutate(formData);
     setStep(3);
   };
@@ -180,6 +184,7 @@ export default function HomePage() {
     setStyle("");
     setBudget(25000);
     setTier("standard");
+    setCustomWishes("");
     setActiveDesign(null);
     setPollingDesignId(null);
     job.reset();
@@ -382,6 +387,24 @@ export default function HomePage() {
                       <Separator className="bg-border/40" />
                       <div className="pt-6">
                         <BudgetSlider style={style as DesignStyle} onChange={handleBudgetChange} />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {style && roomType && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                      <Separator className="bg-border/40" />
+                      <div className="pt-6">
+                        <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Personlige ønsker <span className="normal-case tracking-normal text-muted-foreground/50">(valgfrit)</span></p>
+                        <textarea
+                          value={customWishes}
+                          onChange={(e) => setCustomWishes(e.target.value)}
+                          placeholder="F.eks. &quot;Grøn accent-væg&quot;, &quot;Tilføj flere planter&quot;, &quot;Behold den mørke gulvfarve&quot;..."
+                          className="w-full min-h-[80px] px-3.5 py-3 rounded-lg border border-border/60 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10 resize-none transition-colors"
+                          maxLength={300}
+                          data-testid="input-custom-wishes"
+                        />
+                        <p className="text-[11px] text-muted-foreground/40 mt-1.5 text-right">{customWishes.length}/300</p>
                       </div>
                     </motion.div>
                   )}
