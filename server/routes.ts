@@ -200,54 +200,20 @@ export async function registerRoutes(
       const customWishes = req.body.customWishes?.trim() || "";
 
       let budgetPrompt: string | undefined;
-
-      const buildUserWishesPrompt = (notes: string, styleName: string): string => {
-        if (!notes) return "";
-
-        const hasWallColor = /væg|wall|farve|color|maling|paint|accent/i.test(notes);
-        const hasGreen = /grøn|green/i.test(notes);
-        const hasBlue = /blå|blue/i.test(notes);
-        const hasDark = /mørk|dark|sort|black/i.test(notes);
-        const hasWhite = /hvid|white/i.test(notes);
-        const hasWarm = /varm|warm|trætoner|wood tone/i.test(notes);
-
-        let block = `MANDATORY USER REQUIREMENTS (OVERRIDE ALL DEFAULTS):\n${notes}\n`;
-
-        if (hasWallColor) {
-          block += `\nWALL COLOR IS TOP PRIORITY - DO NOT USE DEFAULT WHITE OR BEIGE WALLS.\nSPECIFIC WALL INSTRUCTION: ${notes}\n`;
-        }
-
-        if (hasGreen) {
-          block += `\nWALL COLOR MUST BE GREEN - dark forest green, emerald, or sage green.\nHEX REFERENCE: #2d5016 or #228b22 or #6b8e23\n`;
-        }
-        if (hasBlue) {
-          block += `\nWALL COLOR MUST BE BLUE - navy, deep blue, or steel blue.\nHEX REFERENCE: #1b3a5c or #2c5f8a or #4682b4\n`;
-        }
-        if (hasDark && hasWallColor) {
-          block += `\nWALLS MUST BE DARK - charcoal, deep tone, or matte dark finish.\n`;
-        }
-
-        if (hasWallColor) {
-          block += `\nSTYLE APPLICATION: Apply "${styleName}" style ONLY to furniture and decor.\nDO NOT apply ${styleName} default colors to walls - user specified wall color above.\n`;
-        }
-
-        return block;
-      }
+      const userPrefBlock = customWishes
+        ? `USER PREFERENCES (apply to furniture and decor):\n${customWishes}\n\n`
+        : "";
 
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
-        const userBlock = buildUserWishesPrompt(customWishes, parsed.data.style);
 
         if (parsed.data.style === "badboy") {
-          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${userBlock}${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
-        } else if (userBlock) {
-          budgetPrompt = `${userBlock}\nROOM TRANSFORMATION:\n${tierConfig.prompt}\n\nMaintain exact room structure, windows, doors, ceiling height. NO layout changes. NO new windows. NO moved walls. Photorealistic, high quality.`;
+          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${userPrefBlock}${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
         } else {
-          budgetPrompt = `${tierConfig.prompt} Maintain exact room structure, windows, doors, NO layout changes. Photorealistic, high quality.`;
+          budgetPrompt = `${userPrefBlock}Transform this ${parsed.data.roomType} to ${parsed.data.style} style.\n${tierConfig.prompt}\n\nMaintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
         }
       } else if (customWishes) {
-        const userBlock = buildUserWishesPrompt(customWishes, parsed.data.style);
-        budgetPrompt = `${userBlock}\nMaintain exact room structure, windows, doors. Photorealistic, high quality.`;
+        budgetPrompt = `${userPrefBlock}Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
       }
 
       try {

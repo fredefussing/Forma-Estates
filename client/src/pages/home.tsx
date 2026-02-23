@@ -424,10 +424,11 @@ export default function HomePage() {
 
                               <div className="flex flex-wrap gap-1.5 mb-3">
                                 {[
-                                  "Mørkegrøn accent-væg bag sengen",
                                   "Behold eksisterende sofa, skift resten",
-                                  "Tilføj planter og varme trætoner",
-                                  "Sort sengelampe og minimalistisk look"
+                                  "Tilføj mange grønne planter",
+                                  "Varme trætoner, ikke koldt look",
+                                  "Minimalistisk med få møbler",
+                                  "Industrielle lamper og metal detaljer"
                                 ].map((example, i) => (
                                   <button
                                     key={i}
@@ -457,7 +458,7 @@ export default function HomePage() {
 
                               {customWishes.length > 0 && (
                                 <p className="text-[11px] text-muted-foreground/40 mt-2 italic">
-                                  Vi bestræber os på at opfylde dit ønske, men AI'en har tekniske begrænsninger.
+                                  Vi tilpasser møbler, stemning og detaljer efter dit ønske. Specifikke vægfarver kan vi desværre ikke garantere.
                                 </p>
                               )}
                             </motion.div>
