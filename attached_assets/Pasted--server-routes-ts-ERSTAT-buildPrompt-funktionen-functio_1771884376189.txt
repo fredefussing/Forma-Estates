@@ -1,0 +1,103 @@
+// /server/routes.ts - ERSTAT buildPrompt funktionen
+
+function buildPrompt(
+  roomType: string, 
+  style: string, 
+  tier: string, 
+  budget: number,
+  customNotes?: string
+) {
+  const styleConfig = styleVocabulary[style];
+  const tierConfig = styleConfig[tier];
+  
+  // START med user request hvis den findes
+  let prompt = '';
+  
+  if (customNotes && customNotes.trim().length > 0) {
+    const notes = customNotes.trim();
+    
+    // Detect wall color requests
+    const hasWallColor = /væg|wall|farve|color|maling|paint/i.test(notes);
+    const hasGreen = /grøn|green/i.test(notes);
+    const hasBlue = /blå|blue/i.test(notes);
+    const hasDark = /mørk|dark|sort|black/i.test(notes);
+    
+    prompt += `MANDATORY USER REQUIREMENTS (OVERRIDE ALL DEFAULTS):
+${notes}
+`;
+    
+    if (hasWallColor) {
+      prompt += `
+WALL COLOR IS TOP PRIORITY - DO NOT USE WHITE OR BEIGE WALLS.
+SPECIFIC WALL INSTRUCTION: ${notes.match(/(væg|wall).+/i)?.[0] || notes}
+`;
+    }
+    
+    if (hasGreen) {
+      prompt += `
+WALL COLOR MUST BE GREEN - dark forest green, emerald, or sage.
+HEX REFERENCE: #2d5016 or #228b22 or #6b8e23
+`;
+    }
+    
+    prompt += `
+STYLE APPLICATION: Apply "${style}" style ONLY to furniture and decor.
+DO NOT apply ${style} colors to walls if user specified wall color.
+`;
+  }
+  
+  // Derefter style (men uden wall colors hvis user har specificeret)
+  prompt += `
+ROOM TRANSFORMATION:
+${tierConfig.prompt}
+
+Furniture style: ${styleConfig.furniture.join(", ")}.
+Materials: ${styleConfig.materials.join(", ")}.
+
+Maintain exact room structure, windows, doors, ceiling height.
+NO layout changes. NO new windows. NO moved walls.
+Photorealistic, 4K quality.
+`;
+  
+  return prompt.trim();
+}
+Eksempel på final prompt
+User input: "Mørkegrøn accent-væg bag sengen"
+Prompt sendt til Collov:
+plain
+Copy
+MANDATORY USER REQUIREMENTS (OVERRIDE ALL DEFAULTS):
+Mørkegrøn accent-væg bag sengen
+
+WALL COLOR IS TOP PRIORITY - DO NOT USE WHITE OR BEIGE WALLS.
+SPECIFIC WALL INSTRUCTION: Mørkegrøn accent-væg bag sengen
+
+WALL COLOR MUST BE GREEN - dark forest green, emerald, or sage.
+HEX REFERENCE: #2d5016 or #228b22 or #6b8e23
+
+STYLE APPLICATION: Apply "skandinavisk" style ONLY to furniture and decor.
+DO NOT apply skandinavisk colors to walls if user specified wall color.
+
+ROOM TRANSFORMATION:
+affordable scandinavian bedroom, simple white furniture...
+
+Furniture style: low profile, clean lines, functional, minimal ornamentation.
+Materials: naturlig træ, linen, uld, mat metal.
+
+Maintain exact room structure...
+Prompt til Replit
+plain
+Copy
+Collov ignorerer stadig wall color. Opdater prompt-builder med:
+
+1. User request FØRST i prompt (override defaults)
+2. "MANDATORY" og "OVERRIDE ALL DEFAULTS" i caps
+3. Specifik wall color section med "TOP PRIORITY"
+4. Hex-koder til grønne farver (#2d5016, #228b22)
+5. Instruktion om at style KUN gælder møbler, ikke vægge
+
+Test igen med "Mørkegrøn accent-væg bag sengen".
+
+Hvis stadig hvid/beige, så prøv:
+- Skift "skandinavisk" til "modern" (mindre hvidt default)
+- Eller tilføj: "walls painted dark green" i stedet for "accent wall"
