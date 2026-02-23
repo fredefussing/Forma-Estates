@@ -18,15 +18,15 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/40">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-16">
           <Link href="/">
-            <span className="text-lg font-semibold tracking-tight cursor-pointer" data-testid="link-logo">Nordic Sketch</span>
+            <span className="text-lg font-semibold tracking-tight cursor-pointer text-white" data-testid="link-logo">Nordic Sketch</span>
           </Link>
           <nav className="flex items-center gap-8">
-            <a href="#om-os" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-about">Om os</a>
+            <a href="#om-os" className="text-sm text-white/70 hover:text-white transition-colors" data-testid="link-about">Om os</a>
             <Link href="/design">
-              <Button size="sm" className="h-9 px-5 text-sm font-medium" data-testid="button-header-cta">
+              <Button size="sm" className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-header-cta">
                 Prøv nu
                 <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
               </Button>
@@ -35,76 +35,73 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="relative pt-16">
-        <div className="relative overflow-hidden">
-          {showcaseDesign ? (
-            <div className="relative h-[85vh] min-h-[600px]">
-              <div className="absolute inset-0 grid grid-cols-2">
-                <div className="relative overflow-hidden">
-                  <img
-                    src={showcaseDesign.originalImageUrl}
-                    alt="Før"
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-background/20 to-background/5" />
-                </div>
-                <div className="relative overflow-hidden">
-                  <img
-                    src={showcaseDesign.resultImageUrl!}
-                    alt="Efter"
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-l from-background/20 to-background/5" />
-                </div>
-              </div>
+      <section className="relative h-screen min-h-[600px] overflow-hidden flex items-center justify-center">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0"
+          data-testid="video-hero"
+        >
+          <source src="/videos/room-transformation.mp4" type="video/mp4" />
+        </video>
 
-              <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/30 to-background" />
-              <div className="absolute top-1/2 left-1/2 w-px h-[60%] -translate-x-1/2 -translate-y-1/2 bg-white/20" />
-              <div className="absolute top-[22%] left-[25%] -translate-x-1/2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-background/80 backdrop-blur-sm text-foreground/80 border border-border/40">Før</span>
+        {!showcaseDesign ? null : (
+          <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 grid grid-cols-2">
+              <div className="relative overflow-hidden">
+                <img
+                  src={showcaseDesign.originalImageUrl}
+                  alt="Før"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               </div>
-              <div className="absolute top-[22%] left-[75%] -translate-x-1/2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-background/80 backdrop-blur-sm text-foreground/80 border border-border/40">Efter</span>
-              </div>
-
-              <div className="relative z-10 flex flex-col items-center justify-end h-full pb-24 px-6 text-center">
-                <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}>
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-5 leading-[1.08] max-w-2xl">
-                    Giv dit hjem nyt liv<br className="hidden sm:block" /> med AI-design
-                  </h1>
-                  <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10">
-                    Upload et foto af dit rum og se det transformeret til ethvert design — på sekunder.
-                  </p>
-                  <Link href="/design">
-                    <Button size="lg" className="h-13 px-8 text-base font-medium rounded-xl" data-testid="button-hero-cta">
-                      <Sparkles className="w-4.5 h-4.5 mr-2.5" />
-                      Prøv nu — det er gratis
-                    </Button>
-                  </Link>
-                </motion.div>
+              <div className="relative overflow-hidden">
+                <img
+                  src={showcaseDesign.resultImageUrl!}
+                  alt="Efter"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               </div>
             </div>
-          ) : (
-            <div className="relative h-[85vh] min-h-[600px] bg-gradient-to-b from-accent/30 to-background">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-foreground/[0.02] via-transparent to-transparent" />
-              <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 text-center">
-                <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}>
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-5 leading-[1.08] max-w-2xl">
-                    Giv dit hjem nyt liv<br className="hidden sm:block" /> med AI-design
-                  </h1>
-                  <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10">
-                    Upload et foto af dit rum og se det transformeret til ethvert design — på sekunder.
-                  </p>
-                  <Link href="/design">
-                    <Button size="lg" className="h-13 px-8 text-base font-medium rounded-xl" data-testid="button-hero-cta">
-                      <Sparkles className="w-4.5 h-4.5 mr-2.5" />
-                      Prøv nu — det er gratis
-                    </Button>
-                  </Link>
-                </motion.div>
-              </div>
+            <div className="absolute top-1/2 left-1/2 w-px h-[50%] -translate-x-1/2 -translate-y-1/2 bg-white/30 z-10" />
+            <div className="absolute top-[18%] left-[25%] -translate-x-1/2 z-10">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-black/40 backdrop-blur-sm text-white/90 border border-white/10">Før</span>
             </div>
-          )}
+            <div className="absolute top-[18%] left-[75%] -translate-x-1/2 z-10">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-black/40 backdrop-blur-sm text-white/90 border border-white/10">Efter</span>
+            </div>
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-black/45 z-[1]" />
+
+        <div className="relative z-10 text-center px-6 max-w-3xl">
+          <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}>
+            <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-semibold tracking-tight mb-5 leading-[1.08] text-white" style={{ fontFamily: '"Playfair Display", serif' }}>
+              Transformer dit hjem<br />med AI
+            </h1>
+            <p className="text-white/80 text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10">
+              Se dit rum redesignet på sekunder. Fra idé til virkelighed.
+            </p>
+            <Link href="/design">
+              <Button size="lg" className="h-14 px-10 text-base font-medium rounded-full bg-white text-black hover:bg-white/90 shadow-xl" data-testid="button-hero-cta">
+                Start dit design
+                <ArrowRight className="w-4 h-4 ml-2.5" />
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
+
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-5 h-8 rounded-full border-2 border-white/30 flex items-start justify-center pt-1.5"
+          >
+            <div className="w-1 h-1.5 rounded-full bg-white/60" />
+          </motion.div>
         </div>
       </section>
 
@@ -164,6 +161,55 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {showcaseDesign && (
+        <section className="py-24 sm:py-32 px-6 bg-[#1a1a1a] text-white">
+          <div className="mx-auto max-w-5xl">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-12"
+            >
+              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
+                Fra drøm til virkelighed
+              </h2>
+              <p className="text-white/60 text-sm mt-3">Se forskellen med AI-genereret interiørdesign</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="grid grid-cols-2 gap-4 rounded-2xl overflow-hidden max-w-4xl mx-auto"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
+                <img src={showcaseDesign.originalImageUrl} alt="Før" className="w-full h-full object-cover" />
+                <div className="absolute bottom-3 left-3">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-black/50 backdrop-blur-sm text-white/90">Før</span>
+                </div>
+              </div>
+              <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
+                <img src={showcaseDesign.resultImageUrl!} alt="Efter" className="w-full h-full object-cover" />
+                <div className="absolute bottom-3 left-3">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-black/50 backdrop-blur-sm text-white/90">Efter</span>
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="text-center mt-10">
+              <Link href="/design">
+                <Button size="lg" className="h-12 px-8 text-sm font-medium rounded-full bg-white text-black hover:bg-white/90" data-testid="button-showcase-cta">
+                  Prøv med dit eget rum
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section id="om-os" className="py-24 sm:py-32 px-6 border-t border-border/40">
         <div className="mx-auto max-w-4xl">
@@ -244,7 +290,7 @@ export default function LandingPage() {
               Det tager under et minut at få dit personlige designforslag.
             </p>
             <Link href="/design">
-              <Button size="lg" className="h-12 px-8 text-sm font-medium rounded-xl" data-testid="button-bottom-cta">
+              <Button size="lg" className="h-12 px-8 text-sm font-medium rounded-full" data-testid="button-bottom-cta">
                 Kom i gang
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
