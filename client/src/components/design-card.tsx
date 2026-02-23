@@ -1,8 +1,6 @@
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Loader2, Clock } from "lucide-react";
-import { type Design, type RoomType, type DesignStyle } from "@shared/schema";
+import { type Design } from "@shared/schema";
 
 const roomTypeLabels: Record<string, string> = {
   "living room": "Stue",
@@ -44,53 +42,51 @@ export function DesignCard({ design, onView }: DesignCardProps) {
   const isFailed = design.status === "failed";
 
   return (
-    <Card className="overflow-visible group" data-testid={`card-design-${design.id}`}>
-      <div className="relative aspect-[4/3] overflow-hidden rounded-t-md">
+    <div className="group cursor-pointer rounded-xl overflow-hidden border border-border/60 transition-all duration-300 hover:border-foreground/20" onClick={onView} data-testid={`card-design-${design.id}`}>
+      <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={imgSrc}
           alt={`${design.roomType} - ${design.style}`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
         {isPending && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-t-md">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <Loader2 className="w-7 h-7 text-white animate-spin" />
           </div>
         )}
-        <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
-          <Badge variant="secondary" className="text-xs">
-            {roomTypeLabels[design.roomType] || design.roomType}
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            {styleLabels[design.style] || design.style}
-          </Badge>
-        </div>
       </div>
-      <div className="p-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {isPending ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Genererer...</span>
-            </>
-          ) : isFailed ? (
-            <span className="text-destructive">Mislykkedes</span>
-          ) : (
-            <>
-              <Clock className="w-3 h-3" />
-              <span>{new Date(design.createdAt).toLocaleDateString("da-DK")}</span>
-            </>
-          )}
+      <div className="px-4 py-3.5 flex items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            {roomTypeLabels[design.roomType] || design.roomType}
+            <span className="text-muted-foreground font-normal"> · {styleLabels[design.style] || design.style}</span>
+          </p>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+            {isPending ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Genererer...</span>
+              </>
+            ) : isFailed ? (
+              <span className="text-destructive">Mislykkedes</span>
+            ) : (
+              <>
+                <Clock className="w-3 h-3" />
+                <span>{new Date(design.createdAt).toLocaleDateString("da-DK")}</span>
+              </>
+            )}
+          </div>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          onClick={onView}
           disabled={isFailed}
+          className="h-8 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
           data-testid={`button-view-design-${design.id}`}
         >
-          <Eye className="w-4 h-4 mr-1" /> Se
+          <Eye className="w-3.5 h-3.5 mr-1" /> Se
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

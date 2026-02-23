@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import { Card } from "@/components/ui/card";
 
 interface BeforeAfterSliderProps {
   beforeSrc: string;
@@ -35,10 +34,10 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
   };
 
   return (
-    <Card className="overflow-visible">
+    <div className="rounded-xl overflow-hidden border border-border/60">
       <div
         ref={containerRef}
-        className="relative w-full select-none touch-none cursor-col-resize overflow-hidden rounded-md"
+        className="relative w-full select-none touch-none cursor-col-resize overflow-hidden"
         style={{ aspectRatio: "16/10" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -69,30 +68,30 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
         </div>
 
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-white z-10"
-          style={{ left: `${sliderPos}%`, transform: "translateX(-50%)", boxShadow: "0 0 8px rgba(0,0,0,0.3)" }}
+          className="absolute top-0 bottom-0 w-px bg-white/90 z-10"
+          style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white flex items-center justify-center" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
-            <div className="flex items-center gap-0.5 text-muted-foreground">
-              <svg width="6" height="12" viewBox="0 0 6 12" fill="none"><path d="M5 1L1 6L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              <svg width="6" height="12" viewBox="0 0 6 12" fill="none"><path d="M1 1L5 6L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg">
+            <div className="flex items-center gap-0.5 text-neutral-500">
+              <svg width="5" height="10" viewBox="0 0 5 10" fill="none"><path d="M4 1L1 5L4 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <svg width="5" height="10" viewBox="0 0 5 10" fill="none"><path d="M1 1L4 5L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
           </div>
         </div>
 
         <div
-          className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-black/60 text-white text-xs font-medium backdrop-blur-sm z-10 pointer-events-none transition-opacity"
+          className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-black/50 text-white text-[11px] font-medium tracking-wide uppercase backdrop-blur-md z-10 pointer-events-none transition-opacity"
           style={{ opacity: sliderPos > 15 ? 1 : 0 }}
         >
           Før
         </div>
         <div
-          className="absolute top-3 right-3 px-2.5 py-1 rounded-md bg-black/60 text-white text-xs font-medium backdrop-blur-sm z-10 pointer-events-none transition-opacity"
+          className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-black/50 text-white text-[11px] font-medium tracking-wide uppercase backdrop-blur-md z-10 pointer-events-none transition-opacity"
           style={{ opacity: sliderPos < 85 ? 1 : 0 }}
         >
           Efter
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

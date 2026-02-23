@@ -5,9 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTransformationJob } from "@/hooks/use-transformation-job";
-import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa } from "lucide-react";
+import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check } from "lucide-react";
 import { roomTypes, designStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
 import { type BudgetTier } from "@shared/styleVocabulary";
 import { getTierLabel, formatDKK } from "@shared/budgetUtils";
@@ -195,64 +196,83 @@ export default function HomePage() {
 
   const activeTierConfig = style && tier ? styleVocabulary[style]?.[tier] : null;
 
+  const stepLabels = ["Upload billede", "Vælg stil & budget", "Resultat"];
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl flex items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary">
-              <Home className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg tracking-tight">Hus AI</span>
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
+        <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl font-semibold tracking-tight">Hus AI</span>
           </div>
-          <p className="text-sm text-muted-foreground hidden sm:block">AI-drevet interiørdesign</p>
+          <p className="text-xs tracking-widest uppercase text-muted-foreground hidden sm:block">AI-drevet interiørdesign</p>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex items-center gap-2 mb-8">
+      <main className="mx-auto max-w-5xl px-6">
+        <div className="flex items-center justify-center gap-0 py-8">
           {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium transition-colors ${step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                {s}
+            <div key={s} className="flex items-center">
+              <div className="flex items-center gap-2.5">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium transition-all duration-300 ${
+                  step > s
+                    ? "bg-foreground text-background"
+                    : step === s
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {step > s ? <Check className="w-3.5 h-3.5" /> : s}
+                </div>
+                <span className={`text-sm hidden sm:inline transition-colors duration-300 ${
+                  step >= s ? "text-foreground font-medium" : "text-muted-foreground"
+                }`}>
+                  {stepLabels[s - 1]}
+                </span>
               </div>
-              <span className={`text-sm hidden sm:inline ${step >= s ? "text-foreground" : "text-muted-foreground"}`}>
-                {s === 1 ? "Upload billede" : s === 2 ? "Vælg stil & budget" : "Resultat"}
-              </span>
-              {s < 3 && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+              {s < 3 && (
+                <div className={`w-12 sm:w-20 h-px mx-3 transition-colors duration-300 ${
+                  step > s ? "bg-foreground" : "bg-border"
+                }`} />
+              )}
             </div>
           ))}
         </div>
 
         <AnimatePresence mode="wait">
           {step === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
-              <div className="text-center mb-8">
-                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-                  Transformer dit rum med AI
-                </h1>
-                <p className="text-muted-foreground text-base max-w-lg mx-auto">
-                  Upload et foto af dit rum, vælg rumtype, stil og budget, og se en realistisk redesign på sekunder.
-                </p>
-              </div>
-              <Card
-                className="max-w-2xl mx-auto cursor-pointer group"
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                data-testid="upload-area"
-              >
-                <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                    <Upload className="w-7 h-7 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-1">Upload dit rum</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Træk og slip eller klik for at vælge et billede
+            <motion.div key="step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3, ease: "easeOut" }}>
+              <div className="max-w-2xl mx-auto pt-8 pb-16">
+                <div className="text-center mb-12">
+                  <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4 leading-tight">
+                    Transformer dit rum<br className="hidden sm:block" /> med AI
+                  </h1>
+                  <p className="text-muted-foreground text-base leading-relaxed max-w-md mx-auto">
+                    Upload et foto af dit rum, vælg rumtype, stil og budget, og se en realistisk redesign på sekunder.
                   </p>
-                  <p className="text-xs text-muted-foreground">JPG, PNG eller WebP. Maks 10 MB.</p>
                 </div>
-              </Card>
+
+                <div
+                  className="relative cursor-pointer group"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  data-testid="upload-area"
+                >
+                  <div className="border-2 border-dashed border-border rounded-xl transition-all duration-300 group-hover:border-foreground/30 group-hover:bg-accent/40">
+                    <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+                      <div className="w-14 h-14 rounded-full bg-foreground/5 flex items-center justify-center mb-5 group-hover:bg-foreground/10 transition-colors">
+                        <Upload className="w-6 h-6 text-foreground/60" />
+                      </div>
+                      <h3 className="text-base font-medium mb-1.5">Upload dit rum</h3>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Træk og slip eller klik for at vælge et billede
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">JPG, PNG eller WebP. Maks 10 MB.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -265,79 +285,88 @@ export default function HomePage() {
           )}
 
           {step === 2 && previewUrl && (
-            <motion.div key="step2" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-semibold">Dit billede</h2>
-                    <Button variant="ghost" size="sm" onClick={handleReset} data-testid="button-change-image">
-                      <X className="w-4 h-4 mr-1" /> Skift
+            <motion.div key="step2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3, ease: "easeOut" }}>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-16">
+                <div className="lg:col-span-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium">Dit billede</p>
+                    <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs h-7 px-2 text-muted-foreground" data-testid="button-change-image">
+                      <X className="w-3.5 h-3.5 mr-1" /> Skift
                     </Button>
                   </div>
-                  <Card className="overflow-visible">
+                  <div className="rounded-xl overflow-hidden border border-border/60">
                     <img
                       src={previewUrl}
                       alt="Uploaded room"
-                      className="w-full rounded-md object-cover max-h-[400px]"
+                      className="w-full object-cover max-h-[420px]"
                       data-testid="img-preview"
                     />
-                  </Card>
+                  </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="lg:col-span-7 space-y-8">
                   <div>
-                    <h2 className="text-lg font-semibold mb-3">Rumtype</h2>
+                    <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4">Rumtype</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {roomTypes.map((rt) => {
                         const IconComp = roomTypeIcons[rt] || Home;
+                        const isSelected = roomType === rt;
                         return (
                           <button
                             key={rt}
                             onClick={() => setRoomType(rt)}
-                            className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-sm text-left transition-colors border ${
-                              roomType === rt
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border bg-card text-muted-foreground hover:bg-accent"
+                            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-sm text-left transition-all duration-200 border ${
+                              isSelected
+                                ? "border-foreground bg-foreground text-background"
+                                : "border-border/60 bg-transparent text-foreground/70 hover:border-foreground/30 hover:text-foreground"
                             }`}
                             data-testid={`button-roomtype-${rt.replace(/\s+/g, "-")}`}
                           >
-                            <IconComp className="w-4 h-4 flex-shrink-0" />
-                            <span className="truncate">{roomTypeLabels[rt]}</span>
+                            <IconComp className="w-4 h-4 flex-shrink-0 opacity-70" />
+                            <span className="truncate font-medium text-[13px]">{roomTypeLabels[rt]}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
+                  <Separator className="bg-border/40" />
+
                   <div>
-                    <h2 className="text-lg font-semibold mb-3">Stil</h2>
+                    <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4">Stil</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {designStyles.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setStyle(s)}
-                          className={`flex flex-col px-3 py-2.5 rounded-md text-left transition-colors border ${
-                            style === s
-                              ? "border-primary bg-primary/10"
-                              : "border-border bg-card hover:bg-accent"
-                          }`}
-                          data-testid={`button-style-${s}`}
-                        >
-                          <span className="text-sm font-medium">{styleLabels[s]}</span>
-                          <span className="text-xs text-muted-foreground mt-0.5">{styleDescriptions[s]}</span>
-                        </button>
-                      ))}
+                      {designStyles.map((s) => {
+                        const isSelected = style === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => setStyle(s)}
+                            className={`flex flex-col px-3.5 py-3 rounded-lg text-left transition-all duration-200 border ${
+                              isSelected
+                                ? "border-foreground bg-foreground text-background"
+                                : "border-border/60 bg-transparent hover:border-foreground/30"
+                            }`}
+                            data-testid={`button-style-${s}`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? "" : "text-foreground"}`}>{styleLabels[s]}</span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? "text-background/70" : "text-muted-foreground"}`}>{styleDescriptions[s]}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
                   {style && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.2 }}>
-                      <BudgetSlider style={style as DesignStyle} onChange={handleBudgetChange} />
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                      <Separator className="bg-border/40" />
+                      <div className="pt-6">
+                        <BudgetSlider style={style as DesignStyle} onChange={handleBudgetChange} />
+                      </div>
                     </motion.div>
                   )}
 
                   <Button
-                    className="w-full"
+                    className="w-full h-12 text-sm font-medium tracking-wide"
                     size="lg"
                     disabled={!roomType || !style || generateMutation.isPending}
                     onClick={handleGenerate}
@@ -356,89 +385,90 @@ export default function HomePage() {
           )}
 
           {step === 3 && activeDesign && (
-            <motion.div key="step3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
-              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <div className="flex items-center gap-3">
+            <motion.div key="step3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3, ease: "easeOut" }}>
+              <div className="pb-16">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold">
+                    <h2 className="text-xl font-semibold tracking-tight">
                       {roomTypeLabels[activeDesign.roomType as RoomType] || activeDesign.roomType}
-                      {" "}
+                      <span className="text-muted-foreground font-normal mx-2">/</span>
                       <span className="text-muted-foreground font-normal">
                         {styleLabels[activeDesign.style as DesignStyle] || activeDesign.style}
                       </span>
                     </h2>
                     {activeDesign.budget && activeDesign.tier && (
-                      <p className="text-sm text-muted-foreground" data-testid="text-budget-info">
-                        Budget: {formatDKK(activeDesign.budget)} ({getTierLabel(activeDesign.tier as BudgetTier)})
+                      <p className="text-sm text-muted-foreground mt-0.5" data-testid="text-budget-info">
+                        {formatDKK(activeDesign.budget)} · {getTierLabel(activeDesign.tier as BudgetTier)}
                       </p>
                     )}
                   </div>
-                </div>
-                <Button variant="outline" onClick={handleReset} data-testid="button-new-design">
-                  <RotateCcw className="w-4 h-4 mr-2" /> Nyt design
-                </Button>
-              </div>
-
-              {isGenerating ? (
-                <Card className="flex flex-col items-center justify-center py-24">
-                  <div className="relative mb-6">
-                    <div className="w-16 h-16 rounded-full border-4 border-muted border-t-primary animate-spin" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-1" data-testid="text-generating">AI designer dit rum...</h3>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Dette tager normalt 15-45 sekunder
-                  </p>
-                  <div className="w-64 mb-6">
-                    <Progress value={job.progress} className="h-2" data-testid="progress-bar" />
-                    <p className="text-xs text-muted-foreground text-center mt-2">{Math.round(job.progress)}%</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={handleReset} data-testid="button-cancel">
-                    Annuller
+                  <Button variant="outline" size="sm" onClick={handleReset} className="h-9" data-testid="button-new-design">
+                    <RotateCcw className="w-3.5 h-3.5 mr-2" /> Nyt design
                   </Button>
-                </Card>
-              ) : activeDesign.status === "completed" && activeDesign.resultImageUrl ? (
-                <div className="space-y-6">
-                  <BeforeAfterSlider
-                    beforeSrc={activeDesign.originalImageUrl}
-                    afterSrc={activeDesign.resultImageUrl}
-                  />
-                  {activeTierConfig && (
-                    <Card className="p-4" data-testid="result-tier-info">
-                      <h3 className="font-semibold mb-2">Anbefaling til dit budget</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{activeTierConfig.description}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {activeTierConfig.exampleRetailers.map((r) => (
-                          <Badge key={r} variant="secondary" data-testid={`badge-result-retailer-${r}`}>
-                            {r}
-                          </Badge>
-                        ))}
-                      </div>
-                    </Card>
-                  )}
                 </div>
-              ) : activeDesign.status === "failed" ? (
-                <Card className="flex flex-col items-center justify-center py-16">
-                  <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-                    <X className="w-6 h-6 text-destructive" />
+
+                {isGenerating ? (
+                  <div className="border border-border/60 rounded-xl flex flex-col items-center justify-center py-28 bg-card/30">
+                    <div className="relative mb-8">
+                      <div className="w-14 h-14 rounded-full border-[3px] border-muted border-t-foreground animate-spin" />
+                    </div>
+                    <h3 className="text-base font-medium mb-1" data-testid="text-generating">AI designer dit rum...</h3>
+                    <p className="text-sm text-muted-foreground mb-8">
+                      Dette tager normalt 15-45 sekunder
+                    </p>
+                    <div className="w-56 mb-8">
+                      <Progress value={job.progress} className="h-1.5" data-testid="progress-bar" />
+                      <p className="text-xs text-muted-foreground text-center mt-2 tabular-nums">{Math.round(job.progress)}%</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground" data-testid="button-cancel">
+                      Annuller
+                    </Button>
                   </div>
-                  <h3 className="text-lg font-semibold mb-1">Noget gik galt</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {job.error || "Prøv igen med et nyt billede."}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Tip: Prøv et billede med bedre belysning eller vælg en anden stil
-                  </p>
-                  <Button onClick={handleReset} data-testid="button-try-again">Prøv igen</Button>
-                </Card>
-              ) : null}
+                ) : activeDesign.status === "completed" && activeDesign.resultImageUrl ? (
+                  <div className="space-y-6">
+                    <BeforeAfterSlider
+                      beforeSrc={activeDesign.originalImageUrl}
+                      afterSrc={activeDesign.resultImageUrl}
+                    />
+                    {activeTierConfig && (
+                      <div className="border border-border/60 rounded-xl p-5 bg-card/30" data-testid="result-tier-info">
+                        <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Anbefaling til dit budget</p>
+                        <p className="text-sm text-foreground/80 mb-4 leading-relaxed">{activeTierConfig.description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {activeTierConfig.exampleRetailers.map((r) => (
+                            <span key={r} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-foreground/5 text-foreground/70 border border-border/40" data-testid={`badge-result-retailer-${r}`}>
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : activeDesign.status === "failed" ? (
+                  <div className="border border-border/60 rounded-xl flex flex-col items-center justify-center py-20 bg-card/30">
+                    <div className="w-12 h-12 rounded-full bg-destructive/8 flex items-center justify-center mb-5">
+                      <X className="w-5 h-5 text-destructive" />
+                    </div>
+                    <h3 className="text-base font-medium mb-1.5">Noget gik galt</h3>
+                    <p className="text-sm text-muted-foreground mb-1.5">
+                      {job.error || "Prøv igen med et nyt billede."}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70 mb-6">
+                      Tip: Prøv et billede med bedre belysning eller vælg en anden stil
+                    </p>
+                    <Button onClick={handleReset} size="sm" data-testid="button-try-again">Prøv igen</Button>
+                  </div>
+                ) : null}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {designs.filter((d) => d.status === "completed").length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-xl font-semibold mb-4">Tidligere designs</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <section className="pb-16">
+            <Separator className="mb-12 bg-border/40" />
+            <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-6">Tidligere designs</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {designs.filter((d) => d.status === "completed").map((d) => (
                 <DesignCard
                   key={d.id}
