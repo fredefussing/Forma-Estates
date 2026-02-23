@@ -9,6 +9,7 @@ import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, crea
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
+import { sendQuoteRequestEmail, sendSpecialRequestEmail } from "./email";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -406,6 +407,14 @@ export async function registerRoutes(
 
       log(`New special request #${specialRequest.id}: "${parsed.data.request}" for design ${parsed.data.designId}`);
 
+      sendSpecialRequestEmail({
+        customerEmail: parsed.data.customerEmail,
+        request: parsed.data.request,
+        originalImageUrl: parsed.data.originalImageUrl,
+        designId: parsed.data.designId,
+        price: parsed.data.price,
+      });
+
       return res.json(specialRequest);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -460,6 +469,16 @@ export async function registerRoutes(
       });
 
       log(`New quote request #${quoteRequest.id} from ${parsed.data.customerEmail} for design ${parsed.data.designId}`);
+
+      sendQuoteRequestEmail({
+        customerEmail: parsed.data.customerEmail,
+        notes: parsed.data.notes,
+        roomType: parsed.data.roomType,
+        style: parsed.data.style,
+        budget: parsed.data.budget,
+        generatedImageUrl: parsed.data.generatedImageUrl,
+        designId: parsed.data.designId,
+      });
 
       return res.json(quoteRequest);
     } catch (err: any) {
