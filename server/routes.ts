@@ -36,17 +36,32 @@ const upload = multer({
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
 const COLLOV_BASE = "https://api.collov.ai";
 
+const collovStyleMap: Record<string, string> = {
+  scandinavian: "scandinavian",
+  modern: "modern",
+  luxury: "luxury",
+  industrial: "industrial",
+  coastal: "coastal",
+  transitional: "transitional",
+  farmhouse: "farmhouse",
+  badboy: "modern",
+};
+
 async function sendCollovTask(uploadUrl: string, roomType: string, style: string, budgetPrompt?: string): Promise<string> {
   const FormData = (await import("form-data")).default;
   const fetch = (await import("node-fetch")).default;
 
+  const collovStyle = collovStyleMap[style] || "modern";
+
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
   form.append("roomType", roomType);
-  form.append("style", style);
+  form.append("style", collovStyle);
   if (budgetPrompt) {
     form.append("prompt", budgetPrompt);
   }
+
+  log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType}, prompt=${budgetPrompt?.substring(0, 150) || "none"}`);
 
   const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
@@ -185,10 +200,12 @@ export async function registerRoutes(
       let budgetPrompt: string | undefined;
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
-        const wallInstruction = parsed.data.style === "badboy"
-          ? "MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO white walls, NO light colors."
-          : "";
-        budgetPrompt = `${tierConfig.prompt}${wallInstruction ? ` ${wallInstruction}` : ""} Maintain exact room structure, windows, doors, NO layout changes. Photorealistic, high quality.`;
+
+        if (parsed.data.style === "badboy") {
+          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
+        } else {
+          budgetPrompt = `${tierConfig.prompt} Maintain exact room structure, windows, doors, NO layout changes. Photorealistic, high quality.`;
+        }
       }
 
       try {
