@@ -166,24 +166,41 @@ export default function LandingPage() {
       </section>
 
       <section id="om-os" className="py-24 sm:py-32 px-6 border-t border-border/40">
-        <div className="mx-auto max-w-3xl text-center">
+        <div className="mx-auto max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.5 }}
           >
-            <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4">Om Hus AI</p>
-            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-6">
-              AI-drevet interiørdesign for det danske hjem
+            <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4 text-center">Om Hus AI</p>
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-6 text-center">
+              Vi brænder for at gøre idéer konkrete
             </h2>
-            <p className="text-muted-foreground text-base sm:text-lg leading-relaxed mb-8 max-w-2xl mx-auto">
-              Hus AI bruger avanceret kunstig intelligens til at hjælpe boligejere og professionelle med at visualisere
-              nye indretningsforslag. Vores teknologi bevarer dit rums unikke struktur og tilpasser designforslag
-              til dit budget — med anbefalinger fra danske forhandlere som IKEA, HAY, &Tradition og mange flere.
-            </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-14 text-left">
+            <div className="max-w-2xl mx-auto space-y-5 mt-10">
+              <p className="text-muted-foreground text-base sm:text-[17px] leading-relaxed">
+                Alt for længe har boligforbedringer og renoveringer været baseret på forestillingsevne, usikkerhed og løse visualiseringer. Vores mål er at bygge bro mellem det visuelle og det virkelige — så du ikke kun kan se potentialet i en bolig, men også forstå, hvordan det kan realiseres.
+              </p>
+              <p className="text-muted-foreground text-base sm:text-[17px] leading-relaxed">
+                Med vores AI-platform kan du uploade et billede, vælge stil og niveau, og få realistiske før/efter-visualiseringer, der ikke blot inspirerer, men kan danne grundlag for faktiske beslutninger.
+              </p>
+              <p className="text-muted-foreground text-base sm:text-[17px] leading-relaxed">
+                Vi tror på gennemsigtighed, kvalitet og løsninger, der skaber reel værdi — både for boligejere, investorer og samarbejdspartnere.
+              </p>
+            </div>
+
+            <div className="flex justify-center mt-14">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-foreground/[0.05] flex items-center justify-center mx-auto mb-4">
+                  <span className="text-lg font-semibold text-foreground/60">FF</span>
+                </div>
+                <p className="text-base font-medium">Frederik Fussing Nielsen</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Stifter & CEO</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-20 text-left">
               {[
                 {
                   icon: ShieldCheck,
