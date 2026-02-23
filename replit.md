@@ -16,7 +16,8 @@ Hus AI is a web application that uses the Collov AI API to transform room photos
 - `server/routes.ts` - API routes for designs, quotes, and style info
 - `server/storage.ts` - Database CRUD operations for designs and quotes
 - `server/db.ts` - PostgreSQL connection pool
-- `client/src/pages/home.tsx` - Main page with 3-step flow (upload → configure with budget → result)
+- `client/src/pages/landing.tsx` - Landing page with hero, features, about section
+- `client/src/pages/home.tsx` - Design tool page with 3-step flow (upload → configure with budget → result)
 - `client/src/pages/admin-quotes.tsx` - Admin quote builder page
 - `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider
@@ -68,4 +69,4 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, mid-
 
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (main), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/design` (design tool), `/admin/quotes` (admin quote builder)

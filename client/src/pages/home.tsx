@@ -201,11 +201,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
-        <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl font-semibold tracking-tight">Hus AI</span>
+        <div className="mx-auto max-w-5xl flex items-center justify-between px-6 h-16">
+          <a href="/" className="flex items-center gap-2.5" data-testid="link-home">
+            <span className="text-lg font-semibold tracking-tight">Hus AI</span>
+          </a>
+          <div className="flex items-center gap-6">
+            <a href="/#om-os" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-about">Om os</a>
+            <p className="text-xs tracking-widest uppercase text-muted-foreground hidden md:block">AI-drevet interiørdesign</p>
           </div>
-          <p className="text-xs tracking-widest uppercase text-muted-foreground hidden sm:block">AI-drevet interiørdesign</p>
         </div>
       </header>
 
