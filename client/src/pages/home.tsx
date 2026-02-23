@@ -210,43 +210,45 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6">
-        <div className="flex items-center justify-center gap-0 py-8">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center">
-              <div className="flex items-center gap-2.5">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium transition-all duration-300 ${
-                  step > s
-                    ? "bg-foreground text-background"
-                    : step === s
-                    ? "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {step > s ? <Check className="w-3.5 h-3.5" /> : s}
+        {step > 1 && (
+          <div className="flex items-center justify-center gap-0 py-6 mb-2">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center">
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-medium transition-all duration-300 ${
+                    step > s
+                      ? "bg-foreground text-background"
+                      : step === s
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {step > s ? <Check className="w-3 h-3" /> : s}
+                  </div>
+                  <span className={`text-xs hidden sm:inline transition-colors duration-300 ${
+                    step >= s ? "text-foreground font-medium" : "text-muted-foreground"
+                  }`}>
+                    {stepLabels[s - 1]}
+                  </span>
                 </div>
-                <span className={`text-sm hidden sm:inline transition-colors duration-300 ${
-                  step >= s ? "text-foreground font-medium" : "text-muted-foreground"
-                }`}>
-                  {stepLabels[s - 1]}
-                </span>
+                {s < 3 && (
+                  <div className={`w-10 sm:w-16 h-px mx-2.5 transition-colors duration-300 ${
+                    step > s ? "bg-foreground" : "bg-border"
+                  }`} />
+                )}
               </div>
-              {s < 3 && (
-                <div className={`w-12 sm:w-20 h-px mx-3 transition-colors duration-300 ${
-                  step > s ? "bg-foreground" : "bg-border"
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3, ease: "easeOut" }}>
-              <div className="max-w-2xl mx-auto pt-8 pb-16">
-                <div className="text-center mb-12">
-                  <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4 leading-tight">
-                    Transformer dit rum<br className="hidden sm:block" /> med AI
+              <div className="max-w-xl mx-auto pt-16 sm:pt-24 pb-16">
+                <div className="text-center mb-14">
+                  <h1 className="text-4xl sm:text-[3.25rem] font-semibold tracking-tight mb-5 leading-[1.1]">
+                    Transformer dit rum med AI
                   </h1>
-                  <p className="text-muted-foreground text-base leading-relaxed max-w-md mx-auto">
+                  <p className="text-muted-foreground text-[15px] leading-relaxed max-w-sm mx-auto">
                     Upload et foto af dit rum, vælg rumtype, stil og budget, og se en realistisk redesign på sekunder.
                   </p>
                 </div>
@@ -258,17 +260,33 @@ export default function HomePage() {
                   onDrop={handleDrop}
                   data-testid="upload-area"
                 >
-                  <div className="border-2 border-dashed border-border rounded-xl transition-all duration-300 group-hover:border-foreground/30 group-hover:bg-accent/40">
-                    <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-                      <div className="w-14 h-14 rounded-full bg-foreground/5 flex items-center justify-center mb-5 group-hover:bg-foreground/10 transition-colors">
-                        <Upload className="w-6 h-6 text-foreground/60" />
+                  <div className="rounded-2xl border border-border/70 bg-card/40 transition-all duration-300 group-hover:border-foreground/20 group-hover:bg-card/70 group-hover:shadow-lg">
+                    <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-8 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-foreground/[0.04] flex items-center justify-center mb-6 group-hover:bg-foreground/[0.07] transition-colors">
+                        <Upload className="w-5 h-5 text-foreground/50" />
                       </div>
-                      <h3 className="text-base font-medium mb-1.5">Upload dit rum</h3>
-                      <p className="text-sm text-muted-foreground mb-1">
+                      <p className="text-[15px] font-medium mb-1">Upload dit rum</p>
+                      <p className="text-sm text-muted-foreground">
                         Træk og slip eller klik for at vælge et billede
                       </p>
-                      <p className="text-xs text-muted-foreground/70">JPG, PNG eller WebP. Maks 10 MB.</p>
+                      <p className="text-xs text-muted-foreground/60 mt-4">JPG, PNG eller WebP. Maks 10 MB.</p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-8 mt-14 text-muted-foreground/50">
+                  <div className="flex items-center gap-6">
+                    {[
+                      { num: "1", label: "Upload foto" },
+                      { num: "2", label: "Vælg stil" },
+                      { num: "3", label: "Se resultat" },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px]">{item.num}</span>
+                        <span className="text-xs hidden sm:inline">{item.label}</span>
+                        {i < 2 && <ArrowRight className="w-3 h-3 ml-1 hidden sm:block" />}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
