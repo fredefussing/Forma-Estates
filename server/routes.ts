@@ -49,9 +49,6 @@ const collovStyleMap: Record<string, string> = {
 };
 
 async function sendCollovTask(uploadUrl: string, roomType: string, style: string, budgetPrompt?: string): Promise<string> {
-  const FormData = (await import("form-data")).default;
-  const fetch = (await import("node-fetch")).default;
-
   const collovStyle = collovStyleMap[style] || "modern";
 
   const form = new FormData();
@@ -59,7 +56,7 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   form.append("roomType", roomType);
   form.append("style", collovStyle);
   if (budgetPrompt) {
-    form.append("prompt", budgetPrompt);
+    form.append("prompt", budgetPrompt.replace(/\n/g, ' '));
   }
 
   log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType}, prompt=${budgetPrompt?.substring(0, 150) || "none"}`);
@@ -68,13 +65,13 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
     method: "POST",
     headers: {
       apiKey: COLLOV_API_KEY!,
-      ...form.getHeaders(),
     },
     body: form,
   });
 
   const json = (await res.json()) as any;
   if (!json.success || !json.data?.uuid) {
+    log(`Collov API error response: ${JSON.stringify(json)}`);
     throw new Error(json.message || "Collov API returned an error");
   }
 
@@ -82,8 +79,6 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
 }
 
 async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string }> {
-  const fetch = (await import("node-fetch")).default;
-
   const res = await fetch(
     `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
     {
