@@ -78,7 +78,7 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   return json.data.uuid;
 }
 
-async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string }> {
+async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
   const res = await fetch(
     `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
     {
@@ -101,15 +101,18 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
     return { status: "completed", resultUrl };
   }
   if (status === "FAILED") {
-    return { status: "failed" };
+    const failReason = record.failReason || record.errorMessage || record.message || "unknown";
+    log(`Collov FAILED reason: ${failReason}, full record: ${JSON.stringify(record).slice(0, 300)}`);
+    return { status: "failed", failReason };
   }
 
   return { status: "processing" };
 }
 
-async function backgroundPoll(designId: number, uuid: string) {
+async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Promise<string>) {
   const maxAttempts = 60;
   let attempts = 0;
+  let hasRetried = false;
 
   const poll = async () => {
     attempts++;
@@ -124,8 +127,23 @@ async function backgroundPoll(designId: number, uuid: string) {
         return;
       }
       if (result.status === "failed") {
+        if (!hasRetried && retryFn) {
+          hasRetried = true;
+          log(`Design ${designId} failed (reason: ${result.failReason}), retrying automatically...`);
+          try {
+            const newUuid = await retryFn();
+            uuid = newUuid;
+            attempts = 0;
+            await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
+            log(`Design ${designId} retry started with new uuid: ${newUuid}`);
+            setTimeout(poll, 3000);
+            return;
+          } catch (retryErr: any) {
+            log(`Design ${designId} retry failed: ${retryErr.message}`);
+          }
+        }
         await storage.updateDesign(designId, { status: "failed" });
-        log(`Design ${designId} failed`);
+        log(`Design ${designId} failed permanently`);
         return;
       }
       if (attempts < maxAttempts) {
@@ -173,9 +191,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid room type or style" });
       }
 
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const host = req.headers["x-forwarded-host"] || req.headers.host;
-      const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS;
+      let publicUrl: string;
+      if (replitDomain) {
+        publicUrl = `https://${replitDomain}/uploads/${req.file.filename}`;
+      } else {
+        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+        const host = req.headers["x-forwarded-host"] || req.headers.host;
+        publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      }
 
       const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
 
@@ -208,7 +232,9 @@ export async function registerRoutes(
       try {
         const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, budgetPrompt);
         await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
-        backgroundPoll(design.id, uuid);
+
+        const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, budgetPrompt);
+        backgroundPoll(design.id, uuid, retryFn);
 
         const updated = await storage.getDesign(design.id);
         return res.json(updated);
