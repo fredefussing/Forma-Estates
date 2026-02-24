@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck } from "lucide-react";
 import { type Design } from "@shared/schema";
 import { motion } from "framer-motion";
+import { RotatingStats } from "@/components/rotating-stats";
 
 export default function LandingPage() {
   const { data: designs = [] } = useQuery<Design[]>({
@@ -298,6 +299,8 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      <RotatingStats />
 
       <footer className="border-t border-border/40 py-8 px-6">
         <div className="mx-auto max-w-6xl flex items-center justify-between">
