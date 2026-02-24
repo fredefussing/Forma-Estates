@@ -13,6 +13,9 @@ export default function LandingPage() {
             <span className="text-lg font-semibold tracking-tight cursor-pointer text-white" data-testid="link-logo">Nordic Sketch</span>
           </Link>
           <nav className="flex items-center gap-8">
+            <Link href="/find-stil">
+              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
+            </Link>
             <a href="#om-os" className="text-sm text-white/70 hover:text-white transition-colors" data-testid="link-about">Om os</a>
             <Link href="/design">
               <Button size="sm" className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-header-cta">
@@ -60,6 +63,29 @@ export default function LandingPage() {
             <div className="w-1 h-1.5 rounded-full bg-white/60" />
           </motion.div>
         </div>
+      </section>
+
+      <section className="py-16 px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.5 }}
+          className="mx-auto max-w-xl"
+        >
+          <div className="bg-card border border-border/50 rounded-2xl p-8 text-center shadow-sm">
+            <h3 className="text-xl font-semibold tracking-tight mb-2">Ikke sikker på din stil?</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Tag vores hurtige 30-sekunders quiz og få en personlig anbefaling baseret på dit rum og budget.
+            </p>
+            <Link href="/find-stil">
+              <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-medium rounded-full" data-testid="button-quiz-cta">
+                Find min stil
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
       </section>
 
       <section className="py-24 sm:py-32 px-6">

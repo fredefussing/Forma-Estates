@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nordic Sketch - Find din stil</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f0;
+            color: #2c2c2c;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            background: #fff;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #555;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: #1a1a1a;
+        }
+
+        .nav-links a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #1a1a1a;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #f5f5f0 0%, #e8e8e0 100%);
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #1a1a1a;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Quiz Teaser Box */
+        .quiz-teaser {
+            background: #fff;
+            max-width: 600px;
+            margin: -2rem auto 3rem;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .quiz-teaser h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #1a1a1a;
+        }
+
+        .quiz-teaser p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-primary {
+            background: #1a1a1a;
+            color: #fff;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #1a1a1a;
+            padding: 1rem 2rem;
+            border: 2px solid #1a1a1a;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 1rem;
+        }
+
+        .btn-secondary:hover {
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        /* Quiz Container */
+        .quiz-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: none;
+        }
+
+        .quiz-container.active {
+            display: block;
+        }
+
+        .quiz-step {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .quiz-step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .step-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: #1a1a1a;
+        }
+
+        .step-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 3rem;
+            gap: 1rem;
+        }
+
+        .progress-step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #666;
+            position: relative;
+        }
+
+        .progress-step.active {
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .progress-step.completed {
+            background: #4a4a4a;
+            color: #fff;
+        }
+
+        /* Layout with Preview */
+        .quiz-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .quiz-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .selection-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .preview-area {
+            background: #fff;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 100px;
+        }
+
+        .preview-area h3 {
+            margin-bottom: 1rem;
+            color: #1a1a1a;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .preview-placeholder {
+            width: 100%;
+            height: 300px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+
+        /* Room Grid */
+        .room-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .room-card {
+            background: #fff;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .room-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-color: #1a1a1a;
+        }
+
+        .room-card.selected {
+            border-color: #1a1a1a;
+            background: #f9f9f9;
+        }
+
+        .room-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Style Grid */
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .style-card {
+            background: #fff;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .style-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .style-card.selected {
+            border-color: #1a1a1a;
+            box-shadow: 0 0 0 3px rgba(26,26,26,0.1);
+        }
+
+        .style-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .style-image-placeholder {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(135deg, #e0e0e0 0%, #f0f0f0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 3rem;
+        }
+
+        .style-info {
+            padding: 1rem;
+        }
+
+        .style-info h4 {
+            margin-bottom: 0.3rem;
+            color: #1a1a1a;
+        }
+
+        .style-info p {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Budget Options */
+        .budget-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .budget-card {
+            background: #fff;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .budget-card:hover {
+            border-color: #1a1a1a;
+            transform: translateX(10px);
+        }
+
+        .budget-card.selected {
+            border-color: #1a1a1a;
+            background: #f9f9f9;
+        }
+
+        .budget-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .budget-desc {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Result Page */
+        .result-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+
+        .result-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+        }
+
+        .result-content {
+            padding: 3rem;
+        }
+
+        .result-badge {
+            display: inline-block;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .result-content h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #1a1a1a;
+        }
+
+        .result-text {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .features-list {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .features-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            color: #444;
+        }
+
+        .features-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+
+        .price-tag {
+            background: #f5f5f0;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* Back Button */
+        .back-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-btn:hover {
+            color: #1a1a1a;
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="logo">Nordic Sketch</a>
+            <ul class="nav-links">
+                <li><a href="#">Forside</a></li>
+                <li><a href="#" class="active" onclick="showQuiz()">Find din stil</a></li>
+                <li><a href="#">Om os</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Transformér dit hjem med AI</h1>
+        <p>Upload et billede af dit rum, vælg din stil, og se dit hjem forvandles før dine øjne</p>
+    </section>
+
+    <!-- Quiz Teaser -->
+    <div class="quiz-teaser">
+        <h3>📐 Ikke sikker på din stil?</h3>
+        <p>Tag vores hurtige 30-sekunders quiz og få en personlig anbefaling baseret på dit rum, din personlighed og dit budget. Spar tid og få resultater der passer præcis til dig.</p>
+        <button class="btn-primary" onclick="showQuiz()">Find min stil →</button>
+    </div>
+
+    <!-- Quiz Container -->
+    <div class="quiz-container" id="quizContainer">
+        
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-step active" id="step1-indicator">1</div>
+            <div class="progress-step" id="step2-indicator">2</div>
+            <div class="progress-step" id="step3-indicator">3</div>
+        </div>
+
+        <!-- Step 1: Choose Room -->
+        <div class="quiz-step active" id="step1">
+            <div class="step-header">
+                <h2>Hvilket rum vil du redesigne?</h2>
+                <p>Vælg det rum du ønsker at transformere</p>
+            </div>
+            <div class="room-grid" id="roomGrid">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+
+        <!-- Step 2: Choose Style with Preview -->
+        <div class="quiz-step" id="step2">
+            <button class="back-btn" onclick="goToStep(1)">← Tilbage til rum</button>
+            <div class="step-header">
+                <h2>Hvilken stil taler til dig?</h2>
+                <p>Klik på en stil for at se den i dit valgte rum</p>
+            </div>
+            <div class="quiz-layout">
+                <div class="selection-area">
+                    <div class="style-grid" id="styleGrid">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <div class="preview-area">
+                    <h3>Dit valg: <span id="previewRoomName">-</span></h3>
+                    <div id="previewContainer">
+                        <div class="preview-placeholder">Vælg en stil for at se preview</div>
+                    </div>
+                    <p id="previewStyleText" style="color: #666; font-style: italic;">Vælg en stil fra listen...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Choose Budget -->
+        <div class="quiz-step" id="step3">
+            <button class="back-btn" onclick="goToStep(2)">← Tilbage til stil</button>
+            <div class="step-header">
+                <h2>Hvad er dit budget?</h2>
+                <p>Vælg det niveau der passer dig bedst</p>
+            </div>
+            <div class="quiz-layout">
+                <div class="selection-area">
+                    <div class="budget-options">
+                        <div class="budget-card" onclick="selectBudget('10000', '10.000 kr')">
+                            <div>
+                                <div class="budget-amount">10.000 kr</div>
+                                <div class="budget-desc">Budgetvenlig løsning med fokus på de vigtigste ændringer</div>
+                            </div>
+                        </div>
+                        <div class="budget-card" onclick="selectBudget('25000', '25.000 kr')">
+                            <div>
+                                <div class="budget-amount">25.000 kr</div>
+                                <div class="budget-desc">Balanceret løsning med plads til kvalitet og stil</div>
+                            </div>
+                        </div>
+                        <div class="budget-card" onclick="selectBudget('50000', '50.000+ kr')">
+                            <div>
+                                <div class="budget-amount">50.000+ kr</div>
+                                <div class="budget-desc">Luksus løsning med premium materialer og møbler</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-area">
+                    <h3>Dit valg</h3>
+                    <img id="budgetPreviewImage" class="preview-image" style="display: none;">
+                    <div id="budgetPreviewPlaceholder" class="preview-placeholder">Vælg budget for at fortsætte</div>
+                    <p id="budgetSummary" style="color: #666;"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result -->
+        <div class="quiz-step" id="result">
+            <div class="result-container">
+                <img id="resultImage" class="result-image" src="" alt="">
+                <div class="result-content">
+                    <span class="result-badge">Din personlige anbefaling</span>
+                    <h2 id="resultTitle">Vi anbefaler: <span id="resultStyle"></span></h2>
+                    <p class="result-text" id="resultText"></p>
+                    
+                    <h3 style="margin-bottom: 1rem; color: #1a1a1a;">Hvad du kan forvente:</h3>
+                    <ul class="features-list" id="resultFeatures"></ul>
+                    
+                    <div class="price-tag" id="resultPrice"></div>
+                    
+                    <div class="result-actions">
+                        <button class="btn-primary" onclick="startDesign()">Start mit design →</button>
+                        <button class="btn-secondary" onclick="resetQuiz()">Prøv en anden stil</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Data structure
+        const rooms = [
+            { id: 'stue', name: 'Stue', icon: '🛋️' },
+            { id: 'sovevaerelse', name: 'Soveværelse', icon: '🛏️' },
+            { id: 'kokken', name: 'Køkken', icon: '🍳' },
+            { id: 'badevaerelse', name: 'Badeværelse', icon: '🚿' },
+            { id: 'spisestue', name: 'Spisestue', icon: '🍽️' },
+            { id: 'hjemmekontor', name: 'Hjemmekontor', icon: '💻' },
+            { id: 'bornevaerelse', name: 'Børneværelse', icon: '🧸' },
+            { id: 'studio', name: 'Studio', icon: '🎨' },
+            { id: 'spillerum', name: 'Spillerum', icon: '🎮' },
+            { id: 'vaskerum', name: 'Vaskerum', icon: '👕' },
+            { id: 'modelokale', name: 'Mødelokale', icon: '🤝' },
+            { id: 'spa', name: 'Spa', icon: '🧖' },
+            { id: 'udendors', name: 'Udendørs', icon: '🌿' },
+            { id: 'aabent-rum', name: 'Åben stue-spisestue', icon: '↔️' },
+            { id: 'entre', name: 'Entré', icon: '🚪' }
+        ];
+
+        const styles = {
+            skandinavisk: {
+                name: 'Skandinavisk',
+                description: 'Lys, natur og hygge',
+                hasImages: true,
+                images: {
+                    stue: 'https://jysk.dk/sites/jysk.dk/files/image/blog/2026-02/Top-FSC-R-helps-you-choose-products-made-from-responsibly-sourced-wood-February-2026.jpg',
+                    sovevaerelse: 'https://www.ikea.com/images/et-sovevaerelse-med-en-seng-pa-et-grat-og-hvidt-taeppe-et-va-21d43aed9f5964b9448b9cf3f9a68c36.jpg?f=sg',
+                    kokken: 'https://www.ikea.com/ext/ingkadam/m/6d8e9545e507f033/original/PH174644.jpg?f=xxxl',
+                    badevaerelse: 'https://www.ikea.com/ext/ingkadam/m/7f502124032a1ecc/original/PH205213.jpg?f=xxxl',
+                    spisestue: 'https://jysk.dk/sites/jysk.dk/files/styles/full_optimized/public/2025-03/3670178-GUDERUP-3640237-MARSTRAND-How-to-choose-dining-chairs-01.webp?itok=SmLqmfqc',
+                    hjemmekontor: 'https://www.ikea.com/ext/ingkadam/m/3b660685d9fafe05/original/PH186230.jpg?f=xxl',
+                    bornevaerelse: 'https://www.ikea.com/ext/ingkadam/m/6eeb568ce254308f/original/PH171425-crop002.jpg?f=xxl',
+                    studio: 'https://images.unsplash.com/photo-1607570838997-65f270035031?q=80&w=927&auto=format&fit=crop',
+                    spillerum: 'https://images.unsplash.com/photo-1598057076865-c67fefd248d3?q=80&w=1625&auto=format&fit=crop',
+                    vaskerum: 'https://www.ikea.com/ext/ingkadam/m/55a61973ad761dda/original/PH188403.jpg?f=xxl',
+                    modelokale: 'https://images.unsplash.com/photo-1517502884422-41eaead166d4?q=80&w=1625&auto=format&fit=crop',
+                    spa: 'https://images.unsplash.com/photo-1693578538512-fc66f318c833?q=80&w=2232&auto=format&fit=crop',
+                    udendors: 'https://jysk.dk/sites/jysk.dk/files/styles/full_optimized/public/2026-02/3725185-LILLEHOLM-FSC-R-helps-you-choose-products-made-from-responsibly-sourced-wood-01.webp?itok=ZD8gOhBB',
+                    'aabent-rum': 'https://media.ilva.dk/media/44808/design-uden-navn-2025-01-23t124343112.jpg?format=webp&height=undefined&width=650&quality=80&center=0.5%2C0.5&mode=crop',
+                    entre: 'https://www.ikea.com/ext/ingkadam/m/2ebf4e8e7793b5d7/original/PH180899-crop001.jpg?f=xxl'
+                },
+                why: "Baseret på dit valg af {room}, din varme personlighed og budget på {budget}, passer Skandinavisk perfekt til dig.",
+                description: "Denne stil kombinerer lyse farver, naturligt træ og funktionalitet - ideelt til et rum hvor du vil slappe af og føle dig hjemme.",
+                features: [
+                    "Lyse, luftige rum med masser af naturligt lys",
+                    "Naturlige materialer som eg og hør",
+                    "Funktionelle møbler uden unødig dekoration",
+                    "Hygge-atmosfære med tekstiler og stearinlys"
+                ],
+                priceRanges: {
+                    '10000': '8.000-12.000 kr',
+                    '25000': '15.000-30.000 kr',
+                    '50000': '35.000-60.000 kr'
+                }
+            },
+            moderne: {
+                name: 'Moderne',
+                description: 'Rent, minimalistisk, funktionelt',
+                hasImages: true,
+                images: {
+                    stue: 'https://images.unsplash.com/photo-1688646953306-5ec93eab8c06?q=80&w=1676&auto=format&fit=crop',
+                    sovevaerelse: 'https://nordicdream.dk/cdn/shop/files/SengerammeNovaBoucleLattefraNordicDream.jpg?v=1740156527&width=2000',
+                    kokken: 'https://www.svane.com/Admin/Public/GetImage.ashx?Image=/Files/Images/Svane/Koekken/S19/Massiv-raw/svane-s19-massiv-raw-b.jpg&Format=jpg&Width=825&Height=464&Compression=95&Crop=0',
+                    badevaerelse: 'https://images.unsplash.com/photo-1733426107854-ee00a25d72a7?q=80&w=1583&auto=format&fit=crop',
+                    spisestue: 'https://images.unsplash.com/photo-1730104231026-46e3cf7c3141?q=80&w=2232&auto=format&fit=crop',
+                    hjemmekontor: 'https://www.ikea.com/ext/ingkadam/m/ed920a37649c62b/original/PH183205.jpg?f=xxl',
+                    bornevaerelse: 'https://www.ikea.com/ext/ingkadam/m/26e6835bd6c348ca/original/PH163128-crop002.jpg?f=xxl',
+                    studio: 'https://images.unsplash.com/photo-1615458509636-856366d3396e?q=80&w=987&auto=format&fit=crop',
+                    spillerum: 'https://images.unsplash.com/photo-1616668010115-8f8ce69a4d04?q=80&w=2222&auto=format&fit=crop',
+                    vaskerum: 'https://www.ikea.com/ext/ingkadam/m/769a410dff25ecfa/original/PH189341.jpg?f=xxl',
+                    modelokale: 'https://images.unsplash.com/photo-1579488081757-b212dbd6ee72?q=80&w=988&auto=format&fit=crop',
+                    spa: 'https://images.unsplash.com/photo-1672983666814-a0e43bd3b1b9?q=80&w=2070&auto=format&fit=crop',
+                    udendors: 'https://media.ilva.dk/media/42005/2x2-dynamic-split.jpg?format=webp&height=undefined&width=650&quality=80&center=0.5%2C0.5&mode=crop',
+                    'aabent-rum': 'https://www.ikea.com/ext/ingkadam/m/3a7be8a027ae95b9/original/PH198201.JPG?f=xxl',
+                    entre: 'https://www.ikea.com/ext/ingkadam/m/2cac5f8f89fb8913/original/PH176281-crop001.jpg?f=xxl'
+                },
+                why: "Dit valg af {room} og din strukturerede personlighed peger mod Moderne - en tidløs stil med fokus på rene linjer og kvalitet.",
+                description: "Moderne design er perfekt når du vil have et rum der ser ud som fra et arkitekturmagasin, uden at gå på kompromis med komfort.",
+                features: [
+                    "Rene linjer og geometriske former",
+                    "Neutral farvepalette med sort/hvid/grå",
+                    "Høj kvalitet over kvantitet",
+                    "Smart opbevaring og skjult teknologi"
+                ],
+                priceRanges: {
+                    '10000': '10.000-15.000 kr',
+                    '25000': '20.000-35.000 kr',
+                    '50000': '40.000-70.000 kr'
+                }
+            },
+            badboy: {
+                name: 'Badboy',
+                description: 'Mørkt, maskulint, kant',
+                hasImages: false,
+                why: "Du har valgt {room} med en selvsikker attitude. Badboy stilen matcher din stærke personlighed.",
+                description: "Mørke farver, læder og metal skaber et maskulint rum med kant. Perfekt til dig der vil have et rum der skiller sig ud.",
+                features: [
+                    "Mørke, modige farver og materialer",
+                    "Læder, metal og rå overflader",
+                    "Statement pieces der skaber blikfang",
+                    "Industrielt touch med eksklusiv finish"
+                ],
+                priceRanges: {
+                    '10000': '10.000-15.000 kr',
+                    '25000': '20.000-35.000 kr',
+                    '50000': '40.000-70.000 kr'
+                }
+            },
+            luksus: {
+                name: 'Luksus',
+                description: 'Eksklusivt, elegant, premium',
+                hasImages: false,
+                why: "Med dit budget på {budget} og ønske om det bedste, fortjener du Luksus. Her er intet overladt til tilfældighederne.",
+                description: "Eksklusive materialer, designer-møbler og gennemført kvalitet. Dette er ikke bare indretning - det er en livsstil.",
+                features: [
+                    "Eksklusive materialer som marmor og læder",
+                    "Designer-møbler og ikoniske lamper",
+                    "Gennemført detaljer på alle flader",
+                    "Unikke kunstværker og accessories"
+                ],
+                priceRanges: {
+                    '10000': '12.000-18.000 kr',
+                    '25000': '30.000-50.000 kr',
+                    '50000': '60.000-100.000+ kr'
+                }
+            },
+            industriel: {
+                name: 'Industriel',
+                description: 'Råt, urbant, ægte',
+                hasImages: false,
+                why: "Dit valg af {room} viser du sætter pris på ægthed. Industriel stil bringer urban karakter ind i dit hjem.",
+                description: "Rå mursten, synlige rør og upoleret træ skaber en ærlig, autentisk atmosfære med masser af karakter.",
+                features: [
+                    "Rå materialer som beton, stål og læder",
+                    "Synlige installationer og strukturer",
+                    "Vintage og upcyclede elementer",
+                    "Højt til loftet og åbne rum"
+                ],
+                priceRanges: {
+                    '10000': '8.000-12.000 kr',
+                    '25000': '15.000-25.000 kr',
+                    '50000': '30.000-50.000 kr'
+                }
+            },
+            boheme: {
+                name: 'Boheme',
+                description: 'Farverigt, personligt, kunstnerisk',
+                hasImages: false,
+                why: "Din kreative sjæl fortjener et {room} der inspirerer. Boheme stilen fejrer individualitet og kunstnerisk frihed.",
+                description: "En blanding af mønstre, teksturer og farver fra hele verden. Perfekt til dig der samler på historier og souvenirs.",
+                features: [
+                    "Rige farver og etniske mønstre",
+                    "Mix af vintage og håndlavede ting",
+                    "Overdådige tekstiler og tæpper",
+                    "Personlige samlinger og kunst"
+                ],
+                priceRanges: {
+                    '10000': '7.000-12.000 kr',
+                    '25000': '15.000-28.000 kr',
+                    '50000': '35.000-55.000 kr'
+                }
+            },
+            minimalistisk: {
+                name: 'Minimalistisk',
+                description: 'Simplet, ro, essentielt',
+                hasImages: false,
+                why: "Du har valgt {room} og viser du sætter pris på ro. Minimalisme giver plads til det der virkelig betyder noget.",
+                description: "Færre ting, mere mening. Hver genstand er udvalgt med omhu. Resultatet er et rum der ånder og giver ro i sjælen.",
+                features: [
+                    "Maksimalt 3 farver per rum",
+                    "Skjult opbevaring og rene overflader",
+                    "Kvalitet frem for kvantitet",
+                    "Fokus på lys og rumfornemmelse"
+                ],
+                priceRanges: {
+                    '10000': '8.000-12.000 kr',
+                    '25000': '18.000-28.000 kr',
+                    '50000': '35.000-50.000 kr'
+                }
+            },
+            klassisk: {
+                name: 'Klassisk',
+                description: 'Tidløst, elegant, traditionelt',
+                hasImages: false,
+                why: "Dit valg af {room} viser du sætter pris på tradition. Klassisk stil holder evigt og bliver aldrig umoderne.",
+                description: "Symmetri, kvalitet og elegante detaljer skaber et rum der føles som hjemme - både nu og om 20 år.",
+                features: [
+                    "Symmetrisk indretning og balance",
+                    "Kvalitetsmøbler i mørkt træ",
+                    "Elegante tekstiler som silke og fløjl",
+                    "Tidløse farver som navy, grøn og guld"
+                ],
+                priceRanges: {
+                    '10000': '10.000-15.000 kr',
+                    '25000': '25.000-40.000 kr',
+                    '50000': '50.000-80.000 kr'
+                }
+            }
+        };
+
+        // State
+        let currentStep = 1;
+        let selectedRoom = null;
+        let selectedStyle = null;
+        let selectedBudget = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderRooms();
+            renderStyles();
+        });
+
+        function showQuiz() {
+            document.getElementById('quizContainer').classList.add('active');
+            document.getElementById('quizContainer').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderRooms() {
+            const grid = document.getElementById('roomGrid');
+            grid.innerHTML = rooms.map(room => `
+                <div class="room-card" onclick="selectRoom('${room.id}', '${room.name}')" data-room="${room.id}">
+                    <div class="room-icon">${room.icon}</div>
+                    <div>${room.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderStyles() {
+            const grid = document.getElementById('styleGrid');
+            grid.innerHTML = Object.entries(styles).map(([key, style]) => `
+                <div class="style-card" onclick="selectStyle('${key}')" data-style="${key}">
+                    ${style.hasImages ? 
+                        `<div class="style-image-placeholder">📷</div>` : 
+                        `<div class="style-image-placeholder">${getStyleEmoji(key)}</div>`
+                    }
+                    <div class="style-info">
+                        <h4>${style.name}</h4>
+                        <p>${style.description}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStyleEmoji(style) {
+            const emojis = {
+                badboy: '🖤',
+                luksus: '✨',
+                industriel: '🏭',
+                boheme: '🎨',
+                minimalistisk: '○',
+                klassisk: '🏛️'
+            };
+            return emojis[style] || '🏠';
+        }
+
+        function selectRoom(roomId, roomName) {
+            selectedRoom = { id: roomId, name: roomName };
+            
+            // Update UI
+            document.querySelectorAll('.room-card').forEach(card => {
+                card.classList.remove('selected');
+                if(card.dataset.room === roomId) card.classList.add('selected');
+            });
+
+            // Update preview header
+            document.getElementById('previewRoomName').textContent = roomName;
+
+            // Go to next step after short delay
+            setTimeout(() => {
+                goToStep(2);
+            }, 300);
+        }
+
+        function selectStyle(styleKey) {
+            selectedStyle = styleKey;
+            const style = styles[styleKey];
+            
+            // Update UI
+            document.querySelectorAll('.style-card').forEach(card => {
+                card.classList.remove('selected');
+                if(card.dataset.style === styleKey) card.classList.add('selected');
+            });
+
+            // Update preview
+            const previewContainer = document.getElementById('previewContainer');
+            const previewText = document.getElementById('previewStyleText');
+            
+            if (style.hasImages && style.images[selectedRoom.id]) {
+                previewContainer.innerHTML = `<img src="${style.images[selectedRoom.id]}" class="preview-image" alt="${style.name}">`;
+                previewText.textContent = `${style.name} stil i dit ${selectedRoom.name.toLowerCase()} - perfekt match!`;
+            } else {
+                previewContainer.innerHTML = `
+                    <div class="preview-placeholder" style="background: ${getStyleColor(styleKey)}; color: white; flex-direction: column;">
+                        <span style="font-size: 3rem; margin-bottom: 1rem;">${getStyleEmoji(styleKey)}</span>
+                        <span>${style.name}</span>
+                    </div>
+                `;
+                previewText.textContent = `${style.name} stil - ${style.description}. Tilføj dit billede for at se transformationen!`;
+            }
+
+            // Go to next step after delay
+            setTimeout(() => {
+                goToStep(3);
+            }, 800);
+        }
+
+        function getStyleColor(style) {
+            const colors = {
+                badboy: '#2c2c2c',
+                luksus: '#d4af37',
+                industriel: '#5a5a5a',
+                boheme: '#e74c3c',
+                minimalistisk: '#ecf0f1',
+                klassisk: '#34495e'
+            };
+            return colors[style] || '#95a5a6';
+        }
+
+        function selectBudget(budgetValue, budgetLabel) {
+            selectedBudget = { value: budgetValue, label: budgetLabel };
+            
+            // Update UI
+            document.querySelectorAll('.budget-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+
+            // Update preview
+            const style = styles[selectedStyle];
+            const previewImg = document.getElementById('budgetPreviewImage');
+            const previewPlaceholder = document.getElementById('budgetPreviewPlaceholder');
+            
+            if (style.hasImages && style.images[selectedRoom.id]) {
+                previewImg.src = style.images[selectedRoom.id];
+                previewImg.style.display = 'block';
+                previewPlaceholder.style.display = 'none';
+            } else {
+                previewImg.style.display = 'none';
+                previewPlaceholder.style.display = 'flex';
+                previewPlaceholder.style.background = getStyleColor(selectedStyle);
+                previewPlaceholder.style.color = 'white';
+                previewPlaceholder.innerHTML = `<span style="font-size: 2rem;">${getStyleEmoji(selectedStyle)} ${style.name}</span>`;
+            }
+
+            document.getElementById('budgetSummary').innerHTML = `
+                <strong>${selectedRoom.name}</strong> + 
+                <strong>${style.name}</strong> + 
+                <strong>${budgetLabel}</strong>
+            `;
+
+            // Show result after delay
+            setTimeout(() => {
+                showResult();
+            }, 600);
+        }
+
+        function goToStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.quiz-step').forEach(s => s.classList.remove('active'));
+            
+            // Show target step
+            document.getElementById(`step${step}`).classList.add('active');
+            
+            // Update progress
+            updateProgress(step);
+            
+            currentStep = step;
+        }
+
+        function updateProgress(step) {
+            for (let i = 1; i <= 3; i++) {
+                const indicator = document.getElementById(`step${i}-indicator`);
+                indicator.classList.remove('active', 'completed');
+                if (i < step) indicator.classList.add('completed');
+                else if (i === step) indicator.classList.add('active');
+            }
+        }
+
+        function showResult() {
+            const style = styles[selectedStyle];
+            const roomName = selectedRoom.name.toLowerCase();
+            const budgetLabel = selectedBudget.label;
+            
+            // Hide quiz steps, show result
+            document.querySelectorAll('.quiz-step').forEach(s => s.classList.remove('active'));
+            document.getElementById('result').classList.add('active');
+            
+            // Hide progress bar
+            document.querySelector('.progress-bar').style.display = 'none';
+            
+            // Set result image
+            const resultImg = document.getElementById('resultImage');
+            if (style.hasImages && style.images[selectedRoom.id]) {
+                resultImg.src = style.images[selectedRoom.id];
+                resultImg.style.display = 'block';
+            } else {
+                resultImg.style.display = 'none';
+                // Add colored background instead
+                const resultContainer = document.querySelector('.result-container');
+                resultContainer.style.background = getStyleColor(selectedStyle);
+                resultContainer.style.color = 'white';
+            }
+            
+            // Set texts
+            document.getElementById('resultStyle').textContent = style.name;
+            
+            const whyText = style.why
+                .replace('{room}', roomName)
+                .replace('{budget}', budgetLabel)
+                .replace('{personality}', getPersonalityText(selectedStyle));
+            
+            document.getElementById('resultText').innerHTML = `
+                ${whyText}<br><br>
+                ${style.description}
+            `;
+            
+            // Set features
+            const featuresList = document.getElementById('resultFeatures');
+            featuresList.innerHTML = style.features.map(f => `<li>${f}</li>`).join('');
+            
+            // Set price
+            const priceRange = style.priceRanges[selectedBudget.value];
+            document.getElementById('resultPrice').innerHTML = `
+                💰 Prisniveau: ${priceRange} for komplet ${roomName}
+            `;
+        }
+
+        function getPersonalityText(style) {
+            const personalities = {
+                skandinavisk: 'varme',
+                moderne: 'strukturerede',
+                badboy: 'selvsikre',
+                luksus: 'kræsne',
+                industriel: 'ægte',
+                boheme: 'kreative',
+                minimalistisk: 'fokuserede',
+                klassisk: 'traditionelle'
+            };
+            return personalities[style] || 'unikke';
+        }
+
+        function startDesign() {
+            alert(`Videregår til upload med ${selectedStyle} stil pre-valgt til dit ${selectedRoom.name.toLowerCase()}!`);
+            // Her ville du redirecte til din upload-side med parametre:
+            // window.location.href = `/upload?style=${selectedStyle}&room=${selectedRoom.id}`;
+        }
+
+        function resetQuiz() {
+            // Reset state
+            selectedRoom = null;
+            selectedStyle = null;
+            selectedBudget = null;
+            
+            // Reset UI
+            document.querySelectorAll('.room-card, .style-card, .budget-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+            
+            document.getElementById('previewContainer').innerHTML = '<div class="preview-placeholder">Vælg en stil for at se preview</div>';
+            document.getElementById('previewStyleText').textContent = 'Vælg en stil fra listen...';
+            document.getElementById('budgetPreviewImage').style.display = 'none';
+            document.getElementById('budgetPreviewPlaceholder').style.display = 'flex';
+            document.getElementById('budgetSummary').textContent = '';
+            
+            // Show progress bar again
+            document.querySelector('.progress-bar').style.display = 'flex';
+            
+            // Go to step 1
+            goToStep(1);
+        }
+    </script>
+
+</body>
+</html>

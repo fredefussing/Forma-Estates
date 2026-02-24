@@ -7,11 +7,13 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import DesignPage from "@/pages/home";
 import AdminQuotesPage from "@/pages/admin-quotes";
+import FindStylePage from "@/pages/find-style";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
+      <Route path="/find-stil" component={FindStylePage} />
       <Route path="/design" component={DesignPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
       <Route component={NotFound} />

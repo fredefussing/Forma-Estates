@@ -16,8 +16,9 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - `server/routes.ts` - API routes for designs, quotes, and style info
 - `server/storage.ts` - Database CRUD operations for designs, quotes, and special requests
 - `server/db.ts` - PostgreSQL connection pool
-- `client/src/pages/landing.tsx` - Landing page with hero, features, about section
-- `client/src/pages/home.tsx` - Design tool page with 3-step flow (upload → configure with budget → result)
+- `client/src/pages/landing.tsx` - Landing page with hero, quiz teaser, features, about section
+- `client/src/pages/find-style.tsx` - "Find din stil" quiz: 3-step flow (room → style → budget → recommendation with pre-selected redirect to /design)
+- `client/src/pages/home.tsx` - Design tool page with 3-step flow (upload → configure with budget → result), reads URL params from quiz
 - `client/src/pages/admin-quotes.tsx` - Admin quote builder page
 - `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider
@@ -80,6 +81,13 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - `DATABASE_URL` - PostgreSQL connection string
 - `COLLOV_API_KEY` - Collov AI API key (secret)
 
+## Style Quiz ("Find din stil")
+- Interactive 3-step quiz at `/find-stil`: choose room → choose style → choose budget
+- 8 quiz styles (skandinavisk, moderne, badboy, luksus, industriel, boheme, minimalistisk, klassisk) with room-specific preview images for skandinavisk and moderne
+- Result page shows personalized recommendation with features and price range
+- "Start mit design" button navigates to `/design` with pre-selected roomType, style, and budget via URL params
+- Design page reads `?roomType=X&style=Y&budget=Z` query params to pre-fill selections
+
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/design` (design tool), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/design` (design tool), `/admin/quotes` (admin quote builder)

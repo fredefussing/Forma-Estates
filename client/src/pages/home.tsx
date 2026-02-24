@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -75,12 +75,18 @@ const styleDescriptions: Record<DesignStyle, string> = {
 export default function HomePage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const initialRoomType = (urlParams.get("roomType") as RoomType) || "";
+  const initialStyle = (urlParams.get("style") as DesignStyle) || "";
+  const initialBudget = urlParams.get("budget") ? parseInt(urlParams.get("budget")!, 10) : 25000;
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [roomType, setRoomType] = useState<RoomType | "">("");
-  const [style, setStyle] = useState<DesignStyle | "">("");
-  const [budget, setBudget] = useState<number>(25000);
-  const [tier, setTier] = useState<BudgetTier>("standard");
+  const [roomType, setRoomType] = useState<RoomType | "">(initialRoomType);
+  const [style, setStyle] = useState<DesignStyle | "">(initialStyle);
+  const [budget, setBudget] = useState<number>(initialBudget);
+  const [tier, setTier] = useState<BudgetTier>(initialBudget >= 40000 ? "luxury" : initialBudget >= 15000 ? "standard" : "budget");
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
