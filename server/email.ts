@@ -1,44 +1,37 @@
-// SendGrid integration for email notifications
-import sgMail from '@sendgrid/mail';
 import { log } from "./index";
 
-let connectionSettings: any;
-
-async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL
-    : null;
-
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-  }
-
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=sendgrid',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.api_key || !connectionSettings.settings.from_email)) {
-    throw new Error('SendGrid not connected');
-  }
-  return { apiKey: connectionSettings.settings.api_key, email: connectionSettings.settings.from_email };
-}
-
-async function getUncachableSendGridClient() {
-  const { apiKey, email } = await getCredentials();
-  sgMail.setApiKey(apiKey);
-  return { client: sgMail, fromEmail: email };
-}
-
 const ADMIN_EMAIL = "fredefussing@gmail.com";
+const FROM_EMAIL = "fredefussing@gmail.com";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+
+async function sendBrevoEmail(to: string, subject: string, html: string) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY not configured");
+  }
+
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "api-key": apiKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "Nordic Sketch", email: FROM_EMAIL },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Brevo API error ${response.status}: ${errorText}`);
+  }
+
+  return response.json();
+}
 
 export async function sendQuoteRequestEmail(data: {
   customerEmail: string;
@@ -50,13 +43,10 @@ export async function sendQuoteRequestEmail(data: {
   designId: number;
 }) {
   try {
-    const { client, fromEmail } = await getUncachableSendGridClient();
-
-    await client.send({
-      to: ADMIN_EMAIL,
-      from: fromEmail,
-      subject: `Ny tilbudsforespørgsel #${data.designId}`,
-      html: `
+    await sendBrevoEmail(
+      ADMIN_EMAIL,
+      `Ny tilbudsforespørgsel #${data.designId}`,
+      `
         <h2>Ny tilbudsforespørgsel</h2>
         <p><strong>Kunde email:</strong> ${data.customerEmail}</p>
         <p><strong>Rum:</strong> ${data.roomType}</p>
@@ -67,9 +57,8 @@ export async function sendQuoteRequestEmail(data: {
         <img src="${data.generatedImageUrl}" style="max-width: 600px; border-radius: 8px;" />
         <hr />
         <p><em>Find produkter, byg tilbud, send til kunde.</em></p>
-      `,
-    });
-
+      `
+    );
     log(`Quote request email sent to ${ADMIN_EMAIL} for design #${data.designId}`);
   } catch (err: any) {
     log(`Failed to send quote request email: ${err.message}`);
@@ -84,13 +73,10 @@ export async function sendSpecialRequestEmail(data: {
   price: number;
 }) {
   try {
-    const { client, fromEmail } = await getUncachableSendGridClient();
-
-    await client.send({
-      to: ADMIN_EMAIL,
-      from: fromEmail,
-      subject: `Ny manuel forespørgsel #${data.designId}`,
-      html: `
+    await sendBrevoEmail(
+      ADMIN_EMAIL,
+      `Ny manuel forespørgsel #${data.designId}`,
+      `
         <h2>Ny kunde vil have manuel tilpasning</h2>
         <p><strong>Ønske:</strong> ${data.request}</p>
         <p><strong>Pris:</strong> ${data.price} kr</p>
@@ -105,9 +91,8 @@ export async function sendSpecialRequestEmail(data: {
           <li>Upload rettet version til admin</li>
           <li>Send til kunde</li>
         </ol>
-      `,
-    });
-
+      `
+    );
     log(`Special request email sent to ${ADMIN_EMAIL} for design #${data.designId}`);
   } catch (err: any) {
     log(`Failed to send special request email: ${err.message}`);
