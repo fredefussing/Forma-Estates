@@ -111,8 +111,9 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
 
 async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Promise<string>) {
   const maxAttempts = 60;
+  const maxRetries = 2;
   let attempts = 0;
-  let hasRetried = false;
+  let retryCount = 0;
 
   const poll = async () => {
     attempts++;
@@ -123,39 +124,46 @@ async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Pr
           status: "completed",
           resultImageUrl: result.resultUrl,
         });
-        log(`Design ${designId} completed`);
+        log(`Design ${designId} completed successfully`);
         return;
       }
       if (result.status === "failed") {
-        if (!hasRetried && retryFn) {
-          hasRetried = true;
-          log(`Design ${designId} failed (reason: ${result.failReason}), retrying automatically...`);
+        if (retryCount < maxRetries && retryFn) {
+          retryCount++;
+          log(`Design ${designId} failed (reason: ${result.failReason}), retry ${retryCount}/${maxRetries}...`);
+          await storage.updateDesign(designId, { status: "processing" });
+          const retryDelay = retryCount * 5000;
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
           try {
             const newUuid = await retryFn();
             uuid = newUuid;
             attempts = 0;
             await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
-            log(`Design ${designId} retry started with new uuid: ${newUuid}`);
-            setTimeout(poll, 3000);
+            log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
+            setTimeout(poll, 5000);
             return;
           } catch (retryErr: any) {
-            log(`Design ${designId} retry failed: ${retryErr.message}`);
+            log(`Design ${designId} retry ${retryCount} send failed: ${retryErr.message}`);
+            retryCount--;
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            setTimeout(poll, 5000);
+            return;
           }
         }
         await storage.updateDesign(designId, { status: "failed" });
-        log(`Design ${designId} failed permanently`);
+        log(`Design ${designId} failed permanently after ${retryCount} retries`);
         return;
       }
       if (attempts < maxAttempts) {
-        setTimeout(poll, 3000);
+        setTimeout(poll, 5000);
       } else {
         await storage.updateDesign(designId, { status: "failed" });
-        log(`Design ${designId} timed out`);
+        log(`Design ${designId} timed out after ${maxAttempts} attempts`);
       }
     } catch (err) {
       log(`Poll error for design ${designId}: ${err}`);
       if (attempts < maxAttempts) {
-        setTimeout(poll, 5000);
+        setTimeout(poll, 8000);
       } else {
         await storage.updateDesign(designId, { status: "failed" });
       }
@@ -277,37 +285,6 @@ export async function registerRoutes(
       }
       if (design.status === "failed") {
         return res.json({ status: "failed", resultUrl: null, error: "Generering fejlede. Prøv et andet billede eller stil." });
-      }
-
-      if (!design.collovUuid) {
-        return res.json({ status: design.status, resultUrl: null, error: null });
-      }
-
-      const fetch = (await import("node-fetch")).default;
-      const collovRes = await fetch(
-        `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(design.collovUuid)}`,
-        { headers: { apiKey: COLLOV_API_KEY! } }
-      );
-      const json = (await collovRes.json()) as any;
-      const data = json.data || {};
-      const genRecord = data.generateRecordList?.[0] || {};
-      const recordStatus = genRecord.status || data.status;
-
-      log(`Status check for design ${id}: collov status=${recordStatus}`);
-
-      if (recordStatus === "FAILED") {
-        await storage.updateDesign(id, { status: "failed" });
-        return res.json({
-          status: "failed",
-          error: "Generering fejlede. Prøv et andet billede eller stil.",
-          resultUrl: null,
-        });
-      }
-
-      if (recordStatus === "SUCCESS") {
-        const resultUrl = genRecord.generateUrl || data.aiGenerateRecord?.generateUrl;
-        await storage.updateDesign(id, { status: "completed", resultImageUrl: resultUrl });
-        return res.json({ status: "completed", resultUrl, error: null });
       }
 
       return res.json({

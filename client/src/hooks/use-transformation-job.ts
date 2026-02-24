@@ -22,12 +22,13 @@ export function useTransformationJob(designId: number | null) {
     setStatus('pending');
     let isActive = true;
     let attempts = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 120;
+    const pollInterval = 4000;
 
     const poll = async () => {
       while (isActive && attempts < maxAttempts) {
         attempts++;
-        setProgress(Math.min((attempts / 20) * 100, 95));
+        setProgress(Math.min((attempts / 40) * 100, 95));
 
         try {
           const response = await fetch(`/api/designs/${designId}/status`);
@@ -48,11 +49,12 @@ export function useTransformationJob(designId: number | null) {
             return;
           }
 
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          setStatus('processing');
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
 
         } catch (err) {
           console.error('Polling fejl:', err);
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          await new Promise(resolve => setTimeout(resolve, pollInterval * 2));
         }
       }
 
