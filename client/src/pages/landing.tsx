@@ -238,13 +238,13 @@ export default function LandingPage() {
 
       <Link href="/find-stil">
         <div
-          className="fixed bottom-[30px] left-[30px] z-[99] bg-white text-[#1a1a1a] rounded-xl px-6 py-4 cursor-pointer flex items-center gap-3 border border-[#eee] hover:-translate-y-1 transition-all"
+          className="fixed bottom-[30px] left-[30px] z-[99] bg-white text-[#1a1a1a] rounded-xl px-[1.2rem] py-[0.8rem] cursor-pointer flex items-center gap-2 border border-[#eee] hover:-translate-y-1 transition-all"
           style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
           data-testid="button-floating-quiz"
         >
           <div className="flex flex-col leading-tight">
-            <span className="text-base font-semibold">I tvivl om din stil?</span>
-            <span className="text-sm text-[#666]">Tag testen på 20 sekunder →</span>
+            <span className="text-[0.9rem] font-semibold">I tvivl om din stil?</span>
+            <span className="text-[0.8rem] text-[#666]">Tag testen på 20 sekunder →</span>
           </div>
         </div>
       </Link>
