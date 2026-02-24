@@ -236,6 +236,19 @@ export default function LandingPage() {
 
       <RotatingStats />
 
+      <Link href="/find-stil">
+        <div
+          className="fixed bottom-[30px] left-[30px] z-[99] bg-[#1a1a1a] text-white rounded-full px-6 py-4 cursor-pointer flex items-center gap-3 shadow-xl hover:-translate-y-1 hover:shadow-2xl transition-all"
+          data-testid="button-floating-quiz"
+        >
+          <span className="text-xl">🎯</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold">I tvivl om din stil?</span>
+            <span className="text-xs text-white/70">Tag testen på 20 sekunder →</span>
+          </div>
+        </div>
+      </Link>
+
       <footer className="border-t border-border/40 py-8 px-6">
         <div className="mx-auto max-w-6xl flex items-center justify-between">
           <span className="text-sm text-muted-foreground/60">© 2026 Nordic Sketch</span>

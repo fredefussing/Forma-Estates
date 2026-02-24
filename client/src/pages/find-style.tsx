@@ -398,7 +398,7 @@ export default function FindStylePage() {
                   <h2 className="text-4xl font-bold text-[#1a1a1a] mb-2" data-testid="text-step2-title">Hvilken stil taler til dig?</h2>
                   <p className="text-[#666] text-lg">Klik på en stil for at se den i dit valgte rum</p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-12 items-start">
                   <div className="grid grid-cols-2 gap-4">
                     {(Object.entries(styles) as [StyleKey, StyleData][]).map(([key, style]) => (
                       <div
@@ -431,17 +431,17 @@ export default function FindStylePage() {
                   <div className="bg-white rounded-xl p-8 sticky top-[100px]" style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.08)" }}>
                     <h3 className="text-[#1a1a1a] font-semibold mb-4">Dit valg: {selectedRoom?.name || "-"}</h3>
                     {selectedStyle && getPreviewImage() ? (
-                      <img src={getPreviewImage()!} alt={styles[selectedStyle].name} className="w-full h-[300px] object-cover rounded-lg mb-4" />
+                      <img src={getPreviewImage()!} alt={styles[selectedStyle].name} className="w-full h-[500px] object-cover rounded-lg mb-4" />
                     ) : selectedStyle ? (
                       <div
-                        className="w-full h-[300px] rounded-lg flex flex-col items-center justify-center mb-4"
+                        className="w-full h-[500px] rounded-lg flex flex-col items-center justify-center mb-4"
                         style={{ background: styleColors[selectedStyle], color: "white" }}
                       >
                         <span className="text-5xl mb-4">{styleEmojis[selectedStyle]}</span>
                         <span className="text-lg">{styles[selectedStyle].name}</span>
                       </div>
                     ) : (
-                      <div className="w-full h-[300px] bg-[#f0f0f0] rounded-lg flex items-center justify-center text-[#999] italic mb-4">
+                      <div className="w-full h-[500px] bg-[#f0f0f0] rounded-lg flex items-center justify-center text-[#999] italic mb-4">
                         Vælg en stil for at se preview
                       </div>
                     )}
@@ -474,7 +474,7 @@ export default function FindStylePage() {
                   <h2 className="text-4xl font-bold text-[#1a1a1a] mb-2" data-testid="text-step3-title">Hvad er dit budget?</h2>
                   <p className="text-[#666] text-lg">Vælg det niveau der passer dig bedst</p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-12 items-start">
                   <div className="flex flex-col gap-4">
                     {budgetOptions.map((opt) => (
                       <div
@@ -502,16 +502,16 @@ export default function FindStylePage() {
                   <div className="bg-white rounded-xl p-8 sticky top-[100px]" style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.08)" }}>
                     <h3 className="text-[#1a1a1a] font-semibold mb-4">Dit valg</h3>
                     {selectedStyle && getPreviewImage() ? (
-                      <img src={getPreviewImage()!} alt="" className="w-full h-[300px] object-cover rounded-lg mb-4" />
+                      <img src={getPreviewImage()!} alt="" className="w-full h-[500px] object-cover rounded-lg mb-4" />
                     ) : selectedStyle ? (
                       <div
-                        className="w-full h-[300px] rounded-lg flex flex-col items-center justify-center mb-4"
+                        className="w-full h-[500px] rounded-lg flex flex-col items-center justify-center mb-4"
                         style={{ background: styleColors[selectedStyle], color: "white" }}
                       >
                         <span className="text-3xl">{styleEmojis[selectedStyle]} {styles[selectedStyle].name}</span>
                       </div>
                     ) : (
-                      <div className="w-full h-[300px] bg-[#f0f0f0] rounded-lg flex items-center justify-center text-[#999] italic mb-4">
+                      <div className="w-full h-[500px] bg-[#f0f0f0] rounded-lg flex items-center justify-center text-[#999] italic mb-4">
                         Vælg budget for at fortsætte
                       </div>
                     )}
