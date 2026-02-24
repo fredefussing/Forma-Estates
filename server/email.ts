@@ -5,7 +5,7 @@ const FROM_EMAIL = "fredefussing@gmail.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 async function sendBrevoEmail(to: string, subject: string, html: string) {
-  const apiKey = process.env.BREVO_API_KEY;
+  const apiKey = process.env.BREVO_API_KEY1 || process.env.BREVO_API_KEY;
   if (!apiKey) {
     throw new Error("BREVO_API_KEY not configured");
   }

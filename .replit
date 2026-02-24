@@ -40,3 +40,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["sendgrid:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+BREVO_API_KEY1 = "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"
