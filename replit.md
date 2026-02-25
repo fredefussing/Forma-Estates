@@ -23,12 +23,11 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider
 - `client/src/components/design-card.tsx` - Design history card component
-- `client/src/components/customize-chat.tsx` - Collapsible chat for adding design preferences (colors, materials, mood) before generation
 - `client/src/components/special-request.tsx` - Special request form (shown after AI generation for manual customization requests)
 - `client/src/components/quote-request.tsx` - "Få tilbud" form (shown after AI generation for free quote requests)
 
 ## API Routes
-- `POST /api/designs` - Upload image + create design (accepts budget, preferences fields; computes tier, appends preferences to Collov prompt)
+- `POST /api/designs` - Upload image + create design (accepts budget field; computes tier, builds prompt from style vocabulary)
 - `GET /api/designs` - List all designs
 - `GET /api/designs/:id` - Get single design
 - `GET /api/designs/:id/status` - Poll design generation status
