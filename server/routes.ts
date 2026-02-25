@@ -232,22 +232,52 @@ export async function registerRoutes(
         }
       } catch {}
 
+      const hasDarkPreference = userPreferences.some(p => {
+        const lower = p.toLowerCase();
+        return lower.includes("sort") || lower.includes("mørk") || lower.includes("black") || lower.includes("dark");
+      });
+
+      const hasColorPreference = userPreferences.some(p => {
+        const lower = p.toLowerCase();
+        return lower.includes("sort") || lower.includes("mørk") || lower.includes("hvid") ||
+               lower.includes("grøn") || lower.includes("blå") || lower.includes("rød") ||
+               lower.includes("grå") || lower.includes("farv") || lower.includes("væg");
+      });
+
       let budgetPrompt: string | undefined;
 
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
 
-        if (parsed.data.style === "badboy") {
-          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
-        } else {
-          budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style.\n${tierConfig.prompt}\n\nMaintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
+        let stylePrompt = tierConfig.prompt;
+        if (hasDarkPreference) {
+          stylePrompt = stylePrompt
+            .replace(/,?\s*(simple\s+)?white\s+furniture/gi, "")
+            .replace(/,?\s*light\s+wood\s+tones/gi, "")
+            .replace(/,?\s*warm\s+neutral\s+palette/gi, "")
+            .replace(/,?\s*neutral\s+palette/gi, "")
+            .replace(/,?\s*light\s+blue\s+and\s+white\s+palette/gi, "")
+            .replace(/,?\s*airy\s+feel/gi, "")
+            .trim();
         }
-      }
 
-      if (userPreferences.length > 0 && budgetPrompt) {
-        budgetPrompt += `\n\nUser preferences: ${userPreferences.join(", ")}`;
+        if (parsed.data.style === "badboy") {
+          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${stylePrompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
+        } else if (userPreferences.length > 0) {
+          const prefString = userPreferences.join(", ").toUpperCase();
+          const colorOverride = hasDarkPreference
+            ? " DO NOT use white walls or light-colored walls. Wall color must be dark/black."
+            : "";
+          budgetPrompt = `IMPORTANT USER REQUIREMENTS: ${prefString}.${colorOverride} Transform this ${parsed.data.roomType} to ${parsed.data.style} style. ${stylePrompt} Maintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
+        } else {
+          budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style. ${stylePrompt} Maintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
+        }
       } else if (userPreferences.length > 0) {
-        budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style. User preferences: ${userPreferences.join(", ")}. Maintain exact room structure. Photorealistic, high quality.`;
+        const prefString = userPreferences.join(", ").toUpperCase();
+        const colorOverride = hasDarkPreference
+          ? " DO NOT use white walls or light-colored walls."
+          : "";
+        budgetPrompt = `IMPORTANT USER REQUIREMENTS: ${prefString}.${colorOverride} Transform this ${parsed.data.roomType} to ${parsed.data.style} style. Maintain exact room structure. Photorealistic, high quality.`;
       }
 
       try {
