@@ -1,0 +1,189 @@
+const express = require('express');
+const router = express.Router();
+const FormData = require('form-data');
+const fetch = require('node-fetch');
+const fs = require('fs');
+
+// Collov API endpoint
+const COLLOV_API_URL = 'https://api.collov.ai/v1/design/generate';
+const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
+
+// Room type mapping
+const roomTypeMap = {
+  'stue': 'living room',
+  'sovevaerelse': 'bedroom',
+  'kokken': 'kitchen',
+  'badevaerelse': 'bathroom',
+  'spisestue': 'dining room',
+  'hjemmekontor': 'home office',
+  'bornevaerelse': 'kids room',
+  'studio': 'studio',
+  'spillerum': 'game room',
+  'vaskerum': 'laundry room',
+  'modelokale': 'meeting room',
+  'spa': 'spa',
+  'udendors': 'outdoor',
+  'aabent-rum': 'open plan living',
+  'entre': 'entryway'
+};
+
+// Style mapping
+const collovStyleMap = {
+  'skandinavisk': 'scandinavian',
+  'moderne': 'modern',
+  'luksus': 'luxury',
+  'industriel': 'industrial',
+  'badboy': 'industrial', // Ændret fra 'modern' til 'industrial' for mørkere look
+  'boheme': 'coastal',
+  'minimalistisk': 'transitional',
+  'klassisk': 'farmhouse'
+};
+
+// Budget vocabulary
+const budgetVocabulary = {
+  '10000': {
+    'scandinavian': 'budget-friendly IKEA style, simple white furniture, affordable materials',
+    'modern': 'budget modern, clean lines, affordable furniture',
+    'luxury': 'affordable luxury look, budget-friendly elegant pieces',
+    'industrial': 'budget industrial, raw materials, affordable metal and wood',
+    'coastal': 'budget coastal, light and airy, affordable beach style',
+    'transitional': 'budget minimalist, simple clean design',
+    'farmhouse': 'budget classic, traditional affordable furniture'
+  },
+  '25000': {
+    'scandinavian': 'mid-range quality, warm wood tones, comfortable furniture',
+    'modern': 'mid-range modern, quality materials, stylish furniture',
+    'luxury': 'mid-range luxury, quality elegant pieces, refined materials',
+    'industrial': 'mid-range industrial, quality raw materials, solid furniture',
+    'coastal': 'mid-range coastal, quality light furniture, beach inspired',
+    'transitional': 'mid-range minimalist, quality simple design',
+    'farmhouse': 'mid-range classic, quality traditional furniture'
+  },
+  '50000': {
+    'scandinavian': 'high-end designer furniture, premium materials, luxury scandinavian',
+    'modern': 'luxury modern, designer pieces, premium materials',
+    'luxury': 'exclusive luxury, high-end designer furniture, premium elegant materials',
+    'industrial': 'high-end industrial, premium raw materials, designer metal and wood',
+    'coastal': 'luxury coastal, premium light furniture, exclusive beach style',
+    'transitional': 'high-end minimalist, designer simple design, premium materials',
+    'farmhouse': 'luxury classic, high-end traditional furniture, premium materials'
+  }
+};
+
+// Generate design
+router.post('/generate', async (req, res) => {
+  try {
+    const { roomType, style, budget, imageUrl } = req.body;
+    
+    // Map to Collov values
+    const collovRoom = roomTypeMap[roomType] || 'living room';
+    const collovStyle = collovStyleMap[style] || 'scandinavian';
+    const budgetTier = budgetVocabulary[budget]?.[collovStyle] || budgetVocabulary['25000'][collovStyle];
+    
+    // BESTEM TYPE: Kun køkken og badeværelse får redesign
+    let collovType;
+    if (collovRoom === 'kitchen' || collovRoom === 'bathroom') {
+      collovType = 'redesign'; // Total makeover - nyt køkken/bad
+    } else {
+      collovType = 'virtual_staging'; // Behold rum, tilføj møbler
+    }
+    
+    // Build prompt
+    let prompt = `${collovStyle} ${collovRoom}, ${budgetTier}`;
+    
+    // Special prompts for specific styles
+    if (style === 'badboy') {
+      prompt += ', DARK MASCULINE STYLE: MATTE BLACK OR DARK GRAY WALLS, NO WHITE WALLS, BLACK LEATHER, DARK WOOD, INDUSTRIAL METAL, NIGHTCLUB ATMOSPHERE, MOOD LIGHTING, NO LIGHT COLORS';
+    }
+    
+    if (style === 'skandinavisk') {
+      prompt += ', bright and airy, light wood, white walls, cozy textiles, natural light';
+    }
+    
+    if (style === 'moderne') {
+      prompt += ', clean lines, neutral colors, minimalist, functional design';
+    }
+    
+    // Create form data
+    const form = new FormData();
+    form.append('image_url', imageUrl);
+    form.append('room_type', collovRoom);
+    form.append('style', collovStyle);
+    form.append('prompt', prompt);
+    form.append('type', collovType); // HER ER ÆNDRINGEN - redesign kun for køkken/bad
+    
+    console.log('Sending to Collov:', {
+      room: collovRoom,
+      style: collovStyle,
+      type: collovType, // Log hvilken type der sendes
+      prompt: prompt.substring(0, 100) + '...'
+    });
+    
+    // Call Collov API
+    const response = await fetch(COLLOV_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COLLOV_API_KEY}`,
+        ...form.getHeaders()
+      },
+      body: form
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Collov API error: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    res.json({
+      success: true,
+      taskId: data.task_id,
+      type: collovType, // Returner type så frontend ved det
+      message: collovType === 'redesign' 
+        ? 'Dit nye køkken/badeværelse genereres...' 
+        : 'Dit nye design genereres...'
+    });
+    
+  } catch (error) {
+    console.error('Generate error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Check status
+router.get('/status/:taskId', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    
+    const response = await fetch(`${COLLOV_API_URL}/status/${taskId}`, {
+      headers: {
+        'Authorization': `Bearer ${COLLOV_API_KEY}`
+      }
+    });
+    
+    const data = await response.json();
+    res.json(data);
+    
+  } catch (error) {
+    console.error('Status check error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;
+Nøgleændring:
+JavaScript
+Copy
+// KUN køkken og badeværelse får redesign
+if (collovRoom === 'kitchen' || collovRoom === 'bathroom') {
+  collovType = 'redesign'; // Total makeover
+} else {
+  collovType = 'virtual_staging'; // Behold rum
+}

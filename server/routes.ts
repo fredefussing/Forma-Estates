@@ -45,21 +45,25 @@ const collovStyleMap: Record<string, string> = {
   coastal: "coastal",
   transitional: "transitional",
   farmhouse: "farmhouse",
-  badboy: "modern",
+  badboy: "industrial",
 };
+
+const redesignRoomTypes = new Set(["kitchen", "bathroom"]);
 
 async function sendCollovTask(uploadUrl: string, roomType: string, style: string, budgetPrompt?: string): Promise<string> {
   const collovStyle = collovStyleMap[style] || "modern";
+  const collovType = redesignRoomTypes.has(roomType) ? "redesign" : "virtual_staging";
 
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
   form.append("roomType", roomType);
   form.append("style", collovStyle);
+  form.append("type", collovType);
   if (budgetPrompt) {
     form.append("prompt", budgetPrompt.replace(/\n/g, ' '));
   }
 
-  log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType}, prompt=${budgetPrompt?.substring(0, 150) || "none"}`);
+  log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType}, type=${collovType}, prompt=${budgetPrompt?.substring(0, 150) || "none"}`);
 
   const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
