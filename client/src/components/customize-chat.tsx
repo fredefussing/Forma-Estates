@@ -9,7 +9,7 @@ interface Message {
 
 const suggestions = [
   "Sorte vægge",
-  "Mørkegrøn sofa",
+  "Mørkegrøn væg",
   "Egetræsmøbler",
   "Mere naturligt lys",
   "Hyggelig stemning",
@@ -44,7 +44,7 @@ export function CustomizeChat({ preferences, onPreferencesChange }: CustomizeCha
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
-      text: "Hej! Jeg kan hjælpe dig med at tilpasse dit nye rum. Hvad har du af ønsker? Du kan fx skrive \"sorte vægge\" eller \"behold min blå sofa\".",
+      text: "Hej! Fortæl mig hvad du gerne vil have i dit nye rum. Jeg kan tilføje farver, materialer og stemning - men husk at jeg laver et helt nyt billede, ikke ændrer dit eksisterende.",
       sender: "bot",
     },
   ]);
@@ -79,16 +79,19 @@ export function CustomizeChat({ preferences, onPreferencesChange }: CustomizeCha
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-        <div className="flex items-start gap-3">
-          <div className="text-sm text-muted-foreground leading-relaxed">
-            <span className="font-medium text-foreground">Hvad kan du bede om?</span>
-            <span className="mx-1.5">·</span>
-            <span>Farver, materialer, stemning</span>
-            <span className="mx-1.5">·</span>
-            <span className="text-xs text-muted-foreground/70">AI'en genererer inspiration - din indkøbsliste tilpasses dit budget.</span>
-          </div>
-        </div>
+      <div className="rounded-lg border-l-4 border-l-foreground/80 border border-border/60 bg-muted/30 p-4">
+        <p className="text-sm font-medium text-foreground mb-2">Hvad kan du bede om?</p>
+        <ul className="text-sm text-muted-foreground space-y-0.5 ml-4 list-disc">
+          <li><span className="font-medium text-foreground/80">Farver:</span> "Sorte vægge", "Mørkegrøn væg", "Hvide gulve"</li>
+          <li><span className="font-medium text-foreground/80">Materialer:</span> "Læderstol", "Egetræsbord", "Marmor bordplade"</li>
+          <li><span className="font-medium text-foreground/80">Stemning:</span> "Mere lys", "Hyggeligere", "Minimalistisk"</li>
+        </ul>
+      </div>
+
+      <div className="rounded-lg border-l-4 border-l-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-semibold">Bemærk:</span> AI'en genererer et helt nyt billede baseret på dine ønsker. Den kan <span className="font-semibold">ikke</span> kopiere specifikke møbler fra dit eksisterende rum. Ønsker du "blå sofa", laver den en ny blå sofa - ikke DIN blå sofa.
+        </p>
       </div>
 
       <button
