@@ -19,6 +19,7 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 - `client/src/pages/landing.tsx` - Landing page with hero, quiz teaser, features, about section
 - `client/src/pages/find-style.tsx` - "Find din stil" quiz: 3-step flow (room → style → budget → recommendation with pre-selected redirect to /design)
 - `client/src/pages/home.tsx` - Design tool page with 3-step flow (upload → configure with budget → result), reads URL params from quiz
+- `client/src/pages/trending.tsx` - Trending designs page showing popular style+room combinations
 - `client/src/pages/admin-quotes.tsx` - Admin quote builder page
 - `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider
@@ -28,6 +29,7 @@ Nordic Sketch is a web application that uses the Collov AI API to transform room
 
 ## API Routes
 - `POST /api/designs` - Upload image + create design (accepts budget field; computes tier, builds prompt from style vocabulary)
+- `GET /api/trending` - Get trending design combinations (aggregated from completed designs)
 - `GET /api/designs` - List all designs
 - `GET /api/designs/:id` - Get single design
 - `GET /api/designs/:id/status` - Poll design generation status
@@ -90,4 +92,4 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/design` (design tool), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/design` (design tool), `/admin/quotes` (admin quote builder)

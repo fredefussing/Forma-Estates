@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck } from "lucide-react";
+import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 import { RotatingStats } from "@/components/rotating-stats";
 
@@ -15,6 +15,12 @@ export default function LandingPage() {
           <nav className="flex items-center gap-8">
             <Link href="/find-stil">
               <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
+            </Link>
+            <Link href="/trending">
+              <span className="text-sm text-orange-400 hover:text-orange-300 transition-colors cursor-pointer inline-flex items-center gap-1 font-medium" data-testid="link-trending">
+                <Flame className="w-3.5 h-3.5" />
+                Trending
+              </span>
             </Link>
             <a href="#om-os" className="text-sm text-white/70 hover:text-white transition-colors" data-testid="link-about">Om os</a>
             <Link href="/design">

@@ -8,12 +8,14 @@ import LandingPage from "@/pages/landing";
 import DesignPage from "@/pages/home";
 import AdminQuotesPage from "@/pages/admin-quotes";
 import FindStylePage from "@/pages/find-style";
+import TrendingPage from "@/pages/trending";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/find-stil" component={FindStylePage} />
+      <Route path="/trending" component={TrendingPage} />
       <Route path="/design" component={DesignPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
       <Route component={NotFound} />

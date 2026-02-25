@@ -257,6 +257,39 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/trending", async (_req, res) => {
+    try {
+      const allDesigns = await storage.getAllDesigns();
+      const completed = allDesigns.filter(d => d.status === "completed" && d.resultImageUrl);
+
+      const groups: Record<string, { count: number; latestImage: string; roomType: string; style: string; budget: number | null }> = {};
+      for (const d of completed) {
+        const key = `${d.roomType}__${d.style}`;
+        if (!groups[key]) {
+          groups[key] = { count: 0, latestImage: d.resultImageUrl!, roomType: d.roomType, style: d.style, budget: d.budget };
+        }
+        groups[key].count++;
+        if (d.budget) groups[key].budget = d.budget;
+      }
+
+      const trending = Object.values(groups)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6)
+        .map((g, i) => ({
+          rank: i + 1,
+          roomType: g.roomType,
+          style: g.style,
+          budget: g.budget || 25000,
+          designCount: g.count,
+          imageUrl: g.latestImage,
+        }));
+
+      return res.json(trending);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/designs", async (_req, res) => {
     const allDesigns = await storage.getAllDesigns();
     return res.json(allDesigns);
