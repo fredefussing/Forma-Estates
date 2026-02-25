@@ -110,13 +110,14 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
 }
 
 async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Promise<string>) {
-  const maxAttempts = 60;
-  const maxRetries = 2;
+  const maxAttempts = 40;
+  const maxRetries = 1;
   let attempts = 0;
   let retryCount = 0;
 
   const poll = async () => {
     attempts++;
+    const elapsed = attempts * 3;
     try {
       const result = await pollCollovResult(uuid);
       if (result.status === "completed" && result.resultUrl) {
@@ -124,7 +125,7 @@ async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Pr
           status: "completed",
           resultImageUrl: result.resultUrl,
         });
-        log(`Design ${designId} completed successfully`);
+        log(`Design ${designId} completed in ~${elapsed}s`);
         return;
       }
       if (result.status === "failed") {
@@ -132,22 +133,17 @@ async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Pr
           retryCount++;
           log(`Design ${designId} failed (reason: ${result.failReason}), retry ${retryCount}/${maxRetries}...`);
           await storage.updateDesign(designId, { status: "processing" });
-          const retryDelay = retryCount * 5000;
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          await new Promise(resolve => setTimeout(resolve, 3000));
           try {
             const newUuid = await retryFn();
             uuid = newUuid;
             attempts = 0;
             await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
             log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
-            setTimeout(poll, 5000);
+            setTimeout(poll, 3000);
             return;
           } catch (retryErr: any) {
             log(`Design ${designId} retry ${retryCount} send failed: ${retryErr.message}`);
-            retryCount--;
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            setTimeout(poll, 5000);
-            return;
           }
         }
         await storage.updateDesign(designId, { status: "failed" });
@@ -155,15 +151,15 @@ async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Pr
         return;
       }
       if (attempts < maxAttempts) {
-        setTimeout(poll, 5000);
+        setTimeout(poll, 3000);
       } else {
         await storage.updateDesign(designId, { status: "failed" });
-        log(`Design ${designId} timed out after ${maxAttempts} attempts`);
+        log(`Design ${designId} timed out after ~${elapsed}s`);
       }
     } catch (err) {
       log(`Poll error for design ${designId}: ${err}`);
       if (attempts < maxAttempts) {
-        setTimeout(poll, 8000);
+        setTimeout(poll, 5000);
       } else {
         await storage.updateDesign(designId, { status: "failed" });
       }

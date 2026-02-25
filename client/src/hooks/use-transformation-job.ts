@@ -22,13 +22,13 @@ export function useTransformationJob(designId: number | null) {
     setStatus('pending');
     let isActive = true;
     let attempts = 0;
-    const maxAttempts = 120;
-    const pollInterval = 4000;
+    const maxAttempts = 60;
+    const pollInterval = 3000;
 
     const poll = async () => {
       while (isActive && attempts < maxAttempts) {
         attempts++;
-        setProgress(Math.min((attempts / 40) * 100, 95));
+        setProgress(Math.min((attempts / 20) * 100, 95));
 
         try {
           const response = await fetch(`/api/designs/${designId}/status`);
