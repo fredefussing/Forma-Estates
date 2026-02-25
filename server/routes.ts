@@ -225,6 +225,13 @@ export async function registerRoutes(
         return res.status(500).json({ message: "COLLOV_API_KEY not configured" });
       }
 
+      let userPreferences: string[] = [];
+      try {
+        if (req.body.preferences) {
+          userPreferences = JSON.parse(req.body.preferences);
+        }
+      } catch {}
+
       let budgetPrompt: string | undefined;
 
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
@@ -235,6 +242,12 @@ export async function registerRoutes(
         } else {
           budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style.\n${tierConfig.prompt}\n\nMaintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
         }
+      }
+
+      if (userPreferences.length > 0 && budgetPrompt) {
+        budgetPrompt += `\n\nUser preferences: ${userPreferences.join(", ")}`;
+      } else if (userPreferences.length > 0) {
+        budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style. User preferences: ${userPreferences.join(", ")}. Maintain exact room structure. Photorealistic, high quality.`;
       }
 
       try {

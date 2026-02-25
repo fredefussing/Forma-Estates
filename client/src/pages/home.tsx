@@ -16,6 +16,7 @@ import { styleVocabulary } from "@shared/styleVocabulary";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { DesignCard } from "@/components/design-card";
 import { BudgetSlider } from "@/components/budget-slider";
+import { CustomizeChat } from "@/components/customize-chat";
 import { SpecialRequest } from "@/components/special-request";
 import { QuoteRequest } from "@/components/quote-request";
 import { motion, AnimatePresence } from "framer-motion";
@@ -87,6 +88,7 @@ export default function HomePage() {
   const [style, setStyle] = useState<DesignStyle | "">(initialStyle);
   const [budget, setBudget] = useState<number>(initialBudget);
   const [tier, setTier] = useState<BudgetTier>(initialBudget >= 40000 ? "luxury" : initialBudget >= 15000 ? "standard" : "budget");
+  const [preferences, setPreferences] = useState<string[]>([]);
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
@@ -177,6 +179,9 @@ export default function HomePage() {
     formData.append("roomType", roomType);
     formData.append("style", style);
     formData.append("budget", budget.toString());
+    if (preferences.length > 0) {
+      formData.append("preferences", JSON.stringify(preferences));
+    }
     generateMutation.mutate(formData);
     setStep(3);
   };
@@ -188,6 +193,7 @@ export default function HomePage() {
     setStyle("");
     setBudget(25000);
     setTier("standard");
+    setPreferences([]);
     setActiveDesign(null);
     setPollingDesignId(null);
     job.reset();
@@ -391,6 +397,13 @@ export default function HomePage() {
                       <div className="pt-6">
                         <BudgetSlider style={style as DesignStyle} onChange={handleBudgetChange} />
                       </div>
+                    </motion.div>
+                  )}
+
+                  {style && roomType && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                      <Separator className="bg-border/40 mb-6" />
+                      <CustomizeChat preferences={preferences} onPreferencesChange={setPreferences} />
                     </motion.div>
                   )}
 
