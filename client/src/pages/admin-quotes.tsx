@@ -115,7 +115,7 @@ export default function AdminQuotesPage() {
               <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary">
                 <Home className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="font-semibold text-lg tracking-tight">Nordic Sketch</span>
+              <span className="font-semibold text-lg tracking-tight">Nordic Homebuilding</span>
             </div>
           </div>
           <Badge variant="outline">Admin</Badge>

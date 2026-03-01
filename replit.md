@@ -1,7 +1,7 @@
-# Nordic Sketch - AI-Powered Interior Design
+# Nordic Homebuilding - AI-Powered Interior Design
 
 ## Overview
-Nordic Sketch is a web application that uses the Collov AI API to transform room photos. Users upload a room photo, select a room type, design style, and budget tier, and receive an AI-generated redesign that preserves the room structure while changing the interior style. The app includes budget-specific style recommendations with Danish retailer examples and an admin quote builder for creating customer proposals.
+Nordic Homebuilding is a web application that uses the Collov AI API to transform room photos. Users upload a room photo, select a room type, design style, and budget tier, and receive an AI-generated redesign that preserves the room structure while changing the interior style. The app includes budget-specific style recommendations with Danish retailer examples and an admin quote builder for creating customer proposals.
 
 ## Tech Stack
 - **Frontend**: React + TypeScript, Vite, TailwindCSS, Shadcn/UI, Framer Motion, TanStack Query

@@ -211,7 +211,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
         <div className="mx-auto max-w-5xl flex items-center justify-between px-6 h-16">
           <a href="/" className="flex items-center gap-2.5" data-testid="link-home">
-            <span className="text-lg font-semibold tracking-tight">Nordic Sketch</span>
+            <span className="text-lg font-semibold tracking-tight">Nordic Homebuilding</span>
           </a>
           <div className="flex items-center gap-6">
             <a href="/pris" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-pricing">Pris</a>

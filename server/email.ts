@@ -18,7 +18,7 @@ async function sendBrevoEmail(to: string, subject: string, html: string) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "Nordic Sketch", email: FROM_EMAIL },
+      sender: { name: "Nordic Homebuilding", email: FROM_EMAIL },
       to: [{ email: to }],
       subject,
       htmlContent: html,
@@ -76,7 +76,7 @@ export async function sendOrderConfirmationEmail(data: {
   try {
     await sendBrevoEmail(
       data.customerEmail,
-      `Tak for dit køb — ${data.packageName} pakke | Nordic Sketch`,
+      `Tak for dit køb — ${data.packageName} pakke | Nordic Homebuilding`,
       `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a; font-size: 24px;">Tak for dit køb, ${data.customerName}!</h1>
@@ -103,9 +103,9 @@ export async function sendOrderConfirmationEmail(data: {
             </table>
           </div>
           <p style="color: #666; font-size: 14px; line-height: 1.6;">Du har nu adgang til alle 8 stilarter, alle 15 rum og alle 3 budget-niveauer.</p>
-          <a href="https://nordic-sketch.replit.app/design" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Start dit design →</a>
+          <a href="https://nordic-homebuilding.replit.app/design" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Start dit design →</a>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Nordic Sketch — AI-drevet interiørdesign</p>
+          <p style="color: #999; font-size: 12px;">Nordic Homebuilding — AI-drevet interiørdesign</p>
         </div>
       `
     );
