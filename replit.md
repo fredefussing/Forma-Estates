@@ -90,6 +90,14 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - "Start mit design" button navigates to `/design` with pre-selected roomType, style, and budget via URL params
 - Design page reads `?roomType=X&style=Y&budget=Z` query params to pre-fill selections
 
+## Pricing & Shopify
+- Pricing page at `/pris` with 3 packages: Basic (49 kr, 10 images), Pro (99 kr, 25 images), Unlimited (199 kr, 60 images)
+- Free tier: 2 images in Scandinavian or Modern style
+- "Vælg" buttons link to Shopify checkout cart URLs
+- Shopify webhook at `POST /api/shopify/webhook` receives order notifications
+- On order: sends confirmation email to customer + notification to admin via Brevo
+- Package matching: by Shopify variant ID or product title fallback
+
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/design` (design tool), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/admin/quotes` (admin quote builder)

@@ -9,7 +9,7 @@ import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, crea
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendQuoteRequestEmail, sendSpecialRequestEmail } from "./email";
+import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail } from "./email";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -543,6 +543,59 @@ export async function registerRoutes(
       return res.json(request);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
+    }
+  });
+
+  const packageMap: Record<string, { name: string; images: number; price: number }> = {
+    "10220649021782": { name: "Basic", images: 10, price: 49 },
+    "10220626149718": { name: "Pro", images: 25, price: 99 },
+    "10220614877526": { name: "Unlimited", images: 60, price: 199 },
+  };
+
+  app.post("/api/shopify/webhook", express.json(), async (req, res) => {
+    try {
+      const order = req.body;
+      log(`Shopify webhook received: order #${order.order_number || order.id || "unknown"}`);
+
+      const customerEmail = order.email || order.customer?.email;
+      const customerName = order.customer?.first_name
+        ? `${order.customer.first_name} ${order.customer.last_name || ""}`.trim()
+        : order.billing_address?.name || "Kunde";
+      const orderId = String(order.order_number || order.id || Date.now());
+
+      let matchedPackage = null;
+      const lineItems = order.line_items || [];
+      for (const item of lineItems) {
+        const variantId = String(item.variant_id || "");
+        if (packageMap[variantId]) {
+          matchedPackage = packageMap[variantId];
+          break;
+        }
+      }
+
+      if (!matchedPackage) {
+        const title = lineItems[0]?.title?.toLowerCase() || "";
+        if (title.includes("unlimited")) matchedPackage = packageMap["10220614877526"];
+        else if (title.includes("pro")) matchedPackage = packageMap["10220626149718"];
+        else matchedPackage = packageMap["10220649021782"];
+      }
+
+      if (customerEmail) {
+        sendOrderConfirmationEmail({
+          customerEmail,
+          customerName,
+          packageName: matchedPackage.name,
+          imageCount: matchedPackage.images,
+          price: matchedPackage.price,
+          orderId,
+        });
+      }
+
+      log(`Order #${orderId}: ${matchedPackage.name} pakke (${matchedPackage.price} kr) → ${customerEmail || "no email"}`);
+      return res.status(200).json({ success: true });
+    } catch (err: any) {
+      log(`Shopify webhook error: ${err.message}`);
+      return res.status(200).json({ success: true });
     }
   });
 

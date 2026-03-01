@@ -9,6 +9,7 @@ import DesignPage from "@/pages/home";
 import AdminQuotesPage from "@/pages/admin-quotes";
 import FindStylePage from "@/pages/find-style";
 import TrendingPage from "@/pages/trending";
+import PricingPage from "@/pages/pricing";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/find-stil" component={FindStylePage} />
       <Route path="/trending" component={TrendingPage} />
+      <Route path="/pris" component={PricingPage} />
       <Route path="/design" component={DesignPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
       <Route component={NotFound} />
