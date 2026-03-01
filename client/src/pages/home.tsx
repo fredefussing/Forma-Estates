@@ -214,8 +214,8 @@ export default function HomePage() {
             <span className="text-lg font-semibold tracking-tight">Nordic Sketch</span>
           </a>
           <div className="flex items-center gap-6">
+            <a href="/pris" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-pricing">Pris</a>
             <a href="/#om-os" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-about">Om os</a>
-            <p className="text-xs tracking-widest uppercase text-muted-foreground hidden md:block">AI-drevet interiørdesign</p>
           </div>
         </div>
       </header>

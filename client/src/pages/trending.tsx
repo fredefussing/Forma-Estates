@@ -173,6 +173,9 @@ export default function TrendingPage() {
                 Trending
               </span>
             </Link>
+            <Link href="/pris">
+              <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer" data-testid="link-pricing">Pris</span>
+            </Link>
             <Link href="/design">
               <Button size="sm" className="h-9 px-5 text-sm font-medium rounded-full" data-testid="button-header-cta">
                 Prøv nu

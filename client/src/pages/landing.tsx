@@ -22,6 +22,9 @@ export default function LandingPage() {
                 Trending
               </span>
             </Link>
+            <Link href="/pris">
+              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-pricing">Pris</span>
+            </Link>
             <a href="#om-os" className="text-sm text-white/70 hover:text-white transition-colors" data-testid="link-about">Om os</a>
             <Link href="/design">
               <Button size="sm" className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-header-cta">
