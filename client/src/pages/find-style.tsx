@@ -302,6 +302,7 @@ export default function FindStylePage() {
           <ul className="flex gap-8 list-none">
             <li><Link href="/"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-home">Forside</span></Link></li>
             <li><span className="no-underline text-[#1a1a1a] font-medium relative after:content-[''] after:absolute after:-bottom-[5px] after:left-0 after:w-full after:h-[2px] after:bg-[#1a1a1a]">Find din stil</span></li>
+            <li><Link href="/pris"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-pricing">Pris</span></Link></li>
             <li><Link href="/design"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-design">Design</span></Link></li>
           </ul>
         </div>
