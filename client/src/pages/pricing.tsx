@@ -16,7 +16,7 @@ const packages = [
       "Alle 15 rum",
       "Alle 3 budget-niveauer",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/cart/10220649021782:1",
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
     popular: false,
   },
   {
@@ -31,7 +31,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Hurtigere generering",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/cart/10220626149718:1",
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
     popular: true,
   },
   {
@@ -47,7 +47,7 @@ const packages = [
       "Hurtigere generering",
       "Prioriteret support",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/cart/10220614877526:1",
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
     popular: false,
   },
 ];
