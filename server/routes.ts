@@ -9,7 +9,7 @@ import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, crea
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail } from "./email";
+import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail } from "./email";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -596,6 +596,80 @@ export async function registerRoutes(
     } catch (err: any) {
       log(`Shopify webhook error: ${err.message}`);
       return res.status(200).json({ success: true });
+    }
+  });
+
+  app.post("/api/auth/welcome-email", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      sendWelcomeEmail(email);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/login", (req, res) => {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      return res.status(500).json({ error: "Admin password not configured" });
+    }
+    if (password === adminPassword) {
+      return res.json({ success: true });
+    }
+    return res.status(401).json({ error: "Forkert adgangskode" });
+  });
+
+  app.get("/api/admin/stats", async (req, res) => {
+    try {
+      const pw = req.query.pw as string;
+      if (pw !== process.env.ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const designs = await storage.getAllDesigns();
+      const quotes = await storage.getAllQuotes();
+      const specialRequests = await storage.getAllSpecialRequests();
+
+      const completedDesigns = designs.filter((d) => d.status === "completed");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      const designsToday = designs.filter((d) => d.createdAt && new Date(d.createdAt) >= today).length;
+      const designsThisWeek = designs.filter((d) => d.createdAt && new Date(d.createdAt) >= weekAgo).length;
+
+      const styleCounts: Record<string, number> = {};
+      const roomCounts: Record<string, number> = {};
+      for (const d of completedDesigns) {
+        styleCounts[d.style] = (styleCounts[d.style] || 0) + 1;
+        roomCounts[d.roomType] = (roomCounts[d.roomType] || 0) + 1;
+      }
+
+      return res.json({
+        totalDesigns: designs.length,
+        completedDesigns: completedDesigns.length,
+        designsToday,
+        designsThisWeek,
+        totalQuotes: quotes.length,
+        totalSpecialRequests: specialRequests.length,
+        styleCounts,
+        roomCounts,
+        recentDesigns: designs.slice(-20).reverse().map((d) => ({
+          id: d.id,
+          roomType: d.roomType,
+          style: d.style,
+          status: d.status,
+          budget: d.budget,
+          tier: d.tier,
+          createdAt: d.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
   });
 

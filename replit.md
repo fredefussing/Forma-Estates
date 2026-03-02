@@ -106,6 +106,19 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - Pages: `/login` (login), `/opret` (signup), `/min-konto` (account dashboard)
 - All navigation bars show "Log ind" or "Min konto" depending on auth state
 
+## Welcome Email
+- On signup, backend sends welcome email via Brevo to new user + notification to admin
+- Endpoint: `POST /api/auth/welcome-email` with `{ email }` body
+- Sent from frontend after successful Firebase account creation
+
+## Admin Dashboard
+- Password-protected admin page at `/admin`
+- Shows real-time stats: total designs, designs today/this week, quotes, special requests
+- Displays popular styles and rooms with bar charts
+- Lists recent designs with status, budget, tier info
+- Backend endpoints: `POST /api/admin/login`, `GET /api/admin/stats?pw=`
+- Admin password stored in `ADMIN_PASSWORD` environment variable
+
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)

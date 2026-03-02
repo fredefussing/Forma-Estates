@@ -33,6 +33,47 @@ async function sendBrevoEmail(to: string, subject: string, html: string) {
   return response.json();
 }
 
+export async function sendWelcomeEmail(email: string) {
+  try {
+    await sendBrevoEmail(
+      email,
+      "Velkommen til Nordic Homebuilding!",
+      `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Nordic Homebuilding!</h1>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Hej!</p>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Tak for at du oprettede en konto. Du har nu <strong>2 gratis AI-billeder</strong> klar til brug!</p>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Med Nordic Homebuilding kan du:</p>
+          <ul style="color: #666; font-size: 16px; line-height: 2;">
+            <li>Transformere dit rum med AI</li>
+            <li>Vælge mellem 8 forskellige stilarter</li>
+            <li>Se dit hjem før du køber møbler</li>
+          </ul>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="https://nordic-homebuilding.replit.app/find-stil"
+               style="background: #1a1a1a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
+              Start dit første design →
+            </a>
+          </p>
+          <p style="color: #666; font-size: 14px;">Har du spørgsmål? Svar bare på denne mail.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
+          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuilding</strong></p>
+        </div>
+      `
+    );
+
+    await sendBrevoEmail(
+      ADMIN_EMAIL,
+      `Ny bruger oprettet: ${email}`,
+      `<h2>Ny bruger!</h2><p><strong>Email:</strong> ${email}</p><p>Velkomstmail sendt automatisk.</p>`
+    );
+
+    log(`Welcome email sent to ${email}`);
+  } catch (err: any) {
+    log(`Failed to send welcome email to ${email}: ${err.message}`);
+  }
+}
+
 export async function sendQuoteRequestEmail(data: {
   customerEmail: string;
   notes?: string | null;

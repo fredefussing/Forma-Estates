@@ -39,7 +39,12 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      fetch("/api/auth/welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userCredential.user.email }),
+      }).catch(() => {});
       setSuccess("Bruger oprettet! Sender dig videre...");
       setTimeout(() => {
         setLocation(redirect);
