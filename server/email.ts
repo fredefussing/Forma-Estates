@@ -1,13 +1,39 @@
 import { log } from "./index";
 
-const ADMIN_EMAIL = "fredefussing@gmail.com";
-const FROM_EMAIL = "fredefussing@gmail.com";
+const ADMIN_EMAIL = "tilbud@nordic-homebuilding.com";
+const KONTAKT_EMAIL = "kontakt@nordic-homebuilding.com";
+const TILBUD_EMAIL = "tilbud@nordic-homebuilding.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-async function sendBrevoEmail(to: string, subject: string, html: string) {
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  senderEmail: string;
+  senderName?: string;
+  replyTo?: string;
+  bcc?: string;
+}
+
+async function sendBrevoEmail(options: EmailOptions) {
   const apiKey = process.env.BREVO_API_KEY1 || process.env.BREVO_API_KEY;
   if (!apiKey) {
     throw new Error("BREVO_API_KEY not configured");
+  }
+
+  const payload: Record<string, unknown> = {
+    sender: { name: options.senderName || "Nordic Homebuilding", email: options.senderEmail },
+    to: [{ email: options.to }],
+    subject: options.subject,
+    htmlContent: options.html,
+  };
+
+  if (options.replyTo) {
+    payload.replyTo = { email: options.replyTo };
+  }
+
+  if (options.bcc) {
+    payload.bcc = [{ email: options.bcc }];
   }
 
   const response = await fetch(BREVO_API_URL, {
@@ -17,12 +43,7 @@ async function sendBrevoEmail(to: string, subject: string, html: string) {
       "api-key": apiKey,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      sender: { name: "Nordic Homebuilding", email: FROM_EMAIL },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -35,10 +56,13 @@ async function sendBrevoEmail(to: string, subject: string, html: string) {
 
 export async function sendWelcomeEmail(email: string) {
   try {
-    await sendBrevoEmail(
-      email,
-      "Velkommen til Nordic Homebuilding!",
-      `
+    await sendBrevoEmail({
+      to: email,
+      subject: "Velkommen til Nordic Homebuilding!",
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      bcc: TILBUD_EMAIL,
+      html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Nordic Homebuilding!</h1>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">Hej!</p>
@@ -59,14 +83,8 @@ export async function sendWelcomeEmail(email: string) {
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
           <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuilding</strong></p>
         </div>
-      `
-    );
-
-    await sendBrevoEmail(
-      ADMIN_EMAIL,
-      `Ny bruger oprettet: ${email}`,
-      `<h2>Ny bruger!</h2><p><strong>Email:</strong> ${email}</p><p>Velkomstmail sendt automatisk.</p>`
-    );
+      `,
+    });
 
     log(`Welcome email sent to ${email}`);
   } catch (err: any) {
@@ -84,10 +102,12 @@ export async function sendQuoteRequestEmail(data: {
   designId: number;
 }) {
   try {
-    await sendBrevoEmail(
-      ADMIN_EMAIL,
-      `Ny tilbudsforespørgsel #${data.designId}`,
-      `
+    await sendBrevoEmail({
+      to: TILBUD_EMAIL,
+      subject: `Ny tilbudsforespørgsel #${data.designId}`,
+      senderEmail: TILBUD_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
         <h2>Ny tilbudsforespørgsel</h2>
         <p><strong>Kunde email:</strong> ${data.customerEmail}</p>
         <p><strong>Rum:</strong> ${data.roomType}</p>
@@ -98,9 +118,9 @@ export async function sendQuoteRequestEmail(data: {
         <img src="${data.generatedImageUrl}" style="max-width: 600px; border-radius: 8px;" />
         <hr />
         <p><em>Find produkter, byg tilbud, send til kunde.</em></p>
-      `
-    );
-    log(`Quote request email sent to ${ADMIN_EMAIL} for design #${data.designId}`);
+      `,
+    });
+    log(`Quote request email sent to ${TILBUD_EMAIL} for design #${data.designId}`);
   } catch (err: any) {
     log(`Failed to send quote request email: ${err.message}`);
   }
@@ -115,10 +135,12 @@ export async function sendOrderConfirmationEmail(data: {
   orderId: string;
 }) {
   try {
-    await sendBrevoEmail(
-      data.customerEmail,
-      `Tak for dit køb — ${data.packageName} pakke | Nordic Homebuilding`,
-      `
+    await sendBrevoEmail({
+      to: data.customerEmail,
+      subject: `Tak for dit køb — ${data.packageName} pakke | Nordic Homebuilding`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a; font-size: 24px;">Tak for dit køb, ${data.customerName}!</h1>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">Din ${data.packageName} pakke er nu aktiv.</p>
@@ -148,21 +170,23 @@ export async function sendOrderConfirmationEmail(data: {
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
           <p style="color: #999; font-size: 12px;">Nordic Homebuilding — AI-drevet interiørdesign</p>
         </div>
-      `
-    );
+      `,
+    });
 
-    await sendBrevoEmail(
-      ADMIN_EMAIL,
-      `Nyt salg: ${data.packageName} pakke — ${data.price} kr`,
-      `
+    await sendBrevoEmail({
+      to: TILBUD_EMAIL,
+      subject: `Nyt salg: ${data.packageName} pakke — ${data.price} kr`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
         <h2>Nyt salg!</h2>
         <p><strong>Kunde:</strong> ${data.customerName} (${data.customerEmail})</p>
         <p><strong>Pakke:</strong> ${data.packageName}</p>
         <p><strong>Pris:</strong> ${data.price} kr</p>
         <p><strong>Billeder:</strong> ${data.imageCount} stk</p>
         <p><strong>Ordre #:</strong> ${data.orderId}</p>
-      `
-    );
+      `,
+    });
 
     log(`Order confirmation emails sent for order #${data.orderId} to ${data.customerEmail}`);
   } catch (err: any) {
@@ -178,10 +202,12 @@ export async function sendSpecialRequestEmail(data: {
   price: number;
 }) {
   try {
-    await sendBrevoEmail(
-      ADMIN_EMAIL,
-      `Ny manuel forespørgsel #${data.designId}`,
-      `
+    await sendBrevoEmail({
+      to: TILBUD_EMAIL,
+      subject: `Ny manuel forespørgsel #${data.designId}`,
+      senderEmail: TILBUD_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
         <h2>Ny kunde vil have manuel tilpasning</h2>
         <p><strong>Ønske:</strong> ${data.request}</p>
         <p><strong>Pris:</strong> ${data.price} kr</p>
@@ -196,9 +222,9 @@ export async function sendSpecialRequestEmail(data: {
           <li>Upload rettet version til admin</li>
           <li>Send til kunde</li>
         </ol>
-      `
-    );
-    log(`Special request email sent to ${ADMIN_EMAIL} for design #${data.designId}`);
+      `,
+    });
+    log(`Special request email sent to ${TILBUD_EMAIL} for design #${data.designId}`);
   } catch (err: any) {
     log(`Failed to send special request email: ${err.message}`);
   }
