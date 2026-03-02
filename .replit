@@ -45,3 +45,9 @@ integrations = ["sendgrid:1.0.0"]
 
 [userenv.shared]
 BREVO_API_KEY1 = "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"
+VITE_FIREBASE_AUTH_DOMAIN = "nordic-homebuilding1.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID = "nordic-homebuilding1"
+VITE_FIREBASE_STORAGE_BUCKET = "nordic-homebuilding1.firebasestorage.app"
+VITE_FIREBASE_MESSAGING_SENDER_ID = "126571617593"
+VITE_FIREBASE_APP_ID = "1:126571617593:web:80fcdb36b73a87489b1ce8"
+VITE_FIREBASE_MEASUREMENT_ID = "G-P8Q5NL1WH9"
