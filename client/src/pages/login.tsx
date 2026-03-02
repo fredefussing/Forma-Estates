@@ -16,11 +16,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
+  const redirect = new URLSearchParams(window.location.search).get("redirect") || "/min-konto";
+
   useEffect(() => {
     if (!authLoading && user) {
-      setLocation("/min-konto");
+      setLocation(redirect);
     }
-  }, [user, authLoading, setLocation]);
+  }, [user, authLoading, setLocation, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +31,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      setLocation("/min-konto");
+      setLocation(redirect);
     } catch (err: any) {
       if (err.code === "auth/user-not-found") {
         setError("Bruger ikke fundet. Tjek email eller opret konto.");

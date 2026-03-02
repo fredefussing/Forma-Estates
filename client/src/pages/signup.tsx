@@ -18,11 +18,13 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
+  const redirect = new URLSearchParams(window.location.search).get("redirect") || "/min-konto";
+
   useEffect(() => {
     if (!authLoading && user) {
-      setLocation("/min-konto");
+      setLocation(redirect);
     }
-  }, [user, authLoading, setLocation]);
+  }, [user, authLoading, setLocation, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,7 @@ export default function SignupPage() {
       await createUserWithEmailAndPassword(auth, email, password);
       setSuccess("Bruger oprettet! Sender dig videre...");
       setTimeout(() => {
-        setLocation("/min-konto");
+        setLocation(redirect);
       }, 1500);
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {

@@ -1,0 +1,334 @@
+Erstat din nuværende pris.js med denne:
+JavaScript
+Copy
+const express = require('express');
+const router = express.Router();
+
+router.get('/pris', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="da">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Priser - Nordic Sketch</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+          background: #f5f5f0; 
+          color: #2c2c2c;
+          line-height: 1.6;
+        }
+        nav { 
+          background: #fff; 
+          padding: 1rem 2rem; 
+          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .nav-container { 
+          max-width: 1200px; 
+          margin: 0 auto; 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+        }
+        .logo { 
+          font-size: 1.5rem; 
+          font-weight: 700; 
+          color: #1a1a1a; 
+          text-decoration: none; 
+        }
+        .nav-links { 
+          display: flex; 
+          gap: 2rem; 
+          list-style: none; 
+        }
+        .nav-links a { 
+          text-decoration: none; 
+          color: #555; 
+          font-weight: 500; 
+        }
+        .nav-links a.active { 
+          color: #e74c3c; 
+        }
+        .container { 
+          max-width: 1000px; 
+          margin: 0 auto; 
+          padding: 3rem 2rem; 
+        }
+        h1 { 
+          text-align: center; 
+          font-size: 2.5rem; 
+          margin-bottom: 0.5rem; 
+        }
+        .subtitle { 
+          text-align: center; 
+          color: #666; 
+          margin-bottom: 3rem; 
+        }
+        .pricing-grid { 
+          display: grid; 
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+          gap: 2rem; 
+        }
+        .pricing-card { 
+          background: #fff; 
+          border-radius: 16px; 
+          padding: 2rem; 
+          text-align: center; 
+          box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        .pricing-card.popular { 
+          border: 2px solid #1a1a1a; 
+          position: relative; 
+        }
+        .popular-badge { 
+          position: absolute; 
+          top: -12px; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          background: #1a1a1a; 
+          color: #fff; 
+          padding: 0.3rem 1rem; 
+          border-radius: 20px; 
+          font-size: 0.85rem; 
+        }
+        .pricing-title { 
+          font-size: 1.5rem; 
+          margin-bottom: 0.5rem; 
+        }
+        .pricing-price { 
+          font-size: 3rem; 
+          font-weight: 700; 
+          margin: 1rem 0; 
+        }
+        .pricing-price span { 
+          font-size: 1rem; 
+          color: #666; 
+        }
+        .pricing-features { 
+          list-style: none; 
+          margin: 2rem 0; 
+          text-align: left;
+        }
+        .pricing-features li { 
+          padding: 0.5rem 0; 
+          padding-left: 1.5rem; 
+          position: relative; 
+        }
+        .pricing-features li::before { 
+          content: '✓'; 
+          position: absolute; 
+          left: 0; 
+          color: #27ae60; 
+          font-weight: bold; 
+        }
+        .pricing-btn { 
+          width: 100%; 
+          padding: 1rem; 
+          background: #1a1a1a; 
+          color: #fff; 
+          border: none; 
+          border-radius: 8px; 
+          font-size: 1.1rem; 
+          cursor: pointer; 
+          transition: background 0.2s;
+          text-decoration: none;
+          display: inline-block;
+        }
+        .pricing-btn:hover { 
+          background: #333; 
+        }
+        .pricing-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+        }
+        .free-note { 
+          background: #fff3cd; 
+          padding: 1rem; 
+          border-radius: 8px; 
+          margin-bottom: 2rem; 
+          text-align: center;
+        }
+        .login-hint {
+          background: #e8f4f8;
+          padding: 0.75rem;
+          border-radius: 8px;
+          margin-top: 1rem;
+          font-size: 0.9rem;
+          color: #1a5490;
+        }
+        .login-hint a {
+          color: #1a5490;
+          font-weight: bold;
+        }
+      </style>
+    </head>
+    <body>
+      <nav>
+        <div class="nav-container">
+          <a href="/" class="logo">Nordic Sketch</a>
+          <ul class="nav-links">
+            <li><a href="/">Forside</a></li>
+            <li><a href="/find-stil">Find din stil</a></li>
+            <li><a href="/pris" class="active">Pris</a></li>
+            <li><a href="/om-os">Om os</a></li>
+            <li id="authLink"><a href="/login">Log ind</a></li>
+          </ul>
+        </div>
+      </nav>
+
+      <div class="container">
+        <div class="free-note" id="freeNote">
+          💡 <strong>Start gratis:</strong> Opret en konto og få 2 AI-billeder med det samme!
+        </div>
+
+        <h1>Vælg dit abonnement</h1>
+        <p class="subtitle">Få adgang til alle stilarter og generér flere billeder</p>
+
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <h3 class="pricing-title">Basic</h3>
+            <div class="pricing-price">49<span> kr</span></div>
+            <p>Perfekt til at prøve flere stilarter</p>
+            <ul class="pricing-features">
+              <li>10 AI-billeder</li>
+              <li>Alle 8 stilarter</li>
+              <li>Alle 15 rum-typer</li>
+              <li>Alle 3 budget-niveauer</li>
+            </ul>
+            <button class="pricing-btn" id="btn-basic" onclick="handleBuy('basic')">Vælg Basic</button>
+            <div class="login-hint" id="hint-basic" style="display:none;">
+              <a href="/login?redirect=/pris">Log ind</a> eller <a href="/signup?redirect=/pris">opret konto</a> for at købe
+            </div>
+          </div>
+
+          <div class="pricing-card popular">
+            <div class="popular-badge">Mest populær</div>
+            <h3 class="pricing-title">Pro</h3>
+            <div class="pricing-price">99<span> kr</span></div>
+            <p>Til dig der vil eksperimentere</p>
+            <ul class="pricing-features">
+              <li>25 AI-billeder</li>
+              <li>Alle 8 stilarter</li>
+              <li>Alle 15 rum-typer</li>
+              <li>Alle 3 budget-niveauer</li>
+              <li>Hurtigere generering</li>
+            </ul>
+            <button class="pricing-btn" id="btn-pro" onclick="handleBuy('pro')">Vælg Pro</button>
+            <div class="login-hint" id="hint-pro" style="display:none;">
+              <a href="/login?redirect=/pris">Log ind</a> eller <a href="/signup?redirect=/pris">opret konto</a> for at købe
+            </div>
+          </div>
+
+          <div class="pricing-card">
+            <h3 class="pricing-title">Unlimited</h3>
+            <div class="pricing-price">199<span> kr</span></div>
+            <p>Fuld frihed til dit hjem</p>
+            <ul class="pricing-features">
+              <li>60 AI-billeder</li>
+              <li>Alle 8 stilarter</li>
+              <li>Alle 15 rum-typer</li>
+              <li>Alle 3 budget-niveauer</li>
+              <li>Prioriteret support</li>
+            </ul>
+            <button class="pricing-btn" id="btn-unlimited" onclick="handleBuy('unlimited')">Vælg Unlimited</button>
+            <div class="login-hint" id="hint-unlimited" style="display:none;">
+              <a href="/login?redirect=/pris">Log ind</a> eller <a href="/signup?redirect=/pris">opret konto</a> for at købe
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+          apiKey: "${process.env.VITE_FIREBASE_API_KEY}",
+          authDomain: "nordic-homebuilding1.firebaseapp.com",
+          projectId: "nordic-homebuilding1",
+          storageBucket: "nordic-homebuilding1.firebasestorage.app",
+          messagingSenderId: "126571617593",
+          appId: "1:126571617593:web:80fcdb36b73a87489b1ce8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+          if (user) {
+            // LOGGET IND
+            currentUser = {
+              uid: user.uid,
+              email: user.email
+            };
+            document.getElementById('authLink').innerHTML = '<a href="/min-konto">Min konto</a>';
+            document.getElementById('freeNote').innerHTML = '💡 <strong>Din konto:</strong> Du har 2 billeder tilbage. Opgrader for at få flere!';
+            
+            // Skift knapper til "Køb nu"
+            ['basic', 'pro', 'unlimited'].forEach(pkg => {
+              document.getElementById('btn-' + pkg).textContent = 'Vælg ' + pkg.charAt(0).toUpperCase() + pkg.slice(1);
+              document.getElementById('hint-' + pkg).style.display = 'none';
+            });
+          } else {
+            // IKKE LOGGET IND
+            currentUser = null;
+            document.getElementById('authLink').innerHTML = '<a href="/login">Log ind</a>';
+            document.getElementById('freeNote').innerHTML = '💡 <strong>Start gratis:</strong> Opret en konto og få 2 AI-billeder med det samme!';
+            
+            // Skift knapper til "Log ind for at købe"
+            ['basic', 'pro', 'unlimited'].forEach(pkg => {
+              document.getElementById('btn-' + pkg).textContent = 'Log ind for at købe';
+              document.getElementById('hint-' + pkg).style.display = 'block';
+            });
+          }
+        });
+
+        // HÅNDTER KØB
+        window.handleBuy = function(package) {
+          if (!currentUser) {
+            // Ikke logget ind - send til login
+            window.location.href = '/login?redirect=/pris';
+            return;
+          }
+
+          const urls = {
+            basic: 'https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum',
+            pro: 'https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum',
+            unlimited: 'https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud'
+          };
+
+          // Gem købsinfo
+          localStorage.setItem('pendingPurchase', JSON.stringify({
+            package: package,
+            userId: currentUser.uid,
+            userEmail: currentUser.email,
+            timestamp: Date.now()
+          }));
+
+          // Gå til Shopify
+          window.location.href = urls[package];
+        };
+      </script>
+    </body>
+    </html>
+  `);
+});
+
+module.exports = router;
+Hvad der sker nu:
+Table
+Copy
+Bruger status	Ser priser?	Kan klikke "Vælg"?	Hvad sker der
+Ikke logget ind	✅ Ja	✅ Ja, men knap siger "Log ind for at købe"	Sendes til /login
+Logget ind	✅ Ja	✅ Ja, knap siger "Vælg [Pakke]"	Går til Shopify
+Opdater også login og signup:
+I din login.js og signup.js, tilføj dette efter successful login:
+JavaScript
+Copy
+// Hent redirect URL hvis der er en
+const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+window.location.href = redirect;
