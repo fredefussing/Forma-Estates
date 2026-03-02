@@ -1,8 +1,9 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/use-auth";
 
 const packages = [
   {
@@ -53,6 +54,8 @@ const packages = [
 ];
 
 export default function PricingPage() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background" data-testid="page-pricing">
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
@@ -72,6 +75,12 @@ export default function PricingPage() {
             </Link>
             <Link href="/pris">
               <span className="text-sm font-medium text-foreground cursor-pointer" data-testid="link-pricing">Pris</span>
+            </Link>
+            <Link href={user ? "/min-konto" : "/login"}>
+              <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1" data-testid="link-account">
+                <User className="w-3.5 h-3.5" />
+                {user ? "Min konto" : "Log ind"}
+              </span>
             </Link>
             <Link href="/design">
               <Button size="sm" className="h-9 px-5 text-sm font-medium rounded-full" data-testid="button-header-cta">

@@ -98,6 +98,14 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - On order: sends confirmation email to customer + notification to admin via Brevo
 - Package matching: by Shopify variant ID or product title fallback
 
+## Authentication (Firebase)
+- Firebase Auth with email/password sign-up and login
+- Auth state managed via `AuthProvider` context wrapping the app (`client/src/hooks/use-auth.tsx`)
+- `useAuth()` hook returns `{ user, loading }` — used across all pages for nav state
+- Firebase config: `client/src/lib/firebase.ts` — uses `VITE_FIREBASE_*` env vars
+- Pages: `/login` (login), `/opret` (signup), `/min-konto` (account dashboard)
+- All navigation bars show "Log ind" or "Min konto" depending on auth state
+
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin/quotes` (admin quote builder)

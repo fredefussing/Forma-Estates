@@ -2,8 +2,9 @@ import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 const rooms = [
   { id: "stue", name: "Stue", icon: "🛋️", roomType: "living room" },
@@ -228,6 +229,7 @@ const budgetOptions = [
 type RoomData = typeof rooms[number];
 
 export default function FindStylePage() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedRoom, setSelectedRoom] = useState<RoomData | null>(null);
@@ -304,6 +306,14 @@ export default function FindStylePage() {
             <li><span className="no-underline text-[#1a1a1a] font-medium relative after:content-[''] after:absolute after:-bottom-[5px] after:left-0 after:w-full after:h-[2px] after:bg-[#1a1a1a]">Find din stil</span></li>
             <li><Link href="/pris"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-pricing">Pris</span></Link></li>
             <li><Link href="/design"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-design">Design</span></Link></li>
+            <li>
+              <Link href={user ? "/min-konto" : "/login"}>
+                <span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors inline-flex items-center gap-1" data-testid="link-account">
+                  <User className="w-3.5 h-3.5" />
+                  {user ? "Min konto" : "Log ind"}
+                </span>
+              </Link>
+            </li>
           </ul>
         </div>
       </nav>

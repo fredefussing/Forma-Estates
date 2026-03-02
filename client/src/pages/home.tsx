@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -8,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTransformationJob } from "@/hooks/use-transformation-job";
-import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check } from "lucide-react";
+import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check, User } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { roomTypes, designStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
 import { type BudgetTier } from "@shared/styleVocabulary";
 import { getTierLabel, formatDKK } from "@shared/budgetUtils";
@@ -73,6 +75,7 @@ const styleDescriptions: Record<DesignStyle, string> = {
 };
 
 export default function HomePage() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -210,12 +213,22 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
         <div className="mx-auto max-w-5xl flex items-center justify-between px-6 h-16">
-          <a href="/" className="flex items-center gap-2.5" data-testid="link-home">
-            <span className="text-lg font-semibold tracking-tight">Nordic Homebuilding</span>
-          </a>
+          <Link href="/">
+            <span className="flex items-center gap-2.5 cursor-pointer" data-testid="link-home">
+              <span className="text-lg font-semibold tracking-tight">Nordic Homebuilding</span>
+            </span>
+          </Link>
           <div className="flex items-center gap-6">
-            <a href="/pris" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-pricing">Pris</a>
+            <Link href="/pris">
+              <span className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline cursor-pointer" data-testid="link-pricing">Pris</span>
+            </Link>
             <a href="/#om-os" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-about">Om os</a>
+            <Link href={user ? "/min-konto" : "/login"}>
+              <span className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 cursor-pointer" data-testid="link-account">
+                <User className="w-3.5 h-3.5" />
+                {user ? "Min konto" : "Log ind"}
+              </span>
+            </Link>
           </div>
         </div>
       </header>

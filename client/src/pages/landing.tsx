@@ -1,10 +1,13 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame } from "lucide-react";
+import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { RotatingStats } from "@/components/rotating-stats";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function LandingPage() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-transparent">
@@ -26,6 +29,12 @@ export default function LandingPage() {
               <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-pricing">Pris</span>
             </Link>
             <a href="#om-os" className="text-sm text-white/70 hover:text-white transition-colors" data-testid="link-about">Om os</a>
+            <Link href={user ? "/min-konto" : "/login"}>
+              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1" data-testid="link-account">
+                <User className="w-3.5 h-3.5" />
+                {user ? "Min konto" : "Log ind"}
+              </span>
+            </Link>
             <Link href="/design">
               <Button size="sm" className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-header-cta">
                 Prøv nu

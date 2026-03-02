@@ -2,9 +2,10 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Flame, Eye, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowLeft, Flame, Eye, Sparkles, TrendingUp, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDKK } from "@shared/budgetUtils";
+import { useAuth } from "@/hooks/use-auth";
 
 interface TrendingItem {
   rank: number;
@@ -146,6 +147,7 @@ function getTitle(style: string, roomType: string): string {
 }
 
 export default function TrendingPage() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
 
   const { data: trending = [], isLoading } = useQuery<TrendingItem[]>({
@@ -175,6 +177,12 @@ export default function TrendingPage() {
             </Link>
             <Link href="/pris">
               <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer" data-testid="link-pricing">Pris</span>
+            </Link>
+            <Link href={user ? "/min-konto" : "/login"}>
+              <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1" data-testid="link-account">
+                <User className="w-3.5 h-3.5" />
+                {user ? "Min konto" : "Log ind"}
+              </span>
             </Link>
             <Link href="/design">
               <Button size="sm" className="h-9 px-5 text-sm font-medium rounded-full" data-testid="button-header-cta">
