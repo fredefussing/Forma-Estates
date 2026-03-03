@@ -7,9 +7,9 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { useAuth } from "@/hooks/use-auth";
 
 const showcaseItems = [
-  { src: "/images/showcase-bedroom.png", title: "Soveværelse", desc: "Skandinavisk ro med bløde teksturer og naturligt lys" },
-  { src: "/images/showcase-living.png", title: "Stue", desc: "Moderne elegance med varme toner og rene linjer" },
-  { src: "/images/showcase-kitchen.png", title: "Køkken", desc: "Nordisk funktionalitet med marmor og trædetaljer" },
+  { src: "/images/showcase-1.png", title: "Kyst-soveværelse", desc: "Lyse blå toner, naturlige materialer og havudsigt-stemning" },
+  { src: "/images/showcase-2.png", title: "Skandinavisk stue", desc: "Grønne vægge, varmt træ og planter i perfekt balance" },
+  { src: "/images/showcase-3.png", title: "Moderne soveværelse", desc: "Minimalistisk elegance med naturligt lys og neutrale toner" },
 ];
 
 const styleItems = [
