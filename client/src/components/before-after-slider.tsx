@@ -33,6 +33,16 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
     isDragging.current = false;
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setSliderPos((p) => Math.max(0, p - 2));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setSliderPos((p) => Math.min(100, p + 2));
+    }
+  };
+
   return (
     <div className="rounded-xl overflow-hidden border border-border/60">
       <div
@@ -71,7 +81,17 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
           className="absolute top-0 bottom-0 w-px bg-white/90 z-10"
           style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg">
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            role="slider"
+            aria-label="Før og efter sammenligning"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(sliderPos)}
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+            data-testid="slider-handle"
+          >
             <div className="flex items-center gap-0.5 text-neutral-500">
               <svg width="5" height="10" viewBox="0 0 5 10" fill="none"><path d="M4 1L1 5L4 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               <svg width="5" height="10" viewBox="0 0 5 10" fill="none"><path d="M1 1L4 5L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
