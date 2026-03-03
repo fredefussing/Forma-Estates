@@ -1,8 +1,8 @@
 import { log } from "./index";
 
-const ADMIN_EMAIL = "tilbud@nordic-homebuilding.com";
+const ADMIN_EMAIL = "fredefussing@gmail.com";
 const KONTAKT_EMAIL = "kontakt@nordic-homebuilding.com";
-const TILBUD_EMAIL = "tilbud@nordic-homebuilding.com";
+const TILBUD_EMAIL = "fredefussing@gmail.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 interface EmailOptions {
