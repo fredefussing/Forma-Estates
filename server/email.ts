@@ -14,7 +14,7 @@ interface EmailOptions {
 }
 
 async function sendBrevoEmail(options: EmailOptions) {
-  const apiKey = process.env.BREVO_API_KEY1 || process.env.BREVO_API_KEY;
+  const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
     throw new Error("BREVO_API_KEY not configured");
   }
