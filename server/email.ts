@@ -256,63 +256,53 @@ export async function sendOrderConfirmationEmail(data: {
   price: number;
   orderId: string;
 }) {
+  const now = new Date();
+  const timestamp = now.toLocaleDateString("da-DK", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Copenhagen",
+  });
+
+  const productLabel = `Få ${data.imageCount} AI-genererede billeder (${data.price} kr)`;
+
   try {
     await sendBrevoEmail({
-      to: data.customerEmail,
-      subject: `Bekræftelse af dit abonnement — ${data.packageName} pakke | Nordic Homebuild`,
+      to: KONTAKT_EMAIL,
+      subject: `Nyt salg - ${data.packageName} pakke - ${data.customerEmail}`,
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #1a1a1a; font-size: 24px;">Tak for dit køb, ${data.customerName}!</h1>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">Din ${data.packageName} pakke er nu aktiv.</p>
-          <div style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <h3 style="margin: 0 0 16px; color: #1a1a1a;">Din pakke:</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px 0; color: #666;">Pakke:</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.packageName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #666;">AI-billeder:</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.imageCount} stk</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #666;">Pris:</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.price} kr</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #666;">Ordre #:</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.orderId}</td>
-              </tr>
-            </table>
-          </div>
-          <p style="color: #666; font-size: 14px; line-height: 1.6;">Du har nu adgang til alle 8 stilarter, alle 15 rum og alle 3 budget-niveauer.</p>
-          <a href="https://nordic-homebuild.com/design" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Start dit design →</a>
+          <h2 style="color: #1a1a1a; font-size: 20px; margin-bottom: 24px;">Nyt salg!</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666; width: 160px;">Kundens email:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.customerEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Produkt:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${productLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Pris:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.price} kr</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Tidspunkt:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${timestamp}</td>
+            </tr>
+          </table>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Nordic Homebuild — AI-drevet interiørdesign</p>
+          <p style="color: #999; font-size: 12px;">Nordic Homebuild — Admin notifikation</p>
         </div>
       `,
     });
-
-    await sendBrevoEmail({
-      to: KONTAKT_EMAIL,
-      subject: `Nyt salg: ${data.packageName} pakke — ${data.price} kr`,
-      senderEmail: KONTAKT_EMAIL,
-      replyTo: KONTAKT_EMAIL,
-      html: `
-        <h2>Nyt salg!</h2>
-        <p><strong>Kunde:</strong> ${data.customerName} (${data.customerEmail})</p>
-        <p><strong>Pakke:</strong> ${data.packageName}</p>
-        <p><strong>Pris:</strong> ${data.price} kr</p>
-        <p><strong>Billeder:</strong> ${data.imageCount} stk</p>
-        <p><strong>Ordre #:</strong> ${data.orderId}</p>
-      `,
-    });
-
-    log(`Order confirmation emails sent for order #${data.orderId} to ${data.customerEmail}`);
+    log(`Admin sale notification sent for order #${data.orderId} (${data.customerEmail})`);
   } catch (err: any) {
-    log(`Failed to send order confirmation email: ${err.message}`);
+    log(`Failed to send admin sale notification: ${err.message}`);
   }
 }
 
