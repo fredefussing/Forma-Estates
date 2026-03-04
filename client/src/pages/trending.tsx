@@ -42,7 +42,7 @@ const styleLabels: Record<string, string> = {
   coastal: "Kyst",
   transitional: "Overgangs",
   farmhouse: "Landlig",
-  badboy: "Badboy",
+  midcentury: "Midcentury",
 };
 
 const styleEmojis: Record<string, string> = {
@@ -53,7 +53,7 @@ const styleEmojis: Record<string, string> = {
   coastal: "🌊",
   transitional: "🔄",
   farmhouse: "🌿",
-  badboy: "🖤",
+  midcentury: "🪑",
 };
 
 const roomEmojis: Record<string, string> = {
@@ -92,10 +92,10 @@ const trendingDescriptions: Record<string, Record<string, string>> = {
     "living room": "Rå mursten, metal og åbne rum med urban karakter",
     default: "Råt, åbent og urbant industrielt design",
   },
-  badboy: {
-    "bedroom": "Mørke vægge, læder og chrome i en maskulin oase",
-    "living room": "Mørk, eksklusiv lounge med attitude og kant",
-    default: "Mørk, maskulin og eksklusiv stil med attitude",
+  midcentury: {
+    "living room": "Retro stue med teak, organiske former og 60'er vibes",
+    "bedroom": "Midcentury soveværelse med varmt træ og vintage lamper",
+    default: "Retro 50'er/60'er stil med træmøbler og organiske former",
   },
   coastal: { default: "Afslappet kyststil med lyse farver og naturlige materialer" },
   transitional: { default: "Klassisk møder moderne i en harmonisk blanding" },
@@ -124,10 +124,10 @@ const trendingTitles: Record<string, Record<string, string>> = {
     "living room": "Urban loft-stue",
     default: "Industriel karakter",
   },
-  badboy: {
-    "bedroom": "Mørk maskulin suite",
-    "living room": "Badboy lounge",
-    default: "Dark luxury",
+  midcentury: {
+    "living room": "Retro loungestue",
+    "bedroom": "Midcentury sovehimmel",
+    default: "Midcentury klassiker",
   },
   coastal: { default: "Kyst-retreat" },
   transitional: { default: "Klassisk moderne" },

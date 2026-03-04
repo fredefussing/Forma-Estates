@@ -21,7 +21,7 @@ const styleLabels: Record<string, string> = {
   coastal: "Kyst",
   transitional: "Overgangs",
   farmhouse: "Landlig",
-  "mid-century": "Midtårhundrede",
+  midcentury: "Midcentury",
 };
 
 const retailerOptions = [

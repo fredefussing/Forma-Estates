@@ -128,21 +128,21 @@ export const styleVocabulary: StyleVocabulary = {
       exampleRetailers: ["Tine K Home", "&Tradition"],
     },
   },
-  badboy: {
+  midcentury: {
     budget: {
-      prompt: "dark masculine bedroom, MATTE BLACK WALLS, leather accents, chrome details, dim ambient lighting, street art posters, BLACK BED LINEN, industrial metal furniture, urban edge, moody atmosphere, new money aesthetic, bold statement pieces, unapologetic luxury, dark and brooding",
-      description: "Mørk, urban stil med attitude og ny rigdom",
-      exampleRetailers: ["IKEA", "H&M Home", "Zara Home"],
+      prompt: "affordable mid-century modern style, retro 1950s 1960s furniture, tapered wooden legs, simple organic shapes, warm wood tones, vintage-inspired colors, functional clean design",
+      description: "Retro 50'er/60'er stil med enkle træmøbler og tidløse former",
+      exampleRetailers: ["IKEA", "JYSK"],
     },
     standard: {
-      prompt: "luxury masculine suite, MATTE BLACK WALLS, deep charcoal surfaces, BLACK LEATHER headboard, chrome and glass, NEON accent lighting, framed Porsche posters, designer items on display, velvet textures, DARK OAK floors, new money flex, conspicuous consumption, status symbols, moody and expensive",
-      description: "Eksklusiv dark luxury med sportsvogn attitude og ny rigdom",
-      exampleRetailers: ["BoConcept", "Menu", "Tom Dixon"],
+      prompt: "premium mid-century modern style, authentic teak and walnut furniture, iconic designer chairs, organic curved forms, warm earthy palette, statement lighting, vintage art prints",
+      description: "Autentisk midcentury med kvalitetsmøbler i teak og valnød",
+      exampleRetailers: ["Ilva", "BoConcept", "House Doctor"],
     },
     luxury: {
-      prompt: "ultimate bachelor penthouse, MATTE BLACK WALLS, Italian leather furniture, carbon fiber details, curated supercar photography gallery wall, BLACK SILK bedding, integrated LED mood lighting, smoked glass bar, Porsche Design accessories, dark exotic wood, exclusive street art, nightclub atmosphere, new money opulence, unapologetic wealth display, dark and seductive",
-      description: "Ultimativ badboy luksus — mørk, dyr, eksklusiv, ny rigdom",
-      exampleRetailers: ["Poltrona Frau", "B&B Italia", "Porsche Design"],
+      prompt: "luxury mid-century modern style, original designer pieces, premium solid walnut and rosewood, Eames and Wegner chairs, sculptural lighting, curated vintage art, bespoke cabinetry, gallery-quality space",
+      description: "Eksklusiv midcentury med originale designklassikere og ædle træsorter",
+      exampleRetailers: ["&Tradition", "Carl Hansen & Søn", "Fritz Hansen"],
     },
   },
 };

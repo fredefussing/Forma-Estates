@@ -34,7 +34,7 @@ const styleLabels: Record<string, string> = {
   coastal: "Kyst",
   transitional: "Overgangs",
   farmhouse: "Landlig",
-  badboy: "Badboy",
+  midcentury: "Midcentury",
 };
 
 const roomLabels: Record<string, string> = {

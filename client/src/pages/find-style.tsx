@@ -23,7 +23,7 @@ const rooms = [
   { id: "aabent-rum", name: "Åben stue-spisestue", icon: "↔️", roomType: "open living and dining room" },
 ] as const;
 
-type StyleKey = "skandinavisk" | "moderne" | "badboy" | "luksus" | "industriel" | "boheme" | "minimalistisk" | "klassisk";
+type StyleKey = "skandinavisk" | "moderne" | "midcentury" | "luksus" | "industriel" | "boheme" | "minimalistisk" | "klassisk";
 
 interface StyleData {
   name: string;
@@ -100,21 +100,21 @@ const styles: Record<StyleKey, StyleData> = {
     ],
     priceRanges: { "10000": "10.000-15.000 kr", "25000": "20.000-35.000 kr", "50000": "40.000-70.000 kr" },
   },
-  badboy: {
-    name: "Badboy",
-    shortDesc: "Mørkt, maskulint, kant",
-    designStyle: "badboy",
+  midcentury: {
+    name: "Midcentury",
+    shortDesc: "Retro, organisk, tidløst",
+    designStyle: "midcentury",
     hasImages: false,
     images: {},
-    why: "Du har valgt {room} med en selvsikker attitude. Badboy stilen matcher din stærke personlighed.",
-    description: "Mørke farver, læder og metal skaber et maskulint rum med kant. Perfekt til dig der vil have et rum der skiller sig ud.",
+    why: "Du har valgt {room} med sans for tidløst design. Midcentury stilen passer perfekt til din æstetik.",
+    description: "Retro 50'er/60'er stil med træmøbler og organiske former. Tidløse designklassikere der aldrig går af mode.",
     features: [
-      "Mørke, modige farver og materialer",
-      "Læder, metal og rå overflader",
-      "Statement pieces der skaber blikfang",
-      "Industrielt touch med eksklusiv finish",
+      "Varme træsorter som teak og valnød",
+      "Organiske, afrundede former",
+      "Ikoniske designermøbler fra 50'erne og 60'erne",
+      "Funktionelt og elegant med retro charme",
     ],
-    priceRanges: { "10000": "10.000-15.000 kr", "25000": "20.000-35.000 kr", "50000": "40.000-70.000 kr" },
+    priceRanges: { "10000": "8.000-12.000 kr", "25000": "18.000-30.000 kr", "50000": "35.000-60.000 kr" },
   },
   luksus: {
     name: "Luksus",
@@ -201,7 +201,7 @@ const styles: Record<StyleKey, StyleData> = {
 const styleEmojis: Record<StyleKey, string> = {
   skandinavisk: "🏠",
   moderne: "🏠",
-  badboy: "🖤",
+  midcentury: "🪑",
   luksus: "✨",
   industriel: "🏭",
   boheme: "🎨",
@@ -212,7 +212,7 @@ const styleEmojis: Record<StyleKey, string> = {
 const styleColors: Record<StyleKey, string> = {
   skandinavisk: "#95a5a6",
   moderne: "#95a5a6",
-  badboy: "#2c2c2c",
+  midcentury: "#b87333",
   luksus: "#d4af37",
   industriel: "#5a5a5a",
   boheme: "#e74c3c",

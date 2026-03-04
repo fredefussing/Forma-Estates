@@ -46,7 +46,7 @@ const collovStyleMap: Record<string, string> = {
   coastal: "coastal",
   transitional: "transitional",
   farmhouse: "farmhouse",
-  badboy: "industrial",
+  midcentury: "midcentury",
 };
 
 const redesignRoomTypes = new Set(["kitchen", "bathroom"]);
@@ -311,11 +311,7 @@ export async function registerRoutes(
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
 
-        if (parsed.data.style === "badboy") {
-          budgetPrompt = `DARK MASCULINE LUXURY STYLE: MATTE BLACK WALLS, leather, chrome, moody lighting, NO WHITE WALLS, NO LIGHT WOOD, NO SCANDINAVIAN ELEMENTS. ${tierConfig.prompt} CRITICAL: This must be dark masculine style ONLY. DO NOT use scandinavian elements. DO NOT default to white walls. MATTE BLACK WALLS mandatory, dark charcoal surfaces, NO light colors. Transform this ${parsed.data.roomType}. Maintain exact room structure, windows, doors. Photorealistic, high quality.`;
-        } else {
-          budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style. ${tierConfig.prompt} Maintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
-        }
+        budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style. ${tierConfig.prompt} Maintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
       }
 
       try {

@@ -162,7 +162,7 @@ export async function sendQuoteRequestEmail(data: {
   const styleLabels: Record<string, string> = {
     scandinavian: "Skandinavisk", modern: "Moderne", luxury: "Luksus",
     industrial: "Industriel", coastal: "Kyst", transitional: "Overgangs",
-    farmhouse: "Landlig", badboy: "Badboy",
+    farmhouse: "Landlig", midcentury: "Midcentury",
   };
 
   const roomLabel = roomLabels[data.roomType] || data.roomType;

@@ -76,7 +76,7 @@ Nordic Homebuild is a web application that uses the Collov AI API to transform r
 living room, bedroom, kitchen, bathroom, dining room, home office, kids room, studio, game room, home gym, laundry room, conference room, spa room, outdoor, open living and dining room
 
 ## Design Styles (8)
-scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badboy
+scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midcentury
 
 ## File Uploads
 - Uploaded images stored in `uploads/` directory, served at `/uploads/` path
@@ -96,7 +96,7 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 
 ## Style Quiz ("Find din stil")
 - Interactive 3-step quiz at `/find-stil`: choose room → choose style → choose budget
-- 8 quiz styles (skandinavisk, moderne, badboy, luksus, industriel, boheme, minimalistisk, klassisk) with room-specific preview images for skandinavisk and moderne
+- 8 quiz styles (skandinavisk, moderne, midcentury, luksus, industriel, boheme, minimalistisk, klassisk) with room-specific preview images for skandinavisk and moderne
 - Result page shows personalized recommendation with features and price range
 - "Start mit design" button navigates to `/design` with pre-selected roomType, style, and budget via URL params
 - Design page reads `?roomType=X&style=Y&budget=Z` query params to pre-fill selections
