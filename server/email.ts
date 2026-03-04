@@ -141,28 +141,110 @@ export async function sendQuoteRequestEmail(data: {
   generatedImageUrl: string;
   designId: number;
 }) {
+  const now = new Date();
+  const timestamp = now.toLocaleDateString("da-DK", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Copenhagen",
+  });
+
+  const roomLabels: Record<string, string> = {
+    "living room": "Stue", "bedroom": "Soveværelse", "kitchen": "Køkken",
+    "bathroom": "Badeværelse", "dining room": "Spisestue", "home office": "Hjemmekontor",
+    "kids room": "Børneværelse", "studio": "Studio", "game room": "Spillerum",
+    "home gym": "Træningsrum", "laundry room": "Vaskerum", "conference room": "Mødelokale",
+    "spa room": "Spa", "outdoor": "Udendørs", "open living and dining room": "Åben stue/spisestue",
+  };
+
+  const styleLabels: Record<string, string> = {
+    scandinavian: "Skandinavisk", modern: "Moderne", luxury: "Luksus",
+    industrial: "Industriel", coastal: "Kyst", transitional: "Overgangs",
+    farmhouse: "Landlig", badboy: "Badboy",
+  };
+
+  const roomLabel = roomLabels[data.roomType] || data.roomType;
+  const styleLabel = styleLabels[data.style] || data.style;
+  const budgetLabel = data.budget ? data.budget.toLocaleString("da-DK") + " kr" : "Ikke angivet";
+
   try {
     await sendBrevoEmail({
-      to: KONTAKT_EMAIL,
-      subject: `Vi har modtaget din forespørgsel #${data.designId}`,
+      to: data.customerEmail,
+      subject: "Vi har modtaget din tilbudsforespørgsel",
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
-        <h2>Ny tilbudsforespørgsel</h2>
-        <p><strong>Kunde email:</strong> ${data.customerEmail}</p>
-        <p><strong>Rum:</strong> ${data.roomType}</p>
-        <p><strong>Stil:</strong> ${data.style}</p>
-        <p><strong>Budget:</strong> ${data.budget ? data.budget.toLocaleString('da-DK') + ' kr' : 'Ikke angivet'}</p>
-        ${data.notes ? `<p><strong>Ønsker:</strong> "${data.notes}"</p>` : ''}
-        <h3>AI genereret billede:</h3>
-        <img src="${data.generatedImageUrl}" style="max-width: 600px; border-radius: 8px;" />
-        <hr />
-        <p><em>Find produkter, byg tilbud, send til kunde.</em></p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #1a1a1a; font-size: 24px;">Tak for din henvendelse!</h1>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Vi har modtaget din tilbudsforespørgsel og arbejder på at sammensætte et personligt tilbud til dig.</p>
+          <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0;">
+            <p style="color: #666; font-size: 14px; margin: 0 0 8px;"><strong>Dit design:</strong> ${roomLabel} i ${styleLabel} stil</p>
+            <p style="color: #666; font-size: 14px; margin: 0;"><strong>Budget:</strong> ${budgetLabel}</p>
+          </div>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;"><strong>Hvad sker der nu?</strong></p>
+          <ul style="color: #666; font-size: 15px; line-height: 2;">
+            <li>Vi gennemgår dit design og finder de bedste produkter</li>
+            <li>Du modtager et personligt tilbud indenfor 24 timer</li>
+            <li>Tilbuddet er uforpligtende og gratis</li>
+          </ul>
+          <p style="color: #666; font-size: 14px;">Har du spørgsmål i mellemtiden? Svar bare på denne mail.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
+          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuild</strong></p>
+        </div>
       `,
     });
-    log(`Quote request email sent to ${KONTAKT_EMAIL} for design #${data.designId}`);
+    log(`Quote confirmation email sent to ${data.customerEmail} for design #${data.designId}`);
   } catch (err: any) {
-    log(`Failed to send quote request email: ${err.message}`);
+    log(`Failed to send quote confirmation email to ${data.customerEmail}: ${err.message}`);
+  }
+
+  try {
+    await sendBrevoEmail({
+      to: KONTAKT_EMAIL,
+      subject: `Ny tilbudsforespørgsel - ${data.customerEmail}`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1a1a1a; font-size: 20px; margin-bottom: 24px;">Ny tilbudsforespørgsel</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666; width: 160px;">Kundens email:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.customerEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Rum-type:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${roomLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Valgt stil:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${styleLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Budget:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${budgetLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Tidspunkt:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${timestamp}</td>
+            </tr>
+            ${data.notes ? `<tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Bemærkninger:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.notes}</td>
+            </tr>` : ""}
+          </table>
+          <h3 style="color: #1a1a1a; font-size: 16px; margin-top: 24px;">AI genereret design:</h3>
+          <img src="${data.generatedImageUrl}" alt="Genereret design" style="max-width: 100%; border-radius: 8px; margin-top: 8px;" />
+          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
+          <p style="color: #999; font-size: 12px;">Nordic Homebuild — Admin notifikation</p>
+        </div>
+      `,
+    });
+    log(`Admin quote notification sent for design #${data.designId} (${data.customerEmail})`);
+  } catch (err: any) {
+    log(`Failed to send admin quote notification: ${err.message}`);
   }
 }
 
