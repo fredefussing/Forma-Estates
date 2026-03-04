@@ -1,21 +1,42 @@
-import { type Design, type InsertDesign, designs, type Quote, type InsertQuote, quotes, type SpecialRequest, type InsertSpecialRequest, specialRequests, type QuoteRequest, type InsertQuoteRequest, quoteRequests } from "@shared/schema";
+import {
+  type Design, type InsertDesign, designs,
+  type Quote, type InsertQuote, quotes,
+  type SpecialRequest, type InsertSpecialRequest, specialRequests,
+  type QuoteRequest, type InsertQuoteRequest, quoteRequests,
+  type User, type InsertUser, users,
+  type CreditTransaction, type InsertCreditTransaction, creditTransactions,
+} from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { pool } from "./db";
+import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
+  createUser(user: InsertUser): Promise<User>;
+  getUserByFirebaseUid(uid: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined>;
+  deductCredit(userId: number, description: string): Promise<boolean>;
+  addCredits(userId: number, amount: number, description: string): Promise<boolean>;
+  createCreditTransaction(tx: InsertCreditTransaction): Promise<CreditTransaction>;
+  getCreditTransactionsByUser(userId: number): Promise<CreditTransaction[]>;
+
   createDesign(design: InsertDesign): Promise<Design>;
   getDesign(id: number): Promise<Design | undefined>;
   getAllDesigns(): Promise<Design[]>;
+  getDesignsByUser(userId: number): Promise<Design[]>;
   updateDesign(id: number, updates: Partial<InsertDesign>): Promise<Design | undefined>;
+
   createQuote(quote: InsertQuote): Promise<Quote>;
   getQuote(id: number): Promise<Quote | undefined>;
   getQuotesByDesign(designId: number): Promise<Quote[]>;
   updateQuote(id: number, updates: Partial<InsertQuote>): Promise<Quote | undefined>;
   getAllQuotes(): Promise<Quote[]>;
+
   createSpecialRequest(request: InsertSpecialRequest): Promise<SpecialRequest>;
   getSpecialRequest(id: number): Promise<SpecialRequest | undefined>;
   getAllSpecialRequests(): Promise<SpecialRequest[]>;
   updateSpecialRequest(id: number, updates: Partial<InsertSpecialRequest>): Promise<SpecialRequest | undefined>;
+
   createQuoteRequest(request: InsertQuoteRequest): Promise<QuoteRequest>;
   getQuoteRequest(id: number): Promise<QuoteRequest | undefined>;
   getAllQuoteRequests(): Promise<QuoteRequest[]>;
@@ -23,6 +44,89 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async createUser(user: InsertUser): Promise<User> {
+    const [result] = await db.insert(users).values(user).returning();
+    return result;
+  }
+
+  async getUserByFirebaseUid(uid: string): Promise<User | undefined> {
+    const [result] = await db.select().from(users).where(eq(users.firebaseUid, uid));
+    return result;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [result] = await db.select().from(users).where(eq(users.email, email));
+    return result;
+  }
+
+  async updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined> {
+    const [result] = await db.update(users)
+      .set({ creditsRemaining, totalCreditsUsed })
+      .where(eq(users.id, userId))
+      .returning();
+    return result;
+  }
+
+  async deductCredit(userId: number, description: string): Promise<boolean> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const res = await client.query(
+        `UPDATE users SET credits_remaining = credits_remaining - 1, total_credits_used = total_credits_used + 1
+         WHERE id = $1 AND credits_remaining > 0 RETURNING id`,
+        [userId]
+      );
+      if (res.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+      await client.query(
+        `INSERT INTO credit_transactions (user_id, amount, type, description) VALUES ($1, -1, 'usage', $2)`,
+        [userId, description]
+      );
+      await client.query("COMMIT");
+      return true;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async addCredits(userId: number, amount: number, description: string): Promise<boolean> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `UPDATE users SET credits_remaining = credits_remaining + $1 WHERE id = $2`,
+        [amount, userId]
+      );
+      await client.query(
+        `INSERT INTO credit_transactions (user_id, amount, type, description) VALUES ($1, $2, 'purchase', $3)`,
+        [userId, amount, description]
+      );
+      await client.query("COMMIT");
+      return true;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async createCreditTransaction(tx: InsertCreditTransaction): Promise<CreditTransaction> {
+    const [result] = await db.insert(creditTransactions).values(tx).returning();
+    return result;
+  }
+
+  async getCreditTransactionsByUser(userId: number): Promise<CreditTransaction[]> {
+    return db.select().from(creditTransactions)
+      .where(eq(creditTransactions.userId, userId))
+      .orderBy(desc(creditTransactions.createdAt));
+  }
+
   async createDesign(design: InsertDesign): Promise<Design> {
     const [result] = await db.insert(designs).values(design).returning();
     return result;
@@ -35,6 +139,12 @@ export class DatabaseStorage implements IStorage {
 
   async getAllDesigns(): Promise<Design[]> {
     return db.select().from(designs).orderBy(desc(designs.createdAt));
+  }
+
+  async getDesignsByUser(userId: number): Promise<Design[]> {
+    return db.select().from(designs)
+      .where(eq(designs.userId, userId))
+      .orderBy(desc(designs.createdAt));
   }
 
   async updateDesign(id: number, updates: Partial<InsertDesign>): Promise<Design | undefined> {

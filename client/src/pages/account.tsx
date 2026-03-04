@@ -4,10 +4,10 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Flame, LogOut, Palette, CreditCard } from "lucide-react";
+import { ArrowLeft, Flame, LogOut, Palette, CreditCard, Loader2 } from "lucide-react";
 
 export default function AccountPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, creditsRemaining, refreshCredits } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -15,6 +15,12 @@ export default function AccountPage() {
       setLocation("/login");
     }
   }, [user, loading, setLocation]);
+
+  useEffect(() => {
+    if (user) {
+      refreshCredits();
+    }
+  }, [user, refreshCredits]);
 
   const handleLogout = async () => {
     try {
@@ -70,8 +76,19 @@ export default function AccountPage() {
             <p className="text-muted-foreground mb-8" data-testid="text-email">{user.email}</p>
 
             <div className="bg-[#f0f0f0] rounded-xl p-6 mb-8 text-center">
-              <div className="text-5xl font-bold text-[#1a1a1a] mb-1" data-testid="text-credits">2</div>
-              <div className="text-muted-foreground" data-testid="text-credits-label">billeder tilbage</div>
+              {creditsRemaining === null ? (
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-5xl font-bold text-[#1a1a1a] mb-1" data-testid="text-credits">{creditsRemaining}</div>
+                  <div className="text-muted-foreground" data-testid="text-credits-label">billeder tilbage</div>
+                  {creditsRemaining === 0 && (
+                    <p className="text-red-600 text-sm mt-3 font-medium" data-testid="text-no-credits">
+                      Du har ingen billeder tilbage. Køb flere for at fortsætte.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-3">

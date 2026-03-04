@@ -1,0 +1,298 @@
+ Database Schema (shared/schema.ts)
+TypeScript
+Copy
+import { pgTable, serial, varchar, integer, timestamp, text, jsonb } from "drizzle-orm/pg-core";
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  firebaseUid: varchar("firebase_uid", { length: 255 }).notNull().unique(),
+  creditsRemaining: integer("credits_remaining").notNull().default(0),
+  totalCreditsUsed: integer("total_credits_used").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const creditTransactions = pgTable("credit_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  amount: integer("amount").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // 'signup_free', 'purchase', 'usage'
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const designs = pgTable("designs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  imageUrl: text("image_url").notNull(),
+  roomType: varchar("room_type", { length: 100 }),
+  style: varchar("style", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+2. Server Routes (server/routes.ts)
+TypeScript
+Copy
+import { eq } from "drizzle-orm";
+import { users, creditTransactions, designs } from "@shared/schema";
+import { db } from "./db";
+
+// Middleware til at verificere Firebase token
+async function verifyFirebaseToken(req: any) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    throw new Error("Ingen token");
+  }
+  const token = authHeader.split("Bearer ")[1];
+  // Verificer token med Firebase Admin SDK
+  const decodedToken = await admin.auth().verifyIdToken(token);
+  return decodedToken;
+}
+
+// Hent eller opret bruger med 2 gratis credits
+app.post("/api/auth/verify", async (req, res) => {
+  try {
+    const decoded = await verifyFirebaseToken(req);
+    const { email, uid } = decoded;
+    
+    // Tjek om bruger findes
+    let user = await db.select().from(users).where(eq(users.firebaseUid, uid)).limit(1);
+    
+    if (user.length === 0) {
+      // Opret ny bruger med 2 gratis credits
+      const [newUser] = await db.insert(users).values({
+        email,
+        firebaseUid: uid,
+        creditsRemaining: 2,
+        totalCreditsUsed: 0,
+      }).returning();
+      
+      // Log transaction
+      await db.insert(creditTransactions).values({
+        userId: newUser.id,
+        amount: 2,
+        type: "signup_free",
+        description: "2 gratis billeder ved oprettelse",
+      });
+      
+      user = [newUser];
+    }
+    
+    res.json({ 
+      user: user[0],
+      creditsRemaining: user[0].creditsRemaining 
+    });
+  } catch (error) {
+    res.status(401).json({ error: "Ugyldig token" });
+  }
+});
+
+// Tjek credits før generering
+app.get("/api/credits", async (req, res) => {
+  try {
+    const decoded = await verifyFirebaseToken(req);
+    const [user] = await db.select().from(users).where(eq(users.firebaseUid, decoded.uid));
+    
+    if (!user) {
+      return res.status(404).json({ error: "Bruger ikke fundet" });
+    }
+    
+    res.json({ creditsRemaining: user.creditsRemaining });
+  } catch (error) {
+    res.status(401).json({ error: "Ugyldig token" });
+  }
+});
+
+// Generer billede (med credit check)
+app.post("/api/designs", async (req, res) => {
+  try {
+    const decoded = await verifyFirebaseToken(req);
+    const { imageUrl, roomType, style } = req.body;
+    
+    // Find bruger
+    const [user] = await db.select().from(users).where(eq(users.firebaseUid, decoded.uid));
+    
+    if (!user) {
+      return res.status(404).json({ error: "Bruger ikke fundet" });
+    }
+    
+    // Tjek credits
+    if (user.creditsRemaining <= 0) {
+      return res.status(403).json({ 
+        error: "Ingen credits tilbage", 
+        message: "Køb flere billeder for at fortsætte" 
+      });
+    }
+    
+    // Generer billede (din eksisterende AI kode her...)
+    // ...
+    
+    // Træk credit og gem design
+    await db.transaction(async (trx) => {
+      // Opdater bruger credits
+      await trx.update(users)
+        .set({ 
+          creditsRemaining: user.creditsRemaining - 1,
+          totalCreditsUsed: user.totalCreditsUsed + 1
+        })
+        .where(eq(users.id, user.id));
+      
+      // Log usage
+      await trx.insert(creditTransactions).values({
+        userId: user.id,
+        amount: -1,
+        type: "usage",
+        description: `Genereret billede: ${roomType} - ${style}`,
+      });
+      
+      // Gem design
+      await trx.insert(designs).values({
+        userId: user.id,
+        imageUrl: generatedImageUrl, // din genererede URL
+        roomType,
+        style,
+      });
+    });
+    
+    res.json({ 
+      success: true, 
+      imageUrl: generatedImageUrl,
+      creditsRemaining: user.creditsRemaining - 1
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: "Generering fejlede" });
+  }
+});
+
+// Shopify webhook - tilføj credits ved køb
+app.post("/api/shopify/webhook", async (req, res) => {
+  try {
+    const { email, line_items } = req.body;
+    
+    // Find bruger
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    
+    if (!user) {
+      return res.status(404).json({ error: "Bruger ikke fundet" });
+    }
+    
+    // Find pakke og credits
+    const packageMap: Record<string, number> = {
+      "Få 10 AI-genererede billeder af dit rum.": 10,
+      "Få 25 AI-genererede billeder af dit rum.": 25,
+      "Få 60 AI-genererede billeder - vores bedste tilbud!": 60,
+    };
+    
+    let creditsToAdd = 0;
+    let productName = "";
+    
+    for (const item of line_items) {
+      if (packageMap[item.title]) {
+        creditsToAdd = packageMap[item.title];
+        productName = item.title;
+        break;
+      }
+    }
+    
+    if (creditsToAdd > 0) {
+      await db.transaction(async (trx) => {
+        // Tilføj credits
+        await trx.update(users)
+          .set({ creditsRemaining: user.creditsRemaining + creditsToAdd })
+          .where(eq(users.id, user.id));
+        
+        // Log purchase
+        await trx.insert(creditTransactions).values({
+          userId: user.id,
+          amount: creditsToAdd,
+          type: "purchase",
+          description: `Købt: ${productName}`,
+        });
+      });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Webhook fejlede" });
+  }
+});
+3. Frontend - Account Page (client/src/pages/account.tsx)
+TypeScript
+Copy
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth"; // din auth hook
+
+export default function Account() {
+  const { user } = useAuth();
+  const [credits, setCredits] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      const token = await user?.getIdToken();
+      const res = await fetch("/api/credits", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setCredits(data.creditsRemaining);
+      setLoading(false);
+    };
+    
+    if (user) fetchCredits();
+  }, [user]);
+
+  if (loading) return <div>Loader...</div>;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Min Konto</h1>
+      
+      <div className="bg-blue-50 p-4 rounded-lg mb-6">
+        <h2 className="font-semibold text-lg">Dine Credits</h2>
+        <p className="text-3xl font-bold text-blue-600">
+          {credits} billeder tilbage
+        </p>
+        {credits === 0 && (
+          <p className="text-red-600 mt-2">
+            Du har ingen credits. <a href="/pricing" className="underline">Køb flere her</a>
+          </p>
+        )}
+      </div>
+      
+      {/* Resten af din konto-side... */}
+    </div>
+  );
+}
+4. Migration SQL (kør i database)
+sql
+Copy
+-- Opret tabeller
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  firebase_uid VARCHAR(255) NOT NULL UNIQUE,
+  credits_remaining INTEGER NOT NULL DEFAULT 0,
+  total_credits_used INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE credit_transactions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) NOT NULL,
+  amount INTEGER NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE designs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) NOT NULL,
+  image_url TEXT NOT NULL,
+  room_type VARCHAR(100),
+  style VARCHAR(100),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Tilføj user_id til eksisterende designs (hvis nogen findes)
+-- ALTER TABLE designs ADD COLUMN user_id INTEGER REFERENCES users(id);

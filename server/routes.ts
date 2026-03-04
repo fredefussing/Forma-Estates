@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -10,6 +10,7 @@ import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail } from "./email";
+import { verifyFirebaseToken } from "./firebase-admin";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -183,6 +184,59 @@ export async function registerRoutes(
   });
   app.use("/uploads", express.static(uploadDir));
 
+  app.post("/api/auth/verify", async (req, res) => {
+    try {
+      const { uid, email } = await verifyFirebaseToken(req.headers.authorization);
+
+      let user = await storage.getUserByFirebaseUid(uid);
+
+      if (!user) {
+        user = await storage.createUser({
+          email,
+          firebaseUid: uid,
+          creditsRemaining: 2,
+          totalCreditsUsed: 0,
+        });
+
+        await storage.createCreditTransaction({
+          userId: user.id,
+          amount: 2,
+          type: "signup_free",
+          description: "2 gratis billeder ved oprettelse",
+        });
+
+        log(`New user created: ${email} (uid: ${uid}) with 2 free credits`);
+      }
+
+      return res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          creditsRemaining: user.creditsRemaining,
+          totalCreditsUsed: user.totalCreditsUsed,
+        },
+      });
+    } catch (err: any) {
+      log(`Auth verify failed: ${err.message}`);
+      return res.status(401).json({ error: "Ugyldig token" });
+    }
+  });
+
+  app.get("/api/credits", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+
+      if (!user) {
+        return res.status(404).json({ error: "Bruger ikke fundet" });
+      }
+
+      return res.json({ creditsRemaining: user.creditsRemaining });
+    } catch (err: any) {
+      return res.status(401).json({ error: "Ugyldig token" });
+    }
+  });
+
   app.post("/api/designs", upload.single("image"), async (req, res) => {
     try {
       if (!req.file) {
@@ -199,6 +253,23 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid room type or style" });
       }
 
+      let dbUser = null;
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        dbUser = await storage.getUserByFirebaseUid(uid);
+      } catch {}
+
+      if (!dbUser) {
+        return res.status(401).json({ message: "Log ind for at generere designs" });
+      }
+
+      if (dbUser.creditsRemaining <= 0) {
+        return res.status(403).json({
+          message: "Ingen billeder tilbage. Køb flere for at fortsætte.",
+          creditsRemaining: 0,
+        });
+      }
+
       const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS;
       let publicUrl: string;
       if (replitDomain) {
@@ -211,7 +282,17 @@ export async function registerRoutes(
 
       const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
 
+      const creditDeducted = await storage.deductCredit(dbUser.id, `Genereret billede: ${parsed.data.roomType} - ${parsed.data.style}`);
+      if (!creditDeducted) {
+        return res.status(403).json({
+          message: "Ingen billeder tilbage. Køb flere for at fortsætte.",
+          creditsRemaining: 0,
+        });
+      }
+      log(`Credit used by ${dbUser.email}: deducted atomically`);
+
       const design = await storage.createDesign({
+        userId: dbUser.id,
         originalImageUrl: publicUrl,
         roomType: parsed.data.roomType,
         style: parsed.data.style,
@@ -581,6 +662,14 @@ export async function registerRoutes(
       }
 
       if (customerEmail) {
+        const existingUser = await storage.getUserByEmail(customerEmail);
+        if (existingUser) {
+          await storage.addCredits(existingUser.id, matchedPackage.images, `Købt: ${matchedPackage.name} pakke (${matchedPackage.images} billeder)`);
+          log(`Credits added: ${matchedPackage.images} → ${existingUser.email}`);
+        } else {
+          log(`Shopify purchase from unknown user: ${customerEmail} — credits not added (no account)`);
+        }
+
         sendOrderConfirmationEmail({
           customerEmail,
           customerName,

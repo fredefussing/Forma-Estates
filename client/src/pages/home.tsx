@@ -75,7 +75,7 @@ const styleDescriptions: Record<DesignStyle, string> = {
 };
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, creditsRemaining, refreshCredits } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,13 +118,27 @@ export default function HomePage() {
 
   const generateMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      const headers: Record<string, string> = {};
+      if (user) {
+        try {
+          const token = await user.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
+        } catch {}
+      }
       const res = await fetch("/api/designs", {
         method: "POST",
         body: formData,
+        headers,
       });
       if (!res.ok) {
-        const err = await res.text();
-        throw new Error(err || "Failed to generate design");
+        const data = await res.json().catch(() => null);
+        if (res.status === 403 && data?.creditsRemaining === 0) {
+          throw new Error("NO_CREDITS");
+        }
+        if (res.status === 401) {
+          throw new Error("NOT_LOGGED_IN");
+        }
+        throw new Error(data?.message || "Failed to generate design");
       }
       return res.json() as Promise<Design>;
     },
@@ -132,8 +146,25 @@ export default function HomePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
       setActiveDesign(design);
       setPollingDesignId(design.id);
+      refreshCredits();
     },
     onError: (error: Error) => {
+      if (error.message === "NO_CREDITS") {
+        toast({
+          title: "Ingen billeder tilbage",
+          description: "Du har brugt alle dine billeder. Køb flere for at fortsætte.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error.message === "NOT_LOGGED_IN") {
+        toast({
+          title: "Log ind først",
+          description: "Du skal logge ind eller oprette en konto for at generere designs.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Fejl",
         description: error.message,
@@ -407,10 +438,21 @@ export default function HomePage() {
                     </motion.div>
                   )}
 
+                  {user && creditsRemaining !== null && (
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2" data-testid="text-credits-info">
+                      <span>{creditsRemaining} {creditsRemaining === 1 ? "billede" : "billeder"} tilbage</span>
+                      {creditsRemaining === 0 && (
+                        <Link href="/pris">
+                          <span className="text-foreground underline cursor-pointer font-medium" data-testid="link-buy-more">Køb flere</span>
+                        </Link>
+                      )}
+                    </div>
+                  )}
+
                   <Button
                     className="w-full h-12 text-sm font-medium tracking-wide"
                     size="lg"
-                    disabled={!roomType || !style || generateMutation.isPending}
+                    disabled={!roomType || !style || generateMutation.isPending || (user !== null && creditsRemaining === 0)}
                     onClick={handleGenerate}
                     data-testid="button-generate"
                   >
@@ -419,7 +461,7 @@ export default function HomePage() {
                     ) : (
                       <Sparkles className="w-4 h-4 mr-2" />
                     )}
-                    Generer design
+                    {user && creditsRemaining === 0 ? "Køb billeder for at generere" : "Generer design"}
                   </Button>
                 </div>
               </div>

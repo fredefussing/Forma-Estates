@@ -10,11 +10,12 @@ Nordic Homebuild is a web application that uses the Collov AI API to transform r
 - **AI Engine**: Collov AI Virtual Staging API
 
 ## Architecture
-- `shared/schema.ts` - Data models (designs, quotes, specialRequests tables), room types, design styles, budget tiers, Zod schemas
+- `shared/schema.ts` - Data models (users, creditTransactions, designs, quotes, specialRequests, quoteRequests tables), room types, design styles, budget tiers, Zod schemas
 - `shared/styleVocabulary.ts` - Style vocabulary: 8 styles × 3 budget tiers with prompts, descriptions, retailer examples
 - `shared/budgetUtils.ts` - Budget utility functions (budgetToTier, getTierLabel, formatDKK)
-- `server/routes.ts` - API routes for designs, quotes, and style info
-- `server/storage.ts` - Database CRUD operations for designs, quotes, and special requests
+- `server/routes.ts` - API routes for auth, credits, designs, quotes, and style info
+- `server/storage.ts` - Database CRUD operations for users, credits, designs, quotes, and special requests
+- `server/firebase-admin.ts` - Firebase Admin SDK initialization and token verification
 - `server/db.ts` - PostgreSQL connection pool
 - `client/src/pages/landing.tsx` - Landing page with hero, quiz teaser, features, about section
 - `client/src/pages/find-style.tsx` - "Find din stil" quiz: 3-step flow (room → style → budget → recommendation with pre-selected redirect to /design)
@@ -28,7 +29,9 @@ Nordic Homebuild is a web application that uses the Collov AI API to transform r
 - `client/src/components/quote-request.tsx` - "Få tilbud" form (shown after AI generation for free quote requests)
 
 ## API Routes
-- `POST /api/designs` - Upload image + create design (accepts budget field; computes tier, builds prompt from style vocabulary)
+- `POST /api/auth/verify` - Verify Firebase token, get/create user with 2 free credits, return user + credits
+- `GET /api/credits` - Get current credit balance (requires Firebase auth token)
+- `POST /api/designs` - Upload image + create design (requires auth token; checks credits, deducts 1 on use, blocks at 0)
 - `GET /api/trending` - Get trending design combinations (aggregated from completed designs)
 - `GET /api/designs` - List all designs
 - `GET /api/designs/:id` - Get single design
@@ -98,18 +101,27 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - "Start mit design" button navigates to `/design` with pre-selected roomType, style, and budget via URL params
 - Design page reads `?roomType=X&style=Y&budget=Z` query params to pre-fill selections
 
+## Credit System
+- **Database tables**: `users` (email, firebaseUid, creditsRemaining, totalCreditsUsed), `credit_transactions` (userId, amount, type, description)
+- **Signup**: New users get 2 free credits via `POST /api/auth/verify` (triggered on first Firebase login)
+- **Usage**: Each design generation deducts 1 credit; blocked with 403 when credits = 0
+- **Purchase**: Shopify webhook adds credits to user by email lookup
+- **Tracking**: All credit changes logged in `credit_transactions` table (types: signup_free, purchase, usage)
+- **Frontend**: Account page shows real-time credits; design page shows credit count and disables generate button at 0
+- **Designs linked to users**: `designs.userId` references `users.id` (nullable for legacy designs)
+
 ## Pricing & Shopify
 - Pricing page at `/pris` with 3 packages: Basic (49 kr, 10 images), Pro (99 kr, 25 images), Unlimited (199 kr, 60 images)
 - Free tier: 2 images in Scandinavian or Modern style
 - "Vælg" buttons link to Shopify checkout cart URLs
 - Shopify webhook at `POST /api/shopify/webhook` receives order notifications
-- On order: sends confirmation email to customer + notification to admin via Brevo
+- On order: adds credits to user account + sends admin notification email via Brevo
 - Package matching: by Shopify variant ID or product title fallback
 
 ## Authentication (Firebase)
 - Firebase Auth with email/password sign-up and login
 - Auth state managed via `AuthProvider` context wrapping the app (`client/src/hooks/use-auth.tsx`)
-- `useAuth()` hook returns `{ user, loading }` — used across all pages for nav state
+- `useAuth()` hook returns `{ user, loading, creditsRemaining, refreshCredits }` — used across all pages for nav state
 - Firebase config: `client/src/lib/firebase.ts` — uses `VITE_FIREBASE_*` env vars
 - Pages: `/login` (login), `/opret` (signup), `/min-konto` (account dashboard)
 - All navigation bars show "Log ind" or "Min konto" depending on auth state

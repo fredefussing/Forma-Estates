@@ -40,8 +40,27 @@ export type DesignStyle = (typeof designStyles)[number];
 export type BudgetTier = (typeof budgetTiers)[number];
 export type QuoteStatus = (typeof quoteStatuses)[number];
 
+export const users = pgTable("users", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  firebaseUid: varchar("firebase_uid", { length: 255 }).notNull().unique(),
+  creditsRemaining: integer("credits_remaining").notNull().default(0),
+  totalCreditsUsed: integer("total_credits_used").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const creditTransactions = pgTable("credit_transactions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  amount: integer("amount").notNull(),
+  type: varchar("type", { length: 50 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const designs = pgTable("designs", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id),
   originalImageUrl: text("original_image_url").notNull(),
   resultImageUrl: text("result_image_url"),
   roomType: text("room_type").notNull(),
@@ -92,6 +111,16 @@ export const quoteRequests = pgTable("quote_requests", {
   budget: integer("budget"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true as never,
+  createdAt: true as never,
+});
+
+export const insertCreditTransactionSchema = createInsertSchema(creditTransactions).omit({
+  id: true as never,
+  createdAt: true as never,
 });
 
 export const insertDesignSchema = createInsertSchema(designs).omit({
@@ -154,6 +183,10 @@ export const createQuoteRequestSchema = z.object({
   budget: z.number().int().optional(),
 });
 
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertCreditTransaction = z.infer<typeof insertCreditTransactionSchema>;
+export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type InsertDesign = z.infer<typeof insertDesignSchema>;
 export type Design = typeof designs.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
