@@ -52,14 +52,24 @@ async function sendBrevoEmail(options: EmailOptions) {
   return response.json();
 }
 
-export async function sendWelcomeEmail(email: string) {
+export async function sendWelcomeEmail(email: string, source?: string) {
+  const now = new Date();
+  const timestamp = now.toLocaleDateString("da-DK", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Copenhagen",
+  });
+  const sourceLabel = source || "Direkte signup (/opret)";
+
   try {
     await sendBrevoEmail({
       to: email,
       subject: "Velkommen til Nordic Homebuild!",
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
-      bcc: KONTAKT_EMAIL,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Nordic Homebuild!</h1>
@@ -83,10 +93,42 @@ export async function sendWelcomeEmail(email: string) {
         </div>
       `,
     });
-
     log(`Welcome email sent to ${email}`);
   } catch (err: any) {
     log(`Failed to send welcome email to ${email}: ${err.message}`);
+  }
+
+  try {
+    await sendBrevoEmail({
+      to: KONTAKT_EMAIL,
+      subject: `Ny brugeroprettelse - ${email}`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1a1a1a; font-size: 20px; margin-bottom: 24px;">Ny bruger oprettet</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666; width: 160px;">Brugerens email:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${email}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Tidspunkt:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${timestamp}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Tilmelding via:</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${sourceLabel}</td>
+            </tr>
+          </table>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
+          <p style="color: #999; font-size: 12px;">Nordic Homebuild — Admin notifikation</p>
+        </div>
+      `,
+    });
+    log(`Admin signup notification sent for ${email}`);
+  } catch (err: any) {
+    log(`Failed to send admin signup notification for ${email}: ${err.message}`);
   }
 }
 

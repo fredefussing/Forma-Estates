@@ -601,11 +601,11 @@ export async function registerRoutes(
 
   app.post("/api/auth/welcome-email", async (req, res) => {
     try {
-      const { email } = req.body;
+      const { email, source } = req.body;
       if (!email || typeof email !== "string") {
         return res.status(400).json({ error: "Email is required" });
       }
-      sendWelcomeEmail(email);
+      sendWelcomeEmail(email, source);
       return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

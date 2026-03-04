@@ -40,10 +40,13 @@ export default function SignupPage() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const signupSource = redirect !== "/min-konto"
+        ? `Signup via ${redirect} redirect`
+        : `Direkte signup (/opret)`;
       fetch("/api/auth/welcome-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userCredential.user.email }),
+        body: JSON.stringify({ email: userCredential.user.email, source: signupSource }),
       }).catch(() => {});
       setSuccess("Bruger oprettet! Sender dig videre...");
       setTimeout(() => {
