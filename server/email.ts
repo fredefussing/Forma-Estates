@@ -1,7 +1,6 @@
 import { log } from "./index";
 
-const KONTAKT_EMAIL = "kontakt@nordic-homebuilding.com";
-const TILBUD_EMAIL = "tilbud@nordic-homebuilding.com";
+const KONTAKT_EMAIL = "kontakt@nordic-homebuild.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 interface EmailOptions {
@@ -21,7 +20,7 @@ async function sendBrevoEmail(options: EmailOptions) {
   }
 
   const payload: Record<string, unknown> = {
-    sender: { name: options.senderName || "Nordic Homebuilding", email: options.senderEmail },
+    sender: { name: options.senderName || "Nordic Homebuild", email: options.senderEmail },
     to: [{ email: options.to }],
     subject: options.subject,
     htmlContent: options.html,
@@ -57,30 +56,30 @@ export async function sendWelcomeEmail(email: string) {
   try {
     await sendBrevoEmail({
       to: email,
-      subject: "Velkommen til Nordic Homebuilding!",
+      subject: "Velkommen til Nordic Homebuild!",
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
-      bcc: TILBUD_EMAIL,
+      bcc: KONTAKT_EMAIL,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Nordic Homebuilding!</h1>
+          <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Nordic Homebuild!</h1>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">Hej!</p>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">Tak for at du oprettede en konto. Du har nu <strong>2 gratis AI-billeder</strong> klar til brug!</p>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">Med Nordic Homebuilding kan du:</p>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Med Nordic Homebuild kan du:</p>
           <ul style="color: #666; font-size: 16px; line-height: 2;">
             <li>Transformere dit rum med AI</li>
             <li>Vælge mellem 8 forskellige stilarter</li>
             <li>Se dit hjem før du køber møbler</li>
           </ul>
           <p style="text-align: center; margin: 30px 0;">
-            <a href="https://nordic-homebuilding.replit.app/find-stil"
+            <a href="https://nordic-homebuild.com/find-stil"
                style="background: #1a1a1a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
               Start dit første design →
             </a>
           </p>
           <p style="color: #666; font-size: 14px;">Har du spørgsmål? Svar bare på denne mail.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuilding</strong></p>
+          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuild</strong></p>
         </div>
       `,
     });
@@ -102,9 +101,9 @@ export async function sendQuoteRequestEmail(data: {
 }) {
   try {
     await sendBrevoEmail({
-      to: TILBUD_EMAIL,
-      subject: `Ny tilbudsforespørgsel #${data.designId}`,
-      senderEmail: TILBUD_EMAIL,
+      to: KONTAKT_EMAIL,
+      subject: `Vi har modtaget din forespørgsel #${data.designId}`,
+      senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
         <h2>Ny tilbudsforespørgsel</h2>
@@ -119,7 +118,7 @@ export async function sendQuoteRequestEmail(data: {
         <p><em>Find produkter, byg tilbud, send til kunde.</em></p>
       `,
     });
-    log(`Quote request email sent to ${TILBUD_EMAIL} for design #${data.designId}`);
+    log(`Quote request email sent to ${KONTAKT_EMAIL} for design #${data.designId}`);
   } catch (err: any) {
     log(`Failed to send quote request email: ${err.message}`);
   }
@@ -136,7 +135,7 @@ export async function sendOrderConfirmationEmail(data: {
   try {
     await sendBrevoEmail({
       to: data.customerEmail,
-      subject: `Tak for dit køb — ${data.packageName} pakke | Nordic Homebuilding`,
+      subject: `Bekræftelse af dit abonnement — ${data.packageName} pakke | Nordic Homebuild`,
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
@@ -165,15 +164,15 @@ export async function sendOrderConfirmationEmail(data: {
             </table>
           </div>
           <p style="color: #666; font-size: 14px; line-height: 1.6;">Du har nu adgang til alle 8 stilarter, alle 15 rum og alle 3 budget-niveauer.</p>
-          <a href="https://nordic-homebuilding.replit.app/design" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Start dit design →</a>
+          <a href="https://nordic-homebuild.com/design" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Start dit design →</a>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Nordic Homebuilding — AI-drevet interiørdesign</p>
+          <p style="color: #999; font-size: 12px;">Nordic Homebuild — AI-drevet interiørdesign</p>
         </div>
       `,
     });
 
     await sendBrevoEmail({
-      to: TILBUD_EMAIL,
+      to: KONTAKT_EMAIL,
       subject: `Nyt salg: ${data.packageName} pakke — ${data.price} kr`,
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
@@ -202,9 +201,9 @@ export async function sendSpecialRequestEmail(data: {
 }) {
   try {
     await sendBrevoEmail({
-      to: TILBUD_EMAIL,
+      to: KONTAKT_EMAIL,
       subject: `Ny manuel forespørgsel #${data.designId}`,
-      senderEmail: TILBUD_EMAIL,
+      senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
         <h2>Ny kunde vil have manuel tilpasning</h2>
@@ -223,7 +222,7 @@ export async function sendSpecialRequestEmail(data: {
         </ol>
       `,
     });
-    log(`Special request email sent to ${TILBUD_EMAIL} for design #${data.designId}`);
+    log(`Special request email sent to ${KONTAKT_EMAIL} for design #${data.designId}`);
   } catch (err: any) {
     log(`Failed to send special request email: ${err.message}`);
   }

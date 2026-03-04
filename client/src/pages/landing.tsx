@@ -13,7 +13,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-transparent">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-16">
           <Link href="/">
-            <span className="text-lg font-semibold tracking-tight cursor-pointer text-white" data-testid="link-logo">Nordic Homebuilding</span>
+            <span className="text-lg font-semibold tracking-tight cursor-pointer text-white" data-testid="link-logo">Nordic Homebuild</span>
           </Link>
           <nav className="flex items-center gap-8">
             <Link href="/find-stil">
@@ -172,7 +172,7 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.5 }}
           >
-            <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4 text-center">Om Nordic Homebuilding</p>
+            <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4 text-center">Om Nordic Homebuild</p>
             <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-6 text-center">
               Vi brænder for at gøre idéer konkrete
             </h2>
@@ -269,7 +269,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-border/40 py-8 px-6">
         <div className="mx-auto max-w-6xl flex items-center justify-between">
-          <span className="text-sm text-muted-foreground/60">© 2026 Nordic Homebuilding</span>
+          <span className="text-sm text-muted-foreground/60">© 2026 Nordic Homebuild</span>
           <span className="text-xs text-muted-foreground/40">AI-drevet interiørdesign</span>
         </div>
       </footer>

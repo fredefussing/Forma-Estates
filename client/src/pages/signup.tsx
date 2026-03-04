@@ -69,7 +69,7 @@ export default function SignupPage() {
       <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-lg w-full max-w-[420px]">
         <Link href="/">
           <span className="text-xl font-bold text-center block mb-6 cursor-pointer text-[#1a1a1a]" data-testid="link-logo">
-            Nordic Homebuilding
+            Nordic Homebuild
           </span>
         </Link>
 

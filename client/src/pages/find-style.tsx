@@ -299,7 +299,7 @@ export default function FindStylePage() {
       <nav className="sticky top-0 z-50 bg-white shadow-sm" style={{ padding: "1rem 2rem" }}>
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/">
-            <span className="text-2xl font-bold text-[#1a1a1a] cursor-pointer" data-testid="link-logo">Nordic Homebuilding</span>
+            <span className="text-2xl font-bold text-[#1a1a1a] cursor-pointer" data-testid="link-logo">Nordic Homebuild</span>
           </Link>
           <ul className="flex gap-8 list-none">
             <li><Link href="/"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-home">Forside</span></Link></li>

@@ -1,7 +1,7 @@
-# Nordic Homebuilding - AI-Powered Interior Design
+# Nordic Homebuild - AI-Powered Interior Design
 
 ## Overview
-Nordic Homebuilding is a web application that uses the Collov AI API to transform room photos. Users upload a room photo, select a room type, design style, and budget tier, and receive an AI-generated redesign that preserves the room structure while changing the interior style. The app includes budget-specific style recommendations with Danish retailer examples and an admin quote builder for creating customer proposals.
+Nordic Homebuild is a web application that uses the Collov AI API to transform room photos. Users upload a room photo, select a room type, design style, and budget tier, and receive an AI-generated redesign that preserves the room structure while changing the interior style. The app includes budget-specific style recommendations with Danish retailer examples and an admin quote builder for creating customer proposals.
 
 ## Tech Stack
 - **Frontend**: React + TypeScript, Vite, TailwindCSS, Shadcn/UI, Framer Motion, TanStack Query
@@ -83,6 +83,14 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - `DATABASE_URL` - PostgreSQL connection string
 - `COLLOV_API_KEY` - Collov AI API key (secret)
 
+## Email System
+- **All emails sent via Brevo** (BREVO_API_KEY1 env var)
+- **Sender on ALL emails**: `kontakt@nordic-homebuild.com` (Nordic Homebuild)
+- **Reply-to on ALL emails**: `kontakt@nordic-homebuild.com`
+- **Admin notifications (BCC/recipient)**: `kontakt@nordic-homebuild.com`
+- **No secondary email** — single contact address for everything
+- Email flows: welcome email (signup), order confirmation (Shopify purchase), quote request notification, special request notification
+
 ## Style Quiz ("Find din stil")
 - Interactive 3-step quiz at `/find-stil`: choose room → choose style → choose budget
 - 8 quiz styles (skandinavisk, moderne, badboy, luksus, industriel, boheme, minimalistisk, klassisk) with room-specific preview images for skandinavisk and moderne
@@ -107,7 +115,7 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, badb
 - All navigation bars show "Log ind" or "Min konto" depending on auth state
 
 ## Welcome Email
-- On signup, backend sends welcome email via Brevo to new user + notification to admin
+- On signup, backend sends welcome email via Brevo to new user + BCC to kontakt@nordic-homebuild.com
 - Endpoint: `POST /api/auth/welcome-email` with `{ email }` body
 - Sent from frontend after successful Firebase account creation
 
