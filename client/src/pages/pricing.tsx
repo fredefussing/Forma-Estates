@@ -19,7 +19,7 @@ const packages = [
       "Alle 15 rum-typer",
       "Alle 3 budget-niveauer",
     ],
-    shopifyUrl: "https://nordic-homebuild.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
     popular: false,
   },
   {
@@ -36,7 +36,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Hurtigere generering",
     ],
-    shopifyUrl: "https://nordic-homebuild.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
     popular: true,
   },
   {
@@ -53,7 +53,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Prioriteret support",
     ],
-    shopifyUrl: "https://nordic-homebuild.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
     popular: false,
   },
 ];
