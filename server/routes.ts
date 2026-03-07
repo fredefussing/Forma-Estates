@@ -316,7 +316,7 @@ export async function registerRoutes(
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
 
-        budgetPrompt = `${tierConfig.prompt}, ${parsed.data.roomType}, ${tier}`;
+        budgetPrompt = `${parsed.data.roomType} ${parsed.data.style}`;
       }
 
       try {
