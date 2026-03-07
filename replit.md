@@ -67,7 +67,8 @@ Nordic Homebuild is a web application that uses the Collov AI API to transform r
 - Admin can view and manage via API
 
 ## Collov API Integration
-- **Send task**: POST `generateImgOnCommon` with `uploadUrl`, `roomType`, `style`, optional `prompt` (budget-enhanced)
+- **CRITICAL: Send ONLY 3 fields to Collov**: `uploadUrl`, `roomType`, `style` — NO `type` field, NO `prompt` field. This is the proven config that produces the best results. DO NOT add extra parameters.
+- **Send task**: POST `generateImgOnCommon` with `uploadUrl`, `roomType`, `style` ONLY
 - **Poll result**: GET `getRecord?uuid=XXX`
 - Authentication: `apiKey` header
 - Async: Server polls Collov in background, frontend polls server for status updates
