@@ -316,7 +316,7 @@ export async function registerRoutes(
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
 
-        budgetPrompt = `${tierConfig.prompt} Major furniture replacement required. Dramatic transformation, not subtle styling. Maintain room layout but change all decorative elements and key furniture pieces. Room type: ${parsed.data.roomType}. Keep walls, windows, doors. Photorealistic, high quality, professional interior design photography.`;
+        budgetPrompt = `${tierConfig.prompt}, ${parsed.data.roomType}, ${tier}`;
       }
 
       try {
