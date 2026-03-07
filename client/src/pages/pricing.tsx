@@ -19,7 +19,7 @@ const packages = [
       "Alle 15 rum-typer",
       "Alle 3 budget-niveauer",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
+    shopifyUrl: "https://nordic-homebuild.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
     popular: false,
   },
   {
@@ -36,7 +36,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Hurtigere generering",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
+    shopifyUrl: "https://nordic-homebuild.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
     popular: true,
   },
   {
@@ -53,7 +53,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Prioriteret support",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
+    shopifyUrl: "https://nordic-homebuild.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
     popular: false,
   },
 ];
@@ -247,7 +247,7 @@ export default function PricingPage() {
             </div>
             <div className="bg-card rounded-xl border border-border/60 p-5">
               <h3 className="font-medium mb-2" data-testid="text-faq-4-title">Hvilke stilarter er inkluderet?</h3>
-              <p className="text-sm text-muted-foreground" data-testid="text-faq-4-answer">Skandinavisk, Moderne, Luksus, Industriel, Kyst, Overgangs, Landlig og Badboy — 8 stilarter i alt.</p>
+              <p className="text-sm text-muted-foreground" data-testid="text-faq-4-answer">Skandinavisk, Moderne, Luksus, Industriel, Kyst, Overgangs, Landlig og Midcentury — 8 stilarter i alt.</p>
             </div>
           </div>
         </div>
