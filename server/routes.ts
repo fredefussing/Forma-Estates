@@ -53,7 +53,7 @@ const redesignRoomTypes = new Set(["kitchen", "bathroom"]);
 
 async function sendCollovTask(uploadUrl: string, roomType: string, style: string, budgetPrompt?: string): Promise<string> {
   const collovStyle = collovStyleMap[style] || "modern";
-  const collovType = redesignRoomTypes.has(roomType) ? "redesign" : "virtual_staging";
+  const collovType = "redesign";
 
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
