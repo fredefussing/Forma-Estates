@@ -59,9 +59,8 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   form.append("uploadUrl", uploadUrl);
   form.append("roomType", roomType);
   form.append("style", collovStyle);
-  form.append("type", "redesign");
 
-  log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType}, type=${collovType}, prompt=${budgetPrompt?.substring(0, 150) || "none"}`);
+  log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType} (no type, no prompt — original config)`);
 
   const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
