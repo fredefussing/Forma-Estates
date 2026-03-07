@@ -1,0 +1,32 @@
+Forbedr Collov AI prompts drastisk. Nuværende resultat er for svagt - næsten ingen ændring.
+
+**Opdater shared/styleVocabulary.ts med disse kraftfulde prompts:**
+
+**Skandinavisk:**
+"Complete Scandinavian transformation. REMOVE dark heavy furniture. ADD light oak pieces, white walls, natural textiles, minimalist decor, hygge elements, large windows feel. Dramatic bright and airy makeover."
+
+**Moderne:**
+"Full modern renovation. REPLACE traditional furniture with sleek contemporary pieces. ADD clean lines, neutral palette, geometric shapes, minimalist art, polished surfaces. Sharp sophisticated update."
+
+**Industriel:**
+"Total industrial warehouse conversion. REMOVE soft furnishings. ADD exposed brick, raw metal shelving, leather Chesterfield sofa, Edison bulb fixtures, concrete floors, vintage factory elements. Dramatic urban loft feel."
+
+**Midcentury:**
+"Complete 1950s-60s makeover. REPLACE with iconic teak furniture, curved silhouettes, sputnik chandelier, walnut sideboards, retro patterns, warm wood tones. Authentic vintage revival."
+
+**Luksus:**
+"Full luxury estate transformation. REPLACE standard pieces with high-end designer furniture. ADD marble surfaces, velvet upholstery, gold accents, crystal lighting, bespoke elements. Opulent and exclusive."
+
+**Kyst:**
+"Complete beach house makeover. REPLACE dark wood with whitewashed pieces. ADD nautical stripes, sea grass rugs, driftwood decor, blue accents, airy linens. Relaxed coastal atmosphere."
+
+**Landlig:**
+"Total farmhouse renovation. REPLACE modern furniture with rustic wood pieces. ADD distressed finishes, vintage accessories, cozy quilts, wrought iron, reclaimed elements. Warm country charm."
+
+**Overgangs:**
+"Blend traditional and contemporary. REPLACE ornate pieces with transitional furniture. ADD neutral palette, mixed metals, classic shapes with modern finishes, timeless elegance."
+
+**Vigtigt tilføj til ALLE prompts:**
+"Major furniture replacement required. Dramatic transformation, not subtle styling. Maintain room layout but change all decorative elements and key furniture pieces."
+
+Gem originalImageUrl og test at resultaterne viser tydelige forskelle.

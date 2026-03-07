@@ -11,136 +11,136 @@ export type StyleVocabulary = Record<string, Record<BudgetTier, TierConfig>>;
 export const styleVocabulary: StyleVocabulary = {
   scandinavian: {
     budget: {
-      prompt: "Transform this room into a Scandinavian interior design style. Replace furniture with light wood pieces, add hygge elements, neutral colors, natural light, minimalist decor. Simple white furniture, basic natural materials, clean lines, functional layout",
+      prompt: "Complete Scandinavian transformation. REMOVE dark heavy furniture. ADD light oak pieces, white walls, natural textiles, minimalist decor, hygge elements, large windows feel. Dramatic bright and airy makeover. Simple affordable pieces, basic natural materials, clean functional layout",
       description: "Enkel og funktionel indretning med hvide møbler og naturlige materialer",
       exampleRetailers: ["IKEA", "JYSK"],
     },
     standard: {
-      prompt: "Transform this room into a Scandinavian interior design style. Replace furniture with quality oak pieces, add soft textiles, designer lamps, warm neutral palette, tactile materials, curated decor. Premium Nordic design with crafted details",
+      prompt: "Complete Scandinavian transformation. REMOVE dark heavy furniture. ADD light oak pieces, white walls, natural textiles, minimalist decor, hygge elements, large windows feel. Dramatic bright and airy makeover. Quality designer lamps, warm neutral palette, tactile materials, curated Nordic details",
       description: "Kvalitetsindretning med nordisk design og gode materialer",
       exampleRetailers: ["Ilva", "Hay", "Fritz Hansen"],
     },
     luxury: {
-      prompt: "Transform this room into a Scandinavian interior design style. Replace furniture with exclusive designer pieces in premium solid oak. Add artisan textiles, statement lighting, bespoke details, gallery-quality art. Luxurious Nordic elegance",
+      prompt: "Complete Scandinavian transformation. REMOVE dark heavy furniture. ADD exclusive designer pieces in premium solid oak, white walls, artisan textiles, statement lighting, bespoke details, gallery-quality art, hygge elements. Dramatic bright and airy luxury makeover",
       description: "Eksklusiv indretning med designer-møbler og luksus-materialer",
       exampleRetailers: ["Bolia", "&Tradition", "Louis Poulsen"],
     },
   },
   modern: {
     budget: {
-      prompt: "Transform this room into a Modern interior design style. Clean lines, functional furniture, monochrome palette, sleek surfaces, contemporary pieces. Replace old furniture with simple geometric modern furniture, minimal accessories",
+      prompt: "Full modern renovation. REPLACE traditional furniture with sleek contemporary pieces. ADD clean lines, neutral palette, geometric shapes, minimalist art, polished surfaces. Sharp sophisticated update. Simple geometric modern furniture, minimal accessories",
       description: "Moderne og minimalistisk med fokus på funktion",
       exampleRetailers: ["IKEA", "IDEmøbler"],
     },
     standard: {
-      prompt: "Transform this room into a Modern interior design style. Clean lines, functional furniture, monochrome palette, sleek surfaces, contemporary pieces. REPLACE furniture with bold-shaped premium pieces, ambient lighting, refined color palette, architectural details",
+      prompt: "Full modern renovation. REPLACE traditional furniture with sleek contemporary pieces. ADD clean lines, neutral palette, geometric shapes, minimalist art, polished surfaces. Sharp sophisticated update. Bold-shaped premium pieces, ambient lighting, refined color palette, architectural details",
       description: "Moderne design med kant og karakter",
       exampleRetailers: ["BoConcept", "Montana"],
     },
     luxury: {
-      prompt: "Transform this room into a Modern interior design style. Clean lines, functional furniture, monochrome palette, sleek surfaces. REPLACE all furniture with iconic designer pieces, add marble accents, sophisticated lighting, curated art, premium metals, bespoke furniture",
+      prompt: "Full modern renovation. REPLACE traditional furniture with sleek contemporary pieces. ADD clean lines, neutral palette, geometric shapes, minimalist art, polished surfaces. Sharp sophisticated update. Iconic designer pieces, marble accents, sophisticated lighting, curated art, premium metals, bespoke furniture",
       description: "High-end moderne indretning med ikoniske møbler",
       exampleRetailers: ["Minotti", "B&B Italia"],
     },
   },
   luxury: {
     budget: {
-      prompt: "Complete luxury makeover. REPLACE standard furniture with high-end designer pieces. ADD marble surfaces, velvet upholstery, gold accents, crystal chandeliers, rich textures. Elegant style with classic shapes, gold-tone accents, plush textiles, warm lighting. Opulent sophisticated elegance",
+      prompt: "Full luxury estate transformation. REPLACE standard pieces with high-end designer furniture. ADD marble surfaces, velvet upholstery, gold accents, crystal lighting, bespoke elements. Opulent and exclusive. Elegant classic shapes, plush textiles, warm lighting",
       description: "Elegant stil med luksusfølelse til fornuftig pris",
       exampleRetailers: ["ILVA", "IDEmøbler"],
     },
     standard: {
-      prompt: "Complete luxury makeover. REPLACE standard furniture with high-end designer pieces. ADD marble surfaces, velvet upholstery, gold accents, crystal chandeliers, bespoke furniture, rich textures. Premium luxury with rich fabrics, marble details, crystal lighting, deep colors, tailored furniture. Opulent sophisticated elegance",
+      prompt: "Full luxury estate transformation. REPLACE standard pieces with high-end designer furniture. ADD marble surfaces, velvet upholstery, gold accents, crystal lighting, bespoke elements. Opulent and exclusive. Rich fabrics, deep colors, tailored furniture, sophisticated atmosphere",
       description: "Sofistikeret luksusindretning med rige materialer",
       exampleRetailers: ["BoConcept", "Bolia"],
     },
     luxury: {
-      prompt: "Complete luxury makeover. REMOVE all existing furniture. REPLACE with ultra high-end bespoke designer pieces. ADD rare marble surfaces, crystal chandeliers, silk textiles, gold accents, museum-quality art, velvet upholstery. Opulent, extravagant, palatial atmosphere",
+      prompt: "Full luxury estate transformation. REMOVE all existing furniture. REPLACE with ultra high-end bespoke designer pieces. ADD rare marble surfaces, crystal chandeliers, silk textiles, gold accents, museum-quality art, velvet upholstery. Opulent, extravagant, palatial atmosphere",
       description: "Ultimativ luksus med skræddersyede møbler og sjældne materialer",
       exampleRetailers: ["Paustian", "Poltrona Frau", "Fendi Casa"],
     },
   },
   industrial: {
     budget: {
-      prompt: "Complete industrial loft transformation. REMOVE existing soft furniture. ADD raw metal shelving, exposed brick walls, leather sofas, Edison bulb lighting, concrete floors, vintage factory elements. Dramatic urban warehouse feel with utilitarian furniture and pendant lights",
+      prompt: "Total industrial warehouse conversion. REMOVE soft furnishings. ADD exposed brick, raw metal shelving, leather Chesterfield sofa, Edison bulb fixtures, concrete floors, vintage factory elements. Dramatic urban loft feel. Utilitarian furniture, pendant lights",
       description: "Rå og urban stil med basale industrielle elementer",
       exampleRetailers: ["IKEA", "JYSK"],
     },
     standard: {
-      prompt: "Complete industrial loft transformation. REMOVE existing soft furniture. ADD raw metal shelving, exposed brick walls, leather sofas, Edison bulb lighting, concrete floors, vintage factory elements. Premium reclaimed wood furniture, quality metal fixtures, authentic materials. Dramatic urban warehouse feel",
+      prompt: "Total industrial warehouse conversion. REMOVE soft furnishings. ADD exposed brick, raw metal shelving, leather Chesterfield sofa, Edison bulb fixtures, concrete floors, vintage factory elements. Dramatic urban loft feel. Premium reclaimed wood, quality metal fixtures, authentic materials",
       description: "Autentisk industriel stil med genbrugsmaterialer og kvalitet",
       exampleRetailers: ["House Doctor", "Muubs"],
     },
     luxury: {
-      prompt: "Complete industrial loft transformation. REMOVE all existing furniture. ADD custom steel and glass structures, exposed brick walls, premium reclaimed materials, designer industrial lighting, artisan metalwork, curated vintage pieces, leather chesterfield sofas, concrete floors. Dramatic luxury warehouse atmosphere",
+      prompt: "Total industrial warehouse conversion. REMOVE all existing furniture. ADD exposed brick, custom steel and glass structures, premium reclaimed materials, designer industrial lighting, artisan metalwork, curated vintage pieces, leather Chesterfield sofa, concrete floors. Dramatic luxury urban loft feel",
       description: "Eksklusiv industriel stil med skræddersyede elementer",
       exampleRetailers: ["Norr11", "&Tradition", "Menu"],
     },
   },
   coastal: {
     budget: {
-      prompt: "Transform to coastal beach house. REPLACE dark furniture with whitewashed wood. ADD nautical elements, sea grass rugs, blue accents, natural fibers, driftwood decor, airy curtains. Light blue and white palette, simple wicker furniture. Relaxed seaside atmosphere",
+      prompt: "Complete beach house makeover. REPLACE dark wood with whitewashed pieces. ADD nautical stripes, sea grass rugs, driftwood decor, blue accents, airy linens. Relaxed coastal atmosphere. Simple wicker furniture, light blue and white palette",
       description: "Frisk kyststil med lyse farver og naturlige materialer",
       exampleRetailers: ["JYSK", "Søstrene Grene"],
     },
     standard: {
-      prompt: "Transform to coastal beach house. REPLACE dark furniture with whitewashed wood. ADD nautical elements, sea grass rugs, blue accents, natural fibers, driftwood decor, airy curtains. Quality rattan furniture, linen textiles, ocean-inspired palette, refined maritime decor. Relaxed seaside atmosphere",
+      prompt: "Complete beach house makeover. REPLACE dark wood with whitewashed pieces. ADD nautical stripes, sea grass rugs, driftwood decor, blue accents, airy linens. Relaxed coastal atmosphere. Quality rattan furniture, linen textiles, ocean-inspired palette, refined maritime decor",
       description: "Raffineret kyststil med kvalitetsmøbler og naturlige tekstiler",
       exampleRetailers: ["Ilva", "Bolia"],
     },
     luxury: {
-      prompt: "Transform to coastal beach house. REPLACE all furniture with designer outdoor-indoor pieces in whitewashed wood. ADD premium natural materials, curated coral and shell art, high-end linen, bespoke driftwood furniture, nautical elements, sea grass rugs. Luxurious relaxed seaside atmosphere",
+      prompt: "Complete beach house makeover. REPLACE all furniture with designer outdoor-indoor pieces in whitewashed wood. ADD nautical stripes, sea grass rugs, driftwood decor, blue accents, premium natural materials, curated coral and shell art, high-end linen, bespoke driftwood furniture. Luxurious relaxed coastal atmosphere",
       description: "Eksklusiv kyststil med designer-møbler og unikke naturlige elementer",
       exampleRetailers: ["Paustian", "Tine K Home"],
     },
   },
   transitional: {
     budget: {
-      prompt: "Blend traditional and modern. REPLACE ornate furniture with transitional pieces. ADD neutral palette, mixed metals, classic silhouettes with contemporary finishes, balanced elegance. Simple upholstered furniture, clean traditional details. Dramatic transformation",
+      prompt: "Blend traditional and contemporary. REPLACE ornate pieces with transitional furniture. ADD neutral palette, mixed metals, classic shapes with modern finishes, timeless elegance. Simple upholstered furniture, clean traditional details",
       description: "Klassisk møder moderne til en overkommelig pris",
       exampleRetailers: ["IKEA", "IDEmøbler"],
     },
     standard: {
-      prompt: "Blend traditional and modern. REPLACE ornate furniture with transitional pieces. ADD neutral palette, mixed metals, classic silhouettes with contemporary finishes. Quality upholstery, refined mix of traditional and contemporary, warm neutrals, elegant lighting, balanced proportions. Dramatic transformation",
+      prompt: "Blend traditional and contemporary. REPLACE ornate pieces with transitional furniture. ADD neutral palette, mixed metals, classic shapes with modern finishes, timeless elegance. Quality upholstery, warm neutrals, elegant lighting, balanced proportions",
       description: "Elegant blanding af klassisk og moderne med kvalitetsmøbler",
       exampleRetailers: ["Ilva", "BoConcept"],
     },
     luxury: {
-      prompt: "Blend traditional and modern. REPLACE all furniture with custom upholstered transitional pieces. ADD premium fabrics, designer lighting, curated antique accents, bespoke millwork, sophisticated palette, mixed metals, classic silhouettes with luxurious contemporary finishes. Dramatic elegant transformation",
+      prompt: "Blend traditional and contemporary. REPLACE all furniture with custom upholstered transitional pieces. ADD neutral palette, mixed metals, classic shapes with luxurious modern finishes, timeless elegance. Premium fabrics, designer lighting, curated antique accents, bespoke millwork",
       description: "Sofistikeret overgangsdesign med skræddersyede møbler og fine detaljer",
       exampleRetailers: ["Paustian", "Eilersen"],
     },
   },
   farmhouse: {
     budget: {
-      prompt: "Full farmhouse transformation. REPLACE sleek furniture with rustic wood. ADD distressed finishes, vintage accessories, cozy textiles, wrought iron, reclaimed wood. White painted furniture, mason jar accents, gingham textiles. Warm inviting country atmosphere",
+      prompt: "Total farmhouse renovation. REPLACE modern furniture with rustic wood pieces. ADD distressed finishes, vintage accessories, cozy quilts, wrought iron, reclaimed elements. Warm country charm. White painted furniture, gingham textiles",
       description: "Rustik og hyggelig landstil til fornuftig pris",
       exampleRetailers: ["JYSK", "Søstrene Grene"],
     },
     standard: {
-      prompt: "Full farmhouse transformation. REPLACE sleek furniture with rustic wood. ADD distressed finishes, vintage accessories, cozy textiles, wrought iron, reclaimed wood. Quality handmade ceramics, linen textiles, vintage-inspired fixtures, warm natural palette. Warm inviting country atmosphere",
+      prompt: "Total farmhouse renovation. REPLACE modern furniture with rustic wood pieces. ADD distressed finishes, vintage accessories, cozy quilts, wrought iron, reclaimed elements. Warm country charm. Handmade ceramics, linen textiles, vintage-inspired fixtures",
       description: "Autentisk landstil med genbrugte materialer og håndværk",
       exampleRetailers: ["Ilva", "House Doctor"],
     },
     luxury: {
-      prompt: "Full farmhouse transformation. REPLACE all furniture with artisan reclaimed timber pieces. ADD bespoke pottery, premium linen, designer rustic lighting, curated antiques, distressed finishes, wrought iron, reclaimed wood. Refined luxury country elegance",
+      prompt: "Total farmhouse renovation. REPLACE all furniture with artisan reclaimed timber pieces. ADD distressed finishes, vintage accessories, cozy quilts, wrought iron, reclaimed elements. Warm country charm. Bespoke pottery, premium linen, designer rustic lighting, curated antiques",
       description: "Eksklusiv landstil med kunsthåndværk og antikke fund",
       exampleRetailers: ["Tine K Home", "&Tradition"],
     },
   },
   midcentury: {
     budget: {
-      prompt: "Full midcentury modern renovation. REPLACE with iconic 1950s-60s furniture. ADD teak sideboards, Eames-style chairs, organic curved sofas, sputnik chandeliers, walnut wood, retro patterns. Tapered wooden legs, vintage-inspired colors, functional clean design. Authentic vintage atmosphere",
+      prompt: "Complete 1950s-60s makeover. REPLACE with iconic teak furniture, curved silhouettes, sputnik chandelier, walnut sideboards, retro patterns, warm wood tones. Authentic vintage revival. Tapered wooden legs, vintage-inspired colors, functional clean design",
       description: "Retro 50'er/60'er stil med enkle træmøbler og tidløse former",
       exampleRetailers: ["IKEA", "JYSK"],
     },
     standard: {
-      prompt: "Full midcentury modern renovation. REPLACE with iconic 1950s-60s furniture. ADD authentic teak and walnut furniture, iconic designer chairs, organic curved forms, sputnik chandeliers, warm earthy palette, statement lighting, vintage art prints, retro patterns. Authentic vintage atmosphere",
+      prompt: "Complete 1950s-60s makeover. REPLACE with iconic teak furniture, curved silhouettes, sputnik chandelier, walnut sideboards, retro patterns, warm wood tones. Authentic vintage revival. Authentic teak and walnut pieces, iconic designer chairs, organic curved forms, statement lighting",
       description: "Autentisk midcentury med kvalitetsmøbler i teak og valnød",
       exampleRetailers: ["Ilva", "BoConcept", "House Doctor"],
     },
     luxury: {
-      prompt: "Full midcentury modern renovation. REMOVE all existing furniture. REPLACE with original designer pieces. ADD premium solid walnut and rosewood furniture, Eames and Wegner chairs, sculptural sputnik chandeliers, curated vintage art, bespoke cabinetry, teak sideboards, organic curved sofas. Gallery-quality authentic vintage atmosphere",
+      prompt: "Complete 1950s-60s makeover. REMOVE all existing furniture. REPLACE with original designer pieces. ADD premium solid walnut and rosewood, Eames and Wegner chairs, sculptural sputnik chandeliers, curated vintage art, bespoke cabinetry, iconic teak sideboards. Gallery-quality authentic vintage revival",
       description: "Eksklusiv midcentury med originale designklassikere og ædle træsorter",
       exampleRetailers: ["&Tradition", "Carl Hansen & Søn", "Fritz Hansen"],
     },
