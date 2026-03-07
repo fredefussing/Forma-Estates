@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Flame, LogOut, Palette, CreditCard, Loader2, Image } from "lucide-react";
 
 export default function AccountPage() {
-  const { user, loading, creditsRemaining, refreshCredits } = useAuth();
+  const { user, loading, creditsRemaining, isAdmin, refreshCredits } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -72,7 +72,12 @@ export default function AccountPage() {
       <div className="max-w-2xl mx-auto px-6 py-12">
         {user ? (
           <div className="bg-white rounded-2xl p-8 shadow-lg">
-            <h1 className="text-2xl font-bold mb-1" data-testid="text-title">Min konto</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-bold" data-testid="text-title">Min konto</h1>
+              {isAdmin && (
+                <span className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-red-600 text-white" data-testid="badge-admin">ADMIN</span>
+              )}
+            </div>
             <p className="text-muted-foreground mb-8" data-testid="text-email">{user.email}</p>
 
             <div className="bg-[#f0f0f0] rounded-xl p-6 mb-8 text-center">
@@ -80,9 +85,9 @@ export default function AccountPage() {
                 <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
               ) : (
                 <>
-                  <div className="text-5xl font-bold text-[#1a1a1a] mb-1" data-testid="text-credits">{creditsRemaining}</div>
-                  <div className="text-muted-foreground" data-testid="text-credits-label">billeder tilbage</div>
-                  {creditsRemaining === 0 && (
+                  <div className="text-5xl font-bold text-[#1a1a1a] mb-1" data-testid="text-credits">{isAdmin ? "∞" : creditsRemaining}</div>
+                  <div className="text-muted-foreground" data-testid="text-credits-label">{isAdmin ? "ubegrænset (admin)" : "billeder tilbage"}</div>
+                  {!isAdmin && creditsRemaining === 0 && (
                     <p className="text-red-600 text-sm mt-3 font-medium" data-testid="text-no-credits">
                       Du har ingen billeder tilbage. Køb flere for at fortsætte.
                     </p>

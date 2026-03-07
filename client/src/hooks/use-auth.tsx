@@ -6,15 +6,17 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   creditsRemaining: number | null;
+  isAdmin: boolean;
   refreshCredits: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, refreshCredits: async () => {} });
+const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, refreshCredits: async () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const verifyWithBackend = useCallback(async (firebaseUser: User) => {
     try {
@@ -29,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setCreditsRemaining(data.user.creditsRemaining);
+        setIsAdmin(data.user.isAdmin || false);
       }
     } catch {}
   }, []);
@@ -43,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setCreditsRemaining(data.creditsRemaining);
+        if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin);
       }
     } catch {}
   }, [user]);
@@ -54,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyWithBackend(firebaseUser);
       } else {
         setCreditsRemaining(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -61,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [verifyWithBackend]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, creditsRemaining, refreshCredits }}>
+    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, refreshCredits }}>
       {children}
     </AuthContext.Provider>
   );

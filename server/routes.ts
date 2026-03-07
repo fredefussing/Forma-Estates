@@ -214,6 +214,7 @@ export async function registerRoutes(
           email: user.email,
           creditsRemaining: user.creditsRemaining,
           totalCreditsUsed: user.totalCreditsUsed,
+          isAdmin: user.isAdmin,
         },
       });
     } catch (err: any) {
@@ -231,7 +232,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Bruger ikke fundet" });
       }
 
-      return res.json({ creditsRemaining: user.creditsRemaining });
+      return res.json({ creditsRemaining: user.creditsRemaining, isAdmin: user.isAdmin });
     } catch (err: any) {
       return res.status(401).json({ error: "Ugyldig token" });
     }
@@ -263,7 +264,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Log ind for at generere designs" });
       }
 
-      if (dbUser.creditsRemaining <= 0) {
+      if (!dbUser.isAdmin && dbUser.creditsRemaining <= 0) {
         return res.status(403).json({
           message: "Ingen billeder tilbage. Køb flere for at fortsætte.",
           creditsRemaining: 0,
@@ -282,14 +283,18 @@ export async function registerRoutes(
 
       const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
 
-      const creditDeducted = await storage.deductCredit(dbUser.id, `Genereret billede: ${parsed.data.roomType} - ${parsed.data.style}`);
-      if (!creditDeducted) {
-        return res.status(403).json({
-          message: "Ingen billeder tilbage. Køb flere for at fortsætte.",
-          creditsRemaining: 0,
-        });
+      if (!dbUser.isAdmin) {
+        const creditDeducted = await storage.deductCredit(dbUser.id, `Genereret billede: ${parsed.data.roomType} - ${parsed.data.style}`);
+        if (!creditDeducted) {
+          return res.status(403).json({
+            message: "Ingen billeder tilbage. Køb flere for at fortsætte.",
+            creditsRemaining: 0,
+          });
+        }
+        log(`Credit used by ${dbUser.email}: deducted atomically`);
+      } else {
+        log(`Admin ${dbUser.email}: skipping credit deduction`);
       }
-      log(`Credit used by ${dbUser.email}: deducted atomically`);
 
       const design = await storage.createDesign({
         userId: dbUser.id,
@@ -373,6 +378,11 @@ export async function registerRoutes(
       const user = await storage.getUserByFirebaseUid(uid);
       if (!user) return res.status(404).json({ message: "Bruger ikke fundet" });
 
+      if (user.isAdmin) {
+        const allDesigns = await storage.getAllDesigns();
+        return res.json(allDesigns);
+      }
+
       const myDesigns = await storage.getDesignsByUser(user.id);
       return res.json(myDesigns);
     } catch {
@@ -395,7 +405,7 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const user = await storage.getUserByFirebaseUid(uid);
-      if (!user || design.userId !== user.id) {
+      if (!user || (!user.isAdmin && design.userId !== user.id)) {
         return res.status(403).json({ message: "Adgang nægtet" });
       }
     } catch {

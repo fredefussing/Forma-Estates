@@ -75,7 +75,7 @@ const styleDescriptions: Record<DesignStyle, string> = {
 };
 
 export default function HomePage() {
-  const { user, creditsRemaining, refreshCredits } = useAuth();
+  const { user, creditsRemaining, isAdmin, refreshCredits } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -270,6 +270,9 @@ export default function HomePage() {
                 {user ? "Min konto" : "Log ind"}
               </span>
             </Link>
+            {isAdmin && (
+              <span className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-red-600 text-white" data-testid="badge-admin">ADMIN</span>
+            )}
           </div>
         </div>
       </header>
@@ -450,8 +453,8 @@ export default function HomePage() {
 
                   {user && creditsRemaining !== null && (
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-2" data-testid="text-credits-info">
-                      <span>{creditsRemaining} {creditsRemaining === 1 ? "billede" : "billeder"} tilbage</span>
-                      {creditsRemaining === 0 && (
+                      <span>{isAdmin ? "∞ billeder (admin)" : `${creditsRemaining} ${creditsRemaining === 1 ? "billede" : "billeder"} tilbage`}</span>
+                      {!isAdmin && creditsRemaining === 0 && (
                         <Link href="/pris">
                           <span className="text-foreground underline cursor-pointer font-medium" data-testid="link-buy-more">Køb flere</span>
                         </Link>
@@ -462,7 +465,7 @@ export default function HomePage() {
                   <Button
                     className="w-full h-12 text-sm font-medium tracking-wide"
                     size="lg"
-                    disabled={!roomType || !style || generateMutation.isPending || (user !== null && creditsRemaining === 0)}
+                    disabled={!roomType || !style || generateMutation.isPending || (!isAdmin && user !== null && creditsRemaining === 0)}
                     onClick={handleGenerate}
                     data-testid="button-generate"
                   >
@@ -471,7 +474,7 @@ export default function HomePage() {
                     ) : (
                       <Sparkles className="w-4 h-4 mr-2" />
                     )}
-                    {user && creditsRemaining === 0 ? "Køb billeder for at generere" : "Generer design"}
+                    {!isAdmin && user && creditsRemaining === 0 ? "Køb billeder for at generere" : "Generer design"}
                   </Button>
                 </div>
               </div>

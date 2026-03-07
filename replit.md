@@ -102,13 +102,15 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 - Design page reads `?roomType=X&style=Y&budget=Z` query params to pre-fill selections
 
 ## Credit System
-- **Database tables**: `users` (email, firebaseUid, creditsRemaining, totalCreditsUsed), `credit_transactions` (userId, amount, type, description)
+- **Database tables**: `users` (email, firebaseUid, creditsRemaining, totalCreditsUsed, isAdmin), `credit_transactions` (userId, amount, type, description)
 - **Signup**: New users get 2 free credits via `POST /api/auth/verify` (triggered on first Firebase login)
 - **Usage**: Each design generation deducts 1 credit; blocked with 403 when credits = 0
+- **Admin override**: Users with `isAdmin=true` skip credit checks and deductions, see all designs
 - **Purchase**: Shopify webhook adds credits to user by email lookup
 - **Tracking**: All credit changes logged in `credit_transactions` table (types: signup_free, purchase, usage)
-- **Frontend**: Account page shows real-time credits; design page shows credit count and disables generate button at 0
+- **Frontend**: Account page shows real-time credits; design page shows credit count and disables generate button at 0; admin sees ∞ and ADMIN badge
 - **Designs linked to users**: `designs.userId` references `users.id` (nullable for legacy designs)
+- **Admin user**: fredefussing@gmail.com has `isAdmin=true`
 
 ## Pricing & Shopify
 - Pricing page at `/pris` with 3 packages: Basic (49 kr, 10 images), Pro (99 kr, 25 images), Unlimited (199 kr, 60 images)

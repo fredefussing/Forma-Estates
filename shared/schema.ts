@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -46,6 +46,7 @@ export const users = pgTable("users", {
   firebaseUid: varchar("firebase_uid", { length: 255 }).notNull().unique(),
   creditsRemaining: integer("credits_remaining").notNull().default(0),
   totalCreditsUsed: integer("total_credits_used").notNull().default(0),
+  isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
