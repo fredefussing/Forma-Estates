@@ -15,6 +15,8 @@ import PricingPage from "@/pages/pricing";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import AccountPage from "@/pages/account";
+import MyDesignsPage from "@/pages/my-designs";
+import DesignDetailPage from "@/pages/design-detail";
 
 function Router() {
   return (
@@ -23,10 +25,12 @@ function Router() {
       <Route path="/find-stil" component={FindStylePage} />
       <Route path="/trending" component={TrendingPage} />
       <Route path="/pris" component={PricingPage} />
+      <Route path="/design/:id" component={DesignDetailPage} />
       <Route path="/design" component={DesignPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/opret" component={SignupPage} />
       <Route path="/min-konto" component={AccountPage} />
+      <Route path="/mine-designs" component={MyDesignsPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
       <Route component={NotFound} />

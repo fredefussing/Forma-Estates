@@ -95,7 +95,17 @@ export default function HomePage() {
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
 
   const { data: designs = [] } = useQuery<Design[]>({
-    queryKey: ["/api/designs"],
+    queryKey: ["/api/designs", "my"],
+    queryFn: async () => {
+      if (!user) return [];
+      const token = await user.getIdToken();
+      const res = await fetch("/api/designs/my", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user,
   });
 
   const job = useTransformationJob(pollingDesignId);
@@ -103,11 +113,11 @@ export default function HomePage() {
   useEffect(() => {
     if (job.status === "completed" && job.resultUrl && activeDesign) {
       setActiveDesign({ ...activeDesign, status: "completed", resultImageUrl: job.resultUrl });
-      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs", "my"] });
     }
     if (job.status === "failed" && activeDesign) {
       setActiveDesign({ ...activeDesign, status: "failed" });
-      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs", "my"] });
       toast({
         title: "Generering mislykkedes",
         description: job.error || "Prøv igen med et andet billede eller stil.",
@@ -143,7 +153,7 @@ export default function HomePage() {
       return res.json() as Promise<Design>;
     },
     onSuccess: (design) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs", "my"] });
       setActiveDesign(design);
       setPollingDesignId(design.id);
       refreshCredits();

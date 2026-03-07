@@ -4,7 +4,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Flame, LogOut, Palette, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, Flame, LogOut, Palette, CreditCard, Loader2, Image } from "lucide-react";
 
 export default function AccountPage() {
   const { user, loading, creditsRemaining, refreshCredits } = useAuth();
@@ -96,6 +96,12 @@ export default function AccountPage() {
                 <Button className="h-11 px-6" data-testid="button-new-design">
                   <Palette className="w-4 h-4 mr-2" />
                   Lav nyt design
+                </Button>
+              </Link>
+              <Link href="/mine-designs">
+                <Button variant="outline" className="h-11 px-6" data-testid="button-my-designs">
+                  <Image className="w-4 h-4 mr-2" />
+                  Dine designs
                 </Button>
               </Link>
               <Link href="/pris">

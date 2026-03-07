@@ -367,6 +367,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/designs/my", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(404).json({ message: "Bruger ikke fundet" });
+
+      const myDesigns = await storage.getDesignsByUser(user.id);
+      return res.json(myDesigns);
+    } catch {
+      return res.status(401).json({ message: "Ugyldig token" });
+    }
+  });
+
   app.get("/api/designs", async (_req, res) => {
     const allDesigns = await storage.getAllDesigns();
     return res.json(allDesigns);
@@ -378,6 +391,16 @@ export async function registerRoutes(
 
     const design = await storage.getDesign(id);
     if (!design) return res.status(404).json({ message: "Design not found" });
+
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user || design.userId !== user.id) {
+        return res.status(403).json({ message: "Adgang nægtet" });
+      }
+    } catch {
+      return res.status(401).json({ message: "Ugyldig token" });
+    }
 
     return res.json(design);
   });

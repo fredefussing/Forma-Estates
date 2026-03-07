@@ -141,4 +141,4 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/design/:id` (design detail with before/after slider), `/mine-designs` (user's design history), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)
