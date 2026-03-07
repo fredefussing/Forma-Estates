@@ -316,7 +316,7 @@ export async function registerRoutes(
       if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
         const tierConfig = styleVocabulary[parsed.data.style][tier];
 
-        budgetPrompt = `Transform this ${parsed.data.roomType} to ${parsed.data.style} style. ${tierConfig.prompt} Maintain exact room structure, windows, doors. NO layout changes. Photorealistic, high quality.`;
+        budgetPrompt = `${tierConfig.prompt} Maintain room type: ${parsed.data.roomType}. Maintain exact room structure, walls, windows, doors. Dramatic transformation, not subtle changes. Photorealistic, high quality, professional interior design photography.`;
       }
 
       try {
