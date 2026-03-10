@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { RotatingStats } from "@/components/rotating-stats";
+import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function LandingPage() {
@@ -163,6 +164,39 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section className="py-24 sm:py-32 px-6 border-t border-border/40">
+        <div className="mx-auto max-w-3xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="text-center mb-12">
+              <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-4">Resultat</p>
+              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight" data-testid="text-before-after-title">Se forvandlingen</h2>
+              <p className="text-muted-foreground mt-3 text-base" data-testid="text-before-after-subtitle">Fra dit nuværende rum til dit drømmerum</p>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg" data-testid="before-after-landing">
+              <BeforeAfterSlider
+                beforeImage="https://853089b9-9570-487c-8bed-2f47e9a78471-00-z0pwkf3nni3z.spock.replit.dev/uploads/1771859041697-0roxsajy5enp.JPG"
+                afterImage="https://flair-other-test.s3.us-west-1.amazonaws.com/20260223/chatEditImages/890c89b5-a1ef-4ffb-848c-ad1d3251d031.jpeg"
+              />
+            </div>
+
+            <div className="text-center mt-10">
+              <p className="text-sm text-muted-foreground mb-6" data-testid="text-before-after-cta-desc">Upload et billede, vælg din stil, og se magien ske</p>
+              <Link href="/opret">
+                <Button size="lg" className="h-12 px-8 text-sm font-medium rounded-full" data-testid="button-before-after-cta">
+                  Prøv gratis
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
       <section id="om-os" className="py-24 sm:py-32 px-6 border-t border-border/40">
         <div className="mx-auto max-w-4xl">
