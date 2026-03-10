@@ -7,16 +7,20 @@ interface AuthContextType {
   loading: boolean;
   creditsRemaining: number | null;
   isAdmin: boolean;
+  subscriptionStatus: string;
+  subscriptionTier: string | null;
   refreshCredits: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, refreshCredits: async () => {} });
+const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, subscriptionStatus: "none", subscriptionTier: null, refreshCredits: async () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("none");
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
 
   const verifyWithBackend = useCallback(async (firebaseUser: User) => {
     try {
@@ -32,6 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         setCreditsRemaining(data.user.creditsRemaining);
         setIsAdmin(data.user.isAdmin || false);
+        setSubscriptionStatus(data.user.subscriptionStatus || "none");
+        setSubscriptionTier(data.user.subscriptionTier || null);
       }
     } catch {}
   }, []);
@@ -47,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         setCreditsRemaining(data.creditsRemaining);
         if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin);
+        setSubscriptionStatus(data.subscriptionStatus || "none");
+        setSubscriptionTier(data.subscriptionTier || null);
       }
     } catch {}
   }, [user]);
@@ -59,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setCreditsRemaining(null);
         setIsAdmin(false);
+        setSubscriptionStatus("none");
+        setSubscriptionTier(null);
       }
       setLoading(false);
     });
@@ -66,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [verifyWithBackend]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, refreshCredits }}>
+    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, subscriptionStatus, subscriptionTier, refreshCredits }}>
       {children}
     </AuthContext.Provider>
   );

@@ -102,8 +102,17 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 - "Start mit design" button navigates to `/design` with pre-selected roomType, style, and budget via URL params
 - Design page reads `?roomType=X&style=Y&budget=Z` query params to pre-fill selections
 
+## Freemium Style System
+- **Free styles**: `scandinavian` and `modern` (defined in `shared/schema.ts` as `freeStyles`)
+- **Locked styles**: `luxury`, `industrial`, `coastal`, `transitional`, `farmhouse`, `midcentury` — require active subscription
+- **DB columns on `users`**: `subscriptionStatus` (none/active), `subscriptionTier` (basic/pro/unlimited), `subscriptionExpires` (timestamp)
+- **Backend enforcement**: `POST /api/designs` checks style access — blocks non-free styles with 403 `requiresSubscription` if no active/unexpired subscription
+- **Frontend UX**: Lock icons on locked styles, "GRATIS" badge on free styles, clicking locked style opens subscription modal with 3 Shopify packages
+- **Auth hook**: `useAuth()` returns `subscriptionStatus` and `subscriptionTier` alongside existing fields
+- **Mutation error handling**: 403 with subscription message auto-opens subscription modal
+
 ## Credit System
-- **Database tables**: `users` (email, firebaseUid, creditsRemaining, totalCreditsUsed, isAdmin), `credit_transactions` (userId, amount, type, description)
+- **Database tables**: `users` (email, firebaseUid, creditsRemaining, totalCreditsUsed, isAdmin, subscriptionStatus, subscriptionTier, subscriptionExpires), `credit_transactions` (userId, amount, type, description)
 - **Signup**: New users get 2 free credits via `POST /api/auth/verify` (triggered on first Firebase login)
 - **Usage**: Each design generation deducts 1 credit; blocked with 403 when credits = 0
 - **Admin override**: Users with `isAdmin=true` skip credit checks and deductions, see all designs

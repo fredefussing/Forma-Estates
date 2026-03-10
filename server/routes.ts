@@ -270,7 +270,8 @@ export async function registerRoutes(
       }
 
       const isFreeStyle = freeStyles.includes(parsed.data.style as any);
-      const hasSubscription = dbUser.isAdmin || dbUser.subscriptionStatus === "active";
+      const subscriptionActive = dbUser.subscriptionStatus === "active" && (!dbUser.subscriptionExpires || dbUser.subscriptionExpires > new Date());
+      const hasSubscription = dbUser.isAdmin || subscriptionActive;
       if (!isFreeStyle && !hasSubscription) {
         return res.status(403).json({
           message: "Denne stilart kræver et abonnement. Opgrader for at låse op.",

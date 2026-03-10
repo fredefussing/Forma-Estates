@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTransformationJob } from "@/hooks/use-transformation-job";
-import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check, User } from "lucide-react";
+import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check, User, Lock, Zap, Crown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { roomTypes, designStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
+import { roomTypes, designStyles, freeStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
 import { type BudgetTier } from "@shared/styleVocabulary";
 import { getTierLabel, formatDKK } from "@shared/budgetUtils";
 import { styleVocabulary } from "@shared/styleVocabulary";
@@ -74,10 +75,44 @@ const styleDescriptions: Record<DesignStyle, string> = {
   "midcentury": "Retro 50'er/60'er stil med træmøbler og organiske former",
 };
 
+const subscriptionPackages = [
+  {
+    name: "Basic",
+    key: "basic",
+    price: 49,
+    images: 10,
+    icon: Sparkles,
+    features: ["10 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer"],
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
+    popular: false,
+  },
+  {
+    name: "Pro",
+    key: "pro",
+    price: 99,
+    images: 25,
+    icon: Zap,
+    features: ["25 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Hurtigere generering"],
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
+    popular: true,
+  },
+  {
+    name: "Unlimited",
+    key: "unlimited",
+    price: 199,
+    images: 60,
+    icon: Crown,
+    features: ["60 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Prioriteret support"],
+    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
+    popular: false,
+  },
+];
+
 export default function HomePage() {
-  const { user, creditsRemaining, isAdmin, refreshCredits } = useAuth();
+  const { user, creditsRemaining, isAdmin, subscriptionStatus, refreshCredits } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const initialRoomType = (urlParams.get("roomType") as RoomType) || "";
@@ -173,6 +208,10 @@ export default function HomePage() {
           description: "Du skal logge ind eller oprette en konto for at generere designs.",
           variant: "destructive",
         });
+        return;
+      }
+      if (error.message.includes("abonnement") || error.message.includes("subscription")) {
+        setShowSubscriptionModal(true);
         return;
       }
       toast({
@@ -423,19 +462,34 @@ export default function HomePage() {
                     <div className="grid grid-cols-2 gap-2">
                       {designStyles.map((s) => {
                         const isSelected = style === s;
+                        const isFree = (freeStyles as readonly string[]).includes(s);
+                        const hasAccess = isFree || isAdmin || subscriptionStatus === "active";
+                        const isLocked = !hasAccess;
                         return (
                           <button
                             key={s}
-                            onClick={() => setStyle(s)}
-                            className={`flex flex-col px-3.5 py-3 rounded-lg text-left transition-all duration-200 border ${
-                              isSelected
-                                ? "border-foreground bg-foreground text-background"
-                                : "border-border/60 bg-transparent hover:border-foreground/30"
+                            onClick={() => {
+                              if (isLocked) {
+                                setShowSubscriptionModal(true);
+                              } else {
+                                setStyle(s);
+                              }
+                            }}
+                            className={`relative flex flex-col px-3.5 py-3 rounded-lg text-left transition-all duration-200 border ${
+                              isLocked
+                                ? "border-border/40 bg-muted/30 cursor-not-allowed"
+                                : isSelected
+                                  ? "border-foreground bg-foreground text-background"
+                                  : "border-border/60 bg-transparent hover:border-foreground/30"
                             }`}
                             data-testid={`button-style-${s}`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? "" : "text-foreground"}`}>{styleLabels[s]}</span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? "text-background/70" : "text-muted-foreground"}`}>{styleDescriptions[s]}</span>
+                            <div className="flex items-center justify-between w-full">
+                              <span className={`text-sm font-medium ${isLocked ? "text-muted-foreground" : isSelected ? "" : "text-foreground"}`}>{styleLabels[s]}</span>
+                              {isLocked && <Lock className="w-3.5 h-3.5 text-muted-foreground/60" />}
+                              {isFree && !isSelected && <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">GRATIS</span>}
+                            </div>
+                            <span className={`text-xs mt-0.5 ${isLocked ? "text-muted-foreground/50" : isSelected ? "text-background/70" : "text-muted-foreground"}`}>{styleDescriptions[s]}</span>
                           </button>
                         );
                       })}
@@ -600,6 +654,99 @@ export default function HomePage() {
           </section>
         )}
       </main>
+
+      <Dialog open={showSubscriptionModal} onOpenChange={setShowSubscriptionModal}>
+        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden" data-testid="modal-subscription">
+          <div className="p-6 pb-2">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold tracking-tight" data-testid="text-modal-title">Lås op for alle stilarter</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground mt-2" data-testid="text-modal-subtitle">
+              Skandinavisk og Moderne er gratis. Køb en pakke for at bruge alle 8 stilarter.
+            </p>
+          </div>
+
+          <div className="px-6 pb-6 space-y-3">
+            {subscriptionPackages.map((pkg) => {
+              const Icon = pkg.icon;
+              return (
+                <div
+                  key={pkg.key}
+                  className={`relative flex items-center justify-between rounded-xl border p-4 transition-all ${
+                    pkg.popular
+                      ? "border-foreground bg-foreground/[0.03] shadow-sm"
+                      : "border-border/60 hover:border-border"
+                  }`}
+                  data-testid={`card-modal-package-${pkg.key}`}
+                >
+                  {pkg.popular && (
+                    <div className="absolute -top-2.5 left-4">
+                      <Badge className="bg-foreground text-background text-[10px] px-2 py-0.5" data-testid="badge-modal-popular">Mest populær</Badge>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                      pkg.popular ? "bg-foreground text-background" : "bg-muted"
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-semibold" data-testid={`text-modal-name-${pkg.key}`}>{pkg.name}</span>
+                        <span className="text-xs text-muted-foreground">{pkg.images} billeder</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        {pkg.features.map((f) => (
+                          <span key={f} className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-500" />
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-4">
+                    <div className="text-right">
+                      <span className="text-lg font-bold" data-testid={`text-modal-price-${pkg.key}`}>{pkg.price}</span>
+                      <span className="text-xs text-muted-foreground ml-0.5">kr</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={pkg.popular ? "default" : "outline"}
+                      className="h-8 px-4 text-xs font-medium rounded-full"
+                      onClick={() => {
+                        if (!user) {
+                          window.location.href = "/login?redirect=/design";
+                          return;
+                        }
+                        localStorage.setItem("pendingPurchase", JSON.stringify({
+                          package: pkg.key,
+                          userId: user.uid,
+                          userEmail: user.email,
+                          timestamp: Date.now(),
+                        }));
+                        window.location.href = pkg.shopifyUrl;
+                      }}
+                      data-testid={`button-modal-buy-${pkg.key}`}
+                    >
+                      Vælg
+                      <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="text-center pt-2">
+              <Link href="/pris">
+                <span className="text-xs text-muted-foreground hover:text-foreground underline cursor-pointer" data-testid="link-modal-pricing">
+                  Se alle detaljer på prissiden
+                </span>
+              </Link>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
