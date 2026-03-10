@@ -180,8 +180,8 @@ export default function LandingPage() {
 
             <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg" data-testid="before-after-landing">
               <BeforeAfterSlider
-                beforeSrc="/before.jpg"
-                afterSrc="/after.jpg"
+                beforeSrc="/after.jpg"
+                afterSrc="/before.jpg"
               />
             </div>
 
