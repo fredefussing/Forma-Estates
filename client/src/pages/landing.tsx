@@ -84,7 +84,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-16 px-6">
+      <section className="py-10 px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -107,7 +107,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      <section className="py-24 sm:py-32 px-6">
+      <section className="py-14 sm:py-20 px-6">
         <div className="mx-auto max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -164,7 +164,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-24 sm:py-32 px-6 border-t border-border/40">
+      <section className="py-14 sm:py-20 px-6 border-t border-border/40">
         <div className="mx-auto max-w-3xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -198,7 +198,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="om-os" className="py-24 sm:py-32 px-6 border-t border-border/40">
+      <section id="om-os" className="py-14 sm:py-20 px-6 border-t border-border/40">
         <div className="mx-auto max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -262,7 +262,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-20 px-6 border-t border-border/40">
+      <section className="py-14 px-6 border-t border-border/40">
         <div className="mx-auto max-w-2xl text-center">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
