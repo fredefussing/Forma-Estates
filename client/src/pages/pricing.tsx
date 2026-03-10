@@ -42,7 +42,7 @@ const packages = [
   {
     name: "Unlimited",
     key: "unlimited",
-    price: 199,
+    price: 149,
     images: 60,
     icon: Crown,
     subtitle: "Fuld frihed til dit hjem",

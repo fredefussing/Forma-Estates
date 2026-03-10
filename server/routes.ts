@@ -667,7 +667,7 @@ export async function registerRoutes(
   const packageMap: Record<string, { name: string; images: number; price: number }> = {
     "10220649021782": { name: "Basic", images: 10, price: 49 },
     "10220626149718": { name: "Pro", images: 25, price: 99 },
-    "10220614877526": { name: "Unlimited", images: 60, price: 199 },
+    "10220614877526": { name: "Unlimited", images: 60, price: 149 },
   };
 
   app.post("/api/shopify/webhook", express.json(), async (req, res) => {

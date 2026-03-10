@@ -99,7 +99,7 @@ const subscriptionPackages = [
   {
     name: "Unlimited",
     key: "unlimited",
-    price: 199,
+    price: 149,
     images: 60,
     icon: Crown,
     features: ["60 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Prioriteret support"],
