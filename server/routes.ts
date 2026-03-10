@@ -702,7 +702,9 @@ export async function registerRoutes(
         const existingUser = await storage.getUserByEmail(customerEmail);
         if (existingUser) {
           await storage.addCredits(existingUser.id, matchedPackage.images, `Købt: ${matchedPackage.name} pakke (${matchedPackage.images} billeder)`);
-          log(`Credits added: ${matchedPackage.images} → ${existingUser.email}`);
+          const tierKey = matchedPackage.name.toLowerCase();
+          await storage.activateSubscription(existingUser.id, tierKey);
+          log(`Credits added: ${matchedPackage.images} + subscription activated (${tierKey}) → ${existingUser.email}`);
         } else {
           log(`Shopify purchase from unknown user: ${customerEmail} — credits not added (no account)`);
         }

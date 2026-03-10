@@ -17,6 +17,7 @@ export interface IStorage {
   updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined>;
   deductCredit(userId: number, description: string): Promise<boolean>;
   addCredits(userId: number, amount: number, description: string): Promise<boolean>;
+  activateSubscription(userId: number, tier: string): Promise<User | undefined>;
   createCreditTransaction(tx: InsertCreditTransaction): Promise<CreditTransaction>;
   getCreditTransactionsByUser(userId: number): Promise<CreditTransaction[]>;
 
@@ -114,6 +115,14 @@ export class DatabaseStorage implements IStorage {
     } finally {
       client.release();
     }
+  }
+
+  async activateSubscription(userId: number, tier: string): Promise<User | undefined> {
+    const [result] = await db.update(users)
+      .set({ subscriptionStatus: "active", subscriptionTier: tier })
+      .where(eq(users.id, userId))
+      .returning();
+    return result;
   }
 
   async createCreditTransaction(tx: InsertCreditTransaction): Promise<CreditTransaction> {
