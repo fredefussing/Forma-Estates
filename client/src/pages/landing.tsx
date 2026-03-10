@@ -180,8 +180,8 @@ export default function LandingPage() {
 
             <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg" data-testid="before-after-landing">
               <BeforeAfterSlider
-                beforeImage="https://853089b9-9570-487c-8bed-2f47e9a78471-00-z0pwkf3nni3z.spock.replit.dev/uploads/1771859041697-0roxsajy5enp.JPG"
-                afterImage="https://flair-other-test.s3.us-west-1.amazonaws.com/20260223/chatEditImages/890c89b5-a1ef-4ffb-848c-ad1d3251d031.jpeg"
+                beforeSrc="/before.jpg"
+                afterSrc="/after.jpg"
               />
             </div>
 
