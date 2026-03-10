@@ -40,6 +40,8 @@ export type DesignStyle = (typeof designStyles)[number];
 export type BudgetTier = (typeof budgetTiers)[number];
 export type QuoteStatus = (typeof quoteStatuses)[number];
 
+export const freeStyles: DesignStyle[] = ["modern", "scandinavian"];
+
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   email: varchar("email", { length: 255 }).notNull().unique(),
@@ -47,6 +49,9 @@ export const users = pgTable("users", {
   creditsRemaining: integer("credits_remaining").notNull().default(0),
   totalCreditsUsed: integer("total_credits_used").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
+  subscriptionStatus: varchar("subscription_status", { length: 20 }).notNull().default("none"),
+  subscriptionTier: varchar("subscription_tier", { length: 20 }),
+  subscriptionExpires: timestamp("subscription_expires"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

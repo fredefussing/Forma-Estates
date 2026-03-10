@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles } from "@shared/schema";
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
@@ -211,6 +211,8 @@ export async function registerRoutes(
           creditsRemaining: user.creditsRemaining,
           totalCreditsUsed: user.totalCreditsUsed,
           isAdmin: user.isAdmin,
+          subscriptionStatus: user.subscriptionStatus,
+          subscriptionTier: user.subscriptionTier,
         },
       });
     } catch (err: any) {
@@ -228,7 +230,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Bruger ikke fundet" });
       }
 
-      return res.json({ creditsRemaining: user.creditsRemaining, isAdmin: user.isAdmin });
+      return res.json({ creditsRemaining: user.creditsRemaining, isAdmin: user.isAdmin, subscriptionStatus: user.subscriptionStatus, subscriptionTier: user.subscriptionTier });
     } catch (err: any) {
       return res.status(401).json({ error: "Ugyldig token" });
     }
@@ -264,6 +266,15 @@ export async function registerRoutes(
         return res.status(403).json({
           message: "Ingen billeder tilbage. Køb flere for at fortsætte.",
           creditsRemaining: 0,
+        });
+      }
+
+      const isFreeStyle = freeStyles.includes(parsed.data.style as any);
+      const hasSubscription = dbUser.isAdmin || dbUser.subscriptionStatus === "active";
+      if (!isFreeStyle && !hasSubscription) {
+        return res.status(403).json({
+          message: "Denne stilart kræver et abonnement. Opgrader for at låse op.",
+          requiresSubscription: true,
         });
       }
 
