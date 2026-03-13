@@ -16,7 +16,7 @@ const tierDotColor: Record<BudgetTier, string> = {
 };
 
 export function BudgetSlider({ style, onChange }: BudgetSliderProps) {
-  const [budget, setBudget] = useState(25000);
+  const [budget, setBudget] = useState(50000);
   const tier = budgetToTier(budget);
   const config = styleVocabulary[style]?.[tier];
 
@@ -42,16 +42,16 @@ export function BudgetSlider({ style, onChange }: BudgetSliderProps) {
       <Slider
         value={[budget]}
         onValueChange={([val]) => setBudget(val)}
-        min={5000}
-        max={100000}
-        step={1000}
+        min={0}
+        max={1000000}
+        step={5000}
         className="py-2"
         data-testid="slider-budget"
       />
 
       <div className="flex justify-between text-[11px] text-muted-foreground/60">
-        <span>5.000 kr</span>
-        <span>100.000 kr</span>
+        <span>0 kr</span>
+        <span>1.000.000 kr</span>
       </div>
 
       <div className="flex items-center gap-4 text-[11px] text-muted-foreground">

@@ -137,7 +137,7 @@ export const insertDesignSchema = createInsertSchema(designs).omit({
 export const createDesignSchema = z.object({
   roomType: z.enum(roomTypes),
   style: z.enum(designStyles),
-  budget: z.number().int().min(5000).max(100000).optional(),
+  budget: z.number().int().min(0).max(1000000).optional(),
 });
 
 export const insertQuoteSchema = createInsertSchema(quotes).omit({
