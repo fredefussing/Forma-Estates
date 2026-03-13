@@ -72,6 +72,7 @@ export const designs = pgTable("designs", {
   roomType: text("room_type").notNull(),
   style: text("style").notNull(),
   status: text("status").notNull().default("pending"),
+  failReason: text("fail_reason"),
   collovUuid: text("collov_uuid"),
   budget: integer("budget"),
   tier: text("tier"),

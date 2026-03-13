@@ -46,6 +46,7 @@ export function useTransformationJob(designId: number | null) {
           if (data.status === 'failed' || data.status === 'error') {
             setStatus('failed');
             setError(data.error || 'Noget gik galt. Prøv igen.');
+            console.error('[Polling fejl]', { designId, status: data.status, error: data.error, errorCode: data.errorCode });
             return;
           }
 

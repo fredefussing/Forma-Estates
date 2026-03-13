@@ -153,6 +153,7 @@ export default function HomePage() {
     if (job.status === "failed" && activeDesign) {
       setActiveDesign({ ...activeDesign, status: "failed" });
       queryClient.invalidateQueries({ queryKey: ["/api/designs", "my"] });
+      console.error("[Generering fejlede]", { designId: activeDesign.id, error: job.error });
       toast({
         title: "Generering mislykkedes",
         description: job.error || "Prøv igen med et andet billede eller stil.",
@@ -214,11 +215,17 @@ export default function HomePage() {
         setShowSubscriptionModal(true);
         return;
       }
-      toast({
-        title: "Fejl",
-        description: error.message,
-        variant: "destructive",
-      });
+      let title = "Fejl";
+      let description = error.message;
+      if (error.message.includes("API nøgle") || error.message.includes("api_key")) {
+        title = "Konfigurationsfejl";
+        description = "API nøgle ikke konfigureret. Kontakt support.";
+      } else if (error.message.includes("AI generering")) {
+        title = "AI fejl";
+        description = "AI generering midlertidigt utilgængelig. Prøv igen senere.";
+      }
+      console.error("[Design fejl]", error.message);
+      toast({ title, description, variant: "destructive" });
     },
   });
 
@@ -229,8 +236,8 @@ export default function HomePage() {
       toast({ title: "Forkert filtype", description: "Upload venligst et billede (JPG, PNG, WebP).", variant: "destructive" });
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "Filen er for stor", description: "Maks 10 MB.", variant: "destructive" });
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Billedet er for stort", description: "Billedet er for stort. Maks 5 MB.", variant: "destructive" });
       return;
     }
     setSelectedFile(file);
@@ -376,7 +383,7 @@ export default function HomePage() {
                       <p className="text-sm text-muted-foreground">
                         Træk og slip eller klik for at vælge et billede
                       </p>
-                      <p className="text-xs text-muted-foreground/60 mt-4">JPG, PNG eller WebP. Maks 10 MB.</p>
+                      <p className="text-xs text-muted-foreground/60 mt-4">JPG, PNG eller WebP. Maks 5 MB.</p>
                     </div>
                   </div>
                 </div>

@@ -147,14 +147,14 @@ async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Pr
             log(`Design ${designId} retry ${retryCount} send failed: ${retryErr.message}`);
           }
         }
-        await storage.updateDesign(designId, { status: "failed" });
-        log(`Design ${designId} failed permanently after ${retryCount} retries`);
+        await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "ai_generation_failed" });
+        log(`Design ${designId} failed permanently after ${retryCount} retries, reason: ${result.failReason}`);
         return;
       }
       if (attempts < maxAttempts) {
         setTimeout(poll, 3000);
       } else {
-        await storage.updateDesign(designId, { status: "failed" });
+        await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
         log(`Design ${designId} timed out after ~${elapsed}s`);
       }
     } catch (err) {
@@ -162,7 +162,7 @@ async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Pr
       if (attempts < maxAttempts) {
         setTimeout(poll, 5000);
       } else {
-        await storage.updateDesign(designId, { status: "failed" });
+        await storage.updateDesign(designId, { status: "failed", failReason: "poll_error" });
       }
     }
   };
@@ -315,8 +315,8 @@ export async function registerRoutes(
       });
 
       if (!COLLOV_API_KEY) {
-        await storage.updateDesign(design.id, { status: "failed" });
-        return res.status(500).json({ message: "COLLOV_API_KEY not configured" });
+        await storage.updateDesign(design.id, { status: "failed", failReason: "api_key_missing" });
+        return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
       }
 
       let budgetPrompt: string | undefined;
@@ -338,8 +338,9 @@ export async function registerRoutes(
         return res.json(updated);
       } catch (err: any) {
         log(`Collov API error: ${err.message}`);
-        await storage.updateDesign(design.id, { status: "failed" });
-        return res.status(500).json({ message: `AI processing failed: ${err.message}` });
+        const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
+        await storage.updateDesign(design.id, { status: "failed", failReason });
+        return res.status(500).json({ message: `AI generering fejlede: ${err.message}`, errorCode: failReason });
       }
     } catch (err: any) {
       log(`Upload error: ${err.message}`);
@@ -435,7 +436,24 @@ export async function registerRoutes(
         return res.json({ status: "completed", resultUrl: design.resultImageUrl, error: null });
       }
       if (design.status === "failed") {
-        return res.json({ status: "failed", resultUrl: null, error: "Generering fejlede. Prøv et andet billede eller stil." });
+        const reason = design.failReason || "unknown";
+        let errorMessage: string;
+        switch (reason) {
+          case "api_key_missing":
+          case "api_key_invalid":
+            errorMessage = "API nøgle ikke konfigureret. Kontakt support.";
+            break;
+          case "timeout":
+            errorMessage = "Generering tog for lang tid. Prøv med et mindre billede eller en anden stil.";
+            break;
+          case "poll_error":
+            errorMessage = "AI generering midlertidigt utilgængelig. Prøv igen om lidt.";
+            break;
+          default:
+            errorMessage = "AI generering fejlede. Prøv igen med et andet billede eller stil.";
+        }
+        log(`Design ${id} failed with reason: ${reason}`);
+        return res.json({ status: "failed", resultUrl: null, error: errorMessage, errorCode: reason });
       }
 
       return res.json({
