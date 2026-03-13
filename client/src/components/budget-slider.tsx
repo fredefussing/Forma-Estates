@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { styleVocabulary, type BudgetTier } from "@shared/styleVocabulary";
 import { budgetToTier, getTierLabel, formatDKK } from "@shared/budgetUtils";
@@ -15,14 +15,35 @@ const tierDotColor: Record<BudgetTier, string> = {
   luxury: "bg-amber-500",
 };
 
+function sliderToBudget(slider: number): number {
+  if (slider <= 100) {
+    const raw = (slider / 100) * 100000;
+    return Math.round(raw / 1000) * 1000;
+  }
+  const raw = 100000 + ((slider - 100) / 100) * 900000;
+  return Math.round(raw / 10000) * 10000;
+}
+
+function budgetToSlider(budget: number): number {
+  if (budget <= 100000) {
+    return (budget / 100000) * 100;
+  }
+  return 100 + ((budget - 100000) / 900000) * 100;
+}
+
 export function BudgetSlider({ style, onChange }: BudgetSliderProps) {
-  const [budget, setBudget] = useState(50000);
+  const [sliderValue, setSliderValue] = useState(() => budgetToSlider(50000));
+  const budget = sliderToBudget(sliderValue);
   const tier = budgetToTier(budget);
   const config = styleVocabulary[style]?.[tier];
 
   useEffect(() => {
     onChange(budget, tier);
   }, [budget, tier]);
+
+  const handleChange = useCallback(([val]: number[]) => {
+    setSliderValue(val);
+  }, []);
 
   return (
     <div className="space-y-5" data-testid="budget-slider-container">
@@ -40,11 +61,11 @@ export function BudgetSlider({ style, onChange }: BudgetSliderProps) {
       </div>
 
       <Slider
-        value={[budget]}
-        onValueChange={([val]) => setBudget(val)}
+        value={[sliderValue]}
+        onValueChange={handleChange}
         min={0}
-        max={1000000}
-        step={5000}
+        max={200}
+        step={1}
         className="py-2"
         data-testid="slider-budget"
       />

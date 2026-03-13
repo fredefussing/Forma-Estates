@@ -1,8 +1,8 @@
 import type { BudgetTier } from "./styleVocabulary";
 
 export function budgetToTier(budget: number): BudgetTier {
-  if (budget < 15000) return "budget";
-  if (budget < 40000) return "standard";
+  if (budget < 25000) return "budget";
+  if (budget < 80000) return "standard";
   return "luxury";
 }
 
