@@ -47,20 +47,30 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
     <div className="rounded-xl overflow-hidden border border-border/60">
       <div
         ref={containerRef}
-        className="relative w-full select-none touch-none cursor-col-resize overflow-hidden"
-        style={{ aspectRatio: "16/10" }}
+        className="relative w-full select-none touch-none cursor-col-resize overflow-hidden bg-muted/30"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         data-testid="before-after-slider"
       >
+        {/* Invisible sizer — drives the container height from the image's natural dimensions */}
         <img
           src={afterSrc}
-          alt="After redesign"
-          className="absolute inset-0 w-full h-full object-cover"
+          alt=""
+          className="w-full h-auto block invisible"
+          style={{ maxHeight: "75vh" }}
           draggable={false}
         />
 
+        {/* After image — fills the container using contain so the full room is visible */}
+        <img
+          src={afterSrc}
+          alt="After redesign"
+          className="absolute inset-0 w-full h-full object-contain"
+          draggable={false}
+        />
+
+        {/* Before clip — reveals the original from the left */}
         <div
           className="absolute top-0 left-0 bottom-0 overflow-hidden"
           style={{ width: `${sliderPos}%` }}
@@ -68,7 +78,7 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
           <img
             src={beforeSrc}
             alt="Before redesign"
-            className="absolute top-0 left-0 h-full object-cover"
+            className="absolute top-0 left-0 h-full object-contain"
             style={{
               width: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100vw",
               maxWidth: "none",
@@ -77,6 +87,7 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc }: BeforeAfterSliderProp
           />
         </div>
 
+        {/* Divider line */}
         <div
           className="absolute top-0 bottom-0 w-px bg-white/90 z-10"
           style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}

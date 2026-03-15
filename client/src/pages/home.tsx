@@ -427,11 +427,11 @@ export default function HomePage() {
                       <X className="w-3.5 h-3.5 mr-1" /> Skift
                     </Button>
                   </div>
-                  <div className="rounded-xl overflow-hidden border border-border/60">
+                  <div className="rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex items-center justify-center">
                     <img
                       src={previewUrl}
                       alt="Uploaded room"
-                      className="w-full object-cover max-h-[420px]"
+                      className="w-full h-auto max-h-[420px] object-contain block"
                       data-testid="img-preview"
                     />
                   </div>
