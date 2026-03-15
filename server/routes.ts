@@ -279,15 +279,14 @@ export async function registerRoutes(
         });
       }
 
-      const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS;
-      let publicUrl: string;
-      if (replitDomain) {
-        publicUrl = `https://${replitDomain}/uploads/${req.file.filename}`;
-      } else {
-        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-        const host = req.headers["x-forwarded-host"] || req.headers.host;
-        publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-      }
+      // Always derive the public URL from the actual request headers so that
+      // Collov's servers can reach the image in both dev and production.
+      // REPLIT_DEV_DOMAIN / REPLIT_DOMAINS can be internal hostnames that are
+      // not reachable from the public internet, so we do NOT use them here.
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      log(`Upload URL for Collov: ${publicUrl}`);
 
       const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
 
