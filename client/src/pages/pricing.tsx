@@ -59,10 +59,19 @@ const packages = [
 ];
 
 function buildShopifyUrl(variantId: string, userUid: string, userEmail: string): string {
-  // URLSearchParams encodes [] as %5B%5D which Shopify rejects — build manually with literal brackets
+  // Three independent channels so credits always land on the right account:
+  // 1. note= (order.note in webhook — most reliable, simple string)
+  // 2. attributes[] (order.note_attributes in webhook)
+  // 3. properties[] (line_items[0].properties in webhook)
   const uid = encodeURIComponent(userUid);
   const email = encodeURIComponent(userEmail);
-  return `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1?attributes[user_id]=${uid}&attributes[user_email]=${email}`;
+  const note = encodeURIComponent(`user_id:${userUid}`);
+  return (
+    `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1` +
+    `?note=${note}` +
+    `&attributes[user_id]=${uid}&attributes[user_email]=${email}` +
+    `&properties[user_id]=${uid}&properties[user_email]=${email}`
+  );
 }
 
 export default function PricingPage() {
