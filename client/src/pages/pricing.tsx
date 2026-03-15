@@ -19,7 +19,7 @@ const packages = [
       "Alle 15 rum-typer",
       "Alle 3 budget-niveauer",
     ],
-    variantId: "10220649021782",
+    variantId: "52707296543062",
     popular: false,
   },
   {
@@ -36,7 +36,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Hurtigere generering",
     ],
-    variantId: "10220626149718",
+    variantId: "52707329245526",
     popular: true,
   },
   {
@@ -53,7 +53,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Prioriteret support",
     ],
-    variantId: "10220614877526",
+    variantId: "52707374432598",
     popular: false,
   },
 ];

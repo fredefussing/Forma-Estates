@@ -739,9 +739,9 @@ export async function registerRoutes(
   });
 
   const packageMap: Record<string, { name: string; images: number; price: number }> = {
-    "10220649021782": { name: "Basic", images: 10, price: 49 },
-    "10220626149718": { name: "Pro", images: 25, price: 99 },
-    "10220614877526": { name: "Unlimited", images: 60, price: 149 },
+    "52707296543062": { name: "Basic", images: 10, price: 49 },
+    "52707329245526": { name: "Pro", images: 25, price: 99 },
+    "52707374432598": { name: "Unlimited", images: 60, price: 149 },
   };
 
   app.post("/api/shopify/webhook", express.json(), async (req, res) => {
@@ -767,9 +767,9 @@ export async function registerRoutes(
 
       if (!matchedPackage) {
         const title = lineItems[0]?.title?.toLowerCase() || "";
-        if (title.includes("unlimited")) matchedPackage = packageMap["10220614877526"];
-        else if (title.includes("pro")) matchedPackage = packageMap["10220626149718"];
-        else matchedPackage = packageMap["10220649021782"];
+        if (title.includes("60")) matchedPackage = packageMap["52707374432598"];
+        else if (title.includes("25")) matchedPackage = packageMap["52707329245526"];
+        else matchedPackage = packageMap["52707296543062"];
       }
 
       // Check cart attributes (passed via note_attributes) for the logged-in user's Firebase UID.

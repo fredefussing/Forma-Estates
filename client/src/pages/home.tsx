@@ -83,7 +83,7 @@ const subscriptionPackages = [
     images: 10,
     icon: Sparkles,
     features: ["10 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer"],
-    variantId: "10220649021782",
+    variantId: "52707296543062",
     popular: false,
   },
   {
@@ -93,7 +93,7 @@ const subscriptionPackages = [
     images: 25,
     icon: Zap,
     features: ["25 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Hurtigere generering"],
-    variantId: "10220626149718",
+    variantId: "52707329245526",
     popular: true,
   },
   {
@@ -103,7 +103,7 @@ const subscriptionPackages = [
     images: 60,
     icon: Crown,
     features: ["60 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Prioriteret support"],
-    variantId: "10220614877526",
+    variantId: "52707374432598",
     popular: false,
   },
 ];
