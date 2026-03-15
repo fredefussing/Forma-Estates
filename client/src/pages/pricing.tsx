@@ -59,7 +59,7 @@ const packages = [
 ];
 
 export default function PricingPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, creditsRemaining } = useAuth();
   const [, setLocation] = useLocation();
 
   const handleBuy = (pkg: typeof packages[number]) => {
@@ -71,9 +71,11 @@ export default function PricingPage() {
       package: pkg.key,
       userId: user.uid,
       userEmail: user.email,
+      baselineCredits: creditsRemaining ?? 0,
       timestamp: Date.now(),
     }));
-    window.location.href = pkg.shopifyUrl;
+    window.open(pkg.shopifyUrl, "_blank", "noopener,noreferrer");
+    setLocation("/betalt");
   };
 
   return (

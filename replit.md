@@ -151,6 +151,16 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 - Backend endpoints: `POST /api/admin/login`, `GET /api/admin/stats?pw=`
 - Admin password stored in `ADMIN_PASSWORD` environment variable
 
+## Payment Success Flow
+- When user clicks "Vælg" on pricing page or subscription modal in design tool:
+  1. Baseline credits stored in `localStorage.pendingPurchase.baselineCredits`
+  2. Shopify opens in a new tab (`window.open`)
+  3. User is navigated to `/betalt` (payment success page)
+- `/betalt` polls `GET /api/credits` every 3 seconds (max 20 attempts / ~60s)
+- Success detected when `creditsRemaining > baseline` OR `subscriptionStatus === 'active'`
+- On success: shows animated confirmation with credits added, auto-redirects to `/design` after 3.5s
+- On timeout: shows manual "Tjek igen" button and option to go to design tool anyway
+
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/design/:id` (design detail with before/after slider), `/mine-designs` (user's design history), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/design/:id` (design detail with before/after slider), `/mine-designs` (user's design history), `/betalt` (payment success/polling page), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)

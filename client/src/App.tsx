@@ -17,6 +17,7 @@ import SignupPage from "@/pages/signup";
 import AccountPage from "@/pages/account";
 import MyDesignsPage from "@/pages/my-designs";
 import DesignDetailPage from "@/pages/design-detail";
+import PaymentSuccessPage from "@/pages/payment-success";
 
 function Router() {
   return (
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/opret" component={SignupPage} />
       <Route path="/min-konto" component={AccountPage} />
       <Route path="/mine-designs" component={MyDesignsPage} />
+      <Route path="/betalt" component={PaymentSuccessPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
       <Route component={NotFound} />

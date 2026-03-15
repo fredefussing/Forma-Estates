@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -110,6 +110,7 @@ const subscriptionPackages = [
 
 export default function HomePage() {
   const { user, creditsRemaining, isAdmin, subscriptionStatus, refreshCredits } = useAuth();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -730,9 +731,12 @@ export default function HomePage() {
                           package: pkg.key,
                           userId: user.uid,
                           userEmail: user.email,
+                          baselineCredits: creditsRemaining ?? 0,
                           timestamp: Date.now(),
                         }));
-                        window.location.href = pkg.shopifyUrl;
+                        window.open(pkg.shopifyUrl, "_blank", "noopener,noreferrer");
+                        setShowSubscriptionModal(false);
+                        setLocation("/betalt");
                       }}
                       data-testid={`button-modal-buy-${pkg.key}`}
                     >
