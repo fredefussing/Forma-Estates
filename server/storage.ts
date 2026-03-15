@@ -8,13 +8,15 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getUserByFirebaseUid(uid: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires">>): Promise<User | undefined>;
+  updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode">>): Promise<User | undefined>;
+  getUserByCustomerCode(code: string): Promise<User | undefined>;
+  searchUsers(query: string): Promise<User[]>;
   updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined>;
   deductCredit(userId: number, description: string): Promise<boolean>;
   addCredits(userId: number, amount: number, description: string): Promise<boolean>;
@@ -61,9 +63,22 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires">>): Promise<User | undefined> {
+  async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode">>): Promise<User | undefined> {
     const [result] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     return result;
+  }
+
+  async getUserByCustomerCode(code: string): Promise<User | undefined> {
+    const [result] = await db.select().from(users).where(eq(users.customerCode, code.toUpperCase()));
+    return result;
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    const q = `%${query}%`;
+    return db.select().from(users)
+      .where(or(ilike(users.email, q), ilike(users.customerCode, q)))
+      .orderBy(desc(users.createdAt))
+      .limit(50);
   }
 
   async updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined> {

@@ -142,10 +142,18 @@ export default function AdminDashboardPage() {
             <BarChart3 className="w-6 h-6" />
             Nordic Homebuild Dashboard
           </h1>
-          <Button variant="outline" onClick={() => refetch()} className="gap-2" data-testid="button-refresh">
-            <RefreshCw className="w-4 h-4" />
-            Opdater
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/customers">
+              <Button variant="outline" className="gap-2" data-testid="button-customers">
+                <Users className="w-4 h-4" />
+                Kunder
+              </Button>
+            </Link>
+            <Button variant="outline" onClick={() => refetch()} className="gap-2" data-testid="button-refresh">
+              <RefreshCw className="w-4 h-4" />
+              Opdater
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

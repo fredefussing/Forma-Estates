@@ -143,6 +143,15 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 - Endpoint: `POST /api/auth/welcome-email` with `{ email }` body
 - Sent from frontend after successful Firebase account creation
 
+## Customer Code System
+- **Format**: `NH-XXXXXX` — 6 uppercase alphanumeric chars, avoiding ambiguous characters (0/O, 1/I)
+- **Generated**: Automatically on first signup, or silently backfilled on next login for existing users without a code
+- **DB column**: `users.customer_code` (varchar 20, unique, nullable)
+- **Visibility**: ONLY shown in admin email and `/admin/customers` — NEVER in customer-facing emails or the app UI
+- **Admin email**: The "Nyt salg!" notification includes "Kundens kode: NH-XXXXXX" row (shown only when available)
+- **Admin page**: `/admin/customers` — search by email or customer code, shows credits, purchases, subscription, signup date
+- **API**: `GET /api/admin/customers?pw=PASSWORD&q=SEARCH` — searches by email or code (case insensitive), returns user + purchase history
+
 ## Admin Dashboard
 - Password-protected admin page at `/admin`
 - Shows real-time stats: total designs, designs today/this week, quotes, special requests

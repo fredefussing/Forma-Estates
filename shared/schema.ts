@@ -46,6 +46,7 @@ export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   firebaseUid: varchar("firebase_uid", { length: 255 }).notNull().unique(),
+  customerCode: varchar("customer_code", { length: 20 }).unique(),
   creditsRemaining: integer("credits_remaining").notNull().default(0),
   totalCreditsUsed: integer("total_credits_used").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
