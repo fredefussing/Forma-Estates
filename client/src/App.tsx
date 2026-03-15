@@ -8,7 +8,6 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import DesignPage from "@/pages/home";
 import AdminQuotesPage from "@/pages/admin-quotes";
-import AdminCustomersPage from "@/pages/admin-customers";
 import AdminDashboardPage from "@/pages/admin-dashboard";
 import FindStylePage from "@/pages/find-style";
 import TrendingPage from "@/pages/trending";
@@ -36,7 +35,6 @@ function Router() {
       <Route path="/betalt" component={PaymentSuccessPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
-      <Route path="/admin/customers" component={AdminCustomersPage} />
       <Route component={NotFound} />
     </Switch>
   );

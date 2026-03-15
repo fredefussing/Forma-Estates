@@ -255,7 +255,6 @@ export async function sendOrderConfirmationEmail(data: {
   imageCount: number;
   price: number;
   orderId: string;
-  customerCode?: string;
 }) {
   const now = new Date();
   const timestamp = now.toLocaleDateString("da-DK", {
@@ -283,10 +282,6 @@ export async function sendOrderConfirmationEmail(data: {
               <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666; width: 160px;">Kundens email:</td>
               <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.customerEmail}</td>
             </tr>
-            ${data.customerCode ? `<tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Kundens kode:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600; font-family: monospace; letter-spacing: 1px;">${data.customerCode}</td>
-            </tr>` : ""}
             <tr>
               <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Produkt:</td>
               <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${productLabel}</td>

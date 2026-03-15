@@ -37,27 +37,6 @@ const upload = multer({
 
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
 
-// Generates a unique NH-XXXXXX customer code (avoids ambiguous chars 0/O, 1/I)
-function generateCustomerCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "NH-";
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
-
-async function ensureCustomerCode(userId: number): Promise<string> {
-  let code = generateCustomerCode();
-  // Retry up to 5 times if code collides (extremely unlikely)
-  for (let i = 0; i < 5; i++) {
-    const existing = await storage.getUserByCustomerCode(code);
-    if (!existing) break;
-    code = generateCustomerCode();
-  }
-  await storage.updateUser(userId, { customerCode: code });
-  return code;
-}
 
 const COLLOV_BASE = "https://api.collov.ai";
 
@@ -251,14 +230,7 @@ export async function registerRoutes(
           description: "2 gratis billeder ved oprettelse",
         });
 
-        const code = await ensureCustomerCode(user.id);
-        user = { ...user, customerCode: code };
-        log(`New user created: ${email} (uid: ${uid}) with 2 free credits, code: ${code}`);
-      } else if (!user.customerCode) {
-        // Backfill existing users who don't have a code yet
-        const code = await ensureCustomerCode(user.id);
-        user = { ...user, customerCode: code };
-        log(`Backfilled customer code for existing user: ${email} → ${code}`);
+        log(`New user created: ${email} (uid: ${uid}) with 2 free credits`);
       }
 
       return res.json({
@@ -800,7 +772,6 @@ export async function registerRoutes(
           imageCount: matchedPackage.images,
           price: matchedPackage.price,
           orderId,
-          customerCode: targetUser?.customerCode ?? undefined,
         });
       }
 
@@ -886,43 +857,6 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/customers", async (req, res) => {
-    try {
-      const pw = req.query.pw as string;
-      if (pw !== process.env.ADMIN_PASSWORD) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      const q = (req.query.q as string || "").trim();
-      if (!q) {
-        return res.json({ users: [] });
-      }
-      const foundUsers = await storage.searchUsers(q);
-      const results = await Promise.all(foundUsers.map(async (u) => {
-        const transactions = await storage.getCreditTransactionsByUser(u.id);
-        const purchases = transactions.filter(t => t.type === "purchase");
-        return {
-          id: u.id,
-          email: u.email,
-          customerCode: u.customerCode,
-          creditsRemaining: u.creditsRemaining,
-          totalCreditsUsed: u.totalCreditsUsed,
-          subscriptionStatus: u.subscriptionStatus,
-          subscriptionTier: u.subscriptionTier,
-          isAdmin: u.isAdmin,
-          createdAt: u.createdAt,
-          purchases: purchases.map(p => ({
-            id: p.id,
-            amount: p.amount,
-            description: p.description,
-            createdAt: p.createdAt,
-          })),
-        };
-      }));
-      return res.json({ users: results });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  });
 
   return httpServer;
 }
