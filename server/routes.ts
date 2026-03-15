@@ -742,17 +742,45 @@ export async function registerRoutes(
         else matchedPackage = packageMap["10220649021782"];
       }
 
-      if (customerEmail) {
-        const existingUser = await storage.getUserByEmail(customerEmail);
-        if (existingUser) {
-          await storage.addCredits(existingUser.id, matchedPackage.images, `Købt: ${matchedPackage.name} pakke (${matchedPackage.images} billeder)`);
-          const tierKey = matchedPackage.name.toLowerCase();
-          await storage.activateSubscription(existingUser.id, tierKey);
-          log(`Credits added: ${matchedPackage.images} + subscription activated (${tierKey}) → ${existingUser.email}`);
-        } else {
-          log(`Shopify purchase from unknown user: ${customerEmail} — credits not added (no account)`);
-        }
+      // Check cart attributes (passed via note_attributes) for the logged-in user's Firebase UID.
+      // This ensures credits go to the correct account even when the payer uses a different email.
+      const noteAttrs: Array<{ name: string; value: string }> = order.note_attributes || [];
+      const userIdAttr = noteAttrs.find((a) => a.name === "user_id");
+      const userEmailAttr = noteAttrs.find((a) => a.name === "user_email");
 
+      let targetUser = null;
+
+      if (userIdAttr?.value) {
+        targetUser = await storage.getUserByFirebaseUid(userIdAttr.value);
+        if (targetUser) {
+          log(`User resolved via cart attribute user_id (${userIdAttr.value}) → ${targetUser.email}`);
+        } else {
+          log(`Cart attribute user_id not found in DB: ${userIdAttr.value}`);
+        }
+      }
+
+      if (!targetUser) {
+        const lookupEmail = userEmailAttr?.value || customerEmail;
+        if (lookupEmail) {
+          targetUser = await storage.getUserByEmail(lookupEmail);
+          if (targetUser) {
+            log(`User resolved via email (${lookupEmail}) → ${targetUser.email}`);
+          } else {
+            log(`No user found for email: ${lookupEmail}`);
+          }
+        }
+      }
+
+      if (targetUser) {
+        await storage.addCredits(targetUser.id, matchedPackage.images, `Købt: ${matchedPackage.name} pakke (${matchedPackage.images} billeder)`);
+        const tierKey = matchedPackage.name.toLowerCase();
+        await storage.activateSubscription(targetUser.id, tierKey);
+        log(`Credits added: ${matchedPackage.images} + subscription activated (${tierKey}) → ${targetUser.email}`);
+      } else {
+        log(`Shopify purchase could not be matched to any user — customerEmail: ${customerEmail}`);
+      }
+
+      if (customerEmail) {
         sendOrderConfirmationEmail({
           customerEmail,
           customerName,

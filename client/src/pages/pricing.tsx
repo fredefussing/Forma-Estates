@@ -19,7 +19,7 @@ const packages = [
       "Alle 15 rum-typer",
       "Alle 3 budget-niveauer",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
+    variantId: "10220649021782",
     popular: false,
   },
   {
@@ -36,7 +36,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Hurtigere generering",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
+    variantId: "10220626149718",
     popular: true,
   },
   {
@@ -53,10 +53,18 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Prioriteret support",
     ],
-    shopifyUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
+    variantId: "10220614877526",
     popular: false,
   },
 ];
+
+function buildShopifyUrl(variantId: string, userUid: string, userEmail: string): string {
+  const params = new URLSearchParams({
+    "attributes[user_id]": userUid,
+    "attributes[user_email]": userEmail,
+  });
+  return `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1?${params.toString()}`;
+}
 
 export default function PricingPage() {
   const { user, loading, creditsRemaining } = useAuth();
@@ -74,7 +82,8 @@ export default function PricingPage() {
       baselineCredits: creditsRemaining ?? 0,
       timestamp: Date.now(),
     }));
-    window.open(pkg.shopifyUrl, "_blank", "noopener,noreferrer");
+    const shopifyUrl = buildShopifyUrl(pkg.variantId, user.uid, user.email || "");
+    window.open(shopifyUrl, "_blank", "noopener,noreferrer");
     setLocation("/betalt");
   };
 
