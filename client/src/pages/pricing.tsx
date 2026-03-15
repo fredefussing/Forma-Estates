@@ -59,11 +59,10 @@ const packages = [
 ];
 
 function buildShopifyUrl(variantId: string, userUid: string, userEmail: string): string {
-  const params = new URLSearchParams({
-    "attributes[user_id]": userUid,
-    "attributes[user_email]": userEmail,
-  });
-  return `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1?${params.toString()}`;
+  // URLSearchParams encodes [] as %5B%5D which Shopify rejects — build manually with literal brackets
+  const uid = encodeURIComponent(userUid);
+  const email = encodeURIComponent(userEmail);
+  return `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1?attributes[user_id]=${uid}&attributes[user_email]=${email}`;
 }
 
 export default function PricingPage() {
