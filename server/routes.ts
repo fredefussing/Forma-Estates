@@ -180,6 +180,33 @@ export async function registerRoutes(
   });
   app.use("/uploads", express.static(uploadDir));
 
+  // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
+  app.post("/api/admin/bootstrap", async (req, res) => {
+    const { password } = req.body || {};
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const adminEmails = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+    const results: any[] = [];
+    for (const email of adminEmails) {
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        results.push({ email, status: "not_found" });
+        continue;
+      }
+      await storage.updateUser(user.id, {
+        isAdmin: true,
+        creditsRemaining: 999999,
+        subscriptionStatus: "active",
+        subscriptionTier: "unlimited",
+      });
+      results.push({ email, status: "updated", id: user.id });
+    }
+    log(`Admin bootstrap completed: ${JSON.stringify(results)}`);
+    return res.json({ success: true, results });
+  });
+
   app.post("/api/auth/verify", async (req, res) => {
     try {
       const { uid, email } = await verifyFirebaseToken(req.headers.authorization);
