@@ -19,7 +19,7 @@ const packages = [
       "Alle 15 rum-typer",
       "Alle 3 budget-niveauer",
     ],
-    variantId: "52707296543062",
+    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
     popular: false,
   },
   {
@@ -36,7 +36,7 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Hurtigere generering",
     ],
-    variantId: "52707329245526",
+    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
     popular: true,
   },
   {
@@ -53,26 +53,10 @@ const packages = [
       "Alle 3 budget-niveauer",
       "Prioriteret support",
     ],
-    variantId: "52707374432598",
+    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
     popular: false,
   },
 ];
-
-function buildShopifyUrl(variantId: string, userUid: string, userEmail: string): string {
-  // Three independent channels so credits always land on the right account:
-  // 1. note= (order.note in webhook — most reliable, simple string)
-  // 2. attributes[] (order.note_attributes in webhook)
-  // 3. properties[] (line_items[0].properties in webhook)
-  const uid = encodeURIComponent(userUid);
-  const email = encodeURIComponent(userEmail);
-  const note = encodeURIComponent(`user_id:${userUid}`);
-  return (
-    `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1` +
-    `?note=${note}` +
-    `&attributes[user_id]=${uid}&attributes[user_email]=${email}` +
-    `&properties[user_id]=${uid}&properties[user_email]=${email}`
-  );
-}
 
 export default function PricingPage() {
   const { user, loading, creditsRemaining } = useAuth();
@@ -83,16 +67,7 @@ export default function PricingPage() {
       setLocation("/login?redirect=/pris");
       return;
     }
-    localStorage.setItem("pendingPurchase", JSON.stringify({
-      package: pkg.key,
-      userId: user.uid,
-      userEmail: user.email,
-      baselineCredits: creditsRemaining ?? 0,
-      timestamp: Date.now(),
-    }));
-    const shopifyUrl = buildShopifyUrl(pkg.variantId, user.uid, user.email || "");
-    window.open(shopifyUrl, "_blank", "noopener,noreferrer");
-    setLocation("/betalt");
+    window.open(pkg.productUrl, "_blank", "noopener,noreferrer");
   };
 
   return (

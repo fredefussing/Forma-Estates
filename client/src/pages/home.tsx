@@ -83,7 +83,7 @@ const subscriptionPackages = [
     images: 10,
     icon: Sparkles,
     features: ["10 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer"],
-    variantId: "52707296543062",
+    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
     popular: false,
   },
   {
@@ -93,7 +93,7 @@ const subscriptionPackages = [
     images: 25,
     icon: Zap,
     features: ["25 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Hurtigere generering"],
-    variantId: "52707329245526",
+    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
     popular: true,
   },
   {
@@ -103,17 +103,10 @@ const subscriptionPackages = [
     images: 60,
     icon: Crown,
     features: ["60 AI-billeder", "Alle 8 stilarter", "Alle budget-niveauer", "Prioriteret support"],
-    variantId: "52707374432598",
+    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
     popular: false,
   },
 ];
-
-function buildShopifyUrl(variantId: string, userUid: string, userEmail: string): string {
-  // URLSearchParams encodes [] as %5B%5D which Shopify rejects — build manually with literal brackets
-  const uid = encodeURIComponent(userUid);
-  const email = encodeURIComponent(userEmail);
-  return `https://ej8jeq-rs.myshopify.com/cart/${variantId}:1?attributes[user_id]=${uid}&attributes[user_email]=${email}`;
-}
 
 export default function HomePage() {
   const { user, creditsRemaining, isAdmin, subscriptionStatus, refreshCredits } = useAuth();
@@ -734,17 +727,8 @@ export default function HomePage() {
                           window.location.href = "/login?redirect=/design";
                           return;
                         }
-                        localStorage.setItem("pendingPurchase", JSON.stringify({
-                          package: pkg.key,
-                          userId: user.uid,
-                          userEmail: user.email,
-                          baselineCredits: creditsRemaining ?? 0,
-                          timestamp: Date.now(),
-                        }));
-                        const shopifyUrl = buildShopifyUrl(pkg.variantId, user.uid, user.email || "");
-                        window.open(shopifyUrl, "_blank", "noopener,noreferrer");
+                        window.open(pkg.productUrl, "_blank", "noopener,noreferrer");
                         setShowSubscriptionModal(false);
-                        setLocation("/betalt");
                       }}
                       data-testid={`button-modal-buy-${pkg.key}`}
                     >
