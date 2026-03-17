@@ -861,16 +861,15 @@ export async function registerRoutes(
   // ── AI Design Agent ──────────────────────────────────────────────────────────
 
   async function sendCollovAgentTask(uploadUrl: string, prompt: string): Promise<string> {
-    const form = new FormData();
-    form.append("uploadUrl", uploadUrl);
-    form.append("prompt", prompt);
-
     log(`Collov agent send: prompt="${prompt.slice(0, 80)}..."`);
 
     const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
       method: "POST",
-      headers: { apiKey: COLLOV_API_KEY! },
-      body: form,
+      headers: {
+        apiKey: COLLOV_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uploadUrl, prompt }),
     });
 
     const json = (await res.json()) as any;
@@ -887,18 +886,17 @@ export async function registerRoutes(
       { method: "GET", headers: { apiKey: COLLOV_API_KEY! } }
     );
     const json = (await res.json()) as any;
+    // edit/getRecord returns status and generateUrl directly on data (different from VST)
     const data = json.data || {};
-    const record = data.generateRecordList?.[0] || {};
-    const status = record.status || data.status;
+    const status = data.status;
 
     log(`Collov agent poll for ${uuid}: status=${status}`);
 
     if (status === "SUCCESS") {
-      const resultUrl = record.generateUrl || data.aiGenerateRecord?.generateUrl;
-      return { status: "completed", resultUrl };
+      return { status: "completed", resultUrl: data.generateUrl };
     }
     if (status === "FAILED") {
-      const failReason = record.failReason || record.errorMessage || "unknown";
+      const failReason = data.failReason || data.errorMessage || "unknown";
       return { status: "failed", failReason };
     }
     return { status: "processing" };
