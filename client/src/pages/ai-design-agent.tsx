@@ -91,7 +91,7 @@ export default function AIDesignAgentPage() {
         setProgress(100);
       } else if (data.status === "failed") {
         setStatus("failed");
-        setErrorMsg("AI generering mislykkedes. Prøv igen med et andet billede eller beskrivelse.");
+        setErrorMsg(data.error || "AI generering fejlede. Prøv igen om lidt.");
       } else {
         pollRef.current = setTimeout(() => pollStatus(id), 3000);
       }

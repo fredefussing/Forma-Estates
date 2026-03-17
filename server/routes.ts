@@ -902,9 +902,22 @@ export async function registerRoutes(
     return { status: "processing" };
   }
 
-  async function backgroundPollAgent(agentDesignId: number, uuid: string) {
+  async function backgroundPollAgent(agentDesignId: number, uuid: string, userId: number | null, uploadUrl: string, prompt: string) {
     const maxAttempts = 40;
+    const maxRetries = 2;
     let attempts = 0;
+    let retryCount = 0;
+
+    const refundCredit = async () => {
+      if (userId) {
+        try {
+          await storage.addCredits(userId, 1, "Refund: AI Design Agent fejlede");
+          log(`AgentDesign ${agentDesignId} credit refunded to user ${userId}`);
+        } catch (e: any) {
+          log(`AgentDesign ${agentDesignId} credit refund failed: ${e.message}`);
+        }
+      }
+    };
 
     const poll = async () => {
       attempts++;
@@ -916,19 +929,42 @@ export async function registerRoutes(
           return;
         }
         if (result.status === "failed") {
-          await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: result.failReason || "ai_generation_failed" });
-          log(`AgentDesign ${agentDesignId} failed: ${result.failReason}`);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            log(`AgentDesign ${agentDesignId} failed, retry ${retryCount}/${maxRetries}...`);
+            await storage.updateAgentDesign(agentDesignId, { status: "processing" });
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            try {
+              const newUuid = await sendCollovAgentTask(uploadUrl, prompt);
+              uuid = newUuid;
+              attempts = 0;
+              await storage.updateAgentDesign(agentDesignId, { collovUuid: newUuid, status: "processing" });
+              log(`AgentDesign ${agentDesignId} retry ${retryCount} started with uuid: ${newUuid}`);
+              setTimeout(poll, 5000);
+              return;
+            } catch (retryErr: any) {
+              log(`AgentDesign ${agentDesignId} retry ${retryCount} send failed: ${retryErr.message}`);
+            }
+          }
+          await refundCredit();
+          await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: "collov_service_failed" });
+          log(`AgentDesign ${agentDesignId} failed permanently after ${retryCount} retries`);
           return;
         }
         if (attempts < maxAttempts) {
           setTimeout(poll, 3000);
         } else {
+          await refundCredit();
           await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: "timeout" });
           log(`AgentDesign ${agentDesignId} timed out`);
         }
       } catch (err: any) {
         log(`AgentDesign ${agentDesignId} poll error: ${err.message}`);
         if (attempts < maxAttempts) setTimeout(poll, 5000);
+        else {
+          await refundCredit();
+          await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: "poll_error" });
+        }
       }
     };
 
@@ -979,7 +1015,7 @@ export async function registerRoutes(
       try {
         const uuid = await sendCollovAgentTask(uploadUrl, prompt);
         await storage.updateAgentDesign(agentDesign.id, { collovUuid: uuid });
-        backgroundPollAgent(agentDesign.id, uuid);
+        backgroundPollAgent(agentDesign.id, uuid, userId, uploadUrl, prompt);
         return res.status(201).json({ id: agentDesign.id, status: "processing" });
       } catch (collovErr: any) {
         await storage.updateAgentDesign(agentDesign.id, { status: "failed", failReason: collovErr.message });
@@ -998,10 +1034,28 @@ export async function registerRoutes(
       if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
       const design = await storage.getAgentDesign(id);
       if (!design) return res.status(404).json({ error: "Not found" });
+
+      let errorMessage: string | null = null;
+      if (design.status === "failed") {
+        switch (design.failReason) {
+          case "collov_service_failed":
+            errorMessage = "AI-tjenesten er midlertidigt utilgængelig. Dit kredit er returneret. Prøv igen om lidt.";
+            break;
+          case "timeout":
+            errorMessage = "Generering tog for lang tid. Dit kredit er returneret. Prøv med et mindre billede.";
+            break;
+          case "poll_error":
+            errorMessage = "Forbindelsesfejl under generering. Dit kredit er returneret. Prøv igen.";
+            break;
+          default:
+            errorMessage = "Generering fejlede. Dit kredit er returneret. Prøv igen med et andet billede eller beskrivelse.";
+        }
+      }
+
       return res.json({
         status: design.status,
         resultUrl: design.resultImageUrl ?? null,
-        error: design.failReason ?? null,
+        error: errorMessage,
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
