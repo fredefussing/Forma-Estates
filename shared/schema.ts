@@ -176,6 +176,26 @@ export const createSpecialRequestSchema = z.object({
   price: z.number().int().default(500),
 });
 
+export const agentDesigns = pgTable("agent_designs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id),
+  originalImageUrl: text("original_image_url").notNull(),
+  agentPrompt: text("agent_prompt").notNull(),
+  resultImageUrl: text("result_image_url"),
+  status: text("status").notNull().default("pending"),
+  collovUuid: text("collov_uuid"),
+  failReason: text("fail_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAgentDesignSchema = createInsertSchema(agentDesigns).omit({
+  id: true as never,
+  createdAt: true as never,
+});
+
+export type InsertAgentDesign = z.infer<typeof insertAgentDesignSchema>;
+export type AgentDesign = typeof agentDesigns.$inferSelect;
+
 export const insertQuoteRequestSchema = createInsertSchema(quoteRequests).omit({
   id: true as never,
   createdAt: true as never,

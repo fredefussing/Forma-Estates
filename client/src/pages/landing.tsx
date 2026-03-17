@@ -20,6 +20,9 @@ export default function LandingPage() {
             <Link href="/find-stil">
               <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
             </Link>
+            <Link href="/ai-design-agent">
+              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-ai-agent">AI Design Agent</span>
+            </Link>
             <Link href="/trending">
               <span className="text-sm text-orange-400 hover:text-orange-300 transition-colors cursor-pointer inline-flex items-center gap-1 font-medium" data-testid="link-trending">
                 <Flame className="w-3.5 h-3.5" />

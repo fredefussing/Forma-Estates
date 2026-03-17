@@ -9,6 +9,7 @@ import LandingPage from "@/pages/landing";
 import DesignPage from "@/pages/home";
 import AdminQuotesPage from "@/pages/admin-quotes";
 import AdminDashboardPage from "@/pages/admin-dashboard";
+import AIDesignAgentPage from "@/pages/ai-design-agent";
 import FindStylePage from "@/pages/find-style";
 import TrendingPage from "@/pages/trending";
 import PricingPage from "@/pages/pricing";
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/betalt" component={PaymentSuccessPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
+      <Route path="/ai-design-agent" component={AIDesignAgentPage} />
       <Route component={NotFound} />
     </Switch>
   );

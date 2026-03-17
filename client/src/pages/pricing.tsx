@@ -81,6 +81,9 @@ export default function PricingPage() {
             <Link href="/find-stil">
               <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
             </Link>
+            <Link href="/ai-design-agent">
+              <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer" data-testid="link-ai-agent">AI Design Agent</span>
+            </Link>
             <Link href="/trending">
               <span className="text-sm font-medium text-orange-600 dark:text-orange-400 cursor-pointer flex items-center gap-1" data-testid="link-trending">
                 <Flame className="w-3.5 h-3.5" />

@@ -858,5 +858,159 @@ export async function registerRoutes(
   });
 
 
+  // ── AI Design Agent ──────────────────────────────────────────────────────────
+
+  async function sendCollovAgentTask(uploadUrl: string, prompt: string): Promise<string> {
+    const form = new FormData();
+    form.append("uploadUrl", uploadUrl);
+    form.append("prompt", prompt);
+
+    log(`Collov agent send: prompt="${prompt.slice(0, 80)}..."`);
+
+    const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+      method: "POST",
+      headers: { apiKey: COLLOV_API_KEY! },
+      body: form,
+    });
+
+    const json = (await res.json()) as any;
+    log(`Collov agent response: ${JSON.stringify(json).slice(0, 300)}`);
+    if (!json.success || !json.data?.uuid) {
+      throw new Error(json.message || "Collov agent API returned an error");
+    }
+    return json.data.uuid;
+  }
+
+  async function pollCollovAgentResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
+    const res = await fetch(
+      `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } }
+    );
+    const json = (await res.json()) as any;
+    const data = json.data || {};
+    const record = data.generateRecordList?.[0] || {};
+    const status = record.status || data.status;
+
+    log(`Collov agent poll for ${uuid}: status=${status}`);
+
+    if (status === "SUCCESS") {
+      const resultUrl = record.generateUrl || data.aiGenerateRecord?.generateUrl;
+      return { status: "completed", resultUrl };
+    }
+    if (status === "FAILED") {
+      const failReason = record.failReason || record.errorMessage || "unknown";
+      return { status: "failed", failReason };
+    }
+    return { status: "processing" };
+  }
+
+  async function backgroundPollAgent(agentDesignId: number, uuid: string) {
+    const maxAttempts = 40;
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts++;
+      try {
+        const result = await pollCollovAgentResult(uuid);
+        if (result.status === "completed" && result.resultUrl) {
+          await storage.updateAgentDesign(agentDesignId, { status: "completed", resultImageUrl: result.resultUrl });
+          log(`AgentDesign ${agentDesignId} completed`);
+          return;
+        }
+        if (result.status === "failed") {
+          await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: result.failReason || "ai_generation_failed" });
+          log(`AgentDesign ${agentDesignId} failed: ${result.failReason}`);
+          return;
+        }
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 3000);
+        } else {
+          await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: "timeout" });
+          log(`AgentDesign ${agentDesignId} timed out`);
+        }
+      } catch (err: any) {
+        log(`AgentDesign ${agentDesignId} poll error: ${err.message}`);
+        if (attempts < maxAttempts) setTimeout(poll, 5000);
+      }
+    };
+
+    setTimeout(poll, 4000);
+  }
+
+  app.post("/api/agent-designs", upload.single("image"), async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const token = authHeader.split(" ")[1];
+      let userId: number | null = null;
+      let isAdmin = false;
+
+      try {
+        const decoded = await verifyFirebaseToken(token);
+        const user = await storage.getUserByFirebaseUid(decoded.uid);
+        if (user) {
+          userId = user.id;
+          isAdmin = user.isAdmin;
+          if (!isAdmin) {
+            const deducted = await storage.deductCredit(user.id, "AI Design Agent generation");
+            if (!deducted) {
+              return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
+            }
+          }
+        }
+      } catch {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+
+      if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+
+      const prompt = (req.body.prompt || "").trim();
+      if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+
+      const host = `${req.protocol}://${req.get("host")}`;
+      const uploadUrl = `${host}/uploads/${req.file.filename}`;
+      const originalImageUrl = `/uploads/${req.file.filename}`;
+
+      const agentDesign = await storage.createAgentDesign({
+        userId,
+        originalImageUrl,
+        agentPrompt: prompt,
+        status: "processing",
+      });
+
+      try {
+        const uuid = await sendCollovAgentTask(uploadUrl, prompt);
+        await storage.updateAgentDesign(agentDesign.id, { collovUuid: uuid });
+        backgroundPollAgent(agentDesign.id, uuid);
+        return res.status(201).json({ id: agentDesign.id, status: "processing" });
+      } catch (collovErr: any) {
+        await storage.updateAgentDesign(agentDesign.id, { status: "failed", failReason: collovErr.message });
+        log(`AgentDesign ${agentDesign.id} Collov send failed: ${collovErr.message}`);
+        return res.status(502).json({ error: "AI generation failed", detail: collovErr.message });
+      }
+    } catch (err: any) {
+      log(`POST /api/agent-designs error: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/agent-designs/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const design = await storage.getAgentDesign(id);
+      if (!design) return res.status(404).json({ error: "Not found" });
+      return res.json({
+        status: design.status,
+        resultUrl: design.resultImageUrl ?? null,
+        error: design.failReason ?? null,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }

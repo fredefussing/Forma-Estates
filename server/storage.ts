@@ -5,6 +5,7 @@ import {
   type QuoteRequest, type InsertQuoteRequest, quoteRequests,
   type User, type InsertUser, users,
   type CreditTransaction, type InsertCreditTransaction, creditTransactions,
+  type AgentDesign, type InsertAgentDesign, agentDesigns,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
@@ -45,6 +46,11 @@ export interface IStorage {
   getQuoteRequest(id: number): Promise<QuoteRequest | undefined>;
   getAllQuoteRequests(): Promise<QuoteRequest[]>;
   updateQuoteRequest(id: number, updates: Partial<InsertQuoteRequest>): Promise<QuoteRequest | undefined>;
+
+  createAgentDesign(design: InsertAgentDesign): Promise<AgentDesign>;
+  getAgentDesign(id: number): Promise<AgentDesign | undefined>;
+  getAgentDesignsByUser(userId: number): Promise<AgentDesign[]>;
+  updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -240,6 +246,27 @@ export class DatabaseStorage implements IStorage {
 
   async updateQuoteRequest(id: number, updates: Partial<InsertQuoteRequest>): Promise<QuoteRequest | undefined> {
     const [result] = await db.update(quoteRequests).set(updates).where(eq(quoteRequests.id, id)).returning();
+    return result;
+  }
+
+  async createAgentDesign(design: InsertAgentDesign): Promise<AgentDesign> {
+    const [result] = await db.insert(agentDesigns).values(design).returning();
+    return result;
+  }
+
+  async getAgentDesign(id: number): Promise<AgentDesign | undefined> {
+    const [result] = await db.select().from(agentDesigns).where(eq(agentDesigns.id, id));
+    return result;
+  }
+
+  async getAgentDesignsByUser(userId: number): Promise<AgentDesign[]> {
+    return db.select().from(agentDesigns)
+      .where(eq(agentDesigns.userId, userId))
+      .orderBy(desc(agentDesigns.createdAt));
+  }
+
+  async updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined> {
+    const [result] = await db.update(agentDesigns).set(updates).where(eq(agentDesigns.id, id)).returning();
     return result;
   }
 }

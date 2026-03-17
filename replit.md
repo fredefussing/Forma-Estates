@@ -162,6 +162,18 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 - On success: shows animated confirmation with credits added, auto-redirects to `/design` after 3.5s
 - On timeout: shows manual "Tjek igen" button and option to go to design tool anyway
 
+## AI Design Agent
+- Free-text AI design generation at `/ai-design-agent`
+- User uploads a photo and writes any description they want (no dropdowns, no restrictions)
+- Calls Collov's edit API: `POST /flair/enterpriseApi/edit/generate` with `uploadUrl` + `prompt`
+- Polling: `GET /flair/enterpriseApi/edit/getRecord?uuid=XXX`
+- Stored in `agent_designs` table (id, userId, originalImageUrl, agentPrompt, resultImageUrl, status, collovUuid, failReason, createdAt)
+- Result shown as before/after slider with download button
+- Costs 1 credit per generation (same as regular designs); admin users have unlimited
+- Example prompts shown as clickable chips for inspiration
+- Nav link "AI Design Agent" added to landing page and pricing page navs
+- API routes: `POST /api/agent-designs`, `GET /api/agent-designs/:id/status`
+
 ## Running
 - `npm run dev` starts the Express + Vite dev server on port 5000
-- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/design/:id` (design detail with before/after slider), `/mine-designs` (user's design history), `/betalt` (payment success/polling page), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)
+- Frontend pages: `/` (landing), `/find-stil` (style quiz), `/ai-design-agent` (free-text AI prompt page), `/trending` (trending designs), `/pris` (pricing), `/design` (design tool), `/design/:id` (design detail with before/after slider), `/mine-designs` (user's design history), `/betalt` (payment success/polling page), `/login` (login), `/opret` (signup), `/min-konto` (account), `/admin` (admin dashboard), `/admin/quotes` (admin quote builder)
