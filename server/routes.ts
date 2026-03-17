@@ -937,16 +937,14 @@ export async function registerRoutes(
 
   app.post("/api/agent-designs", upload.single("image"), async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith("Bearer ")) {
+      if (!req.headers.authorization?.startsWith("Bearer ")) {
         return res.status(401).json({ error: "Authentication required" });
       }
-      const token = authHeader.split(" ")[1];
       let userId: number | null = null;
       let isAdmin = false;
 
       try {
-        const decoded = await verifyFirebaseToken(token);
+        const decoded = await verifyFirebaseToken(req.headers.authorization);
         const user = await storage.getUserByFirebaseUid(decoded.uid);
         if (user) {
           userId = user.id;
