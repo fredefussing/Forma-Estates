@@ -861,7 +861,10 @@ export async function registerRoutes(
   // ── AI Design Agent ──────────────────────────────────────────────────────────
 
   async function sendCollovAgentTask(uploadUrl: string, prompt: string): Promise<string> {
-    log(`Collov agent send: prompt="${prompt.slice(0, 80)}..."`);
+    const body = { uploadUrl, prompt };
+    log(`Collov agent send → uploadUrl: "${uploadUrl}"`);
+    log(`Collov agent send → prompt (${prompt.length} chars): "${prompt.slice(0, 120)}"`);
+    log(`Collov agent send → body JSON: ${JSON.stringify(body)}`);
 
     const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
       method: "POST",
@@ -869,11 +872,11 @@ export async function registerRoutes(
         apiKey: COLLOV_API_KEY!,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ uploadUrl, prompt }),
+      body: JSON.stringify(body),
     });
 
     const json = (await res.json()) as any;
-    log(`Collov agent response: ${JSON.stringify(json).slice(0, 300)}`);
+    log(`Collov agent response (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 400)}`);
     if (!json.success || !json.data?.uuid) {
       throw new Error(json.message || "Collov agent API returned an error");
     }
