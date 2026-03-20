@@ -861,18 +861,19 @@ export async function registerRoutes(
   // ── AI Design Agent ──────────────────────────────────────────────────────────
 
   async function sendCollovAgentTask(uploadUrl: string, prompt: string): Promise<string> {
-    const body = { uploadUrl, prompt };
     log(`Collov agent send → uploadUrl: "${uploadUrl}"`);
     log(`Collov agent send → prompt (${prompt.length} chars): "${prompt.slice(0, 120)}"`);
-    log(`Collov agent send → body JSON: ${JSON.stringify(body)}`);
+
+    const form = new FormData();
+    form.append("uploadUrl", uploadUrl);
+    form.append("prompt", prompt);
 
     const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
       method: "POST",
       headers: {
         apiKey: COLLOV_API_KEY!,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: form,
     });
 
     const json = (await res.json()) as any;
