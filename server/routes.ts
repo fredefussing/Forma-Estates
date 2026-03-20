@@ -1005,8 +1005,9 @@ export async function registerRoutes(
       const prompt = (req.body.prompt || "").trim();
       if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-      const host = `${req.protocol}://${req.get("host")}`;
-      const uploadUrl = `${host}/uploads/${req.file.filename}`;
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const uploadUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
       const originalImageUrl = `/uploads/${req.file.filename}`;
 
       const agentDesign = await storage.createAgentDesign({
