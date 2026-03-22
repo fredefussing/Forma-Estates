@@ -1,0 +1,105 @@
+Implementér AI-analyse system med grundig visuel beskrivelse + budget + 2 intelligente butikker.
+
+ÆNDRING 1: AI PROMPT (server/ai_analyzer.ts)
+
+Ændr prompten til GPT-4o:
+
+"Analyser dette produkt grundigt på billedet. Beskriv ALT hvad du ser visuelt:
+
+Inkluder i beskrivelsen:
+- Type (hvad er det)
+- Materiale (træ, stof, metal, læder, glas)
+- Farve (specifik: lys grå, mørkeblå, hvid, egetræ, sort)
+- Form (rund, firkantet, aflang, lav, høj, bred, smal)
+- Detaljer (gavl med/uden, knapper, ben tykkelse/højde, tekstur, mønster)
+- Stil (minimalistisk, klassisk, moderne, retro, skandinavisk, luksus)
+- Budget (prisinterval rundet til 1000'er)
+
+Returner JSON:
+{
+  \"products\": [
+    {
+      \"name\": \"Seng\",
+      \"searchTerms\": \"dobbeltseng grå stof gavl med knapper tyk madras lave egetræsben minimalistisk pris 6000 8000 kr\",
+      \"exactBudget\": 7000,
+      \"visualDescription\": \"Grå stofseng med høj gavl med knapper, tyk madras, lave egetræsben, minimalistisk udtryk\",
+      \"recommendedStores\": [
+        {\"name\": \"Drømmeland\", \"reason\": \"Har senge med stofgavler og tykke madrasser\"},
+        {\"name\": \"IKEA\", \"reason\": \"Bredt udvalg af minimalistiske senge i grå\"}
+      ]
+    }
+  ],
+  \"totalProductBudget\": 24500,
+  \"profit\": 4500
+}
+
+VIGTIGT: 
+- searchTerms skal være lang og detaljeret med prisinterval
+- visualDescription skal beskrive præcist hvad AI ser
+- recommendedStores skal være 2 butikker AI vælger baseret på produktbeskrivelse"
+
+ÆNDRING 2: EMAIL TEMPLATE (server/email.ts)
+
+Opdater email til:
+
+<h2>AI Analyse: [RUM] i [STIL]</h2>
+<p>Kunde: [email]</p>
+<p>Budget: [budget] kr</p>
+
+<img src=\"[resultImageUrl]\" style=\"max-width:400px\"/>
+
+<h3>Produkter AI ser i billedet:</h3>
+<p><em>Kopier søgeord, gå til butik.dk, indsæt i søgefelt. Hvis intet match → prøv backup links.</em></p>
+
+<table border=\"1\" cellpadding=\"8\">
+  <tr>
+    <th>Produkt</th>
+    <th>Budget</th>
+    <th>Søgeord (kopier)</th>
+    <th>AI ser dette</th>
+    <th>Anbefaling</th>
+  </tr>
+  [LOOP products]
+  <tr>
+    <td><strong>[name]</strong></td>
+    <td>[exactBudget] kr</td>
+    <td><code style=\"background:#f0f0f0;padding:4px;\">[searchTerms]</code></td>
+    <td>[visualDescription]</td>
+    <td>
+      [recommendedStores[0].name] — [recommendedStores[0].reason]<br/>
+      <a href=\"[store1 search url]\">[recommendedStores[0].name]</a><br/><br/>
+      [recommendedStores[1].name] — [recommendedStores[1].reason]<br/>
+      <a href=\"[store2 search url]\">[recommendedStores[1].name]</a>
+    </td>
+  </tr>
+  [END LOOP]
+</table>
+
+<p><strong>Total produkter:</strong> [totalProductBudget] kr | <strong>Din profit (15%):</strong> [profit] kr</p>
+
+ÆNDRING 3: BUTIK-VALG LOGIK (server/product_matcher.ts)
+
+AI vælger 2 butikker baseret på produktbeskrivelse (ikke fast kategori):
+
+Mulige butikker:
+- Drømmeland (senge, boxmadrasser, tykke madrasser)
+- Nordic Dream (nordisk design, træ, minimalistisk, kvalitet)
+- Lightpoint (lamper, moderne, retro, gulv/bord/væg)
+- IKEA (alt, budget, bredt, backup)
+- Bolia (luksus, læder, stue, premium)
+- HAY (dansk design, stue/soveværelse, ikoner)
+- JYSK (budget, tæpper, sengetøj, basics)
+- ILVA (mid-range, klassisk dansk, tidløs)
+
+AI vælger de 2 der passer BEDST til produktets stil, materiale, prisniveau.
+
+ÆNDRING 4: TEST
+
+1. Generér soveværelse, Moderne, 30.000 kr
+2. Klik \"Få tilbud nu\"
+3. Tjek email på kontakt@nordic-homebuild.com
+4. Verificér:
+   - Søgeord er lange og detaljerede med pris
+   - \"AI ser dette\" beskriver visuelt præcist
+   - 2 butikker er valgt med begrundelse
+   - Links virker

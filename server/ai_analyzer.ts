@@ -4,10 +4,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+export interface RecommendedStore {
+  name: string;
+  reason: string;
+}
+
 export interface AnalyzedProduct {
   name: string;
   searchTerms: string;
-  estimatedPrice: number;
+  exactBudget: number;
+  visualDescription: string;
+  recommendedStores: RecommendedStore[];
 }
 
 export interface AnalysisResult {
@@ -37,22 +44,39 @@ export async function analyzeDesignImage(
 Samlet budget: ${budget} DKK. Produktbudget (85%): ${productBudget} DKK.
 
 Identificer ALLE synlige møbler og indretningselementer i billedet.
-Fordel produktbudgetet realistisk mellem produkterne.
+Fordel produktbudgetet realistisk. Beskriv hvert produkt grundigt:
 
-For hvert produkt skal du lave et naturligt dansk søgeord (bruges direkte i butikkernes søgefelt):
-- Beskriv type, materiale/farve og vigtige detaljer
-- 3-8 ord — præcist og søgbart
-- GODT: "spisebordsstol i lyst træ med fletning"
-- GODT: "rundt sofabord i egetræ med metalben"
-- GODT: "dobbeltseng i egetræ med lav profil"
-- FOR KORT: "spisebordsstol"
-- FOR LANGT: "spisebordsstol i lyst egetræ med flettet sæde og runde ben dansk design"
+For hvert produkt:
+- Type (hvad er det)
+- Materiale (træ, stof, metal, læder, glas)
+- Farve (specifik: lys grå, mørkeblå, hvid, egetræ, sort)
+- Form (rund, firkantet, aflang, lav, høj, bred, smal)
+- Detaljer (gavl med/uden, knapper, bentykkelse, tekstur, mønster)
+- Stil (minimalistisk, klassisk, moderne, retro, skandinavisk, luksus)
+
+Vælg 2 butikker der passer BEDST til det specifikke produkt:
+- Drømmeland: senge, boxmadrasser, tykke madrasser
+- Nordic Dream: nordisk design, træ, minimalistisk, kvalitet senge
+- Lightpoint: lamper, moderne, retro, gulv/bord/væg
+- IKEA: alt, budget, bredt sortiment
+- Bolia: luksus, læder, stue, premium møbler
+- HAY: dansk design, stue/soveværelse, designikoner
+- JYSK: budget, tæpper, sengetøj, basics
+- ILVA: mid-range, klassisk dansk, tidløs
 
 Svar KUN med valid JSON (ingen markdown, ingen forklaring):
 {
   "products": [
-    {"name": "Sofa", "searchTerms": "3-personers sofa i grå stof med træben", "estimatedPrice": 8000},
-    {"name": "Sofabord", "searchTerms": "rundt sofabord i egetræ med sort metalstel", "estimatedPrice": 2500}
+    {
+      "name": "Seng",
+      "searchTerms": "dobbeltseng grå stof gavl med knapper lave egetræsben minimalistisk pris 6000 8000 kr",
+      "exactBudget": 7000,
+      "visualDescription": "Grå stofseng med høj gavl med knapper, tyk madras, lave egetræsben, minimalistisk udtryk",
+      "recommendedStores": [
+        {"name": "Drømmeland", "reason": "Har senge med stofgavler og tykke madrasser"},
+        {"name": "IKEA", "reason": "Bredt udvalg af minimalistiske senge i grå"}
+      ]
+    }
   ],
   "totalProductBudget": ${productBudget},
   "profit": ${profit}
@@ -65,7 +89,7 @@ Svar KUN med valid JSON (ingen markdown, ingen forklaring):
         ],
       },
     ],
-    max_tokens: 2000,
+    max_tokens: 3000,
     response_format: { type: "json_object" },
   });
 

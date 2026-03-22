@@ -1,5 +1,5 @@
 import { log } from "./index";
-import { getBackupLinks } from "./product_matcher";
+import { getStoreSearchUrl } from "./product_matcher";
 import type { AnalysisResult } from "./ai_analyzer";
 
 const KONTAKT_EMAIL = "kontakt@nordic-homebuild.com";
@@ -376,22 +376,33 @@ export async function sendAIAnalysisEmail(data: {
 
   const productRows = data.analysis.products
     .map((p) => {
-      const backups = getBackupLinks(p.name, p.searchTerms);
-      const backupLinks = backups
-        .map((s) => `<a href="${s.searchUrl}" style="display:inline-block; margin:2px 4px 2px 0; padding:4px 12px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${s.name}</a>`)
-        .join("");
+      const store1 = p.recommendedStores?.[0];
+      const store2 = p.recommendedStores?.[1];
+      const store1Html = store1
+        ? `<strong>${store1.name}</strong> — <span style="color:#666; font-size:12px;">${store1.reason}</span><br/>
+           <a href="${getStoreSearchUrl(store1.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store1.name} →</a>`
+        : "";
+      const store2Html = store2
+        ? `<strong>${store2.name}</strong> — <span style="color:#666; font-size:12px;">${store2.reason}</span><br/>
+           <a href="${getStoreSearchUrl(store2.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#444; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store2.name} →</a>`
+        : "";
       return `<tr>
         <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
           <strong style="font-size:14px;">${p.name}</strong>
         </td>
         <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
-          ${p.estimatedPrice.toLocaleString("da-DK")} kr
+          ${(p.exactBudget ?? 0).toLocaleString("da-DK")} kr
         </td>
         <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-          <span style="font-family:monospace; font-size:13px; background:#f4f4f4; padding:4px 8px; border-radius:6px; display:inline-block; user-select:all; color:#333;">${p.searchTerms}</span>
+          <code style="font-family:monospace; font-size:12px; background:#f4f4f4; padding:5px 8px; border-radius:6px; display:block; color:#333; line-height:1.5;">${p.searchTerms}</code>
         </td>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-          ${backupLinks}
+        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#444; line-height:1.5;">
+          ${p.visualDescription}
+        </td>
+        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; line-height:1.6;">
+          ${store1Html}
+          ${store2 ? '<br/>' : ''}
+          ${store2Html}
         </td>
       </tr>`;
     })
@@ -466,7 +477,8 @@ export async function sendAIAnalysisEmail(data: {
               <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Produkt</th>
               <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Budget</th>
               <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Søgeord (kopier)</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Backup</th>
+              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">AI ser dette</th>
+              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Anbefaling</th>
             </tr>
           </thead>
           <tbody>${productRows}</tbody>
