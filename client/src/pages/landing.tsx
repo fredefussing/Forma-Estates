@@ -62,10 +62,10 @@ export default function LandingPage() {
         <div className="relative z-10 text-center px-6 max-w-3xl">
           <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}>
             <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-semibold tracking-tight mb-5 leading-[1.08] text-white" style={{ fontFamily: '"Playfair Display", serif' }}>
-              Transformer dit hjem<br />med AI
+              Find ud af hvad dit rum er værd<br />— før du renoverer
             </h1>
             <p className="text-white/80 text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10">
-              Se dit rum redesignet på sekunder. Fra idé til virkelighed.
+              Upload et billede, se potentiel værdistigning, få dit nye rum
             </p>
             <Link href="/design">
               <Button size="lg" className="h-14 px-10 text-base font-medium rounded-full bg-white text-black hover:bg-white/90 shadow-xl" data-testid="button-hero-cta">

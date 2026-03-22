@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTransformationJob } from "@/hooks/use-transformation-job";
-import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check, User, Lock, Zap, Crown } from "lucide-react";
+import { Upload, Sparkles, Loader2, RotateCcw, X, ChevronRight, Home, Bed, UtensilsCrossed, Bath, Briefcase, Dumbbell, Baby, Gamepad2, Palmtree, Sofa, ArrowRight, Check, User, Lock, Zap, Crown, TrendingUp, BarChart3, BadgeCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 import { useAuth } from "@/hooks/use-auth";
 import { roomTypes, designStyles, freeStyles, type RoomType, type DesignStyle, type Design } from "@shared/schema";
 import { type BudgetTier } from "@shared/styleVocabulary";
@@ -75,6 +76,73 @@ const styleDescriptions: Record<DesignStyle, string> = {
   "midcentury": "Retro 50'er/60'er stil med træmøbler og organiske former",
 };
 
+const valueMultipliers: Partial<Record<RoomType, number>> = {
+  "kitchen": 0.75,
+  "bathroom": 0.65,
+  "bedroom": 0.40,
+  "living room": 0.35,
+  "open living and dining room": 0.35,
+  "dining room": 0.35,
+  "home office": 0.25,
+  "conference room": 0.25,
+};
+
+function getValueMultiplier(room: RoomType | ""): number {
+  if (!room) return 0.30;
+  return valueMultipliers[room] ?? 0.30;
+}
+
+function calcValueRange(budget: number, room: RoomType | "") {
+  const mult = getValueMultiplier(room);
+  const min = Math.round((budget * mult) / 1000) * 1000;
+  const max = Math.round((min * 1.2) / 1000) * 1000;
+  const roi = Math.round((min / budget) * 100);
+  return { min, max, roi };
+}
+
+const styleValueReasons: Record<DesignStyle, [string, string, string]> = {
+  "scandinavian": [
+    "Lys og åbenhed øger salgsappel markant",
+    "Minimalistisk æstetik er efterspurgt hos 73% af danske boligkøbere",
+    "Naturlige materialer og hvidmaling forbliver tidløst og universelt",
+  ],
+  "modern": [
+    "Rene linjer og moderne finish appellerer til et bredt publikum",
+    "Funktionelt layout maksimerer rummets opfattede størrelse",
+    "Neutral palet er nem at style op til fremvisning",
+  ],
+  "luxury": [
+    "Eksklusivt udtryk øger den opfattede ejendomsværdi",
+    "Tiltrækker købestærke købere i premium-segmentet",
+    "Unikke materialer og detaljer skaber 'wow-effekt' ved fremvisning",
+  ],
+  "industrial": [
+    "Råt og urbant udtryk er meget eftertragtet i byboliger",
+    "Åbne løsninger og betonlook øger rummets karakter",
+    "Differentierer boligen markant fra traditionelle lejligheder",
+  ],
+  "coastal": [
+    "Afslappet havstil øger attraktivitet for fritidsboligkøbere",
+    "Lyse, naturlige toner er tidløse og bredt appellerende",
+    "Maritime detaljer skaber en unik, eftertragtet atmosfære",
+  ],
+  "transitional": [
+    "Bred appel — kombinerer det klassiske og det moderne",
+    "Tidløst udtryk reducerer risiko for hurtig forældelse",
+    "Appellerer til den største del af det danske boligmarked",
+  ],
+  "farmhouse": [
+    "Rustikt og varmt miljø skaber stærk emotionel appel hos køber",
+    "Hyggefaktoren er en af de vigtigste salgsdrivere i Danmark",
+    "Naturmaterialer signalerer kvalitet og holdbarhed",
+  ],
+  "midcentury": [
+    "Designikonisk stil er meget populær og på vej tilbage",
+    "Organiske former og træmøbler skaber elegant, tidløst look",
+    "Differentierer boligen markant fra standardrenovering",
+  ],
+};
+
 const subscriptionPackages = [
   {
     name: "Basic",
@@ -129,6 +197,8 @@ export default function HomePage() {
   const [activeDesign, setActiveDesign] = useState<Design | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
+  const [showValueModal, setShowValueModal] = useState(false);
+  const [popupBudget, setPopupBudget] = useState<number>(initialBudget);
 
   const { data: designs = [] } = useQuery<Design[]>({
     queryKey: ["/api/designs", "my"],
@@ -261,8 +331,33 @@ export default function HomePage() {
     job.reset();
   }, [job]);
 
+  const handleOpenValueModal = () => {
+    if (!selectedFile || !roomType || !style) return;
+    setPopupBudget(budget);
+    setShowValueModal(true);
+  };
+
+  const handleConfirmValue = () => {
+    setBudget(popupBudget);
+    setTier(popupBudget >= 40000 ? "luxury" : popupBudget >= 15000 ? "standard" : "budget");
+    handleGenerateWithBudget(popupBudget);
+  };
+
+  const handleGenerateWithBudget = (finalBudget: number) => {
+    if (!selectedFile || !roomType || !style) return;
+    setShowValueModal(false);
+    const formData = new FormData();
+    formData.append("image", selectedFile);
+    formData.append("roomType", roomType);
+    formData.append("style", style);
+    formData.append("budget", finalBudget.toString());
+    generateMutation.mutate(formData);
+    setStep(3);
+  };
+
   const handleGenerate = () => {
     if (!selectedFile || !roomType || !style) return;
+    setShowValueModal(false);
     const formData = new FormData();
     formData.append("image", selectedFile);
     formData.append("roomType", roomType);
@@ -528,15 +623,15 @@ export default function HomePage() {
                     className="w-full h-12 text-sm font-medium tracking-wide"
                     size="lg"
                     disabled={!roomType || !style || generateMutation.isPending || (!isAdmin && user !== null && creditsRemaining === 0)}
-                    onClick={handleGenerate}
+                    onClick={handleOpenValueModal}
                     data-testid="button-generate"
                   >
                     {generateMutation.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
-                      <Sparkles className="w-4 h-4 mr-2" />
+                      <TrendingUp className="w-4 h-4 mr-2" />
                     )}
-                    {!isAdmin && user && creditsRemaining === 0 ? "Køb billeder for at generere" : "Generer design"}
+                    {!isAdmin && user && creditsRemaining === 0 ? "Køb billeder for at generere" : "Se dit rums potentiale →"}
                   </Button>
                 </div>
               </div>
@@ -589,6 +684,41 @@ export default function HomePage() {
                       beforeSrc={activeDesign.originalImageUrl}
                       afterSrc={activeDesign.resultImageUrl}
                     />
+
+                    {activeDesign.budget && activeDesign.roomType && (() => {
+                      const { min, max, roi } = calcValueRange(activeDesign.budget, activeDesign.roomType as RoomType);
+                      const reasons = styleValueReasons[activeDesign.style as DesignStyle] ?? ["Øger rummets appel", "Moderniserer indretningen", "Skaber bedre helhedsindtryk"];
+                      return (
+                        <div className="border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-5 bg-emerald-50/40 dark:bg-emerald-950/20" data-testid="result-value-report">
+                          <div className="flex items-center gap-2 mb-4">
+                            <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <p className="text-xs tracking-widest uppercase text-emerald-700 dark:text-emerald-400 font-medium">Potentiel værdistigning</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div className="rounded-lg bg-white/70 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-3">
+                              <p className="text-[10px] tracking-wider uppercase text-emerald-600/70 dark:text-emerald-500/70 mb-1">Stigning</p>
+                              <p className="text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-300" data-testid="text-result-value-range">{formatDKK(min)} – {formatDKK(max)}</p>
+                            </div>
+                            <div className="rounded-lg bg-white/70 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-3">
+                              <p className="text-[10px] tracking-wider uppercase text-emerald-600/70 dark:text-emerald-500/70 mb-1">ROI</p>
+                              <p className="text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-300" data-testid="text-result-roi">{roi}%</p>
+                            </div>
+                          </div>
+                          <ul className="space-y-1.5">
+                            {reasons.map((r, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-emerald-800/80 dark:text-emerald-300/80">
+                                <BadgeCheck className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-[10px] text-emerald-600/50 dark:text-emerald-600/40 mt-3 leading-relaxed">
+                            *Baseret på danske mæglerrapporter 2023–2024.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
                     {activeTierConfig && (
                       <div className="border border-border/60 rounded-xl p-5 bg-card/30" data-testid="result-tier-info">
                         <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Anbefaling til dit budget</p>
@@ -662,6 +792,87 @@ export default function HomePage() {
           </section>
         )}
       </main>
+
+      <Dialog open={showValueModal} onOpenChange={setShowValueModal}>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden" data-testid="modal-value">
+          <div className="p-6 pb-4 border-b border-border/40">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                <span className="text-xl">💰</span> Dit rums potentiale
+              </DialogTitle>
+            </DialogHeader>
+            {roomType && style && (
+              <p className="text-sm text-muted-foreground mt-1.5">
+                Baseret på dit <span className="font-medium text-foreground">{roomTypeLabels[roomType as RoomType]}</span> i <span className="font-medium text-foreground">{styleLabels[style as DesignStyle]}</span> stil
+              </p>
+            )}
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium">📊 Investering</p>
+                <p className="text-lg font-semibold tabular-nums" data-testid="text-popup-budget">{formatDKK(popupBudget)}</p>
+              </div>
+              <Slider
+                min={5000}
+                max={100000}
+                step={1000}
+                value={[popupBudget]}
+                onValueChange={([v]) => setPopupBudget(v)}
+                className="w-full"
+                data-testid="slider-popup-budget"
+              />
+              <div className="flex justify-between text-[11px] text-muted-foreground/60">
+                <span>5.000 kr</span>
+                <span>100.000 kr</span>
+              </div>
+            </div>
+
+            {(() => {
+              const { min, max, roi } = calcValueRange(popupBudget, roomType);
+              return (
+                <div className="rounded-xl border border-border/60 bg-card/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5"><span>📈</span> Potentiel værdistigning</span>
+                    <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400" data-testid="text-popup-value-range">
+                      {formatDKK(min)} – {formatDKK(max)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5"><span>✅</span> ROI</span>
+                    <span className="text-sm font-semibold tabular-nums" data-testid="text-popup-roi">{roi}%</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+              *Baseret på danske mæglerrapporter 2023–2024. Værdistigning afhænger af område, kvalitet og tidspunkt for salg.
+            </p>
+
+            <div className="flex flex-col gap-2.5 pt-1">
+              <Button
+                className="w-full h-11 text-sm font-medium"
+                onClick={handleConfirmValue}
+                disabled={generateMutation.isPending}
+                data-testid="button-popup-generate"
+              >
+                {generateMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Se dit nye rum
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full h-9 text-sm text-muted-foreground"
+                onClick={() => setShowValueModal(false)}
+                data-testid="button-popup-back"
+              >
+                Ændr valg
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showSubscriptionModal} onOpenChange={setShowSubscriptionModal}>
         <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden" data-testid="modal-subscription">
