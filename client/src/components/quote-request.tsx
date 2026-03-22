@@ -3,8 +3,9 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Send } from "lucide-react";
+import { Check, Mail, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/use-auth";
 
 interface QuoteRequestProps {
   designId: number;
@@ -14,55 +15,61 @@ interface QuoteRequestProps {
   budget?: number | null;
 }
 
-export function QuoteRequest({ designId, generatedImageUrl, roomType, style, budget }: QuoteRequestProps) {
-  const [email, setEmail] = useState("");
-  const [notes, setNotes] = useState("");
+export function QuoteRequest({ designId, budget }: QuoteRequestProps) {
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/quote-requests", {
-        designId,
-        customerEmail: email,
-        notes: notes || undefined,
-        generatedImageUrl,
-        roomType,
-        style,
-        budget: budget || undefined,
+      const token = await user?.getIdToken();
+      const res = await fetch("/api/analyze-design", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ designId }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Noget gik galt");
+      }
       return res.json();
     },
     onSuccess: () => {
       setSubmitted(true);
       toast({
-        title: "Forespørgsel sendt",
-        description: "Vi kontakter dig indenfor 24 timer med et personligt tilbud.",
+        title: "Analyse sendt!",
+        description: "Tjek din mail — vi har sendt dig møbler med links til alle butikker.",
       });
     },
-    onError: () => {
+    onError: (err: Error) => {
       toast({
         title: "Noget gik galt",
-        description: "Tjek din email og prøv igen.",
+        description: err.message || "Prøv igen om lidt.",
         variant: "destructive",
       });
     },
   });
+
+  if (!user) return null;
+  if (!budget) return null;
 
   if (submitted) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="border border-border/60 rounded-xl p-6 bg-card/30"
+        className="border border-border/60 rounded-xl p-5 bg-card/30"
       >
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Check className="w-4 h-4 text-foreground/70" />
+          <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Check className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
-            <p className="text-sm font-medium" data-testid="text-quote-confirmed">Din forespørgsel er sendt!</p>
-            <p className="text-xs text-muted-foreground mt-1">Vi kontakter dig indenfor 24 timer med et personligt tilbud.</p>
+            <p className="text-sm font-medium" data-testid="text-quote-confirmed">Møbeltilbud sendt til din mail!</p>
+            <p className="text-xs text-muted-foreground mt-1">Vi har analyseret dit rum og fundet møblerne hos de bedste danske butikker. Tjek din indbakke.</p>
           </div>
         </div>
       </motion.div>
@@ -70,46 +77,31 @@ export function QuoteRequest({ designId, generatedImageUrl, roomType, style, bud
   }
 
   return (
-    <div className="border border-border/60 rounded-xl p-6 bg-card/30">
+    <div className="border border-border/60 rounded-xl p-5 bg-card/30">
       <div className="mb-4">
-        <h3 className="text-sm font-medium" data-testid="text-quote-heading">Er du glad for dit design?</h3>
-        <p className="text-xs text-muted-foreground mt-1">Få et gratis tilbud på at gøre det til virkelighed.</p>
+        <h3 className="text-sm font-medium" data-testid="text-quote-heading">Vil du købe møblerne?</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          AI analyserer dit rum og sender dig møbler med links til IKEA, HAY, JYSK og mange flere — direkte på mail.
+        </p>
       </div>
 
-      <div className="space-y-3">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="din@email.dk"
-          className="w-full px-3.5 py-2.5 rounded-lg border border-border/60 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10 transition-colors"
-          data-testid="input-quote-email"
-        />
+      <Button
+        className="w-full h-10 text-sm"
+        disabled={submitMutation.isPending}
+        onClick={() => submitMutation.mutate()}
+        data-testid="button-send-quote-request"
+      >
+        {submitMutation.isPending ? (
+          <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+        ) : (
+          <Mail className="w-3.5 h-3.5 mr-2" />
+        )}
+        {submitMutation.isPending ? "Analyserer dit rum..." : "Få møbeltilbud på mail"}
+      </Button>
 
-        <div className="relative">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value.slice(0, 100))}
-            placeholder="Ønsker eller ændringer (valgfrit)..."
-            rows={2}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-border/60 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10 resize-none transition-colors"
-            data-testid="input-quote-notes"
-          />
-          <span className={`absolute bottom-2 right-3 text-[11px] ${notes.length >= 100 ? "text-destructive font-medium" : "text-muted-foreground/40"}`}>
-            {notes.length}/100
-          </span>
-        </div>
-
-        <Button
-          className="w-full h-10 text-sm"
-          disabled={!email || submitMutation.isPending}
-          onClick={() => submitMutation.mutate()}
-          data-testid="button-send-quote-request"
-        >
-          <Send className="w-3.5 h-3.5 mr-2" />
-          Få tilbud
-        </Button>
-      </div>
+      <p className="text-[11px] text-muted-foreground/50 text-center mt-2">
+        Sendes til {user.email}
+      </p>
     </div>
   );
 }

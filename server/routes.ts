@@ -9,7 +9,8 @@ import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, crea
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail } from "./email";
+import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail } from "./email";
+import { analyzeDesignImage } from "./ai_analyzer";
 import { verifyFirebaseToken } from "./firebase-admin";
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -641,6 +642,50 @@ export async function registerRoutes(
 
       return res.json(request);
     } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/analyze-design", async (req, res) => {
+    try {
+      const firebaseUser = await verifyFirebaseToken(req);
+      if (!firebaseUser) return res.status(401).json({ message: "Unauthorized" });
+
+      const { designId } = req.body;
+      if (!designId) return res.status(400).json({ message: "designId required" });
+
+      const design = await storage.getDesign(Number(designId));
+      if (!design) return res.status(404).json({ message: "Design not found" });
+      if (design.status !== "completed" || !design.resultImageUrl) {
+        return res.status(400).json({ message: "Design not completed yet" });
+      }
+      if (!design.budget) return res.status(400).json({ message: "Design has no budget" });
+
+      const dbUser = await storage.getUserByFirebaseUid(firebaseUser.uid);
+      if (!dbUser) return res.status(404).json({ message: "User not found" });
+
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const imageUrl = design.resultImageUrl.startsWith("http")
+        ? design.resultImageUrl
+        : `${protocol}://${host}${design.resultImageUrl}`;
+
+      log(`Starting AI analysis for design #${design.id} (${design.resultImageUrl})`);
+      const analysis = await analyzeDesignImage(imageUrl, design.budget, design.roomType, design.style);
+
+      sendAIAnalysisEmail({
+        customerEmail: dbUser.email,
+        designId: design.id,
+        roomType: design.roomType,
+        style: design.style,
+        budget: design.budget,
+        resultImageUrl: imageUrl,
+        analysis,
+      });
+
+      return res.json({ success: true, productCount: analysis.products.length });
+    } catch (err: any) {
+      log(`AI analysis error: ${err.message}`);
       return res.status(500).json({ message: err.message });
     }
   });

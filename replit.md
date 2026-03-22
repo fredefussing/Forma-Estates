@@ -162,6 +162,16 @@ scandinavian, modern, luxury, industrial, coastal, transitional, farmhouse, midc
 - On success: shows animated confirmation with credits added, auto-redirects to `/design` after 3.5s
 - On timeout: shows manual "Tjek igen" button and option to go to design tool anyway
 
+## AI Furniture Analysis System
+- Triggered from the "Få møbeltilbud på mail" button in the result view (replaces old quote-request form)
+- Requires user to be logged in and design to have a budget set
+- Flow: User clicks button → backend calls `POST /api/analyze-design` (auth required) → GPT-4o analyzes the AI-generated room image → identifies all furniture → distributes 85% of budget across products → sends email to both admin and customer
+- **Backend**: `server/ai_analyzer.ts` — OpenAI GPT-4o vision call; `server/product_matcher.ts` — maps product categories to Danish store search URLs
+- **Email**: Two emails sent via Brevo: (1) admin email with profit breakdown and all store search links; (2) customer email with clickable store links per product
+- **Stores by category**: furniture (IKEA, ILVA, Bolia, HAY, JYSK, Bahne, Menu), bed (Nordic Dream, Drømmeland, Sengeeksperten, Sengefabrikken, IKEA, JYSK), lamp (Lightpoint, HAY, Menu, IKEA, Bahne), rug (JYSK, IKEA, ILVA), accessory (JYSK, IKEA, HAY, Menu, Bahne)
+- **Profit model**: 85% of budget goes to products, 15% is profit shown only to admin
+- API route: `POST /api/analyze-design` (requires Firebase auth token + `{ designId }`)
+
 ## AI Design Agent
 - Free-text AI design generation at `/ai-design-agent`
 - User uploads a photo and writes any description they want (no dropdowns, no restrictions)
