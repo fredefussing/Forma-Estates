@@ -68,8 +68,8 @@ export function QuoteRequest({ designId, budget }: QuoteRequestProps) {
             <Check className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
-            <p className="text-sm font-medium" data-testid="text-quote-confirmed">Møbeltilbud sendt til din mail!</p>
-            <p className="text-xs text-muted-foreground mt-1">Vi har analyseret dit rum og fundet møblerne hos de bedste danske butikker. Tjek din indbakke.</p>
+            <p className="text-sm font-medium" data-testid="text-quote-confirmed">Forespørgsel modtaget!</p>
+            <p className="text-xs text-muted-foreground mt-1">Vi har modtaget din forespørgsel og vender tilbage med et personligt tilbud inden for 24 timer.</p>
           </div>
         </div>
       </motion.div>

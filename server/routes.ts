@@ -665,12 +665,14 @@ export async function registerRoutes(
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
-      const imageUrl = design.resultImageUrl.startsWith("http")
-        ? design.resultImageUrl
-        : `${protocol}://${host}${design.resultImageUrl}`;
+      const toAbsolute = (url: string) =>
+        url.startsWith("http") ? url : `${protocol}://${host}${url}`;
 
-      log(`Starting AI analysis for design #${design.id} (${design.resultImageUrl})`);
-      const analysis = await analyzeDesignImage(imageUrl, design.budget, design.roomType, design.style);
+      const resultImageUrl = toAbsolute(design.resultImageUrl);
+      const originalImageUrl = toAbsolute(design.originalImageUrl);
+
+      log(`Starting AI analysis for design #${design.id}`);
+      const analysis = await analyzeDesignImage(resultImageUrl, design.budget, design.roomType, design.style);
 
       sendAIAnalysisEmail({
         customerEmail: dbUser.email,
@@ -678,7 +680,8 @@ export async function registerRoutes(
         roomType: design.roomType,
         style: design.style,
         budget: design.budget,
-        resultImageUrl: imageUrl,
+        resultImageUrl,
+        originalImageUrl,
         analysis,
       });
 
