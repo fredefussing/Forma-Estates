@@ -1,5 +1,5 @@
 import { log } from "./index";
-import { buildAllSearchLinks } from "./product_matcher";
+import { getBackupLinks } from "./product_matcher";
 import type { AnalysisResult } from "./ai_analyzer";
 
 const KONTAKT_EMAIL = "kontakt@nordic-homebuild.com";
@@ -376,20 +376,22 @@ export async function sendAIAnalysisEmail(data: {
 
   const productRows = data.analysis.products
     .map((p) => {
-      const stores = buildAllSearchLinks(p.name, p.description, data.style);
-      const storeLinks = stores
+      const backups = getBackupLinks(p.name, p.searchTerms);
+      const backupLinks = backups
         .map((s) => `<a href="${s.searchUrl}" style="display:inline-block; margin:2px 4px 2px 0; padding:4px 12px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${s.name}</a>`)
         .join("");
       return `<tr>
         <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-          <strong style="font-size:14px;">${p.name}</strong><br/>
-          <span style="color:#888; font-size:12px; line-height:1.4;">${p.description}</span>
+          <strong style="font-size:14px;">${p.name}</strong>
         </td>
         <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
           ${p.estimatedPrice.toLocaleString("da-DK")} kr
         </td>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; line-height:1.8;">
-          ${storeLinks}
+        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+          <span style="font-family:monospace; font-size:13px; background:#f4f4f4; padding:4px 8px; border-radius:6px; display:inline-block; user-select:all; color:#333;">${p.searchTerms}</span>
+        </td>
+        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+          ${backupLinks}
         </td>
       </tr>`;
     })
@@ -457,14 +459,14 @@ export async function sendAIAnalysisEmail(data: {
 
         <!-- 4. AI ANALYSE -->
         <h3 style="margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">4. AI Analyse — Identificerede møbler</h3>
-        <p style="margin:0 0 16px; font-size:13px; color:#666; font-style:italic;">Klik på en butik → du lander direkte i søgeresultater. Find hvad der ligner AI-billedet og passer til prisen.</p>
-
+        <p style="margin:0 0 12px; font-size:13px; color:#666; font-style:italic;">Kopier søgeord → indsæt direkte i butikkens søgefelt. Ingen match? Brug backup-links.</p>
         <table style="width:100%; border-collapse:collapse; font-size:14px; border:1px solid #eee; border-radius:10px; overflow:hidden;">
           <thead>
             <tr style="background:#f0f0f0;">
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Produkt</th>
+              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Produkt</th>
               <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Budget</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Køb hos</th>
+              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Søgeord (kopier)</th>
+              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Backup</th>
             </tr>
           </thead>
           <tbody>${productRows}</tbody>

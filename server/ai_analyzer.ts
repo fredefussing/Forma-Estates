@@ -6,7 +6,7 @@ const openai = new OpenAI({
 
 export interface AnalyzedProduct {
   name: string;
-  description: string;
+  searchTerms: string;
   estimatedPrice: number;
 }
 
@@ -38,11 +38,21 @@ Samlet budget: ${budget} DKK. Produktbudget (85%): ${productBudget} DKK.
 
 Identificer ALLE synlige møbler og indretningselementer i billedet.
 Fordel produktbudgetet realistisk mellem produkterne.
-Svar KUN med valid JSON i dette format (ingen markdown, ingen forklaring):
+
+For hvert produkt skal du lave et naturligt dansk søgeord (bruges direkte i butikkernes søgefelt):
+- Beskriv type, materiale/farve og vigtige detaljer
+- 3-8 ord — præcist og søgbart
+- GODT: "spisebordsstol i lyst træ med fletning"
+- GODT: "rundt sofabord i egetræ med metalben"
+- GODT: "dobbeltseng i egetræ med lav profil"
+- FOR KORT: "spisebordsstol"
+- FOR LANGT: "spisebordsstol i lyst egetræ med flettet sæde og runde ben dansk design"
+
+Svar KUN med valid JSON (ingen markdown, ingen forklaring):
 {
   "products": [
-    {"name": "Sofa", "description": "3-personers i grå stof, nordisk design", "estimatedPrice": 8000},
-    {"name": "Sofabord", "description": "Rundt i eg med sort metalstel", "estimatedPrice": 2500}
+    {"name": "Sofa", "searchTerms": "3-personers sofa i grå stof med træben", "estimatedPrice": 8000},
+    {"name": "Sofabord", "searchTerms": "rundt sofabord i egetræ med sort metalstel", "estimatedPrice": 2500}
   ],
   "totalProductBudget": ${productBudget},
   "profit": ${profit}
