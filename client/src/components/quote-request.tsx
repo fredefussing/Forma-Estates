@@ -79,9 +79,9 @@ export function QuoteRequest({ designId, budget }: QuoteRequestProps) {
   return (
     <div className="border border-border/60 rounded-xl p-5 bg-card/30">
       <div className="mb-4">
-        <h3 className="text-sm font-medium" data-testid="text-quote-heading">Vil du købe møblerne?</h3>
+        <h3 className="text-sm font-medium" data-testid="text-quote-heading">Vil du have tilbud på disse møbler?</h3>
         <p className="text-xs text-muted-foreground mt-1">
-          AI analyserer dit rum og sender dig møbler med links til IKEA, HAY, JYSK og mange flere — direkte på mail.
+          Få tilbud fra vores udvalgte partnere inden for 24 timer
         </p>
       </div>
 
@@ -96,7 +96,7 @@ export function QuoteRequest({ designId, budget }: QuoteRequestProps) {
         ) : (
           <Mail className="w-3.5 h-3.5 mr-2" />
         )}
-        {submitMutation.isPending ? "Analyserer dit rum..." : "Få møbeltilbud på mail"}
+        {submitMutation.isPending ? "Analyserer dit rum..." : "Få tilbud nu"}
       </Button>
 
       <p className="text-[11px] text-muted-foreground/50 text-center mt-2">
