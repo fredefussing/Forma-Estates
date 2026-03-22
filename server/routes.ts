@@ -648,8 +648,7 @@ export async function registerRoutes(
 
   app.post("/api/analyze-design", async (req, res) => {
     try {
-      const firebaseUser = await verifyFirebaseToken(req);
-      if (!firebaseUser) return res.status(401).json({ message: "Unauthorized" });
+      const firebaseUser = await verifyFirebaseToken(req.headers.authorization);
 
       const { designId } = req.body;
       if (!designId) return res.status(400).json({ message: "designId required" });
