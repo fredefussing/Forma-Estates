@@ -52,20 +52,33 @@ const collovStyleMap: Record<string, string> = {
   midcentury: "midcentury",
 };
 
-const redesignRoomTypes = new Set(["kitchen", "bathroom"]);
+const stylePrompts: Record<string, string> = {
+  scandinavian: "Completely redesign this room in Scandinavian style. Light wood furniture, white and off-white walls, minimal decor, natural materials like wool and linen, clean lines, warm cozy Nordic atmosphere. Replace all existing furniture and decor.",
+  modern: "Completely redesign this room in modern style. Sleek contemporary furniture, neutral color palette, clean lines, open layout feel, minimal clutter, statement lighting. Replace all existing furniture and decor.",
+  luxury: "Completely redesign this room in luxury style. Premium materials, elegant furniture with rich textures, sophisticated color palette, marble or stone accents, high-end finishes, dramatic lighting. Replace all existing furniture and decor.",
+  industrial: "Completely redesign this room in industrial style. Dark tones, metal accents, leather or worn fabric furniture, exposed-look elements, Edison bulb lighting, raw and urban atmosphere. Replace all existing furniture and decor.",
+  coastal: "Completely redesign this room in coastal style. Light blues, sandy and white tones, natural rattan and wicker, linen textiles, beach-inspired decor, airy and relaxed atmosphere. Replace all existing furniture and decor.",
+  transitional: "Completely redesign this room in transitional style. Blend of classic and contemporary furniture, neutral warm palette, clean lines with subtle traditional touches, layered textures. Replace all existing furniture and decor.",
+  farmhouse: "Completely redesign this room in farmhouse style. Rustic wood furniture, white and cream palette, vintage-inspired accents, shiplap look, cozy textiles, natural organic materials. Replace all existing furniture and decor.",
+  midcentury: "Completely redesign this room in mid-century modern style. Retro furniture with organic shapes, warm walnut wood tones, bold accent colors, tapered legs, iconic design pieces. Replace all existing furniture and decor.",
+};
 
-async function sendCollovTask(uploadUrl: string, roomType: string, style: string, budgetPrompt?: string): Promise<string> {
-  const collovStyle = collovStyleMap[style] || "modern";
-  const collovType = redesignRoomTypes.has(roomType) ? "redesign" : "virtual_staging";
+function buildRedesignPrompt(roomType: string, style: string, tier?: string): string {
+  const styleBase = stylePrompts[style] || `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+  const tierNote = tier === "luxury" ? " Use premium, high-end furniture and materials." : tier === "budget" ? " Use affordable but stylish furniture." : "";
+  return `${styleBase}${tierNote}`;
+}
+
+async function sendCollovTask(uploadUrl: string, roomType: string, style: string, tier?: string): Promise<string> {
+  const prompt = buildRedesignPrompt(roomType, style, tier);
 
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
-  form.append("roomType", roomType);
-  form.append("style", collovStyle);
+  form.append("prompt", prompt);
 
-  log(`Collov send: style=${style} → collovStyle=${collovStyle}, roomType=${roomType} (no type, no prompt — original config)`);
+  log(`Collov redesign send: style=${style}, roomType=${roomType}, prompt="${prompt.slice(0, 100)}..."`);
 
-  const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
+  const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
     method: "POST",
     headers: {
       apiKey: COLLOV_API_KEY!,
@@ -74,6 +87,7 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   });
 
   const json = (await res.json()) as any;
+  log(`Collov redesign response (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 300)}`);
   if (!json.success || !json.data?.uuid) {
     log(`Collov API error response: ${JSON.stringify(json)}`);
     throw new Error(json.message || "Collov API returned an error");
@@ -84,7 +98,7 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
 
 async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
   const res = await fetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
+    `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
     {
       method: "GET",
       headers: {
@@ -94,19 +108,18 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
   );
 
   const json = (await res.json()) as any;
+  // edit/getRecord returns status and generateUrl directly on data
   const data = json.data || {};
-  const record = data.generateRecordList?.[0] || {};
-  const status = record.status || data.status;
+  const status = data.status;
 
-  log(`Collov poll for ${uuid}: status=${status}, raw=${JSON.stringify(json).slice(0, 500)}`);
+  log(`Collov poll for ${uuid}: status=${status}, raw=${JSON.stringify(json).slice(0, 400)}`);
 
   if (status === "SUCCESS") {
-    const resultUrl = record.generateUrl || data.aiGenerateRecord?.generateUrl;
-    return { status: "completed", resultUrl };
+    return { status: "completed", resultUrl: data.generateUrl };
   }
   if (status === "FAILED") {
-    const failReason = record.failReason || record.errorMessage || record.message || "unknown";
-    log(`Collov FAILED reason: ${failReason}, full record: ${JSON.stringify(record).slice(0, 300)}`);
+    const failReason = data.failReason || data.errorMessage || data.message || "unknown";
+    log(`Collov FAILED reason: ${failReason}`);
     return { status: "failed", failReason };
   }
 
@@ -348,19 +361,11 @@ export async function registerRoutes(
         return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
       }
 
-      let budgetPrompt: string | undefined;
-
-      if (tier && styleVocabulary[parsed.data.style]?.[tier]) {
-        const tierConfig = styleVocabulary[parsed.data.style][tier];
-
-        budgetPrompt = `${parsed.data.roomType} ${parsed.data.style}`;
-      }
-
       try {
-        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, budgetPrompt);
+        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier);
         await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
 
-        const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, budgetPrompt);
+        const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier);
         backgroundPoll(design.id, uuid, retryFn);
 
         const updated = await storage.getDesign(design.id);
