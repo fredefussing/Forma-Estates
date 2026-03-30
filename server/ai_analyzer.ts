@@ -41,13 +41,17 @@ Samlet budget: ${budget} DKK. Produktbudget (85%): ${productBudget} DKK.
 
 Find de 4-6 vigtigste møbler/produkter i billedet, start med det dyreste.
 
-For hvert produkt, lav en KORT, PRÆCIS dansk søgetekst:
-- Max 4-5 ord
-- Type + materiale + farve
-- Ingen pris, ingen "moderne" eller "skandinavisk" medmindre absolut nødvendigt
+For hvert produkt, lav en KORT, PRÆCIS dansk søgetekst der beskriver præcis hvad du ser:
+- Max 5-6 ord
+- Vend/form + type + farve/materiale (f.eks. "højrevendt", "rund", "oval", "firkantet", "lav")
+- Beskriv det specifikke du ser — ikke det generiske
+- Ingen pris, ingen "moderne" eller "skandinavisk" medmindre det er tydeligt
 
-Eksempel GODT: "hjørnesofa grå stof metal"
-Eksempel DÅRLIGT: "stor hjørnesofa grå stof metal ramme moderne skandinavisk 15000 kr"
+Eksempel GODT: "højrevendt beige sofa stof"
+Eksempel GODT: "oval sofabord egetræ lav"
+Eksempel GODT: "sort metalhylde åben væg"
+Eksempel DÅRLIGT: "hjørnesofa grå stof metal ramme"
+Eksempel DÅRLIGT: "moderne skandinavisk sofabord 15000 kr"
 
 Vælg 2 butikker der passer bedst til produktet:
 - Store møbler (sofa, seng, skab): IKEA, Bolia, ILVA
