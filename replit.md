@@ -21,6 +21,7 @@ Nordic Homebuild is a web application that uses the Collov AI API to transform r
 - `client/src/pages/find-style.tsx` - "Find din stil" quiz: 3-step flow (room → style → budget → recommendation with pre-selected redirect to /design)
 - `client/src/pages/home.tsx` - Design tool page with 3-step flow (upload → configure with budget → result), reads URL params from quiz
 - `client/src/pages/trending.tsx` - Trending designs page showing popular style+room combinations
+- `client/src/pages/agent-design-detail.tsx` - Detail page for AI Design Agent results (before/after slider + prompt display)
 - `client/src/pages/admin-quotes.tsx` - Admin quote builder page
 - `client/src/components/budget-slider.tsx` - Budget slider with tier display and retailer recommendations
 - `client/src/components/before-after-slider.tsx` - Interactive before/after comparison slider

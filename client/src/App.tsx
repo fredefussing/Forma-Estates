@@ -17,6 +17,7 @@ import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import AccountPage from "@/pages/account";
 import MyDesignsPage from "@/pages/my-designs";
+import AgentDesignDetailPage from "@/pages/agent-design-detail";
 import DesignDetailPage from "@/pages/design-detail";
 import PaymentSuccessPage from "@/pages/payment-success";
 
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/betalt" component={PaymentSuccessPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
+      <Route path="/agent-design/:id" component={AgentDesignDetailPage} />
       <Route path="/ai-design-agent" component={AIDesignAgentPage} />
       <Route component={NotFound} />
     </Switch>

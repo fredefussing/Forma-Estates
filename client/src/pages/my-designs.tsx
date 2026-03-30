@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Flame, ArrowLeft, Loader2, Palette, Image } from "lucide-react";
+import { Flame, ArrowLeft, Loader2, Palette, Image, Wand2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Design } from "@shared/schema";
 
 const roomTypeLabels: Record<string, string> = {
   "living room": "Stue",
@@ -44,10 +43,25 @@ function formatDKK(amount: number): string {
   return amount.toLocaleString("da-DK") + " kr";
 }
 
+interface CombinedDesign {
+  id: number;
+  designType: "redesign" | "agent";
+  resultImageUrl: string | null;
+  originalImageUrl: string | null;
+  createdAt: string;
+  // redesign fields
+  roomType?: string;
+  style?: string;
+  budget?: number | null;
+  tier?: string | null;
+  // agent fields
+  agentPrompt?: string | null;
+}
+
 export default function MyDesignsPage() {
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [designs, setDesigns] = useState<Design[]>([]);
+  const [designs, setDesigns] = useState<CombinedDesign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,7 +75,7 @@ export default function MyDesignsPage() {
       if (!user) return;
       try {
         const token = await user.getIdToken();
-        const res = await fetch("/api/designs/my", {
+        const res = await fetch("/api/my-designs", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -85,8 +99,6 @@ export default function MyDesignsPage() {
       </div>
     );
   }
-
-  const completedDesigns = designs.filter((d) => d.status === "completed");
 
   return (
     <div className="min-h-screen bg-[#f5f5f0]">
@@ -123,18 +135,26 @@ export default function MyDesignsPage() {
           <div>
             <h1 className="text-2xl font-bold" data-testid="text-title">Dine designs</h1>
             <p className="text-muted-foreground mt-1" data-testid="text-count">
-              {completedDesigns.length} {completedDesigns.length === 1 ? "design" : "designs"}
+              {designs.length} {designs.length === 1 ? "design" : "designs"}
             </p>
           </div>
-          <Link href="/design">
-            <Button className="h-11 px-6" data-testid="button-new-design">
-              <Palette className="w-4 h-4 mr-2" />
-              Lav nyt design
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/ai-design-agent">
+              <Button variant="outline" className="h-11 px-5" data-testid="button-new-agent-design">
+                <Wand2 className="w-4 h-4 mr-2" />
+                AI Design Agent
+              </Button>
+            </Link>
+            <Link href="/design">
+              <Button className="h-11 px-6" data-testid="button-new-design">
+                <Palette className="w-4 h-4 mr-2" />
+                Lav nyt design
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {completedDesigns.length === 0 ? (
+        {designs.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 shadow-sm text-center">
             <Image className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2" data-testid="text-empty-title">Ingen designs endnu</h2>
@@ -145,41 +165,70 @@ export default function MyDesignsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {completedDesigns.map((design) => (
-              <Link key={design.id} href={`/design/${design.id}`}>
-                <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-border/40" data-testid={`card-design-${design.id}`}>
-                  <div className="relative">
-                    <img
-                      src={design.resultImageUrl || design.originalImageUrl}
-                      alt={`${design.roomType} - ${design.style}`}
-                      className="w-full h-52 object-cover"
-                      data-testid={`img-design-${design.id}`}
-                    />
-                  </div>
-                  <div className="p-4">
-                    <p className="font-semibold text-sm" data-testid={`text-design-info-${design.id}`}>
-                      {roomTypeLabels[design.roomType] || design.roomType}
-                      <span className="text-muted-foreground font-normal"> · </span>
-                      {styleLabels[design.style] || design.style}
-                    </p>
-                    <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-muted-foreground" data-testid={`text-design-date-${design.id}`}>
-                        {new Date(design.createdAt).toLocaleDateString("da-DK", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                      {design.budget && design.tier && (
-                        <p className="text-xs text-muted-foreground" data-testid={`text-design-budget-${design.id}`}>
-                          {formatDKK(design.budget)} · {tierLabels[design.tier] || design.tier}
-                        </p>
+            {designs.map((design) => {
+              const href = design.designType === "agent"
+                ? `/agent-design/${design.id}`
+                : `/design/${design.id}`;
+
+              return (
+                <Link key={`${design.designType}-${design.id}`} href={href}>
+                  <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-border/40" data-testid={`card-design-${design.designType}-${design.id}`}>
+                    <div className="relative">
+                      <img
+                        src={design.resultImageUrl || design.originalImageUrl || ""}
+                        alt="Design"
+                        className="w-full h-52 object-cover"
+                        data-testid={`img-design-${design.id}`}
+                      />
+                      <span
+                        className={`absolute top-2 right-2 text-[11px] font-semibold px-2.5 py-1 rounded-full ${
+                          design.designType === "agent"
+                            ? "bg-purple-600 text-white"
+                            : "bg-[#1a1a1a] text-white"
+                        }`}
+                        data-testid={`badge-type-${design.id}`}
+                      >
+                        {design.designType === "agent" ? "AI Design Agent" : "AI Redesign"}
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      {design.designType === "redesign" ? (
+                        <>
+                          <p className="font-semibold text-sm" data-testid={`text-design-info-${design.id}`}>
+                            {roomTypeLabels[design.roomType!] || design.roomType}
+                            <span className="text-muted-foreground font-normal"> · </span>
+                            {styleLabels[design.style!] || design.style}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs text-muted-foreground" data-testid={`text-design-date-${design.id}`}>
+                              {new Date(design.createdAt).toLocaleDateString("da-DK", {
+                                day: "numeric", month: "long", year: "numeric",
+                              })}
+                            </p>
+                            {design.budget && design.tier && (
+                              <p className="text-xs text-muted-foreground" data-testid={`text-design-budget-${design.id}`}>
+                                {formatDKK(design.budget)} · {tierLabels[design.tier] || design.tier}
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-sm line-clamp-1" data-testid={`text-agent-prompt-${design.id}`}>
+                            {design.agentPrompt || "AI Design Agent"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2" data-testid={`text-agent-date-${design.id}`}>
+                            {new Date(design.createdAt).toLocaleDateString("da-DK", {
+                              day: "numeric", month: "long", year: "numeric",
+                            })}
+                          </p>
+                        </>
                       )}
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
 

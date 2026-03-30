@@ -433,6 +433,32 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/my-designs", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(404).json({ message: "Bruger ikke fundet" });
+
+      const [regularDesigns, agentDesignsData] = await Promise.all([
+        user.isAdmin ? storage.getAllDesigns() : storage.getDesignsByUser(user.id),
+        storage.getAgentDesignsByUser(user.id),
+      ]);
+
+      const combined = [
+        ...regularDesigns
+          .filter((d) => d.status === "completed")
+          .map((d) => ({ ...d, designType: "redesign" as const })),
+        ...agentDesignsData
+          .filter((d) => d.status === "completed" && d.resultImageUrl)
+          .map((d) => ({ ...d, designType: "agent" as const })),
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return res.json(combined);
+    } catch {
+      return res.status(401).json({ message: "Ugyldig token" });
+    }
+  });
+
   app.get("/api/designs", async (_req, res) => {
     const allDesigns = await storage.getAllDesigns();
     return res.json(allDesigns);
@@ -1081,6 +1107,18 @@ export async function registerRoutes(
       }
     } catch (err: any) {
       log(`POST /api/agent-designs error: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/agent-designs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const design = await storage.getAgentDesign(id);
+      if (!design) return res.status(404).json({ error: "Not found" });
+      return res.json(design);
+    } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
   });
