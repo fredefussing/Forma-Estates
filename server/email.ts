@@ -1,6 +1,6 @@
 import { log } from "./index";
 import { getStoreSearchUrl } from "./product_matcher";
-import type { AnalysisResult } from "./ai_analyzer";
+import type { AnalysisResult, HybridProduct } from "./ai_analyzer";
 
 const KONTAKT_EMAIL = "kontakt@nordic-homebuild.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
@@ -344,6 +344,71 @@ export async function sendSpecialRequestEmail(data: {
   }
 }
 
+function renderProductRow(p: HybridProduct): string {
+  if (p.method === "google_lens") {
+    const stockBadge = p.inStock
+      ? `<span style="color:#16a34a; font-size:11px; font-weight:600;">✓ På lager</span>`
+      : `<span style="color:#dc2626; font-size:11px;">✗ Udsolgt</span>`;
+    const thumbHtml = p.thumbnail
+      ? `<img src="${p.thumbnail}" style="width:64px; height:64px; object-fit:cover; border-radius:6px; display:block; margin-bottom:6px;" />`
+      : "";
+    return `<tr>
+      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+        ${thumbHtml}
+        <strong style="font-size:14px;">${p.name}</strong><br/>
+        <span style="font-size:11px; color:#888; background:#e8f5e9; padding:2px 6px; border-radius:10px; display:inline-block; margin-top:4px;">🔍 Google Lens</span>
+      </td>
+      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
+        ${p.price > 0 ? p.price.toLocaleString("da-DK") + " " + p.currency : "—"}
+      </td>
+      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#444;">
+        ${p.source}<br/>${stockBadge}
+      </td>
+      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#888; font-style:italic;">
+        Visuelt match fundet
+      </td>
+      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+        ${p.link
+          ? `<a href="${p.link}" style="display:inline-block; padding:6px 14px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:600;">Gå til produkt →</a>`
+          : "—"}
+      </td>
+    </tr>`;
+  }
+
+  // OpenAI product
+  const store1 = p.recommendedStores?.[0];
+  const store2 = p.recommendedStores?.[1];
+  const store1Html = store1
+    ? `<strong>${store1.name}</strong> — <span style="color:#666; font-size:12px;">${store1.reason}</span><br/>
+       <a href="${getStoreSearchUrl(store1.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store1.name} →</a>`
+    : "";
+  const store2Html = store2
+    ? `<strong>${store2.name}</strong> — <span style="color:#666; font-size:12px;">${store2.reason}</span><br/>
+       <a href="${getStoreSearchUrl(store2.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#444; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store2.name} →</a>`
+    : "";
+
+  return `<tr>
+    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+      <strong style="font-size:14px;">${p.name}</strong><br/>
+      <span style="font-size:11px; color:#888; background:#f0f0ff; padding:2px 6px; border-radius:10px; display:inline-block; margin-top:4px;">🤖 AI analyse</span>
+    </td>
+    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
+      ${(p.exactBudget ?? 0).toLocaleString("da-DK")} kr
+    </td>
+    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+      <code style="font-family:monospace; font-size:12px; background:#f4f4f4; padding:5px 8px; border-radius:6px; display:block; color:#333; line-height:1.5;">${p.searchTerms}</code>
+    </td>
+    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#444; line-height:1.5;">
+      ${p.visualDescription}
+    </td>
+    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; line-height:1.6;">
+      ${store1Html}
+      ${store2 ? "<br/>" : ""}
+      ${store2Html}
+    </td>
+  </tr>`;
+}
+
 export async function sendAIAnalysisEmail(data: {
   customerEmail: string;
   designId: number;
@@ -374,39 +439,20 @@ export async function sendAIAnalysisEmail(data: {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Copenhagen",
   });
 
-  const productRows = data.analysis.products
-    .map((p) => {
-      const store1 = p.recommendedStores?.[0];
-      const store2 = p.recommendedStores?.[1];
-      const store1Html = store1
-        ? `<strong>${store1.name}</strong> — <span style="color:#666; font-size:12px;">${store1.reason}</span><br/>
-           <a href="${getStoreSearchUrl(store1.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store1.name} →</a>`
-        : "";
-      const store2Html = store2
-        ? `<strong>${store2.name}</strong> — <span style="color:#666; font-size:12px;">${store2.reason}</span><br/>
-           <a href="${getStoreSearchUrl(store2.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#444; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store2.name} →</a>`
-        : "";
-      return `<tr>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-          <strong style="font-size:14px;">${p.name}</strong>
-        </td>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
-          ${(p.exactBudget ?? 0).toLocaleString("da-DK")} kr
-        </td>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-          <code style="font-family:monospace; font-size:12px; background:#f4f4f4; padding:5px 8px; border-radius:6px; display:block; color:#333; line-height:1.5;">${p.searchTerms}</code>
-        </td>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#444; line-height:1.5;">
-          ${p.visualDescription}
-        </td>
-        <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; line-height:1.6;">
-          ${store1Html}
-          ${store2 ? '<br/>' : ''}
-          ${store2Html}
-        </td>
-      </tr>`;
-    })
-    .join("");
+  const isGoogleLens = data.analysis.analysisMethod === "google_lens";
+  const methodBadge = isGoogleLens
+    ? `<span style="background:#e8f5e9; color:#16a34a; font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid #bbf7d0;">🔍 Google Lens fandt direkte matches</span>`
+    : `<span style="background:#f0f0ff; color:#4f46e5; font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid #c7d2fe;">🤖 AI analyse (OpenAI GPT-4o)</span>`;
+
+  const productRows = data.analysis.products.map(renderProductRow).join("");
+
+  const glensColHeaders = isGoogleLens
+    ? `<th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Butik / Status</th>
+       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">AI beskrivelse</th>
+       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Link</th>`
+    : `<th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Søgeord (kopier)</th>
+       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">AI ser dette</th>
+       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Anbefaling</th>`;
 
   const html = `
     <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; max-width:700px; margin:0 auto; color:#222; background:#fff;">
@@ -450,6 +496,10 @@ export async function sendAIAnalysisEmail(data: {
               <td style="padding:4px 0; color:#666;">Budget:</td>
               <td style="padding:4px 0; font-weight:700; font-size:15px; color:#1a1a1a;">${data.budget.toLocaleString("da-DK")} kr</td>
             </tr>
+            <tr>
+              <td style="padding:4px 0; color:#666;">Metode:</td>
+              <td style="padding:4px 0;">${methodBadge}</td>
+            </tr>
           </table>
         </div>
 
@@ -468,17 +518,19 @@ export async function sendAIAnalysisEmail(data: {
           </tr>
         </table>
 
-        <!-- 4. AI ANALYSE -->
-        <h3 style="margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">4. AI Analyse — Identificerede møbler</h3>
-        <p style="margin:0 0 12px; font-size:13px; color:#666; font-style:italic;">Kopier søgeord → indsæt direkte i butikkens søgefelt. Ingen match? Brug backup-links.</p>
+        <!-- 4. PRODUKTER -->
+        <h3 style="margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">4. Identificerede produkter</h3>
+        <p style="margin:0 0 12px; font-size:13px; color:#666; font-style:italic;">
+          ${isGoogleLens
+            ? "Google Lens fandt disse produkter direkte i billedet — klik på linket for at se produktet."
+            : "AI analyserede billedet — kopier søgeord og indsæt i butikkens søgefelt."}
+        </p>
         <table style="width:100%; border-collapse:collapse; font-size:14px; border:1px solid #eee; border-radius:10px; overflow:hidden;">
           <thead>
             <tr style="background:#f0f0f0;">
               <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Produkt</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Budget</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Søgeord (kopier)</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">AI ser dette</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Anbefaling</th>
+              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Pris</th>
+              ${glensColHeaders}
             </tr>
           </thead>
           <tbody>${productRows}</tbody>

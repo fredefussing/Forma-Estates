@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { searchWithGoogleLens, type GoogleLensProduct } from "./google_lens";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,7 +10,8 @@ export interface RecommendedStore {
   reason: string;
 }
 
-export interface AnalyzedProduct {
+export interface OpenAIProduct {
+  method: "openai";
   name: string;
   searchTerms: string;
   exactBudget: number;
@@ -17,20 +19,22 @@ export interface AnalyzedProduct {
   recommendedStores: RecommendedStore[];
 }
 
+export type HybridProduct = GoogleLensProduct | OpenAIProduct;
+
 export interface AnalysisResult {
-  products: AnalyzedProduct[];
+  products: HybridProduct[];
   totalProductBudget: number;
   profit: number;
+  analysisMethod: "google_lens" | "openai_fallback";
 }
 
-export async function analyzeDesignImage(
+async function analyzeWithOpenAI(
   imageUrl: string,
   budget: number,
   roomType: string,
   style: string
-): Promise<AnalysisResult> {
+): Promise<OpenAIProduct[]> {
   const productBudget = Math.round(budget * 0.85);
-  const profit = budget - productBudget;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -77,9 +81,7 @@ Svar KUN med valid JSON (ingen markdown, ingen forklaring):
         {"name": "IKEA", "reason": "Bredt udvalg af minimalistiske senge i grå"}
       ]
     }
-  ],
-  "totalProductBudget": ${productBudget},
-  "profit": ${profit}
+  ]
 }`,
           },
           {
@@ -96,8 +98,42 @@ Svar KUN med valid JSON (ingen markdown, ingen forklaring):
   const content = response.choices[0].message.content;
   if (!content) throw new Error("No response from OpenAI");
 
-  const parsed = JSON.parse(content) as AnalysisResult;
-  parsed.totalProductBudget = productBudget;
-  parsed.profit = profit;
-  return parsed;
+  const parsed = JSON.parse(content);
+  return (parsed.products ?? []).map((p: any) => ({ ...p, method: "openai" as const }));
+}
+
+export async function analyzeDesignImage(
+  imageUrl: string,
+  budget: number,
+  roomType: string,
+  style: string
+): Promise<AnalysisResult> {
+  const productBudget = Math.round(budget * 0.85);
+  const profit = budget - productBudget;
+
+  // Try Google Lens first
+  console.log(`[AI Analyzer] Trying Google Lens for ${imageUrl}`);
+  const googleResults = await searchWithGoogleLens(imageUrl);
+
+  if (googleResults.length > 0) {
+    console.log(`[AI Analyzer] Google Lens found ${googleResults.length} products`);
+    const totalProductBudget = googleResults.reduce((sum, p) => sum + p.price, 0);
+    return {
+      products: googleResults,
+      totalProductBudget: Math.round(totalProductBudget) || productBudget,
+      profit,
+      analysisMethod: "google_lens",
+    };
+  }
+
+  // Fallback to OpenAI
+  console.log(`[AI Analyzer] Google Lens found no results, falling back to OpenAI`);
+  const openAIProducts = await analyzeWithOpenAI(imageUrl, budget, roomType, style);
+
+  return {
+    products: openAIProducts,
+    totalProductBudget: productBudget,
+    profit,
+    analysisMethod: "openai_fallback",
+  };
 }
