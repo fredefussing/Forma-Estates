@@ -183,6 +183,11 @@ export default function AIDesignAgentPage() {
             <Link href="/pris">
               <span className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline cursor-pointer" data-testid="link-pricing">Pris</span>
             </Link>
+            {user && (
+              <Link href="/mine-designs">
+                <span className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline cursor-pointer" data-testid="link-my-designs">Mine designs</span>
+              </Link>
+            )}
             <Link href={user ? "/min-konto" : "/login"}>
               <span className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 cursor-pointer" data-testid="link-account">
                 <User className="w-3.5 h-3.5" />

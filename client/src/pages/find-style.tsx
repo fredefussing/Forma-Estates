@@ -306,6 +306,9 @@ export default function FindStylePage() {
             <li><span className="no-underline text-[#1a1a1a] font-medium relative after:content-[''] after:absolute after:-bottom-[5px] after:left-0 after:w-full after:h-[2px] after:bg-[#1a1a1a]">Find din stil</span></li>
             <li><Link href="/pris"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-pricing">Pris</span></Link></li>
             <li><Link href="/design"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-design">Design</span></Link></li>
+            {user && (
+              <li><Link href="/mine-designs"><span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors" data-testid="link-my-designs">Mine designs</span></Link></li>
+            )}
             <li>
               <Link href={user ? "/min-konto" : "/login"}>
                 <span className="no-underline text-[#555] font-medium cursor-pointer hover:text-[#1a1a1a] transition-colors inline-flex items-center gap-1" data-testid="link-account">

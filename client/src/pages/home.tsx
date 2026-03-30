@@ -406,6 +406,11 @@ export default function HomePage() {
               <span className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline cursor-pointer" data-testid="link-pricing">Pris</span>
             </Link>
             <a href="/#om-os" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline" data-testid="link-about">Om os</a>
+            {user && (
+              <Link href="/mine-designs">
+                <span className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline cursor-pointer" data-testid="link-my-designs">Mine designs</span>
+              </Link>
+            )}
             <Link href={user ? "/min-konto" : "/login"}>
               <span className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 cursor-pointer" data-testid="link-account">
                 <User className="w-3.5 h-3.5" />

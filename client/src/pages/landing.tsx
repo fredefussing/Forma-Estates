@@ -20,6 +20,11 @@ export default function LandingPage() {
             <Link href="/find-stil">
               <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
             </Link>
+            {user && (
+              <Link href="/mine-designs">
+                <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-my-designs">Mine designs</span>
+              </Link>
+            )}
             <Link href="/ai-design-agent">
               <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-ai-agent">AI Design Agent</span>
             </Link>
