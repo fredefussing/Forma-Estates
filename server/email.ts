@@ -1,6 +1,6 @@
 import { log } from "./index";
 import { getStoreSearchUrl } from "./product_matcher";
-import type { AnalysisResult, HybridProduct } from "./ai_analyzer";
+import type { AnalysisResult, CombinedProduct } from "./ai_analyzer";
 
 const KONTAKT_EMAIL = "kontakt@nordic-homebuild.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
@@ -344,68 +344,61 @@ export async function sendSpecialRequestEmail(data: {
   }
 }
 
-function renderProductRow(p: HybridProduct): string {
-  if (p.method === "google_lens") {
-    const stockBadge = p.inStock
-      ? `<span style="color:#16a34a; font-size:11px; font-weight:600;">✓ På lager</span>`
-      : `<span style="color:#dc2626; font-size:11px;">✗ Udsolgt</span>`;
-    const thumbHtml = p.thumbnail
-      ? `<img src="${p.thumbnail}" style="width:64px; height:64px; object-fit:cover; border-radius:6px; display:block; margin-bottom:6px;" />`
+function renderCombinedProductRow(p: CombinedProduct): string {
+  const gl = p.googleLens;
+  const ai = p.openAI;
+
+  // Skip rows where AI says not visible AND no GL match
+  if (!gl && ai && !ai.visible) return "";
+
+  // Google Lens cell
+  let glCell = `<td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px;">`;
+  if (gl) {
+    const stockBadge = gl.inStock
+      ? `<span style="color:#16a34a; font-weight:600;">✓ På lager</span>`
+      : `<span style="color:#dc2626;">✗ Udsolgt</span>`;
+    const thumb = gl.thumbnail
+      ? `<img src="${gl.thumbnail}" style="width:56px; height:56px; object-fit:cover; border-radius:6px; display:block; margin-bottom:6px;" />`
       : "";
-    return `<tr>
-      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-        ${thumbHtml}
-        <strong style="font-size:14px;">${p.name}</strong><br/>
-        <span style="font-size:11px; color:#888; background:#e8f5e9; padding:2px 6px; border-radius:10px; display:inline-block; margin-top:4px;">🔍 Google Lens</span>
-      </td>
-      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
-        ${p.price > 0 ? p.price.toLocaleString("da-DK") + " " + p.currency : "—"}
-      </td>
-      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#444;">
-        ${p.source}<br/>${stockBadge}
-      </td>
-      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#888; font-style:italic;">
-        Visuelt match fundet
-      </td>
-      <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-        ${p.link
-          ? `<a href="${p.link}" style="display:inline-block; padding:6px 14px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:600;">Gå til produkt →</a>`
-          : "—"}
-      </td>
-    </tr>`;
+    glCell += `${thumb}
+      <strong style="color:#1a1a1a;">${gl.source}</strong><br/>
+      <span style="font-size:14px; font-weight:700;">${gl.price > 0 ? gl.price.toLocaleString("da-DK") + " " + gl.currency : "—"}</span><br/>
+      ${stockBadge}<br/>
+      ${gl.link ? `<a href="${gl.link}" style="display:inline-block; margin-top:6px; padding:5px 12px; background:#1a1a1a; color:#fff; border-radius:16px; font-size:11px; text-decoration:none; font-weight:600;">Gå til produkt →</a>` : ""}`;
+  } else {
+    glCell += `<span style="color:#bbb; font-style:italic; font-size:12px;">Ingen match</span>`;
   }
+  glCell += `</td>`;
 
-  // OpenAI product
-  const store1 = p.recommendedStores?.[0];
-  const store2 = p.recommendedStores?.[1];
-  const store1Html = store1
-    ? `<strong>${store1.name}</strong> — <span style="color:#666; font-size:12px;">${store1.reason}</span><br/>
-       <a href="${getStoreSearchUrl(store1.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#1a1a1a; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store1.name} →</a>`
-    : "";
-  const store2Html = store2
-    ? `<strong>${store2.name}</strong> — <span style="color:#666; font-size:12px;">${store2.reason}</span><br/>
-       <a href="${getStoreSearchUrl(store2.name, p.searchTerms)}" style="display:inline-block; margin-top:4px; padding:4px 12px; background:#444; color:#fff; border-radius:20px; font-size:12px; text-decoration:none; font-weight:500;">${store2.name} →</a>`
-    : "";
+  // OpenAI cell
+  let aiCell = `<td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px;">`;
+  if (ai && ai.visible && ai.searchTerms) {
+    const store1 = ai.recommendedStores?.[0];
+    const store2 = ai.recommendedStores?.[1];
+    aiCell += `<code style="font-size:12px; background:#f4f4f4; padding:4px 8px; border-radius:6px; display:block; color:#333; line-height:1.5; margin-bottom:6px;">${ai.searchTerms}</code>`;
+    if (ai.visualDescription) {
+      aiCell += `<span style="color:#888; font-size:12px; font-style:italic; display:block; margin-bottom:6px;">${ai.visualDescription}</span>`;
+    }
+    if (store1) {
+      aiCell += `<a href="${getStoreSearchUrl(store1.name, ai.searchTerms)}" style="display:inline-block; margin-right:4px; margin-top:2px; padding:3px 10px; background:#444; color:#fff; border-radius:14px; font-size:11px; text-decoration:none;">${store1.name} →</a>`;
+    }
+    if (store2) {
+      aiCell += `<a href="${getStoreSearchUrl(store2.name, ai.searchTerms)}" style="display:inline-block; margin-top:2px; padding:3px 10px; background:#888; color:#fff; border-radius:14px; font-size:11px; text-decoration:none;">${store2.name} →</a>`;
+    }
+  } else {
+    aiCell += `<span style="color:#bbb; font-style:italic; font-size:12px;">Ikke synlig i billedet</span>`;
+  }
+  aiCell += `</td>`;
 
-  return `<tr>
+  const rowBg = gl ? "" : `style="background:#fafafa;"`;
+
+  return `<tr ${rowBg}>
     <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-      <strong style="font-size:14px;">${p.name}</strong><br/>
-      <span style="font-size:11px; color:#888; background:#f0f0ff; padding:2px 6px; border-radius:10px; display:inline-block; margin-top:4px;">🤖 AI analyse</span>
+      <strong style="font-size:14px;">${p.categoryName}</strong><br/>
+      <span style="font-size:12px; color:#999;">Mål: ${p.targetBudget.toLocaleString("da-DK")} kr</span>
     </td>
-    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; white-space:nowrap; font-weight:700; font-size:14px; color:#1a1a1a;">
-      ${(p.exactBudget ?? 0).toLocaleString("da-DK")} kr
-    </td>
-    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top;">
-      <code style="font-family:monospace; font-size:12px; background:#f4f4f4; padding:5px 8px; border-radius:6px; display:block; color:#333; line-height:1.5;">${p.searchTerms}</code>
-    </td>
-    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; color:#444; line-height:1.5;">
-      ${p.visualDescription}
-    </td>
-    <td style="padding:14px 12px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; line-height:1.6;">
-      ${store1Html}
-      ${store2 ? "<br/>" : ""}
-      ${store2Html}
-    </td>
+    ${glCell}
+    ${aiCell}
   </tr>`;
 }
 
@@ -439,23 +432,16 @@ export async function sendAIAnalysisEmail(data: {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Copenhagen",
   });
 
-  const isGoogleLens = data.analysis.analysisMethod === "google_lens";
-  const methodBadge = isGoogleLens
-    ? `<span style="background:#e8f5e9; color:#16a34a; font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid #bbf7d0;">🔍 Google Lens fandt direkte matches</span>`
-    : `<span style="background:#f0f0ff; color:#4f46e5; font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid #c7d2fe;">🤖 AI analyse (OpenAI GPT-4o)</span>`;
+  const glCount = data.analysis.googleLensCount;
+  const total = data.analysis.products.length;
+  const methodBadge = glCount > 0
+    ? `<span style="background:#e8f5e9; color:#16a34a; font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid #bbf7d0;">🔍 Google Lens: ${glCount}/${total} direkte matches</span>`
+    : `<span style="background:#f0f0ff; color:#4f46e5; font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid #c7d2fe;">🤖 Kun AI analyse (ingen GL matches)</span>`;
 
-  const productRows = data.analysis.products.map(renderProductRow).join("");
-
-  const glensColHeaders = isGoogleLens
-    ? `<th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Butik / Status</th>
-       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">AI beskrivelse</th>
-       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Link</th>`
-    : `<th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">Søgeord (kopier)</th>
-       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666;">AI ser dette</th>
-       <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Anbefaling</th>`;
+  const productRows = data.analysis.products.map(renderCombinedProductRow).join("");
 
   const html = `
-    <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; max-width:700px; margin:0 auto; color:#222; background:#fff;">
+    <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; max-width:760px; margin:0 auto; color:#222; background:#fff;">
 
       <!-- HEADER -->
       <div style="background:#1a1a1a; padding:24px 28px; border-radius:12px 12px 0 0;">
@@ -465,80 +451,57 @@ export async function sendAIAnalysisEmail(data: {
 
       <div style="padding:28px; border:1px solid #eee; border-top:none; border-radius:0 0 12px 12px;">
 
-        <!-- 1. KUNDE INFO -->
-        <div style="background:#f8f8f8; border-radius:10px; padding:16px 20px; margin-bottom:24px;">
-          <h3 style="margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">1. Kundeinfo</h3>
-          <table style="width:100%; border-collapse:collapse; font-size:14px;">
-            <tr>
-              <td style="padding:4px 0; color:#666; width:100px;">Email:</td>
-              <td style="padding:4px 0; font-weight:600;"><a href="mailto:${data.customerEmail}" style="color:#1a1a1a;">${data.customerEmail}</a></td>
-            </tr>
-            <tr>
-              <td style="padding:4px 0; color:#666;">Design ID:</td>
-              <td style="padding:4px 0; font-weight:600;">#${data.designId}</td>
-            </tr>
-          </table>
+        <!-- 1. KUNDE + DESIGN INFO -->
+        <div style="display:flex; gap:16px; margin-bottom:24px;">
+          <div style="flex:1; background:#f8f8f8; border-radius:10px; padding:16px 20px;">
+            <h3 style="margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#999;">Kundeinfo</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+              <tr><td style="padding:3px 0; color:#666; width:80px;">Email:</td><td style="font-weight:600;"><a href="mailto:${data.customerEmail}" style="color:#1a1a1a;">${data.customerEmail}</a></td></tr>
+              <tr><td style="padding:3px 0; color:#666;">Design:</td><td style="font-weight:600;">#${data.designId}</td></tr>
+            </table>
+          </div>
+          <div style="flex:1; background:#f8f8f8; border-radius:10px; padding:16px 20px;">
+            <h3 style="margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#999;">Designinfo</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+              <tr><td style="padding:3px 0; color:#666; width:60px;">Rum:</td><td style="font-weight:600;">${roomLabel}</td></tr>
+              <tr><td style="padding:3px 0; color:#666;">Stil:</td><td style="font-weight:600;">${styleLabel}</td></tr>
+              <tr><td style="padding:3px 0; color:#666;">Budget:</td><td style="font-weight:700; color:#1a1a1a;">${data.budget.toLocaleString("da-DK")} kr</td></tr>
+              <tr><td style="padding:3px 0; color:#666;">Metode:</td><td>${methodBadge}</td></tr>
+            </table>
+          </div>
         </div>
 
-        <!-- 2. DESIGN INFO -->
-        <div style="background:#f8f8f8; border-radius:10px; padding:16px 20px; margin-bottom:24px;">
-          <h3 style="margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">2. Designinfo</h3>
-          <table style="width:100%; border-collapse:collapse; font-size:14px;">
-            <tr>
-              <td style="padding:4px 0; color:#666; width:100px;">Rum:</td>
-              <td style="padding:4px 0; font-weight:600;">${roomLabel}</td>
-            </tr>
-            <tr>
-              <td style="padding:4px 0; color:#666;">Stil:</td>
-              <td style="padding:4px 0; font-weight:600;">${styleLabel}</td>
-            </tr>
-            <tr>
-              <td style="padding:4px 0; color:#666;">Budget:</td>
-              <td style="padding:4px 0; font-weight:700; font-size:15px; color:#1a1a1a;">${data.budget.toLocaleString("da-DK")} kr</td>
-            </tr>
-            <tr>
-              <td style="padding:4px 0; color:#666;">Metode:</td>
-              <td style="padding:4px 0;">${methodBadge}</td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- 3. BILLEDER -->
-        <h3 style="margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">3. Billeder</h3>
+        <!-- 2. BILLEDER -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:28px;">
           <tr>
             <td style="width:50%; padding-right:8px; vertical-align:top;">
-              <p style="margin:0 0 6px; font-size:12px; color:#888; font-weight:600;">ORIGINALT BILLEDE</p>
+              <p style="margin:0 0 6px; font-size:11px; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Originalt billede</p>
               <img src="${data.originalImageUrl}" alt="Originalt rum" style="width:100%; border-radius:8px; display:block;" />
             </td>
             <td style="width:50%; padding-left:8px; vertical-align:top;">
-              <p style="margin:0 0 6px; font-size:12px; color:#888; font-weight:600;">AI-GENERERET DESIGN</p>
+              <p style="margin:0 0 6px; font-size:11px; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">AI-genereret design</p>
               <img src="${data.resultImageUrl}" alt="AI redesign" style="width:100%; border-radius:8px; display:block;" />
             </td>
           </tr>
         </table>
 
-        <!-- 4. PRODUKTER -->
-        <h3 style="margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">4. Identificerede produkter</h3>
-        <p style="margin:0 0 12px; font-size:13px; color:#666; font-style:italic;">
-          ${isGoogleLens
-            ? "Google Lens fandt disse produkter direkte i billedet — klik på linket for at se produktet."
-            : "AI analyserede billedet — kopier søgeord og indsæt i butikkens søgefelt."}
-        </p>
-        <table style="width:100%; border-collapse:collapse; font-size:14px; border:1px solid #eee; border-radius:10px; overflow:hidden;">
+        <!-- 3. PRODUKTTABEL -->
+        <h3 style="margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#999;">Produktoversigt — begge metoder</h3>
+        <p style="margin:0 0 14px; font-size:13px; color:#666; font-style:italic;">Google Lens = direkte produktlink. AI backup = søgeord til butikkens søgefelt.</p>
+        <table style="width:100%; border-collapse:collapse; font-size:13px; border:1px solid #eee; border-radius:10px; overflow:hidden;">
           <thead>
             <tr style="background:#f0f0f0;">
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Produkt</th>
-              <th style="padding:12px; text-align:left; border-bottom:2px solid #ddd; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#666; white-space:nowrap;">Pris</th>
-              ${glensColHeaders}
+              <th style="padding:11px 12px; text-align:left; border-bottom:2px solid #ddd; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#666; width:22%;">Kategori / Mål</th>
+              <th style="padding:11px 12px; text-align:left; border-bottom:2px solid #ddd; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#16a34a; width:39%;">🔍 Google Lens DK</th>
+              <th style="padding:11px 12px; text-align:left; border-bottom:2px solid #ddd; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#4f46e5; width:39%;">🤖 AI backup-søgning</th>
             </tr>
           </thead>
           <tbody>${productRows}</tbody>
         </table>
 
-        <!-- 5. SAMMENFATNING -->
+        <!-- 4. SAMMENFATNING -->
         <div style="background:#1a1a1a; border-radius:10px; padding:20px 24px; margin-top:24px; color:#fff;">
-          <h3 style="margin:0 0 14px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#aaa;">5. Sammenfatning</h3>
+          <h3 style="margin:0 0 14px; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#aaa;">Økonomi</h3>
           <table style="width:100%; border-collapse:collapse; font-size:14px;">
             <tr>
               <td style="padding:5px 0; color:#ccc;">Kundens budget:</td>
@@ -572,7 +535,7 @@ export async function sendAIAnalysisEmail(data: {
       replyTo: data.customerEmail,
       html,
     });
-    log(`AI analysis admin email sent for design #${data.designId}`);
+    log(`AI analysis admin email sent for design #${data.designId} (GL: ${glCount}/${total})`);
   } catch (err: any) {
     log(`Failed to send AI analysis admin email: ${err.message}`);
   }
