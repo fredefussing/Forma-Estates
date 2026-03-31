@@ -1,13 +1,15 @@
 import { Link } from "wouter";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame, User } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame, User, Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { RotatingStats } from "@/components/rotating-stats";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -16,7 +18,9 @@ export default function LandingPage() {
           <Link href="/">
             <span className="text-lg font-semibold tracking-tight cursor-pointer text-white" data-testid="link-logo">Nordic Homebuild</span>
           </Link>
-          <nav className="flex items-center gap-8">
+
+          {/* ── DESKTOP NAV — uændret, skjult på mobil ── */}
+          <nav className="hidden md:flex items-center gap-8">
             <Link href="/find-stil">
               <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
             </Link>
@@ -51,7 +55,68 @@ export default function LandingPage() {
               </Button>
             </Link>
           </nav>
+
+          {/* ── MOBIL NAV — kun synlig på mobil ── */}
+          <nav className="flex md:hidden items-center gap-5">
+            <Link href="/find-stil">
+              <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style-mobile">Find din stil</span>
+            </Link>
+            <Link href="/ai-design-agent">
+              <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-ai-agent-mobile">AI Agent</span>
+            </Link>
+            <Link href={user ? "/min-konto" : "/login"}>
+              <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-account-mobile">
+                <User className="w-4 h-4" />
+              </span>
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="text-white/80 hover:text-white transition-colors p-1"
+              data-testid="button-hamburger"
+              aria-label="Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </nav>
         </div>
+
+        {/* ── MOBIL DROPDOWN MENU ── */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="md:hidden absolute top-16 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 px-6 py-5 flex flex-col gap-4"
+              data-testid="mobile-menu"
+            >
+              {user && (
+                <Link href="/mine-designs" onClick={() => setMobileMenuOpen(false)}>
+                  <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer block" data-testid="link-my-designs-mobile">Mine designs</span>
+                </Link>
+              )}
+              <Link href="/pris" onClick={() => setMobileMenuOpen(false)}>
+                <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer block" data-testid="link-pricing-mobile">Pris</span>
+              </Link>
+              <a href="#om-os" onClick={() => setMobileMenuOpen(false)} className="text-sm text-white/80 hover:text-white transition-colors block" data-testid="link-about-mobile">Om os</a>
+              <Link href="/trending" onClick={() => setMobileMenuOpen(false)}>
+                <span className="text-sm text-orange-400 hover:text-orange-300 transition-colors cursor-pointer inline-flex items-center gap-1.5 font-medium" data-testid="link-trending-mobile">
+                  <Flame className="w-3.5 h-3.5" />
+                  Trending
+                </span>
+              </Link>
+              <div className="pt-1 border-t border-white/10">
+                <Link href="/design" onClick={() => setMobileMenuOpen(false)}>
+                  <Button size="sm" className="w-full h-10 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-mobile-menu-cta">
+                    Prøv nu
+                    <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       <section className="relative h-screen min-h-[600px] overflow-hidden flex items-center justify-center">
@@ -100,13 +165,13 @@ export default function LandingPage() {
           transition={{ duration: 0.5 }}
           className="mx-auto max-w-xl"
         >
-          <div className="bg-card border border-border/50 rounded-2xl p-8 text-center shadow-sm">
-            <h3 className="text-xl font-semibold tracking-tight mb-2">Ikke sikker på din stil?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
+          <div className="bg-card border border-border/50 rounded-2xl p-5 md:p-8 text-center shadow-sm">
+            <h3 className="text-base md:text-xl font-semibold tracking-tight mb-1 md:mb-2">Ikke sikker på din stil?</h3>
+            <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
               Tag vores hurtige 30-sekunders quiz og få en personlig anbefaling baseret på dit rum og budget.
             </p>
             <Link href="/find-stil">
-              <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-medium rounded-full" data-testid="button-quiz-cta">
+              <Button variant="outline" size="lg" className="h-10 md:h-12 px-6 md:px-8 text-sm font-medium rounded-full" data-testid="button-quiz-cta">
                 Find min stil
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

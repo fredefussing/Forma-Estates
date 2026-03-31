@@ -1,0 +1,122 @@
+Implementér KUN mobil-ændringer med CSS media queries. Computer forbliver 100% uændret.
+
+TRIN 1: Header/Forside top
+
+MOBIL (max-width: 768px):
+- Vis KUN: "Find din stil" | "AI Design Agent" | "Konto"
+- Tilføj hamburger ikon (☰) til højre
+- I hamburger menu: Mine designs, Pris, Om os, Prøv nu, Trending
+
+COMPUTER (>768px):
+- Behold ALT som det er nu (ingen ændringer)
+
+KODE:
+<header>
+  {/* Computer - alt synligt (uændret) */}
+  <nav className="desktop-nav">
+    <a>Find din stil</a>
+    <a>Mine designs</a>
+    <a>AI Design Agent</a>
+    <a>Trending</a>
+    <a>Pris</a>
+    <a>Om os</a>
+    <a>Min konto</a>
+  </nav>
+  
+  {/* Mobil - kun 3 + hamburger */}
+  <nav className="mobile-nav">
+    <a>Find din stil</a>
+    <a>AI Design Agent</a>
+    <a>Min konto</a>
+    <button className="hamburger">☰</button>
+  </nav>
+</header>
+
+{/* Mobil menu (vises når hamburger klikkes) */}
+<div className="mobile-menu">
+  <a>Mine designs</a>
+  <a>Pris</a>
+  <a>Om os</a>
+  <a>Prøv nu</a>
+  <a>Trending</a>
+</div>
+
+CSS:
+.desktop-nav { display: flex; } /* Computer */
+.mobile-nav { display: none; } /* Computer */
+
+@media (max-width: 768px) {
+  .desktop-nav { display: none !important; } /* Mobil */
+  .mobile-nav { display: flex !important; } /* Mobil */
+}
+
+TRIN 2: "I tvivl om din stil?" boks
+
+MOBIL:
+- Mindre padding
+- Mindre tekst
+- Måske kun ikon + tekst på én linje
+
+COMPUTER:
+- Behold som nu
+
+KODE:
+<style>
+  .stil-box { /* Computer - uændret */ }
+  
+  @media (max-width: 768px) {
+    .stil-box {
+      padding: 12px !important;
+      font-size: 14px !important;
+    }
+    .stil-box p:first-child { 
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .stil-box p:last-child {
+      font-size: 12px;
+    }
+  }
+</style>
+
+TRIN 3: Statistikker ("8.7k kr sparet", "12 designs i dag")
+
+MOBIL:
+- Mindre badges
+- Måske kun ét ikon + tal (uden tekst)
+- Eller samlet i én linje
+
+COMPUTER:
+- Behold som nu
+
+KODE:
+<style>
+  .stats { /* Computer - uændret */ }
+  
+  @media (max-width: 768px) {
+    .stats {
+      font-size: 12px !important;
+      padding: 6px 12px !important;
+    }
+    .stats-text { /* Skjul tekst, vis kun tal */
+      display: none !important;
+    }
+  }
+</style>
+
+TRIN 4: Test checklist
+
+Computer:
+- [ ] Alle 7 menu-punkter synlige
+- [ ] "I tvivl om din stil?" som nu
+- [ ] Statistikker som nu
+- [ ] To CTA knapper
+
+Mobil:
+- [ ] Kun 3 menu-punkter + hamburger
+- [ ] Hamburger viser resten når klikket
+- [ ] "I tvivl om din stil?" mindre/clean
+- [ ] Statistikker mindre/clean
+- [ ] "Start dit design" knap stor og tydelig
+
+RAPPORTÉR: Skærmbilleder af computer + mobil.

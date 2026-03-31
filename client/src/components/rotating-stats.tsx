@@ -31,11 +31,11 @@ export function RotatingStats() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center gap-2 rounded-xl bg-white/95 px-4 py-3 text-sm shadow-lg backdrop-blur-sm md:px-5 md:py-3"
+          className="flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-sm shadow-lg backdrop-blur-sm md:px-5 md:py-3 md:gap-2"
         >
           <span className="text-base">{current.icon}</span>
           <span className="font-bold text-gray-900">{current.value}</span>
-          <span className="text-gray-500">{current.label}</span>
+          <span className="hidden md:inline text-gray-500">{current.label}</span>
         </motion.div>
       </AnimatePresence>
     </div>
