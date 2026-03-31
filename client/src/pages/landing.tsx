@@ -66,7 +66,7 @@ export default function LandingPage() {
             </Link>
             <Link href={user ? "/min-konto" : "/login"}>
               <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-account-mobile">
-                <User className="w-4 h-4" />
+                {user ? "Min konto" : "Login / Opret"}
               </span>
             </Link>
             <button
