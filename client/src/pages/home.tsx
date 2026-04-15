@@ -461,10 +461,13 @@ export default function HomePage() {
               <div className="max-w-xl mx-auto pt-16 sm:pt-24 pb-16">
                 <div className="text-center mb-14">
                   <h1 className="text-4xl sm:text-[3.25rem] font-semibold tracking-tight mb-5 leading-[1.1]">
-                    Transformer dit rum med AI
+                    Se dit nye rum på under 60 sekunder med AI
                   </h1>
-                  <p className="text-muted-foreground text-[15px] leading-relaxed max-w-sm mx-auto">
-                    Upload et foto af dit rum, vælg rumtype, stil og budget, og se en realistisk redesign på sekunder.
+                  <p className="text-muted-foreground text-[15px] leading-relaxed max-w-sm mx-auto mb-3">
+                    Upload et billede af dit rum og få et realistisk redesign med møbler, belysning og indretning – tilpasset din stil og dit budget.
+                  </p>
+                  <p className="text-muted-foreground/60 text-xs">
+                    Overvejer du også renovering? Vi guider dig til de rette håndværkere.
                   </p>
                 </div>
 
