@@ -123,11 +123,15 @@ export default function LandingPage() {
       {/* ── HERO ── */}
       <section className="bg-[#FAF9F7] pt-16" data-testid="hero-section">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="pt-6 sm:pt-8 pb-5">
+            <HeroSlider />
+          </div>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, ease: "easeOut" }}
-            className="text-center pt-8 sm:pt-12 pb-6 sm:pb-8"
+            className="text-center pb-4"
           >
             <h1 className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
               Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
@@ -136,8 +140,6 @@ export default function LandingPage() {
               AI redesigner dit rum på 30 sekunder
             </p>
           </motion.div>
-
-          <HeroSlider />
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}

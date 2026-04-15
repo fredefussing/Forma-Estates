@@ -23,7 +23,7 @@ export function HeroSlider() {
         setCurrent((prev) => (prev + 1) % SLIDES.length);
         setOpacity(1);
       }, 500);
-    }, 4000);
+    }, 7000);
     return () => clearInterval(interval);
   }, []);
 
@@ -37,7 +37,7 @@ export function HeroSlider() {
       >
         {/* FØR — skjult på mobil */}
         <div className="relative flex-1 rounded-xl overflow-hidden hidden sm:block" data-testid="hero-before-img">
-          <div className="aspect-[4/3] w-full">
+          <div className="aspect-[3/2] w-full">
             <img
               src={slide.before}
               alt="Før redesign"
@@ -52,7 +52,7 @@ export function HeroSlider() {
 
         {/* EFTER */}
         <div className="relative flex-1 rounded-xl overflow-hidden" data-testid="hero-after-img">
-          <div className="aspect-[4/3] w-full">
+          <div className="aspect-[3/2] w-full">
             <img
               src={slide.after}
               alt="Efter redesign"
