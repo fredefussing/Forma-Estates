@@ -120,32 +120,27 @@ export default function LandingPage() {
         </AnimatePresence>
       </header>
 
-      <section className="relative h-screen min-h-[600px] overflow-hidden" data-testid="hero-section">
+      <section className="relative h-screen min-h-[600px] bg-[#111] flex flex-col overflow-hidden" data-testid="hero-section">
         <HeroSlider />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/30 z-10 pointer-events-none" />
-
-        <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-20 sm:pb-24 text-center pointer-events-none">
+        <div className="relative z-10 px-6 pb-7 sm:pb-8 text-center mt-auto">
           <motion.div
-            initial={{ opacity: 0, y: 28 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="max-w-2xl mx-auto"
           >
-            <p className="text-[11px] tracking-[0.2em] uppercase text-white/50 font-medium mb-3">
-              Træk slideren for at se forvandlingen
-            </p>
-            <h1 className="text-3xl sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-4 leading-[1.1] text-white">
+            <h1 className="text-2xl sm:text-4xl lg:text-[2.75rem] font-semibold tracking-tight mb-3 leading-[1.1] text-white">
               Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
             </h1>
-            <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-8">
-              AI redesigner dit rum på 30 sekunder — du får en komplet indretning med direkte links til køb
+            <p className="text-white/60 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
+              AI redesigner dit rum på 30 sekunder — komplet indretning med direkte links til køb
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pointer-events-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href="/design">
                 <Button
                   size="lg"
-                  className="h-13 px-9 text-[15px] font-semibold rounded-full bg-white text-black hover:bg-white/90 shadow-xl transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl"
+                  className="h-12 px-9 text-[15px] font-semibold rounded-full bg-white text-black hover:bg-white/90 shadow-xl transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl"
                   data-testid="button-hero-cta"
                 >
                   Upload dit billede
@@ -156,7 +151,7 @@ export default function LandingPage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="h-13 px-8 text-[15px] font-medium rounded-full border-2 border-white/40 bg-transparent text-white hover:bg-white/10 hover:border-white/60 transition-all duration-200"
+                  className="h-12 px-8 text-[15px] font-medium rounded-full border-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
                   data-testid="button-hero-secondary"
                 >
                   Se flere eksempler ↓
