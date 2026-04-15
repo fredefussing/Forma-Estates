@@ -7,7 +7,6 @@ import { RotatingStats } from "@/components/rotating-stats";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { HeroSlider } from "@/components/hero-slider";
 import { useAuth } from "@/hooks/use-auth";
-import heroBg from "@assets/Skærmbillede_2026-04-06_kl._17.24.14_1776259771663.png";
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -122,20 +121,8 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ── */}
-      <section
-        className="relative pt-16"
-        style={{
-          backgroundImage: `url(${heroBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-        }}
-        data-testid="hero-section"
-      >
-        {/* Light overlay so existing dark text stays readable */}
-        <div className="absolute inset-0 bg-white/55 pointer-events-none" />
-
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
+      <section className="bg-[#FAF9F7] pt-16" data-testid="hero-section">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="pt-6 sm:pt-8 pb-5">
             <HeroSlider />
           </div>
