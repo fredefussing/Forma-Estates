@@ -30,7 +30,7 @@ export function HeroSlider() {
   const slide = SLIDES[current];
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 pt-[68px]" data-testid="hero-slider">
+    <div className="flex flex-col flex-1 min-h-0" data-testid="hero-slider">
       <div
         className="flex flex-1 gap-3 sm:gap-4 px-3 sm:px-4 min-h-0"
         style={{ opacity, transition: "opacity 0.5s ease-out" }}
@@ -64,7 +64,7 @@ export function HeroSlider() {
         className="flex flex-col items-center gap-2.5 py-3"
         style={{ opacity, transition: "opacity 0.5s ease-out" }}
       >
-        <p className="text-[13px] text-white/50 font-medium">{slide.label}</p>
+        <p className="text-[13px] text-[#6B7280] font-medium">{slide.label}</p>
         <div className="flex items-center gap-2">
           {SLIDES.map((_, i) => (
             <div
@@ -73,7 +73,7 @@ export function HeroSlider() {
               style={{
                 width: i === current ? 20 : 8,
                 height: 8,
-                background: i === current ? "white" : "rgba(255,255,255,0.25)",
+                background: i === current ? "#1A1A1A" : "rgba(26,26,26,0.18)",
               }}
               data-testid={`hero-dot-${i}`}
             />

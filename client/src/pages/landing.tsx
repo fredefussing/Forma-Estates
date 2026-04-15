@@ -14,65 +14,65 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#FAF9F7]/95 backdrop-blur-sm border-b border-black/[0.06]">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-16">
           <Link href="/">
-            <span className="text-lg font-semibold tracking-tight cursor-pointer text-white" data-testid="link-logo">Nordic Homebuild</span>
+            <span className="text-lg font-semibold tracking-tight cursor-pointer text-[#1A1A1A]" data-testid="link-logo">Nordic Homebuild</span>
           </Link>
 
-          {/* ── DESKTOP NAV — uændret, skjult på mobil ── */}
+          {/* ── DESKTOP NAV ── */}
           <nav className="hidden md:flex items-center gap-8">
             <Link href="/find-stil">
-              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
+              <span className="text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-find-style">Find din stil</span>
             </Link>
             {user && (
               <Link href="/mine-designs">
-                <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-my-designs">Mine designs</span>
+                <span className="text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-my-designs">Mine designs</span>
               </Link>
             )}
             <Link href="/ai-design-agent">
-              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-ai-agent">AI Design Agent</span>
+              <span className="text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-ai-agent">AI Design Agent</span>
             </Link>
             <Link href="/trending">
-              <span className="text-sm text-orange-400 hover:text-orange-300 transition-colors cursor-pointer inline-flex items-center gap-1 font-medium" data-testid="link-trending">
+              <span className="text-sm text-orange-500 hover:text-orange-600 transition-colors cursor-pointer inline-flex items-center gap-1 font-medium" data-testid="link-trending">
                 <Flame className="w-3.5 h-3.5" />
                 Trending
               </span>
             </Link>
             <Link href="/pris">
-              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer" data-testid="link-pricing">Pris</span>
+              <span className="text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-pricing">Pris</span>
             </Link>
-            <a href="#om-os" className="text-sm text-white/70 hover:text-white transition-colors" data-testid="link-about">Om os</a>
+            <a href="#om-os" className="text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A] transition-colors" data-testid="link-about">Om os</a>
             <Link href={user ? "/min-konto" : "/login"}>
-              <span className="text-sm text-white/70 hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1" data-testid="link-account">
+              <span className="text-sm text-[#1A1A1A]/60 hover:text-[#1A1A1A] transition-colors cursor-pointer inline-flex items-center gap-1" data-testid="link-account">
                 <User className="w-3.5 h-3.5" />
                 {user ? "Min konto" : "Log ind"}
               </span>
             </Link>
             <Link href="/design">
-              <Button size="sm" className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-header-cta">
+              <Button size="sm" className="h-9 px-5 text-sm font-semibold bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 rounded-full shadow-sm" data-testid="button-header-cta">
                 Prøv nu
                 <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
               </Button>
             </Link>
           </nav>
 
-          {/* ── MOBIL NAV — kun synlig på mobil ── */}
+          {/* ── MOBIL NAV ── */}
           <nav className="flex md:hidden items-center gap-5">
             <Link href="/find-stil">
-              <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-find-style-mobile">Find din stil</span>
+              <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-find-style-mobile">Find din stil</span>
             </Link>
             <Link href="/ai-design-agent">
-              <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-ai-agent-mobile">AI Agent</span>
+              <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-ai-agent-mobile">AI Agent</span>
             </Link>
             <Link href={user ? "/min-konto" : "/login"}>
-              <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer" data-testid="link-account-mobile">
+              <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-account-mobile">
                 {user ? "Min konto" : "Login / Opret"}
               </span>
             </Link>
             <button
               onClick={() => setMobileMenuOpen((o) => !o)}
-              className="text-white/80 hover:text-white transition-colors p-1"
+              className="text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors p-1"
               data-testid="button-hamburger"
               aria-label="Menu"
             >
@@ -89,27 +89,27 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="md:hidden absolute top-16 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 px-6 py-5 flex flex-col gap-4"
+              className="md:hidden absolute top-16 left-0 right-0 bg-[#FAF9F7] border-t border-black/[0.08] px-6 py-5 flex flex-col gap-4 shadow-lg"
               data-testid="mobile-menu"
             >
               {user && (
                 <Link href="/mine-designs" onClick={() => setMobileMenuOpen(false)}>
-                  <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer block" data-testid="link-my-designs-mobile">Mine designs</span>
+                  <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer block" data-testid="link-my-designs-mobile">Mine designs</span>
                 </Link>
               )}
               <Link href="/pris" onClick={() => setMobileMenuOpen(false)}>
-                <span className="text-sm text-white/80 hover:text-white transition-colors cursor-pointer block" data-testid="link-pricing-mobile">Pris</span>
+                <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer block" data-testid="link-pricing-mobile">Pris</span>
               </Link>
-              <a href="#om-os" onClick={() => setMobileMenuOpen(false)} className="text-sm text-white/80 hover:text-white transition-colors block" data-testid="link-about-mobile">Om os</a>
+              <a href="#om-os" onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors block" data-testid="link-about-mobile">Om os</a>
               <Link href="/trending" onClick={() => setMobileMenuOpen(false)}>
-                <span className="text-sm text-orange-400 hover:text-orange-300 transition-colors cursor-pointer inline-flex items-center gap-1.5 font-medium" data-testid="link-trending-mobile">
+                <span className="text-sm text-orange-500 hover:text-orange-600 transition-colors cursor-pointer inline-flex items-center gap-1.5 font-medium" data-testid="link-trending-mobile">
                   <Flame className="w-3.5 h-3.5" />
                   Trending
                 </span>
               </Link>
-              <div className="pt-1 border-t border-white/10">
+              <div className="pt-1 border-t border-black/[0.08]">
                 <Link href="/design" onClick={() => setMobileMenuOpen(false)}>
-                  <Button size="sm" className="w-full h-10 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full" data-testid="button-mobile-menu-cta">
+                  <Button size="sm" className="w-full h-10 text-sm font-semibold bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 rounded-full" data-testid="button-mobile-menu-cta">
                     Prøv nu
                     <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                   </Button>
@@ -120,46 +120,49 @@ export default function LandingPage() {
         </AnimatePresence>
       </header>
 
-      <section className="relative h-screen min-h-[600px] bg-[#111] flex flex-col overflow-hidden" data-testid="hero-section">
-        <HeroSlider />
+      {/* ── HERO ── */}
+      <section className="bg-[#FAF9F7] h-screen max-h-screen flex flex-col pt-16 overflow-hidden" data-testid="hero-section">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
+          className="text-center px-6 pt-6 sm:pt-8 pb-4 sm:pb-5"
+        >
+          <h1 className="text-3xl sm:text-[2.6rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]">
+            Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
+          </h1>
+          <p className="text-[#6B7280] text-sm sm:text-base leading-relaxed max-w-md mx-auto">
+            AI redesigner dit rum på 30 sekunder — komplet indretning med direkte links til køb
+          </p>
+        </motion.div>
 
-        <div className="relative z-10 px-6 pb-7 sm:pb-8 text-center mt-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="max-w-2xl mx-auto"
-          >
-            <h1 className="text-2xl sm:text-4xl lg:text-[2.75rem] font-semibold tracking-tight mb-3 leading-[1.1] text-white">
-              Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
-            </h1>
-            <p className="text-white/60 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
-              AI redesigner dit rum på 30 sekunder — komplet indretning med direkte links til køb
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/design">
-                <Button
-                  size="lg"
-                  className="h-12 px-9 text-[15px] font-semibold rounded-full bg-white text-black hover:bg-white/90 shadow-xl transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl"
-                  data-testid="button-hero-cta"
-                >
-                  Upload dit billede
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-              <a href="#se-eksempler">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-12 px-8 text-[15px] font-medium rounded-full border-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-                  data-testid="button-hero-secondary"
-                >
-                  Se flere eksempler ↓
-                </Button>
-              </a>
-            </div>
-          </motion.div>
+        <div className="flex-1 min-h-0 px-3 sm:px-4">
+          <HeroSlider />
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, delay: 0.15, ease: "easeOut" }}
+          className="text-center px-6 pt-3 pb-5 sm:pb-6"
+        >
+          <Link href="/design">
+            <Button
+              size="lg"
+              className="h-13 px-10 text-[15px] font-semibold rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 transition-all duration-200 hover:-translate-y-0.5"
+              style={{ boxShadow: "0 4px 20px rgba(26,26,26,0.15)" }}
+              data-testid="button-hero-cta"
+            >
+              Upload dit billede
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+          <div className="flex items-center justify-center gap-6 mt-4">
+            <a href="#se-eksempler" className="text-sm text-[#6B7280] hover:text-[#1A1A1A] transition-colors" data-testid="button-hero-secondary">
+              Se flere eksempler ↓
+            </a>
+          </div>
+        </motion.div>
       </section>
 
       <section className="py-10 px-6">
