@@ -121,51 +121,51 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="bg-[#FAF9F7] h-screen max-h-screen flex flex-col pt-16 overflow-hidden" data-testid="hero-section">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: "easeOut" }}
-          className="text-center px-6 pt-6 sm:pt-8 pb-4 sm:pb-5"
-        >
-          <h1 className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
-            Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
-          </h1>
-          <p className="text-[#6B7280] text-sm sm:text-[15px] leading-relaxed max-w-xs mx-auto">
-            AI redesigner dit rum på 30 sekunder
-          </p>
-        </motion.div>
+      <section className="bg-[#FAF9F7] pt-16" data-testid="hero-section">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, ease: "easeOut" }}
+            className="text-center pt-8 sm:pt-12 pb-6 sm:pb-8"
+          >
+            <h1 className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
+              Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
+            </h1>
+            <p className="text-[#6B7280] text-sm sm:text-[15px] leading-relaxed">
+              AI redesigner dit rum på 30 sekunder
+            </p>
+          </motion.div>
 
-        <div className="flex-1 min-h-0 px-3 sm:px-4">
           <HeroSlider />
-        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.15, ease: "easeOut" }}
-          className="text-center px-6 pt-3 pb-5 sm:pb-6"
-        >
-          <Link href="/design">
-            <Button
-              size="lg"
-              className="h-13 px-10 text-[15px] font-semibold rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 transition-all duration-200 hover:-translate-y-0.5"
-              style={{ boxShadow: "0 4px 20px rgba(26,26,26,0.15)" }}
-              data-testid="button-hero-cta"
-            >
-              Start dit design
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
-          <div className="flex items-center justify-center gap-1.5 mt-4">
-            <span className="text-amber-400 text-sm">★★★★★</span>
-            <span className="text-[13px] text-[#6B7280] font-medium">4.8 stjerner</span>
-            <span className="text-[#6B7280]/40 text-xs mx-1">·</span>
-            <a href="#se-eksempler" className="text-[13px] text-[#6B7280] hover:text-[#1A1A1A] transition-colors" data-testid="button-hero-secondary">
-              Se eksempler ↓
-            </a>
-          </div>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.2, ease: "easeOut" }}
+            className="text-center pt-6 pb-10 sm:pb-14"
+          >
+            <Link href="/design">
+              <Button
+                size="lg"
+                className="h-13 px-10 text-[15px] font-semibold rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 transition-all duration-200 hover:-translate-y-0.5"
+                style={{ boxShadow: "0 4px 20px rgba(26,26,26,0.15)" }}
+                data-testid="button-hero-cta"
+              >
+                Start dit design
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+            <div className="flex items-center justify-center gap-1.5 mt-4">
+              <span className="text-amber-400 text-sm">★★★★★</span>
+              <span className="text-[13px] text-[#6B7280] font-medium">4.8 stjerner</span>
+              <span className="text-[#6B7280]/40 text-xs mx-2">·</span>
+              <a href="#se-eksempler" className="text-[13px] text-[#6B7280] hover:text-[#1A1A1A] transition-colors" data-testid="button-hero-secondary">
+                Se eksempler ↓
+              </a>
+            </div>
+          </motion.div>
+        </div>
       </section>
 
       <section className="py-10 px-6">

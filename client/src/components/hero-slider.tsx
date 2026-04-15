@@ -30,30 +30,36 @@ export function HeroSlider() {
   const slide = SLIDES[current];
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" data-testid="hero-slider">
+    <div className="w-full" data-testid="hero-slider">
       <div
-        className="flex flex-1 gap-3 sm:gap-4 px-3 sm:px-4 min-h-0"
+        className="flex gap-3 sm:gap-4"
         style={{ opacity, transition: "opacity 0.5s ease-out" }}
       >
+        {/* FØR — skjult på mobil */}
         <div className="relative flex-1 rounded-xl overflow-hidden hidden sm:block" data-testid="hero-before-img">
-          <img
-            src={slide.before}
-            alt="Før redesign"
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
+          <div className="aspect-[4/3] w-full">
+            <img
+              src={slide.before}
+              alt="Før redesign"
+              className="w-full h-full object-cover object-center"
+              draggable={false}
+            />
+          </div>
           <div className="absolute top-3 left-3 px-3 py-1.5 rounded bg-black/70 text-white text-[11px] font-semibold tracking-[0.1em] uppercase">
             Før
           </div>
         </div>
 
+        {/* EFTER */}
         <div className="relative flex-1 rounded-xl overflow-hidden" data-testid="hero-after-img">
-          <img
-            src={slide.after}
-            alt="Efter redesign"
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
+          <div className="aspect-[4/3] w-full">
+            <img
+              src={slide.after}
+              alt="Efter redesign"
+              className="w-full h-full object-cover object-center"
+              draggable={false}
+            />
+          </div>
           <div className="absolute top-3 right-3 px-3 py-1.5 rounded bg-black/70 text-white text-[11px] font-semibold tracking-[0.1em] uppercase">
             Efter
           </div>
@@ -61,7 +67,7 @@ export function HeroSlider() {
       </div>
 
       <div
-        className="flex flex-col items-center gap-2.5 py-3"
+        className="flex flex-col items-center gap-2.5 pt-3 pb-1"
         style={{ opacity, transition: "opacity 0.5s ease-out" }}
       >
         <p className="text-[13px] text-[#6B7280] font-medium">{slide.label}</p>
