@@ -128,11 +128,11 @@ export default function LandingPage() {
           transition={{ duration: 0.65, ease: "easeOut" }}
           className="text-center px-6 pt-6 sm:pt-8 pb-4 sm:pb-5"
         >
-          <h1 className="text-3xl sm:text-[2.6rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]">
+          <h1 className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
             Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
           </h1>
-          <p className="text-[#6B7280] text-sm sm:text-base leading-relaxed max-w-md mx-auto">
-            AI redesigner dit rum på 30 sekunder — komplet indretning med direkte links til køb
+          <p className="text-[#6B7280] text-sm sm:text-[15px] leading-relaxed max-w-xs mx-auto">
+            AI redesigner dit rum på 30 sekunder
           </p>
         </motion.div>
 
@@ -153,13 +153,16 @@ export default function LandingPage() {
               style={{ boxShadow: "0 4px 20px rgba(26,26,26,0.15)" }}
               data-testid="button-hero-cta"
             >
-              Upload dit billede
+              Start dit design
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <a href="#se-eksempler" className="text-sm text-[#6B7280] hover:text-[#1A1A1A] transition-colors" data-testid="button-hero-secondary">
-              Se flere eksempler ↓
+          <div className="flex items-center justify-center gap-1.5 mt-4">
+            <span className="text-amber-400 text-sm">★★★★★</span>
+            <span className="text-[13px] text-[#6B7280] font-medium">4.8 stjerner</span>
+            <span className="text-[#6B7280]/40 text-xs mx-1">·</span>
+            <a href="#se-eksempler" className="text-[13px] text-[#6B7280] hover:text-[#1A1A1A] transition-colors" data-testid="button-hero-secondary">
+              Se eksempler ↓
             </a>
           </div>
         </motion.div>
