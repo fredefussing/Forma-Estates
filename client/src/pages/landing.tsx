@@ -5,6 +5,7 @@ import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame, User, Menu, X }
 import { motion, AnimatePresence } from "framer-motion";
 import { RotatingStats } from "@/components/rotating-stats";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { HeroSlider } from "@/components/hero-slider";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function LandingPage() {
@@ -119,40 +120,49 @@ export default function LandingPage() {
         </AnimatePresence>
       </header>
 
-      <section className="relative h-screen min-h-[600px] overflow-hidden flex items-center justify-center">
-        <img
-          src="/images/hero-bg.jpg"
-          alt="Nordic interior design"
-          className="absolute inset-0 w-full h-full object-cover z-0"
-          data-testid="img-hero"
-        />
+      <section className="relative h-screen min-h-[600px] overflow-hidden" data-testid="hero-section">
+        <HeroSlider />
 
-        <div className="absolute inset-0 bg-black/45 z-[1]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/30 z-10 pointer-events-none" />
 
-        <div className="relative z-10 text-center px-6 max-w-3xl">
-          <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}>
-            <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-semibold tracking-tight mb-5 leading-[1.08] text-white" style={{ fontFamily: '"Playfair Display", serif' }}>
-              Find ud af hvad dit rum er værd<br />— før du renoverer
-            </h1>
-            <p className="text-white/80 text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10">
-              Upload et billede, se potentiel værdistigning, få dit nye rum
-            </p>
-            <Link href="/design">
-              <Button size="lg" className="h-14 px-10 text-base font-medium rounded-full bg-white text-black hover:bg-white/90 shadow-xl" data-testid="button-hero-cta">
-                Start dit design
-                <ArrowRight className="w-4 h-4 ml-2.5" />
-              </Button>
-            </Link>
-          </motion.div>
-        </div>
-
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+        <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-20 sm:pb-24 text-center pointer-events-none">
           <motion.div
-            animate={{ y: [0, 6, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-5 h-8 rounded-full border-2 border-white/30 flex items-start justify-center pt-1.5"
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="max-w-2xl mx-auto"
           >
-            <div className="w-1 h-1.5 rounded-full bg-white/60" />
+            <p className="text-[11px] tracking-[0.2em] uppercase text-white/50 font-medium mb-3">
+              Træk slideren for at se forvandlingen
+            </p>
+            <h1 className="text-3xl sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-4 leading-[1.1] text-white">
+              Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
+            </h1>
+            <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-8">
+              AI redesigner dit rum på 30 sekunder — du får en komplet indretning med direkte links til køb
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pointer-events-auto">
+              <Link href="/design">
+                <Button
+                  size="lg"
+                  className="h-13 px-9 text-[15px] font-semibold rounded-full bg-white text-black hover:bg-white/90 shadow-xl transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl"
+                  data-testid="button-hero-cta"
+                >
+                  Upload dit billede
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+              <a href="#se-eksempler">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-13 px-8 text-[15px] font-medium rounded-full border-2 border-white/40 bg-transparent text-white hover:bg-white/10 hover:border-white/60 transition-all duration-200"
+                  data-testid="button-hero-secondary"
+                >
+                  Se flere eksempler ↓
+                </Button>
+              </a>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -237,7 +247,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-14 sm:py-20 px-6 border-t border-border/40">
+      <section id="se-eksempler" className="py-14 sm:py-20 px-6 border-t border-border/40">
         <div className="mx-auto max-w-3xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

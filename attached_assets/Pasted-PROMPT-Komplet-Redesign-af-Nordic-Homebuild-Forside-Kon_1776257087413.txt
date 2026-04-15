@@ -1,0 +1,167 @@
+PROMPT: Komplet Redesign af Nordic Homebuild Forside
+Kontekst
+Vi beholder ALLE eksisterende sider, navigation og funktionalitet. Dette er kun et visuelt redesign af forsiden (landing page) med fokus på "wow-effekt" og konvertering.
+1. FARVEPALET (Nordic Premium)
+Opdater tailwind.config.js eller CSS-variabler:
+css
+Copy
+:root {
+  --color-primary: #1A1A1A;        /* Næsten sort — tekst, knapper */
+  --color-accent: #C4A77D;         /* Varm guld/beige — highlights */
+  --color-background: #FAF9F7;       /* Varm hvid — sektioner */
+  --color-surface: #FFFFFF;        /* Ren hvid — cards */
+  --color-success: #2D6A4F;        /* Skovgrøn — CTA, priser */
+  --color-text-muted: #6B7280;     /* Grå — sekundær tekst */
+}
+2. HERO-SEKTION (100vh, interaktiv)
+Struktur:
+plain
+Copy
+┌─────────────────────────────────────────────────────────────┐
+│  NAVIGATION (behold eksisterende: Find din stil, Mine      │
+│  designs, AI Design Agent, Trending, Pris, Om os,         │
+│  Min konto, Prøv nu)                                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  [INTERAKTIVT FØR/EFTER-SLIDER — 60% af skærmen]          │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐                 │
+│  │   FØR-billede   │→ │   EFTER-billede │                 │
+│  │   (slide 1-3)   │  │   (slide 1-3)   │                 │
+│  └─────────────────┘  └─────────────────┘                 │
+│         ↑                                                   │
+│    Træk for at se transformation                            │
+│    Auto-rotate hver 5 sekunder                              │
+│                                                             │
+│  "Se dit nye rum med møbler, der passer til dit budget"     │
+│  "AI redesigner dit rum på 30 sekunder — fra 49 kr"        │
+│                                                             │
+│  [Upload dit billede →]  [Se flere eksempler ↓]           │
+│                                                             │
+│  ○ ○ ○  (slide indicators, 3 slides)                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+3. BILLEDER TIL SLIDER (3 slides)
+Slide 1 — Spisestue (hoved):
+FØR: /mnt/kimi/upload/Skærmbillede 2026-04-06 kl. 17.11.58.png
+EFTER: /mnt/kimi/upload/Skærmbillede 2026-04-06 kl. 17.12.09.png
+Label: "Spisestue → Scandinavian Warm"
+Slide 2 — Stue (farveskift):
+FØR: /mnt/kimi/upload/Skærmbillede 2026-04-06 kl. 17.12.40.png
+EFTER: /mnt/kimi/upload/Skærmbillede 2026-04-06 kl. 17.12.49.png
+Label: "Stue → Fra tungt til luftigt"
+Slide 3 — Stue (luksus):
+FØR: /mnt/kimi/upload/Skærmbillede 2026-04-15 kl. 14.39.54.png
+EFTER: /mnt/kimi/upload/Skærmbillede 2026-04-15 kl. 14.40.24.png
+Label: "Stue → Premium upgrade"
+4. INTERAKTIVT FØR/EFTER-KOMPONENT
+TypeScript
+Copy
+// components/BeforeAfterSlider.tsx
+interface BeforeAfterSliderProps {
+  slides: {
+    before: string;
+    after: string;
+    label: string;
+  }[];
+  autoRotateInterval?: number; // default 5000ms
+}
+
+// Funktionalitet:
+// - Viser først EFTER-billedet (det smukke resultat)
+// - Bruger kan trække slider for at se FØR
+// - Auto-rotate til næste slide hver 5 sekunder
+// - Pause auto-rotate når bruger interagerer
+// - Smooth transition mellem slides (0.5s ease-out)
+// - Responsive: på mobil = swipe, på desktop = drag + click
+Visual design:
+Billeder i 16:9 aspect ratio
+Slider-handle: 40px cirkel med --color-accent baggrund, hvid pil-ikon
+Label i bunden af hvert billede (lille badge)
+Subtle shadow på billed-container
+5. TYPOGRAFI
+Table
+Element	Font	Størrelse	Vægt
+H1 (hero)	System/Inter	48px desktop / 32px mobile	700
+H2	System/Inter	32px / 24px	600
+Body	System/Inter	16px	400
+CTA-knap	System/Inter	16px	600
+H1 tekst (hero):
+plain
+Copy
+"Se dit nye rum med møbler, der passer til dit budget"
+Subheadline:
+plain
+Copy
+"AI redesigner dit rum på 30 sekunder — du får en komplet indretning med direkte links til køb"
+6. CTA-KNAPPER
+Primær (hoved):
+css
+Copy
+background: var(--color-primary);
+color: white;
+padding: 16px 32px;
+border-radius: 50px; /* pill shape */
+font-weight: 600;
+transition: transform 0.2s, box-shadow 0.2s;
+hover: {
+  transform: scale(1.05);
+  box-shadow: 0 10px 30px rgba(26, 26, 26, 0.2);
+}
+Sekundær:
+css
+Copy
+background: transparent;
+color: var(--color-primary);
+border: 2px solid var(--color-primary);
+padding: 14px 30px;
+border-radius: 50px;
+7. ANIMATIONS
+Table
+Element	Animation	Timing
+Hero ind	Fade in + slide up	0.6s ease-out
+Slider	Scale 0.95 → 1	0.4s ease-out
+CTA knapper	Stagger fade in	0.2s delay mellem
+Slide transition	Cross-fade	0.5s ease-out
+Slider handle	Pulse (subtle)	2s infinite
+8. MOBIL-TILPASNING
+Hero: 100vh, slider fylder 70% af højden
+Tekst: Centreret, 24px H1
+Knapper: Full-width, stacked
+Slider: Touch-swipe aktiveret
+Auto-rotate: Fortsætter (brugere swiper sjældent selv)
+9. BEHOLDES FRA NUVÆRENDE SIDE
+✅ Navigation (alle links fungerer som før)
+✅ "Prøv nu" knap i top
+✅ "Trending" badge
+✅ Alle eksisterende sider (/find-din-stil, /mine-designs, etc.)
+✅ Footer (hvis den findes)
+✅ Alle funktioner (upload, AI, betaling)
+10. FILSTRUKTUR
+plain
+Copy
+client/src/
+├── components/
+│   ├── BeforeAfterSlider.tsx      # NY
+│   ├── HeroSection.tsx            # NY/OPDATERET
+│   └── SlideIndicator.tsx         # NY
+├── pages/
+│   └── Home.tsx                   # OPDATERET — kun denne fil ændres
+├── styles/
+│   └── variables.css              # TILFØJ farver
+└── App.tsx                        # UÆNDRET
+KRAV TIL IMPLEMENTERING
+Kun én fil ændres væsentligt: Home.tsx (eller din nuværende forside-fil)
+Nye komponenter: BeforeAfterSlider.tsx, SlideIndicator.tsx
+Ingen breaking changes: Alle eksisterende routes virker
+Billeder: Brug de 6 uploadede filer (3 før/efter-par)
+Responsiv: Skal se godt ud på mobile, tablet, desktop
+Performance: Lazy-load billeder, smooth 60fps animations
+ACCEPTKRITERIER
+[ ] Hero fylder 100vh med interaktivt før/efter-slider
+[ ] 3 slides auto-rotater hver 5 sekunder
+[ ] Bruger kan trække/swippe for at se transformation
+[ ] Navigation er uændret og fungerer
+[ ] CTA-knapper fører til eksisterende upload-flow
+[ ] Ser professionel og "wow" ud på alle enheder
+[ ] Ingen console errors, smooth animations
