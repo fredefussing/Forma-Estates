@@ -121,48 +121,83 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="bg-[#FAF9F7] pt-16" data-testid="hero-section">
+      <section className="pt-16" style={{ background: "#E6DFD4" }} data-testid="hero-section">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="pt-6 sm:pt-8 pb-5">
-            <HeroSlider />
-          </div>
 
+          {/* Billeder */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="pt-6 sm:pt-10 pb-6"
+          >
+            <HeroSlider />
+          </motion.div>
+
+          {/* Overskrift */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: "easeOut" }}
+            transition={{ duration: 0.65, delay: 0.2, ease: "easeOut" }}
             className="text-center pb-4"
           >
-            <h1 className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold tracking-tight mb-3 leading-[1.1] text-[#1A1A1A]" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
+            <h1
+              className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold leading-[1.1] text-[#1A1A1A]"
+              style={{ fontFamily: '"Playfair Display", Georgia, serif', letterSpacing: "-0.02em" }}
+            >
               Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
             </h1>
-            <p className="text-[#6B7280] text-sm sm:text-[15px] leading-relaxed">
+            <p className="mt-4 text-[15px] sm:text-[17px] leading-relaxed" style={{ color: "#5C5C5C" }}>
               AI redesigner dit rum på 30 sekunder
             </p>
           </motion.div>
 
+          {/* CTA */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.2, ease: "easeOut" }}
-            className="text-center pt-6 pb-10 sm:pb-14"
+            transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+            className="text-center pt-7 pb-10 sm:pb-14"
           >
             <Link href="/design">
-              <Button
-                size="lg"
-                className="h-13 px-10 text-[15px] font-semibold rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 transition-all duration-200 hover:-translate-y-0.5"
-                style={{ boxShadow: "0 4px 20px rgba(26,26,26,0.15)" }}
+              <button
+                className="group inline-flex items-center gap-2 font-semibold text-white rounded-full transition-all duration-300"
+                style={{
+                  background: "#1A1A1A",
+                  padding: "18px 48px",
+                  fontSize: "17px",
+                  letterSpacing: "-0.01em",
+                  boxShadow: "0 4px 6px rgba(26,26,26,0.1), 0 10px 20px rgba(26,26,26,0.15)",
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  el.style.transform = "translateY(-3px)";
+                  el.style.boxShadow = "0 8px 12px rgba(26,26,26,0.15), 0 20px 40px rgba(26,26,26,0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  el.style.transform = "translateY(0)";
+                  el.style.boxShadow = "0 4px 6px rgba(26,26,26,0.1), 0 10px 20px rgba(26,26,26,0.15)";
+                }}
                 data-testid="button-hero-cta"
               >
                 Start dit design
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </button>
             </Link>
-            <div className="flex items-center justify-center gap-1.5 mt-4">
-              <span className="text-amber-400 text-sm">★★★★★</span>
-              <span className="text-[13px] text-[#6B7280] font-medium">4.8 stjerner</span>
-              <span className="text-[#6B7280]/40 text-xs mx-2">·</span>
-              <a href="#se-eksempler" className="text-[13px] text-[#6B7280] hover:text-[#1A1A1A] transition-colors" data-testid="button-hero-secondary">
+
+            <div className="flex items-center justify-center gap-2 mt-5">
+              <span className="text-sm" style={{ color: "#C4A77D" }}>★★★★★</span>
+              <span className="text-[13px] font-medium" style={{ color: "#5C5C5C" }}>4.8 stjerner</span>
+              <span className="text-xs mx-1" style={{ color: "rgba(92,92,92,0.3)" }}>·</span>
+              <a
+                href="#se-eksempler"
+                className="text-[13px] transition-colors"
+                style={{ color: "#8B8B8B" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#1A1A1A"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#8B8B8B"; }}
+                data-testid="button-hero-secondary"
+              >
                 Se eksempler ↓
               </a>
             </div>

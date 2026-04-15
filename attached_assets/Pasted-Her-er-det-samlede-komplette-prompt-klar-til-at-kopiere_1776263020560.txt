@@ -1,0 +1,229 @@
+Her er det samlede, komplette prompt — klar til at kopiere til Replit:
+PROMPT: Komplet Professionelt Redesign af Nordic Homebuild Forside
+PROBLEM
+Forsiden ser kedelig, flad og utroværdig ud. Den mangler dybde, luksusfølelse og visuel hierarki.
+LØSNING: "Nordic Luxe" Design System
+1. FARVEPALET (helt ny)
+css
+Copy
+:root {
+  /* Primære baggrunde */
+  --bg-primary: #E6DFD4;        /* Varm Oat Beige — hovedbaggrund */
+  --bg-secondary: #F5F1EB;      /* Lys Sand — cards, sektioner */
+  --bg-accent: #D4C8B8;         /* Dyb Latte — hover states */
+  
+  /* Tekst */
+  --text-primary: #1A1A1A;      /* Næsten sort — overskrifter */
+  --text-secondary: #5C5C5C;    /* Varm grå — subtext */
+  --text-muted: #8B8B8B;        /* Lys grå — labels */
+  
+  /* Accenter */
+  --accent-gold: #C4A77D;        /* Varm Guld — highlights, stjerner */
+  --accent-terracotta: #B87D6A;  /* Terracotta — secondary accent */
+  
+  /* UI */
+  --cta-bg: #1A1A1A;            /* Mørk — primær knap */
+  --cta-text: #FFFFFF;           /* Hvid — knaptekst */
+  --border-subtle: rgba(26,26,26,0.08); /* Subtle borders */
+}
+2. HERO-STRUKTUR (nyt layout)
+plain
+Copy
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  [NAVIGATION — mørk tekst på beige, ingen baggrund]          │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                                                     │   │
+│  │   [FØR-BILLEDE]        [EFTER-BILLEDE]             │   │
+│  │   50% bredde           50% bredde                   │   │
+│  │   ↓                                                   │   │
+│  │   Hvid border (2px)                                   │   │
+│  │   Box-shadow: 0 30px 60px rgba(0,0,0,0.12)            │   │
+│  │   Border-radius: 16px                                  │   │
+│  │   Slight rotation: -1deg / +1deg (subtle dynamik)   │   │
+│  │                                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│        Spisestue → Scandinavian Warm                       │
+│        ○ ● ○  (guld prikker, aktiv = fyldt)                │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  "Se dit nye rum med møbler, der passer til dit budget"      │
+│  Font: 48px, weight 600, letter-spacing -0.02em            │
+│                                                             │
+│  "AI redesigner dit rum på 30 sekunder"                     │
+│  Font: 18px, --text-secondary, margin-top 16px               │
+│                                                             │
+│        ┌─────────────────────────┐                          │
+│        │   Start dit design →    │  ← CTA                   │
+│        │   bg: --cta-bg         │                          │
+│        │   shadow + hover lift  │                          │
+│        └─────────────────────────┘                          │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  [I tvivl om din stil?]    ★★★★★ 4.8    [Se eksempler ↓]   │
+│  Card med --bg-secondary, shadow, hover lift               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+3. BILLED-STYLING (nøglen til "wow")
+css
+Copy
+.hero-image-wrapper {
+  position: relative;
+  width: 50%;
+  aspect-ratio: 4/3;
+  background: white;
+  padding: 12px;                    /* "Polaroid" effekt */
+  border-radius: 16px;
+  box-shadow: 
+    0 30px 60px rgba(0,0,0,0.12),
+    0 10px 20px rgba(0,0,0,0.08);
+  transform: rotate(-1deg);        /* Subtil dynamik */
+  transition: transform 0.3s ease;
+}
+
+.hero-image-wrapper:hover {
+  transform: rotate(0deg) scale(1.02);
+}
+
+.hero-image-wrapper:nth-child(2) {
+  transform: rotate(1deg);         /* Andet billede modsat */
+  z-index: 2;                       /* Efter foran Før */
+}
+
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* FØR/EFTER badges */
+.badge {
+  position: absolute;
+  top: 24px;
+  padding: 10px 18px;
+  background: rgba(26,26,26,0.85);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+4. ANIMATIONER (liv uden at være distraherende)
+Table
+Element	Animation	Timing
+Billeder	Fade in + slide up + rotate	0.8s ease-out
+Tekst	Fade in + slide up	0.6s, 0.2s delay
+CTA	Scale 0.9 → 1 + fade	0.5s, 0.4s delay
+Slideshow	Cross-fade mellem slides	0.5s, auto 4s
+Hover (billeder)	Rotation 0 + scale 1.02	0.3s
+5. CTA-KNAP (prominent)
+css
+Copy
+.cta-primary {
+  background: var(--cta-bg);
+  color: var(--cta-text);
+  padding: 20px 48px;
+  border-radius: 50px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow: 
+    0 4px 6px rgba(26,26,26,0.1),
+    0 10px 20px rgba(26,26,26,0.15);
+  transition: all 0.3s ease;
+}
+
+.cta-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 12px rgba(26,26,26,0.15),
+    0 20px 40px rgba(26,26,26,0.2);
+}
+
+/* Pil animation på hover */
+.cta-primary:hover .arrow {
+  transform: translateX(4px);
+}
+6. BOTTOM CARDS (I tvivl + Rating)
+css
+Copy
+.bottom-card {
+  background: var(--bg-secondary);
+  padding: 20px 28px;
+  border-radius: 16px;
+  box-shadow: 
+    0 4px 6px rgba(0,0,0,0.02),
+    0 10px 20px rgba(0,0,0,0.04);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.3s ease;
+}
+
+.bottom-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 8px 12px rgba(0,0,0,0.04),
+    0 20px 40px rgba(0,0,0,0.08);
+}
+Stjerner: Guld farve #C4A77D, ikke gul.
+7. SLIDESHOW (3 slides, auto-rotate)
+TypeScript
+Copy
+const slides = [
+  {
+    before: "before-dining.png",
+    after: "after-dining.png",
+    label: "Spisestue",
+    style: "Scandinavian Warm"
+  },
+  {
+    before: "before-living-1.png", 
+    after: "after-living-1.png",
+    label: "Stue",
+    style: "Fra tungt til luftigt"
+  },
+  {
+    before: "before-living-2.png",
+    after: "after-living-2.png", 
+    label: "Stue",
+    style: "Premium upgrade"
+  }
+];
+
+// Auto-rotate hver 4 sekunder
+// Cross-fade transition 0.5s
+// Indicators: 3 guld prikker
+8. TÆNKT UD AF BOKSEN — Detaljer der gør forskel
+Table
+Feature	Effekt
+"Polaroid" padding på billeder	Føles som et fysisk produkt
+Subtil rotation (-1° / +1°)	Dynamik uden at være rodet
+Efter-billede foran (z-index)	Viser hvad de får, ikke hvad de har
+Backdrop blur på badges	Moderne, luksuriøst
+Guld stjerner	Dyr følelse, ikke gratis
+Letter-spacing -0.02em på H1	Tættere, mere premium
+9. RESPONSIV (mobil)
+Billeder: 100% bredde, stacked (Før over Efter)
+Rotation: Fjernes (0deg)
+Padding: Mindre (8px)
+Tekst: 32px H1
+CTA: Full width
+10. ACCEPTKRITERIER
+[ ] Baggrund: #E6DFD4 varm beige
+[ ] Billeder med hvid border, skygge, subtil rotation
+[ ] 3 slides auto-rotater hver 4 sekund
+[ ] CTA prominent, hover animation
+[ ] Bottom cards med skygge og hover lift
+[ ] Guld stjerner, ikke gule
+[ ] Load animationer (fade + slide up)
+[ ] Ser dyr og troværdig ud — ikke gratis
+[ ] Mobil: stacked billeder, samme kvalitet
+Kopier denne prompt til Replit. Den er komplet, præcis og klar til implementering.
