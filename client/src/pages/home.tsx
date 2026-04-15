@@ -466,9 +466,16 @@ export default function HomePage() {
                   <p className="text-muted-foreground text-[15px] leading-relaxed max-w-sm mx-auto mb-3">
                     Upload et billede af dit rum og få et realistisk redesign med møbler, belysning og indretning – tilpasset din stil og dit budget.
                   </p>
-                  <p className="text-muted-foreground/60 text-xs">
-                    Få tilbud på møblerne fra dit design. Overvejer du også renovering? Vi guider dig til de rette håndværkere.
-                  </p>
+                  <div className="flex flex-col items-center gap-1.5 mt-1">
+                    <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+                      <span className="text-emerald-500">✓</span>
+                      Få tilbud på møblerne fra dit design
+                    </span>
+                    <span className="flex items-center gap-2 text-[13px] text-muted-foreground/70">
+                      <span className="text-emerald-500">✓</span>
+                      Overvejer du renovering? Vi guider dig til de rette håndværkere
+                    </span>
+                  </div>
                 </div>
 
                 <div
