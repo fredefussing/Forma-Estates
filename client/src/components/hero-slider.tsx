@@ -51,7 +51,7 @@ export function HeroSlider() {
             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "rotate(-1deg)"; }}
             data-testid="hero-before-img"
           >
-            <div className="relative" style={{ borderRadius: "8px", overflow: "hidden", aspectRatio: "3/2" }}>
+            <div className="relative" style={{ borderRadius: "8px", overflow: "hidden", aspectRatio: "16/9" }}>
               <img
                 src={slide.before}
                 alt="Før redesign"
@@ -95,7 +95,7 @@ export function HeroSlider() {
             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "rotate(1deg)"; }}
             data-testid="hero-after-img"
           >
-            <div className="relative" style={{ borderRadius: "8px", overflow: "hidden", aspectRatio: "3/2" }}>
+            <div className="relative" style={{ borderRadius: "8px", overflow: "hidden", aspectRatio: "16/9" }}>
               <img
                 src={slide.after}
                 alt="Efter redesign"

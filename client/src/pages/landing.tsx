@@ -144,7 +144,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="pt-6 sm:pt-10 pb-6"
+            className="pt-4 sm:pt-6 pb-3"
           >
             <HeroSlider />
           </motion.div>
@@ -154,15 +154,15 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.2, ease: "easeOut" }}
-            className="text-center pb-4"
+            className="text-center pb-2"
           >
             <h1
-              className="text-[2rem] sm:text-[2.75rem] lg:text-5xl font-semibold leading-[1.1] text-[#1A1A1A]"
+              className="text-[1.75rem] sm:text-[2.5rem] lg:text-[2.75rem] font-semibold leading-[1.1] text-[#1A1A1A]"
               style={{ fontFamily: '"Playfair Display", Georgia, serif', letterSpacing: "-0.02em" }}
             >
               Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
             </h1>
-            <p className="mt-4 text-[15px] sm:text-[17px] leading-relaxed" style={{ color: "#5C5C5C" }}>
+            <p className="mt-2 text-[14px] sm:text-[16px] leading-relaxed" style={{ color: "#5C5C5C" }}>
               AI redesigner dit rum på 30 sekunder
             </p>
           </motion.div>
@@ -172,7 +172,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-            className="text-center pt-7 pb-10 sm:pb-14"
+            className="text-center pt-3 pb-5 sm:pb-8"
           >
             <Link href="/design">
               <button
@@ -201,8 +201,8 @@ export default function LandingPage() {
               </button>
             </Link>
 
-            <div className="flex items-center justify-center gap-2 mt-5">
-              <span className="text-sm" style={{ color: "#C4A77D" }}>★★★★★</span>
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <span className="text-sm" style={{ color: "#F5A623" }}>★★★★★</span>
               <span className="text-[13px] font-medium" style={{ color: "#5C5C5C" }}>4.8 stjerner</span>
               <span className="text-xs mx-1" style={{ color: "rgba(92,92,92,0.3)" }}>·</span>
               <a
