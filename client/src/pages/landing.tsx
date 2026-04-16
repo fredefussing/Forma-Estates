@@ -206,44 +206,21 @@ export default function LandingPage() {
               <span className="text-[13px] font-medium" style={{ color: "#5C5C5C" }}>4.8 stjerner</span>
               <span className="text-xs mx-1" style={{ color: "rgba(92,92,92,0.3)" }}>·</span>
               <a
-                href="#se-eksempler"
-                className="text-[13px] transition-colors"
-                style={{ color: "#8B8B8B" }}
+                href="#saadan-virker-det"
+                className="text-[13px] font-medium transition-colors"
+                style={{ color: "#3D3D3D" }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#1A1A1A"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#8B8B8B"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#3D3D3D"; }}
                 data-testid="button-hero-secondary"
               >
-                Se eksempler ↓
+                Sådan fungerer det ↓
               </a>
             </div>
           </motion.div>
         </div>
       </section>
 
-      <section className="py-10 px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.5 }}
-          className="mx-auto max-w-xl"
-        >
-          <div className="bg-card border border-border/50 rounded-2xl p-5 md:p-8 text-center shadow-sm">
-            <h3 className="text-base md:text-xl font-semibold tracking-tight mb-1 md:mb-2">Ikke sikker på din stil?</h3>
-            <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
-              Tag vores hurtige 30-sekunders quiz og få en personlig anbefaling baseret på dit rum og budget.
-            </p>
-            <Link href="/find-stil">
-              <Button variant="outline" size="lg" className="h-10 md:h-12 px-6 md:px-8 text-sm font-medium rounded-full" data-testid="button-quiz-cta">
-                Find min stil
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
-      </section>
-
-      <section className="py-14 sm:py-20 px-6">
+      <section id="saadan-virker-det" className="py-14 sm:py-20 px-6">
         <div className="mx-auto max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -298,6 +275,29 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="py-10 px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.5 }}
+          className="mx-auto max-w-xl"
+        >
+          <div className="bg-card border border-border/50 rounded-2xl p-5 md:p-8 text-center shadow-sm">
+            <h3 className="text-base md:text-xl font-semibold tracking-tight mb-1 md:mb-2">Ikke sikker på din stil?</h3>
+            <p className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-6">
+              Tag vores hurtige 30-sekunders quiz og få en personlig anbefaling baseret på dit rum og budget.
+            </p>
+            <Link href="/find-stil">
+              <Button variant="outline" size="lg" className="h-10 md:h-12 px-6 md:px-8 text-sm font-medium rounded-full" data-testid="button-quiz-cta">
+                Find min stil
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
       </section>
 
       <section id="se-eksempler" className="py-14 sm:py-20 px-6 border-t border-border/40">
