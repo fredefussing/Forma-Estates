@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const stats = [
-  { icon: "🔥", value: "12", label: "designs i dag" },
+  { icon: "🔥", value: "387", label: "designs i dag" },
   { icon: "⭐", value: "4.8", label: "stjerner" },
   { icon: "💰", value: "8.7k", label: "kr sparet" },
 ];
