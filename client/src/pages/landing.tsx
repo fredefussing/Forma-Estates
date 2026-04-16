@@ -7,6 +7,7 @@ import { RotatingStats } from "@/components/rotating-stats";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { HeroSlider } from "@/components/hero-slider";
 import { useAuth } from "@/hooks/use-auth";
+import heroBg from "@assets/Skærmbillede_2026-04-16_kl._20.57.33_1776365857685.png";
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -121,8 +122,22 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="pt-16" style={{ background: "#E6DFD4" }} data-testid="hero-section">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <section className="relative pt-16 overflow-hidden" data-testid="hero-section">
+        {/* Background image */}
+        <img
+          src={heroBg}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+          style={{ zIndex: 0 }}
+        />
+        {/* Warm beige overlay — keeps text & polaroid images readable */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "rgba(230, 223, 212, 0.82)", zIndex: 1 }}
+        />
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6" style={{ zIndex: 2 }}>
 
           {/* Billeder */}
           <motion.div
