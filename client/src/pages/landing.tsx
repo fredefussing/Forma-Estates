@@ -163,8 +163,8 @@ export default function LandingPage() {
               Se dit nye rum – før du køber møblerne
             </h1>
             <p className="mt-3 text-[14px] sm:text-[16px] leading-relaxed max-w-lg mx-auto" style={{ color: "#3A3A3A" }}>
-              Upload et billede af dit rum.<br />
-              AI redesigner det på under 60 sekunder – og du kan få tilbud på møblerne indenfor 24 timer.
+              AI redesigner dit rum på 60 sekunder.<br />
+              Få tilbud på møbler indenfor 24 timer.
             </p>
           </motion.div>
 
