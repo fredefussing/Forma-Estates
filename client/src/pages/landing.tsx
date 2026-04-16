@@ -134,7 +134,7 @@ export default function LandingPage() {
         {/* Warm beige overlay — keeps text & polaroid images readable */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ background: "rgba(230, 223, 212, 0.82)", zIndex: 1 }}
+          style={{ background: "rgba(230, 223, 212, 0.70)", zIndex: 1 }}
         />
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6" style={{ zIndex: 2 }}>
