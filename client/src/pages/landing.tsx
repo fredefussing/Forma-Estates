@@ -160,10 +160,11 @@ export default function LandingPage() {
               className="text-[1.75rem] sm:text-[2.5rem] lg:text-[2.75rem] font-semibold leading-[1.1] text-[#1A1A1A]"
               style={{ fontFamily: '"Playfair Display", Georgia, serif', letterSpacing: "-0.02em" }}
             >
-              Se dit nye rum med møbler,<br className="hidden sm:block" /> der passer til dit budget
+              Se dit nye rum – før du køber møblerne
             </h1>
-            <p className="mt-2 text-[14px] sm:text-[16px] leading-relaxed" style={{ color: "#5C5C5C" }}>
-              AI redesigner dit rum på 30 sekunder
+            <p className="mt-3 text-[14px] sm:text-[16px] leading-relaxed max-w-lg mx-auto" style={{ color: "#5C5C5C" }}>
+              Upload et billede af dit rum.<br />
+              AI redesigner det på under 60 sekunder – og du kan få tilbud på møblerne indenfor 24 timer.
             </p>
           </motion.div>
 
@@ -196,7 +197,7 @@ export default function LandingPage() {
                 }}
                 data-testid="button-hero-cta"
               >
-                Start dit design
+                Upload dit rum
                 <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </button>
             </Link>
