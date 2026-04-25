@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "viBqTeE5k129fcKlo1WRJ"
+uri = "file://clip_input.csv"
+type = "table"
+title = "clip_input.csv — 243.897 produkt-URLs"
