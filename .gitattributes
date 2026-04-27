@@ -9,3 +9,4 @@ attached_assets/vectors_part_6_of_20_1777315619525.csv filter=lfs diff=lfs merge
 attached_assets/vectors_part_7_of_20_1777315739153.csv filter=lfs diff=lfs merge=lfs -text
 attached_assets/vectors_part_8_of_20_1777315887537.csv filter=lfs diff=lfs merge=lfs -text
 attached_assets/vectors_part_9_of_20_1777316265853.csv filter=lfs diff=lfs merge=lfs -text
+attached_assets/vectors_part_10_of_20_1777316514834.csv filter=lfs diff=lfs merge=lfs -text
