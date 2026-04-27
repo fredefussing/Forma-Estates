@@ -1157,5 +1157,23 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/find-similar", async (req, res) => {
+    try {
+      const { aiImageUrl, topK = 5 } = req.body;
+      if (!aiImageUrl) return res.status(400).json({ error: "aiImageUrl påkrævet" });
+
+      const { getClipEmbedding } = await import("./huggingFace");
+      const { findSimilarProducts } = await import("./vectorSearch");
+
+      const embedding = await getClipEmbedding(aiImageUrl);
+      const products = await findSimilarProducts(embedding, topK);
+
+      return res.json({ products });
+    } catch (err: any) {
+      console.error("find-similar fejl:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
