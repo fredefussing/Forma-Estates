@@ -12,37 +12,39 @@ async function importFile(filepath, client) {
   const stat = fs.statSync(filepath);
   console.log(`\n→ Importerer: ${filename} (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
 
+  // Create temp table for this import (no ON COMMIT DELETE ROWS — we use explicit transaction)
+  await client.query(`DROP TABLE IF EXISTS tmp_vectors`);
+  await client.query(`
+    CREATE TEMP TABLE tmp_vectors (
+      id INTEGER,
+      vec TEXT
+    )
+  `);
+
   const rl = readline.createInterface({
     input: fs.createReadStream(filepath, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
 
-  const batch = [];
   let lineNum = 0;
-  let imported = 0;
   let skipped = 0;
+  let batchIds = [];
+  let batchVecs = [];
+  const BATCH_SIZE = 200;
+  let totalInserted = 0;
 
-  const BATCH_SIZE = 500;
-
-  async function flushBatch() {
-    if (batch.length === 0) return;
-    // Build a multi-row UPDATE using a VALUES list
-    const values = [];
+  async function flushToTemp() {
+    if (batchIds.length === 0) return;
+    const values = batchIds.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(',');
     const params = [];
-    let idx = 1;
-    for (const { id, vec } of batch) {
-      values.push(`($${idx++}::int, $${idx++}::float8[])`);
-      params.push(id, vec);
+    for (let i = 0; i < batchIds.length; i++) {
+      params.push(batchIds[i], batchVecs[i]);
     }
-    await client.query(
-      `UPDATE products SET vector_embedding = v.vec
-       FROM (VALUES ${values.join(',')}) AS v(id, vec)
-       WHERE products.id = v.id`,
-      params
-    );
-    imported += batch.length;
-    batch.length = 0;
-    process.stdout.write(`\r  Opdateret: ${imported.toLocaleString('da')} rækker...`);
+    await client.query(`INSERT INTO tmp_vectors (id, vec) VALUES ${values}`, params);
+    totalInserted += batchIds.length;
+    batchIds = [];
+    batchVecs = [];
+    process.stdout.write(`\r  Indlæst: ${totalInserted.toLocaleString('da')} rækker...`);
   }
 
   for await (const line of rl) {
@@ -54,47 +56,55 @@ async function importFile(filepath, client) {
 
     const id = parseInt(line.slice(0, commaIdx).trim());
     const vecStr = line.slice(commaIdx + 1).trim();
-
     if (isNaN(id) || !vecStr) { skipped++; continue; }
 
-    // Accept both {a,b,c} and [a,b,c] and plain a,b,c after the first comma
-    // PostgreSQL array format: {0.1,0.2,...}
-    // Python list format written as string: [0.1, 0.2, ...] or 0.1,0.2,...
-    let vec;
-    if (vecStr.startsWith('{')) {
-      // Already PostgreSQL format — pass as string
-      vec = vecStr;
-    } else if (vecStr.startsWith('[')) {
-      // JSON array → convert to PG array string
-      vec = '{' + vecStr.slice(1, -1) + '}';
-    } else {
-      // Raw comma-separated floats
-      vec = '{' + vecStr + '}';
+    // Strip CSV double-quotes if present: "{...}" → {...}
+    let vecClean = vecStr;
+    if (vecClean.startsWith('"') && vecClean.endsWith('"')) {
+      vecClean = vecClean.slice(1, -1);
     }
 
-    batch.push({ id, vec });
+    // Normalize to {a,b,c} format
+    let vec;
+    if (vecClean.startsWith('{')) {
+      vec = vecClean;
+    } else if (vecClean.startsWith('[')) {
+      vec = '{' + vecClean.slice(1, -1) + '}';
+    } else {
+      vec = '{' + vecClean + '}';
+    }
 
-    if (batch.length >= BATCH_SIZE) {
-      await flushBatch();
+    batchIds.push(id);
+    batchVecs.push(vec);
+
+    if (batchIds.length >= BATCH_SIZE) {
+      await flushToTemp();
     }
   }
-
-  await flushBatch();
+  await flushToTemp();
   process.stdout.write('\n');
 
-  console.log(`  ✓ Færdig: ${imported.toLocaleString('da')} opdateret, ${skipped} sprunget over`);
+  console.log(`  Indlæst ${totalInserted.toLocaleString('da')} rækker i temp-tabel, ${skipped} sprunget over`);
+  console.log(`  Opdaterer products tabel...`);
 
-  // Slet filen efter succesfuld import
+  // Bulk UPDATE via JOIN on temp table
+  const result = await client.query(`
+    UPDATE products p
+    SET vector_embedding = t.vec::float8[]
+    FROM tmp_vectors t
+    WHERE p.id = t.id
+  `);
+
+  console.log(`  ✓ Opdaterede ${result.rowCount.toLocaleString('da')} produkter`);
+
   fs.unlinkSync(filepath);
   console.log(`  ✓ Slettet: ${filename}`);
 
-  return imported;
+  return result.rowCount;
 }
 
 async function main() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
   const files = fs.readdirSync(DATA_DIR)
     .filter(f => f.endsWith('.csv'))
@@ -103,42 +113,41 @@ async function main() {
 
   if (files.length === 0) {
     console.log('Ingen CSV-filer fundet i ./data/');
-    console.log('Læg vectors_part_X_of_20.csv filer i ./data/ mappen og kør scriptet igen.');
+    console.log('Læg vectors_part_X_of_20.csv i ./data/ og kør scriptet igen.');
     await pool.end();
     return;
   }
 
-  console.log(`Fandt ${files.length} fil(er) at importere:`);
+  console.log(`Fandt ${files.length} fil(er):`);
   files.forEach(f => console.log('  ' + path.basename(f)));
 
   const client = await pool.connect();
-  let totalImported = 0;
+  let totalUpdated = 0;
   const startTime = Date.now();
 
   try {
     for (const filepath of files) {
       const count = await importFile(filepath, client);
-      totalImported += count;
+      totalUpdated += count;
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`\n====================================`);
-    console.log(`✓ Alt importeret: ${totalImported.toLocaleString('da')} produkter opdateret`);
-    console.log(`  Tid: ${elapsed} sekunder`);
+    console.log(`✓ Færdig: ${totalUpdated.toLocaleString('da')} produkter opdateret på ${elapsed}s`);
 
-    // Status
     const res = await client.query(`
       SELECT
-        COUNT(*) FILTER (WHERE vector_embedding IS NOT NULL) as med_vector,
-        COUNT(*) FILTER (WHERE vector_embedding IS NULL) as uden_vector,
+        COUNT(*) FILTER (WHERE vector_embedding IS NOT NULL) as med,
+        COUNT(*) FILTER (WHERE vector_embedding IS NULL) as uden,
         COUNT(*) as total
       FROM products
     `);
     const r = res.rows[0];
-    console.log(`\nStatus i databasen:`);
-    console.log(`  Med vector:    ${parseInt(r.med_vector).toLocaleString('da')}`);
-    console.log(`  Uden vector:   ${parseInt(r.uden_vector).toLocaleString('da')}`);
-    console.log(`  Total:         ${parseInt(r.total).toLocaleString('da')}`);
+    console.log(`\nDatabase status:`);
+    console.log(`  Med vector:  ${parseInt(r.med).toLocaleString('da')} / ${parseInt(r.total).toLocaleString('da')}`);
+    console.log(`  Uden vector: ${parseInt(r.uden).toLocaleString('da')}`);
+    const pct = (parseInt(r.med) / parseInt(r.total) * 100).toFixed(1);
+    console.log(`  Fremskridt:  ${pct}%`);
 
   } finally {
     client.release();
@@ -147,6 +156,7 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('FEJL:', err.message);
+  console.error('\nFEJL:', err.message);
+  console.error(err.stack);
   process.exit(1);
 });
