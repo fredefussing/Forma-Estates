@@ -66,3 +66,66 @@ export async function findSimilarProducts(
 
   return result.rows;
 }
+
+export async function findSimilarProductsWithTags(
+  queryVector: number[],
+  topK: number = 5,
+  yoloLabel?: string,
+  colorTerms: string[] = [],
+  styleTerms: string[] = [],
+) {
+  const vectorParam = JSON.stringify(queryVector);
+  const categoryKeywords = yoloLabel
+    ? (YOLO_TO_CATEGORY[yoloLabel.toLowerCase()] ?? [])
+    : [];
+
+  const allTextTerms = [...colorTerms, ...styleTerms];
+
+  if (categoryKeywords.length > 0 && allTextTerms.length > 0) {
+    let paramIdx = 3;
+    const catConditions = categoryKeywords.map(() => `category ILIKE $${paramIdx++}`).join(" OR ");
+    const nameConditions = allTextTerms.map(() => `name ILIKE $${paramIdx++}`).join(" OR ");
+
+    const narrowResult = await pool.query(
+      `
+      SELECT id, name, price, image_url, affiliate_link, shop,
+             1 - (vector_clip <=> $1::vector(512)) AS similarity
+      FROM products
+      WHERE vector_clip IS NOT NULL
+        AND (${catConditions})
+        AND (${nameConditions})
+      ORDER BY vector_clip <=> $1::vector(512)
+      LIMIT $2
+      `,
+      [
+        vectorParam,
+        topK,
+        ...categoryKeywords.map((k) => `%${k}%`),
+        ...allTextTerms.map((t) => `%${t}%`),
+      ],
+    );
+
+    if (narrowResult.rows.length >= 3) {
+      return narrowResult.rows;
+    }
+
+    const catResult = await pool.query(
+      `
+      SELECT id, name, price, image_url, affiliate_link, shop,
+             1 - (vector_clip <=> $1::vector(512)) AS similarity
+      FROM products
+      WHERE vector_clip IS NOT NULL
+        AND (${catConditions})
+      ORDER BY vector_clip <=> $1::vector(512)
+      LIMIT $2
+      `,
+      [vectorParam, topK, ...categoryKeywords.map((k) => `%${k}%`)],
+    );
+
+    if (catResult.rows.length >= 3) {
+      return catResult.rows;
+    }
+  }
+
+  return findSimilarProducts(queryVector, topK, yoloLabel);
+}

@@ -701,7 +701,7 @@ export default function HomePage() {
                       afterSrc={activeDesign.resultImageUrl}
                     />
 
-                    <FurnitureDetector imageUrl={activeDesign.resultImageUrl!} autoRun />
+                    <FurnitureDetector imageUrl={activeDesign.resultImageUrl!} autoRun designStyle={activeDesign.style ?? undefined} />
 
                     {activeDesign.budget && activeDesign.roomType && (() => {
                       const { min, max, roi } = calcValueRange(activeDesign.budget, activeDesign.roomType as RoomType);

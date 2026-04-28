@@ -1197,24 +1197,30 @@ export async function registerRoutes(
 
   app.post("/api/find-similar-crop", async (req, res) => {
     try {
-      const { imageUrl, x, y, width, height, topK = 5 } = req.body;
+      const { imageUrl, x, y, width, height, topK = 5, yoloLabel, designStyle } = req.body;
       if (!imageUrl || x == null || y == null || width == null || height == null) {
         return res.status(400).json({ error: "imageUrl, x, y, width, height påkrævet" });
       }
 
       const { cropImageToTempFile } = await import("./cropImage");
       const { getClipEmbedding } = await import("./huggingFace");
-      const { findSimilarProducts } = await import("./vectorSearch");
+      const { findSimilarProductsWithTags } = await import("./vectorSearch");
+      const { getDominantColorTerms, getStyleSearchTerms } = await import("./analyzeVisual");
 
-      const { yoloLabel } = req.body;
       const { filePath, cleanup } = await cropImageToTempFile(imageUrl, x, y, width, height);
       let embedding: number[];
+      let colorTerms: string[] = [];
       try {
-        embedding = await getClipEmbedding(filePath);
+        [embedding, colorTerms] = await Promise.all([
+          getClipEmbedding(filePath),
+          getDominantColorTerms(filePath),
+        ]);
       } finally {
         cleanup();
       }
-      const products = await findSimilarProducts(embedding, topK, yoloLabel);
+
+      const styleTerms = getStyleSearchTerms(designStyle);
+      const products = await findSimilarProductsWithTags(embedding, topK, yoloLabel, colorTerms, styleTerms);
 
       return res.json({ products });
     } catch (err: any) {

@@ -4,7 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 
-const PADDING = 20;
+const PAD_PERCENT = 0.15;
 
 export async function cropImageToTempFile(
   imageUrl: string,
@@ -18,10 +18,13 @@ export async function cropImageToTempFile(
   const imgW = image.width;
   const imgH = image.height;
 
-  const safeX = Math.max(0, Math.min(Math.round(x - PADDING), imgW - 1));
-  const safeY = Math.max(0, Math.min(Math.round(y - PADDING), imgH - 1));
-  const rawW = Math.round(w + PADDING * 2);
-  const rawH = Math.round(h + PADDING * 2);
+  const padX = Math.round(w * PAD_PERCENT);
+  const padY = Math.round(h * PAD_PERCENT);
+
+  const safeX = Math.max(0, Math.min(Math.round(x - padX), imgW - 1));
+  const safeY = Math.max(0, Math.min(Math.round(y - padY), imgH - 1));
+  const rawW = Math.round(w + padX * 2);
+  const rawH = Math.round(h + padY * 2);
   const safeW = Math.max(1, Math.min(rawW, imgW - safeX));
   const safeH = Math.max(1, Math.min(rawH, imgH - safeY));
 

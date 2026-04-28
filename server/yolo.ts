@@ -65,37 +65,41 @@ async function getDetector() {
   return detector;
 }
 
-function centerDistance(a: DetectedObject, b: DetectedObject): number {
-  const ax = a.x + a.width / 2;
-  const ay = a.y + a.height / 2;
-  const bx = b.x + b.width / 2;
-  const by = b.y + b.height / 2;
-  return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
+function calculateIoU(a: DetectedObject, b: DetectedObject): number {
+  const ax1 = a.x, ay1 = a.y, ax2 = a.x + a.width, ay2 = a.y + a.height;
+  const bx1 = b.x, by1 = b.y, bx2 = b.x + b.width, by2 = b.y + b.height;
+
+  const ix1 = Math.max(ax1, bx1);
+  const iy1 = Math.max(ay1, by1);
+  const ix2 = Math.min(ax2, bx2);
+  const iy2 = Math.min(ay2, by2);
+
+  if (ix2 <= ix1 || iy2 <= iy1) return 0;
+
+  const intersection = (ix2 - ix1) * (iy2 - iy1);
+  const areaA = a.width * a.height;
+  const areaB = b.width * b.height;
+  const union = areaA + areaB - intersection;
+
+  return union > 0 ? intersection / union : 0;
 }
 
-function groupNearbyObjects(objects: DetectedObject[], distThreshold: number): DetectedObject[] {
-  const used = new Set<number>();
-  const grouped: DetectedObject[] = [];
+function groupByIoU(objects: DetectedObject[], iouThreshold: number = 0.3): DetectedObject[] {
+  const sorted = [...objects].sort((a, b) => b.confidence - a.confidence);
+  const kept: DetectedObject[] = [];
 
-  for (let i = 0; i < objects.length; i++) {
-    if (used.has(i)) continue;
-    let best = objects[i];
-    used.add(i);
-
-    for (let j = i + 1; j < objects.length; j++) {
-      if (used.has(j)) continue;
-      if (centerDistance(objects[i], objects[j]) < distThreshold) {
-        used.add(j);
-        if (objects[j].confidence > best.confidence) {
-          best = objects[j];
-        }
+  for (const obj of sorted) {
+    let suppressed = false;
+    for (const k of kept) {
+      if (calculateIoU(obj, k) > iouThreshold) {
+        suppressed = true;
+        break;
       }
     }
-
-    grouped.push(best);
+    if (!suppressed) kept.push(obj);
   }
 
-  return grouped;
+  return kept;
 }
 
 export async function detectObjects(imageUrl: string): Promise<DetectedObject[]> {
@@ -104,8 +108,8 @@ export async function detectObjects(imageUrl: string): Promise<DetectedObject[]>
   const detect = await getDetector();
   const results: any[] = await detect(imageUrl, { threshold: 0.45 });
 
-  const filtered: DetectedObject[] = results
-    .filter((r: any) => r.score >= 0.55 && PRIORITY_LABELS[r.label.toLowerCase()] !== undefined)
+  const candidates: DetectedObject[] = results
+    .filter((r: any) => PRIORITY_LABELS[r.label.toLowerCase()] !== undefined)
     .map((r: any) => ({
       label: r.label,
       labelDa: LABEL_DA[r.label.toLowerCase()] ?? r.label,
@@ -116,9 +120,18 @@ export async function detectObjects(imageUrl: string): Promise<DetectedObject[]>
       confidence: Math.round(r.score * 100) / 100,
     }));
 
-  const grouped = groupNearbyObjects(filtered, 60);
+  const highConfidence = candidates.filter((c) => c.confidence >= 0.55);
+  let deduplicated = groupByIoU(highConfidence, 0.3);
 
-  const sorted = grouped.sort((a, b) => {
+  if (deduplicated.length < 4) {
+    const extras = candidates
+      .filter((c) => c.confidence >= 0.45 && c.confidence < 0.55)
+      .slice(0, 8 - deduplicated.length);
+    const combined = [...deduplicated, ...extras];
+    deduplicated = groupByIoU(combined, 0.3);
+  }
+
+  const sorted = deduplicated.sort((a, b) => {
     const pa = PRIORITY_LABELS[a.label.toLowerCase()] ?? 0;
     const pb = PRIORITY_LABELS[b.label.toLowerCase()] ?? 0;
     if (pb !== pa) return pb - pa;
@@ -126,7 +139,6 @@ export async function detectObjects(imageUrl: string): Promise<DetectedObject[]>
   });
 
   const final = sorted.slice(0, 8);
-
   cache.set(imageUrl, final);
   return final;
 }

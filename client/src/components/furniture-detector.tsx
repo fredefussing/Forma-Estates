@@ -40,6 +40,7 @@ interface ShopResult {
 interface Props {
   imageUrl: string;
   autoRun?: boolean;
+  designStyle?: string;
 }
 
 function formatPrice(price: string) {
@@ -176,7 +177,7 @@ function ShopSection({ result }: { result: ShopResult }) {
   );
 }
 
-export function FurnitureDetector({ imageUrl, autoRun = false }: Props) {
+export function FurnitureDetector({ imageUrl, autoRun = false, designStyle }: Props) {
   const { toast } = useToast();
   const imgRef = useRef<HTMLImageElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -243,6 +244,7 @@ export function FurnitureDetector({ imageUrl, autoRun = false }: Props) {
               height: obj.height,
               topK: 5,
               yoloLabel: obj.label,
+              designStyle,
             });
             const d = await r.json();
             return { obj, products: (d.products ?? []) as SimilarProduct[] };
@@ -292,6 +294,7 @@ export function FurnitureDetector({ imageUrl, autoRun = false }: Props) {
         height: obj.height,
         topK: 5,
         yoloLabel: obj.label,
+        designStyle,
       });
       return res.json() as Promise<{ products: SimilarProduct[] }>;
     },
