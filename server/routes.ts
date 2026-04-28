@@ -1207,7 +1207,7 @@ export async function registerRoutes(
       }
 
       const { cropImageToTempFile } = await import("./cropImage");
-      const { getClipEmbedding } = await import("./huggingFace");
+      const { getClipEmbedding, getClipTextEmbedding } = await import("./huggingFace");
       const { findSimilarProductsHybrid } = await import("./vectorSearch");
       const { getDominantColorTerms } = await import("./analyzeVisual");
       const { describeFurnitureWithVision, cacheKey } = await import("./describeWithVision");
@@ -1215,12 +1215,12 @@ export async function registerRoutes(
       const { filePath, cleanup } = await cropImageToTempFile(imageUrl, x, y, width, height);
       const ck = cacheKey(imageUrl, x, y, width, height);
 
-      let embedding: number[];
+      let imageEmbedding: number[];
       let colorTerms: string[] = [];
       let description: any = null;
 
       try {
-        [embedding, colorTerms, description] = await Promise.all([
+        [imageEmbedding, colorTerms, description] = await Promise.all([
           getClipEmbedding(filePath),
           getDominantColorTerms(filePath),
           describeFurnitureWithVision(filePath, ck),
@@ -1238,6 +1238,31 @@ export async function registerRoutes(
       ) {
         console.log(`Vision override: ${yoloLabel} (${Math.round(yoloConfidence * 100)}%) → ${description.type}`);
         effectiveLabel = description.type;
+      }
+
+      let embedding = imageEmbedding;
+
+      if (description && description.type && description.type !== "other" && description.type !== "unknown") {
+        try {
+          const typeLabel = effectiveLabel.replace(/_/g, " ");
+          const color = description.color?.replace(/_/g, " ") ?? "";
+          const material = description.material ?? "";
+          const style = description.style?.replace(/_/g, " ") ?? "";
+          const legs = description.legs && description.legs !== "none" && description.legs !== "unknown"
+            ? ` with ${description.legs} legs`
+            : "";
+          const shape = description.shape ? `, ${description.shape}` : "";
+
+          const textQuery = `A ${color} ${material} ${typeLabel} in ${style} style${legs}${shape}`.replace(/\s+/g, " ").trim();
+
+          const textEmbedding = await getClipTextEmbedding(textQuery);
+          embedding = textEmbedding;
+          console.log(`Text embedding brugt: "${textQuery}"`);
+        } catch (textErr: any) {
+          console.warn(`Text embedding fejlede, bruger image embedding: ${textErr.message}`);
+        }
+      } else {
+        console.log(`Image embedding brugt (Vision type: "${description?.type ?? "mangler"}")`);
       }
 
       const products = await findSimilarProductsHybrid(
