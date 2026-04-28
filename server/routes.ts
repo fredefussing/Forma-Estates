@@ -1244,20 +1244,26 @@ export async function registerRoutes(
 
       if (description && description.type && description.type !== "other" && description.type !== "unknown") {
         try {
-          const typeLabel = effectiveLabel.replace(/_/g, " ");
-          const color = description.color?.replace(/_/g, " ") ?? "";
-          const material = description.material ?? "";
-          const style = description.style?.replace(/_/g, " ") ?? "";
-          const legs = description.legs && description.legs !== "none" && description.legs !== "unknown"
-            ? ` with ${description.legs} legs`
-            : "";
-          const shape = description.shape ? `, ${description.shape}` : "";
+          let textQuery: string;
 
-          const textQuery = `A ${color} ${material} ${typeLabel} in ${style} style${legs}${shape}`.replace(/\s+/g, " ").trim();
+          if (description.searchText && description.searchText.length > 20) {
+            textQuery = description.searchText;
+          } else {
+            const typeLabel = effectiveLabel.replace(/_/g, " ");
+            const color = description.color?.replace(/_/g, " ") ?? "";
+            const material = description.material ?? "";
+            const style = description.style?.replace(/_/g, " ") ?? "";
+            const legs = description.legs && description.legs !== "none" && description.legs !== "na"
+              ? ` with ${description.legs.replace(/_/g, " ")} legs`
+              : "";
+            const shape = description.shape && description.shape !== "rectangular" ? `, ${description.shape}` : "";
+            const size = description.size && description.size !== "medium" ? ` ${description.size}` : "";
+            textQuery = `A${size} ${color} ${material} ${typeLabel} in ${style} style${legs}${shape}`.replace(/\s+/g, " ").trim();
+          }
 
           const textEmbedding = await getClipTextEmbedding(textQuery);
           embedding = textEmbedding;
-          console.log(`Text embedding brugt: "${textQuery}"`);
+          console.log(`Text embedding brugt: "${textQuery.substring(0, 80)}"`);
         } catch (textErr: any) {
           console.warn(`Text embedding fejlede, bruger image embedding: ${textErr.message}`);
         }

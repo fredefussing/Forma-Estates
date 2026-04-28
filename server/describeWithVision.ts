@@ -10,7 +10,10 @@ export interface FurnitureDescription {
   legs: string | null;
   style: string;
   shape: string;
+  size: "small" | "medium" | "large";
+  openness: "open" | "closed" | "mixed" | "na";
   indoor: boolean;
+  searchText: string;
 }
 
 export const DANISH_SYNONYMS: Record<string, string[]> = {
@@ -34,14 +37,24 @@ export const DANISH_SYNONYMS: Record<string, string[]> = {
   beige:         ["beige", "natur", "sand", "creme", "ecru", "lysebrun"],
   white:         ["hvid", "hvidt", "off-white"],
   cream:         ["creme", "ecru", "beige"],
+  light_oak:     ["eg", "lys eg", "natural oak", "natur eg", "hvidpigmenteret eg", "eg finér", "birk", "ask", "lys træ"],
+  warm_oak:      ["eg", "egetræ", "varm eg", "honning eg", "oljet eg", "honey oak"],
+  honey_pine:    ["fyr", "fyrretræ", "honning fyr", "lys fyr", "pine"],
+  light_birch:   ["birk", "birkefinér", "lys birk", "hvid birk"],
   light_brown:   ["lysebrun", "eg", "oak", "træ", "natur"],
-  dark_brown:    ["mørkebrun", "valnød", "brun", "walnut"],
+  dark_walnut:   ["valnød", "walnut", "mørk valnød", "mørk eg", "mørkebrun"],
+  dark_brown:    ["mørkebrun", "valnød", "brun", "walnut", "espresso", "mokka"],
+  espresso:      ["espresso", "mokka", "mørk brun", "mørkebrun"],
   black:         ["sort", "sorte"],
-  gray:          ["grå", "lysegrå", "mørkegrå"],
-  grey:          ["grå", "lysegrå", "mørkegrå"],
+  warm_grey:     ["grå", "gråbrun", "greige", "varm grå", "taupe"],
+  cool_grey:     ["lysegrå", "antracit", "koksgrå", "mørkegrå"],
+  gray:          ["grå", "lysegrå", "mørkegrå", "antracit"],
+  grey:          ["grå", "lysegrå", "mørkegrå", "antracit"],
   blue:          ["blå", "lyseblå", "mørkeblå", "navy"],
-  green:         ["grøn", "oliven", "sage"],
-  natural:       ["natur", "eg", "naturlig"],
+  navy:          ["navy", "mørkeblå", "marineblå"],
+  green:         ["grøn", "oliven", "sage", "mosgrøn"],
+  olive:         ["oliven", "olivengrøn", "army grøn"],
+  natural:       ["natur", "eg", "naturlig", "ubehandlet"],
   "light beige": ["beige", "natur", "sand", "creme"],
   "dark walnut":  ["valnød", "walnut", "mørkebrun"],
 
@@ -65,26 +78,39 @@ export const DANISH_SYNONYMS: Record<string, string[]> = {
   classic:      ["klassisk", "tidløs"],
   luxury:       ["eksklusiv", "luksus"],
   mid_century:  ["retro", "vintage"],
+
+  "L-shaped":    ["hjørne", "chaiselong", "l-sofa", "venstrevendt", "højrevendt"],
+  round:         ["rund", "cirkel", "cirkulær"],
+  square:        ["kvadratisk", "firkantet"],
+  large:         ["stor", "xl", "xxl", "bred", "lang", "høj"],
+  small:         ["lille", "kompakt", "mini", "small", "smal"],
+  open:          ["åben", "åbne hylder", "open back"],
+  closed:        ["lukket", "med låger", "med dør"],
 };
 
 const PROMPT = `You are analyzing a cropped furniture image from an interior design photo.
 Return ONLY valid JSON (no markdown, no explanation) with these exact fields:
 {
   "type": "lounge_chair|dining_chair|sofa|coffee_table|side_table|dining_table|rug|lamp|shelf|cabinet|bed|nightstand|mirror|bench|other",
-  "color": "beige|white|cream|light_brown|dark_brown|black|gray|blue|green|yellow|pink|orange|natural|light beige|dark walnut",
+  "color": "white|cream|light_oak|warm_oak|honey_pine|light_birch|light_brown|dark_walnut|dark_brown|espresso|black|warm_grey|cool_grey|gray|blue|navy|green|olive|natural|beige|yellow|pink|orange",
   "material": "woven|rattan|fabric|leather|velvet|wood|metal|glass|boucle|linen|plastic|other",
-  "legs": "oak|metal|none|other",
+  "legs": "tapered_wood|straight_wood|metal|hairpin|sled|no_legs|other",
   "style": "scandinavian|modern|minimalist|rustic|industrial|bohemian|classic|mid_century|luxury",
-  "shape": "brief shape e.g. '3-seat sofa' or 'round table'",
-  "indoor": true or false
+  "shape": "rectangular|square|L-shaped|round|asymmetric|other",
+  "size": "small|medium|large",
+  "openness": "open|closed|mixed|na",
+  "indoor": true or false,
+  "searchText": "One detailed English sentence (max 40 words) describing the furniture for product matching — include exact color tone, material texture, leg style, shape, proportions, and any distinctive features that distinguish it from similar items."
 }
 
 CRITICAL RULES:
-- "woven"/"rattan" = braided/wicker material (rattan, cane, wicker, basket weave)
-- "beige"/"light beige" = sand, cream, natural, ecru — NOT brown
-- "indoor": false ONLY for obvious outdoor furniture (sun loungers, garden chairs, parasols)
-- If wood frame + woven seat/back = use "rattan" or "woven"
-- Choose most specific type (lounge_chair over chair)`;
+- color: Use specific tone — not just "brown". "light_oak" = pale natural wood. "dark_walnut" = deep brown wood. "warm_oak" = medium honey-toned wood. "espresso" = very dark brown. "warm_grey" = beige-grey mix. "cool_grey" = blue-grey.
+- "woven"/"rattan" = braided/wicker material
+- shape: "L-shaped" for corner sofas or chaise sections
+- size: "small" = compact/petite. "large" = oversized/sectional. "medium" = standard
+- openness: "open" = visible shelves no doors. "closed" = doors/drawers cover contents. "na" = not storage furniture
+- "indoor": false ONLY for obvious outdoor furniture
+- searchText: focus on visual characteristics that distinguish this from similar furniture. Be specific about color tone and proportions.`;
 
 const VISION_CACHE = new Map<string, FurnitureDescription | null>();
 
@@ -106,7 +132,7 @@ export async function describeFurnitureWithVision(
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 200,
+      max_tokens: 300,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -133,6 +159,12 @@ export async function describeFurnitureWithVision(
 
     const desc = JSON.parse(content) as FurnitureDescription;
     if (desc.indoor === undefined) desc.indoor = true;
+    if (!desc.size) desc.size = "medium";
+    if (!desc.openness) desc.openness = "na";
+    if (!desc.searchText) {
+      desc.searchText = `A ${desc.color} ${desc.material} ${desc.type} in ${desc.style} style`;
+    }
+
     if (cacheId) VISION_CACHE.set(cacheId, desc);
     return desc;
   } catch (err: any) {

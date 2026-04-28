@@ -1,0 +1,64 @@
+To ting der vil forbedre det markant
+1. Mere præcis Vision-prompt
+Den nuværende prompt beder om generel beskrivelse. Vi skal have visuelle detaljer der adskiller produkter:
+
+
+
+Describe this furniture for product matching. Be extremely specific about:
+- Exact color tone (not just "brown" — is it warm oak, cool walnut, dark espresso, light birch?)
+- Shape and proportions (tall/short, wide/narrow, number of shelves/seats)
+- Leg style (tapered, straight, hairpin, no legs, wooden, metal)
+- Open vs closed storage
+- Fabric texture if applicable (boucle, velvet, linen, leather)
+- Any distinctive design features
+Output a single detailed sentence in English.
+2. Tilføj form-matching til scoring
+Lige nu scorer vi: CLIP + kategori + farve + materiale
+
+Vi mangler: form og proportioner
+
+En hjørnesofa skal matche andre hjørnesofaer. En høj reol skal matche andre høje reoler.
+
+Opdateret prompt til Replit
+
+
+Produktsøgningen finder nu den rigtige kategori, men ikke det rigtige udseende inden for kategorien. Eksempel: Billedet viser en lys eg reol med åbne hylder, men "Bedst match" er en mørk brun reol.
+## Ændring 1: Mere specifik Vision-prompt
+I /api/find-similar-crop/route.ts, opdater GPT-4 Vision prompten til at være langt mere specifik om visuelle detaljer:
+Nuværende prompt (omtrentlig):
+"Describe this furniture in detail for product search..."
+Ny prompt:
+"Describe this furniture for product matching. Be extremely specific about:
+- Exact color tone (not just 'brown' — specify: warm oak, cool walnut, dark espresso, light birch, honey pine, etc.)
+- Shape and proportions (tall/short, wide/narrow, compact/large, L-shaped/straight)
+- Number of elements (shelves, seats, drawers, compartments)
+- Leg style if visible (tapered wooden, straight metal, hairpin, sled base, no legs)
+- Open vs closed storage
+- Texture and finish (matte, glossy, natural grain visible, painted)
+- Any distinctive design features (rounded edges, asymmetric, geometric patterns)
+Output format: One detailed English sentence, maximum 40 words. Focus only on visual characteristics that distinguish this from similar furniture."
+## Ændring 2: Tilføj form/størrelse til attribut-extraction
+Udvid Vision's strukturerede output til at inkludere:
+- size: "small" | "medium" | "large" 
+- shape: "rectangular" | "square" | "L-shaped" | "round" | "asymmetric"
+- openness: "open" | "closed" | "mixed" (for storage furniture)
+## Ændring 3: Inkluder form i scoring
+I vectorSearch.ts scoring, tilføj:
+- Matcher størrelse: 10% (træk fra materiale så total stadig er 100%)
+- Matcher form: 10% (træk fra farve)
+Ny vægtning:
+- CLIP similarity: 40%
+- Matcher kategori: 25%
+- Matcher farve: 10%
+- Matcher materiale: 5%
+- Matcher størrelse: 10%
+- Matcher form: 10%
+## Ændring 4: Farve-matching skal være mere præcis
+I stedet for at matche "brown" mod alle brune produkter, lav en farve-distance funktion:
+- "light_oak" skal matche "eg", "lys eg", "natural oak" højere end "walnut" eller "mørk brun"
+- Opret en mapping af relaterede farvetoner
+Eksempel mapping:
+light_oak: ["eg", "lys eg", "natural oak", "birk", "ask", "lys træ"]
+dark_brown: ["valnød", "walnut", "mørk eg", "espresso", "mokka"]
+warm_grey: ["grå", "gråbrun", "greige", "varm grå"]
+cool_grey: ["lysegrå", "antracit", "koksgrå"]

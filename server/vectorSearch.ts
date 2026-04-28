@@ -45,6 +45,43 @@ const OUTDOOR_TERMS = [
   "parasol", "balkon", "polyrattan",
 ];
 
+const SHAPE_TERMS: Record<string, string[]> = {
+  "L-shaped":    ["hjørne", "chaiselong", "l-sofa", "venstrevendt", "højrevendt"],
+  "round":       ["rund", "cirkel", "cirkulær"],
+  "square":      ["kvadratisk", "firkantet"],
+  "rectangular": [],
+  "asymmetric":  ["asymmetrisk"],
+};
+
+const SIZE_LARGE_TERMS = ["stor", "bred", "lang", "xl", "xxl", "hjørne", "sektions", "panorama"];
+const SIZE_SMALL_TERMS = ["lille", "kompakt", "mini", "smal", "small"];
+
+const COLOR_TONE_MAP: Record<string, string[]> = {
+  light_oak:   ["eg", "lys eg", "natur eg", "hvidpigmenteret eg", "eg finér", "birk", "ask", "lys træ"],
+  warm_oak:    ["eg", "egetræ", "varm eg", "honning eg", "oljet eg"],
+  honey_pine:  ["fyr", "fyrretræ", "honning fyr", "lys fyr", "pine"],
+  light_birch: ["birk", "birkefinér", "lys birk", "hvid birk"],
+  light_brown: ["lysebrun", "eg", "oak", "træ", "natur"],
+  dark_walnut: ["valnød", "walnut", "mørk valnød", "mørk eg", "mørkebrun"],
+  dark_brown:  ["mørkebrun", "valnød", "brun", "walnut", "espresso", "mokka"],
+  espresso:    ["espresso", "mokka", "mørk brun", "mørkebrun"],
+  black:       ["sort", "sorte"],
+  white:       ["hvid", "hvidt", "off-white", "hvid-"],
+  cream:       ["creme", "ecru", "beige"],
+  beige:       ["beige", "natur", "sand", "creme", "ecru"],
+  warm_grey:   ["grå", "gråbrun", "greige", "varm grå", "taupe"],
+  cool_grey:   ["lysegrå", "antracit", "koksgrå", "mørkegrå"],
+  gray:        ["grå", "lysegrå", "mørkegrå", "antracit"],
+  grey:        ["grå", "lysegrå", "mørkegrå", "antracit"],
+  natural:     ["natur", "eg", "naturlig", "ubehandlet"],
+  blue:        ["blå", "lyseblå", "mørkeblå", "navy"],
+  navy:        ["navy", "mørkeblå", "marineblå"],
+  green:       ["grøn", "oliven", "sage", "mosgrøn"],
+  olive:       ["oliven", "olivengrøn"],
+  "light beige": ["beige", "natur", "sand", "creme"],
+  "dark walnut": ["valnød", "walnut", "mørkebrun"],
+};
+
 function getCategoryKeywords(
   description: FurnitureDescription | null,
   yoloLabel: string,
@@ -83,13 +120,11 @@ async function getRelaxedCandidates(
     OUTDOOR_TERMS.forEach((t) => params.push(`%${t}%`));
   }
 
-  const whereClause = conditions.join(" AND ");
-
   const sql = `
     SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
            1 - (p.vector_clip <=> $1::vector(512)) AS clip_similarity
     FROM products p
-    WHERE ${whereClause}
+    WHERE ${conditions.join(" AND ")}
     ORDER BY p.vector_clip <=> $1::vector(512)
     LIMIT $2
   `;
@@ -147,16 +182,26 @@ function scoreColorMatch(
 
   if (description?.color) {
     const colorKey = description.color.toLowerCase().replace(/\s+/g, "_");
-    const da = DANISH_SYNONYMS[colorKey] ?? DANISH_SYNONYMS[description.color.toLowerCase()];
-    if (da) terms.push(...da);
+    const toneTerms = COLOR_TONE_MAP[colorKey] ?? COLOR_TONE_MAP[description.color.toLowerCase()];
+    if (toneTerms) {
+      terms.push(...toneTerms);
+    } else {
+      const da = DANISH_SYNONYMS[colorKey] ?? DANISH_SYNONYMS[description.color.toLowerCase()];
+      if (da) terms.push(...da);
+    }
   }
 
   terms.push(...colorTerms);
 
   if (terms.length === 0) return 0;
   const uniqueTerms = [...new Set(terms)];
-  const matches = uniqueTerms.filter((t) => name.includes(t.toLowerCase())).length;
-  return Math.min(matches / Math.max(1, uniqueTerms.length) * 3, 1);
+
+  const primaryTerms = uniqueTerms.slice(0, 3);
+  const hasPrimaryMatch = primaryTerms.some((t) => name.includes(t.toLowerCase()));
+  if (hasPrimaryMatch) return 1;
+
+  const secondaryMatches = uniqueTerms.slice(3).filter((t) => name.includes(t.toLowerCase())).length;
+  return Math.min(secondaryMatches * 0.4, 0.6);
 }
 
 function scoreMaterialMatch(
@@ -169,6 +214,47 @@ function scoreMaterialMatch(
   const name = productName.toLowerCase();
   const matches = matDa.filter((t) => name.includes(t.toLowerCase())).length;
   return Math.min(matches / Math.max(1, matDa.length) * 3, 1);
+}
+
+function scoreShapeMatch(
+  productName: string,
+  description: FurnitureDescription | null,
+): number {
+  if (!description?.shape || description.shape === "rectangular" || description.shape === "other") {
+    return 0;
+  }
+
+  const name = productName.toLowerCase();
+  const shapeKey = description.shape as string;
+  const terms = SHAPE_TERMS[shapeKey] ?? DANISH_SYNONYMS[shapeKey] ?? [];
+  if (terms.length === 0) return 0;
+
+  return terms.some((t) => name.includes(t.toLowerCase())) ? 1 : 0;
+}
+
+function scoreSizeMatch(
+  productName: string,
+  description: FurnitureDescription | null,
+): number {
+  if (!description?.size || description.size === "medium") return 0;
+
+  const name = productName.toLowerCase();
+
+  if (description.size === "large") {
+    const hasLargeSignal = SIZE_LARGE_TERMS.some((t) => name.includes(t));
+    const hasSmallSignal = SIZE_SMALL_TERMS.some((t) => name.includes(t));
+    if (hasSmallSignal) return -0.5;
+    return hasLargeSignal ? 1 : 0;
+  }
+
+  if (description.size === "small") {
+    const hasSmallSignal = SIZE_SMALL_TERMS.some((t) => name.includes(t));
+    const hasLargeSignal = SIZE_LARGE_TERMS.some((t) => name.includes(t));
+    if (hasLargeSignal) return -0.5;
+    return hasSmallSignal ? 1 : 0;
+  }
+
+  return 0;
 }
 
 function deduplicateByName(scored: any[]): any[] {
@@ -210,20 +296,34 @@ export async function findSimilarProductsHybrid(
     const categoryScore = scoreCategoryMatch(row.category ?? "", desc, label);
     const colorScore = scoreColorMatch(row.name, desc, colorTerms);
     const materialScore = scoreMaterialMatch(row.name, desc);
+    const shapeScore = scoreShapeMatch(row.name, desc);
+    const sizeScore = scoreSizeMatch(row.name, desc);
 
     const finalScore =
       0.40 * clipScore +
       0.25 * categoryScore +
-      0.20 * colorScore +
-      0.15 * materialScore;
+      0.10 * colorScore +
+      0.05 * materialScore +
+      0.10 * shapeScore +
+      0.10 * Math.max(0, sizeScore);
 
-    return { ...row, finalScore, clipScore, categoryScore, colorScore, materialScore };
+    const sizeBoost = sizeScore < 0 ? sizeScore * 0.05 : 0;
+
+    return {
+      ...row,
+      finalScore: Math.max(0, finalScore + sizeBoost),
+      clipScore,
+      categoryScore,
+      colorScore,
+      materialScore,
+      shapeScore,
+      sizeScore,
+    };
   });
 
   scored.sort((a, b) => b.finalScore - a.finalScore);
 
   const deduped = deduplicateByName(scored);
-
   const top = deduped.slice(0, topK + 2);
 
   console.log(
@@ -231,7 +331,7 @@ export async function findSimilarProductsHybrid(
       .slice(0, 3)
       .map(
         (p) =>
-          `"${p.name.substring(0, 30)}" clip=${p.clipScore.toFixed(2)} cat=${p.categoryScore} color=${p.colorScore.toFixed(2)} mat=${p.materialScore.toFixed(2)} → ${p.finalScore.toFixed(2)}`,
+          `"${p.name.substring(0, 28)}" clip=${p.clipScore.toFixed(2)} cat=${p.categoryScore} col=${p.colorScore.toFixed(2)} mat=${p.materialScore.toFixed(2)} shp=${p.shapeScore.toFixed(2)} sz=${p.sizeScore.toFixed(2)} → ${p.finalScore.toFixed(2)}`,
       )
       .join(" | ")}`,
   );
