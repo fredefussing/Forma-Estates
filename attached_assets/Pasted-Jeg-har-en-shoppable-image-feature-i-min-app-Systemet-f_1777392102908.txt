@@ -1,0 +1,65 @@
+Jeg har en shoppable image feature i min app. Systemet finder ikke de rigtige produkter, selvom jeg ved de findes i databasen.
+
+BESVAR KUN disse spørgsmål — rediger INGEN kode, skriv INGEN kode, lav INGEN ændringer:
+
+1. PRODUKTDATA
+   a. Kør: SELECT COUNT(*) FROM products;
+      Hvor mange produkter har vi?
+
+   b. Kør: SELECT * FROM products LIMIT 5;
+      Vis mig de første 5 rækker med ALLE kolonner.
+
+   c. Kør: SELECT name, image_url, category, embedding IS NOT NULL as has_embedding FROM products WHERE name ILIKE '%stol%' OR name ILIKE '%chair%' LIMIT 10;
+      Vis 10 stole — har de embeddings?
+
+   d. Kør: SELECT pg_size_pretty(pg_total_relation_size('products'));
+      Hvor stor er produkttabellen?
+
+2. VECTOR/EMBEDDING KVALITET
+   a. Kør: SELECT COUNT(*) FROM products WHERE embedding IS NOT NULL;
+      Hvor mange har embeddings?
+
+   b. Kør: SELECT COUNT(*) FROM products WHERE embedding IS NULL;
+      Hvor mange mangler?
+
+   c. Kør: SELECT embedding::text FROM products WHERE name ILIKE '%rattan%' OR name ILIKE '%flet%' LIMIT 1;
+      Vis én embedding for et rattan-produkt — hvad står der?
+
+   d. Kør: SELECT 1 - (embedding <=> (SELECT embedding FROM products WHERE name ILIKE '%rattan%' LIMIT 1)) as similarity, name 
+            FROM products 
+            WHERE name ILIKE '%stol%' 
+            ORDER BY embedding <=> (SELECT embedding FROM products WHERE name ILIKE '%rattan%' LIMIT 1) 
+            LIMIT 5;
+      Hvilke 5 stole er mest similar til et rattan-produkt? Er de faktisk rattan?
+
+3. SØGEFUNKTION
+   a. Vis mig filen server/vectorSearch.ts — hvordan ser søgefunktionen ud?
+   
+   b. Vis mig filen server/yolo.ts — hvordan grupperes detektioner?
+   
+   c. Vis mig filen server/cropImage.ts — hvordan croppes der?
+
+4. TEST MED RIGTIGT BILLEDE
+   a. Find et produkt i databasen der hedder noget med "natur", "beige", "rattan" eller "flet".
+   
+   b. Kopier dets image_url.
+   
+   c. Kør: SELECT name, 1 - (embedding <=> (SELECT embedding FROM products WHERE image_url = '[URL_FRA_4a]')) as similarity 
+            FROM products 
+            ORDER BY embedding <=> (SELECT embedding FROM products WHERE image_url = '[URL_FRA_4a]') 
+            LIMIT 10;
+      Hvilke 10 produkter er mest similar til dette produkts eget billede? Burde nr. 1 ikke være sig selv?
+
+5. YOLO OUTPUT
+   a. Vis mig et eksempel på hvad YOLO returnerer når den analyserer et AI-design billede.
+   
+   b. Hvor mange detektioner returneres typisk?
+   
+   c. Hvad er confidence scores?
+
+BESVAR HVER PUNKT med:
+- SQL resultat / kode snippet
+- Din vurdering af om det ser rigtigt ud
+- Hvad der potentielt er galt
+
+SKRIV INGEN KODE. LAV INGEN ÆNDRINGER. BARE BESVAR.
