@@ -12,6 +12,7 @@ import { log } from "./index";
 import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail } from "./email";
 import { analyzeDesignImage } from "./ai_analyzer";
 import { verifyFirebaseToken } from "./firebase-admin";
+import { pool } from "./db";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -230,21 +231,32 @@ export async function registerRoutes(
       let user = await storage.getUserByFirebaseUid(uid);
 
       if (!user) {
-        user = await storage.createUser({
-          email,
-          firebaseUid: uid,
-          creditsRemaining: 2,
-          totalCreditsUsed: 0,
-        });
+        const existingByEmail = await storage.getUserByEmail(email);
 
-        await storage.createCreditTransaction({
-          userId: user.id,
-          amount: 2,
-          type: "signup_free",
-          description: "2 gratis billeder ved oprettelse",
-        });
+        if (existingByEmail) {
+          await pool.query(
+            "UPDATE users SET firebase_uid = $1 WHERE id = $2",
+            [uid, existingByEmail.id],
+          );
+          user = { ...existingByEmail, firebaseUid: uid };
+          log(`Linked Firebase UID to pre-created user: ${email}`);
+        } else {
+          user = await storage.createUser({
+            email,
+            firebaseUid: uid,
+            creditsRemaining: 2,
+            totalCreditsUsed: 0,
+          });
 
-        log(`New user created: ${email} (uid: ${uid}) with 2 free credits`);
+          await storage.createCreditTransaction({
+            userId: user.id,
+            amount: 2,
+            type: "signup_free",
+            description: "2 gratis billeder ved oprettelse",
+          });
+
+          log(`New user created: ${email} (uid: ${uid}) with 2 free credits`);
+        }
       }
 
       return res.json({
