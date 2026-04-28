@@ -22,6 +22,7 @@ import { DesignCard } from "@/components/design-card";
 import { BudgetSlider } from "@/components/budget-slider";
 import { SpecialRequest } from "@/components/special-request";
 import { QuoteRequest } from "@/components/quote-request";
+import { FurnitureDetector } from "@/components/furniture-detector";
 import { motion, AnimatePresence } from "framer-motion";
 
 const roomTypeLabels: Record<RoomType, string> = {
@@ -699,6 +700,8 @@ export default function HomePage() {
                       beforeSrc={activeDesign.originalImageUrl}
                       afterSrc={activeDesign.resultImageUrl}
                     />
+
+                    <FurnitureDetector imageUrl={activeDesign.resultImageUrl!} />
 
                     {activeDesign.budget && activeDesign.roomType && (() => {
                       const { min, max, roi } = calcValueRange(activeDesign.budget, activeDesign.roomType as RoomType);

@@ -1175,5 +1175,52 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/analyze-image", async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+      if (!imageUrl) return res.status(400).json({ error: "imageUrl påkrævet" });
+
+      const { detectObjects } = await import("./yolo");
+      const { getImageDimensions } = await import("./cropImage");
+
+      const [objects, dimensions] = await Promise.all([
+        detectObjects(imageUrl),
+        getImageDimensions(imageUrl),
+      ]);
+
+      return res.json({ objects, imageUrl, imageWidth: dimensions.width, imageHeight: dimensions.height });
+    } catch (err: any) {
+      console.error("analyze-image fejl:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/find-similar-crop", async (req, res) => {
+    try {
+      const { imageUrl, x, y, width, height, topK = 5 } = req.body;
+      if (!imageUrl || x == null || y == null || width == null || height == null) {
+        return res.status(400).json({ error: "imageUrl, x, y, width, height påkrævet" });
+      }
+
+      const { cropImageToTempFile } = await import("./cropImage");
+      const { getClipEmbedding } = await import("./huggingFace");
+      const { findSimilarProducts } = await import("./vectorSearch");
+
+      const { filePath, cleanup } = await cropImageToTempFile(imageUrl, x, y, width, height);
+      let embedding: number[];
+      try {
+        embedding = await getClipEmbedding(filePath);
+      } finally {
+        cleanup();
+      }
+      const products = await findSimilarProducts(embedding, topK);
+
+      return res.json({ products });
+    } catch (err: any) {
+      console.error("find-similar-crop fejl:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
