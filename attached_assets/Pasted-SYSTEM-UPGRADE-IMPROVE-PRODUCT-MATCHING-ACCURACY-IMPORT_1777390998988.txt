@@ -1,0 +1,131 @@
+SYSTEM UPGRADE — IMPROVE PRODUCT MATCHING ACCURACY
+
+IMPORTANT:
+Do NOT start coding immediately.
+First analyze the system and return a clear PLAN of what needs to change.
+Explain the architecture changes step-by-step.
+Only after the plan is approved should implementation begin.
+
+CONTEXT
+
+The current system detects furniture from an AI-generated interior image and tries to find similar products.
+
+Current pipeline:
+
+YOLO detects furniture objects
+Image crop is created
+CLIP generates vector embedding
+pgvector searches product embeddings
+UI shows "Best match", "Similar", "Budget"
+
+Problem:
+Product matches are often incorrect.
+
+Examples of failures:
+
+Rugs detected as chairs
+Beige chair with wooden legs → returns a dark brown lounge chair
+Sofas that visually match almost perfectly (e.g. Nordic Dream style sofas) are not returned
+Beds rarely appear in results
+
+This indicates the issue is NOT detection but PRODUCT MATCHING.
+
+GOAL
+
+We want the system to return products that are visually as similar as possible to the furniture in the image.
+
+The solution should combine THREE SIGNALS instead of only vector similarity.
+
+NEW MATCHING ARCHITECTURE
+
+Step 1 — Object Detection (keep existing)
+Use the existing YOLO detection to identify furniture.
+
+Detected classes should be restricted to:
+
+sofa
+chair
+table
+bed
+lamp
+rug
+cabinet
+shelf
+mirror
+
+Step 2 — AI Visual Description (NEW)
+
+Send the cropped furniture image to OpenAI Vision.
+
+OpenAI should return structured attributes:
+
+{
+"type": "sofa",
+"color": "light beige",
+"material": "fabric",
+"legs": "light wood",
+"style": "scandinavian",
+"shape": "3-seat minimal sofa"
+}
+
+This helps correct detection mistakes and improves search queries.
+
+Step 3 — Hybrid Product Search
+
+Instead of relying only on CLIP vectors, combine:
+
+Visual similarity (CLIP vector search)
+Attribute matching (color, material, style)
+Product category filtering (sofa, bed, chair, etc.)
+
+Example scoring formula:
+
+final_score =
+0.6 * visual_similarity +
+0.25 * attribute_match +
+0.15 * category_match
+
+Step 4 — Expand Product Search Sources
+
+If possible, support multiple product sources:
+
+internal product database
+affiliate product feeds
+Google Shopping style feeds
+
+The system must not rely on a single small product dataset.
+
+Step 5 — Result Re-ranking
+
+From the top 50 vector matches:
+
+filter wrong categories
+boost products with matching color/style
+select:
+
+Best Match → highest final_score
+Similar → next two
+Budget → lowest price among top matches
+
+Step 6 — Detection Correction Layer
+
+If YOLO predicts a category with low confidence (<0.6), let OpenAI Vision override it.
+
+Example:
+YOLO → chair
+OpenAI → rug
+
+Then treat the object as a rug.
+
+DELIVERABLE
+
+Before writing code:
+
+Analyze the current architecture
+Explain what must change
+Propose new server modules if needed
+Explain how OpenAI Vision will integrate
+Explain how scoring + reranking will work
+Show the updated pipeline
+
+Only after the plan is approved should code be written.
