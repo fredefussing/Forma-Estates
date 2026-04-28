@@ -1206,6 +1206,7 @@ export async function registerRoutes(
       const { getClipEmbedding } = await import("./huggingFace");
       const { findSimilarProducts } = await import("./vectorSearch");
 
+      const { yoloLabel } = req.body;
       const { filePath, cleanup } = await cropImageToTempFile(imageUrl, x, y, width, height);
       let embedding: number[];
       try {
@@ -1213,7 +1214,7 @@ export async function registerRoutes(
       } finally {
         cleanup();
       }
-      const products = await findSimilarProducts(embedding, topK);
+      const products = await findSimilarProducts(embedding, topK, yoloLabel);
 
       return res.json({ products });
     } catch (err: any) {

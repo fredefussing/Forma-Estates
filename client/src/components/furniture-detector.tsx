@@ -64,6 +64,7 @@ export function FurnitureDetector({ imageUrl }: Props) {
   const [imageHovered, setImageHovered] = useState(false);
   const [tooltipIdx, setTooltipIdx] = useState<number | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasClicked, setHasClicked] = useState(false);
   const isTouch = isTouchDevice();
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export function FurnitureDetector({ imageUrl }: Props) {
         width: obj.width,
         height: obj.height,
         topK: 5,
+        yoloLabel: obj.label,
       });
       return res.json() as Promise<{ products: SimilarProduct[] }>;
     },
@@ -125,6 +127,7 @@ export function FurnitureDetector({ imageUrl }: Props) {
 
   const handleDotClick = useCallback((obj: DetectedObject) => {
     dismissOnboarding();
+    setHasClicked(true);
     setActiveObject(obj);
     setSimilarProducts(null);
     setPanelOpen(true);
@@ -250,17 +253,17 @@ export function FurnitureDetector({ imageUrl }: Props) {
                     style={{
                       width: 28,
                       height: 28,
-                      animation: dotsVisible ? "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" : "none",
+                      animation: dotsVisible && !hasClicked ? "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" : "none",
                     }}
                   >
                     <ShoppingCart className="w-3.5 h-3.5 text-gray-800" />
                   </div>
                   {showTooltip && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 -top-8 bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none"
+                      className="absolute left-1/2 -translate-x-1/2 -top-9 bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none"
                       style={{ zIndex: 20 }}
                     >
-                      {obj.labelDa}
+                      {obj.labelDa} — Klik for at shoppe
                     </div>
                   )}
                 </div>

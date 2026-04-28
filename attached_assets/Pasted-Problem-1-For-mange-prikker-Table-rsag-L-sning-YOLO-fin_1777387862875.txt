@@ -1,0 +1,61 @@
+Problem 1: For mange prikker
+Table
+Årsag	Løsning
+YOLO finder samme møbel flere gange	Gruppér nærliggende prikker, vis kun én per møbel
+For lav confidence threshold	Sæt minimum til 0.75 (nu er den måske 0.5)
+For mange små objekter	Filtrér: vis kun større møbler (sofa, bord, stol, lampe)
+Kodeændring i server/yolo.ts:
+JavaScript
+Copy
+// Filtrér: høj confidence + grupper nærliggende
+const filtered = objects.filter(o => o.confidence > 0.75);
+const grouped = groupNearbyObjects(filtered, 50); // 50px afstand
+Problem 2: Forkert produktmatch
+Table
+Årsag	Løsning
+CLIP ser hele rummet, ikke kun møblet	Crop præcist til møbel-området før CLIP
+Vector er for generel	Brug kun det croppede område, ikke hele billedet
+Kodeændring i server/cropImage.ts:
+JavaScript
+Copy
+// Crop præcist til møbel-området
+const crop = {
+  x: object.x - 20,  // lidt padding
+  y: object.y - 20,
+  width: object.width + 40,
+  height: object.height + 40
+};
+Hvad du skal gøre NU
+Send dette prompt til Replit:
+plain
+Copy
+OPTIMER YOLO + CLIP MATCHING — 2 problemer at løse:
+
+1. FOR MANGE PRIKKER (gruppering)
+   I server/yolo.ts:
+   - Filtrér objekter med confidence < 0.75
+   - Gruppér objekter inden for 50px afstand — vis kun én prik per gruppe
+   - Vis maks 6-8 prikker per billede (de største/mest centrale møbler)
+   - Prioritér: sofa, dining table, chair, lamp, mirror, bed, plant
+   - Fjern: pyntegenstande, små objekter, duplicates
+
+2. FORKERT PRODUKTMATCH (præcis cropping)
+   I server/cropImage.ts:
+   - Crop præcist til møbel-området med 20px padding
+   - Ikke hele rummet — kun det specifikke møbel brugeren klikkede på
+   - CLIP vector skal repræsentere KUN det møbel, ikke baggrunden
+
+3. FORBEDRET MATCHING (kategori-filter)
+   I server/vectorSearch.ts:
+   - Når brugeren klikker "bord", søg primært efter "table" kategorier
+   - Når brugeren klikker "stol", søg primært efter "chair" kategorier
+   - Brug YOLO label til at filtrere produkter før similarity søgning
+   - Fald tilbage til generel søgning hvis ingen kategori-match
+
+4. UI FORBEDRING
+   I FurnitureDetector.tsx:
+   - Maks 6-8 prikker synlige
+   - Tooltip viser møbelnavn + "Klik for at shoppe"
+   - Prikker pulse animation kun første gang, derefter stille
+
+BYG DETTE NU.

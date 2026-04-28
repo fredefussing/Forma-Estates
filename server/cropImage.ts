@@ -4,6 +4,8 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 
+const PADDING = 20;
+
 export async function cropImageToTempFile(
   imageUrl: string,
   x: number,
@@ -16,10 +18,12 @@ export async function cropImageToTempFile(
   const imgW = image.width;
   const imgH = image.height;
 
-  const safeX = Math.max(0, Math.min(Math.round(x), imgW - 1));
-  const safeY = Math.max(0, Math.min(Math.round(y), imgH - 1));
-  const safeW = Math.max(1, Math.min(Math.round(w), imgW - safeX));
-  const safeH = Math.max(1, Math.min(Math.round(h), imgH - safeY));
+  const safeX = Math.max(0, Math.min(Math.round(x - PADDING), imgW - 1));
+  const safeY = Math.max(0, Math.min(Math.round(y - PADDING), imgH - 1));
+  const rawW = Math.round(w + PADDING * 2);
+  const rawH = Math.round(h + PADDING * 2);
+  const safeW = Math.max(1, Math.min(rawW, imgW - safeX));
+  const safeH = Math.max(1, Math.min(rawH, imgH - safeY));
 
   const cropped = image.crop({ x: safeX, y: safeY, w: safeW, h: safeH });
   const buffer = await cropped.getBuffer(JimpMime.jpeg);
