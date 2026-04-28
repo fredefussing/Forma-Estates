@@ -1,0 +1,257 @@
+import { useState, useCallback } from 'react';
+import { GroupedDetection } from '../server/yolo';
+import { SearchResult } from '../server/vectorSearch';
+
+interface Props {
+  imageUrl: string;
+  detections: GroupedDetection[];
+  products: Record<string, SearchResult[]>;  // detection index -> products
+  onDotClick: (detection: GroupedDetection, index: number) => void;
+  isLoading?: boolean;
+}
+
+export function FurnitureDetector({ 
+  imageUrl, 
+  detections, 
+  products, 
+  onDotClick,
+  isLoading 
+}: Props) {
+  const [activeDot, setActiveDot] = useState<number | null>(null);
+  const [hoveredDot, setHoveredDot] = useState<number | null>(null);
+
+  const handleClick = useCallback((det: GroupedDetection, index: number) => {
+    setActiveDot(activeDot === index ? null : index);
+    onDotClick(det, index);
+  }, [activeDot, onDotClick]);
+
+  // Max 6-8 prikker — allerede filtreret fra backend
+  const visibleDots = detections.slice(0, 8);
+
+  return (
+    <div className="relative inline-block w-full">
+      {/* Hovedbillede */}
+      <div className="relative rounded-xl overflow-hidden shadow-lg">
+        <img 
+          src={imageUrl} 
+          alt="AI design" 
+          className="w-full h-auto object-cover"
+        />
+
+        {/* Prikker */}
+        {visibleDots.map((det, index) => {
+          // Beregn center position i procent
+          const centerX = ((det.box[0] + det.box[2]) / 2) * 100;
+          const centerY = ((det.box[1] + det.box[3]) / 2) * 100;
+          const isActive = activeDot === index;
+          const isHovered = hoveredDot === index;
+
+          return (
+            <div
+              key={index}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
+              style={{ 
+                left: `${centerX}%`, 
+                top: `${centerY}%`,
+              }}
+              onClick={() => handleClick(det, index)}
+              onMouseEnter={() => setHoveredDot(index)}
+              onMouseLeave={() => setHoveredDot(null)}
+            >
+              {/* Pulsating ring */}
+              <div className={`
+                relative w-8 h-8 cursor-pointer transition-all duration-300
+                ${isActive ? 'scale-125' : 'scale-100'}
+              `}>
+                {/* Ydre ring */}
+                <div className={`
+                  absolute inset-0 rounded-full border-2 
+                  ${isActive ? 'border-blue-600 bg-blue-100' : 'border-white bg-white/90'}
+                  shadow-lg animate-pulse
+                `} />
+
+                {/* Indre prik */}
+                <div className={`
+                  absolute inset-2 rounded-full
+                  ${isActive ? 'bg-blue-600' : 'bg-blue-500'}
+                  shadow-inner
+                `} />
+
+                {/* Nummer badge */}
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-900 text-white 
+                              text-xs rounded-full flex items-center justify-center font-bold">
+                  {index + 1}
+                </div>
+              </div>
+
+              {/* Tooltip på hover */}
+              {(isHovered || isActive) && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 
+                              pointer-events-none z-20">
+                  <div className="bg-gray-900 text-white text-sm px-3 py-2 rounded-lg 
+                                shadow-xl whitespace-nowrap">
+                    <div className="font-semibold capitalize">{det.label}</div>
+                    <div className="text-gray-300 text-xs">
+                      {det.count > 1 ? `${det.count} detektioner grupperet` : '1 detektion'}
+                    </div>
+                    <div className="text-blue-300 text-xs mt-1">
+                      Klik for at shoppe
+                    </div>
+                    {/* Pil ned */}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 
+                                  border-4 border-transparent border-t-gray-900" />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Info badge — nederst venstre */}
+        <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm 
+                      text-white text-xs px-3 py-2 rounded-lg flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+          <span>
+            {isLoading ? 'Finder produkter...' : `${visibleDots.length} møbler fundet`}
+          </span>
+        </div>
+      </div>
+
+      {/* Produkt popup — vises når prik er aktiv */}
+      {activeDot !== null && products[activeDot] && (
+        <ProductPopup 
+          products={products[activeDot]} 
+          onClose={() => setActiveDot(null)}
+          label={visibleDots[activeDot]?.label}
+        />
+      )}
+    </div>
+  );
+}
+
+// Popup komponent
+function ProductPopup({ 
+  products, 
+  onClose,
+  label 
+}: { 
+  products: SearchResult[]; 
+  onClose: () => void;
+  label?: string;
+}) {
+  if (!products || products.length === 0) {
+    return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-semibold capitalize">{label}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <p className="text-gray-500 text-sm">Ingen produkter fundet. Prøv et andet møbel.</p>
+      </div>
+    );
+  }
+
+  const best = products.find(p => p.match_type === 'best');
+  const similar = products.filter(p => p.match_type === 'similar');
+  const budget = products.filter(p => p.match_type === 'budget');
+
+  return (
+    <div className="mt-4 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="flex justify-between items-center p-4 border-b border-gray-100">
+        <div>
+          <h3 className="font-bold text-lg capitalize">{label}</h3>
+          <p className="text-gray-500 text-sm">{products.length} produkter fundet</p>
+        </div>
+        <button 
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full 
+                   hover:bg-gray-100 text-gray-500 transition"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Produkter grid */}
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Best Match */}
+        {best && (
+          <ProductCard 
+            product={best} 
+            badge="BEDST MATCH" 
+            badgeColor="bg-green-500"
+          />
+        )}
+
+        {/* Similar */}
+        {similar.map((p, i) => (
+          <ProductCard 
+            key={i} 
+            product={p} 
+            badge="LIGNENDE" 
+            badgeColor="bg-blue-500"
+          />
+        ))}
+
+        {/* Budget */}
+        {budget.map((p, i) => (
+          <ProductCard 
+            key={`budget-${i}`} 
+            product={p} 
+            badge="BUDGET" 
+            badgeColor="bg-orange-500"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Enkelt produkt kort
+function ProductCard({ 
+  product, 
+  badge, 
+  badgeColor 
+}: { 
+  product: SearchResult; 
+  badge: string; 
+  badgeColor: string;
+}) {
+  return (
+    <a
+      href={product.affiliate_link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block rounded-lg border border-gray-200 overflow-hidden 
+                hover:shadow-md transition-all duration-200"
+    >
+      <div className="relative aspect-square bg-gray-100">
+        <img 
+          src={product.image_url} 
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+        <span className={`absolute top-2 left-2 ${badgeColor} text-white text-xs 
+                        px-2 py-1 rounded font-medium`}>
+          {badge}
+        </span>
+      </div>
+
+      <div className="p-3">
+        <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 
+                    transition-colors">
+          {product.name}
+        </p>
+        {product.price && (
+          <p className="text-sm text-gray-600 mt-1">
+            {product.price.toLocaleString('da-DK')} kr
+          </p>
+        )}
+        <div className="mt-2 text-xs text-blue-600 font-medium">
+          Se produkt →
+        </div>
+      </div>
+    </a>
+  );
+}

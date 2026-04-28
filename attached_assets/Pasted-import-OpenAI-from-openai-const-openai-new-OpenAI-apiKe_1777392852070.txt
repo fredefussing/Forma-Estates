@@ -1,0 +1,135 @@
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export interface VisionAnalysis {
+  type: string;
+  color: string;
+  material: string;
+  style: string;
+  indoor: boolean;
+  legs: string;
+  confidence: number;
+}
+
+// Dansk mapping for SQL søgning
+export const DANISH_SYNONYMS: Record<string, string[]> = {
+  // Typer
+  "lounge_chair": ["lænestol", "læne stol", "stol"],
+  "dining_chair": ["spisestol", "køkkenstol", "stol"],
+  "sofa": ["sofa", "sovesofa", "3-pers"],
+  "coffee_table": ["sofabord", "salongbord", "bord"],
+  "side_table": ["sidebord", "sengebord", "nakkebord", "bord"],
+  "rug": ["tæppe", "gulvtæppe", "løber"],
+  "lamp": ["lampe", "bordlampe", "gulvlampe", "pendel"],
+  "shelf": ["hylde", "reol", "vægreol"],
+  "cabinet": ["skab", "kommode", "sideboard"],
+  "bed": ["seng", "sengestel"],
+  "nightstand": ["sengebord", "nakkebord"],
+  "dining_table": ["spisebord", "bord"],
+
+  // Farver
+  "beige": ["beige", "natur", "sand", "creme", "ecru", "lysebrun"],
+  "white": ["hvid", "hvidt", "off-white"],
+  "cream": ["creme", "ecru", "beige"],
+  "light_brown": ["lysebrun", "eg", "oak", "træ"],
+  "dark_brown": ["mørkebrun", "valnød", "brun"],
+  "black": ["sort", "sorte"],
+  "gray": ["grå", "lysegrå", "mørkegrå"],
+  "blue": ["blå", "lyseblå", "mørkeblå"],
+  "green": ["grøn", "oliven", "sage"],
+
+  // Materialer
+  "woven": ["flet", "flettet", "rattan", "rotting", "vævet", "kurv"],
+  "rattan": ["rattan", "rotting", "flet", "flettet"],
+  "leather": ["læder", "skind", "kernelæder"],
+  "fabric": ["stof", "tekstil", "polyester"],
+  "velvet": ["velour", "fløjl"],
+  "wood": ["træ", "eg", "bøg", "fyr", "massivt"],
+  "metal": ["metal", "stål", "jern", "messing"],
+  "glass": ["glas"],
+  "boucle": ["boucle", "bouclé", "loop"],
+  "linen": ["hør", "linen", "lin"],
+
+  // Stilarter
+  "scandinavian": ["skandinavisk", "nordisk", "dansk", "minimalistisk"],
+  "modern": ["moderne", "contemporary"],
+  "minimalist": ["minimalistisk", "enkel", "simpel"],
+  "rustic": ["rustik", "landlig"],
+  "industrial": ["industrielt", "råt"],
+  "bohemian": ["boheme", "boho"],
+  "classic": ["klassisk", "tidløs"]
+};
+
+export function getSynonyms(category: string, value: string): string[] {
+  const key = `${category}_${value}`;
+  return DANISH_SYNONYMS[value] || [value];
+}
+
+export async function describeWithVision(cropBuffer: Buffer): Promise<VisionAnalysis> {
+  const base64 = cropBuffer.toString('base64');
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",  // Billigere og hurtigere end gpt-4o
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `Analyze this furniture piece precisely. Return ONLY JSON, no explanation:
+
+{
+  "type": "lounge_chair | dining_chair | sofa | coffee_table | side_table | rug | lamp | shelf | cabinet | bed | nightstand | dining_table",
+  "color": "beige | white | cream | light_brown | dark_brown | black | gray | blue | green | yellow | pink | red | orange",
+  "material": "woven | rattan | leather | fabric | velvet | wood | metal | glass | boucle | linen | plastic",
+  "style": "scandinavian | modern | minimalist | rustic | industrial | bohemian | classic | mid_century",
+  "indoor": true | false,
+  "legs": "wood | metal | none",
+  "confidence": 0.0-1.0
+}
+
+CRITICAL RULES:
+- "woven" = braided/wicker material (rattan, cane, wicker, basket weave)
+- "beige" = sand, cream, natural, ecru — NOT brown
+- "indoor": true unless it's clearly outdoor furniture (sun lounger, garden chair)
+- If you see wood frame with woven seat/back = "rattan" or "woven"
+- Scandinavian = light wood, clean lines, minimal, natural materials
+- Choose the most specific type (lounge_chair > chair)`
+        },
+        {
+          type: "image_url",
+          image_url: { url: `data:image/jpeg;base64,${base64}` }
+        }
+      ]
+    }],
+    response_format: { type: "json_object" },
+    max_tokens: 200,
+    temperature: 0.1  // Lav temperatur = mere konsistent
+  });
+
+  const result = JSON.parse(response.choices[0].message.content || '{}');
+
+  // Normaliser værdier
+  return {
+    type: result.type || 'unknown',
+    color: result.color || 'unknown',
+    material: result.material || 'unknown',
+    style: result.style || 'unknown',
+    indoor: result.indoor !== false,  // Default true
+    legs: result.legs || 'unknown',
+    confidence: result.confidence || 0.5
+  };
+}
+
+// Hurtig fallback hvis Vision fejler
+export function getBasicDescription(yoloLabel: string): Partial<VisionAnalysis> {
+  const map: Record<string, Partial<VisionAnalysis>> = {
+    'chair': { type: 'lounge_chair', indoor: true },
+    'couch': { type: 'sofa', indoor: true },
+    'bed': { type: 'bed', indoor: true },
+    'dining table': { type: 'dining_table', indoor: true },
+    'potted plant': { type: 'unknown', indoor: true },
+    'vase': { type: 'unknown', indoor: true }
+  };
+  return map[yoloLabel] || { type: 'unknown', indoor: true };
+}

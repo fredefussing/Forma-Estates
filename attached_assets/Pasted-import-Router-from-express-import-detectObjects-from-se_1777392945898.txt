@@ -1,0 +1,87 @@
+import { Router } from "express";
+import { detectObjects } from "../server/yolo";
+import { cropWithPadding } from "../server/cropImage";
+import { findSimilarWithVision } from "../server/vectorSearch";
+import { describeWithVision } from "../server/describeWithVision";
+
+const router = Router();
+
+router.post("/analyze-image", async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+
+    if (!imageUrl) {
+      return res.status(400).json({ error: "imageUrl required" });
+    }
+
+    // 1. Download billede
+    const imageResponse = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+    // 2. YOLO detektion — grupperet, max 8
+    const detections = await detectObjects(imageBuffer);
+    console.log(`YOLO found ${detections.length} grouped detections`);
+
+    // 3. For hver detektion: crop + Vision + søg
+    const results = await Promise.all(
+      detections.map(async (det, index) => {
+        try {
+          // Crop møblet
+          const crop = await cropWithPadding(imageBuffer, det.box);
+
+          // Vision analyse (parallel med CLIP)
+          const visionPromise = describeWithVision(crop.buffer).catch(() => null);
+
+          // Søg produkter med SQL-first, CLIP-second
+          const products = await findSimilarWithVision(
+            crop.buffer,
+            det.label,
+            3  // top 3 per møbel
+          );
+
+          // Vent på Vision (til logging/debug)
+          const vision = await visionPromise;
+          if (vision) {
+            console.log(`Detection ${index}:`, det.label, "→", vision);
+          }
+
+          return {
+            detection: det,
+            products,
+            vision: vision || undefined
+          };
+        } catch (e) {
+          console.error(`Error processing detection ${index}:`, e);
+          return {
+            detection: det,
+            products: [],
+            error: true
+          };
+        }
+      })
+    );
+
+    // 4. Returnér struktureret response
+    res.json({
+      success: true,
+      detections: results.map(r => ({
+        label: r.detection.label,
+        box: r.detection.box,
+        score: r.detection.score,
+        count: r.detection.count,
+        products: r.products,
+        vision: r.vision
+      })),
+      totalProducts: results.reduce((sum, r) => sum + r.products.length, 0)
+    });
+
+  } catch (error) {
+    console.error("Analyze image error:", error);
+    res.status(500).json({ 
+      error: "Failed to analyze image",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+
+export default router;

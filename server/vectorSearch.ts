@@ -1,112 +1,108 @@
 import { pool } from "./db";
 import type { FurnitureDescription } from "./describeWithVision";
+import { DANISH_SYNONYMS } from "./describeWithVision";
 
 const YOLO_TO_CATEGORY: Record<string, string[]> = {
-  "sofa":         ["Sofa"],
-  "couch":        ["Sofa"],
-  "chair":        ["stole", "Lænestole"],
-  "bed":          ["Seng"],
-  "dining table": ["Spisebord", "bord"],
-  "table":        ["bord", "Sofaborde"],
+  "sofa":         ["Sofaer", "Sofa"],
+  "couch":        ["Sofaer", "Sofa"],
+  "chair":        ["Stole", "Lænestole", "Spisebordsstole", "Gulvstole"],
+  "bed":          ["Senge", "sengeramme"],
+  "dining table": ["Spiseborde"],
+  "table":        ["Sofaborde", "Spiseborde"],
   "potted plant": ["Plante"],
   "lamp":         ["Lamper"],
-  "tv":           ["TV"],
-  "book":         ["Bogskabe"],
+  "tv":           ["TV-møbler"],
+  "book":         ["Bogskabe", "Reoler"],
   "mirror":       ["Spejl"],
-  "bench":        ["stole"],
+  "bench":        ["Stole"],
   "refrigerator": ["Køleskab"],
   "oven":         ["Ovn"],
   "sink":         ["badeværelse"],
   "rug":          ["Tæpper"],
   "carpet":       ["Tæpper"],
-  "cabinet":      ["Skabe", "Reoler"],
-  "shelf":        ["Reoler"],
+  "cabinet":      ["Skabe", "Reoler", "Skænke"],
+  "shelf":        ["Reoler", "Bogskabe"],
 };
 
 const VISION_TYPE_TO_CATEGORY: Record<string, string[]> = {
-  "sofa":    ["Sofa"],
-  "chair":   ["stole", "Lænestole"],
-  "bed":     ["Seng"],
-  "table":   ["bord", "Sofaborde", "Spisebord"],
-  "lamp":    ["Lamper"],
-  "rug":     ["Tæpper"],
-  "cabinet": ["Skabe"],
-  "shelf":   ["Reoler"],
-  "mirror":  ["Spejl"],
-  "bench":   ["stole"],
+  "lounge_chair": ["Lænestole", "Stole"],
+  "dining_chair": ["Spisebordsstole", "Stole"],
+  "chair":        ["Stole", "Lænestole", "Gulvstole", "Spisebordsstole"],
+  "sofa":         ["Sofaer"],
+  "coffee_table": ["Sofaborde"],
+  "side_table":   ["Sofaborde", "Natborde"],
+  "dining_table": ["Spiseborde"],
+  "bed":          ["Senge"],
+  "nightstand":   ["Natborde"],
+  "lamp":         ["Lamper"],
+  "rug":          ["Tæpper"],
+  "cabinet":      ["Skabe", "Skænke"],
+  "shelf":        ["Reoler", "Bogskabe"],
+  "mirror":       ["Spejle"],
+  "bench":        ["Stole"],
+  "table":        ["Sofaborde", "Spiseborde"],
 };
 
-const COLOR_TO_DA: Record<string, string[]> = {
-  "beige":       ["beige", "sand", "natur"],
-  "cream":       ["cream", "råhvid", "off-white"],
-  "white":       ["hvid", "white", "lys"],
-  "light beige": ["beige", "cream", "sand", "natur"],
-  "dark brown":  ["mørkebrun", "brun", "valnød", "walnut"],
-  "light brown": ["lysebrun", "brun", "eg", "natur", "oak"],
-  "black":       ["sort", "black"],
-  "gray":        ["grå", "grey"],
-  "grey":        ["grå", "grey"],
-  "blue":        ["blå", "navy"],
-  "green":       ["grøn", "olive", "sage"],
-  "yellow":      ["gul", "okker"],
-  "orange":      ["orange", "terra"],
-  "pink":        ["lyserød", "rosa"],
-  "walnut":      ["valnød", "walnut", "mørkebrun"],
-  "oak":         ["eg", "natur", "oak"],
-  "natural":     ["natur", "eg", "naturlig"],
-};
+const OUTDOOR_TERMS = [
+  "udendørs", "have", "terrasse", "solstol", "liggestol",
+  "parasol", "havemøbler", "balkon", "polyrattan",
+];
 
-const MATERIAL_TO_DA: Record<string, string[]> = {
-  "fabric":   ["stof", "tekstil"],
-  "leather":  ["læder", "kunstlæder"],
-  "velvet":   ["velour", "velvet", "fløjl"],
-  "boucle":   ["boucle", "bouclé"],
-  "rattan":   ["rattan", "flet", "kurv", "bambus"],
-  "wood":     ["træ", "eg", "massivt"],
-  "metal":    ["metal", "stål", "jern"],
-  "glass":    ["glas"],
-};
+function buildSQLFilter(
+  description: FurnitureDescription | null,
+  yoloLabel: string,
+  colorTerms: string[],
+): { whereClause: string; params: any[] } {
+  const conditions: string[] = ["p.vector_clip IS NOT NULL"];
+  const params: any[] = [];
+  let idx = 1;
 
-const STYLE_TO_DA: Record<string, string[]> = {
-  "scandinavian": ["skandinavisk", "nordisk", "natur", "eg"],
-  "minimalist":   ["minimalistisk", "simpel"],
-  "modern":       ["moderne", "minimalistisk"],
-  "industrial":   ["industriel", "metal"],
-  "bohemian":     ["rattan", "flet", "boho"],
-  "luxury":       ["eksklusiv", "luksus", "velour"],
-  "rustic":       ["rustikal", "natur"],
-  "classic":      ["klassisk", "traditionel"],
-};
+  const effectiveType = description?.type ?? yoloLabel;
+  const categoryKeywords =
+    VISION_TYPE_TO_CATEGORY[effectiveType.toLowerCase()] ??
+    YOLO_TO_CATEGORY[effectiveType.toLowerCase()] ??
+    [];
 
-function descriptionToSearchTerms(desc: FurnitureDescription): string[] {
-  const terms: string[] = [];
-
-  const colorWords = desc.color.toLowerCase().split(/\s+/);
-  for (const word of colorWords) {
-    const da = COLOR_TO_DA[word] ?? COLOR_TO_DA[desc.color.toLowerCase()];
-    if (da) terms.push(...da);
-  }
-  if (COLOR_TO_DA[desc.color.toLowerCase()]) {
-    terms.push(...COLOR_TO_DA[desc.color.toLowerCase()]);
+  if (categoryKeywords.length > 0) {
+    const catConds = categoryKeywords.map(() => `p.category ILIKE $${idx++}`).join(" OR ");
+    conditions.push(`(${catConds})`);
+    categoryKeywords.forEach((k) => params.push(`%${k}%`));
   }
 
-  const matTerms = MATERIAL_TO_DA[desc.material.toLowerCase()];
-  if (matTerms) terms.push(...matTerms);
-
-  const styleTerms = STYLE_TO_DA[desc.style.toLowerCase()];
-  if (styleTerms) terms.push(...styleTerms);
-
-  if (desc.legs) {
-    const legWords = desc.legs.toLowerCase();
-    if (legWords.includes("oak") || legWords.includes("wood") || legWords.includes("light")) {
-      terms.push("eg", "natur", "træben");
-    }
-    if (legWords.includes("metal") || legWords.includes("black")) {
-      terms.push("metal", "sort");
-    }
+  const isIndoor = description ? description.indoor !== false : true;
+  if (isIndoor) {
+    const outdoorConds = OUTDOOR_TERMS.map(
+      () => `p.name NOT ILIKE $${idx++}`
+    ).join(" AND ");
+    conditions.push(`(${outdoorConds})`);
+    OUTDOOR_TERMS.forEach((t) => params.push(`%${t}%`));
   }
 
-  return [...new Set(terms)];
+  const attributeTerms: string[] = [];
+
+  if (description) {
+    const colorKey = description.color?.toLowerCase().replace(/\s+/g, "_");
+    const colorDa = DANISH_SYNONYMS[colorKey] ?? DANISH_SYNONYMS[description.color?.toLowerCase()];
+    if (colorDa) attributeTerms.push(...colorDa);
+
+    const matDa = DANISH_SYNONYMS[description.material?.toLowerCase()];
+    if (matDa) attributeTerms.push(...matDa);
+  } else if (colorTerms.length > 0) {
+    attributeTerms.push(...colorTerms);
+  }
+
+  const uniqueTerms = [...new Set(attributeTerms)];
+
+  if (uniqueTerms.length > 0) {
+    const attrConds = uniqueTerms.map(() => `p.name ILIKE $${idx++}`).join(" OR ");
+    conditions.push(`(${attrConds})`);
+    uniqueTerms.forEach((t) => params.push(`%${t}%`));
+  }
+
+  return {
+    whereClause: conditions.join(" AND "),
+    params,
+  };
 }
 
 function calculateAttributeScore(
@@ -124,43 +120,105 @@ function calculateAttributeScore(
   return matches / searchTerms.length;
 }
 
-async function getCandidates(
-  vectorParam: string,
-  categoryKeywords: string[],
-  candidateCount: number,
-): Promise<any[]> {
-  if (categoryKeywords.length > 0) {
-    const conditions = categoryKeywords
-      .map((_, i) => `category ILIKE $${i + 3}`)
-      .join(" OR ");
+function buildSearchTerms(
+  description: FurnitureDescription | null,
+  colorTerms: string[],
+): string[] {
+  if (!description) return colorTerms;
 
-    const result = await pool.query(
-      `
-      SELECT id, name, price, image_url, affiliate_link, shop, category,
-             1 - (vector_clip <=> $1::vector(512)) AS clip_similarity
-      FROM products
-      WHERE vector_clip IS NOT NULL AND (${conditions})
-      ORDER BY vector_clip <=> $1::vector(512)
-      LIMIT $2
-      `,
-      [vectorParam, candidateCount, ...categoryKeywords.map((k) => `%${k}%`)],
-    );
+  const terms: string[] = [];
 
-    if (result.rows.length >= 10) return result.rows;
+  const colorKey = description.color?.toLowerCase().replace(/\s+/g, "_");
+  const colorDa = DANISH_SYNONYMS[colorKey] ?? DANISH_SYNONYMS[description.color?.toLowerCase()];
+  if (colorDa) terms.push(...colorDa);
+
+  const matDa = DANISH_SYNONYMS[description.material?.toLowerCase()];
+  if (matDa) terms.push(...matDa);
+
+  const styleDa = DANISH_SYNONYMS[description.style?.toLowerCase()];
+  if (styleDa) terms.push(...styleDa);
+
+  if (description.legs) {
+    const legs = description.legs.toLowerCase();
+    if (legs.includes("oak") || legs.includes("wood")) terms.push("eg", "natur", "træben");
+    if (legs.includes("metal") || legs.includes("black")) terms.push("metal", "sort");
   }
 
-  const fallback = await pool.query(
-    `
-    SELECT id, name, price, image_url, affiliate_link, shop, category,
-           1 - (vector_clip <=> $1::vector(512)) AS clip_similarity
-    FROM products
-    WHERE vector_clip IS NOT NULL
-    ORDER BY vector_clip <=> $1::vector(512)
+  return [...new Set(terms)];
+}
+
+async function getSQLFirstCandidates(
+  vectorParam: string,
+  description: FurnitureDescription | null,
+  yoloLabel: string,
+  colorTerms: string[],
+  limit: number,
+): Promise<any[]> {
+  const { whereClause, params } = buildSQLFilter(description, yoloLabel, colorTerms);
+
+  const vectorIdx = params.length + 1;
+  const limitIdx = params.length + 2;
+
+  const sqlFiltered = `
+    SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
+           1 - (p.vector_clip <=> $${vectorIdx}::vector(512)) AS clip_similarity
+    FROM products p
+    WHERE ${whereClause}
+    ORDER BY p.vector_clip <=> $${vectorIdx}::vector(512)
+    LIMIT $${limitIdx}
+  `;
+
+  const filteredResult = await pool.query(sqlFiltered, [
+    ...params,
+    vectorParam,
+    limit,
+  ]);
+
+  if (filteredResult.rows.length >= 5) {
+    console.log(`SQL-first: ${filteredResult.rows.length} kandidater (filtreret)`);
+    return filteredResult.rows;
+  }
+
+  console.log(`SQL-first gav kun ${filteredResult.rows.length} resultater — falder tilbage til bredere søgning`);
+
+  const effectiveType = description?.type ?? yoloLabel;
+  const categoryKeywords =
+    VISION_TYPE_TO_CATEGORY[effectiveType.toLowerCase()] ??
+    YOLO_TO_CATEGORY[effectiveType.toLowerCase()] ??
+    [];
+
+  if (categoryKeywords.length > 0) {
+    const catConds = categoryKeywords.map((_, i) => `p.category ILIKE $${i + 3}`).join(" OR ");
+    const fallbackSQL = `
+      SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
+             1 - (p.vector_clip <=> $1::vector(512)) AS clip_similarity
+      FROM products p
+      WHERE p.vector_clip IS NOT NULL AND (${catConds})
+      ORDER BY p.vector_clip <=> $1::vector(512)
+      LIMIT $2
+    `;
+    const fallbackResult = await pool.query(fallbackSQL, [
+      vectorParam,
+      limit,
+      ...categoryKeywords.map((k) => `%${k}%`),
+    ]);
+    if (fallbackResult.rows.length >= 5) {
+      console.log(`Kategori-fallback: ${fallbackResult.rows.length} resultater`);
+      return fallbackResult.rows;
+    }
+  }
+
+  const broadSQL = `
+    SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
+           1 - (p.vector_clip <=> $1::vector(512)) AS clip_similarity
+    FROM products p
+    WHERE p.vector_clip IS NOT NULL
+    ORDER BY p.vector_clip <=> $1::vector(512)
     LIMIT $2
-    `,
-    [vectorParam, candidateCount],
-  );
-  return fallback.rows;
+  `;
+  const broadResult = await pool.query(broadSQL, [vectorParam, limit]);
+  console.log(`Bred fallback: ${broadResult.rows.length} resultater`);
+  return broadResult.rows;
 }
 
 export async function findSimilarProductsHybrid(
@@ -171,18 +229,12 @@ export async function findSimilarProductsHybrid(
   colorTerms: string[] = [],
 ) {
   const vectorParam = JSON.stringify(queryVector);
+  const label = yoloLabel ?? "";
+  const desc = description ?? null;
 
-  const effectiveType = description?.type ?? yoloLabel ?? "";
-  const categoryKeywords =
-    VISION_TYPE_TO_CATEGORY[effectiveType.toLowerCase()] ??
-    YOLO_TO_CATEGORY[effectiveType.toLowerCase()] ??
-    [];
+  const candidates = await getSQLFirstCandidates(vectorParam, desc, label, colorTerms, 80);
 
-  const searchTerms = description
-    ? descriptionToSearchTerms(description)
-    : colorTerms;
-
-  const candidates = await getCandidates(vectorParam, categoryKeywords, 50);
+  const searchTerms = buildSearchTerms(desc, colorTerms);
 
   const scored = candidates.map((row) => {
     const clipScore = parseFloat(row.clip_similarity);
@@ -195,22 +247,40 @@ export async function findSimilarProductsHybrid(
 
   scored.sort((a, b) => b.finalScore - a.finalScore);
 
-  const top10 = scored.slice(0, 10);
-  const budget = [...top10].sort((a, b) => parseFloat(a.price) - parseFloat(b.price))[0];
+  const seenBaseNames = new Set<string>();
+  const deduped: typeof scored = [];
 
-  const dedupedResults: typeof scored = [];
   for (const p of scored) {
-    if (dedupedResults.length >= topK + 2) break;
-    if (!dedupedResults.find((r) => r.id === p.id)) {
-      dedupedResults.push(p);
+    const baseName = p.name
+      .replace(/\s*-\s*\w+\s*\/\s*.*/g, "")
+      .replace(/\d+\s*x\s*\d+\s*(cm)?/gi, "")
+      .replace(/\d+\s*cm/gi, "")
+      .trim()
+      .toLowerCase();
+
+    if (!seenBaseNames.has(baseName)) {
+      seenBaseNames.add(baseName);
+      deduped.push(p);
     }
+    if (deduped.length >= topK + 3) break;
   }
 
-  if (budget && !dedupedResults.find((r) => r.id === budget.id)) {
-    dedupedResults.push(budget);
+  const top10 = deduped.slice(0, 10);
+  const budgetCandidate = [...top10].sort(
+    (a, b) => parseFloat(a.price) - parseFloat(b.price)
+  )[0];
+
+  const finalResults: typeof scored = [];
+  for (const p of deduped) {
+    if (finalResults.length >= topK + 2) break;
+    if (!finalResults.find((r) => r.id === p.id)) finalResults.push(p);
   }
 
-  return dedupedResults.slice(0, topK + 2).map((p) => ({
+  if (budgetCandidate && !finalResults.find((r) => r.id === budgetCandidate.id)) {
+    finalResults.push(budgetCandidate);
+  }
+
+  return finalResults.slice(0, topK + 2).map((p) => ({
     id: p.id,
     name: p.name,
     price: p.price,
