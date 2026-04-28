@@ -1,9 +1,8 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Scan, ShoppingCart, X, ExternalLink, ChevronRight } from "lucide-react";
+import { Loader2, Scan, ShoppingCart, X, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DetectedObject {
@@ -43,27 +42,50 @@ function formatPrice(price: string) {
   return n.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 });
 }
 
-function formatSimilarity(s: number) {
-  return `${Math.round(s * 100)}% match`;
+function isTouchDevice() {
+  return typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 }
 
-const BOX_COLORS = [
-  "rgba(59,130,246,0.55)",
-  "rgba(16,185,129,0.55)",
-  "rgba(245,158,11,0.55)",
-  "rgba(239,68,68,0.55)",
-  "rgba(168,85,247,0.55)",
-  "rgba(236,72,153,0.55)",
-];
+function getBudgetProduct(products: SimilarProduct[]): SimilarProduct | null {
+  if (!products.length) return null;
+  return [...products].sort((a, b) => parseFloat(a.price) - parseFloat(b.price))[0];
+}
 
 export function FurnitureDetector({ imageUrl }: Props) {
   const { toast } = useToast();
   const imgRef = useRef<HTMLImageElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number>(0);
 
   const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null);
   const [activeObject, setActiveObject] = useState<DetectedObject | null>(null);
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[] | null>(null);
-  const [popupOpen, setPopupOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [imageHovered, setImageHovered] = useState(false);
+  const [tooltipIdx, setTooltipIdx] = useState<number | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const isTouch = isTouchDevice();
+
+  useEffect(() => {
+    if (!localStorage.getItem("hasSeenFurnitureOnboarding")) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showOnboarding && analyzeResult) {
+      const t = setTimeout(() => {
+        setShowOnboarding(false);
+        localStorage.setItem("hasSeenFurnitureOnboarding", "true");
+      }, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [showOnboarding, analyzeResult]);
+
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    localStorage.setItem("hasSeenFurnitureOnboarding", "true");
+  }, []);
 
   const analyzeMutation = useMutation({
     mutationFn: async () => {
@@ -101,30 +123,49 @@ export function FurnitureDetector({ imageUrl }: Props) {
     },
   });
 
-  const handleObjectClick = useCallback((obj: DetectedObject) => {
+  const handleDotClick = useCallback((obj: DetectedObject) => {
+    dismissOnboarding();
     setActiveObject(obj);
     setSimilarProducts(null);
-    setPopupOpen(true);
+    setPanelOpen(true);
     cropMutation.mutate(obj);
-  }, []);
+  }, [dismissOnboarding]);
 
-  const scaleBox = (obj: DetectedObject) => {
-    if (!imgRef.current || !analyzeResult) return { left: 0, top: 0, width: 0, height: 0 };
+  const scaleDot = (obj: DetectedObject) => {
+    if (!imgRef.current || !analyzeResult) return { left: 0, top: 0 };
     const el = imgRef.current;
     const scaleX = el.clientWidth / analyzeResult.imageWidth;
     const scaleY = el.clientHeight / analyzeResult.imageHeight;
     return {
-      left: obj.x * scaleX,
-      top: obj.y * scaleY,
-      width: obj.width * scaleX,
-      height: obj.height * scaleY,
+      left: (obj.x + obj.width / 2) * scaleX,
+      top: (obj.y + obj.height / 2) * scaleY,
     };
+  };
+
+  const dotsVisible = isTouch || imageHovered;
+
+  const budgetProduct = similarProducts ? getBudgetProduct(similarProducts) : null;
+  const bestMatch = similarProducts?.[0] ?? null;
+  const similar = similarProducts?.slice(1, 3) ?? [];
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    if (delta > 60) setPanelOpen(false);
   };
 
   return (
     <div>
       {!analyzeResult ? (
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-2">
+          {!localStorage.getItem("hasSeenFurnitureOnboarding") && (
+            <p className="text-sm text-gray-500 text-center">
+              💡 Klik på de hvide prikker for at shoppe lignende møbler
+            </p>
+          )}
           <Button
             variant="outline"
             className="gap-2 h-10"
@@ -141,25 +182,41 @@ export function FurnitureDetector({ imageUrl }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium">
               {analyzeResult.objects.length > 0
-                ? `${analyzeResult.objects.length} møbel${analyzeResult.objects.length !== 1 ? "r" : ""} fundet — klik for at finde lignende`
+                ? isTouch
+                  ? "Tryk på de hvide prikker for at shoppe møblerne"
+                  : "Hold musen over billedet og klik på en prik for at shoppe"
                 : "Ingen møbler registreret"}
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7"
-              onClick={() => { setAnalyzeResult(null); setPopupOpen(false); }}
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => { setAnalyzeResult(null); setPanelOpen(false); }}
               data-testid="button-reset-furniture"
             >
               Nulstil
-            </Button>
+            </button>
           </div>
 
-          <div className="relative rounded-xl overflow-hidden border border-border/60" style={{ lineHeight: 0 }}>
+          {showOnboarding && (
+            <p
+              className="text-sm text-gray-500 text-center py-1 animate-pulse cursor-pointer"
+              onClick={dismissOnboarding}
+              data-testid="text-onboarding-hint"
+            >
+              💡 Klik på de hvide prikker for at shoppe lignende møbler
+            </p>
+          )}
+
+          <div
+            className="relative rounded-xl overflow-hidden border border-border/60 cursor-pointer"
+            style={{ lineHeight: 0 }}
+            onMouseEnter={() => setImageHovered(true)}
+            onMouseLeave={() => { setImageHovered(false); setTooltipIdx(null); }}
+            data-testid="container-furniture-overlay"
+          >
             <img
               ref={imgRef}
               src={imageUrl}
@@ -167,112 +224,212 @@ export function FurnitureDetector({ imageUrl }: Props) {
               className="w-full block"
               data-testid="img-furniture-overlay"
             />
+
             {analyzeResult.objects.map((obj, idx) => {
-              const box = scaleBox(obj);
-              const color = BOX_COLORS[idx % BOX_COLORS.length];
+              const dot = scaleDot(obj);
+              const showTooltip = tooltipIdx === idx;
               return (
-                <button
+                <div
                   key={idx}
-                  data-testid={`zone-furniture-${idx}`}
-                  onClick={() => handleObjectClick(obj)}
-                  className="absolute cursor-pointer group transition-all"
+                  data-testid={`dot-furniture-${idx}`}
+                  className="absolute"
                   style={{
-                    left: box.left,
-                    top: box.top,
-                    width: box.width,
-                    height: box.height,
-                    border: `2px solid ${color.replace("0.55", "0.9")}`,
-                    backgroundColor: color.replace("0.55", "0.12"),
-                    borderRadius: 4,
+                    left: dot.left,
+                    top: dot.top,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 10,
+                    opacity: dotsVisible ? 1 : 0,
+                    transition: "opacity 0.3s ease",
                   }}
-                  title={obj.labelDa}
+                  onMouseEnter={() => setTooltipIdx(idx)}
+                  onMouseLeave={() => setTooltipIdx(null)}
+                  onClick={() => handleDotClick(obj)}
                 >
-                  <span
-                    className="absolute -top-6 left-0 text-white text-[10px] font-medium px-1.5 py-0.5 rounded"
-                    style={{ backgroundColor: color.replace("0.55", "0.9"), whiteSpace: "nowrap" }}
+                  <div
+                    className="relative flex items-center justify-center rounded-full bg-white shadow-md border border-black/10"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      animation: dotsVisible ? "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" : "none",
+                    }}
                   >
-                    {obj.labelDa}
-                  </span>
-                </button>
+                    <ShoppingCart className="w-3.5 h-3.5 text-gray-800" />
+                  </div>
+                  {showTooltip && (
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 -top-8 bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none"
+                      style={{ zIndex: 20 }}
+                    >
+                      {obj.labelDa}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
       )}
 
-      {popupOpen && activeObject && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setPopupOpen(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      {panelOpen && activeObject && (
+        <>
           <div
-            className="relative bg-background border border-border/60 rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="popup-similar-products"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            onClick={() => setPanelOpen(false)}
+          />
+          <div
+            ref={panelRef}
+            className="fixed z-50 bg-white shadow-2xl overflow-y-auto
+              bottom-0 left-0 right-0 rounded-t-2xl max-h-[92vh]
+              sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:max-w-2xl sm:w-full sm:max-h-[85vh]"
+            style={{ padding: 24 }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            data-testid="panel-similar-products"
           >
-            <div className="flex items-center justify-between">
+            <div className="sm:hidden flex justify-center mb-3">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
+
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-base">{activeObject.labelDa}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Lignende produkter fra danske butikker</p>
+                <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">
+                  {activeObject.labelDa}
+                </p>
+                <p className="text-sm text-gray-500 mt-0.5">Lignende produkter fra danske butikker</p>
               </div>
               <button
-                onClick={() => setPopupOpen(false)}
-                className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-muted transition-colors"
-                data-testid="button-close-popup"
+                onClick={() => setPanelOpen(false)}
+                className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-500"
+                data-testid="button-close-panel"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {cropMutation.isPending && (
-              <div className="flex flex-col items-center py-8 gap-3">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Søger efter lignende produkter…</p>
+              <div className="flex flex-col items-center py-12 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                <p className="text-sm text-gray-500">Søger efter lignende produkter…</p>
               </div>
             )}
 
             {similarProducts && similarProducts.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Ingen lignende produkter fundet.</p>
+              <p className="text-sm text-gray-500 text-center py-8">Ingen lignende produkter fundet.</p>
             )}
 
-            {similarProducts && similarProducts.length > 0 && (
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                {similarProducts.map((p, i) => (
+            {bestMatch && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[10px] tracking-widest uppercase text-gray-400 font-semibold mb-3">Best Match</p>
                   <a
-                    key={p.id}
-                    href={p.affiliate_link}
+                    href={bestMatch.affiliate_link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-2.5 rounded-xl border border-border/40 hover:border-border hover:bg-muted/40 transition-all group"
-                    data-testid={`product-item-${i}`}
+                    className="flex gap-4 group"
+                    data-testid="product-best-match"
                   >
-                    {p.image_url && (
-                      <img
-                        src={p.image_url}
-                        alt={p.name}
-                        className="w-14 h-14 object-cover rounded-lg shrink-0 bg-muted"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-snug truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">{p.shop}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm font-semibold tabular-nums">{formatPrice(p.price)}</span>
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                          {formatSimilarity(p.similarity)}
-                        </Badge>
+                    <div className="w-36 h-28 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                      {bestMatch.image_url && (
+                        <img
+                          src={bestMatch.image_url}
+                          alt={bestMatch.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                    </div>
+                    <div className="flex flex-col justify-between flex-1 min-w-0 py-1">
+                      <div>
+                        <p className="font-semibold text-base leading-snug line-clamp-2 text-gray-900">{bestMatch.name}</p>
+                        <p className="text-sm text-gray-500 mt-1 capitalize">{bestMatch.shop}</p>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xl font-bold tabular-nums text-gray-900">{formatPrice(bestMatch.price)}</p>
+                        <span className="inline-flex items-center gap-1.5 bg-black text-white text-sm px-4 py-2 rounded-lg font-medium group-hover:bg-gray-800 transition-colors">
+                          Shop nu <ArrowRight className="w-3.5 h-3.5" />
+                        </span>
                       </div>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
                   </a>
-                ))}
+                </div>
+
+                {(similar.length > 0 || budgetProduct) && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {similar.slice(0, 2).map((p, i) => (
+                        <a
+                          key={p.id}
+                          href={p.affiliate_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group"
+                          data-testid={`product-similar-${i}`}
+                        >
+                          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-2">
+                            {p.image_url && (
+                              <img
+                                src={p.image_url}
+                                alt={p.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              />
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug">{p.name}</p>
+                          <p className="text-sm font-semibold tabular-nums text-gray-700 mt-1">{formatPrice(p.price)}</p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-[10px] text-gray-400 capitalize">{p.shop}</span>
+                            <span className="text-xs text-gray-500 group-hover:text-gray-900 flex items-center gap-0.5 transition-colors">
+                              Se <ArrowRight className="w-2.5 h-2.5" />
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-0.5">Ligner mest</p>
+                        </a>
+                      ))}
+
+                      {budgetProduct && budgetProduct.id !== bestMatch.id && (
+                        <a
+                          href={budgetProduct.affiliate_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group"
+                          data-testid="product-budget"
+                        >
+                          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-2 relative">
+                            {budgetProduct.image_url && (
+                              <img
+                                src={budgetProduct.image_url}
+                                alt={budgetProduct.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              />
+                            )}
+                            <span className="absolute top-2 left-2 bg-green-100 text-green-800 text-[10px] font-semibold px-2 py-0.5 rounded">
+                              Budget
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug">{budgetProduct.name}</p>
+                          <p className="text-sm font-semibold tabular-nums text-gray-700 mt-1">{formatPrice(budgetProduct.price)}</p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-[10px] text-gray-400 capitalize">{budgetProduct.shop}</span>
+                            <span className="text-xs text-gray-500 group-hover:text-gray-900 flex items-center gap-0.5 transition-colors">
+                              Se <ArrowRight className="w-2.5 h-2.5" />
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-0.5">Budget valg</p>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            <p className="text-[10px] text-muted-foreground text-center">
+            <p className="text-[10px] text-gray-400 text-center mt-4">
               Produkter fundet via billedanalyse · Priser kan variere
             </p>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
