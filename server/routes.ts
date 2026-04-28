@@ -1197,32 +1197,58 @@ export async function registerRoutes(
 
   app.post("/api/find-similar-crop", async (req, res) => {
     try {
-      const { imageUrl, x, y, width, height, topK = 5, yoloLabel, designStyle } = req.body;
+      const {
+        imageUrl, x, y, width, height,
+        topK = 5, yoloLabel, yoloConfidence, designStyle,
+      } = req.body;
+
       if (!imageUrl || x == null || y == null || width == null || height == null) {
         return res.status(400).json({ error: "imageUrl, x, y, width, height påkrævet" });
       }
 
       const { cropImageToTempFile } = await import("./cropImage");
       const { getClipEmbedding } = await import("./huggingFace");
-      const { findSimilarProductsWithTags } = await import("./vectorSearch");
-      const { getDominantColorTerms, getStyleSearchTerms } = await import("./analyzeVisual");
+      const { findSimilarProductsHybrid } = await import("./vectorSearch");
+      const { getDominantColorTerms } = await import("./analyzeVisual");
+      const { describeFurnitureWithVision, cacheKey } = await import("./describeWithVision");
 
       const { filePath, cleanup } = await cropImageToTempFile(imageUrl, x, y, width, height);
+      const ck = cacheKey(imageUrl, x, y, width, height);
+
       let embedding: number[];
       let colorTerms: string[] = [];
+      let description: any = null;
+
       try {
-        [embedding, colorTerms] = await Promise.all([
+        [embedding, colorTerms, description] = await Promise.all([
           getClipEmbedding(filePath),
           getDominantColorTerms(filePath),
+          describeFurnitureWithVision(filePath, ck),
         ]);
       } finally {
         cleanup();
       }
 
-      const styleTerms = getStyleSearchTerms(designStyle);
-      const products = await findSimilarProductsWithTags(embedding, topK, yoloLabel, colorTerms, styleTerms);
+      let effectiveLabel = yoloLabel;
+      if (
+        description?.type &&
+        yoloConfidence != null &&
+        yoloConfidence < 0.6 &&
+        description.type !== yoloLabel
+      ) {
+        console.log(`Vision override: ${yoloLabel} (${Math.round(yoloConfidence * 100)}%) → ${description.type}`);
+        effectiveLabel = description.type;
+      }
 
-      return res.json({ products });
+      const products = await findSimilarProductsHybrid(
+        embedding,
+        topK,
+        effectiveLabel,
+        description,
+        colorTerms,
+      );
+
+      return res.json({ products, description });
     } catch (err: any) {
       console.error("find-similar-crop fejl:", err.message);
       return res.status(500).json({ error: err.message });

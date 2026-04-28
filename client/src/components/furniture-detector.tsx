@@ -32,9 +32,19 @@ interface AnalyzeResult {
   imageHeight: number;
 }
 
+interface FurnitureDescription {
+  type: string;
+  color: string;
+  material: string;
+  legs: string | null;
+  style: string;
+  shape: string;
+}
+
 interface ShopResult {
   obj: DetectedObject;
   products: SimilarProduct[];
+  description?: FurnitureDescription | null;
 }
 
 interface Props {
@@ -142,7 +152,7 @@ function ProductCard({
 }
 
 function ShopSection({ result }: { result: ShopResult }) {
-  const { obj, products } = result;
+  const { obj, products, description } = result;
   if (!products.length) return null;
 
   const best = products[0];
@@ -162,11 +172,18 @@ function ShopSection({ result }: { result: ShopResult }) {
 
   return (
     <div className="space-y-3" data-testid={`shop-section-${obj.label}`}>
-      <div className="flex items-center gap-2">
-        <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
-        <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium">
-          {danishFurnitureTitle(obj)}
-        </p>
+      <div className="flex items-start gap-2">
+        <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+        <div>
+          <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium">
+            {danishFurnitureTitle(obj)}
+          </p>
+          {description && (
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5 capitalize">
+              {[description.color, description.material, description.style].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
         {displayCards.map(({ product, badge }) => (
@@ -244,10 +261,15 @@ export function FurnitureDetector({ imageUrl, autoRun = false, designStyle }: Pr
               height: obj.height,
               topK: 5,
               yoloLabel: obj.label,
+              yoloConfidence: obj.confidence,
               designStyle,
             });
             const d = await r.json();
-            return { obj, products: (d.products ?? []) as SimilarProduct[] };
+            return {
+              obj,
+              products: (d.products ?? []) as SimilarProduct[],
+              description: d.description ?? null,
+            };
           } catch {
             return { obj, products: [] as SimilarProduct[] };
           }
@@ -294,9 +316,10 @@ export function FurnitureDetector({ imageUrl, autoRun = false, designStyle }: Pr
         height: obj.height,
         topK: 5,
         yoloLabel: obj.label,
+        yoloConfidence: obj.confidence,
         designStyle,
       });
-      return res.json() as Promise<{ products: SimilarProduct[] }>;
+      return res.json() as Promise<{ products: SimilarProduct[]; description?: FurnitureDescription }>;
     },
     onSuccess: (data) => setSimilarProducts(data.products),
     onError: (err: any) => {
