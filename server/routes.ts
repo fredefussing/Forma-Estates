@@ -1298,5 +1298,78 @@ export async function registerRoutes(
     }
   });
 
+  // ── Style-product routes (tagging system) ──────────────────────────────────
+
+  app.get("/api/style-products", async (req, res) => {
+    try {
+      const { style = "scandinavian", room = "living_room", budget = "standard", limit = "8" } = req.query;
+      const validStyles = ["scandinavian", "modern", "industrial", "classic", "bohemian", "minimalist", "rustic", "luxury", "mid_century", "contemporary"];
+      const validRooms = ["living_room", "bedroom", "kitchen", "bathroom", "dining_room", "office", "hallway", "outdoor"];
+      const validBudgets = ["budget", "standard", "luxury"];
+
+      if (!validStyles.includes(style as string)) return res.status(400).json({ error: "Ugyldig stil" });
+      if (!validRooms.includes(room as string)) return res.status(400).json({ error: "Ugyldigt rum" });
+      if (!validBudgets.includes(budget as string)) return res.status(400).json({ error: "Ugyldigt budget" });
+
+      const { getProductsByStyle, getTagStats } = await import("./styleSearch");
+      const [result, stats] = await Promise.all([
+        getProductsByStyle(style as string, room as string, budget as "budget" | "standard" | "luxury", parseInt(limit as string, 10)),
+        getTagStats(),
+      ]);
+
+      return res.json({
+        success: true,
+        style: result.style,
+        room,
+        products: result.products,
+        total_found: result.total_found,
+        tagged_count: stats.tagged,
+      });
+    } catch (err: any) {
+      log(`style-products fejl: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/complete-look", async (req, res) => {
+    try {
+      const { style = "scandinavian", room = "living_room", budget = "standard" } = req.query;
+      const { getCompleteLook } = await import("./styleSearch");
+      const look = await getCompleteLook(style as string, room as string, budget as "budget" | "standard" | "luxury");
+      return res.json({
+        success: true,
+        style, room,
+        products: look,
+        total_price: look.reduce((s, p) => s + (p.price || 0), 0),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/tag-stats", async (req, res) => {
+    try {
+      const { getTagStats } = await import("./styleSearch");
+      return res.json(await getTagStats());
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/tag-batch", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser?.isAdmin) return res.status(403).json({ error: "Admin only" });
+
+      const { limit = 50, offset = 0 } = req.body;
+      const { batchTagProducts } = await import("./tagProducts");
+      const result = await batchTagProducts(pool, parseInt(limit), parseInt(offset));
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }

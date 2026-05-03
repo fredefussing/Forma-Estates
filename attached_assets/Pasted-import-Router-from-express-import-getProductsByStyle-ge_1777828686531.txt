@@ -1,0 +1,132 @@
+import { Router } from "express";
+import { getProductsByStyle, getCompleteLook, getRelatedProducts } from "../styleSearch";
+
+const router = Router();
+
+/**
+ * GET /api/style-products
+ * Hent produkter der matcher en stil
+ * 
+ * Query params:
+ * - style: scandinavian|modern|industrial|classic|bohemian|minimalist|rustic|luxury
+ * - room: living_room|bedroom|kitchen|bathroom|dining_room|office|hallway
+ * - budget: budget|standard|luxury (default: standard)
+ * - limit: number (default: 8)
+ */
+router.get("/style-products", async (req, res) => {
+  try {
+    const { 
+      style = 'scandinavian', 
+      room = 'living_room',
+      budget = 'standard',
+      limit = '8'
+    } = req.query;
+
+    // Validate
+    const validStyles = ['scandinavian', 'modern', 'industrial', 'classic', 'bohemian', 'minimalist', 'rustic', 'luxury'];
+    const validRooms = ['living_room', 'bedroom', 'kitchen', 'bathroom', 'dining_room', 'office', 'hallway'];
+    const validBudgets = ['budget', 'standard', 'luxury'];
+
+    if (!validStyles.includes(style as string)) {
+      return res.status(400).json({ error: `Invalid style. Must be one of: ${validStyles.join(', ')}` });
+    }
+
+    if (!validRooms.includes(room as string)) {
+      return res.status(400).json({ error: `Invalid room. Must be one of: ${validRooms.join(', ')}` });
+    }
+
+    if (!validBudgets.includes(budget as string)) {
+      return res.status(400).json({ error: `Invalid budget. Must be one of: ${validBudgets.join(', ')}` });
+    }
+
+    const result = await getProductsByStyle(
+      style as string,
+      room as string,
+      budget as 'budget' | 'standard' | 'luxury',
+      parseInt(limit as string, 10)
+    );
+
+    res.json({
+      success: true,
+      style: result.style,
+      room: result.room_type,
+      products: result.products,
+      total_found: result.total_found,
+      message: result.total_found === 0 
+        ? "Ingen produkter fundet i denne stil. Prøv en bredere søgning."
+        : undefined
+    });
+
+  } catch (error) {
+    console.error("Style products error:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch style products",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+
+/**
+ * GET /api/complete-look
+ * Hent et komplet look — én af hver type
+ */
+router.get("/complete-look", async (req, res) => {
+  try {
+    const { 
+      style = 'scandinavian', 
+      room = 'living_room',
+      budget = 'standard'
+    } = req.query;
+
+    const look = await getCompleteLook(
+      style as string,
+      room as string,
+      budget as 'budget' | 'standard' | 'luxury'
+    );
+
+    res.json({
+      success: true,
+      style,
+      room,
+      product_count: look.length,
+      products: look,
+      total_price: look.reduce((sum, p) => sum + (p.price || 0), 0)
+    });
+
+  } catch (error) {
+    console.error("Complete look error:", error);
+    res.status(500).json({ error: "Failed to fetch complete look" });
+  }
+});
+
+/**
+ * GET /api/related-products
+ * Relaterede produkter i samme stil
+ */
+router.get("/related-products", async (req, res) => {
+  try {
+    const { style, exclude_room, limit = '4' } = req.query;
+
+    if (!style) {
+      return res.status(400).json({ error: "style is required" });
+    }
+
+    const products = await getRelatedProducts(
+      style as string,
+      exclude_room as string,
+      parseInt(limit as string, 10)
+    );
+
+    res.json({
+      success: true,
+      style,
+      products
+    });
+
+  } catch (error) {
+    console.error("Related products error:", error);
+    res.status(500).json({ error: "Failed to fetch related products" });
+  }
+});
+
+export default router;

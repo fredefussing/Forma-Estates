@@ -23,7 +23,15 @@ import { BudgetSlider } from "@/components/budget-slider";
 import { SpecialRequest } from "@/components/special-request";
 import { QuoteRequest } from "@/components/quote-request";
 import { FurnitureDetector } from "@/components/furniture-detector";
+import { ShopThisStyle } from "@/components/shop-this-style";
 import { motion, AnimatePresence } from "framer-motion";
+
+const ROOM_TYPE_TO_SEARCH: Record<string, string> = {
+  "living room": "living_room", "bedroom": "bedroom", "kitchen": "kitchen",
+  "bathroom": "bathroom", "dining room": "dining_room", "home office": "office",
+  "kids room": "living_room", "gym": "living_room", "game room": "living_room",
+  "outdoor": "outdoor",
+};
 
 const roomTypeLabels: Record<RoomType, string> = {
   "living room": "Stue",
@@ -702,6 +710,12 @@ export default function HomePage() {
                     />
 
                     <FurnitureDetector imageUrl={activeDesign.resultImageUrl!} autoRun designStyle={activeDesign.style ?? undefined} />
+
+                    <ShopThisStyle
+                      style={activeDesign.style || "scandinavian"}
+                      roomType={ROOM_TYPE_TO_SEARCH[activeDesign.roomType] || "living_room"}
+                      budget={activeDesign.tier === "luxury" ? "luxury" : activeDesign.tier === "budget" ? "budget" : "standard"}
+                    />
 
                     {activeDesign.budget && activeDesign.roomType && (() => {
                       const { min, max, roi } = calcValueRange(activeDesign.budget, activeDesign.roomType as RoomType);

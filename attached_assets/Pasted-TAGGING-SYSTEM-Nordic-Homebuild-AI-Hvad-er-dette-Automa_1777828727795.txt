@@ -1,0 +1,91 @@
+TAGGING SYSTEM — Nordic Homebuild AI
+Hvad er dette?
+Automatisk tagging af produkter med AI + "Shop dette look" feature.
+Filer
+Database
+01_migration.sql — Tilføj tags kolonner og indexes
+Backend
+02_tagProducts.ts — Tagging engine (navn-parsing + GPT-4 Vision)
+03_tag-top-products.ts — Batch script til at tagge 10.000 produkter
+04_styleSearch.ts — Søgefunktion til "Shop dette look"
+05_api_routes.ts — API endpoints
+Frontend
+06_ShopThisStyle.tsx — "Shop dette look" komponent
+07_AIResultWithShopping.tsx — Integration med AI-billedet
+Installation
+Step 1: Database migration
+bash
+Copy
+# Kør i Replit SQL console
+\i 01_migration.sql
+Step 2: Installer dependencies
+bash
+Copy
+npm install
+Step 3: Kopier filer
+02_tagProducts.ts → server/tagProducts.ts
+03_tag-top-products.ts → scripts/tag-top-products.ts
+04_styleSearch.ts → server/styleSearch.ts
+05_api_routes.ts → server/routes/style-products.ts
+06_ShopThisStyle.tsx → client/ShopThisStyle.tsx
+07_AIResultWithShopping.tsx → client/AIResultWithShopping.tsx
+Step 4: Tilføj routes
+I din main server fil (server/index.ts eller app.ts):
+TypeScript
+Copy
+import styleProductsRouter from './routes/style-products';
+app.use('/api', styleProductsRouter);
+Step 5: Tag produkter
+bash
+Copy
+# Test med 100 produkter først
+npx ts-node scripts/tag-top-products.ts
+
+# Eller kør direkte i Replit console
+node --loader ts-node/esm scripts/tag-top-products.ts
+Step 6: Test API
+bash
+Copy
+curl "/api/style-products?style=scandinavian&room=living_room&budget=standard&limit=8"
+Sådan fungerer det
+Tagging
+Parser produktnavn (gratis, hurtigt)
+Hvis usikker (< 70% confidence), brug GPT-4 Vision på billede
+Gemmer tags som JSONB i databasen
+Søgning
+Bruger vælger stil + rum + budget
+System finder produkter med matchende tags
+Sorterer efter confidence + match score
+Viser 8 produkter i "Shop dette look"
+Omkostninger
+Table
+Item	Pris
+GPT-4o-mini per billede	~$0.005
+10.000 produkter	~$50
+Tid på Replit CPU	~6-8 timer
+Forventninger
+Table
+Med tagging	Uden tagging
+"Skandinavisk stue" viser skandinaviske produkter	Tilfældige produkter
+Sofaer er faktisk sofaer	"Chair" matcher taburetter
+Farver er i samme familie	Beige bliver brun
+Stil er konsistent	Blander stilarter
+Dette er IKKE præcis match — det er "konsistent stil".
+Troubleshooting
+Ingen produkter fundet
+Tjek at tag_processed = TRUE for nogle produkter
+Tjek at tags->>'style' matcher den valgte stil
+Brug fallback søgning (bredere kriterier)
+Langsom tagging
+Replit har CPU limits
+Sænk BATCH_SIZE til 50
+Øg pause mellem kald til 10 sekunder
+Vision fejler
+Tjek OPENAI_API_KEY
+Nogle billeder kan være utilgængelige (403)
+Produktet markeres som processed alligevel
+Næste steps
+Tag 10.000 produkter
+Test "Shop dette look" med rigtige brugere
+Mål konvertering vs. gammelt system
+Justér tags baseret på feedback

@@ -1,0 +1,185 @@
+import { db } from "./db";
+
+export interface StyleProduct {
+  id: string;
+  name: string;
+  image_url: string;
+  affiliate_link: string;
+  price: number | null;
+  tags: Record<string, any>;
+  tag_confidence: number;
+  match_score: number;
+}
+
+export interface StyleGroup {
+  style: string;
+  room_type: string;
+  products: StyleProduct[];
+  total_found: number;
+}
+
+/**
+ * Hent produkter der matcher en stil
+ * Bruges til "Shop dette look" sektionen
+ */
+export async function getProductsByStyle(
+  style: string,
+  roomType: string,
+  budget: 'budget' | 'standard' | 'luxury' = 'standard',
+  limit: number = 8
+): Promise<StyleGroup> {
+
+  // Map room type til furniture types
+  const roomTypes = getRoomFurnitureTypes(roomType);
+
+  // Budget filter
+  const priceRange = getBudgetRange(budget);
+
+  // Byg query
+  const sql = `
+    SELECT 
+      id, name, image_url, affiliate_link, price, tags, tag_confidence,
+      (
+        CASE WHEN tags->>'style' = $1 THEN 3 ELSE 0 END +
+        CASE WHEN tags->>'type' = ANY($2) THEN 2 ELSE 0 END +
+        tag_confidence * 2
+      ) as match_score
+    FROM products
+    WHERE tag_processed = TRUE
+      AND tags->>'style' = $1
+      AND tags->>'type' = ANY($2)
+      AND tag_confidence > 0.6
+      ${priceRange.min ? 'AND price >= $4' : ''}
+      ${priceRange.max ? 'AND price <= $5' : ''}
+    ORDER BY match_score DESC, price DESC NULLS LAST
+    LIMIT $3
+  `;
+
+  const params: any[] = [style, roomTypes, limit];
+  if (priceRange.min) params.push(priceRange.min);
+  if (priceRange.max) params.push(priceRange.max);
+
+  const products = await db.query(sql, params);
+
+  // Hvis for få resultater, fjern stil-filter og søg bredere
+  if (products.length < 4) {
+    const fallback = await db.query(`
+      SELECT 
+        id, name, image_url, affiliate_link, price, tags, tag_confidence,
+        (
+          CASE WHEN tags->>'type' = ANY($1) THEN 2 ELSE 0 END +
+          tag_confidence
+        ) as match_score
+      FROM products
+      WHERE tag_processed = TRUE
+        AND tags->>'type' = ANY($1)
+        AND tag_confidence > 0.5
+      ORDER BY match_score DESC, price DESC NULLS LAST
+      LIMIT $2
+    `, [roomTypes, limit]);
+
+    return {
+      style: `${style} (bredere søgning)`,
+      room_type: roomType,
+      products: fallback.map(p => ({ ...p, match_score: p.match_score || 0 })),
+      total_found: fallback.length
+    };
+  }
+
+  return {
+    style,
+    room_type: roomType,
+    products: products.map(p => ({ ...p, match_score: p.match_score || 0 })),
+    total_found: products.length
+  };
+}
+
+/**
+ * Hent "komplet look" — én af hver type til rummet
+ */
+export async function getCompleteLook(
+  style: string,
+  roomType: string,
+  budget: 'budget' | 'standard' | 'luxury' = 'standard'
+): Promise<StyleProduct[]> {
+
+  const types = getRoomFurnitureTypes(roomType);
+  const priceRange = getBudgetRange(budget);
+
+  const look: StyleProduct[] = [];
+
+  for (const type of types.slice(0, 6)) { // Max 6 møbler per rum
+    const product = await db.query(`
+      SELECT 
+        id, name, image_url, affiliate_link, price, tags, tag_confidence,
+        3 as match_score
+      FROM products
+      WHERE tag_processed = TRUE
+        AND tags->>'style' = $1
+        AND tags->>'type' = $2
+        AND tag_confidence > 0.7
+        ${priceRange.min ? 'AND price >= $4' : ''}
+        ${priceRange.max ? 'AND price <= $5' : ''}
+      ORDER BY tag_confidence DESC, price DESC NULLS LAST
+      LIMIT 1
+    `, priceRange.min ? [style, type, priceRange.min, priceRange.max] : [style, type]);
+
+    if (product[0]) {
+      look.push(product[0]);
+    }
+  }
+
+  return look;
+}
+
+/**
+ * Hent relaterede produkter (samme stil, andet rum)
+ */
+export async function getRelatedProducts(
+  style: string,
+  excludeRoom: string,
+  limit: number = 4
+): Promise<StyleProduct[]> {
+
+  const products = await db.query(`
+    SELECT 
+      id, name, image_url, affiliate_link, price, tags, tag_confidence,
+      2 as match_score
+    FROM products
+    WHERE tag_processed = TRUE
+      AND tags->>'style' = $1
+      AND tag_confidence > 0.7
+    ORDER BY tag_confidence DESC, price DESC NULLS LAST
+    LIMIT $2
+  `, [style, limit]);
+
+  return products;
+}
+
+/**
+ * Hjælpefunktioner
+ */
+function getRoomFurnitureTypes(roomType: string): string[] {
+  const map: Record<string, string[]> = {
+    'living_room': ['sofa', 'lounge_chair', 'coffee_table', 'side_table', 'lamp', 'rug', 'shelf', 'cabinet'],
+    'bedroom': ['bed', 'nightstand', 'lamp', 'rug', 'cabinet', 'lounge_chair'],
+    'kitchen': ['dining_table', 'dining_chair', 'lamp', 'cabinet', 'shelf', 'sideboard'],
+    'bathroom': ['cabinet', 'lamp', 'mirror', 'shelf'],
+    'dining_room': ['dining_table', 'dining_chair', 'lamp', 'sideboard', 'cabinet'],
+    'office': ['lamp', 'shelf', 'cabinet', 'lounge_chair', 'side_table'],
+    'hallway': ['cabinet', 'mirror', 'lamp', 'rug', 'shelf'],
+    'outdoor': ['sofa', 'lounge_chair', 'table', 'lamp', 'plant'] // outdoor types
+  };
+
+  return map[roomType] || ['sofa', 'lamp', 'table', 'cabinet'];
+}
+
+function getBudgetRange(budget: string): { min?: number; max?: number } {
+  const ranges: Record<string, { min?: number; max?: number }> = {
+    'budget': { max: 5000 },
+    'standard': { min: 3000, max: 15000 },
+    'luxury': { min: 10000 }
+  };
+
+  return ranges[budget] || {};
+}
