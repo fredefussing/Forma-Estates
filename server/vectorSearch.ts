@@ -194,7 +194,7 @@ function scoreColorMatch(
   terms.push(...colorTerms);
 
   if (terms.length === 0) return 0;
-  const uniqueTerms = [...new Set(terms)];
+  const uniqueTerms = Array.from(new Set(terms));
 
   const primaryTerms = uniqueTerms.slice(0, 3);
   const hasPrimaryMatch = primaryTerms.some((t) => name.includes(t.toLowerCase()));

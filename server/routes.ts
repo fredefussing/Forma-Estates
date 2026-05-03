@@ -1365,7 +1365,7 @@ export async function registerRoutes(
       const { limit = 50, offset = 0 } = req.body;
       const { batchTagProducts } = await import("./tagProducts");
       const result = await batchTagProducts(pool, parseInt(limit), parseInt(offset));
-      return res.json({ success: true, ...result });
+      return res.json({ ok: true, ...result });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

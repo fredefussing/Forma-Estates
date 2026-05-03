@@ -98,8 +98,8 @@ export default function AgentDesignDetailPage() {
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
           {design.originalImageUrl && design.resultImageUrl ? (
             <BeforeAfterSlider
-              beforeImage={design.originalImageUrl}
-              afterImage={design.resultImageUrl}
+              beforeSrc={design.originalImageUrl}
+              afterSrc={design.resultImageUrl}
               className="w-full"
             />
           ) : (
