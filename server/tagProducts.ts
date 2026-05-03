@@ -65,7 +65,7 @@ export async function tagProduct(imageUrl: string, name: string): Promise<Produc
   return await tagWithVision(imageUrl, name, parsedFromName);
 }
 
-function parseFromName(name: string): ProductTag {
+export function parseFromName(name: string): ProductTag {
   const lower = name.toLowerCase();
 
   let color = "unknown";

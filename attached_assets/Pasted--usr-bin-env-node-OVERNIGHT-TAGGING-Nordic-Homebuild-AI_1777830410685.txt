@@ -1,0 +1,168 @@
+#!/usr/bin/env node
+/**
+ * OVERNIGHT TAGGING — Nordic Homebuild AI
+ * Kører stabilt natten over uden rate limits
+ * 
+ * Brug:
+ *   node scripts/tag-overnight.mjs
+ * 
+ * Denne version:
+ * - Bruger KUN navn-parsing (gratis, ingen API)
+ * - Ingen Vision kald = ingen rate limits
+ * - Kører 50.000 produkter på ~2 timer
+ * - Logger progress til fil
+ * - Kan genoptages hvis den stopper
+ */
+
+import { db } from "../server/db.js";
+import { parseFromName } from "../server/tagProducts.js";
+import fs from "fs";
+
+const LOG_FILE = "tagging-overnight.log";
+const PROGRESS_FILE = "tagging-progress.json";
+
+// Konfiguration
+const CONFIG = {
+  BATCH_SIZE: 500,        // 500 ad gangen
+  PAUSE_MS: 100,          // 100ms pause = hurtig men ikke for hurtig
+  SAVE_EVERY: 500,        // Gem progress hver 500
+  TARGET: 50000           // Max 50.000 produkter
+};
+
+function log(message) {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${message}`;
+  console.log(line);
+  fs.appendFileSync(LOG_FILE, line + "\n");
+}
+
+async function loadProgress() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROGRESS_FILE, "utf8"));
+      log(`Genoptager fra offset ${data.offset}, ${data.tagged} allerede tagget`);
+      return data;
+    }
+  } catch (e) {
+    log("Ingen progress fil fundet, starter fra begyndelsen");
+  }
+  return { offset: 0, tagged: 0, failed: 0 };
+}
+
+async function saveProgress(progress) {
+  fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
+}
+
+async function tagBatch(offset, limit) {
+  const products = await db.query(`
+    SELECT id, name, image_url 
+    FROM products 
+    WHERE tag_processed = FALSE 
+      AND image_url IS NOT NULL
+      AND image_url != ''
+    ORDER BY id
+    LIMIT $1 OFFSET $2
+  `, [limit, offset]);
+
+  let success = 0;
+  let failed = 0;
+
+  for (const p of products) {
+    try {
+      // KUN navn-parsing — ingen Vision, ingen API
+      const tag = parseFromName(p.name);
+
+      await db.query(`
+        UPDATE products 
+        SET tags = $1, 
+            tag_confidence = $2, 
+            tag_processed = TRUE,
+            tag_processed_at = NOW()
+        WHERE id = $3
+      `, [JSON.stringify(tag), tag.confidence, p.id]);
+
+      success++;
+    } catch (e) {
+      failed++;
+      // Mark som processed anyway
+      await db.query(`
+        UPDATE products 
+        SET tag_processed = TRUE, tag_processed_at = NOW()
+        WHERE id = $1
+      `, [p.id]);
+    }
+  }
+
+  return { success, failed, processed: products.length };
+}
+
+async function main() {
+  log("=== OVERNIGHT TAGGING STARTET ===");
+  log(`Mål: ${CONFIG.TARGET} produkter | Batch: ${CONFIG.BATCH_SIZE}`);
+
+  const progress = await loadProgress();
+  let offset = progress.offset;
+  let totalTagged = progress.tagged;
+  let totalFailed = progress.failed;
+  let batchCount = 0;
+
+  while (totalTagged + totalFailed < CONFIG.TARGET) {
+    batchCount++;
+    const batchStart = Date.now();
+
+    log(`--- Batch ${batchCount} (offset: ${offset}) ---`);
+
+    const result = await tagBatch(offset, CONFIG.BATCH_SIZE);
+
+    totalTagged += result.success;
+    totalFailed += result.failed;
+    offset += result.processed;
+
+    const batchTime = Date.now() - batchStart;
+    const rate = (result.processed / (batchTime / 1000)).toFixed(1);
+
+    log(`Batch ${batchCount}: ${result.success} success, ${result.failed} failed`);
+    log(`Total: ${totalTagged}/${CONFIG.TARGET} (${((totalTagged/CONFIG.TARGET)*100).toFixed(1)}%)`);
+    log(`Rate: ${rate} prod/sek | Tid: ${(batchTime/1000).toFixed(1)}s`);
+
+    // Gem progress
+    if (batchCount % 10 === 0) {
+      await saveProgress({ offset, tagged: totalTagged, failed: totalFailed });
+      log("Progress gemt");
+    }
+
+    // Kort pause
+    await new Promise(r => setTimeout(r, CONFIG.PAUSE_MS));
+  }
+
+  // Final save
+  await saveProgress({ offset, tagged: totalTagged, failed: totalFailed });
+
+  log("\n=== FÆRDIG ===");
+  log(`Total tagget: ${totalTagged}`);
+  log(`Total fejlet: ${totalFailed}`);
+  log(`Success rate: ${((totalTagged/(totalTagged+totalFailed))*100).toFixed(1)}%`);
+
+  // Final stats
+  const stats = await db.query(`
+    SELECT 
+      tags->>'style' as style,
+      COUNT(*) as count
+    FROM products 
+    WHERE tag_processed = TRUE
+    GROUP BY tags->>'style'
+    ORDER BY count DESC
+    LIMIT 10
+  `);
+
+  log("\nTop stilarter:");
+  stats.forEach(s => log(`  ${s.style || 'unknown'}: ${s.count}`));
+
+  process.exit(0);
+}
+
+main().catch(e => {
+  log(`FATAL ERROR: ${e.message}`);
+  fs.appendFileSync(LOG_FILE, `\nCRASH: ${e.stack}\n`);
+  process.exit(1);
+});
