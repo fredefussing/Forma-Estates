@@ -1,0 +1,66 @@
+BESVAR KUN — rediger INGEN kode, skriv INGEN kode, lav INGEN ændringer:
+
+Giv mig en komplet teknisk beskrivelse af vores affiliate-system. Jeg vil forstå præcis hvordan det er bygget, hvad der er forsøgt, og hvor det fejler.
+
+BESVAR DISSE PUNKTER:
+
+1. DATABASE SKEMA
+   a. Kør: \d products
+   b. Vis ALLE kolonner, typer, constraints, indexes
+   c. Er der en tags-kolonne? Hvilken type?
+   d. Er der en affiliate_link kolonne? Er den NOT NULL?
+
+2. PRODUKTDATASÆT
+   a. Kør: SELECT COUNT(*) FROM products;
+   b. Kør: SELECT * FROM products LIMIT 3;
+   c. Hvilke kolonner har faktisk data? (ikke NULL)
+   d. Hvad er gennemsnitlig længde af name-feltet?
+
+3. AFFILIATE LINKS
+   a. Kør: SELECT affiliate_link FROM products WHERE affiliate_link IS NOT NULL LIMIT 5;
+   b. Hvilken format har links? (https://...?id=... / deep links / netværkslinks?)
+   c. Er der tracking-parametre i URL'erne?
+
+4. VECTOR/EMBEDDING SETUP
+   a. Kør: SELECT pg_size_pretty(pg_total_relation_size('products'));
+   b. Kør: SELECT COUNT(*) FROM products WHERE vector_clip IS NOT NULL;
+   c. Hvilken dimension har vector_clip? (512? 768?)
+   d. Er der en IVFFlat index? Kør: \di *products*
+
+5. YOLO + VISION PIPELINE
+   a. Vis filen server/yolo.ts — hvad returnerer detectObjects()?
+   b. Vis filen server/describeWithVision.ts — hvad returnerer describeWithVision()?
+   c. Hvordan mappes YOLO-labels til produktkategorier?
+
+6. VECTOR SEARCH (NUVÆRENDE VERSION)
+   a. Vis filen server/vectorSearch.ts
+   b. Hvilken rækkefølge kører søgningen i? (CLIP først? SQL først? Vision først?)
+   c. Hvad er scoring-vægtene? (40/25/20/15? Noget andet?)
+   d. Er der en fallback hvis ingen resultater findes?
+
+7. FEJL OG FORSØG
+   a. Hvilke 4 forskellige tilgange har vi prøvet? (SQL-first, tekst-embedding, scoring, hybrid)
+   b. Hvad var resultatet af hvert forsøg? (sofa OK, stol → gyngestol, osv.)
+   c. Hvad er det aktive forsøg lige nu?
+
+8. API ROUTES
+   a. Vis /api/find-similar-crop/route.ts
+   b. Hvilke parametre modtager den? Hvad returnerer den?
+   c. Hvor lang tid tager et kald typisk?
+
+9. FRONTEND
+   a. Vis client/FurnitureDetector.tsx — hvordan vises prikker?
+   b. Hvordan vises produkter når bruger klikker?
+   c. Er der en "Shop dit design" sektion?
+
+10. COLOV AI INTEGRATION
+    a. Hvilken endpoint bruger vi? (generateImgOnCommon?)
+    b. Hvilke parametre sendes? (uploadUrl, roomType, style?)
+    c. Kan vi sende produkt-referencer med i prompten?
+
+BESVAR HVER PUNKT med:
+- SQL resultat / kode snippet
+- Din vurdering af om det ser rigtigt ud
+- Hvad der potentielt er galt
+
+SKRIV INGEN KODE. LAV INGEN ÆNDRINGER. BARE BESVAR.
