@@ -1252,7 +1252,8 @@ export async function registerRoutes(
         effectiveLabel = description.type;
       }
 
-      let embedding = imageEmbedding;
+      // Build text embedding from vision description (used for multimodal fusion)
+      let textEmbedding: number[] | undefined;
 
       if (description && description.type && description.type !== "other" && description.type !== "unknown") {
         try {
@@ -1273,22 +1274,23 @@ export async function registerRoutes(
             textQuery = `A${size} ${color} ${material} ${typeLabel} in ${style} style${legs}${shape}`.replace(/\s+/g, " ").trim();
           }
 
-          const textEmbedding = await getClipTextEmbedding(textQuery);
-          embedding = textEmbedding;
-          console.log(`Text embedding brugt: "${textQuery.substring(0, 80)}"`);
+          textEmbedding = await getClipTextEmbedding(textQuery);
+          console.log(`Multimodal fusion: image + text ("${textQuery.substring(0, 80)}")`);
         } catch (textErr: any) {
-          console.warn(`Text embedding fejlede, bruger image embedding: ${textErr.message}`);
+          console.warn(`Text embedding fejlede, bruger image embedding alene: ${textErr.message}`);
         }
       } else {
-        console.log(`Image embedding brugt (Vision type: "${description?.type ?? "mangler"}")`);
+        console.log(`CLIP image-only (Vision type: "${description?.type ?? "mangler"}")`);
       }
 
+      // Pass both image and text vectors — search does 0.7*clip + 0.3*text fusion
       const products = await findSimilarProductsHybrid(
-        embedding,
+        imageEmbedding,
         topK,
         effectiveLabel,
         description,
         colorTerms,
+        textEmbedding,
       );
 
       return res.json({ products, description });

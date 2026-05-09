@@ -94,19 +94,16 @@ function getCategoryKeywords(
   );
 }
 
-async function getRelaxedCandidates(
-  vectorParam: string,
-  description: FurnitureDescription | null,
-  yoloLabel: string,
-  limit: number,
-): Promise<any[]> {
-  const categoryKeywords = getCategoryKeywords(description, yoloLabel);
-  const isIndoor = description ? description.indoor !== false : true;
-
-  const params: any[] = [vectorParam, limit];
-  let idx = 3;
-
-  const conditions: string[] = ["p.vector_clip IS NOT NULL"];
+// Builds a parameterized WHERE fragment starting at $startIdx.
+// Returns { clause, params } — clause is e.g. "AND (p.category ILIKE $3 OR ...) AND p.name NOT ILIKE $4 ..."
+function buildFilterClause(
+  categoryKeywords: string[],
+  isIndoor: boolean,
+  startIdx: number,
+): { clause: string; params: any[] } {
+  const params: any[] = [];
+  const conditions: string[] = [];
+  let idx = startIdx;
 
   if (categoryKeywords.length > 0) {
     const catConds = categoryKeywords.map(() => `p.category ILIKE $${idx++}`).join(" OR ");
@@ -120,11 +117,97 @@ async function getRelaxedCandidates(
     OUTDOOR_TERMS.forEach((t) => params.push(`%${t}%`));
   }
 
+  return {
+    clause: conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "",
+    params,
+  };
+}
+
+async function getRelaxedCandidates(
+  clipVectorParam: string,
+  description: FurnitureDescription | null,
+  yoloLabel: string,
+  limit: number,
+  textVectorParam?: string,
+): Promise<any[]> {
+  const categoryKeywords = getCategoryKeywords(description, yoloLabel);
+  const isIndoor = description ? description.indoor !== false : true;
+
+  // ── Dual-vector fusion when text vector is provided ───────────────────────────
+  if (textVectorParam) {
+    const { rows: textRows } = await pool.query(
+      "SELECT COUNT(*) FROM products WHERE vector_text IS NOT NULL LIMIT 1"
+    );
+    const hasTextVectors = parseInt(textRows[0].count, 10) > 0;
+
+    if (hasTextVectors) {
+      // $1 = vector, $2 = limit, $3... = filter params
+      const { clause: filterClause, params: filterParams } = buildFilterClause(
+        categoryKeywords, isIndoor, 3
+      );
+
+      const clipParams = [clipVectorParam, limit * 2, ...filterParams];
+      const textParams = [textVectorParam, limit * 2, ...filterParams];
+
+      const clipSQL = `
+        SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
+               1 - (p.vector_clip <=> $1::vector(512)) AS clip_sim
+        FROM products p
+        WHERE p.vector_clip IS NOT NULL ${filterClause}
+        ORDER BY p.vector_clip <=> $1::vector(512)
+        LIMIT $2
+      `;
+
+      const textSQL = `
+        SELECT p.id,
+               1 - (p.vector_text <=> $1::vector(512)) AS text_sim
+        FROM products p
+        WHERE p.vector_text IS NOT NULL ${filterClause}
+        ORDER BY p.vector_text <=> $1::vector(512)
+        LIMIT $2
+      `;
+
+      const [clipResult, textResult] = await Promise.all([
+        pool.query(clipSQL, clipParams),
+        pool.query(textSQL, textParams),
+      ]);
+
+      // Merge: finalScore = 0.7 * clip_sim + 0.3 * text_sim
+      const textMap = new Map<number, number>();
+      for (const r of textResult.rows) textMap.set(r.id, parseFloat(r.text_sim));
+
+      const merged = clipResult.rows.map((r) => {
+        const clipSim = parseFloat(r.clip_sim);
+        const textSim = textMap.get(r.id) ?? clipSim * 0.6;
+        return {
+          ...r,
+          clip_similarity: 0.7 * clipSim + 0.3 * textSim,
+          clip_sim_raw: clipSim,
+          text_sim_raw: textSim,
+        };
+      });
+
+      merged.sort((a, b) => b.clip_similarity - a.clip_similarity);
+
+      if (merged.length >= 10) {
+        console.log(`Fusion (CLIP+text): ${merged.length} kandidater (text: ${textResult.rows.length})`);
+        return merged.slice(0, limit);
+      }
+    }
+  }
+
+  // ── Single-vector (CLIP image only) ───────────────────────────────────────────
+  // $1 = vector, $2 = limit, $3... = filter params
+  const { clause: filterClause, params: filterParams } = buildFilterClause(
+    categoryKeywords, isIndoor, 3
+  );
+
+  const params: any[] = [clipVectorParam, limit, ...filterParams];
   const sql = `
     SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
            1 - (p.vector_clip <=> $1::vector(512)) AS clip_similarity
     FROM products p
-    WHERE ${conditions.join(" AND ")}
+    WHERE p.vector_clip IS NOT NULL ${filterClause}
     ORDER BY p.vector_clip <=> $1::vector(512)
     LIMIT $2
   `;
@@ -132,26 +215,20 @@ async function getRelaxedCandidates(
   const result = await pool.query(sql, params);
 
   if (result.rows.length >= 10) {
-    console.log(`Relaxed kandidater: ${result.rows.length} (kategori+outdoor filter)`);
+    console.log(`CLIP-only: ${result.rows.length} kandidater`);
     return result.rows;
   }
 
+  // ── Broad fallback: no category filter, outdoor filter only ───────────────────
   console.log(`Kun ${result.rows.length} kandidater med kategorifilter — prøver uden kategori`);
-  const broadParams = [vectorParam, limit];
-  let broadIdx = 3;
-  const broadConditions = ["p.vector_clip IS NOT NULL"];
-
-  if (isIndoor) {
-    const outdoorConds = OUTDOOR_TERMS.map(() => `p.name NOT ILIKE $${broadIdx++}`).join(" AND ");
-    broadConditions.push(`(${outdoorConds})`);
-    OUTDOOR_TERMS.forEach((t) => broadParams.push(`%${t}%`));
-  }
+  const { clause: broadClause, params: broadFilterParams } = buildFilterClause([], isIndoor, 3);
+  const broadParams: any[] = [clipVectorParam, limit, ...broadFilterParams];
 
   const broadSQL = `
     SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
            1 - (p.vector_clip <=> $1::vector(512)) AS clip_similarity
     FROM products p
-    WHERE ${broadConditions.join(" AND ")}
+    WHERE p.vector_clip IS NOT NULL ${broadClause}
     ORDER BY p.vector_clip <=> $1::vector(512)
     LIMIT $2
   `;
@@ -284,12 +361,14 @@ export async function findSimilarProductsHybrid(
   yoloLabel?: string,
   description?: FurnitureDescription | null,
   colorTerms: string[] = [],
+  textVector?: number[],
 ) {
   const vectorParam = JSON.stringify(queryVector);
+  const textVectorParam = textVector ? JSON.stringify(textVector) : undefined;
   const label = yoloLabel ?? "";
   const desc = description ?? null;
 
-  const candidates = await getRelaxedCandidates(vectorParam, desc, label, 200);
+  const candidates = await getRelaxedCandidates(vectorParam, desc, label, 200, textVectorParam);
 
   const scored = candidates.map((row) => {
     const clipScore = parseFloat(row.clip_similarity);

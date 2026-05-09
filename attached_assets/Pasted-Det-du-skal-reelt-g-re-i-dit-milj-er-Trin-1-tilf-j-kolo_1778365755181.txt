@@ -1,0 +1,87 @@
+Det du skal reelt gøre i dit miljø er:
+
+🔧 Trin 1 – tilføj kolonnen til databasen
+Kør i Replit‑shell:
+
+sql
+
+
+ALTER TABLE products ADD COLUMN vector_text vector(512);
+🧩 Trin 2 – lav batchscriptet til text‑embeddings
+Opret filen scripts/generate‑text‑vectors.mjs
+
+js
+
+
+import { pipeline } from "@xenova/transformers";
+import pg from "pg";
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+const encoder = await pipeline("feature-extraction", "Xenova/clip-vit-base-patch32");
+const BATCH = 500;
+while (true) {
+  const { rows } = await client.query(
+    "SELECT id, name, tags FROM products WHERE vector_text IS NULL LIMIT $1",
+    [BATCH]
+  );
+  if (rows.length === 0) break;
+  for (const row of rows) {
+    const tags =
+      typeof row.tags === "object"
+        ? row.tags
+        : row.tags
+        ? JSON.parse(row.tags)
+        : {};
+    const prompt = `${row.name}, ${tags.style || ""}, ${tags.color || ""}, ${
+      tags.material || ""
+    }`.trim();
+    const out = await encoder(prompt);
+    const vec = Array.from(out.data[0]);
+    const norm = Math.hypot(...vec);
+    const normalized = vec.map((v) => v / norm);
+    await client.query("UPDATE products SET vector_text=$1 WHERE id=$2", [
+      normalized,
+      row.id,
+    ]);
+  }
+  console.log(`Processed ${rows.length}...`);
+}
+console.log("✅ text embeddings done!");
+await client.end();
+Kør:
+
+bash
+
+
+node scripts/generate-text-vectors.mjs
+Det fylder vector_text‑feltet for alle produkter.
+
+⚡ Trin 3 – byg HNSW‑indekser (valgfrit men anbefalet)
+Når batchen er færdig:
+
+sql
+
+
+CREATE INDEX products_vector_clip_hnsw
+ON products USING hnsw (vector_clip vector_cosine_ops)
+WITH (m=16, ef_construction=200);
+CREATE INDEX products_vector_text_hnsw
+ON products USING hnsw (vector_text vector_cosine_ops)
+WITH (m=16, ef_construction=200);
+🤖 Trin 4 – opdater din “find‑similar” logik
+Når du søger via /api/find-similar-crop, lad den:
+
+Beregne CLIP‑image‑embedding (du gør det allerede).
+Beregne text‑embedding for GPT‑vision‑beskrivelsen.
+Lav to søgninger:
+SELECT ... ORDER BY vector_clip <-> $1 LIMIT 200
+SELECT ... ORDER BY vector_text <-> $2 LIMIT 200
+Slå resultaterne sammen på id og beregn
+finalScore = 0.7 * sim_clip + 0.3 * sim_text.
+Så får du multimodal matching — billed‑ og semantisk lighed på én gang.
+
+🎯 Resultat
+Før	Efter fusion‑setup
+Kun tekst eller tags – ca. 50‑60 % visuel lighed	80‑90 % faktiske visuelle matches
+Affiliate “føles off”	Produkterne ligner reelt det AI‑billedet viser
+Afhængig af sprog og regler	Sprog‑uafhængig CLIP‑similarity
