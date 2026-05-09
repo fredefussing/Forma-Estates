@@ -20,8 +20,9 @@ let processed = 0;
 let errors = 0;
 
 while (true) {
+  // Prefer name_en (English) for CLIP — fallback to Danish name
   const { rows } = await client.query(
-    "SELECT id, name, tags FROM products WHERE vector_text IS NULL LIMIT $1",
+    `SELECT id, name, name_en, tags FROM products WHERE vector_text IS NULL LIMIT $1`,
     [BATCH]
   );
   if (rows.length === 0) break;
@@ -30,7 +31,10 @@ while (true) {
     try {
       const tags = typeof row.tags === "object" ? row.tags : (row.tags ? JSON.parse(row.tags) : {});
 
-      const parts = [row.name];
+      // Use English name if available — CLIP was trained on English
+      const baseName = row.name_en || row.name;
+
+      const parts = [baseName];
       if (tags.style && tags.style !== "unknown") parts.push(tags.style);
       if (tags.color && tags.color !== "unknown") parts.push(tags.color);
       if (tags.material && tags.material !== "unknown") parts.push(tags.material);
@@ -52,13 +56,12 @@ while (true) {
     } catch (err) {
       errors++;
       console.error(`Error on product ${row.id}: ${err.message}`);
-      // Mark as processed with null to skip on retry (or leave null to retry)
     }
   }
 
   const pct = Math.round((processed / Number(count)) * 100);
-  console.log(`Progress: ${processed}/${count} (${pct}%) — errors: ${errors}`);
+  console.log(`Progress: ${processed}/${count} (${pct}%) — errors: ${errors} — using ${processed > 0 ? "name_en where available" : "..."}`);
 }
 
-console.log(`\n Done! Processed ${processed} products (${errors} errors).`);
+console.log(`\nDone! Processed ${processed} products (${errors} errors).`);
 await client.end();
