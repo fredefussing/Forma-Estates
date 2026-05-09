@@ -1,0 +1,480 @@
+import { db } from "../server/db.js";
+import { products } from "../shared/schema.js";
+import { sql, inArray } from "drizzle-orm";
+
+// ─── REGLER FOR STIL ───
+const STYLE_RULES = [
+  { pattern: /skan|nord|hygge|wegner|jacobsen|muuto|hay|ikea|egetræ|eg\s|naturtræ|lys træ|hvidpigmenteret|enkel|minimal|funktional|ren linje|dansk design/i, style: "scandinavian" },
+  { pattern: /moderne|modern|minimalist|clean|contemporary|sort mat|hvid højglans|krom|glat/i, style: "modern" },
+  { pattern: /industri|raw|rustik|metal ben|stål|jern|beton|ubehandlet|factory/i, style: "industrial" },
+  { pattern: /luksus|luxury|premium|marmor|velour|fløjl|guld|messing poleret|læder anilin|poleret/i, style: "luxury" },
+  { pattern: /coastal|strand|hav|natur|rattan|linen|hør|hvidvasket|beach|sand|driftwood/i, style: "coastal" },
+  { pattern: /boho|bohem|farverig|mønstret|etnisk|macrame|patchwork|kilim|orientalsk|indisk/i, style: "bohemian" },
+  { pattern: /retro|50s|60s|midcentury|teak|palisander|cone|tulip|eames|arne jacobsen/i, style: "midcentury" },
+  { pattern: /farmhouse|land|rustik|distressed|shabby|bonde|country|provence/i, style: "farmhouse" },
+  { pattern: /japandi|wabi|japansk|zen|low|tatami|ask|valnød mørk|sortbejdset/i, style: "japandi" }
+];
+
+// ─── REGLER FOR FARVE ───
+const COLOR_MAP = {
+  "hvid": /hvid|hvidt|white|snow|ivory/i,
+  "sort": /sort|sorte|black|mat sort/i,
+  "grå": /grå|gråt|grey|gray|silver|antracit|charcoal/i,
+  "beige": /beige|sand|creme|cream|off-white|ecru|taupe/i,
+  "brun": /brun|brune|brown|mørk|dark|walnut|valnød|nød/i,
+  "blå": /blå|blåt|blue|navy|marine|petrol|turkis/i,
+  "grøn": /grøn|grønt|green|oliven|sage|skov|mint/i,
+  "gul": /gul|gult|yellow|guld|gold|okker|mustard/i,
+  "rød": /rød|rødt|red|bordeaux|terracotta|rust|rustik/i,
+  "orange": /orange|terracotta|koral|coral/i,
+  "lyserød": /lyserød|pink|rosa|dusty rose/i,
+  "lilla": /lilla|lilla|purple|lilla|lavendel/i,
+  "guld": /guld|gold|messing|brass|poleret messing/i,
+  "sølv": /sølv|silver|krom|chrome|stål/i,
+  "træ": /træ|egetræ|eg|natur|bambus|rattan/i
+};
+
+// ─── REGLER FOR MATERIEL ───
+const MATERIAL_MAP = {
+  "træ": /træ|egetræ|eg|naturtræ|bambus|rattan|akacia|sheesham/i,
+  "egetræ": /egetræ|eg\s|egt/i,
+  "metal": /metal|stål|jern|aluminium|messing|krom|zink/i,
+  "fløjl": /fløjl|velour|velvet|sammet/i,
+  "læder": /læder|kunstlæder|pu-læder|læderlook/i,
+  "stof": /stof|tekstil|bomuld|polyester|hør|linen|wool|uld/i,
+  "glas": /glas|glass|spejl|mirror/i,
+  "keramik": /keramik|porcelæn|sten|marmor|granit/i,
+  "plastik": /plast|plastik|polypropylen|akryl/i
+};
+
+// ─── REGLER FOR TYPE ───
+const TYPE_MAP = {
+  "sofa": /sofa|sovesofa|chaiselong|hjørnesofa|3-pers|2-pers/i,
+  "stol": /stol|spisebordsstol|lænestol|armstol|barstol|kontorstol/i,
+  "bord": /bord|spisebord|sofabord|sidebord|konsolbord|skrivebord/i,
+  "lampe": /lampe|lygte|pendel|gulvlampe|bordlampe|væglampe|loftlampe/i,
+  "spejl": /spejl|mirror/i,
+  "reol": /reol|hylde|bogreol|vægreol|reolsystem/i,
+  "kommode": /kommode|skænk|kontor|skab|garderobeskab|skoskab/i,
+  "seng": /seng|sovesofa|daybed|sengestel|gavl/i,
+  "tæppe": /tæppe|gulvtæppe|løber|kelim|persisk/i,
+  "pude": /pude|hynde|pudebetræk/i,
+  "vase": /vase|krukke|potte|urtepotte/i,
+  "skål": /skål|fad|tallerken|servering/i
+};
+
+// ─── FORHANDLER DEFAULTS ───
+const SHOP_STYLES = {
+  "boligretning": "scandinavian",
+  "homeroom": "modern",
+  "designshoppen": "scandinavian",
+  "boboonline": "modern",
+  "lampeguru": "modern",
+  "moebelringen": "scandinavian",
+  "3-nordic": "scandinavian"
+};
+
+function guessStyle(name, category, shop) {
+  const text = `${name} ${category || ''}`.toLowerCase();
+  
+  for (const rule of STYLE_RULES) {
+    if (rule.pattern.test(text)) return rule.style;
+  }
+  
+  // Fallback: forhandler default
+  const shopDefault = SHOP_STYLES[shop?.toLowerCase()];
+  if (shopDefault && Math.random() < 0.6) return shopDefault;
+  
+  return "unknown";
+}
+
+function guessColor(name) {
+  const text = name.toLowerCase();
+  for (const [color, regex] of Object.entries(COLOR_MAP)) {
+    if (regex.test(text)) return color;
+  }
+  return "neutral";
+}
+
+function guessMaterial(name) {
+  const text = name.toLowerCase();
+  for (const [mat, regex] of Object.entries(MATERIAL_MAP)) {
+    if (regex.test(text)) return mat;
+  }
+  return "blandet";
+}
+
+function guessType(name) {
+  const text = name.toLowerCase();
+  for (const [type, regex] of Object.entries(TYPE_MAP)) {
+    if (regex.test(text)) return type;
+  }
+  return "møbel";
+}
+
+function guessSize(name, price) {
+  if (/xl|stor|large|kæmpe|180|200|220|240/.test(name)) return "stor";
+  if (/lille|small|mini|compact|60|80|100/.test(name)) return "lille";
+  if (price > 8000) return "stor";
+  if (price < 1500) return "lille";
+  return "mellem";
+}
+
+function guessForm(name) {
+  if (/rund|cirkel|oval|bue/.test(name)) return "rund";
+  if (/kvadrat|firkant|cube/.test(name)) return "kvadratisk";
+  if (/rektangulær|lang|bord|sofa/.test(name)) return "rektangulær";
+  return "organisk";
+}
+
+// ─── HOVEDFUNKTION ───
+async function tagAll() {
+  console.log("Starting batch tagging...");
+  
+  const untagged = await db.query.products.findMany({
+    where: sql`${products.tag_processed} = false OR ${products.tag_processed} IS NULL`,
+    limit: 250000
+  });
+
+  console.log(`Found ${untagged.length} untagged products`);
+  
+  let processed = 0;
+  let batch = [];
+
+  for (const p of untagged) {
+    const existingTags = typeof p.tags === 'string' 
+      ? JSON.parse(p.tags) 
+      : (p.tags || {});
+    
+    const style = guessStyle(p.name, p.category, p.shop);
+    const color = existingTags.color || guessColor(p.name);
+    const material = existingTags.material || guessMaterial(p.name);
+    const type = existingTags.type || guessType(p.name);
+    const size = guessSize(p.name, p.price);
+    const form = guessForm(p.name);
+    
+    const newTags = {
+      ...existingTags,
+      type,
+      subtype: existingTags.subtype || type,
+      color,
+      color_family: color,
+      material,
+      material_family: material,
+      style,
+      size,
+      form,
+      tag_confidence: style === "unknown" ? 0.4 : 0.75,
+      tag_processed: true,
+      tag_processed_at: new Date().toISOString()
+    };
+
+    batch.push({
+      id: p.id,
+      tags: JSON.stringify(newTags)
+    });
+
+    // Bulk update every 500
+    if (batch.length >= 500) {
+      await db.update(products)
+        .set({
+          tags: sql`CASE ${products.id} ${sql.join(
+            batch.map(b => sql`WHEN ${b.id} THEN ${b.tags}::jsonb`)
+          )} END`,
+          tag_processed: true,
+          tag_confidence: 0.75
+        })
+        .where(inArray(products.id, batch.map(b => b.id)));
+      
+      processed += batch.length;
+      batch = [];
+      
+      if (processed % 5000 === 0) {
+        console.log(`Progress: ${processed}/${untagged.length} (${(processed/untagged.length*100).toFixed(1)}%)`);
+      }
+    }
+  }
+
+  // Final batch
+  if (batch.length > 0) {
+    await db.update(products)
+      .set({
+        tags: sql`CASE ${products.id} ${sql.join(
+          batch.map(b => sql`WHEN ${b.id} THEN ${b.tags}::jsonb`)
+        )} END`,
+        tag_processed: true
+      })
+      .where(inArray(products.id, batch.map(b => b.id)));
+    
+    processed += batch.length;
+  }
+
+  console.log(`\n✅ Done! Tagged ${processed} products`);
+  
+  // Verify
+  const total = await db.select({ count: sql`count(*)` }).from(products);
+  const tagged = await db.select({ count: sql`count(*)` }).from(products)
+    .where(sql`${products.tag_processed} = true`);
+  
+  console.log(`Total: ${total[0].count}`);
+  console.log(`Tagged: ${tagged[0].count} (${(tagged[0].count/total[0].count*100).toFixed(1)}%)`);
+}
+
+tagAll()
+  .catch(err => {
+    console.error("Error:", err);
+    process.exit(1);
+  })
+  .finally(() => process.exit(0));
+FIL 2: server/productMatcherNew.ts (erstatter gammel matcher)
+TypeScript
+Copy
+import { db } from "./db";
+import { products } from "../shared/schema";
+import { sql, cosineDistance, desc, and, eq, gte } from "drizzle-orm";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ─── TRIN 1: Vision beskriver AI-billede ───
+export async function describeAiImage(imageUrl: string): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `Beskriv dette AI-genererede rum-design. Fokusér på de 3-5 vigtigste møbler. 
+For hvert møbel: type, farve, materiale, stil, størrelse.
+Format: "Grå fløjlssofa 3-pers skandinavisk. Rundt egetræsbord mellem. Gulvlampe messing moderne."`
+        },
+        { type: "image_url", image_url: { url: imageUrl } }
+      ]
+    }],
+    max_tokens: 300,
+    temperature: 0.1
+  });
+
+  return response.choices[0].message.content || "";
+}
+
+// ─── TRIN 2: Parse beskrivelse til søgeparametre ───
+function parseDescription(desc: string) {
+  const text = desc.toLowerCase();
+  
+  const typeMap: Record<string, RegExp> = {
+    sofa: /sofa|sovesofa|chaiselong/i,
+    stol: /stol|lænestol|armstol/i,
+    bord: /bord|spisebord|sofabord/i,
+    lampe: /lampe|pendel|lygte/i,
+    spejl: /spejl/i,
+    reol: /reol|hylde/i,
+    kommode: /kommode|skænk|skab/i,
+    seng: /seng/i,
+    tæppe: /tæppe|gulvtæppe/i
+  };
+  
+  const colorMap: Record<string, RegExp> = {
+    grå: /grå|gråt|grey/i,
+    hvid: /hvid|hvidt|white/i,
+    sort: /sort|sorte|black/i,
+    beige: /beige|sand|creme|taupe/i,
+    brun: /brun|brune|brown|valnød/i,
+    blå: /blå|blåt|blue/i,
+    grøn: /grøn|grønt|green/i,
+    gul: /gul|gult|yellow|guld/i,
+    rød: /rød|rødt|red/i
+  };
+  
+  const materialMap: Record<string, RegExp> = {
+    fløjl: /fløjl|velour|velvet/i,
+    læder: /læder|kunstlæder/i,
+    træ: /træ|egetræ|eg|natur/i,
+    metal: /metal|stål|jern|messing/i,
+    stof: /stof|tekstil|bomuld/i,
+    glas: /glas|glass/i
+  };
+  
+  const styleMap: Record<string, RegExp> = {
+    scandinavian: /skandinavisk|nordisk|enkel|minimal/i,
+    modern: /moderne|modern|clean|kontemporær/i,
+    industrial: /industri|raw|rustik|metal/i,
+    luxury: /luksus|luxury|premium|marmor/i,
+    coastal: /coastal|strand|natur|hør/i,
+    bohemian: /boho|bohem|farverig|etnisk/i,
+    midcentury: /retro|midcentury|teak|50s/i,
+    farmhouse: /farmhouse|land|rustik|hvid/i,
+    japandi: /japandi|wabi|japansk|zen/i
+  };
+
+  const found = {
+    types: [] as string[],
+    colors: [] as string[],
+    materials: [] as string[],
+    styles: [] as string[]
+  };
+
+  for (const [type, regex] of Object.entries(typeMap)) {
+    if (regex.test(text)) found.types.push(type);
+  }
+  for (const [color, regex] of Object.entries(colorMap)) {
+    if (regex.test(text)) found.colors.push(color);
+  }
+  for (const [mat, regex] of Object.entries(materialMap)) {
+    if (regex.test(text)) found.materials.push(mat);
+  }
+  for (const [style, regex] of Object.entries(styleMap)) {
+    if (regex.test(text)) found.styles.push(style);
+  }
+
+  return found;
+}
+
+// ─── TRIN 3: Hybrid søgning ───
+export async function findProductsForDesign(
+  aiImageUrl: string,
+  roomType: string,
+  styleParam: string,
+  budget: string,
+  limit: number = 8
+) {
+  // 1. Beskriv billede
+  const description = await describeAiImage(aiImageUrl);
+  const parsed = parseDescription(description);
+  
+  console.log("AI description:", description);
+  console.log("Parsed:", parsed);
+
+  // 2. Byg SQL where clause
+  const conditions = [sql`${products.tag_processed} = true`];
+  
+  // Stil: brug parsed OR parameter
+  const targetStyle = parsed.styles[0] || styleParam || "scandinavian";
+  conditions.push(sql`(${products.tags}->>'style' = ${targetStyle} OR ${products.tags}->>'style' = 'unknown')`);
+  
+  // Type: vigtigst
+  if (parsed.types.length > 0) {
+    conditions.push(sql`${products.tags}->>'type' = ANY(${parsed.types})`);
+  }
+  
+  // Farve: medium vigtig
+  if (parsed.colors.length > 0) {
+    conditions.push(sql`(${products.tags}->>'color' = ANY(${parsed.colors}) OR ${products.tags}->>'color_family' = ANY(${parsed.colors}))`);
+  }
+  
+  // Materiale: nice-to-have
+  if (parsed.materials.length > 0) {
+    conditions.push(sql`(${products.tags}->>'material' = ANY(${parsed.materials}) OR ${products.tags}->>'material_family' = ANY(${parsed.materials}))`);
+  }
+  
+  // Budget filter
+  const priceRanges = {
+    budget: [0, 5000],
+    standard: [2000, 15000],
+    luxury: [8000, 999999]
+  };
+  const [minPrice, maxPrice] = priceRanges[budget as keyof typeof priceRanges] || [0, 999999];
+  conditions.push(sql`${products.price} >= ${minPrice} AND ${products.price} <= ${maxPrice}`);
+
+  // 3. Søg med scoring
+  const results = await db.query.products.findMany({
+    where: and(...conditions),
+    limit: limit * 3, // Hent flere, sorter efter
+    orderBy: desc(sql`
+      -- Tag match score (0-100)
+      (CASE WHEN ${products.tags}->>'type' = ANY(${parsed.types}) THEN 40 ELSE 0 END) +
+      (CASE WHEN ${products.tags}->>'color' = ANY(${parsed.colors}) THEN 25 ELSE 0 END) +
+      (CASE WHEN ${products.tags}->>'material' = ANY(${parsed.materials}) THEN 15 ELSE 0 END) +
+      (CASE WHEN ${products.tags}->>'style' = ${targetStyle} THEN 20 ELSE 0 END) +
+      -- Pris proximity
+      (100 - ABS(${products.price} - ${(minPrice + maxPrice) / 2}) / ${(maxPrice - minPrice + 1)} * 50)
+    `)
+  });
+
+  // 4. Returner top med metadata
+  return results.slice(0, limit).map(p => ({
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    image: p.image_url,
+    shop: p.shop,
+    link: p.affiliate_link,
+    tags: p.tags,
+    score: 0 // Beregnes ovenfor
+  }));
+}
+
+// ─── TRIN 4: Shop This Style ───
+export async function getShopThisStyle(
+  designId: number,
+  aiImageUrl: string,
+  roomType: string,
+  style: string,
+  budget: string
+) {
+  const products = await findProductsForDesign(aiImageUrl, roomType, style, budget, 8);
+  
+  // Grupper efter type for variation
+  const grouped: Record<string, typeof products> = {};
+  for (const p of products) {
+    const type = p.tags?.type || 'møbel';
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push(p);
+  }
+  
+  // Vælg 1-2 per type, max 8 total
+  const selected = [];
+  for (const items of Object.values(grouped)) {
+    selected.push(...items.slice(0, 2));
+    if (selected.length >= 8) break;
+  }
+  
+  return selected.slice(0, 8);
+}
+FIL 3: Opdater server/routes.ts (uddrag)
+Find din eksisterende /api/designs/:id/products endpoint og erstat med:
+TypeScript
+Copy
+import { getShopThisStyle } from "./productMatcherNew";
+
+// I din routes fil, erstat denne:
+// app.get("/api/designs/:id/products", async (req, res) => { ... gamle kode ... })
+
+// Med denne:
+app.get("/api/designs/:id/products", async (req, res) => {
+  try {
+    const designId = parseInt(req.params.id);
+    const design = await storage.getDesign(designId);
+    
+    if (!design) {
+      return res.status(404).json({ error: "Design not found" });
+    }
+
+    const products = await getShopThisStyle(
+      designId,
+      design.afterImage,
+      design.roomType,
+      design.style,
+      design.budget
+    );
+
+    res.json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+🚀 Sådan kører du det
+bash
+Copy
+# 1. Tag alle produkter (2-3 timer, gratis)
+node scripts/tag-all-free.mjs
+
+# 2. Tjek status
+node scripts/tag-resume.mjs
+
+# 3. Genstart server (ny matcher er live)
+# I Replit: Stop → Run
+
+# 4. Test: Upload billede → se "Shop This Style"

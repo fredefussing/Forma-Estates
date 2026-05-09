@@ -1371,5 +1371,37 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/designs/:id/products", async (req, res) => {
+    try {
+      const designId = parseInt(req.params.id);
+      if (isNaN(designId)) return res.status(400).json({ error: "Ugyldigt design ID" });
+
+      const design = await storage.getDesign(designId);
+      if (!design) return res.status(404).json({ error: "Design ikke fundet" });
+      if (design.status !== "completed" || !design.resultImageUrl) {
+        return res.status(400).json({ error: "Design er ikke færdigt endnu" });
+      }
+
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const toAbsolute = (url: string) =>
+        url.startsWith("http") ? url : `${protocol}://${host}${url}`;
+
+      const { getShopThisStyle } = await import("./productMatcherNew");
+      const products = await getShopThisStyle(
+        toAbsolute(design.resultImageUrl),
+        design.roomType,
+        design.style,
+        design.budget,
+        8,
+      );
+
+      return res.json({ success: true, products, designId });
+    } catch (err: any) {
+      log(`designs/:id/products fejl: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
