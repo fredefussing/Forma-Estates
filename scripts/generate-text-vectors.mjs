@@ -1,4 +1,4 @@
-import { pipeline } from "@xenova/transformers";
+import { CLIPTextModelWithProjection, AutoTokenizer } from "@xenova/transformers";
 import pg from "pg";
 import dotenv from "dotenv";
 dotenv.config();
@@ -6,9 +6,12 @@ dotenv.config();
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 
-console.log("Loading CLIP text encoder...");
-const encoder = await pipeline("feature-extraction", "Xenova/clip-vit-base-patch32");
-console.log("Model loaded. Starting text embedding generation...");
+console.log("Loading CLIP text tokenizer + model...");
+const [tokenizer, model] = await Promise.all([
+  AutoTokenizer.from_pretrained("Xenova/clip-vit-base-patch32"),
+  CLIPTextModelWithProjection.from_pretrained("Xenova/clip-vit-base-patch32"),
+]);
+console.log("Model loaded.");
 
 const { rows: [{ count }] } = await client.query(
   "SELECT COUNT(*) FROM products WHERE vector_text IS NULL"
@@ -19,10 +22,17 @@ const BATCH = 200;
 let processed = 0;
 let errors = 0;
 
+async function embedText(text) {
+  const inputs = await tokenizer([text], { padding: true, truncation: true });
+  const { text_embeds } = await model(inputs);
+  const raw = Array.from(text_embeds.data);
+  const norm = Math.sqrt(raw.reduce((s, v) => s + v * v, 0));
+  return norm > 0 ? raw.map(v => v / norm) : raw;
+}
+
 while (true) {
-  // Prefer name_en (English) for CLIP — fallback to Danish name
   const { rows } = await client.query(
-    `SELECT id, name, name_en, tags FROM products WHERE vector_text IS NULL LIMIT $1`,
+    "SELECT id, name, name_en, tags FROM products WHERE vector_text IS NULL LIMIT $1",
     [BATCH]
   );
   if (rows.length === 0) break;
@@ -31,7 +41,7 @@ while (true) {
     try {
       const tags = typeof row.tags === "object" ? row.tags : (row.tags ? JSON.parse(row.tags) : {});
 
-      // Use English name if available — CLIP was trained on English
+      // Prefer English name — CLIP was trained on English
       const baseName = row.name_en || row.name;
 
       const parts = [baseName];
@@ -41,12 +51,7 @@ while (true) {
       if (tags.type && tags.type !== "unknown" && tags.type !== "other") parts.push(tags.type);
       const prompt = parts.join(", ");
 
-      const out = await encoder(prompt, { pooling: "mean", normalize: false });
-      const vec = Array.from(out.data);
-
-      // L2 normalize
-      const norm = Math.hypot(...vec);
-      const normalized = norm > 0 ? vec.map(v => v / norm) : vec;
+      const normalized = await embedText(prompt);
 
       await client.query("UPDATE products SET vector_text=$1 WHERE id=$2", [
         JSON.stringify(normalized),
@@ -60,7 +65,7 @@ while (true) {
   }
 
   const pct = Math.round((processed / Number(count)) * 100);
-  console.log(`Progress: ${processed}/${count} (${pct}%) — errors: ${errors} — using ${processed > 0 ? "name_en where available" : "..."}`);
+  console.log(`Progress: ${processed}/${count} (${pct}%) — errors: ${errors}`);
 }
 
 console.log(`\nDone! Processed ${processed} products (${errors} errors).`);
