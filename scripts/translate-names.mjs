@@ -27,7 +27,7 @@ async function translateChunk(items) {
     messages: [{
       role: "user",
       content: `Translate each Danish product description to concise natural English. Keep brand/model names unchanged.
-Return ONLY: {"translations": ["...", "...", ...]} — same order, no explanations.
+Return ONLY valid JSON in this exact format: {"translations": ["...", "...", ...]} — same order, no explanations.
 
 ${numbered}`,
     }],
