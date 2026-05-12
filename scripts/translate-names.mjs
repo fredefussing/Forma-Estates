@@ -3,69 +3,71 @@ import pg from "pg";
 import dotenv from "dotenv";
 dotenv.config();
 
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-await client.connect();
-
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 10 });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const FETCH_BATCH = 500;   // rows fetched from DB at a time
-const GPT_BATCH   = 20;    // products translated per API call
-const DELAY_MS    = 200;   // pause between API calls (ms)
+const FETCH_BATCH = 2500;  // rows fetched from DB at a time
+const GPT_BATCH   = 50;    // products per API call
+const CONCURRENT  = 5;     // parallel API calls at once
+const DELAY_MS    = 80;    // ms between parallel rounds
 
-const { rows: [{ count }] } = await client.query(
+const { rows: [{ count }] } = await pool.query(
   "SELECT COUNT(*) FROM products WHERE name_en IS NULL"
 );
 console.log(`Products needing translation: ${count}`);
 
 let processed = 0;
 let errors = 0;
+const startTime = Date.now();
 
-async function translateBatch(items) {
-  // items = [{ id, text }, ...]
+async function translateChunk(items) {
   const numbered = items.map((it, i) => `${i + 1}. ${it.text}`).join("\n");
-
   const res = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     messages: [{
       role: "user",
-      content: `Translate each of the following Danish product descriptions to concise natural English.
-Keep brand names and model names unchanged.
-Return ONLY a JSON object in this exact format: {"translations": ["...", "...", ...]}
-Same order as input. No explanations.
+      content: `Translate each Danish product description to concise natural English. Keep brand/model names unchanged.
+Return ONLY: {"translations": ["...", "...", ...]} — same order, no explanations.
 
 ${numbered}`,
     }],
     temperature: 0,
-    max_tokens: 60 * items.length,
+    max_tokens: 50 * items.length,
     response_format: { type: "json_object" },
   });
 
   const raw = res.choices[0].message.content.trim();
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-    const arr = parsed.translations ?? parsed.results ?? parsed.items ?? Object.values(parsed)[0];
-    if (Array.isArray(arr)) return arr;
-  } catch (_) {}
+  const parsed = JSON.parse(raw);
+  const arr = parsed.translations ?? parsed.results ?? parsed.items ?? Object.values(parsed)[0];
+  if (!Array.isArray(arr)) throw new Error("No array in response");
+  return arr;
+}
 
-  // Fallback: one call per item if JSON parsing fails
-  console.warn("JSON parse failed, falling back to individual calls");
-  return await Promise.all(items.map(async (it) => {
-    const r = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{
-        role: "user",
-        content: `Translate to English (keep brand/model names): "${it.text}"\nReturn only the translation.`,
-      }],
-      temperature: 0,
-      max_tokens: 80,
-    });
-    return r.choices[0].message.content.trim();
-  }));
+async function processChunk(items) {
+  try {
+    const translations = await translateChunk(items);
+    await Promise.all(items.map(async (item, j) => {
+      const t = translations[j];
+      if (t && typeof t === "string") {
+        await pool.query("UPDATE products SET name_en=$1 WHERE id=$2", [t.trim(), item.id]);
+        processed++;
+      } else {
+        errors++;
+      }
+    }));
+  } catch (err) {
+    if (err.status === 429) {
+      console.warn(`Rate limit — waiting 20s...`);
+      await new Promise(r => setTimeout(r, 20000));
+      return processChunk(items); // retry
+    }
+    errors += items.length;
+    console.error(`Chunk error (${items.length} items): ${err.message}`);
+  }
 }
 
 while (true) {
-  const { rows } = await client.query(
+  const { rows } = await pool.query(
     "SELECT id, name, tags FROM products WHERE name_en IS NULL LIMIT $1",
     [FETCH_BATCH]
   );
@@ -82,45 +84,30 @@ while (true) {
     return { id: row.id, text: parts.join(", ") };
   });
 
-  // Process in GPT_BATCH-sized chunks
+  // Split into GPT_BATCH-sized chunks
+  const chunks = [];
   for (let i = 0; i < items.length; i += GPT_BATCH) {
-    const chunk = items.slice(i, i + GPT_BATCH);
-    try {
-      const translations = await translateBatch(chunk);
-      for (let j = 0; j < chunk.length; j++) {
-        const translation = translations[j];
-        if (translation && typeof translation === "string") {
-          await client.query("UPDATE products SET name_en=$1 WHERE id=$2", [
-            translation.trim(), chunk[j].id,
-          ]);
-          processed++;
-        } else {
-          errors++;
-          console.warn(`No translation for id ${chunk[j].id}`);
-        }
-      }
-    } catch (err) {
-      if (err.status === 429) {
-        // Rate limit — wait and retry once
-        const wait = 15000;
-        console.warn(`Rate limit hit — waiting ${wait / 1000}s before retry...`);
-        await new Promise(r => setTimeout(r, wait));
-        i -= GPT_BATCH; // retry this chunk
-        continue;
-      }
-      errors++;
-      console.error(`Batch error (ids ${chunk[0].id}–${chunk[chunk.length-1].id}): ${err.message}`);
-    }
+    chunks.push(items.slice(i, i + GPT_BATCH));
+  }
 
-    const pct = Math.round((processed / Number(count)) * 100);
-    if (processed % 500 === 0 || i === 0) {
-      console.log(`Progress: ${processed}/${count} (${pct}%) — errors: ${errors}`);
-    }
+  // Process CONCURRENT chunks at a time
+  for (let i = 0; i < chunks.length; i += CONCURRENT) {
+    const batch = chunks.slice(i, i + CONCURRENT);
+    await Promise.all(batch.map(processChunk));
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+    const rate = processed / (elapsed / 60);
+    const remaining = Number(count) - processed;
+    const eta = rate > 0 ? Math.round(remaining / rate) : "?";
+    process.stdout.write(
+      `\r${processed}/${count} (${Math.round(processed / Number(count) * 100)}%) — ${Math.round(rate)}/min — ETA: ${eta} min — errors: ${errors}  `
+    );
+
     await new Promise(r => setTimeout(r, DELAY_MS));
   }
 
-  console.log(`Fetch batch done (${processed} total)`);
+  console.log(`\nFetch batch done (${processed} total)`);
 }
 
-console.log(`\nDone! Translated ${processed} products (${errors} errors).`);
-await client.end();
+console.log(`\n\nDone! Translated ${processed} products in ${((Date.now() - startTime) / 60000).toFixed(1)} min (${errors} errors).`);
+await pool.end();
