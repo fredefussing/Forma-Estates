@@ -8,8 +8,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const FETCH_BATCH = 2500;  // rows fetched from DB at a time
 const GPT_BATCH   = 50;    // products per API call
-const CONCURRENT  = 5;     // parallel API calls at once
-const DELAY_MS    = 80;    // ms between parallel rounds
+const CONCURRENT  = 3;     // parallel API calls at once
+const DELAY_MS    = 700;   // ms between rounds — keeps us at ~250 RPM (well under 500 RPM limit)
 
 const { rows: [{ count }] } = await pool.query(
   "SELECT COUNT(*) FROM products WHERE name_en IS NULL"
@@ -43,7 +43,7 @@ ${numbered}`,
   return arr;
 }
 
-async function processChunk(items) {
+async function processChunk(items, attempt = 0) {
   try {
     const translations = await translateChunk(items);
     await Promise.all(items.map(async (item, j) => {
@@ -56,13 +56,19 @@ async function processChunk(items) {
       }
     }));
   } catch (err) {
-    if (err.status === 429) {
-      console.warn(`Rate limit — waiting 20s...`);
-      await new Promise(r => setTimeout(r, 20000));
-      return processChunk(items); // retry
+    if (err.status === 429 && attempt < 5) {
+      // Parse retry-after from error message (e.g. "try again in 8.5s")
+      const match = err.message?.match(/try again in (\d+\.?\d*)s/i);
+      const retryAfter = match ? Math.ceil(parseFloat(match[1]) * 1000) : (2 ** attempt) * 3000;
+      // Add jitter so parallel retries don't hit at the same time
+      const jitter = Math.random() * 1000;
+      const wait = retryAfter + jitter;
+      process.stdout.write(`\n  Rate limit — waiting ${(wait / 1000).toFixed(1)}s (attempt ${attempt + 1})...`);
+      await new Promise(r => setTimeout(r, wait));
+      return processChunk(items, attempt + 1);
     }
     errors += items.length;
-    console.error(`Chunk error (${items.length} items): ${err.message}`);
+    console.error(`\nChunk error (${items.length} items): ${err.message}`);
   }
 }
 
