@@ -219,8 +219,30 @@ async function getRelaxedCandidates(
     return result.rows;
   }
 
-  // ── Broad fallback: no category filter, outdoor filter only ───────────────────
-  console.log(`Kun ${result.rows.length} kandidater med kategorifilter — prøver uden kategori`);
+  // ── Reduced fallback: try with only first/primary category keyword ─────────────
+  if (categoryKeywords.length > 1) {
+    console.log(`Kun ${result.rows.length} kandidater — prøver med primær kategori kun`);
+    const { clause: reducedClause, params: reducedFilterParams } = buildFilterClause(
+      [categoryKeywords[0]], isIndoor, 3
+    );
+    const reducedParams: any[] = [clipVectorParam, limit, ...reducedFilterParams];
+    const reducedSQL = `
+      SELECT p.id, p.name, p.price, p.image_url, p.affiliate_link, p.shop, p.category,
+             1 - (p.vector_clip <=> $1::vector(512)) AS clip_similarity
+      FROM products p
+      WHERE p.vector_clip IS NOT NULL ${reducedClause}
+      ORDER BY p.vector_clip <=> $1::vector(512)
+      LIMIT $2
+    `;
+    const reducedResult = await pool.query(reducedSQL, reducedParams);
+    if (reducedResult.rows.length >= 10) {
+      console.log(`Primær kategori fallback: ${reducedResult.rows.length} kandidater`);
+      return reducedResult.rows;
+    }
+  }
+
+  // ── Broad fallback: no category filter, outdoor filter only (last resort) ─────
+  console.log(`Kun ${result.rows.length} kandidater med kategorifilter — prøver uden kategori (last resort)`);
   const { clause: broadClause, params: broadFilterParams } = buildFilterClause([], isIndoor, 3);
   const broadParams: any[] = [clipVectorParam, limit, ...broadFilterParams];
 

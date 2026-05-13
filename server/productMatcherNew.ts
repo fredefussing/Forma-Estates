@@ -167,6 +167,107 @@ const PRICE_RANGES: Record<string, [number, number]> = {
   luxury:   [8000, 999999],
 };
 
+const BLOCKED_TYPES = `('other', 'outdoor', 'seasonal', 'lighting_accessory', 'curtain', 'mattress', 'headboard', 'bathroom_cabinet', 'tableware', 'storage')`;
+
+// Sister types — broader category when exact type yields no results
+const SISTER_TYPES: Record<string, string[]> = {
+  lounge_chair:  ["chair", "dining_chair", "bar_stool"],
+  dining_chair:  ["chair", "lounge_chair", "bar_stool"],
+  bar_stool:     ["chair", "dining_chair", "lounge_chair"],
+  office_chair:  ["chair", "lounge_chair"],
+  chair:         ["lounge_chair", "dining_chair"],
+  coffee_table:  ["side_table", "table", "dining_table"],
+  side_table:    ["coffee_table", "table"],
+  console_table: ["side_table", "table"],
+  dining_table:  ["table", "coffee_table"],
+  desk:          ["table", "console_table"],
+  table:         ["coffee_table", "dining_table", "side_table"],
+  floor_lamp:    ["lamp", "table_lamp", "pendant"],
+  table_lamp:    ["lamp", "floor_lamp"],
+  pendant:       ["lamp", "ceiling_lamp", "floor_lamp"],
+  wall_lamp:     ["lamp", "table_lamp"],
+  ceiling_lamp:  ["lamp", "pendant"],
+  lamp:          ["floor_lamp", "table_lamp", "pendant"],
+  sideboard:     ["cabinet", "shelf"],
+  cabinet:       ["sideboard", "shelf"],
+  shelf:         ["cabinet", "sideboard"],
+  sofa:          ["lounge_chair"],
+  bed:           ["sofa"],
+  mirror:        ["art", "decor"],
+  rug:           ["pillow", "decor"],
+  plant:         ["vase", "decor"],
+  vase:          ["decor", "plant"],
+};
+
+function mapRows(rows: any[]): MatchedProduct[] {
+  return rows.map(r => ({
+    id: r.id, name: r.name, price: r.price,
+    image: r.image_url, shop: r.shop, link: r.affiliate_link,
+    tags: r.tags || {}, score: Number(r.score),
+  }));
+}
+
+async function queryProducts(
+  types: string[],
+  style: string,
+  minPrice: number,
+  maxPrice: number,
+  midPrice: number,
+  priceRange: number,
+  colors: string[],
+  materials: string[],
+  excludeTypes: string[],
+  limit: number,
+): Promise<any[]> {
+  const params: any[] = [style, minPrice, maxPrice, limit];
+  let idx = 5;
+
+  const typeCondition = types.length > 0 ? `AND tags->>'type' = ANY($${idx++}::text[])` : "";
+  if (types.length > 0) params.push(types);
+
+  const excludeCondition = excludeTypes.length > 0 ? `AND tags->>'type' != ALL($${idx++}::text[])` : "";
+  if (excludeTypes.length > 0) params.push(excludeTypes);
+
+  const colorIdxStart = idx;
+  const colorCondition = colors.length > 0
+    ? `AND (tags->>'color' = ANY($${idx++}::text[]) OR tags->>'color_family' = ANY($${idx - 1}::text[]))`
+    : "";
+  if (colors.length > 0) params.push(colors);
+
+  const matIdxStart = idx;
+  const materialCondition = materials.length > 0
+    ? `AND (tags->>'material' = ANY($${idx++}::text[]) OR tags->>'material_family' = ANY($${idx - 1}::text[]))`
+    : "";
+  if (materials.length > 0) params.push(materials);
+
+  const colorScore = colors.length > 0
+    ? `CASE WHEN tags->>'color' = ANY($${colorIdxStart}::text[]) THEN 50 ELSE 0 END`
+    : "0";
+  const styleScore = `CASE WHEN tags->>'style' = $1 THEN 30 ELSE (CASE WHEN tags->>'style' = 'unknown' THEN 8 ELSE 0 END) END`;
+  const matScore = materials.length > 0
+    ? `CASE WHEN tags->>'material' = ANY($${matIdxStart}::text[]) THEN 20 ELSE 0 END`
+    : "0";
+  const priceScore = `GREATEST(0, 10 - ABS(price::float - ${midPrice}) / ${priceRange} * 10)`;
+
+  const sql = `
+    SELECT id, name, price::float, image_url, shop, affiliate_link, tags,
+      (${colorScore} + ${styleScore} + ${matScore} + ${priceScore}) AS score
+    FROM products
+    WHERE tag_processed = TRUE
+      AND price >= $2 AND price <= $3
+      AND tags->>'type' NOT IN ${BLOCKED_TYPES}
+      ${typeCondition}
+      ${excludeCondition}
+      ${colorCondition}
+      ${materialCondition}
+    ORDER BY score DESC, tag_confidence DESC
+    LIMIT $4
+  `;
+
+  const { rows } = await pool.query(sql, params);
+  return rows;
+}
+
 export async function findProductsForDesign(
   aiImageUrl: string,
   roomType: string,
@@ -188,82 +289,64 @@ export async function findProductsForDesign(
   const midPrice = (minPrice + maxPrice) / 2;
   const priceRange = Math.max(maxPrice - minPrice, 1);
 
-  // Build parameterized query
-  const params: any[] = [targetStyle, minPrice, maxPrice, limit * 3];
-  let idx = 5;
+  const types = parsed.types;
+  const colors = parsed.colors;
+  const materials = parsed.materials;
+  const excludeTypes = parsed.excludeTypes;
 
-  const typeCondition = parsed.types.length > 0
-    ? `AND tags->>'type' = ANY($${idx++}::text[])`
-    : "";
-  if (parsed.types.length > 0) params.push(parsed.types);
-
-  const excludeCondition = parsed.excludeTypes.length > 0
-    ? `AND tags->>'type' != ALL($${idx++}::text[])`
-    : "";
-  if (parsed.excludeTypes.length > 0) params.push(parsed.excludeTypes);
-
-  const colorIdxStart = idx;
-  const colorCondition = parsed.colors.length > 0
-    ? `AND (tags->>'color' = ANY($${idx++}::text[]) OR tags->>'color_family' = ANY($${idx - 1}::text[]))`
-    : "";
-  if (parsed.colors.length > 0) params.push(parsed.colors);
-
-  const matIdxStart = idx;
-  const materialCondition = parsed.materials.length > 0
-    ? `AND (tags->>'material' = ANY($${idx++}::text[]) OR tags->>'material_family' = ANY($${idx - 1}::text[]))`
-    : "";
-  if (parsed.materials.length > 0) params.push(parsed.materials);
-
-  // Scoring: type=40, color=25, style=20, material=15
-  const typeScore    = parsed.types.length > 0    ? `CASE WHEN tags->>'type' = ANY($5::text[]) THEN 40 ELSE 0 END` : "0";
-  const colorScore   = parsed.colors.length > 0   ? `CASE WHEN tags->>'color' = ANY($${colorIdxStart}::text[]) THEN 25 ELSE 0 END` : "0";
-  const styleScore   = `CASE WHEN tags->>'style' = $1 THEN 20 ELSE (CASE WHEN tags->>'style' = 'unknown' THEN 5 ELSE 0 END) END`;
-  const matScore     = parsed.materials.length > 0 ? `CASE WHEN tags->>'material' = ANY($${matIdxStart}::text[]) THEN 15 ELSE 0 END` : "0";
-  const priceScore   = `GREATEST(0, 10 - ABS(price::float - ${midPrice}) / ${priceRange} * 10)`;
-
-  const buildSql = `
-    SELECT
-      id, name, price::float, image_url, shop, affiliate_link, tags,
-      (${typeScore} + ${colorScore} + ${styleScore} + ${matScore} + ${priceScore}) AS score
-    FROM products
-    WHERE tag_processed = TRUE
-      AND price >= $2 AND price <= $3
-      AND tags->>'type' NOT IN ('other', 'outdoor', 'seasonal', 'lighting_accessory', 'curtain', 'mattress', 'headboard', 'bathroom_cabinet', 'tableware', 'storage')
-      ${typeCondition}
-      ${excludeCondition}
-      ${colorCondition}
-      ${materialCondition}
-    ORDER BY score DESC, tag_confidence DESC
-    LIMIT $4
-  `;
-
-  const { rows } = await pool.query(buildSql, params);
-
-  // Fallback: style-only search if too few results
-  if (rows.length < 4) {
-    const { rows: fallback } = await pool.query(`
-      SELECT id, name, price::float, image_url, shop, affiliate_link, tags,
-        CASE WHEN tags->>'style' = $1 THEN 20 ELSE 5 END AS score
-      FROM products
-      WHERE tag_processed = TRUE
-        AND price >= $2 AND price <= $3
-        AND tags->>'type' NOT IN ('other', 'outdoor', 'seasonal', 'lighting_accessory', 'curtain', 'mattress', 'headboard', 'bathroom_cabinet', 'tableware', 'storage')
-      ORDER BY score DESC, tag_confidence DESC, random()
-      LIMIT $4
-    `, [targetStyle, minPrice, maxPrice, limit]);
-
-    return fallback.map(r => ({
-      id: r.id, name: r.name, price: r.price,
-      image: r.image_url, shop: r.shop, link: r.affiliate_link,
-      tags: r.tags || {}, score: Number(r.score),
-    }));
+  // ── Trin 1: type + farve + stil + materiale + pris ────────────────────────
+  let rows = await queryProducts(types, targetStyle, minPrice, maxPrice, midPrice, priceRange, colors, materials, excludeTypes, limit * 3);
+  if (rows.length >= 3) {
+    console.log(`[ProductMatcher] Trin 1 OK: ${rows.length} resultater`);
+    return mapRows(rows.slice(0, limit));
   }
 
-  return rows.slice(0, limit).map(r => ({
-    id: r.id, name: r.name, price: r.price,
-    image: r.image_url, shop: r.shop, link: r.affiliate_link,
-    tags: r.tags || {}, score: Number(r.score),
-  }));
+  // ── Trin 2: behold type + stil, drop farve og materiale ───────────────────
+  console.log(`[ProductMatcher] Trin 1 kun ${rows.length} — prøver trin 2 (drop farve+materiale)`);
+  rows = await queryProducts(types, targetStyle, minPrice, maxPrice, midPrice, priceRange, [], [], excludeTypes, limit * 3);
+  if (rows.length >= 3) {
+    console.log(`[ProductMatcher] Trin 2 OK: ${rows.length} resultater`);
+    return mapRows(rows.slice(0, limit));
+  }
+
+  // ── Trin 3: behold type, udvid prisinterval ±50%, drop farve+stil ─────────
+  console.log(`[ProductMatcher] Trin 2 kun ${rows.length} — prøver trin 3 (udvidet pris)`);
+  const expandedMin = Math.max(0, minPrice * 0.5);
+  const expandedMax = maxPrice * 1.5;
+  const expandedMid = (expandedMin + expandedMax) / 2;
+  const expandedRange = Math.max(expandedMax - expandedMin, 1);
+  rows = await queryProducts(types, targetStyle, expandedMin, expandedMax, expandedMid, expandedRange, [], [], excludeTypes, limit * 3);
+  if (rows.length >= 3) {
+    console.log(`[ProductMatcher] Trin 3 OK: ${rows.length} resultater (udvidet pris)`);
+    return mapRows(rows.slice(0, limit));
+  }
+
+  // ── Trin 4: behold type, ingen pris/farve/stil begrænsning ───────────────
+  console.log(`[ProductMatcher] Trin 3 kun ${rows.length} — prøver trin 4 (ingen prisgrænse)`);
+  rows = await queryProducts(types, targetStyle, 0, 999999, 5000, 999999, [], [], excludeTypes, limit * 3);
+  if (rows.length >= 3) {
+    console.log(`[ProductMatcher] Trin 4 OK: ${rows.length} resultater (fri pris)`);
+    return mapRows(rows.slice(0, limit));
+  }
+
+  // ── Trin 5: søster-typer — aldrig drop type fuldstændig ──────────────────
+  console.log(`[ProductMatcher] Trin 4 kun ${rows.length} — prøver trin 5 (søster-typer)`);
+  const sisterTypes = new Set<string>();
+  for (const t of types) {
+    for (const s of (SISTER_TYPES[t] ?? [])) sisterTypes.add(s);
+  }
+  const sisterArr = [...sisterTypes];
+  if (sisterArr.length > 0) {
+    rows = await queryProducts(sisterArr, targetStyle, 0, 999999, 5000, 999999, [], [], excludeTypes, limit * 3);
+    if (rows.length >= 1) {
+      console.log(`[ProductMatcher] Trin 5 OK: ${rows.length} søster-type resultater (${sisterArr.join(",")})`);
+      return mapRows(rows.slice(0, limit));
+    }
+  }
+
+  // ── Ingen resultater — returner hvad vi har (aldrig random) ──────────────
+  console.log(`[ProductMatcher] Alle trin udmattet — returnerer ${rows.length} resultater`);
+  return mapRows(rows.slice(0, limit));
 }
 
 // ─── TRIN 4: Shop This Style (grupperet per type) ─────────────────────────────
