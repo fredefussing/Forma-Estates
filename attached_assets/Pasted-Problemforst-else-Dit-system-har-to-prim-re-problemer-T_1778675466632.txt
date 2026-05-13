@@ -1,0 +1,236 @@
+Problemforståelse
+Dit system har to primære problemer:
+Table
+Problem	Effekt
+1. Modality mismatch	Vision-tekst sammenlignes med produkt-billeder (text→image) i stedet for text→text
+2. Løst type-filter	"Stol" matcher bogreol, sofa matcher lampe — types låser ikke kategorien
+Systemarkitektur (baseret på indsamlet info)
+plain
+Copy
+Bruger-upload (JPEG)
+    ↓
+YOLO (yolos-tiny) → detekterer objekter (seng, sofa, lampe...)
+    ↓
+GPT-4o-mini Vision → beskriver objektet ("grey fabric sofa, scandinavian")
+    ↓
+CLIP TEXT embedding (@xenova/transformers) → vector[512]
+    ↓
+pgvector cosine similarity på vector_clip (IMAGE embeddings af produktfotos!)
+    ↓
+SQL filter: type = ANY(...) → scoring → resultater
+Fejl 1: Modality Mismatch (Den største årsag til dårlig match)
+Hvad der sker nu
+TypeScript
+Copy
+// Din query embedding er TEXT-baseret (fra GPT's beskrivelse)
+const queryVector = await getClipTextEmbedding("grey sofa scandinavian");
+
+// Du søger mod IMAGE embeddings af produktfotos
+SELECT * FROM products ORDER BY vector_clip <=> queryVector
+Hvorfor det fejler
+CLIP er cross-modal — den KAN sammenligne tekst og billeder — men præcisionen er lavere end text→text:
+Table
+Sammenligning	Forventet præcision	Årsag
+Text → Text (samme model)	85-92%	Identisk domain
+Text → Image (cross-modal)	55-70%	Det du har nu — domain gap
+Image → Image	90-95%	Identisk domain
+"Grey sofa" som tekst matcher et billede af en sofa OK — men det matcher også et billede af en stol med gråt stof eller et billede af en grå lampe, fordi CLIP ser farver og teksturer, ikke kategorier.
+Konkret eksempel på fejl
+plain
+Copy
+Vision: "Grå sofa, 3-personers, stof"
+→ Text embedding: [0.12, -0.34, 0.89, ...]
+
+Database match mod vector_clip (BILLEDE-embeddings):
+- Sofa-billede:     cosine = 0.82 ✅
+- Seng med gråt stof: cosine = 0.74 ❌ (farve+tekstur match!)
+- Grå lampe:         cosine = 0.71 ❌ (farve match!)
+- Bogreol i gråt:    cosine = 0.68 ❌ (farve match!)
+Løsning: Dual-vector strategi
+Du har brug for begge kolonner i databasen:
+sql
+Copy
+vector_clip  — IMAGE embedding af produktfoto (du har den, 243.897 stk.)
+vector_text  — TEXT embedding af produktnavn (name_en) — GENERERES NU
+Matcher skal prioritere vector_text:
+TypeScript
+Copy
+// 1. Generer TEXT embedding af vision-beskrivelsen
+const queryVector = await getClipTextEmbedding("grey sofa scandinavian");
+
+// 2. Søg primært i vector_text (text→text = præcist)
+const distanceExpr = sql`
+  CASE 
+    WHEN ${products.vectorText} IS NOT NULL 
+    THEN ${cosineDistance(products.vectorText, queryVector)}
+    ELSE ${cosineDistance(products.vectorClip, queryVector)}  -- fallback
+  END
+`;
+
+// 3. Order: nærmeste først
+ORDER BY distanceExpr ASC
+Forventet forbedring: 55-70% → 80-90% match-præcision
+Fejl 2: Løst Type-Filter (Årsag til kategori-forvirring)
+Hvad der sandsynligvis sker nu
+TypeScript
+Copy
+// SLAPT filter — type er ét af mange kriterier
+conditions.push(sql`${products.tags}->>'type' = ANY(${parsed.types})`);
+
+// Hvis ingen produkter med type "sofa" → fallback til andre typer
+// Resultat: "stol" → matcher bogreol, kommode, lampe...
+Hvorfor det fejler
+Din tags->>'type' er ikke stram nok. Når YOLO detekterer "stol" og GPT-4o-mini beskriver "grå stol med træben", så:
+Dansk→engelsk mapping er kritisk — hvis "stol" ikke mappes korrekt til "lounge_chair" i databasen, matcher den intet
+Fallback-logik åbner for alle produkter når type ikke findes
+YOLO + GPT uenighed — YOLO siger "sofa", GPT siger "lounge chair" → mismatch
+Løsning: Mandatory type + strict mapping
+TypeScript
+Copy
+// A. Type er MANDATORY — ingen fallback, ingen undtagelser
+if (parsed.types.length === 0) {
+  return []; // Ingen type detekteret = intet match
+}
+
+// B. Stram filter — KUN denne type, punktum
+conditions.push(sql`${products.tags}->>'type' = ANY(${parsed.types})`);
+
+// C. Hvis dette giver 0 resultater → returner 0, ikke fallback
+Komplet dansk→engelsk type-mapping
+TypeScript
+Copy
+const DANISH_TO_DB_TYPE: Record<string, string> = {
+  sofa: "sofa", sovesofa: "sofa", chaiselong: "sofa", sofaer: "sofa",
+  stol: "lounge_chair", stole: "lounge_chair", lænestol: "lounge_chair",
+  spisebordsstol: "dining_chair", kontorstol: "office_chair", barstol: "bar_stool",
+  bord: "dining_table", spisebord: "dining_table",
+  sofabord: "coffee_table", sofaborde: "coffee_table",
+  sidebord: "side_table", skrivebord: "desk",
+  skab: "cabinet", skabe: "cabinet",
+  reol: "bookshelf", reoler: "bookshelf", bogreol: "bookshelf",
+  kommode: "dresser", kommoder: "dresser",
+  seng: "bed", senge: "bed",
+  lampe: "lamp", lamper: "lamp",
+  loftlampe: "ceiling_lamp", bordlampe: "table_lamp", gulvlampe: "floor_lamp",
+  pendel: "pendant",
+  spejl: "mirror", spejle: "mirror",
+  tæppe: "rug", tæpper: "rug",
+  gardin: "curtain", gardiner: "curtain",
+  pyntepude: "cushion", puder: "cushion",
+  vase: "vase", vaser: "vase",
+  ur: "clock", plakat: "poster",
+  planter: "plant", krukke: "pot",
+  opbevaring: "storage", hylde: "shelf", hylder: "shelf",
+};
+Fejl 3: YOLO + GPT Uoverensstemmelse
+Hvad der sker
+Table
+Komponent	Output	Problem
+YOLO (yolos-tiny)	COCO labels: chair, couch, bed	Grov kategorisering, 20 labels
+GPT-4o-mini	"grå sofa, scandinavisk stil, stof"	Finkornet, men dansk
+Din DB tags	"lounge_chair", "sofa", "scandinavian"	Engelsk, specifik
+Tre forskellige navne-konventioner der aldrig mødes.
+Løsning: Single source of truth
+Brug KUN GPT-4o-mini output til type-beslutning — drop YOLO type til filtering:
+TypeScript
+Copy
+// 1. YOLO detekterer bounding boxes (behold det til crop)
+const detections = await yoloDetector(image);
+
+// 2. Crop hvert objekt → GPT-4o-mini analyserer
+for (const obj of detections) {
+  const crop = await cropImage(image, obj.bbox);
+  const vision = await analyzeVision(crop); // GPT-4o-mini
+  
+  // 3. GPT's type er master — mappet til DB-type
+  const dbTypes = mapToDbTypes(vision.types); // dansk→engelsk DB-type
+  
+  // 4. Søg KUN i denne type
+  const matches = await matchProducts({
+    types: dbTypes,     // MANDATORY
+    colors: mapToDbColors(vision.colors),
+    styles: mapToDbStyles(vision.styles),
+    materials: vision.materials,
+    description: vision.description,
+  });
+}
+Fejl 4: Scoring uden type-vægtning
+Hvad der sandsynligvis sker nu
+TypeScript
+Copy
+// GAMMEL scoring: Type 60%, farve 20%, stil 15%, materiale 5%
+// Problem: Type er "vægtet", ikke "filtreret" — så en rød lampe kan score
+// højere end en grå sofa hvis lampe har bedre farve+stil match
+Løsning: Type er filtreret (100% eller ingenting)
+TypeScript
+Copy
+// NY SCORING:
+// Step 1: Type MANDATORY filter — kun produkter af denne type kommer igennem
+// Step 2: Score inden for samme type:
+//   Farve:     50%
+//   Stil:      30%
+//   Materiale: 20%
+
+score = 
+  (color_match ? 50 : 0) +
+  (style_match ? 30 : 0) +
+  (material_match ? 20 : 0);
+
+// Top 6: 3 "I samme stil" (score ≥60) + 3 "Alternativ" (score <60)
+Fejl 5: vector_text mangler (den du er i gang med at fikse)
+Status nu
+Table
+Kolonne	Status	Count
+vector_clip (image)	✅ Færdig	243.897
+name_en (tekst)	🔄 I gang	~12.000/226.841 færdig
+vector_text (text embedding)	❌ Afventer name_en	0
+Hvad der sker når du søger uden vector_text
+plain
+Copy
+Query: "grey sofa scandinavian" (TEXT embedding)
+DB:    vector_clip (IMAGE embeddings af produktfotos)
+         ↓
+   Cross-modal søgning = OK men upræcis
+Hvad der sker NÅR vector_text er klar
+plain
+Copy
+Query: "grey sofa scandinavian" (TEXT embedding)
+DB:    vector_text (TEXT embeddings af produktnavne)
+         ↓
+   Text→text søgning = præcis
+   + type MANDATORY filter = korrekt kategori
+   + farve/stil scoring = bedste match inden for kategorien
+Samlet diagnose: Årsagskæde
+plain
+Copy
+Dårlig product match (50-70%)
+    ↑
+├─ vector_text mangler → søger mod vector_clip (text→image mismatch)
+├─ Type-filter er løst → "stol" matcher bogreol
+├─ Dansk→engelsk mapping ufuldstændig → type mismatch
+├─ Scoring vægter type i stedet for at filtrere den
+└─ YOLO og GPT bruger forskellige type-navne
+Konkret handleplan (prioriteret)
+Nu (imens translate kører)
+Ingenting — lad det køre færdigt.
+Efter translate er færdig (~3 timer)
+Step 1: Fiks "No translation" rester (~10 min)
+bash
+Copy
+node scripts/translate-missing.mjs  # enkeltvis, 100% coverage
+Step 2: Generer vector_text med LOKAL CLIP (~2 timer)
+bash
+Copy
+# Brug DIN @xenova/transformers, IKKE OpenAI API
+node scripts/generate-text-vectors-local.mjs
+Step 3: Opdater matcher (~30 min)
+Type MANDATORY filter
+Dual-vector: vector_text først, vector_clip fallback
+Ny scoring: farve 50%, stil 30%, materiale 20%
+Forventet resultat
+Table
+Metrik	Nu	Efter fix
+Match-rate	50-70%	80-90%
+Type-præcision	~60%	95%+
+"Stol→bogreol" fejl	Ja	Nej
+Søgetid	14 ms	~20 ms (dual vector)
