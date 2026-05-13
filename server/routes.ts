@@ -53,51 +53,32 @@ const collovStyleMap: Record<string, string> = {
   midcentury: "midcentury",
 };
 
-// Key furniture pieces that MUST appear for each room type
-// Keys must match the roomTypes enum in shared/schema.ts exactly
-const ROOM_FURNITURE_REQUIREMENTS: Record<string, string> = {
-  "bedroom":                    "The room MUST include a bed as the primary piece of furniture, prominently visible, plus nightstands on each side, soft bedside lighting, and cozy bedroom textiles.",
-  "living room":                "The room MUST include a sofa as the primary piece of furniture, plus a coffee table in front of it, an armchair, a floor lamp, and an area rug.",
-  "kitchen":                    "The room MUST include kitchen cabinets and countertops as the primary elements, with a kitchen island or dining table with chairs if space allows.",
-  "dining room":                "The room MUST include a dining table with chairs as the primary furniture, with pendant lighting hanging above the table.",
-  "home office":                "The room MUST include a desk as the primary piece of furniture, plus an ergonomic office chair, wall shelving, and task lighting.",
-  "bathroom":                   "The room MUST include a bathtub or walk-in shower as the primary element, plus a vanity with sink, mirror, and proper bathroom lighting.",
-  "kids room":                  "The room MUST include a children's bed as the primary piece of furniture, plus a play area, storage for toys, and colorful playful decor.",
-  "studio":                     "The room MUST include a sofa bed or murphy bed as the primary piece, plus a compact workspace, dining area, and smart storage solutions.",
-  "game room":                  "The room MUST include gaming seating such as a sofa or gaming chairs as the primary furniture, plus entertainment storage and ambient lighting.",
-  "home gym":                   "The room MUST include exercise equipment such as a workout bench or mat area as the primary element, plus mirrors and motivational lighting.",
-  "laundry room":               "The room MUST include a washer and dryer as the primary elements, plus folding counter, wall storage, and utility shelving.",
-  "conference room":            "The room MUST include a large conference table with chairs as the primary furniture, plus professional lighting and presentation wall.",
-  "spa room":                   "The room MUST include a massage table or relaxation daybed as the primary element, plus soft ambient lighting, candles, and calming decor.",
-  "outdoor":                    "The space MUST include outdoor lounge seating such as a sofa or lounge chairs as the primary furniture, plus a side table and outdoor lighting.",
-  "open living and dining room": "The room MUST include both a sofa area and a dining table with chairs clearly visible, connected by a cohesive design and area rug.",
-};
-
-const styleAesthetics: Record<string, string> = {
-  scandinavian: "Redesign in Scandinavian style: light oak wood furniture, white and warm off-white tones, minimal clutter, natural linen and wool textiles, clean simple lines, cozy Nordic hygge atmosphere.",
-  modern:       "Redesign in modern style: sleek low-profile furniture, neutral palette of whites and greys, clean geometric lines, statement pendant lighting, open airy feel.",
-  luxury:       "Redesign in luxury style: premium marble surfaces, velvet and leather upholstery, rich jewel tones, gold or brass accents, dramatic statement lighting, opulent textures.",
-  industrial:   "Redesign in industrial style: dark tones, exposed brick or concrete look, metal-frame furniture, worn leather, Edison bulb pendant lights, raw urban atmosphere.",
-  coastal:      "Redesign in coastal style: light blues and sandy whites, natural rattan and wicker furniture, linen textiles, beach-inspired accessories, bright airy atmosphere.",
-  transitional: "Redesign in transitional style: blend of classic silhouettes and contemporary finishes, warm neutral palette, layered textures, subtle traditional accents.",
-  farmhouse:    "Redesign in farmhouse style: rustic reclaimed wood, white shiplap walls, vintage-inspired metal accents, cozy plaid and linen textiles, warm country atmosphere.",
-  midcentury:   "Redesign in mid-century modern style: organic-shaped furniture with tapered wooden legs, warm walnut tones, bold mustard or teal accent colors, retro iconic design.",
+// Style prompts for Collov's edit API.
+// Keep these concise and style-focused — the edit API preserves the room's
+// structure (walls, layout, perspective) automatically. Do NOT add furniture
+// directives ("must include a bed") as those cause Collov to generate from scratch.
+const stylePrompts: Record<string, string> = {
+  scandinavian: "Scandinavian interior design style. Light oak wood furniture, white and warm off-white walls, natural linen and wool textiles, clean minimal lines, cozy Nordic hygge atmosphere, soft ambient lighting.",
+  modern:       "Modern contemporary interior design. Sleek low-profile furniture, neutral whites and greys, clean geometric lines, statement lighting fixtures, open and uncluttered feel.",
+  luxury:       "Luxury high-end interior design. Premium marble surfaces, velvet and leather upholstery, rich jewel tones, polished brass and gold accents, dramatic statement lighting, opulent textures.",
+  industrial:   "Industrial interior design style. Dark tones, metal-frame furniture, worn leather, Edison bulb pendant lights, exposed concrete or brick texture, raw urban loft atmosphere.",
+  coastal:      "Coastal beach interior design. Light blues and sandy whites, natural rattan and wicker furniture, linen textiles, driftwood accents, bright airy relaxed atmosphere.",
+  transitional: "Transitional interior design. Classic furniture silhouettes with contemporary finishes, warm neutral palette, layered textures, subtle traditional accents blended with modern clean lines.",
+  farmhouse:    "Farmhouse interior design style. Rustic reclaimed wood, white and cream palette, vintage metal accents, cozy plaid and linen textiles, warm country cottage atmosphere.",
+  midcentury:   "Mid-century modern interior design. Organic-shaped furniture with tapered wooden legs, warm walnut tones, bold mustard or teal accent colors, retro iconic design pieces.",
 };
 
 function buildRedesignPrompt(roomType: string, style: string, tier?: string): string {
-  const aesthetics = styleAesthetics[style]
-    || `Redesign in ${style} style with appropriate furniture and decor.`;
-
-  const furnitureReq = ROOM_FURNITURE_REQUIREMENTS[roomType]
-    || `Redesign this ${roomType} with appropriate key furniture pieces clearly visible.`;
+  const styleBase = stylePrompts[style]
+    || `${style} interior design style with appropriate furniture and decor.`;
 
   const tierNote = tier === "luxury"
-    ? " Use premium, high-end materials and furniture throughout."
+    ? " Use premium high-end materials and furniture throughout."
     : tier === "budget"
-    ? " Use affordable but stylish furniture."
+    ? " Use affordable but stylish furniture pieces."
     : "";
 
-  return `${furnitureReq} ${aesthetics}${tierNote} Replace all existing furniture and decor with new pieces. Make all key furniture clearly visible and prominent in the image.`;
+  return `${styleBase}${tierNote}`;
 }
 
 async function sendCollovTask(uploadUrl: string, roomType: string, style: string, tier?: string): Promise<string> {
