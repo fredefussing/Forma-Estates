@@ -38,165 +38,182 @@ const upload = multer({
 });
 
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
-
-
 const COLLOV_BASE = "https://api.collov.ai";
 
-const collovStyleMap: Record<string, string> = {
-  scandinavian: "scandinavian",
-  modern: "modern",
-  luxury: "luxury",
-  industrial: "industrial",
-  coastal: "coastal",
-  transitional: "transitional",
-  farmhouse: "farmhouse",
-  midcentury: "midcentury",
+// Exact enum values Collov VST API requires (lowercase)
+const COLLOV_ROOM_MAP: Record<string, string> = {
+  "living room":                "living room",
+  "bedroom":                    "bedroom",
+  "kitchen":                    "kitchen",
+  "bathroom":                   "bathroom",
+  "dining room":                "dining room",
+  "home office":                "home office",
+  "kids room":                  "kids room",
+  "game room":                  "game room",
+  "studio":                     "studio",
+  "outdoor":                    "outdoor",
+  "conference room":            "conference room",
+  "home gym":                   "home gym",
+  "laundry room":               "laundry room",
+  "spa room":                   "spa room",
+  "open living and dining room":"open living and dining room",
 };
 
-// Style prompts for Collov's edit API.
-// Keep these concise and style-focused — the edit API preserves the room's
-// structure (walls, layout, perspective) automatically. Do NOT add furniture
-// directives ("must include a bed") as those cause Collov to generate from scratch.
-const stylePrompts: Record<string, string> = {
-  scandinavian: "Scandinavian interior design style. Light oak wood furniture, white and warm off-white walls, natural linen and wool textiles, clean minimal lines, cozy Nordic hygge atmosphere, soft ambient lighting.",
-  modern:       "Modern contemporary interior design. Sleek low-profile furniture, neutral whites and greys, clean geometric lines, statement lighting fixtures, open and uncluttered feel.",
-  luxury:       "Luxury high-end interior design. Premium marble surfaces, velvet and leather upholstery, rich jewel tones, polished brass and gold accents, dramatic statement lighting, opulent textures.",
-  industrial:   "Industrial interior design style. Dark tones, metal-frame furniture, worn leather, Edison bulb pendant lights, exposed concrete or brick texture, raw urban loft atmosphere.",
-  coastal:      "Coastal beach interior design. Light blues and sandy whites, natural rattan and wicker furniture, linen textiles, driftwood accents, bright airy relaxed atmosphere.",
-  transitional: "Transitional interior design. Classic furniture silhouettes with contemporary finishes, warm neutral palette, layered textures, subtle traditional accents blended with modern clean lines.",
-  farmhouse:    "Farmhouse interior design style. Rustic reclaimed wood, white and cream palette, vintage metal accents, cozy plaid and linen textiles, warm country cottage atmosphere.",
-  midcentury:   "Mid-century modern interior design. Organic-shaped furniture with tapered wooden legs, warm walnut tones, bold mustard or teal accent colors, retro iconic design pieces.",
+const COLLOV_STYLE_MAP: Record<string, string> = {
+  scandinavian:  "scandinavian",
+  modern:        "modern",
+  luxury:        "luxury",
+  industrial:    "industrial",
+  coastal:       "coastal",
+  transitional:  "transitional",
+  farmhouse:     "farmhouse",
+  midcentury:    "mid-century",
 };
 
-function buildRedesignPrompt(roomType: string, style: string, tier?: string): string {
-  const styleBase = stylePrompts[style]
-    || `${style} interior design style with appropriate furniture and decor.`;
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-  const tierNote = tier === "luxury"
-    ? " Use premium high-end materials and furniture throughout."
-    : tier === "budget"
-    ? " Use affordable but stylish furniture pieces."
-    : "";
-
-  return `${styleBase}${tierNote}`;
+async function collovFetch(url: string, options: RequestInit, retries = 5): Promise<any> {
+  let delay = 1000;
+  for (let i = 0; i <= retries; i++) {
+    const res = await fetch(url, options);
+    if (res.status === 429) {
+      if (i === retries) throw new Error(`Rate limited after ${retries} retries`);
+      log(`Collov 429 — backoff ${delay}ms`);
+      await sleep(delay);
+      delay = Math.min(delay * 2, 30000);
+      continue;
+    }
+    return res.json();
+  }
 }
 
-async function sendCollovTask(uploadUrl: string, roomType: string, style: string, tier?: string): Promise<string> {
-  const prompt = buildRedesignPrompt(roomType, style, tier);
+// ── Step 1: Generate empty room ───────────────────────────────────────────────
+async function sendGenerateEmptyRoom(uploadUrl: string): Promise<number> {
+  const form = new FormData();
+  form.append("uploadUrl", uploadUrl);
+  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`, {
+    method: "POST",
+    headers: { apiKey: COLLOV_API_KEY! },
+    body: form,
+  });
+  log(`generateEmptyRoom response: ${JSON.stringify(json).slice(0, 300)}`);
+  if (!json.success || !json.data?.id) throw new Error(`Empty room start failed: ${JSON.stringify(json)}`);
+  return json.data.id;
+}
+
+// ── Step 2: Poll empty room until ready ───────────────────────────────────────
+async function pollEmptyRoom(id: number, timeoutMs = 180000): Promise<string> {
+  const start = Date.now();
+  while (true) {
+    const json = await collovFetch(
+      `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${id}`,
+      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+    );
+    const data = json.data || {};
+    log(`pollEmptyRoom id=${id}: status=${data.status}`);
+    if (data.status === "SUCCESS") return data.emptyRoomUrl;
+    if (data.status === "FAILED") throw new Error("Empty room generation failed");
+    if (Date.now() - start > timeoutMs) throw new Error("Empty room polling timed out");
+    await sleep(3000);
+  }
+}
+
+// ── Step 3: Start staged room design ─────────────────────────────────────────
+async function sendGenerateImgOnCommon(
+  uploadUrl: string,
+  roomType: string,
+  style: string,
+  emptyRoomUrl?: string,
+): Promise<string> {
+  const collovRoom  = COLLOV_ROOM_MAP[roomType]  || roomType;
+  const collovStyle = COLLOV_STYLE_MAP[style]    || style;
 
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
-  form.append("prompt", prompt);
+  form.append("roomType",  collovRoom);
+  form.append("style",     collovStyle);
+  if (emptyRoomUrl) form.append("emptyRoomUrl", emptyRoomUrl);
 
-  log(`Collov redesign send: style=${style}, roomType=${roomType}, prompt="${prompt.slice(0, 100)}..."`);
+  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", emptyRoom=${!!emptyRoomUrl}`);
 
-  const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
-    headers: {
-      apiKey: COLLOV_API_KEY!,
-    },
+    headers: { apiKey: COLLOV_API_KEY! },
     body: form,
   });
-
-  const json = (await res.json()) as any;
-  log(`Collov redesign response (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 300)}`);
-  if (!json.success || !json.data?.uuid) {
-    log(`Collov API error response: ${JSON.stringify(json)}`);
-    throw new Error(json.message || "Collov API returned an error");
-  }
-
+  log(`generateImgOnCommon response: ${JSON.stringify(json).slice(0, 300)}`);
+  if (!json.success || !json.data?.uuid) throw new Error(`VST generate failed: ${JSON.stringify(json)}`);
   return json.data.uuid;
 }
 
-async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
-  const res = await fetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
-    {
-      method: "GET",
-      headers: {
-        apiKey: COLLOV_API_KEY!,
-      },
-    }
+// ── Step 4: Poll VST design result ────────────────────────────────────────────
+async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
+  const json = await collovFetch(
+    `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
+    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
   );
+  const data   = json.data || {};
+  const record = Array.isArray(data.generateRecordList) ? data.generateRecordList[0] : null;
+  const status = record?.status ?? data.status;
 
-  const json = (await res.json()) as any;
-  // edit/getRecord returns status and generateUrl directly on data
-  const data = json.data || {};
-  const status = data.status;
+  log(`pollVstResult uuid=${uuid}: status=${status}, raw=${JSON.stringify(json).slice(0, 400)}`);
 
-  log(`Collov poll for ${uuid}: status=${status}, raw=${JSON.stringify(json).slice(0, 400)}`);
-
-  if (status === "SUCCESS") {
-    return { status: "completed", resultUrl: data.generateUrl };
-  }
-  if (status === "FAILED") {
-    const failReason = data.failReason || data.errorMessage || data.message || "unknown";
-    log(`Collov FAILED reason: ${failReason}`);
-    return { status: "failed", failReason };
-  }
-
+  if (status === "SUCCESS") return { status: "completed", resultUrl: record?.generateUrl ?? data.generateUrl };
+  if (status === "FAILED")  return { status: "failed", failReason: record?.failReason ?? data.failReason ?? "generation_failed" };
   return { status: "processing" };
 }
 
-async function backgroundPoll(designId: number, uuid: string, retryFn?: () => Promise<string>) {
-  const maxAttempts = 40;
-  const maxRetries = 1;
-  let attempts = 0;
-  let retryCount = 0;
+// ── Full async VST workflow (runs entirely in background) ─────────────────────
+async function runVstWorkflow(designId: number, uploadUrl: string, roomType: string, style: string) {
+  const maxPollAttempts = 60;
 
-  const poll = async () => {
-    attempts++;
-    const elapsed = attempts * 3;
+  try {
+    // Step 1+2: Clear room first (recommended for best quality), fallback to direct if it fails
+    let emptyRoomUrl: string | undefined;
     try {
-      const result = await pollCollovResult(uuid);
-      if (result.status === "completed" && result.resultUrl) {
-        await storage.updateDesign(designId, {
-          status: "completed",
-          resultImageUrl: result.resultUrl,
-        });
-        log(`Design ${designId} completed in ~${elapsed}s`);
-        return;
-      }
-      if (result.status === "failed") {
-        if (retryCount < maxRetries && retryFn) {
-          retryCount++;
-          log(`Design ${designId} failed (reason: ${result.failReason}), retry ${retryCount}/${maxRetries}...`);
-          await storage.updateDesign(designId, { status: "processing" });
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          try {
-            const newUuid = await retryFn();
-            uuid = newUuid;
-            attempts = 0;
-            await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
-            log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
-            setTimeout(poll, 3000);
-            return;
-          } catch (retryErr: any) {
-            log(`Design ${designId} retry ${retryCount} send failed: ${retryErr.message}`);
-          }
+      log(`Design ${designId}: starting empty room generation`);
+      const emptyId = await sendGenerateEmptyRoom(uploadUrl);
+      emptyRoomUrl = await pollEmptyRoom(emptyId);
+      log(`Design ${designId}: empty room ready → ${emptyRoomUrl}`);
+    } catch (err: any) {
+      log(`Design ${designId}: empty room step failed (${err.message}) — proceeding with direct staging`);
+    }
+
+    // Step 3: Start staged design
+    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl);
+    await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
+    log(`Design ${designId}: VST task started, uuid=${uuid}`);
+
+    // Step 4: Poll for final result
+    let attempts = 0;
+    while (attempts < maxPollAttempts) {
+      attempts++;
+      await sleep(3000);
+      try {
+        const result = await pollVstResult(uuid);
+        if (result.status === "completed" && result.resultUrl) {
+          await storage.updateDesign(designId, { status: "completed", resultImageUrl: result.resultUrl });
+          log(`Design ${designId}: completed in ~${attempts * 3}s → ${result.resultUrl}`);
+          return;
         }
-        await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "ai_generation_failed" });
-        log(`Design ${designId} failed permanently after ${retryCount} retries, reason: ${result.failReason}`);
-        return;
-      }
-      if (attempts < maxAttempts) {
-        setTimeout(poll, 3000);
-      } else {
-        await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
-        log(`Design ${designId} timed out after ~${elapsed}s`);
-      }
-    } catch (err) {
-      log(`Poll error for design ${designId}: ${err}`);
-      if (attempts < maxAttempts) {
-        setTimeout(poll, 5000);
-      } else {
-        await storage.updateDesign(designId, { status: "failed", failReason: "poll_error" });
+        if (result.status === "failed") {
+          await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "generation_failed" });
+          log(`Design ${designId}: FAILED — ${result.failReason}`);
+          return;
+        }
+      } catch (pollErr: any) {
+        log(`Design ${designId}: poll error (attempt ${attempts}): ${pollErr.message}`);
       }
     }
-  };
+    await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
+    log(`Design ${designId}: timed out after ${maxPollAttempts * 3}s`);
 
-  poll();
+  } catch (err: any) {
+    log(`Design ${designId}: workflow error — ${err.message}`);
+    await storage.updateDesign(designId, { status: "failed", failReason: err.message?.slice(0, 100) || "workflow_error" });
+  }
 }
+
 
 export async function registerRoutes(
   httpServer: Server,
@@ -384,21 +401,11 @@ export async function registerRoutes(
         return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
       }
 
-      try {
-        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier);
-        await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
+      // Start full VST workflow in background — returns immediately
+      runVstWorkflow(design.id, publicUrl, parsed.data.roomType, parsed.data.style);
 
-        const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier);
-        backgroundPoll(design.id, uuid, retryFn);
-
-        const updated = await storage.getDesign(design.id);
-        return res.json(updated);
-      } catch (err: any) {
-        log(`Collov API error: ${err.message}`);
-        const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
-        await storage.updateDesign(design.id, { status: "failed", failReason });
-        return res.status(500).json({ message: `AI generering fejlede: ${err.message}`, errorCode: failReason });
-      }
+      const updated = await storage.getDesign(design.id);
+      return res.json(updated);
     } catch (err: any) {
       log(`Upload error: ${err.message}`);
       return res.status(500).json({ message: err.message });

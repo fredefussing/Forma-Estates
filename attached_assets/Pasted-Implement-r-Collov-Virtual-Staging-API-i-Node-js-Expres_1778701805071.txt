@@ -1,0 +1,161 @@
+Implementér Collov Virtual Staging API i Node.js/Express med fuldt async workflow. Systemet skal bruge tom-rum workflowet (anbefalet af Collov) for bedste billedkvalitet — dvs. først tøm rummet for møbler, derefter stage med ny stil.
+A. API Konfiguration
+env
+Copy
+COLOV_API_KEY=din-api-key
+COLOV_BASE_URL=https://api.collov.ai
+Headers til ALLE kald:
+plain
+Copy
+apiKey: <COLOV_API_KEY>
+Content-Type: multipart/form-data
+B. Room Type Enums (lowercase, præcis som Collov kræver)
+JavaScript
+Copy
+const ROOM_TYPES = {
+  stue: "living room",
+  sovevaerelse: "bedroom",
+  koekken: "kitchen",
+  badevaerelse: "bathroom",
+  spisestue: "dining room",
+  kontor: "home office",
+  bornevaerelse: "kids room",
+  spillerum: "game room",
+  studio: "studio",
+  udendoers: "outdoor",
+  moedevaerelse: "conference room",
+  fitness: "home gym",
+  vaskerum: "laundry room",
+  spa: "spa room",
+  aaben_stue_spisestue: "open living and dining room"
+};
+C. Style Enums (lowercase, præcis som Collov kræver)
+JavaScript
+Copy
+const STYLES = {
+  skandinavisk: "scandinavian",
+  luksus: "luxury",
+  industrielt: "industrial",
+  kyst: "coastal",
+  transitionel: "transitional",
+  farmhouse: "farmhouse",
+  midcentury: "mid-century",
+  moderne: "modern"
+};
+D. Implementer 4 API endpoints i rækkefølge:
+1. POST /flair/enterpriseApi/vst/generateEmptyRoom
+Form fields:
+uploadUrl (string, required) — public URL til originalt billede
+Response: data.id (numeric, integer)
+2. GET /flair/enterpriseApi/vst/getEmptyRoomRecord
+Query parameter:
+id (integer, required) — fra step 1
+Response når SUCCESS:
+JSON
+Copy
+{
+  "data": {
+    "status": "SUCCESS",
+    "emptyRoomUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/..."
+  }
+}
+3. POST /flair/enterpriseApi/vst/generateImgOnCommon
+Form fields:
+uploadUrl (string, required) — originalt billede
+emptyRoomUrl (string, required — fra step 2) — tomt rum
+roomType (string enum, required) — lowercase fra ROOM_TYPES
+style (string enum, required) — lowercase fra STYLES
+Response: data.uuid (string)
+4. GET /flair/enterpriseApi/vst/getRecord
+Form fields (multipart, IKKE query string):
+uuid (string, required) — fra step 3
+Response når SUCCESS:
+JSON
+Copy
+{
+  "data": {
+    "generateRecordList": [
+      {
+        "status": "SUCCESS",
+        "generateUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/..."
+      }
+    ]
+  }
+}
+E. VIGTIGSTE REGLER
+Response parsing — præcis path:
+generateUrl findes i: response.data.generateRecordList[0].generateUrl
+status findes i: response.data.generateRecordList[0].status
+IKKE data.aiGenerateRecord.generateUrl — det felt findes ikke
+Begge GET-kald bruger multipart/form-data:
+plain
+Copy
+GET /getRecord
+Content-Type: multipart/form-data
+Body: uuid=<value>
+Ikke query params. Collov forventer form-data body selv på GET.
+F. Async Workflow — præcis rækkefølge
+JavaScript
+Copy
+async function generateRoomDesign(uploadUrl, roomTypeKey, styleKey) {
+  // 1. Tøm rummet
+  const emptyTask = await callGenerateEmptyRoom(uploadUrl);
+  const emptyResult = await pollEmptyRoom(emptyTask.id);
+  
+  // 2. Stage rummet med tomt-rum URL
+  const designTask = await callGenerateImgOnCommon({
+    uploadUrl,
+    emptyRoomUrl: emptyResult.emptyRoomUrl,
+    roomType: ROOM_TYPES[roomTypeKey],
+    style: STYLES[styleKey]
+  });
+  
+  // 3. Poll for resultat
+  const designResult = await pollDesign(designTask.uuid);
+  
+  return designResult.generateUrl;
+}
+G. Robusthed — obligatorisk
+Rate limiting:
+Max 10 requests per sekund
+Max 2 samtidige aktive tasks
+Client-side concurrency queue:
+JavaScript
+Copy
+// Max 2 aktive tasks — resten køer
+const CONCURRENCY_LIMIT = 2;
+let activeTasks = 0;
+const taskQueue = [];
+HTTP 429 (rate limit):
+Exponential backoff: 1s → 2s → 4s → 8s → 16s → max 30s
+Max 10 retries
+Polling:
+Interval: 3 sekunder
+Max timeout: 3 minutter (180 sekunder)
+Statuser: PENDING → SUCCESS | FAILED
+Fejl-håndtering:
+FAILED status → log fejl, kast error
+Timeout efter 180 sek → kast error
+Network error → retry med backoff
+H. Regenerate API (bonus)
+Hvis første resultat er dårligt, tilbyd regenerate:
+plain
+Copy
+POST /flair/enterpriseApi/vst/reGenerateImgOnCommon
+Body (multipart): uuid=<original uuid>
+Op til 20 gratis regenerations per original billede
+Samme poll endpoint: /getRecord med samme uuid
+Hvert kald tilføjer et nyt element til generateRecordList
+I. Upload-håndtering (vigtigt)
+Collov kræver public URL — ikke base64, ikke lokale filer.
+Implementér et upload-step:
+Bruger uploader billede
+Backend gemmer på S3/CloudFront/public CDN
+Bruger den public URL i Collov API-kaldet
+Alternativ: gem originalt billede i din DB og server det via public URL
+J. Logning
+Log ALT for debugging:
+Hvert API-kald med endpoint, parametre, response time
+Status transitions (PENDING → SUCCESS/FAILED)
+Hvor lang tid hvert step tager (emptyRoom + design)
+Fejl med fuld response body

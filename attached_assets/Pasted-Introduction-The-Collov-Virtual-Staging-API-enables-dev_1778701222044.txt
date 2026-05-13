@@ -1,0 +1,633 @@
+Introduction
+The Collov Virtual Staging API enables developers to integrate AI-powered room transformations into their applications, allowing you to virtually redesign spaces or clear rooms entirely from uploaded images.
+
+With just a few API calls, you can:
+
+
+Room Declutter
+Automatically remove all furniture and decorations while preserving walls, floors, and architectural features.
+
+
+Virtual Staging
+Automatically remove all furniture and decorations while preserving walls, floors, and architectural features.
+
+These APIs are designed to support asynchronous task processing:
+
+You initiate a task with a Send Task API.
+You periodically poll the Get Result API using the returned uuid (for staging) or id (for empty room tasks) until the status is SUCCESS.
+This workflow ensures you can process high-quality AI-generated results without blocking client operations, while respecting rate limits (10 requests/sec) and concurrency limits (2 active tasks).
+
+Whether you're building a real estate platform, an interior design tool, or a property management solution, the Collov Virtual Staging API provides a scalable, programmatic way to create photorealistic room transformations at scale.
+
+Tutorial
+Before you start
+Auth: Send apiKey: YOUR_API_KEY in headers.
+Content-Type: multipart/form-data for both "send task" and "get result" endpoints (per spec).
+Async task process: Send → get a task token (uuid or id) → poll until status: SUCCESS or FAILED.
+Rate limit: 10 requests per second; concurrency limit: 2. If you receive HTTP 429, implement exponential back‑off and retry.
+Virtual Staging: Render a designed room
+Send task
+POSThttps://api.collov.ai/flair/enterpriseApi/vst/generateImgOnCommon
+
+Form fields:
+uploadUrl (string, required) – public URL to the original image
+roomType (enum, required) – one of the room types above
+style (enum, required) – one of the styles above
+emptyRoomUrl (string, optional) – if you already cleared the room, pass its URL to stage on top of it
+Sample curl:
+Set API_KEY in the environment first before running the curl:
+
+export API_KEY="XXXXXXXXXXX"
+curl -X POST "https://api.collov.ai/flair/enterpriseApi/vst/generateImgOnCommon" \
+  -H "apiKey: $API_KEY" \
+  -H "Content-Type: multipart/form-data" \
+  -F "uploadUrl=https://example.com/your/original.jpg" \
+  -F "roomType=living room" \
+  -F "style=modern"
+Python (requests):
+import time, requests
+
+API_KEY = "YOUR_API_KEY"
+BASE = "https://api.collov.ai"
+headers = {"apiKey": API_KEY}
+
+# 1) Send task
+data = {
+    "uploadUrl": "https://example.com/your/original.jpg",
+    "roomType": "living room",
+    "style": "modern",
+    # "emptyRoomUrl": "https://example.com/cleared.webp"  # optional
+}
+
+r = requests.post(f"{BASE}/flair/enterpriseApi/vst/generateImgOnCommon",
+                  headers=headers, files=data)  # multipart/form-data
+r.raise_for_status()
+task = r.json()["data"]
+uuid = task["uuid"]
+print("Task UUID:", uuid)
+JavaScript (fetch):
+import FormData from "form-data";
+import fetch from "node-fetch";
+
+const API_KEY = process.env.API_KEY;
+const form = new FormData();
+form.append("uploadUrl", "https://example.com/your/original.jpg");
+form.append("roomType", "living room");
+form.append("style", "modern");
+
+const res = await fetch(
+  "https://api.collov.ai/flair/enterpriseApi/vst/generateImgOnCommon",
+  {
+    method: "POST",
+    headers: {
+      apiKey: API_KEY,
+      ...form.getHeaders(),
+    },
+    body: form,
+  }
+);
+
+const json = await res.json();
+const uuid = json.data.uuid;
+console.log("Task UUID:", uuid);
+Poll for result
+GEThttps://api.collov.ai/flair/enterpriseApi/vst/getRecord
+
+Query parameter:
+uuid (string, required) – from step 1A response
+Sample curl:
+Set API_KEY in the environment first before running the curl:
+
+export API_KEY="XXXXXXXXXXX"
+curl -X GET 'https://api.collov.ai/flair/enterpriseApi/vst/getRecord' \
+-H "apiKey: $API_KEY" \
+-F 'uuid="YYYYYYYY"'
+Python (Poll pattern):
+              
+def poll_vst(uuid, timeout=180, interval=3):
+    start = time.time()
+    while True:
+        res = requests.get(f"{BASE}/flair/enterpriseApi/vst/getRecord",
+                           headers=headers,  params={"uuid":  uuid})
+        res.raise_for_status()
+        j = res.json()
+        data = j.get("data", {})
+        status = data.get("status")
+
+        if status == "SUCCESS":
+            out = data["aiGenerateRecord"]["generateUrl"]
+            print("Result URL:", out)
+            return out, data
+
+        if status == "FAILED":
+            raise RuntimeError(f"Task failed: {data}")
+
+        if time.time() - start > timeout:
+            raise TimeoutError("VST polling timed out")
+
+        time.sleep(interval)
+
+result_url, data = poll_vst(uuid)
+JavaScript (Poll pattern):
+async function pollVst(uuid, { timeoutMs = 180000, intervalMs = 3000 } = {}) {
+    const start = Date.now();
+    while (true) {
+
+        const r = await fetch(
+          `https://api.collov.ai/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
+          {
+            method: "GET",
+            headers: {
+              "apiKey": process.env.API_KEY,
+            },
+          }
+        );
+
+        const j = await r.json();
+        const data = j.data || {};
+        const status = data.status;
+
+        if (status === "SUCCESS") {
+            return data.aiGenerateRecord.generateUrl;
+        }
+
+        if (status === "FAILED") {
+            throw new Error(`Task failed: ${JSON.stringify(data)}`);
+        }
+
+        if (Date.now() - start > timeoutMs) {
+            throw new Error("VST polling timed out");
+        }
+
+        await new Promise(s => setTimeout(s, intervalMs));
+    }
+}
+What you'll use from the result:
+data.status → SUCCESS/PENDING/FAILED
+data.aiGenerateRecord.generateUrl → final rendered image URL
+data.prompt, data.roomType, data.style, data.durationTime → metadata
+Room Clearing: Create an "empty room" (remove furniture)
+Send task
+POSThttps://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom
+
+Form fields:
+uploadUrl (string, required) – public URL to the original image
+Sample curl:
+Set API_KEY in the environment first before running the curl:
+
+export API_KEY="XXXXXXXXXXX"
+curl -X POST "https://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom" \
+  -H "apiKey: $API_KEY" \
+  -H "Content-Type: multipart/form-data" \
+  -F "uploadUrl=https://example.com/your/original.jpg"
+Response gives you numeric id (store this; you'll poll with it).
+
+Poll for result
+GEThttps://api.collov.ai/flair/enterpriseApi/vst/getEmptyRoomRecord
+
+Query parameter
+id (integer, required) – from step 2A
+Sample curl:
+Set API_KEY in the environment first before running the curl:
+
+export API_KEY="XXXXXXXXXXX"
+curl -X GET 'https://api.collov.ai/flair/enterpriseApi/vst/getEmptyRoomRecord' \
+-H "apiKey: $API_KEY" \
+-F 'id=101382'
+Python (Poll pattern):
+def poll_empty_room(task_id, timeout=180, interval=3):
+    start = time.time()
+    while True:
+        res = requests.get(f"{BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord",
+                           headers=headers, params={"id": str(task_id)})
+        res.raise_for_status()
+        j = res.json()
+        data = j.get("data", {})
+        status = data.get("status")
+
+        if status == "SUCCESS":
+            print("Empty room URL:", data["emptyRoomUrl"])
+            return data["emptyRoomUrl"], data
+
+        if status == "FAILED":
+            raise RuntimeError(f"Empty room task failed: {data}")
+
+        if time.time() - start > timeout:
+            raise TimeoutError("Empty room polling timed out")
+
+        time.sleep(interval)
+Recommended workflow
+(Optional) Clear room first
+Send generateEmptyRoom → poll getEmptyRoomRecord → get emptyRoomUrl.
+Stage the room
+Send generateImgOnCommon with:
+uploadUrl: your original image URL
+emptyRoomUrl: the cleared image URL from step 1 (improves control/consistency)
+roomType, style
+Poll getRecord using uuid.
+Use aiGenerateRecord.generateUrl as your final render.
+Robustness & production tips
+Backoff on 429: exponential backoff (e.g., 1s, 2s, 4s, … up to 30s).
+Timeouts: client-side timeout per poll (e.g., 3–5 minutes) and total job timeout.
+Validate enums: force lowercase & whitelist room types/styles; reject early if invalid.
+Id/UUID storage:
+Room design API uses uuid to poll.
+Empty room API uses numeric id to poll.
+Security: uploadUrl/emptyRoomUrl should be on a public CDN/S3 with read access. Don't pass private URLs that require signed headers (unless they're presigned).
+Watermark & mode: Responses may include watermark, proMode, etc.—log them if you need auditing.
+Concurrency: Keep at most 2 active tasks per account to avoid throttling; queue client-side if needed.
+API Reference
+Async AI-Rendered Room Design (Send Task)
+Initiate a task to take a picture and render a given type of room with instructed design style. The process will modify the furnitures, decorations in the room, but will maintain the room structure as unchanged.
+
+POSThttps://api.collov.ai/flair/enterpriseApi/vst/generateImgOnCommon
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from the enterprise API center.
+Content-Type	multipart/form-data	Data Exchange Format.
+Request Body:
+Field	Type	Is Required	Description
+uploadUrl	String	Yes	The image provided for the process.
+roomType	String enum	Yes	One of the value from below, must be lower case: game room, kitchen, living room, outdoor, bedroom, studio, conference room, home office, home gym, dining room, laundry room, bathroom, spa room, kids room, open living and dining room
+style	String enum	Yes	One of the value from below, must be lower case: scandinavian, luxury, industrial, coastal, transitional, farmhouse, mid-century, modern
+emptyRoomUrl	String	No	Provide if you'd like the generation to happen in a cleared room.
+Sample Response:
+{
+    "success": true,
+    "data": {
+        "roomType": "living room",
+        "style": "modern",
+        "recordId": 76474,
+        "enterpriseId": 8,
+        "id": 5321,
+        "uuid": "41021e83-52c3-433b-8fc0-9961eefa90be",
+        "watermark": false,
+        "proMode": "soft",
+        "uploadUrl": "https://d17axom7zrjq3q.cloudfront.net/20250811/404ea691-6757-4ec1-b8a9-86926c9f777a.webp",
+        "emptyRoomUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/3ac80051-7886-49b8-8586-dcecd51eeae5.webp",
+        "apiRoomType": "living room",
+        "apiStyle": "modern",
+        "createBy": 189641,
+        "updateBy": 189641,
+        "createTime": "Aug 11, 2025 8:45:39 AM",
+        "updateTime": "Aug 11, 2025 8:45:39 AM"
+    },
+    "message": "",
+    "statusCode": 0
+}
+Async Regenerate AI-Rendered Room Design (Send Task)
+Re-render a previously processed room image with same parameters (e.g., style, seed) while preserving the original room structure.
+
+Each source image initially submitted to the Async AI‑Rendered Room Design API receives up to 20 free calls to this regeneration API. After that, further requests fail and you must restart a series of generations with a call to the Async AI‑Rendered Room Design API.
+
+POSThttps://api.collov.ai/flair/enterpriseApi/vst/reGenerateImgOnCommon
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from the enterprise API center.
+Content-Type	multipart/form-data	Data Exchange Format.
+Request Body:
+Field	Type	Is Required	Description
+uuid	String	Yes	The uuid generated from the initial AI-generation API call for the source image.
+Sample Response:
+{
+    "success": true,
+    "data": {
+        "roomType": "living room",
+        "style": "modern",
+        "recordId": 76474,
+        "enterpriseId": 8,
+        "id": 5321,
+        "uuid": "41021e83-52c3-433b-8fc0-9961eefa90be",
+        "watermark": false,
+        "proMode": "soft",
+        "uploadUrl": "https://d17axom7zrjq3q.cloudfront.net/20250811/404ea691-6757-4ec1-b8a9-86926c9f777a.webp",
+        "emptyRoomUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/3ac80051-7886-49b8-8586-dcecd51eeae5.webp",
+        "apiRoomType": "living room",
+        "apiStyle": "modern",
+        "createBy": 189641,
+        "updateBy": 189641,
+        "createTime": "Aug 11, 2025 8:45:39 AM",
+        "updateTime": "Aug 11, 2025 8:45:39 AM"
+    },
+    "message": "",
+    "statusCode": 0
+}
+Design Result Retrieval (Get Result)
+This API endpoint allows repeated queries to retrieve results from both generation APIs:
+
+The Async AI-Rendered Room Design endpoint;
+The Async Regeneration AI-Rendered Room Design endpoint;
+The response bodies from the getRecord call are nearly identical for both generation scenarios, with one key difference:
+
+For the initial Async AI-Rendered Room Design, the generateRecordList field contains only a single GenerateRecord.
+For each subsequent Async Regeneration AI-Rendered Room Design call, an additional GenerateRecord is appended to this list, ordered by request time.
+GEThttps://api.collov.ai/flair/enterpriseApi/vst/getRecord
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Query Parameter:
+Field	Type	Is Required	Description
+uuid	String	Yes	The UUID returned from the task initiation API call that happens earlier.
+Sample Response:
+{
+    "success": true,
+    "data": {
+        "recordId": 76474,
+        "roomType": "living room",
+        "style": "modern",
+        "uploadUrl": "https://d1hk2acgirb1eq.cloudfront.net/68173538-f557-41bf-bffc-c69f95a717c8-empty-room-interior-for-gallery-exhibition-vector.jpg",
+        "enterpriseId": 10,
+        "uuid": "41021e83-52c3-433b-8fc0-9961eefa90be",
+        "proMode": "soft",
+        "generateRecordList": [
+            {
+                "enterpriseUser": {
+                    "id": 10
+                },
+                "status": "SUCCESS",
+                "roomType": "living room",
+                "style": "modern",
+                "startTime": "Aug 15, 2025 8:58:04 AM",
+                "endTime": "Aug 15, 2025 8:58:15 AM",
+                "durationTime": 11,
+                "uploadUrl": "https://d1hk2acgirb1eq.cloudfront.net/68173538-f557-41bf-bffc-c69f95a717c8-empty-room-interior-for-gallery-exhibition-vector.jpg",
+                "generateUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/3aed25a3-0ac6-43f3-a169-43d0599855fc.webp",
+                "images": "[\"https://ai-generate-data4.s3.us-west-1.amazonaws.com/3aed25a3-0ac6-43f3-a169-43d0599855fc.webp\"]",
+                "id": 77238
+            },
+            {
+                "enterpriseUser": {
+                    "id": 10
+                },
+                "status": "SUCCESS",
+                "roomType": "bedroom",
+                "style": "modern",
+                "startTime": "Aug 15, 2025 8:58:57 AM",
+                "endTime": "Aug 15, 2025 8:59:09 AM",
+                "durationTime": 11,
+                "uploadUrl": "https://d1hk2acgirb1eq.cloudfront.net/68173538-f557-41bf-bffc-c69f95a717c8-empty-room-interior-for-gallery-exhibition-vector.jpg",
+                "generateUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/18f6abc5-8cf9-4d4a-8988-9c22d744d3a4.webp",
+                "referId": "2287",
+                "id": 77239
+            }
+        ],
+        "id": 2287,
+        "createBy": 10,
+        "updateBy": 10,
+        "createTime": "Aug 15, 2025 8:58:04 AM",
+        "updateTime": "Aug 15, 2025 8:58:04 AM"
+    },
+    "message": "",
+    "statusCode": 0
+}
+Async AI-Powered Room Clearing (Send Task)
+POSThttps://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Content-Type	multipart/form-data	Data Exchange Format.
+Request Body:
+Field	Type	Is Required	Description
+uploadUrl	String	Yes	The image provided for the process.
+Sample Response:
+{
+    "success": true,
+    "data": {
+        "enterpriseId": 10,
+        "uploadUrl": "https://d17axom7zrjq3q.cloudfront.net/20240806/099bbd0e-4c05-4dbe-a009-eb99b944ff27.webp",
+        "requestId": "0df88b79-143f-43ed-880d-6cdb6bf2c864",
+        "status": "PENDING",
+        "id": 101382,
+        "createBy": 8,
+        "updateBy": 8,
+        "createTime": "Apr 27, 2025 8:14:57 AM",
+        "updateTime": "Apr 27, 2025 8:14:58 AM"
+    },
+    "message": "",
+    "statusCode": 0
+}
+Room Clearing Result Retrieval (Get Result)
+Retrieve the result of the room clearing task by repeatedly querying this API.
+
+GEThttps://api.collov.ai/flair/enterpriseApi/vst/getEmptyRoomRecord
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Query Parameter:
+Field	Type	Is Required	Description
+id	Integer	Yes	The id returned from the task initiation API call that happens earlier.
+Sample Response:
+{
+    "success": true,
+    "data": {
+        "id": 101382,
+        "enterpriseId": 8,
+        "requestId": "0df88b79-143f-43ed-880d-6cdb6bf2c864",
+        "uploadUrl": "https://d17axom7zrjq3q.cloudfront.net/20240806/099bbd0e-4c05-4dbe-a009-eb99b944ff27.webp",
+        "emptyRoomUrl": "https://ai-generate-data4.s3.us-west-1.amazonaws.com/95746b84-4977-4ddd-905c-0f0a36df9766.webp",
+        "status": "SUCCESS",
+        "createBy": 8,
+        "updateBy": 0,
+        "createTime": "Apr 27, 2025 8:14:58 AM",
+        "updateTime": "Apr 27, 2025 8:15:08 AM"
+    },
+    "message": "",
+    "statusCode": 0
+}
+Async AI-Powered Photo Chat Editing (Send Task)
+POSThttps://api.collov.ai/flair/enterpriseApi/edit/generate
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Content-Type	multipart/form-data	Data Exchange Format.
+Request Body:
+Field	Type	Is Required	Description
+uploadUrl	String	Yes	The image provided for the process.
+prompt	String	Yes	Edit Content.
+Sample Response:
+{
+  "success": true,
+  "data": {
+    "uploadUrl": "https://d17axom7zrjq3q.cloudfront.net/20251220/6a2b2ef8-27fc-4f16-b73b-022ecf49ac22.jpg",
+    "prompt": "remove all trees",
+    "enterpriseId": 10,
+    "uuid": "f3e43ff9-2064-4717-a7c2-e60999920407",
+    "startTime": "Feb 6, 2026 9:11:28 AM",
+    "status": "PENDING"
+  },
+  "message": "",
+  "statusCode": 200
+}
+Photo Chat Edit Result Retrieval (Get Result)
+Retrieve the result of the photo chat edit task by repeatedly querying this API.
+
+GEThttps://api.collov.ai/flair/enterpriseApi/edit/getRecord
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Query Parameter:
+Field	Type	Is Required	Description
+uuid	String	Yes	The uuid returned from the task initiation API call that happens earlier.
+Sample Response:
+{
+  "success": true,
+  "data": {
+    "uploadUrl": "https://d17axom7zrjq3q.cloudfront.net/20251220/6a2b2ef8-27fc-4f16-b73b-022ecf49ac22.jpg",
+    "generateUrl": "https://flair-other-test.s3.us-west-1.amazonaws.com/20260206/chatEditImages/984df5ba-ef03-4114-8e65-e9ab98784903.jpeg",
+    "prompt": "remove all trees",
+    "enterpriseId": 10,
+    "uuid": "f3e43ff9-2064-4717-a7c2-e60999920407",
+    "startTime": "Feb 6, 2026 9:11:29 AM",
+    "endTime": "Feb 6, 2026 9:11:56 AM",
+    "status": "SUCCESS"
+  },
+  "message": "",
+  "statusCode": 200
+}
+Async AI Virtual Tool (Send Task)
+POSThttps://api.collov.ai/flair/enterpriseApi/vgs/task
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Content-Type	multipart/form-data	Data Exchange Format.
+Request Body:
+Field	Type	Is Required	Description
+images	array	Yes	{"imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/d535b795-54ff-4d3d-89bb-4bf810326ae1.png","width": 768,"height": 769}
+resolution	String	Yes	One of the value from below: 1080p、720p
+orientation	String	Yes	One of the value from below：Landscape、Portrait、Square
+font	String	No	One of the value from below：Oswald、Amatic、GreatVibes、OpenSans、Montserrat、Playfair
+music	String	No	One of the value from below：Embrace、Future_Design、Waterfall、Happy_Holiday、Summer_Ukulele
+intro	String	No	Text overlay on video
+profileUrl	String	No	Personal profile picture
+logoUrl	String	No	Company logo image
+agentName	String	No	Agent Name
+phoneNumber	String	No	mobile phone number
+email	String	No	Email
+Sample Response:
+{
+    "code": 202,
+    "msg": "ACCEPTED",
+    "data": {
+        "userId": 29815,
+        "conversationId": "",
+        "taskId": "16881c11-d3fb-48ec-b3a8-4655f73b97a6",
+        "step": {
+            "stepId": "9e71f4c5-95ec-4c1a-92dd-ed9b17263c36",
+            "stepType": "IMAGE_RESIZE",
+            "stepStatus": "CREATED"
+        },
+        "videoId": "8ba7eb87-fc02-4003-b54f-43cac9e57a7f",
+        "previewUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/5d194226-2897-4da3-a910-71621fb2dc37.jpg",
+        "videoMeta": {
+            "taskPayload": {
+                "resolution": "1080p",
+                "orientation": "Landscape",
+                "intro": "kitchen text",
+                "font": "Amatic",
+                "music": "Future_Design",
+                "profileUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/ffa227e7-9ff0-4df4-9160-ab67e948eee4.png",
+                "logoUrl": "",
+                "agentName": "kitchen agent name",
+                "phoneNumber": "15256537768",
+                "email": "chenyi340123@gmail.com",
+                "images": [
+                    {
+                        "imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/5d194226-2897-4da3-a910-71621fb2dc37.jpg",
+                        "height": 512,
+                        "width": 768
+                    },
+                    {
+                        "imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/396ca40b-0870-40c6-879e-589ebe00b778.jpg",
+                        "height": 1024,
+                        "width": 768
+                    },
+                    {
+                        "imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/e0dec89b-f095-4df6-b017-3c663eac0896.jpeg",
+                        "height": 513,
+                        "width": 768
+                    },
+                    {
+                        "imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/1fb60407-4e40-4461-9d70-b1ae5fcadbf1.jpg",
+                        "height": 1024,
+                        "width": 768
+                    },
+                    {
+                        "imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/d535b795-54ff-4d3d-89bb-4bf810326ae1.png",
+                        "height": 769,
+                        "width": 768
+                    },
+                    {
+                        "imageUrl": "https://d17axom7zrjq3q.cloudfront.net/20250901/19a7491c-650a-487d-b5e4-960569cdfad0.png",
+                        "height": 576,
+                        "width": 1024
+                    }
+                ]
+            },
+            "mimeType": "video/mp4"
+        },
+        "createTime": "2025-09-02 12:03:07"
+    }
+}
+AI Virtual Tool Result Retrieval (Get Result)
+Retrieve the result of the AI virtual tool task by repeatedly querying this API.
+
+GEThttps://api.collov.ai/flair/enterpriseApi/vgs/loadVideoInfo
+
+Request Headers:
+Field	Value	Description
+apiKey	YOUR_API_KEY	The API key you retrieved from enterprise API center.
+Query Parameter:
+Field	Type	Is Required	Description
+taskId	String	Yes	The taskId returned from the task initiation API call that happens earlier.
+Sample Response:
+{
+    "code": 202,
+    "msg": "ACCEPTED",
+    "data": {
+        "taskId": "16881c11-d3fb-48ec-b3a8-4655f73b97a6",
+        "taskStatus": "COMPLETED",
+        "videoUrl": "https://collov-vst.s3.us-west-1.amazonaws.com/20250902/29815_ef6fb5bcdac538651b1de3bcaa98217b.mp4",
+        "agentVideoUrl": "https://collov-vst.s3.us-west-1.amazonaws.com/20250902/29815_a1e8ccb2108daff6bb7fd2879d76d8f5.mp4",
+        "createTime": {
+            "date": {
+                "year": 2025,
+                "month": 9,
+                "day": 2
+            },
+            "time": {
+                "hour": 12,
+                "minute": 3,
+                "second": 7,
+                "nano": 0
+            }
+        },
+        "updateTime": {
+            "date": {
+                "year": 2025,
+                "month": 9,
+                "day": 2
+            },
+            "time": {
+                "hour": 12,
+                "minute": 6,
+                "second": 7,
+                "nano": 0
+            }
+        }
+    }
+}
+Resources
+Limits
+Rate limit
+All enterprise APIs are rate limited to 10 requests per second. Exceeding this rate limit will result in an HTTP error 429.
+
+Concurrency limit
+All enterprise APIs have a concurrency limit of 2.
