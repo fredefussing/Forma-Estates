@@ -29,6 +29,47 @@ const BUDGET_RANGES: Record<string, { min?: number; max?: number }> = {
   luxury: { min: 8000 },
 };
 
+async function getBestProductForType(
+  type: string,
+  style: string,
+  range: { min?: number; max?: number },
+): Promise<StyleProduct | null> {
+  const buildQuery = (matchStyle: boolean) => {
+    const params: any[] = matchStyle ? [style, type] : [type];
+    let idx = matchStyle ? 3 : 2;
+    const priceConds: string[] = [];
+    if (range.min != null) { priceConds.push(`price >= $${idx++}`); params.push(range.min); }
+    if (range.max != null) { priceConds.push(`price <= $${idx++}`); params.push(range.max); }
+    const priceWhere = priceConds.length ? `AND ${priceConds.join(" AND ")}` : "";
+
+    const styleFilter = matchStyle ? `AND tags->>'style' = $1` : "";
+    const typeParam = matchStyle ? `$2` : `$1`;
+
+    return {
+      sql: `SELECT id, name, image_url, affiliate_link, price, shop, tags, tag_confidence,
+              (${matchStyle ? "3" : "0"} + tag_confidence * 2) as match_score
+            FROM products
+            WHERE tag_processed = TRUE
+              ${styleFilter}
+              AND tags->>'type' = ${typeParam}
+              AND tag_confidence > 0.5
+              ${priceWhere}
+            ORDER BY tag_confidence DESC LIMIT 1`,
+      params,
+    };
+  };
+
+  // Try with style match first, fall back to type-only
+  const { sql: sqlWithStyle, params: paramsWithStyle } = buildQuery(true);
+  const r1 = await pool.query(sqlWithStyle, paramsWithStyle);
+  if (r1.rows[0]) return r1.rows[0];
+
+  // Fallback: any product of this type regardless of style
+  const { sql: sqlAny, params: paramsAny } = buildQuery(false);
+  const r2 = await pool.query(sqlAny, paramsAny);
+  return r2.rows[0] ?? null;
+}
+
 export async function getProductsByStyle(
   style: string,
   roomType: string,
@@ -38,69 +79,17 @@ export async function getProductsByStyle(
   const types = ROOM_FURNITURE_TYPES[roomType] || ["sofa", "lamp", "table", "cabinet"];
   const range = BUDGET_RANGES[budget] || {};
 
-  const priceConditions: string[] = [];
-  const params: any[] = [style, types, limit];
-  let idx = 4;
-
-  if (range.min != null) {
-    priceConditions.push(`price >= $${idx++}`);
-    params.push(range.min);
-  }
-  if (range.max != null) {
-    priceConditions.push(`price <= $${idx++}`);
-    params.push(range.max);
-  }
-
-  const priceWhere = priceConditions.length ? `AND ${priceConditions.join(" AND ")}` : "";
-
-  const sql = `
-    SELECT id, name, image_url, affiliate_link, price, shop, tags, tag_confidence,
-      (
-        CASE WHEN tags->>'style' = $1 THEN 3 ELSE 0 END +
-        CASE WHEN tags->>'type' = ANY($2::text[]) THEN 2 ELSE 0 END +
-        tag_confidence * 2
-      ) as match_score
-    FROM products
-    WHERE tag_processed = TRUE
-      AND tags->>'style' = $1
-      AND tags->>'type' = ANY($2::text[])
-      AND tag_confidence > 0.55
-      ${priceWhere}
-    ORDER BY match_score DESC, tag_confidence DESC
-    LIMIT $3
-  `;
-
-  const result = await pool.query(sql, params);
-
-  if (result.rows.length >= 4) {
-    return {
-      products: result.rows,
-      total_found: result.rows.length,
-      style,
-    };
-  }
-
-  const fallbackParams: any[] = [types, limit];
-  let fi = 3;
-  const fallbackPrice: string[] = [];
-  if (range.min != null) { fallbackPrice.push(`price >= $${fi++}`); fallbackParams.push(range.min); }
-  if (range.max != null) { fallbackPrice.push(`price <= $${fi++}`); fallbackParams.push(range.max); }
-  const fallbackPriceWhere = fallbackPrice.length ? `AND ${fallbackPrice.join(" AND ")}` : "";
-
-  const fallback = await pool.query(
-    `SELECT id, name, image_url, affiliate_link, price, shop, tags, tag_confidence,
-       (CASE WHEN tags->>'type' = ANY($1::text[]) THEN 2 ELSE 0 END + tag_confidence) as match_score
-     FROM products
-     WHERE tag_processed = TRUE AND tags->>'type' = ANY($1::text[]) AND tag_confidence > 0.5
-       ${fallbackPriceWhere}
-     ORDER BY match_score DESC LIMIT $2`,
-    fallbackParams,
+  // Fetch best product per type in parallel — guarantees one bed, one lamp, etc.
+  const results = await Promise.all(
+    types.slice(0, limit).map(type => getBestProductForType(type, style, range))
   );
 
+  const products = results.filter((p): p is StyleProduct => p !== null);
+
   return {
-    products: fallback.rows,
-    total_found: fallback.rows.length,
-    style: `${style} (bredere søgning)`,
+    products: products.slice(0, limit),
+    total_found: products.length,
+    style,
   };
 }
 
