@@ -41,135 +41,59 @@ const upload = multer({
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
 const COLLOV_BASE = "https://api.collov.ai";
 
-// Exact enum values Collov VST API requires (lowercase)
-const COLLOV_ROOM_MAP: Record<string, string> = {
-  "living room":                "living room",
-  "bedroom":                    "bedroom",
-  "kitchen":                    "kitchen",
-  "bathroom":                   "bathroom",
-  "dining room":                "dining room",
-  "home office":                "home office",
-  "kids room":                  "kids room",
-  "game room":                  "game room",
-  "studio":                     "studio",
-  "outdoor":                    "outdoor",
-  "conference room":            "conference room",
-  "home gym":                   "home gym",
-  "laundry room":               "laundry room",
-  "spa room":                   "spa room",
-  "open living and dining room":"open living and dining room",
+
+// ── Style prompts — same as May 3 setup that produced good results ────────────
+const stylePrompts: Record<string, string> = {
+  scandinavian: "Completely redesign this room in Scandinavian style. Light wood furniture, white and off-white walls, minimal decor, natural materials like wool and linen, clean lines, warm cozy Nordic atmosphere. Replace all existing furniture and decor.",
+  modern:       "Completely redesign this room in modern style. Sleek contemporary furniture, neutral color palette, clean lines, open layout feel, minimal clutter, statement lighting. Replace all existing furniture and decor.",
+  luxury:       "Completely redesign this room in luxury style. Premium materials, elegant furniture with rich textures, sophisticated color palette, marble or stone accents, high-end finishes, dramatic lighting. Replace all existing furniture and decor.",
+  industrial:   "Completely redesign this room in industrial style. Dark tones, metal accents, leather or worn fabric furniture, exposed-look elements, Edison bulb lighting, raw and urban atmosphere. Replace all existing furniture and decor.",
+  coastal:      "Completely redesign this room in coastal style. Light blues, sandy and white tones, natural rattan and wicker, linen textiles, beach-inspired decor, airy and relaxed atmosphere. Replace all existing furniture and decor.",
+  transitional: "Completely redesign this room in transitional style. Blend of classic and contemporary furniture, neutral warm palette, clean lines with subtle traditional touches, layered textures. Replace all existing furniture and decor.",
+  farmhouse:    "Completely redesign this room in farmhouse style. Rustic wood furniture, white and cream palette, vintage-inspired accents, shiplap look, cozy textiles, natural organic materials. Replace all existing furniture and decor.",
+  midcentury:   "Completely redesign this room in mid-century modern style. Retro furniture with organic shapes, warm walnut wood tones, bold accent colors, tapered legs, iconic design pieces. Replace all existing furniture and decor.",
 };
 
-const COLLOV_STYLE_MAP: Record<string, string> = {
-  scandinavian:  "scandinavian",
-  modern:        "modern",
-  luxury:        "luxury",
-  industrial:    "industrial",
-  coastal:       "coastal",
-  transitional:  "transitional",
-  farmhouse:     "farmhouse",
-  midcentury:    "mid-century",
-};
-
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-async function collovFetch(url: string, options: RequestInit, retries = 5): Promise<any> {
-  let delay = 1000;
-  for (let i = 0; i <= retries; i++) {
-    const res = await fetch(url, options);
-    if (res.status === 429) {
-      if (i === retries) throw new Error(`Rate limited after ${retries} retries`);
-      log(`Collov 429 — backoff ${delay}ms`);
-      await sleep(delay);
-      delay = Math.min(delay * 2, 30000);
-      continue;
-    }
-    return res.json();
-  }
+function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
+  const styleBase = stylePrompts[style] || `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+  const tierNote = tier === "luxury" ? " Use premium, high-end furniture and materials." : tier === "budget" ? " Use affordable but stylish furniture." : "";
+  const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
+  return `${styleBase}${tierNote}${plantNote}`;
 }
 
-// ── Step 1: Generate empty room ───────────────────────────────────────────────
-async function sendGenerateEmptyRoom(uploadUrl: string): Promise<number> {
+// ── Send redesign task to Collov edit/generate ────────────────────────────────
+async function sendCollovTask(uploadUrl: string, roomType: string, style: string, tier?: string, includePlants = false): Promise<string> {
+  const prompt = buildRedesignPrompt(roomType, style, tier, includePlants);
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
-  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`, {
+  form.append("prompt", prompt);
+
+  log(`Collov redesign send: style=${style}, roomType=${roomType}, prompt="${prompt.slice(0, 100)}..."`);
+
+  const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
     method: "POST",
     headers: { apiKey: COLLOV_API_KEY! },
     body: form,
   });
-  log(`generateEmptyRoom response: ${JSON.stringify(json).slice(0, 300)}`);
-  if (!json.success || !json.data?.id) throw new Error(`Empty room start failed: ${JSON.stringify(json)}`);
-  return json.data.id;
-}
-
-// ── Step 2: Poll empty room until ready ───────────────────────────────────────
-async function pollEmptyRoom(id: number, timeoutMs = 180000): Promise<string> {
-  const start = Date.now();
-  while (true) {
-    const json = await collovFetch(
-      `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${id}`,
-      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-    );
-    const data = json.data || {};
-    log(`pollEmptyRoom id=${id}: status=${data.status}`);
-    if (data.status === "SUCCESS") return data.emptyRoomUrl;
-    if (data.status === "FAILED") throw new Error("Empty room generation failed");
-    if (Date.now() - start > timeoutMs) throw new Error("Empty room polling timed out");
-    await sleep(3000);
-  }
-}
-
-// ── Step 2b: Get empty room URL with one retry ────────────────────────────────
-async function getEmptyRoomUrl(uploadUrl: string, designId: number): Promise<string | undefined> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      log(`Design ${designId}: empty room attempt ${attempt}/2`);
-      const emptyId = await sendGenerateEmptyRoom(uploadUrl);
-      const url = await pollEmptyRoom(emptyId);
-      log(`Design ${designId}: empty room ready → ${url}`);
-      return url;
-    } catch (err: any) {
-      log(`Design ${designId}: empty room attempt ${attempt} failed — ${err.message}`);
-      if (attempt < 2) await sleep(4000);
-    }
-  }
-  log(`Design ${designId}: ⚠️ empty room failed both attempts — falling back to direct staging`);
-  return undefined;
-}
-
-// ── Step 3: Start staged room design ─────────────────────────────────────────
-// uploadUrl   = original high-res photo (always — this is the room structure base)
-// emptyRoomUrl = AI-generated empty room (furniture placement hint for Collov)
-// With both present, Collov stages fresh furniture in the target style while
-// preserving the original room's perspective and architecture.
-async function sendGenerateImgOnCommon(
-  uploadUrl: string,
-  roomType: string,
-  style: string,
-  emptyRoomUrl?: string,
-  stylePrompt?: string,
-): Promise<string> {
-  const collovRoom  = COLLOV_ROOM_MAP[roomType]  || roomType;
-  const collovStyle = COLLOV_STYLE_MAP[style]    || style;
-
-  const form = new FormData();
-  form.append("uploadUrl",     uploadUrl);   // original photo — room structure base
-  form.append("roomType",      collovRoom);
-  form.append("style",         collovStyle);
-  form.append("renderingType", "realistic");
-  if (emptyRoomUrl) form.append("emptyRoomUrl", emptyRoomUrl); // furniture layout hint
-  if (stylePrompt)  form.append("prompt",       stylePrompt);
-
-  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", emptyRoom=${!!emptyRoomUrl}`);
-
-  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
-    method: "POST",
-    headers: { apiKey: COLLOV_API_KEY! },
-    body: form,
-  });
-  log(`generateImgOnCommon response: ${JSON.stringify(json).slice(0, 300)}`);
-  if (!json.success || !json.data?.uuid) throw new Error(`VST generate failed: ${JSON.stringify(json)}`);
+  const json = (await res.json()) as any;
+  log(`Collov redesign response (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 300)}`);
+  if (!json.success || !json.data?.uuid) throw new Error(json.message || "Collov API returned an error");
   return json.data.uuid;
+}
+
+// ── Poll edit/getRecord for result ────────────────────────────────────────────
+async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
+  const res = await fetch(
+    `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+  );
+  const json = (await res.json()) as any;
+  const data = json.data || {};
+  const status = data.status;
+  log(`Collov poll for ${uuid}: status=${status}`);
+  if (status === "SUCCESS") return { status: "completed", resultUrl: data.generateUrl };
+  if (status === "FAILED")  return { status: "failed", failReason: data.failReason || data.message || "unknown" };
+  return { status: "processing" };
 }
 
 // ── Sharp post-processing: sharpen Collov output and save locally ─────────────
@@ -188,229 +112,93 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   return `/uploads/${filename}`;
 }
 
-// ── Poll VST design result at a specific version index ────────────────────────
-// generateRecordList grows: [0]=first, [1]=second regen, [2]=third, etc.
-async function pollVstResult(uuid: string, versionIndex = 0): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
-  const json = await collovFetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
-    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-  );
-  const data   = json.data || {};
-  const list   = Array.isArray(data.generateRecordList) ? data.generateRecordList : [];
-  const record = list[versionIndex] ?? null;
-  const status = record?.status ?? data.status;
-
-  log(`pollVstResult uuid=${uuid} v${versionIndex}: status=${status}, listLen=${list.length}`);
-
-  if (status === "SUCCESS") return { status: "completed", resultUrl: record?.generateUrl ?? data.generateUrl };
-  if (status === "FAILED")  return { status: "failed", failReason: record?.failReason ?? data.failReason ?? "generation_failed" };
-  return { status: "processing" };
-}
-
-// Short focused prompts per style — used as VST fallback
-const VST_STYLE_PROMPTS: Record<string, string> = {
-  scandinavian:  "Scandinavian design: light oak furniture, white walls, wool and linen textiles, minimal clutter, warm hygge lighting.",
-  modern:        "Modern contemporary: sleek low-profile furniture, neutral greys and whites, architectural pendant lights, open uncluttered feel.",
-  luxury:        "Luxury interior: velvet and leather upholstery, jewel tones, brass and gold accents, dramatic statement chandelier.",
-  industrial:    "Industrial loft: dark steel frames, reclaimed wood, worn leather, Edison bulb pendants, exposed concrete texture.",
-  coastal:       "Coastal beach: rattan and wicker furniture, ocean blues and sandy whites, linen drapes, driftwood accents.",
-  transitional:  "Transitional style: classic silhouettes with contemporary finishes, warm neutrals, layered textures.",
-  farmhouse:     "Farmhouse style: reclaimed wood, white shiplap, galvanized metal accents, cozy plaid and linen textiles.",
-  midcentury:    "Mid-century modern: tapered walnut legs, mustard and teal accents, organic shapes, Eames-inspired aesthetic.",
-};
-
-// Detailed Photo Chat Editing prompts per style — primary workflow
-const EDIT_PROMPTS: Record<string, (roomType: string, includePlants: boolean) => string> = {
-  scandinavian: (r, p) =>
-    `Redesign this ${r} in Scandinavian style. Replace all existing furniture with new pieces: light oak or birch wood sofa frame with light grey linen cushions, natural wood coffee table, white or cream armchair, simple open shelving in pale wood. Add a wool or cotton rug in warm beige or off-white. Use pendant lamp in matte black or brushed brass. ${p ? "Add several green plants in white ceramic and woven rattan pots — monstera, snake plant, and potted herbs on shelves." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  modern: (r, p) =>
-    `Redesign this ${r} in modern contemporary style. Replace all furniture with: low-profile sofa in charcoal or slate grey, glass-top or brushed steel coffee table, sculptural leather accent chair, floating wall shelves. Add geometric rug in black and white or muted tones, abstract art on walls, slim metal floor lamp. ${p ? "Include one statement plant — a tall fiddle leaf fig or olive tree in a large concrete or matte black pot." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  luxury: (r, p) =>
-    `Redesign this ${r} in luxury interior style. Replace all furniture with: deep velvet sofa in emerald green or midnight blue with gold legs, marble-top coffee table, tufted accent chairs, ornate dresser or sideboard in dark wood with brass handles. Add richly layered rugs, silk drapes, and a dramatic chandelier or sculptural pendant. ${p ? "Include lush tropical plants in tall gold or brass planters — bird of paradise or palm." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  industrial: (r, p) =>
-    `Redesign this ${r} in industrial loft style. Replace all furniture with: dark steel-frame sofa with worn leather cushions, reclaimed wood coffee table with steel hairpin legs, metal bookshelf, vintage wooden dining chairs. Add Edison-bulb pendant lamps, raw steel floor lamp, distressed leather rug. ${p ? "Include rugged plants — a large cactus or rubber plant in aged terracotta pots." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  coastal: (r, p) =>
-    `Redesign this ${r} in coastal beach style. Replace all furniture with: rattan or wicker sofa with white and sandy linen cushions, driftwood-finish coffee table, whitewashed wooden chairs, open shelving with coastal decor. Add sheer white linen curtains, jute rug, woven sea-grass baskets. ${p ? "Include green plants in white ceramic and woven rattan pots — palms, ferns, or trailing pothos." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  transitional: (r, p) =>
-    `Redesign this ${r} in transitional style. Replace all furniture with: classic-silhouette sofa in warm taupe or greige upholstery, dark-stained wood coffee table with refined lines, rolled-arm accent chairs, understated wooden sideboard. Add layered neutral rugs, subtle patterned throw pillows, warm table lamps. ${p ? "Add elegant plants in ceramic or stone planters — a sculpted snake plant or ZZ plant." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  farmhouse: (r, p) =>
-    `Redesign this ${r} in farmhouse style. Replace all furniture with: large linen or cotton slip-cover sofa in cream or light grey, reclaimed barn wood coffee table, cross-back wooden chairs, open farmhouse shelving with vintage accessories. Add plaid or striped cotton throws, galvanized metal lamp, cotton rag rug. ${p ? "Add fresh herbs in terracotta pots on shelves and a large potted lavender or olive tree." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-
-  midcentury: (r, p) =>
-    `Redesign this ${r} in mid-century modern style. Replace all furniture with: low-profile sofa with tapered walnut legs in mustard or teal upholstery, round walnut coffee table, Eames-style lounge chair in cognac leather, teak credenza or sideboard. Add sunburst wall clock, geometric rug in warm oranges and browns, arc floor lamp in brushed brass. ${p ? "Include a large monstera deliciosa or fiddle leaf fig in a slim teak or ceramic pot." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
-};
-
-// ── Photo Chat Editing: send edit request ─────────────────────────────────────
-async function sendEditGenerate(uploadUrl: string, prompt: string): Promise<string> {
-  const form = new FormData();
-  form.append("uploadUrl", uploadUrl);
-  form.append("prompt", prompt);
-
-  log(`sendEditGenerate: prompt="${prompt.slice(0, 80)}..."`);
-  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
-    method: "POST",
-    headers: { apiKey: COLLOV_API_KEY! },
-    body: form,
-  });
-  log(`edit/generate response: ${JSON.stringify(json).slice(0, 300)}`);
-  if (!json.success || !json.data?.uuid) throw new Error(`Edit generate failed: ${JSON.stringify(json)}`);
-  return json.data.uuid;
-}
-
-// ── Photo Chat Editing: poll result ───────────────────────────────────────────
-async function pollEditResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
-  const json = await collovFetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
-    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-  );
-  const data = json.data || {};
-  const status = data.status;
-  log(`pollEditResult uuid=${uuid}: status=${status}`);
-  if (status === "SUCCESS") return { status: "completed", resultUrl: data.generateUrl };
-  if (status === "FAILED")  return { status: "failed", failReason: data.failReason ?? "generation_failed" };
-  return { status: "processing" };
-}
-
-// ── In-memory status message map (cleared on completion/failure) ───────────────
+// ── In-memory status message map ──────────────────────────────────────────────
 const designStatusMessages = new Map<number, string>();
-function setStatusMsg(designId: number, msg: string) {
-  designStatusMessages.set(designId, msg);
-}
-function clearStatusMsg(designId: number) {
-  designStatusMessages.delete(designId);
-}
+function setStatusMsg(designId: number, msg: string) { designStatusMessages.set(designId, msg); }
+function clearStatusMsg(designId: number) { designStatusMessages.delete(designId); }
 
-// ── Generic poller — works for both edit and VST results ──────────────────────
-async function pollUntilDone(
+// ── Background poll with auto-retry (May 3 pattern) ──────────────────────────
+async function backgroundPoll(
   designId: number,
-  pollFn: () => Promise<{ status: string; resultUrl?: string; failReason?: string }>,
-  maxAttempts = 80,
-): Promise<{ resultUrl: string } | null> {
+  uuid: string,
+  retryFn?: () => Promise<string>,
+) {
+  const maxAttempts = 40;
+  const maxRetries = 1;
+  let attempts = 0;
+  let retryCount = 0;
   const pollStart = Date.now();
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+
+  const poll = async () => {
+    attempts++;
     const elapsed = Math.round((Date.now() - pollStart) / 1000);
     setStatusMsg(designId, `Venter på AI... (${elapsed} sek)`);
-    await sleep(3000);
+
     try {
-      const result = await pollFn();
-      if (result.status === "completed" && result.resultUrl) return { resultUrl: result.resultUrl };
-      if (result.status === "failed") {
-        log(`Design ${designId}: poll returned FAILED — ${result.failReason}`);
-        return null;
-      }
-    } catch (pollErr: any) {
-      log(`Design ${designId}: poll error (attempt ${attempt + 1}): ${pollErr.message}`);
-    }
-  }
-  log(`Design ${designId}: polling timed out after ${maxAttempts * 3}s`);
-  return null;
-}
+      const result = await pollCollovResult(uuid);
 
-// ── Shared finalise: sharpen + save to DB ────────────────────────────────────
-async function finaliseResult(designId: number, collovUrl: string): Promise<void> {
-  setStatusMsg(designId, "Efterbehandler billede...");
-  let finalUrl = collovUrl;
-  try {
-    finalUrl = await sharpenAndSave(collovUrl, designId);
-  } catch (sharpErr: any) {
-    log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
-  }
-  clearStatusMsg(designId);
-  await storage.updateDesign(designId, {
-    status: "completed",
-    resultImageUrl: finalUrl,
-    versions: [finalUrl],
-  });
-  log(`Design ${designId}: completed → ${finalUrl}`);
-}
-
-// ── Primary: Photo Chat Editing workflow ──────────────────────────────────────
-async function runEditWorkflow(
-  designId: number,
-  uploadUrl: string,
-  roomType: string,
-  style: string,
-  includePlants: boolean,
-): Promise<boolean> {
-  try {
-    setStatusMsg(designId, "Analyserer rum...");
-    const promptFn = EDIT_PROMPTS[style];
-    if (!promptFn) throw new Error(`No edit prompt for style: ${style}`);
-    const prompt = promptFn(roomType, includePlants);
-
-    setStatusMsg(designId, "Sender til AI...");
-    const uuid = await sendEditGenerate(uploadUrl, prompt);
-    await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-    log(`Design ${designId}: edit/generate started, uuid=${uuid}`);
-
-    const result = await pollUntilDone(designId, () => pollEditResult(uuid));
-    if (!result) return false;
-
-    await finaliseResult(designId, result.resultUrl);
-    return true;
-  } catch (err: any) {
-    log(`Design ${designId}: edit workflow error — ${err.message}`);
-    return false;
-  }
-}
-
-// ── Fallback: VST direct staging (no emptyRoom) ───────────────────────────────
-async function runVstFallback(
-  designId: number,
-  uploadUrl: string,
-  roomType: string,
-  style: string,
-): Promise<boolean> {
-  try {
-    setStatusMsg(designId, `Designer ${roomType} (fallback)...`);
-    const stylePrompt = VST_STYLE_PROMPTS[style];
-    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, undefined, stylePrompt);
-    await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-    log(`Design ${designId}: VST fallback started, uuid=${uuid}`);
-
-    const result = await pollUntilDone(designId, () => pollVstResult(uuid, 0));
-    if (!result) return false;
-
-    await finaliseResult(designId, result.resultUrl);
-    return true;
-  } catch (err: any) {
-    log(`Design ${designId}: VST fallback error — ${err.message}`);
-    return false;
-  }
-}
-
-// ── Main workflow: edit first → VST fallback ──────────────────────────────────
-async function runVstWorkflow(
-  designId: number,
-  uploadUrl: string,
-  roomType: string,
-  style: string,
-  includePlants = false,
-) {
-  try {
-    log(`Design ${designId}: starting edit/generate workflow`);
-    const editOk = await runEditWorkflow(designId, uploadUrl, roomType, style, includePlants);
-
-    if (!editOk) {
-      log(`Design ${designId}: edit failed — falling back to VST`);
-      setStatusMsg(designId, "Skifter til backup-metode...");
-      const vstOk = await runVstFallback(designId, uploadUrl, roomType, style);
-      if (!vstOk) {
+      if (result.status === "completed" && result.resultUrl) {
+        setStatusMsg(designId, "Efterbehandler billede...");
+        let finalUrl = result.resultUrl;
+        try {
+          finalUrl = await sharpenAndSave(result.resultUrl, designId);
+        } catch (sharpErr: any) {
+          log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
+        }
         clearStatusMsg(designId);
-        await storage.updateDesign(designId, { status: "failed", failReason: "generation_failed" });
+        await storage.updateDesign(designId, {
+          status: "completed",
+          resultImageUrl: finalUrl,
+          versions: [finalUrl],
+        });
+        log(`Design ${designId} completed in ~${elapsed}s`);
+        return;
+      }
+
+      if (result.status === "failed") {
+        if (retryCount < maxRetries && retryFn) {
+          retryCount++;
+          log(`Design ${designId} failed (reason: ${result.failReason}), retry ${retryCount}/${maxRetries}...`);
+          setStatusMsg(designId, "Prøver igen...");
+          await storage.updateDesign(designId, { status: "processing" });
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          try {
+            const newUuid = await retryFn();
+            uuid = newUuid;
+            attempts = 0;
+            await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
+            log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
+            setTimeout(poll, 3000);
+            return;
+          } catch (retryErr: any) {
+            log(`Design ${designId} retry ${retryCount} send failed: ${retryErr.message}`);
+          }
+        }
+        clearStatusMsg(designId);
+        await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "ai_generation_failed" });
+        log(`Design ${designId} failed permanently after ${retryCount} retries, reason: ${result.failReason}`);
+        return;
+      }
+
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 3000);
+      } else {
+        clearStatusMsg(designId);
+        await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
+        log(`Design ${designId} timed out after ~${elapsed}s`);
+      }
+    } catch (err) {
+      log(`Poll error for design ${designId}: ${err}`);
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 5000);
+      } else {
+        clearStatusMsg(designId);
+        await storage.updateDesign(designId, { status: "failed", failReason: "poll_error" });
       }
     }
-  } catch (err: any) {
-    clearStatusMsg(designId);
-    log(`Design ${designId}: top-level workflow error — ${err.message}`);
-    await storage.updateDesign(designId, { status: "failed", failReason: err.message?.slice(0, 100) || "workflow_error" });
-  }
+  };
+
+  poll();
 }
 
 
@@ -600,12 +388,24 @@ export async function registerRoutes(
         return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
       }
 
-      // Start workflow in background — edit/generate first, VST fallback
       const includePlants = req.body.includePlants === "true";
-      runVstWorkflow(design.id, publicUrl, parsed.data.roomType, parsed.data.style, includePlants);
 
-      const updated = await storage.getDesign(design.id);
-      return res.json(updated);
+      try {
+        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
+        await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
+        setStatusMsg(design.id, "Venter på AI...");
+
+        const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
+        backgroundPoll(design.id, uuid, retryFn);
+
+        const updated = await storage.getDesign(design.id);
+        return res.json(updated);
+      } catch (err: any) {
+        log(`Collov API error: ${err.message}`);
+        const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
+        await storage.updateDesign(design.id, { status: "failed", failReason });
+        return res.status(500).json({ message: `AI generering fejlede: ${err.message}`, errorCode: failReason });
+      }
     } catch (err: any) {
       log(`Upload error: ${err.message}`);
       return res.status(500).json({ message: err.message });
