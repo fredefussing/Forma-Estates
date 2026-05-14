@@ -1,0 +1,143 @@
+#!/usr/bin/env node
+// scripts/diagnose-real.mjs — Tjekker det der rent faktisk findes
+
+import pg from "pg";
+import "dotenv/config";
+
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function main() {
+  console.log("=".repeat(60));
+  console.log("REALITETSTJEK — Hvad findes faktisk i databasen?");
+  console.log("=".repeat(60));
+
+  // ── 1. Hvilke tabeller findes? ──────────────────────────
+  console.log("\n--- 1. Tabeller i databasen ---");
+  const tables = await pool.query(`
+    SELECT table_name 
+    FROM information_schema.tables 
+    WHERE table_schema = 'public'
+    ORDER BY table_name
+  `);
+  
+  if (tables.rows.length === 0) {
+    console.log("❌ INGEN tabeller!");
+    await pool.end();
+    return;
+  }
+  
+  for (const t of tables.rows) {
+    const count = await pool.query(`SELECT COUNT(*) FROM "${t.table_name}"`);
+    console.log(`  ${t.table_name}: ${count.rows[0].count} rækker`);
+  }
+
+  // ── 2. Designs tabel ───────────────────────────────────
+  console.log("\n--- 2. Designs tabel struktur ---");
+  const designCols = await pool.query(`
+    SELECT column_name, data_type 
+    FROM information_schema.columns 
+    WHERE table_name = 'designs'
+    ORDER BY ordinal_position
+  `);
+  
+  if (designCols.rows.length === 0) {
+    console.log("❌ 'designs' tabel findes ikke!");
+  } else {
+    for (const c of designCols.rows) {
+      console.log(`  ${c.column_name}: ${c.data_type}`);
+    }
+  }
+
+  // ── 3. Vision kolonne? ─────────────────────────────────
+  console.log("\n--- 3. Har designs vision_description? ---");
+  const hasVision = designCols.rows.some(c => c.column_name === 'vision_description');
+  console.log(hasVision ? "  ✅ JA" : "  ❌ NEJ — vision_description mangler!");
+
+  // ── 4. Products tabel? ─────────────────────────────────
+  console.log("\n--- 4. Products tabel ---");
+  const hasProducts = tables.rows.some(t => t.table_name === 'products');
+  console.log(hasProducts ? "  ✅ products findes" : "  ❌ products findes IKKE!");
+
+  if (hasProducts) {
+    const count = await pool.query(`SELECT COUNT(*) FROM products`);
+    console.log(`     ${count.rows[0].count} produkter`);
+    
+    const hasVectors = await pool.query(`
+      SELECT COUNT(*) FROM products WHERE vector_clip IS NOT NULL
+    `);
+    console.log(`     ${hasVectors.rows[0].count} med vector_clip`);
+    
+    const hasTextVectors = await pool.query(`
+      SELECT COUNT(*) FROM products WHERE vector_text IS NOT NULL
+    `);
+    console.log(`     ${hasTextVectors.rows[0].count} med vector_text`);
+    
+    const hasTags = await pool.query(`
+      SELECT COUNT(*) FROM products WHERE tags IS NOT NULL
+    `);
+    console.log(`     ${hasTags.rows[0].count} med tags`);
+    
+    const hasAffiliate = await pool.query(`
+      SELECT COUNT(*) FROM products WHERE affiliate_url IS NOT NULL AND affiliate_url != ''
+    `);
+    console.log(`     ${hasAffiliate.rows[0].count} med affiliate_url`);
+  }
+
+  // ── 5. Product_matches tabel? ──────────────────────────
+  console.log("\n--- 5. product_matches tabel ---");
+  const hasMatches = tables.rows.some(t => t.table_name === 'product_matches');
+  console.log(hasMatches ? "  ✅ findes" : "  ❌ findes IKKE!");
+
+  // ── 6. Seneste design — vision? ────────────────────────
+  console.log("\n--- 6. Vision data på seneste design ---");
+  if (designCols.rows.length > 0) {
+    const latest = await pool.query(`
+      SELECT id, vision_description, status, room_type, style
+      FROM designs ORDER BY id DESC LIMIT 1
+    `);
+    
+    if (latest.rows[0]) {
+      console.log(`  Design #${latest.rows[0].id}: ${latest.rows[0].status}`);
+      console.log(`  vision_description: ${latest.rows[0].vision_description ? "✅ OK" : "❌ NULL"}`);
+      console.log(`  room_type: ${latest.rows[0].room_type}`);
+      console.log(`  style: ${latest.rows[0].style}`);
+    }
+  }
+
+  // ── 7. Frontend routes ─────────────────────────────────
+  console.log("\n--- 7. Backend routes (tjek server/routes.ts) ---");
+  console.log("  Tjek manuelt i server/routes.ts:");
+  console.log("  - Findes POST /api/designs/:id/products?");
+  console.log("  - Findes POST /api/designs/:id/match?");
+  console.log("  - Findes GET /api/products/search?");
+  console.log("  - Findes product matcher funktion?");
+
+  console.log("\n" + "=".repeat(60));
+  console.log("KONKLUSION");
+  console.log("=".repeat(60));
+  
+  if (!hasProducts) {
+    console.log("\n❌❌❌ PRODUKT-DATABASEN MANGLER HELT ❌❌❌");
+    console.log("Du har ingen products tabel. Affiliate kan ikke virke.");
+    console.log("Løsning: Importer produkter eller genskab databasen.");
+  } else if (!hasMatches) {
+    console.log("\n⚠️  product_matches tabel mangler");
+    console.log("Products findes, men matches gemmes ikke.");
+    console.log("Løsning: Opret product_matches tabel.");
+  } else if (!hasVision) {
+    console.log("\n⚠️  vision_description kolonne mangler");
+    console.log("Produkter findes, men vision analyse kører ikke.");
+    console.log("Løsning: Tilføj vision kolonne + kør vision analyse.");
+  } else {
+    console.log("\n✅ Alle tabeller findes!");
+    console.log("Tjek om vision køres og matcher kaldes i workflow.");
+  }
+
+  await pool.end();
+}
+
+main().catch(err => {
+  console.error("Fejl:", err);
+  process.exit(1);
+});
