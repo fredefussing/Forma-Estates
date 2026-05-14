@@ -70,6 +70,7 @@ export const designs = pgTable("designs", {
   userId: integer("user_id").references(() => users.id),
   originalImageUrl: text("original_image_url").notNull(),
   resultImageUrl: text("result_image_url"),
+  versions: text("versions").array(),
   roomType: text("room_type").notNull(),
   style: text("style").notNull(),
   status: text("status").notNull().default("pending"),

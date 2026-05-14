@@ -209,6 +209,11 @@ export default function HomePage() {
   const [showValueModal, setShowValueModal] = useState(false);
   const [popupBudget, setPopupBudget] = useState<number>(initialBudget);
 
+  // Version tracking — each reGenerate adds a new URL to this array
+  const [versions, setVersions] = useState<string[]>([]);
+  const [selectedVersionIdx, setSelectedVersionIdx] = useState(0);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
   const { data: designs = [] } = useQuery<Design[]>({
     queryKey: ["/api/designs", "my"],
     queryFn: async () => {
@@ -228,6 +233,9 @@ export default function HomePage() {
   useEffect(() => {
     if (job.status === "completed" && job.resultUrl && activeDesign) {
       setActiveDesign({ ...activeDesign, status: "completed", resultImageUrl: job.resultUrl });
+      const v = job.versions.length > 0 ? job.versions : [job.resultUrl];
+      setVersions(v);
+      setSelectedVersionIdx(0);
       queryClient.invalidateQueries({ queryKey: ["/api/designs", "my"] });
     }
     if (job.status === "failed" && activeDesign) {
@@ -241,6 +249,40 @@ export default function HomePage() {
       });
     }
   }, [job.status, job.resultUrl, job.error]);
+
+  // Poll for new version after reGenerateImgOnCommon — watches versions array
+  useEffect(() => {
+    if (!isRegenerating || !activeDesign) return;
+    const expectedCount = versions.length + 1;
+    let active = true;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/designs/${activeDesign.id}/status`);
+        const data = await res.json();
+        const newVersions: string[] = Array.isArray(data.versions) ? data.versions : [];
+        if (active && newVersions.length >= expectedCount) {
+          setVersions(newVersions);
+          setSelectedVersionIdx(newVersions.length - 1);
+          setIsRegenerating(false);
+        }
+      } catch { /* ignore transient errors */ }
+    }, 3000);
+    return () => { active = false; clearInterval(interval); };
+  }, [isRegenerating]);
+
+  const regenerateMutation = useMutation({
+    mutationFn: async (designId: number) => {
+      const res = await fetch(`/api/designs/${designId}/regenerate`, { method: "POST" });
+      if (!res.ok) throw new Error("Regenerering fejlede");
+      return res.json();
+    },
+    onSuccess: () => {
+      setIsRegenerating(true);
+    },
+    onError: () => {
+      toast({ title: "Regenerering fejlede", description: "Prøv igen om lidt.", variant: "destructive" });
+    },
+  });
 
   const generateMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -385,6 +427,9 @@ export default function HomePage() {
     setTier("standard");
     setActiveDesign(null);
     setPollingDesignId(null);
+    setVersions([]);
+    setSelectedVersionIdx(0);
+    setIsRegenerating(false);
     job.reset();
     setStep(1);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -706,10 +751,46 @@ export default function HomePage() {
                   <div className="space-y-6">
                     <BeforeAfterSlider
                       beforeSrc={activeDesign.originalImageUrl}
-                      afterSrc={activeDesign.resultImageUrl}
+                      afterSrc={versions[selectedVersionIdx] || activeDesign.resultImageUrl}
                     />
 
-                    <FurnitureDetector imageUrl={activeDesign.resultImageUrl!} autoRun designStyle={activeDesign.style ?? undefined} />
+                    {/* Version strip — thumbnails + regen button */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {versions.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedVersionIdx(idx)}
+                          data-testid={`button-version-${idx}`}
+                          className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${selectedVersionIdx === idx ? "border-foreground shadow-md" : "border-border/50 opacity-60 hover:opacity-90"}`}
+                        >
+                          <img src={url} alt={`Version ${idx + 1}`} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-0.5 right-1 text-[9px] font-semibold text-white drop-shadow-md">
+                            v{idx + 1}
+                          </span>
+                        </button>
+                      ))}
+
+                      {isRegenerating ? (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-sm text-muted-foreground" data-testid="status-regenerating">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Genererer ny version...
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 text-xs"
+                          disabled={regenerateMutation.isPending}
+                          onClick={() => regenerateMutation.mutate(activeDesign.id)}
+                          data-testid="button-regenerate"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                          Se anden version
+                        </Button>
+                      )}
+                    </div>
+
+                    <FurnitureDetector imageUrl={versions[selectedVersionIdx] || activeDesign.resultImageUrl!} autoRun designStyle={activeDesign.style ?? undefined} />
 
                     <ShopThisStyle
                       style={activeDesign.style || "scandinavian"}

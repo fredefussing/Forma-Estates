@@ -3,12 +3,14 @@ import { useEffect, useState, useCallback } from 'react';
 export function useTransformationJob(designId: number | null) {
   const [status, setStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [versions, setVersions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
   const reset = useCallback(() => {
     setStatus('idle');
     setResultUrl(null);
+    setVersions([]);
     setError(null);
     setProgress(0);
   }, []);
@@ -39,6 +41,7 @@ export function useTransformationJob(designId: number | null) {
           if (data.status === 'completed') {
             setStatus('completed');
             setResultUrl(data.resultUrl);
+            setVersions(Array.isArray(data.versions) ? data.versions : data.resultUrl ? [data.resultUrl] : []);
             setProgress(100);
             return;
           }
@@ -72,5 +75,5 @@ export function useTransformationJob(designId: number | null) {
     };
   }, [designId, reset]);
 
-  return { status, resultUrl, error, progress, reset };
+  return { status, resultUrl, versions, error, progress, reset };
 }

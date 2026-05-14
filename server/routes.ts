@@ -87,35 +87,17 @@ async function collovFetch(url: string, options: RequestInit, retries = 5): Prom
   }
 }
 
-// ── Step 1: Generate empty room (with 1 retry for reliability) ───────────────
-async function sendGenerateEmptyRoom(uploadUrl: string): Promise<number> {
+// ── Trigger a re-generation with the same uuid (different furniture placement) ─
+async function sendReGenerateImgOnCommon(uuid: string): Promise<void> {
   const form = new FormData();
-  form.append("uploadUrl", uploadUrl);
-  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`, {
+  form.append("uuid", uuid);
+  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/reGenerateImgOnCommon`, {
     method: "POST",
     headers: { apiKey: COLLOV_API_KEY! },
     body: form,
   });
-  log(`generateEmptyRoom response: ${JSON.stringify(json).slice(0, 300)}`);
-  if (!json.success || !json.data?.id) throw new Error(`Empty room start failed: ${JSON.stringify(json)}`);
-  return json.data.id;
-}
-
-// ── Step 2: Poll empty room until ready ───────────────────────────────────────
-async function pollEmptyRoom(id: number, timeoutMs = 180000): Promise<string> {
-  const start = Date.now();
-  while (true) {
-    const json = await collovFetch(
-      `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${id}`,
-      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-    );
-    const data = json.data || {};
-    log(`pollEmptyRoom id=${id}: status=${data.status}`);
-    if (data.status === "SUCCESS") return data.emptyRoomUrl;
-    if (data.status === "FAILED") throw new Error("Empty room generation failed");
-    if (Date.now() - start > timeoutMs) throw new Error("Empty room polling timed out");
-    await sleep(3000);
-  }
+  log(`reGenerateImgOnCommon uuid=${uuid} response: ${JSON.stringify(json).slice(0, 300)}`);
+  if (!json.success) throw new Error(`reGenerate failed: ${JSON.stringify(json)}`);
 }
 
 // ── Step 3: Start staged room design ─────────────────────────────────────────
@@ -153,17 +135,19 @@ async function sendGenerateImgOnCommon(
   return json.data.uuid;
 }
 
-// ── Step 4: Poll VST design result ────────────────────────────────────────────
-async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
+// ── Poll VST design result at a specific version index ────────────────────────
+// generateRecordList grows: [0]=first, [1]=second regen, [2]=third, etc.
+async function pollVstResult(uuid: string, versionIndex = 0): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
   const json = await collovFetch(
     `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
     { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
   );
   const data   = json.data || {};
-  const record = Array.isArray(data.generateRecordList) ? data.generateRecordList[0] : null;
+  const list   = Array.isArray(data.generateRecordList) ? data.generateRecordList : [];
+  const record = list[versionIndex] ?? null;
   const status = record?.status ?? data.status;
 
-  log(`pollVstResult uuid=${uuid}: status=${status}, raw=${JSON.stringify(json).slice(0, 400)}`);
+  log(`pollVstResult uuid=${uuid} v${versionIndex}: status=${status}, listLen=${list.length}`);
 
   if (status === "SUCCESS") return { status: "completed", resultUrl: record?.generateUrl ?? data.generateUrl };
   if (status === "FAILED")  return { status: "failed", failReason: record?.failReason ?? data.failReason ?? "generation_failed" };
@@ -184,27 +168,27 @@ const VST_STYLE_PROMPTS: Record<string, string> = {
 
 // ── Full async VST workflow (runs entirely in background) ─────────────────────
 async function runVstWorkflow(designId: number, uploadUrl: string, roomType: string, style: string) {
-  // Realistic rendering takes longer — allow up to ~5 min total poll time
   const maxPollAttempts = 80;
 
   try {
-    // Step 3: Start staged design with realistic rendering + style prompt
-    // We pass only the original high-res uploadUrl — not the empty room URL — to
-    // avoid cumulative blur from chaining two AI generation steps.
     const stylePrompt = VST_STYLE_PROMPTS[style];
     const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, stylePrompt);
     await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-    log(`Design ${designId}: VST realistic task started, uuid=${uuid}`);
+    log(`Design ${designId}: VST task started, uuid=${uuid}`);
 
-    // Step 4: Poll for final result
     let attempts = 0;
     while (attempts < maxPollAttempts) {
       attempts++;
       await sleep(3000);
       try {
-        const result = await pollVstResult(uuid);
+        const result = await pollVstResult(uuid, 0);
         if (result.status === "completed" && result.resultUrl) {
-          await storage.updateDesign(designId, { status: "completed", resultImageUrl: result.resultUrl });
+          // Store URL in both resultImageUrl and versions[0] so regen can extend it
+          await storage.updateDesign(designId, {
+            status: "completed",
+            resultImageUrl: result.resultUrl,
+            versions: [result.resultUrl],
+          });
           log(`Design ${designId}: completed in ~${attempts * 3}s → ${result.resultUrl}`);
           return;
         }
@@ -223,6 +207,46 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
   } catch (err: any) {
     log(`Design ${designId}: workflow error — ${err.message}`);
     await storage.updateDesign(designId, { status: "failed", failReason: err.message?.slice(0, 100) || "workflow_error" });
+  }
+}
+
+// ── Async regeneration workflow — adds a new version to generateRecordList ────
+async function runVstRegenWorkflow(designId: number, uuid: string, versionIndex: number) {
+  const maxPollAttempts = 80;
+  try {
+    await sendReGenerateImgOnCommon(uuid);
+    log(`Design ${designId}: regen started for v${versionIndex}`);
+
+    let attempts = 0;
+    while (attempts < maxPollAttempts) {
+      attempts++;
+      await sleep(3000);
+      try {
+        const result = await pollVstResult(uuid, versionIndex);
+        if (result.status === "completed" && result.resultUrl) {
+          const design = await storage.getDesign(designId);
+          const currentVersions = design?.versions ?? [];
+          // Ensure array length matches — pad if needed, then set at versionIndex
+          const newVersions = [...currentVersions];
+          newVersions[versionIndex] = result.resultUrl;
+          await storage.updateDesign(designId, {
+            resultImageUrl: result.resultUrl,
+            versions: newVersions,
+          });
+          log(`Design ${designId}: regen v${versionIndex} done → ${result.resultUrl}`);
+          return;
+        }
+        if (result.status === "failed") {
+          log(`Design ${designId}: regen v${versionIndex} FAILED`);
+          return;
+        }
+      } catch (pollErr: any) {
+        log(`Design ${designId}: regen poll error (attempt ${attempts}): ${pollErr.message}`);
+      }
+    }
+    log(`Design ${designId}: regen v${versionIndex} timed out`);
+  } catch (err: any) {
+    log(`Design ${designId}: regen workflow error — ${err.message}`);
   }
 }
 
@@ -526,6 +550,35 @@ export async function registerRoutes(
     return res.json(design);
   });
 
+  // ── POST /api/designs/:id/regenerate ─────────────────────────────────────────
+  // Triggers a new Collov reGenerate call (different furniture placement) using
+  // the same uuid. Returns the versionIndex that will be populated when done.
+  // Frontend polls /api/designs/:id/status and watches versions array length.
+  app.post("/api/designs/:id/regenerate", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+      const design = await storage.getDesign(id);
+      if (!design) return res.status(404).json({ error: "Design not found" });
+      if (!design.collovUuid) return res.status(400).json({ error: "No Collov UUID for this design" });
+      if (design.status !== "completed") return res.status(400).json({ error: "Design not yet completed" });
+
+      const currentVersions = design.versions ?? [];
+      const versionIndex = currentVersions.length; // next slot in generateRecordList
+
+      // Fire and forget — frontend polls status for new version
+      runVstRegenWorkflow(id, design.collovUuid, versionIndex).catch((err) =>
+        log(`Regen workflow error for design ${id}: ${err.message}`)
+      );
+
+      return res.json({ ok: true, versionIndex });
+    } catch (err: any) {
+      log(`Regenerate route error: ${err.message}`);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.get("/api/designs/:id/status", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -535,7 +588,12 @@ export async function registerRoutes(
       if (!design) return res.status(404).json({ status: "error", error: "Design not found", resultUrl: null });
 
       if (design.status === "completed") {
-        return res.json({ status: "completed", resultUrl: design.resultImageUrl, error: null });
+        return res.json({
+          status: "completed",
+          resultUrl: design.resultImageUrl,
+          versions: design.versions ?? [],
+          error: null,
+        });
       }
       if (design.status === "failed") {
         const reason = design.failReason || "unknown";
