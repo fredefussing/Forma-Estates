@@ -91,8 +91,8 @@ export const DANISH_SYNONYMS: Record<string, string[]> = {
 const PROMPT = `You are analyzing a cropped furniture image from an interior design photo.
 Return ONLY valid JSON (no markdown, no explanation) with these exact fields:
 {
-  "type": "lounge_chair|dining_chair|sofa|coffee_table|side_table|dining_table|rug|lamp|shelf|cabinet|bed|nightstand|mirror|bench|other",
-  "color": "white|cream|light_oak|warm_oak|honey_pine|light_birch|light_brown|dark_walnut|dark_brown|espresso|black|warm_grey|cool_grey|gray|blue|navy|green|olive|natural|beige|yellow|pink|orange",
+  "type": "lounge_chair|dining_chair|sofa|coffee_table|side_table|dining_table|rug|floor_lamp|table_lamp|ceiling_lamp|wall_lamp|shelf|cabinet|sideboard|wardrobe|desk|bed|nightstand|mirror|bench|other",
+  "color": "white|cream|light_oak|warm_oak|honey_pine|light_birch|light_brown|dark_walnut|dark_brown|espresso|black|warm_grey|cool_grey|gray|blue|navy|green|olive|natural|beige|yellow|pink|orange|rattan",
   "material": "woven|rattan|fabric|leather|velvet|wood|metal|glass|boucle|linen|plastic|other",
   "legs": "tapered_wood|straight_wood|metal|hairpin|sled|no_legs|other",
   "style": "scandinavian|modern|minimalist|rustic|industrial|bohemian|classic|mid_century|luxury",
@@ -104,13 +104,14 @@ Return ONLY valid JSON (no markdown, no explanation) with these exact fields:
 }
 
 CRITICAL RULES:
-- color: Use specific tone — not just "brown". "light_oak" = pale natural wood. "dark_walnut" = deep brown wood. "warm_oak" = medium honey-toned wood. "espresso" = very dark brown. "warm_grey" = beige-grey mix. "cool_grey" = blue-grey.
+- type: Distinguish lamp subtypes: "floor_lamp" = stands on floor. "table_lamp" = sits on table/surface. "ceiling_lamp" = hangs from ceiling (pendant/chandelier). "wall_lamp" = mounted on wall. Use "lounge_chair" for accent/armchairs. Use "sideboard" for low storage units. Use "desk" for writing/office desks. Use "wardrobe" for tall clothing storage.
+- color: Use specific tone — not just "brown". "light_oak" = pale natural wood. "dark_walnut" = deep brown wood. "warm_oak" = medium honey-toned wood. "espresso" = very dark brown. "warm_grey" = beige-grey mix. "cool_grey" = blue-grey. "rattan" for natural wicker/rattan color.
 - "woven"/"rattan" = braided/wicker material
-- shape: "L-shaped" for corner sofas or chaise sections
-- size: "small" = compact/petite. "large" = oversized/sectional. "medium" = standard
+- shape: "L-shaped" ONLY for corner sofas or chaise sections. "round" for round tables/rugs.
+- size: "small" = compact/petite/2-seater/90cm bed. "large" = oversized/sectional/3-seater+/180cm+ bed. "medium" = standard
 - openness: "open" = visible shelves no doors. "closed" = doors/drawers cover contents. "na" = not storage furniture
 - "indoor": false ONLY for obvious outdoor furniture
-- searchText: focus on visual characteristics that distinguish this from similar furniture. Be specific about color tone and proportions.`;
+- searchText: focus on visual characteristics that distinguish this from similar furniture. Be specific about color tone, size, and proportions.`;
 
 const VISION_CACHE = new Map<string, FurnitureDescription | null>();
 

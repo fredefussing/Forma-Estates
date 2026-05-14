@@ -43,22 +43,14 @@ const COLLOV_BASE = "https://api.collov.ai";
 
 
 // ── Style prompts — same as May 3 setup that produced good results ────────────
-const stylePrompts: Record<string, string> = {
-  scandinavian: "Completely redesign this room in Scandinavian style. Light wood furniture, white and off-white walls, minimal decor, natural materials like wool and linen, clean lines, warm cozy Nordic atmosphere. Replace all existing furniture and decor.",
-  modern:       "Completely redesign this room in modern style. Sleek contemporary furniture, neutral color palette, clean lines, open layout feel, minimal clutter, statement lighting. Replace all existing furniture and decor.",
-  luxury:       "Completely redesign this room in luxury style. Premium materials, elegant furniture with rich textures, sophisticated color palette, marble or stone accents, high-end finishes, dramatic lighting. Replace all existing furniture and decor.",
-  industrial:   "Completely redesign this room in industrial style. Dark tones, metal accents, leather or worn fabric furniture, exposed-look elements, Edison bulb lighting, raw and urban atmosphere. Replace all existing furniture and decor.",
-  coastal:      "Completely redesign this room in coastal style. Light blues, sandy and white tones, natural rattan and wicker, linen textiles, beach-inspired decor, airy and relaxed atmosphere. Replace all existing furniture and decor.",
-  transitional: "Completely redesign this room in transitional style. Blend of classic and contemporary furniture, neutral warm palette, clean lines with subtle traditional touches, layered textures. Replace all existing furniture and decor.",
-  farmhouse:    "Completely redesign this room in farmhouse style. Rustic wood furniture, white and cream palette, vintage-inspired accents, shiplap look, cozy textiles, natural organic materials. Replace all existing furniture and decor.",
-  midcentury:   "Completely redesign this room in mid-century modern style. Retro furniture with organic shapes, warm walnut wood tones, bold accent colors, tapered legs, iconic design pieces. Replace all existing furniture and decor.",
-};
-
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
-  const styleBase = stylePrompts[style] || `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
-  const tierNote = tier === "luxury" ? " Use premium, high-end furniture and materials." : tier === "budget" ? " Use affordable but stylish furniture." : "";
+  const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
+  const vocab = styleVocabulary[style]?.[validTier];
+  const base = vocab
+    ? `Completely redesign this ${roomType}. ${vocab.prompt} Replace all existing furniture and decor.`
+    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
-  return `${styleBase}${tierNote}${plantNote}`;
+  return `${base}${plantNote}`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
