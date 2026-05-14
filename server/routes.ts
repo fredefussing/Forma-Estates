@@ -151,12 +151,21 @@ async function backgroundPoll(
           log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
         }
         clearStatusMsg(designId);
+        const design = await storage.getDesign(designId);
         await storage.updateDesign(designId, {
           status: "completed",
           resultImageUrl: finalUrl,
           versions: [finalUrl],
         });
         log(`Design ${designId} completed in ~${elapsed}s`);
+
+        // Kør affiliate pipeline i baggrunden (blokerer ikke polling)
+        if (design) {
+          const { runAffiliatePipeline } = await import("./affiliatePipeline");
+          runAffiliatePipeline(designId, finalUrl, design.roomType).catch(
+            (e: any) => log(`[Affiliate] Design ${designId} pipeline uncaught: ${e.message}`)
+          );
+        }
         return;
       }
 

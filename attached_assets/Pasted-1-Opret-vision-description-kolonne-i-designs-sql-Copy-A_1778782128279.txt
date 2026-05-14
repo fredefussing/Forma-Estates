@@ -1,0 +1,237 @@
+1. Opret vision_description kolonne i designs
+sql
+Copy
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS vision_description TEXT;
+2. Opret product_matches tabel
+sql
+Copy
+CREATE TABLE IF NOT EXISTS product_matches (
+  id SERIAL PRIMARY KEY,
+  design_id INTEGER NOT NULL REFERENCES designs(id),
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  match_score DECIMAL(5,2),
+  match_type VARCHAR(20), -- 'same_style' | 'alternative'
+  rank INTEGER,
+  clicked BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(design_id, product_id)
+);
+3. TILFØJ vision + matching til workflowet
+Efter billede er genereret (status = "completed"), skal dette køres:
+plain
+Copy
+Billede færdigt 
+  → Vision analyse (GPT-4o-mini beskriver møbler)
+  → CLIP text embedding af beskrivelse
+  → pgvector søgning mod products.vector_clip
+  → Scoring (type + farve + stil)
+  → Gem top 6 i product_matches
+Konkret kode til Replit
+Opret filen server/affiliatePipeline.ts:
+TypeScript
+Copy
+import { Pool } from "pg";
+import OpenAI from "openai";
+import { getDb } from "./db";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// A. Vision analyse — beskriver AI-billedet
+export async function analyzeVision(
+  imageBase64: string,
+  roomType: string
+): Promise<{
+  description: string;
+  types: string[];
+  colors: string[];
+  styles: string[];
+  materials: string[];
+}> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `Beskriv møblerne i dette AI-genererede ${roomType} på engelsk. 
+Returner KUN JSON: { "description": "...", "types": ["sofa"], "colors": ["grey"], "styles": ["scandinavian"], "materials": ["fabric"] }`
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `Analyser dette ${roomType}.` },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "low" } }
+        ]
+      }
+    ],
+    max_tokens: 300,
+    response_format: { type: "json_object" }
+  });
+
+  return JSON.parse(response.choices[0].message.content);
+}
+
+// B. Match produkter — SQL-baseret (ingen vector_text nødvendig endnu)
+export async function matchProductsForDesign(
+  designId: number,
+  vision: { types: string[]; colors: string[]; styles: string[]; materials: string[] }
+): Promise<any[]> {
+  const pool = getDb();
+  
+  // Danske typer → DB typer
+  const typeMap: Record<string, string> = {
+    sofa: "sofa", stol: "lounge_chair", stole: "lounge_chair",
+    seng: "bed", lampe: "lamp", bord: "dining_table",
+    sofabord: "coffee_table", reol: "bookshelf", spejl: "mirror",
+    tæppe: "rug", gardin: "curtain"
+  };
+  
+  const dbTypes = vision.types
+    .map(t => typeMap[t.toLowerCase()])
+    .filter(Boolean);
+
+  // Byg query — type er MANDATORY
+  let query = `
+    SELECT p.id, p.name, p.name_en, p.price, p.currency, 
+           p.image_url, p.affiliate_url, p.retailer, p.tags,
+           CASE WHEN p.tags->>'color' = ANY($2) THEN 50 ELSE 0 END +
+           CASE WHEN p.tags->>'style' = ANY($3) THEN 30 ELSE 0 END +
+           CASE WHEN p.tags->>'material' = ANY($4) THEN 20 ELSE 0 END as score
+    FROM products p
+    WHERE p.tags->>'type' = ANY($1)
+    ORDER BY score DESC, random()
+    LIMIT 12
+  `;
+  
+  // Hvis ingen types fundet → brug room_type som fallback
+  if (dbTypes.length === 0) {
+    query = `
+      SELECT p.id, p.name, p.name_en, p.price, p.currency,
+             p.image_url, p.affiliate_url, p.retailer, p.tags,
+             CASE WHEN p.tags->>'style' = ANY($3) THEN 50 ELSE 0 END +
+             CASE WHEN p.tags->>'color' = ANY($2) THEN 30 ELSE 0 END as score
+      FROM products p
+      WHERE p.room_type = $5 OR p.category = $5
+      ORDER BY score DESC, random()
+      LIMIT 12
+    `;
+  }
+
+  const { rows } = await pool.query(query, [
+    dbTypes,
+    vision.colors,
+    vision.styles,
+    vision.materials,
+    vision.types[0] // fallback
+  ]);
+
+  // Gem matches
+  const matches = [];
+  const sameStyle = rows.slice(0, 3);   // Top 3 = "I samme stil"
+  const alt = rows.slice(3, 6);          // Næste 3 = "Alternativ"
+
+  for (let i = 0; i < sameStyle.length; i++) {
+    matches.push({ ...sameStyle[i], match_type: "same_style", rank: i + 1 });
+  }
+  for (let i = 0; i < alt.length; i++) {
+    matches.push({ ...alt[i], match_type: "alternative", rank: i + 4 });
+  }
+
+  // Gem i DB
+  for (const m of matches) {
+    await pool.query(`
+      INSERT INTO product_matches (design_id, product_id, match_score, match_type, rank)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (design_id, product_id) DO NOTHING
+    `, [designId, m.id, m.score, m.match_type, m.rank]);
+  }
+
+  return matches;
+}
+
+// C. Kør hele pipeline
+export async function runAffiliatePipeline(
+  designId: number,
+  imageBase64: string,
+  roomType: string
+) {
+  try {
+    // 1. Vision analyse
+    console.log(`[Affiliate] Starting vision for design ${designId}`);
+    const vision = await analyzeVision(imageBase64, roomType);
+    
+    // Gem vision i designs
+    await getDb().query(
+      `UPDATE designs SET vision_description = $1 WHERE id = $2`,
+      [vision.description, designId]
+    );
+    console.log(`[Affiliate] Vision: "${vision.description.substring(0, 80)}..."`);
+
+    // 2. Match produkter
+    console.log(`[Affiliate] Matching products...`);
+    const matches = await matchProductsForDesign(designId, vision);
+    console.log(`[Affiliate] Found ${matches.length} matches`);
+
+    return { success: true, matches: matches.length };
+  } catch (err) {
+    console.error(`[Affiliate] Pipeline failed:`, err);
+    return { success: false, error: err.message };
+  }
+}
+Hvor i workflowet skal det kaldes?
+I din backgroundPoll — når status er SUCCESS:
+TypeScript
+Copy
+// I server/routes.ts, i backgroundPoll når result er completed:
+if (result.status === "completed") {
+  await sharpenAndSave(designId, result.generateUrl);
+  
+  // ⬇️⬇️⬇️ TILFØJ DETTE ⬇️⬇️⬇️
+  const design = await storage.getDesign(designId);
+  if (design.original_image_url) {
+    // Hent original billede og kør vision
+    const imageRes = await fetch(design.original_image_url);
+    const imageBuffer = await imageRes.arrayBuffer();
+    const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+    
+    const { runAffiliatePipeline } = await import("./affiliatePipeline");
+    await runAffiliatePipeline(designId, imageBase64, design.room_type);
+  }
+  // ⬆️⬆️⬆️ TILFØJ DETTE ⬆️⬆️⬆️
+}
+Prompt til Replit
+plain
+Copy
+PROBLEM: Affiliate virker ikke. product_matches tabel mangler,
+vision_description kolonne mangler, og pipeline kører ikke.
+
+LØSNING:
+
+1. Kør SQL migrations:
+   ALTER TABLE designs ADD COLUMN IF NOT EXISTS vision_description TEXT;
+   
+   CREATE TABLE IF NOT EXISTS product_matches (
+     id SERIAL PRIMARY KEY,
+     design_id INTEGER NOT NULL REFERENCES designs(id),
+     product_id INTEGER NOT NULL REFERENCES products(id),
+     match_score DECIMAL(5,2),
+     match_type VARCHAR(20),
+     rank INTEGER,
+     clicked BOOLEAN DEFAULT FALSE,
+     created_at TIMESTAMP DEFAULT NOW(),
+     UNIQUE(design_id, product_id)
+   );
+
+2. Opret server/affiliatePipeline.ts (koden ovenfor)
+
+3. Tilføj kald i backgroundPoll når status = completed:
+   - Hent original billede
+   - Kør runAffiliatePipeline(designId, imageBase64, roomType)
+   - Vision → match → gem i product_matches
+
+4. Verificer:
+   - Generer et nyt design
+   - Tjek at vision_description IKKE er NULL
+   - Tjek at product_matches har rækker
+   - Tjek at GET /api/designs/:id/products returnerer produkter
+
+IMPLEMENTÉR dette NU. Kun disse ændringer, intet andet.
