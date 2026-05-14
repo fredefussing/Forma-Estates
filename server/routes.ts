@@ -1288,9 +1288,9 @@ export async function registerRoutes(
       const { detectObjects } = await import("./yolo");
       const { getImageDimensions } = await import("./cropImage");
 
-      // Convert relative /uploads/ paths to absolute filesystem paths
+      // Convert relative /uploads/ paths to full localhost URL (Xenova + Jimp both support HTTP)
       const resolvedUrl = imageUrl.startsWith("/uploads/")
-        ? path.join(process.cwd(), imageUrl)
+        ? `http://localhost:5000${imageUrl}`
         : imageUrl;
 
       const [objects, dimensions] = await Promise.all([
@@ -1322,9 +1322,9 @@ export async function registerRoutes(
       const { getDominantColorTerms } = await import("./analyzeVisual");
       const { describeFurnitureWithVision, cacheKey } = await import("./describeWithVision");
 
-      // Convert relative /uploads/ paths to absolute filesystem paths
+      // Convert relative /uploads/ paths to full localhost URL
       const resolvedUrl = imageUrl.startsWith("/uploads/")
-        ? path.join(process.cwd(), imageUrl)
+        ? `http://localhost:5000${imageUrl}`
         : imageUrl;
 
       const { filePath, cleanup } = await cropImageToTempFile(resolvedUrl, x, y, width, height);
@@ -1408,7 +1408,7 @@ export async function registerRoutes(
   app.get("/api/style-products", async (req, res) => {
     try {
       const { style = "scandinavian", room = "living_room", budget = "standard", limit = "8" } = req.query;
-      const validStyles = ["scandinavian", "modern", "industrial", "classic", "bohemian", "minimalist", "rustic", "luxury", "mid_century", "contemporary"];
+      const validStyles = ["scandinavian", "modern", "industrial", "classic", "bohemian", "minimalist", "rustic", "luxury", "mid_century", "contemporary", "coastal"];
       const validRooms = ["living_room", "bedroom", "kitchen", "bathroom", "dining_room", "office", "hallway", "outdoor"];
       const validBudgets = ["budget", "standard", "luxury"];
 
