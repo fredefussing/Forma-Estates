@@ -3,8 +3,8 @@ import type { FurnitureDescription } from "./describeWithVision";
 import { DANISH_SYNONYMS } from "./describeWithVision";
 
 const YOLO_TO_CATEGORY: Record<string, string[]> = {
-  "sofa":         ["Sofaer"],
-  "couch":        ["Sofaer"],
+  "sofa":         ["Sofaer", "Sovesofaer"],
+  "couch":        ["Sofaer", "Sovesofaer"],
   "chair":        ["Stole", "Lænestole", "Spisebordsstole", "Gulvstole", "Barstole"],
   "bed":          ["Senge"],
   "dining table": ["Spiseborde"],
@@ -25,7 +25,7 @@ const VISION_TYPE_TO_CATEGORY: Record<string, string[]> = {
   "lounge_chair": ["Lænestole", "Stole"],
   "dining_chair": ["Spisebordsstole", "Stole"],
   "chair":        ["Stole", "Lænestole", "Gulvstole", "Spisebordsstole"],
-  "sofa":         ["Sofaer"],
+  "sofa":         ["Sofaer", "Sovesofaer"],
   "coffee_table": ["Sofaborde"],
   "side_table":   ["Sofaborde", "Sideborde", "Natborde"],
   "dining_table": ["Spiseborde"],
@@ -40,21 +40,37 @@ const VISION_TYPE_TO_CATEGORY: Record<string, string[]> = {
   "table":        ["Sofaborde", "Spiseborde"],
 };
 
+// Categories that should ALWAYS be excluded for a given furniture type
+const TYPE_CATEGORY_EXCLUSIONS: Record<string, string[]> = {
+  "sofa":  ["Hynder til stole", "Sofapuder", "Hyndebetræk", "Udendørs"],
+  "couch": ["Hynder til stole", "Sofapuder", "Hyndebetræk", "Udendørs"],
+};
+
+// Shape → categories to EXCLUDE when shape is rectangular (no L/chaise)
+const RECTANGULAR_SOFA_EXCLUSIONS = ["Hjørnesofaer", "U-sofaer", "chaiselong", "Modulsofaer"];
+
+// Name-level subtype exclusions: regex per type
+const SUBTYPE_NAME_EXCLUSIONS: Record<string, RegExp> = {
+  "sofa":  /sofapuder|sofa pude|\bhynde\b|\bpuder\b(?!.*sofa)|puf\b|pouf\b|fodskammel(?!.*sofa)/i,
+  "couch": /sofapuder|sofa pude|\bhynde\b|\bpuder\b(?!.*sofa)|puf\b|pouf\b/i,
+};
+
 const OUTDOOR_TERMS = [
   "udendørs", "have", "terrasse", "solstol", "liggestol",
   "parasol", "balkon", "polyrattan",
 ];
 
 const SHAPE_TERMS: Record<string, string[]> = {
-  "L-shaped":    ["hjørne", "chaiselong", "l-sofa", "venstrevendt", "højrevendt"],
+  "L-shaped":    ["hjørne", "chaiselong", "l-sofa", "venstrevendt", "højrevendt", "modul"],
   "round":       ["rund", "cirkel", "cirkulær"],
   "square":      ["kvadratisk", "firkantet"],
   "rectangular": [],
   "asymmetric":  ["asymmetrisk"],
 };
 
-const SIZE_LARGE_TERMS = ["stor", "bred", "lang", "xl", "xxl", "hjørne", "sektions", "panorama"];
-const SIZE_SMALL_TERMS = ["lille", "kompakt", "mini", "smal", "small"];
+// Size signals in product names
+const SIZE_LARGE_TERMS = ["3 personers", "3-personers", "tre pers", "4 personers", "stor", "bred", "lang", "xl", "xxl", "sektions", "panorama"];
+const SIZE_SMALL_TERMS = ["2 personers", "2-personers", "to pers", "elskovssofa", "loveseat", "lille", "kompakt", "mini", "smal", "small"];
 
 const COLOR_TONE_MAP: Record<string, string[]> = {
   light_oak:   ["eg", "lys eg", "natur eg", "hvidpigmenteret eg", "eg finér", "birk", "ask", "lys træ"],
@@ -67,8 +83,8 @@ const COLOR_TONE_MAP: Record<string, string[]> = {
   espresso:    ["espresso", "mokka", "mørk brun", "mørkebrun"],
   black:       ["sort", "sorte"],
   white:       ["hvid", "hvidt", "off-white", "hvid-"],
-  cream:       ["creme", "ecru", "beige"],
-  beige:       ["beige", "natur", "sand", "creme", "ecru"],
+  cream:       ["creme", "ecru", "beige", "sandfarvet", "cremefarvet"],
+  beige:       ["beige", "natur", "sand", "creme", "ecru", "sandfarvet"],
   warm_grey:   ["grå", "gråbrun", "greige", "varm grå", "taupe"],
   cool_grey:   ["lysegrå", "antracit", "koksgrå", "mørkegrå"],
   gray:        ["grå", "lysegrå", "mørkegrå", "antracit"],
@@ -94,12 +110,35 @@ function getCategoryKeywords(
   );
 }
 
-// Builds a parameterized WHERE fragment starting at $startIdx.
-// Returns { clause, params } — clause is e.g. "AND (p.category ILIKE $3 OR ...) AND p.name NOT ILIKE $4 ..."
+// Returns category exclusion terms based on type, shape, and size
+function getCategoryExclusions(
+  description: FurnitureDescription | null,
+  yoloLabel: string,
+): string[] {
+  const type = (description?.type ?? yoloLabel).toLowerCase();
+  const exclusions: string[] = [...(TYPE_CATEGORY_EXCLUSIONS[type] ?? [])];
+
+  // For sofas: exclude corner/sectional categories when shape is rectangular
+  if ((type === "sofa" || yoloLabel === "sofa" || yoloLabel === "couch") && description) {
+    if (description.shape === "rectangular" || description.shape === "other") {
+      exclusions.push(...RECTANGULAR_SOFA_EXCLUSIONS);
+    }
+    // Exclude wrong-size sofa categories
+    if (description.size === "small") {
+      exclusions.push("3-pers", "U-sofaer", "Hjørnesofaer");
+    } else if (description.size === "large") {
+      exclusions.push("2-pers. sofaer");
+    }
+  }
+
+  return exclusions;
+}
+
 function buildFilterClause(
   categoryKeywords: string[],
   isIndoor: boolean,
   startIdx: number,
+  categoryExclusions: string[] = [],
 ): { clause: string; params: any[] } {
   const params: any[] = [];
   const conditions: string[] = [];
@@ -109,6 +148,13 @@ function buildFilterClause(
     const catConds = categoryKeywords.map(() => `p.category ILIKE $${idx++}`).join(" OR ");
     conditions.push(`(${catConds})`);
     categoryKeywords.forEach((k) => params.push(`%${k}%`));
+  }
+
+  // Hard exclusions: categories that must never match
+  if (categoryExclusions.length > 0) {
+    const exclConds = categoryExclusions.map(() => `p.category NOT ILIKE $${idx++}`).join(" AND ");
+    conditions.push(`(${exclConds})`);
+    categoryExclusions.forEach((k) => params.push(`%${k}%`));
   }
 
   if (isIndoor) {
@@ -131,6 +177,7 @@ async function getRelaxedCandidates(
   textVectorParam?: string,
 ): Promise<any[]> {
   const categoryKeywords = getCategoryKeywords(description, yoloLabel);
+  const categoryExclusions = getCategoryExclusions(description, yoloLabel);
   const isIndoor = description ? description.indoor !== false : true;
 
   // ── Dual-vector fusion when text vector is provided ───────────────────────────
@@ -141,9 +188,8 @@ async function getRelaxedCandidates(
     const hasTextVectors = parseInt(textRows[0].count, 10) > 0;
 
     if (hasTextVectors) {
-      // $1 = vector, $2 = limit, $3... = filter params
       const { clause: filterClause, params: filterParams } = buildFilterClause(
-        categoryKeywords, isIndoor, 3
+        categoryKeywords, isIndoor, 3, categoryExclusions
       );
 
       const clipParams = [clipVectorParam, limit * 2, ...filterParams];
@@ -172,7 +218,6 @@ async function getRelaxedCandidates(
         pool.query(textSQL, textParams),
       ]);
 
-      // Merge: finalScore = 0.7 * clip_sim + 0.3 * text_sim
       const textMap = new Map<number, number>();
       for (const r of textResult.rows) textMap.set(r.id, parseFloat(r.text_sim));
 
@@ -197,9 +242,8 @@ async function getRelaxedCandidates(
   }
 
   // ── Single-vector (CLIP image only) ───────────────────────────────────────────
-  // $1 = vector, $2 = limit, $3... = filter params
   const { clause: filterClause, params: filterParams } = buildFilterClause(
-    categoryKeywords, isIndoor, 3
+    categoryKeywords, isIndoor, 3, categoryExclusions
   );
 
   const params: any[] = [clipVectorParam, limit, ...filterParams];
@@ -223,7 +267,7 @@ async function getRelaxedCandidates(
   if (categoryKeywords.length > 1) {
     console.log(`Kun ${result.rows.length} kandidater — prøver med primær kategori kun`);
     const { clause: reducedClause, params: reducedFilterParams } = buildFilterClause(
-      [categoryKeywords[0]], isIndoor, 3
+      [categoryKeywords[0]], isIndoor, 3, categoryExclusions
     );
     const reducedParams: any[] = [clipVectorParam, limit, ...reducedFilterParams];
     const reducedSQL = `
@@ -241,9 +285,11 @@ async function getRelaxedCandidates(
     }
   }
 
-  // ── Broad fallback: no category filter, outdoor filter only (last resort) ─────
-  console.log(`Kun ${result.rows.length} kandidater med kategorifilter — prøver uden kategori (last resort)`);
-  const { clause: broadClause, params: broadFilterParams } = buildFilterClause([], isIndoor, 3);
+  // ── Broad fallback: no category filter, outdoor filter + exclusions only ──────
+  console.log(`Kun ${result.rows.length} kandidater med kategorifilter — prøver uden kategori`);
+  const { clause: broadClause, params: broadFilterParams } = buildFilterClause(
+    [], isIndoor, 3, categoryExclusions
+  );
   const broadParams: any[] = [clipVectorParam, limit, ...broadFilterParams];
 
   const broadSQL = `
@@ -295,11 +341,11 @@ function scoreColorMatch(
   if (terms.length === 0) return 0;
   const uniqueTerms = Array.from(new Set(terms));
 
-  const primaryTerms = uniqueTerms.slice(0, 3);
+  const primaryTerms = uniqueTerms.slice(0, 4);
   const hasPrimaryMatch = primaryTerms.some((t) => name.includes(t.toLowerCase()));
   if (hasPrimaryMatch) return 1;
 
-  const secondaryMatches = uniqueTerms.slice(3).filter((t) => name.includes(t.toLowerCase())).length;
+  const secondaryMatches = uniqueTerms.slice(4).filter((t) => name.includes(t.toLowerCase())).length;
   return Math.min(secondaryMatches * 0.4, 0.6);
 }
 
@@ -319,12 +365,20 @@ function scoreShapeMatch(
   productName: string,
   description: FurnitureDescription | null,
 ): number {
-  if (!description?.shape || description.shape === "rectangular" || description.shape === "other") {
-    return 0;
-  }
+  if (!description?.shape) return 0;
 
   const name = productName.toLowerCase();
   const shapeKey = description.shape as string;
+
+  // For rectangular: penalize if product name has L-shaped signals
+  if (shapeKey === "rectangular" || shapeKey === "other") {
+    const lShapeTerms = SHAPE_TERMS["L-shaped"] ?? [];
+    if (lShapeTerms.some((t) => name.includes(t.toLowerCase()))) {
+      return -1.0; // This is a corner/chaise sofa but we want a straight one
+    }
+    return 0;
+  }
+
   const terms = SHAPE_TERMS[shapeKey] ?? DANISH_SYNONYMS[shapeKey] ?? [];
   if (terms.length === 0) return 0;
 
@@ -342,15 +396,32 @@ function scoreSizeMatch(
   if (description.size === "large") {
     const hasLargeSignal = SIZE_LARGE_TERMS.some((t) => name.includes(t));
     const hasSmallSignal = SIZE_SMALL_TERMS.some((t) => name.includes(t));
-    if (hasSmallSignal) return -0.5;
-    return hasLargeSignal ? 1 : 0;
+    if (hasSmallSignal) return -1.5; // Strong penalty: 2-seater when large needed
+    return hasLargeSignal ? 0.8 : 0;
   }
 
   if (description.size === "small") {
     const hasSmallSignal = SIZE_SMALL_TERMS.some((t) => name.includes(t));
     const hasLargeSignal = SIZE_LARGE_TERMS.some((t) => name.includes(t));
-    if (hasLargeSignal) return -0.5;
-    return hasSmallSignal ? 1 : 0;
+    if (hasLargeSignal) return -1.5; // Strong penalty: 3-seater when small needed
+    return hasSmallSignal ? 0.8 : 0;
+  }
+
+  return 0;
+}
+
+// Hard exclusion: returns a large negative number for clear type mismatches
+function scoreSubtypeExclusion(
+  productName: string,
+  yoloLabel: string,
+  description: FurnitureDescription | null,
+): number {
+  const name = productName.toLowerCase();
+  const type = (description?.type ?? yoloLabel).toLowerCase();
+
+  const exclusionRegex = SUBTYPE_NAME_EXCLUSIONS[type] ?? SUBTYPE_NAME_EXCLUSIONS[yoloLabel.toLowerCase()];
+  if (exclusionRegex && exclusionRegex.test(name)) {
+    return -2.0; // Effectively removes from results
   }
 
   return 0;
@@ -399,40 +470,45 @@ export async function findSimilarProductsHybrid(
     const materialScore = scoreMaterialMatch(row.name, desc);
     const shapeScore = scoreShapeMatch(row.name, desc);
     const sizeScore = scoreSizeMatch(row.name, desc);
+    const subtypeScore = scoreSubtypeExclusion(row.name, label, desc);
 
-    const finalScore =
-      0.40 * clipScore +
-      0.25 * categoryScore +
-      0.10 * colorScore +
-      0.05 * materialScore +
-      0.10 * shapeScore +
-      0.10 * Math.max(0, sizeScore);
+    // Base score: CLIP visual + category + color (most important for visual match)
+    const baseScore =
+      0.35 * clipScore +
+      0.18 * categoryScore +
+      0.22 * colorScore +       // Color is critical — was 10%, now 22%
+      0.08 * materialScore;
 
-    const sizeBoost = sizeScore < 0 ? sizeScore * 0.05 : 0;
+    // Penalties for wrong shape/size (applied as direct deductions)
+    const shapePenalty = shapeScore < 0 ? shapeScore * 0.20 : shapeScore * 0.07;
+    const sizePenalty  = sizeScore  < 0 ? sizeScore  * 0.15 : sizeScore  * 0.10;
+
+    const finalScore = Math.max(-1, baseScore + shapePenalty + sizePenalty + subtypeScore);
 
     return {
       ...row,
-      finalScore: Math.max(0, finalScore + sizeBoost),
+      finalScore,
       clipScore,
       categoryScore,
       colorScore,
       materialScore,
       shapeScore,
       sizeScore,
+      subtypeScore,
     };
   });
 
   scored.sort((a, b) => b.finalScore - a.finalScore);
 
   const deduped = deduplicateByName(scored);
-  const top = deduped.slice(0, topK + 2);
+  const top = deduped.filter((p) => p.finalScore > 0).slice(0, topK + 2);
 
   console.log(
     `Top 3 scores: ${top
       .slice(0, 3)
       .map(
         (p) =>
-          `"${p.name.substring(0, 28)}" clip=${p.clipScore.toFixed(2)} cat=${p.categoryScore} col=${p.colorScore.toFixed(2)} mat=${p.materialScore.toFixed(2)} shp=${p.shapeScore.toFixed(2)} sz=${p.sizeScore.toFixed(2)} → ${p.finalScore.toFixed(2)}`,
+          `"${p.name.substring(0, 28)}" clip=${p.clipScore.toFixed(2)} cat=${p.categoryScore} col=${p.colorScore.toFixed(2)} mat=${p.materialScore.toFixed(2)} shp=${p.shapeScore.toFixed(2)} sz=${p.sizeScore.toFixed(2)} → ${p.finalScore.toFixed(3)}`,
       )
       .join(" | ")}`,
   );
