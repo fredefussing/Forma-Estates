@@ -516,11 +516,40 @@ export async function registerRoutes(
       const combined = [
         ...regularDesigns
           .filter((d) => d.status === "completed")
-          .map((d) => ({ ...d, designType: "redesign" as const })),
+          .map((d) => ({ ...d, designType: "redesign" as const, productMatches: [] as any[] })),
         ...agentDesignsData
           .filter((d) => d.status === "completed" && d.resultImageUrl)
-          .map((d) => ({ ...d, designType: "agent" as const })),
+          .map((d) => ({ ...d, designType: "agent" as const, productMatches: [] as any[] })),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // Batch-hent alle product matches for redesign-designs i ét SQL-kald
+      const redesignIds = combined
+        .filter((d) => d.designType === "redesign")
+        .map((d) => d.id);
+
+      if (redesignIds.length > 0) {
+        const { rows: matches } = await pool.query(`
+          SELECT pm.design_id, p.id, p.name, p.name_en, p.price,
+                 p.image_url, p.affiliate_link, p.shop,
+                 pm.match_type, pm.match_score, pm.rank
+          FROM product_matches pm
+          JOIN products p ON pm.product_id = p.id
+          WHERE pm.design_id = ANY($1)
+          ORDER BY pm.design_id, pm.rank
+        `, [redesignIds]);
+
+        const byDesign = new Map<number, any[]>();
+        for (const m of matches) {
+          const arr = byDesign.get(m.design_id) ?? [];
+          arr.push(m);
+          byDesign.set(m.design_id, arr);
+        }
+        for (const d of combined) {
+          if (d.designType === "redesign") {
+            d.productMatches = byDesign.get(d.id) ?? [];
+          }
+        }
+      }
 
       return res.json(combined);
     } catch {

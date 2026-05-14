@@ -1,0 +1,107 @@
+PROBLEM: "Mine designs" side viser kun før/efter billeder. Produkterne (affiliate matches) vises ikke når man åbner et gammelt design.
+
+LØSNING: Tilføj product matches til "Mine designs" visning.
+
+FILES TO MODIFY:
+
+1. client/src/components/DesignCard.tsx (eller designs-list visning)
+
+After the before/after image, add this section:
+
+{design.productMatches && design.productMatches.length > 0 && (
+  <div className="mt-4 space-y-3">
+    <h4 className="text-sm font-medium text-stone-700 flex items-center gap-1.5">
+      <ShoppingBag className="h-4 w-4" />
+      Shop stilen ({design.productMatches.length})
+    </h4>
+    
+    <div className="grid grid-cols-3 gap-2">
+      {design.productMatches.slice(0, 3).map((p: ProductMatch) => (
+        <ProductCard key={p.id} product={p} />
+      ))}
+    </div>
+    
+    {design.productMatches.length > 3 && (
+      <div className="grid grid-cols-3 gap-2">
+        {design.productMatches.slice(3, 6).map((p: ProductMatch) => (
+          <ProductCard key={p.id} product={p} />
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{design.productMatches && design.productMatches.length === 0 && design.status === 'completed' && (
+  <p className="text-xs text-stone-400 mt-2">Produkter indlæses...</p>
+)}
+
+2. server/routes.ts — GET /api/designs endpoint
+
+Change the query to JOIN product_matches:
+
+// OLD: only designs
+const designs = await pool.query('SELECT * FROM designs ORDER BY id DESC');
+
+// NEW: include matches
+const designs = await pool.query(`
+  SELECT d.*, 
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', p.id,
+          'name', p.name,
+          'name_en', p.name_en,
+          'price', p.price,
+          'currency', p.currency,
+          'image_url', p.image_url,
+          'affiliate_url', p.affiliate_url,
+          'retailer', p.retailer,
+          'match_type', pm.match_type,
+          'match_score', pm.match_score,
+          'rank', pm.rank
+        ) ORDER BY pm.rank
+      ) FILTER (WHERE p.id IS NOT NULL),
+      '[]'::json
+    ) as product_matches
+  FROM designs d
+  LEFT JOIN product_matches pm ON d.id = pm.design_id
+  LEFT JOIN products p ON pm.product_id = p.id
+  GROUP BY d.id
+  ORDER BY d.id DESC
+`);
+
+// Return as array
+for (const design of designs.rows) {
+  design.product_matches = Array.isArray(design.product_matches) 
+    ? design.product_matches 
+    : JSON.parse(design.product_matches || '[]');
+}
+
+3. client/src/types.ts (add ProductMatch type)
+
+export interface ProductMatch {
+  id: number;
+  name: string;
+  name_en: string | null;
+  price: number | null;
+  currency: string | null;
+  image_url: string | null;
+  affiliate_url: string | null;
+  retailer: string;
+  match_type: "same_style" | "alternative";
+  match_score: number;
+  rank: number;
+}
+
+export interface Design {
+  id: number;
+  status: string;
+  result_image_url: string | null;
+  original_image_url: string | null;
+  room_type: string;
+  style: string;
+  product_matches: ProductMatch[];
+  // ... other fields
+}
+
+IMPLEMENT these 3 changes. Test by viewing "Mine designs" — each design should show up to 6 product cards with image, name, price, and affiliate link.
