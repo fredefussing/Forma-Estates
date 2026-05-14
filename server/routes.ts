@@ -118,46 +118,30 @@ async function pollEmptyRoom(id: number, timeoutMs = 180000): Promise<string> {
   }
 }
 
-// ── Step 1+2 combined with one retry to ensure furniture moves ────────────────
-async function getEmptyRoomUrl(uploadUrl: string, designId: number): Promise<string | undefined> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      log(`Design ${designId}: empty room attempt ${attempt}/2`);
-      const emptyId = await sendGenerateEmptyRoom(uploadUrl);
-      const url = await pollEmptyRoom(emptyId);
-      log(`Design ${designId}: empty room ready (attempt ${attempt}) → ${url}`);
-      return url;
-    } catch (err: any) {
-      log(`Design ${designId}: empty room attempt ${attempt} failed — ${err.message}`);
-      if (attempt < 2) await sleep(4000);
-    }
-  }
-  log(`Design ${designId}: ⚠️ both empty room attempts failed — falling back to direct staging (furniture will NOT move)`);
-  return undefined;
-}
-
 // ── Step 3: Start staged room design ─────────────────────────────────────────
+// QUALITY NOTE: We always pass the original uploadUrl as the image base so that
+// Collov works from the original high-res photo. emptyRoomUrl is intentionally
+// NOT passed to staging — using it as the base introduces a second AI-generation
+// step that causes cumulative blur. Collov can still reposition furniture based
+// on roomType+style without needing the empty room image as staging base.
 async function sendGenerateImgOnCommon(
   uploadUrl: string,
   roomType: string,
   style: string,
-  emptyRoomUrl?: string,
   stylePrompt?: string,
 ): Promise<string> {
   const collovRoom  = COLLOV_ROOM_MAP[roomType]  || roomType;
   const collovStyle = COLLOV_STYLE_MAP[style]    || style;
 
   const form = new FormData();
-  form.append("uploadUrl",      uploadUrl);
+  form.append("uploadUrl",      uploadUrl);   // always the original high-res photo
   form.append("roomType",       collovRoom);
   form.append("style",          collovStyle);
-  // "realistic" rendering mode — sharper, photo-realistic output (vs. "vivid")
+  // "realistic" = photo-realistic sharpness (Collov's highest quality mode)
   form.append("renderingType",  "realistic");
-  if (emptyRoomUrl) form.append("emptyRoomUrl", emptyRoomUrl);
-  // Style prompt gives Collov extra context for better aesthetic accuracy
-  if (stylePrompt)  form.append("prompt", stylePrompt);
+  if (stylePrompt) form.append("prompt", stylePrompt);
 
-  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", renderingType=realistic, emptyRoom=${!!emptyRoomUrl}, prompt=${!!stylePrompt}`);
+  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", renderingType=realistic`);
 
   const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
@@ -204,12 +188,11 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
   const maxPollAttempts = 80;
 
   try {
-    // Step 1+2: Empty the room so Collov places furniture from scratch (enables repositioning)
-    const emptyRoomUrl = await getEmptyRoomUrl(uploadUrl, designId);
-
     // Step 3: Start staged design with realistic rendering + style prompt
+    // We pass only the original high-res uploadUrl — not the empty room URL — to
+    // avoid cumulative blur from chaining two AI generation steps.
     const stylePrompt = VST_STYLE_PROMPTS[style];
-    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl, stylePrompt);
+    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, stylePrompt);
     await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
     log(`Design ${designId}: VST realistic task started, uuid=${uuid}`);
 
