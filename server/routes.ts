@@ -1442,6 +1442,29 @@ export async function registerRoutes(
       const designId = parseInt(req.params.id);
       if (isNaN(designId)) return res.status(400).json({ error: "Ugyldigt design ID" });
 
+      // Hent pre-computed matches fra product_matches tabel
+      const { rows } = await pool.query(`
+        SELECT p.id, p.name, p.name_en, p.price,
+               p.image_url, p.affiliate_link, p.shop,
+               pm.match_type, pm.match_score, pm.rank
+        FROM product_matches pm
+        JOIN products p ON pm.product_id = p.id
+        WHERE pm.design_id = $1
+        ORDER BY pm.rank
+      `, [designId]);
+
+      return res.json({ products: rows, count: rows.length });
+    } catch (err: any) {
+      log(`designs/:id/products fejl: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/designs/:id/products-legacy", async (req, res) => {
+    try {
+      const designId = parseInt(req.params.id);
+      if (isNaN(designId)) return res.status(400).json({ error: "Ugyldigt design ID" });
+
       const design = await storage.getDesign(designId);
       if (!design) return res.status(404).json({ error: "Design ikke fundet" });
       if (design.status !== "completed" || !design.resultImageUrl) {

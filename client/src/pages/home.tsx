@@ -23,6 +23,7 @@ import { SpecialRequest } from "@/components/special-request";
 import { QuoteRequest } from "@/components/quote-request";
 import { FurnitureDetector } from "@/components/furniture-detector";
 import { ShopThisStyle } from "@/components/shop-this-style";
+import { ProductMatches } from "@/components/product-matches";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ROOM_TYPE_TO_SEARCH: Record<string, string> = {
@@ -762,6 +763,8 @@ export default function HomePage() {
                       beforeSrc={activeDesign.originalImageUrl}
                       afterSrc={activeDesign.resultImageUrl}
                     />
+
+                    <ProductMatches designId={activeDesign.id} />
 
                     <FurnitureDetector imageUrl={activeDesign.resultImageUrl!} autoRun designStyle={activeDesign.style ?? undefined} />
 
