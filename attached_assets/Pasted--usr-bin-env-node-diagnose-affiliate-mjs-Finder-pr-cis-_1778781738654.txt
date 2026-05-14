@@ -1,0 +1,191 @@
+#!/usr/bin/env node
+/**
+ * diagnose-affiliate.mjs — Finder præcis hvad der går galt
+ * med affiliate efter skift til Photo Chat Edit
+ */
+
+import pg from "pg";
+import fetch from "node-fetch";
+import "dotenv/config";
+
+const { Pool } = pg;
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false 
+});
+
+const BASE_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
+
+async function diagnose() {
+  console.log("=".repeat(60));
+  console.log("AFFILIATE DIAGNOSE — Photo Chat Edit setup");
+  console.log("=".repeat(60));
+
+  // ── 1. Tjek seneste designs ─────────────────────────────
+  console.log("\n--- 1. Seneste designs i databasen ---");
+  const designs = await pool.query(`
+    SELECT id, status, collov_uuid, result_image_url, 
+           original_image_url, room_type, style, 
+           vision_description, created_at
+    FROM designs 
+    ORDER BY id DESC 
+    LIMIT 5
+  `);
+  
+  if (designs.rows.length === 0) {
+    console.log("❌ INGEN designs i databasen!");
+    await pool.end();
+    return;
+  }
+
+  for (const d of designs.rows) {
+    console.log(`\nDesign #${d.id}:`);
+    console.log(`  status: ${d.status}`);
+    console.log(`  collov_uuid: ${d.collov_uuid || "❌ NULL"}`);
+    console.log(`  result_image_url: ${d.result_image_url || "❌ NULL"}`);
+    console.log(`  original_image_url: ${d.original_image_url || "❌ NULL"}`);
+    console.log(`  room_type: ${d.room_type}`);
+    console.log(`  style: ${d.style}`);
+    console.log(`  vision_description: ${d.vision_description ? "✅ OK" : "❌ NULL"}`);
+  }
+
+  const latest = designs.rows[0];
+
+  // ── 2. Tjek at resultImageUrl er hentbar ──────────────
+  console.log("\n--- 2. Billede-URL test ---");
+  if (!latest.result_image_url) {
+    console.log("❌ result_image_url er NULL");
+  } else {
+    const isLocalPath = latest.result_image_url.startsWith("/uploads/");
+    const isFullUrl = latest.result_image_url.startsWith("http");
+    
+    console.log(`  URL: ${latest.result_image_url}`);
+    console.log(`  Er lokalt path: ${isLocalPath ? "✅ JA" : "❌ NEJ"}`);
+    console.log(`  Er fuld URL: ${isFullUrl ? "✅ JA" : "❌ NEJ"}`);
+    
+    // Test om vi kan hente billedet
+    const testUrl = isLocalPath 
+      ? `${BASE_URL}${latest.result_image_url}` 
+      : latest.result_image_url;
+    
+    console.log(`  Test URL: ${testUrl}`);
+    
+    try {
+      const res = await fetch(testUrl, { method: "HEAD", timeout: 5000 });
+      console.log(`  Status: ${res.status === 200 ? "✅ 200 OK" : `❌ ${res.status}`}`);
+      console.log(`  Content-Type: ${res.headers.get("content-type") || "ukendt"}`);
+    } catch (err) {
+      console.log(`  ❌ Kan ikke hente: ${err.message}`);
+    }
+  }
+
+  // ── 3. Tjek vision_description ────────────────────────
+  console.log("\n--- 3. Vision analyse ---");
+  if (!latest.vision_description) {
+    console.log("❌ vision_description er NULL");
+    console.log("   → Vision analyse kørte aldrig, eller fejlede");
+  } else {
+    console.log("✅ vision_description:");
+    console.log(`   ${latest.vision_description.substring(0, 200)}...`);
+  }
+
+  // ── 4. Tjek product matches ───────────────────────────
+  console.log("\n--- 4. Product matches ---");
+  const matches = await pool.query(`
+    SELECT COUNT(*) as count,
+           AVG(match_score) as avg_score,
+           MIN(match_score) as min_score,
+           MAX(match_score) as max_score
+    FROM product_matches 
+    WHERE design_id = $1
+  `, [latest.id]);
+  
+  const m = matches.rows[0];
+  console.log(`  Antal matches: ${parseInt(m.count)}`);
+  if (parseInt(m.count) > 0) {
+    console.log(`  Gennemsnitlig score: ${parseFloat(m.avg_score).toFixed(2)}`);
+    console.log(`  Min/Max score: ${m.min_score} / ${m.max_score}`);
+  } else {
+    console.log("  ❌ INGEN product matches for dette design!");
+  }
+
+  // ── 5. Tjek affiliate links i matches ─────────────────
+  console.log("\n--- 5. Affiliate links ---");
+  if (parseInt(m.count) > 0) {
+    const sample = await pool.query(`
+      SELECT pm.id, p.name, p.affiliate_url, p.retailer, pm.match_score
+      FROM product_matches pm
+      JOIN products p ON pm.product_id = p.id
+      WHERE pm.design_id = $1
+      ORDER BY pm.match_score DESC
+      LIMIT 3
+    `, [latest.id]);
+    
+    for (const row of sample.rows) {
+      const hasLink = row.affiliate_url && row.affiliate_url.length > 5;
+      console.log(`  ${row.name?.substring(0, 40)}: ${hasLink ? "✅ link" : "❌ intet link"} (${row.retailer})`);
+    }
+  }
+
+  // ── 6. Tjek product matcher logs ──────────────────────
+  console.log("\n--- 6. Seneste fejl i product matcher ---");
+  // Her skal du tilføje log-tjek hvis du har error logging
+
+  // ── 7. Tjek API response format ───────────────────────
+  console.log("\n--- 7. API format check ---");
+  if (latest.collov_uuid) {
+    // Test om vi kan hente Collov resultat direkte
+    try {
+      const collovRes = await fetch(
+        "https://api.collov.ai/flair/enterpriseApi/edit/getRecord", {
+          method: "GET",
+          headers: { 
+            "apiKey": process.env.COLOV_API_KEY,
+            "Content-Type": "multipart/form-data"
+          },
+          body: new URLSearchParams({ uuid: latest.collov_uuid })
+        }
+      );
+      const collovData = await collovRes.json();
+      console.log(`  Collov status: ${collovData.data?.status || "ukendt"}`);
+      console.log(`  Has generateUrl: ${collovData.data?.generateUrl ? "✅" : "❌"}`);
+      
+      // VIGTIGT: Tjek format
+      if (collovData.data?.generateRecordList) {
+        console.log("  ⚠️  Bemærk: Response har generateRecordList (VST format)!");
+      }
+      if (collovData.data?.generateUrl) {
+        console.log("  ✅ Response har generateUrl direkte (Edit format)");
+      }
+    } catch (err) {
+      console.log(`  ❌ Kunne ikke hente fra Collov: ${err.message}`);
+    }
+  }
+
+  // ── 8. Frontend visning check ─────────────────────────
+  console.log("\n--- 8. Frontend API test ---");
+  try {
+    const statusRes = await fetch(`${BASE_URL}/api/designs/${latest.id}/status`);
+    const statusData = await statusRes.json();
+    console.log(`  /api/designs/${latest.id}/status:`);
+    console.log(`    status: ${statusData.status}`);
+    console.log(`    resultUrl: ${statusData.resultUrl || "❌ undefined"}`);
+    console.log(`    matches: ${statusData.matches ? "✅ " + statusData.matches.length : "❌ ingen"}`);
+    console.log(`    affiliateLinks: ${statusData.affiliateLinks ? "✅" : "❌"}`);
+  } catch (err) {
+    console.log(`  ❌ Status endpoint fejlede: ${err.message}`);
+  }
+
+  console.log("\n" + "=".repeat(60));
+  console.log("DIAGNOSE FÆRDIG");
+  console.log("=".repeat(60));
+  console.log("\nKopier output ovenfor og send det til mig.");
+  console.log("Så finder jeg præcis hvad der går galt.");
+
+  await pool.end();
+}
+
+diagnose().catch(err => {
+  console.error("Fatal fejl:", err);
+  process.exit(1);
+});
