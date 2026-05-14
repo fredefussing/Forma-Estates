@@ -1288,9 +1288,14 @@ export async function registerRoutes(
       const { detectObjects } = await import("./yolo");
       const { getImageDimensions } = await import("./cropImage");
 
+      // Convert relative /uploads/ paths to absolute filesystem paths
+      const resolvedUrl = imageUrl.startsWith("/uploads/")
+        ? path.join(process.cwd(), imageUrl)
+        : imageUrl;
+
       const [objects, dimensions] = await Promise.all([
-        detectObjects(imageUrl),
-        getImageDimensions(imageUrl),
+        detectObjects(resolvedUrl),
+        getImageDimensions(resolvedUrl),
       ]);
 
       return res.json({ objects, imageUrl, imageWidth: dimensions.width, imageHeight: dimensions.height });
@@ -1317,7 +1322,12 @@ export async function registerRoutes(
       const { getDominantColorTerms } = await import("./analyzeVisual");
       const { describeFurnitureWithVision, cacheKey } = await import("./describeWithVision");
 
-      const { filePath, cleanup } = await cropImageToTempFile(imageUrl, x, y, width, height);
+      // Convert relative /uploads/ paths to absolute filesystem paths
+      const resolvedUrl = imageUrl.startsWith("/uploads/")
+        ? path.join(process.cwd(), imageUrl)
+        : imageUrl;
+
+      const { filePath, cleanup } = await cropImageToTempFile(resolvedUrl, x, y, width, height);
       const ck = cacheKey(imageUrl, x, y, width, height);
 
       let imageEmbedding: number[];
