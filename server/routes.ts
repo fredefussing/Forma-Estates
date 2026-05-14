@@ -87,7 +87,7 @@ async function collovFetch(url: string, options: RequestInit, retries = 5): Prom
   }
 }
 
-// ── Step 1: Generate empty room ───────────────────────────────────────────────
+// ── Step 1: Generate empty room (with 1 retry for reliability) ───────────────
 async function sendGenerateEmptyRoom(uploadUrl: string): Promise<number> {
   const form = new FormData();
   form.append("uploadUrl", uploadUrl);
@@ -118,23 +118,46 @@ async function pollEmptyRoom(id: number, timeoutMs = 180000): Promise<string> {
   }
 }
 
+// ── Step 1+2 combined with one retry to ensure furniture moves ────────────────
+async function getEmptyRoomUrl(uploadUrl: string, designId: number): Promise<string | undefined> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      log(`Design ${designId}: empty room attempt ${attempt}/2`);
+      const emptyId = await sendGenerateEmptyRoom(uploadUrl);
+      const url = await pollEmptyRoom(emptyId);
+      log(`Design ${designId}: empty room ready (attempt ${attempt}) → ${url}`);
+      return url;
+    } catch (err: any) {
+      log(`Design ${designId}: empty room attempt ${attempt} failed — ${err.message}`);
+      if (attempt < 2) await sleep(4000);
+    }
+  }
+  log(`Design ${designId}: ⚠️ both empty room attempts failed — falling back to direct staging (furniture will NOT move)`);
+  return undefined;
+}
+
 // ── Step 3: Start staged room design ─────────────────────────────────────────
 async function sendGenerateImgOnCommon(
   uploadUrl: string,
   roomType: string,
   style: string,
   emptyRoomUrl?: string,
+  stylePrompt?: string,
 ): Promise<string> {
   const collovRoom  = COLLOV_ROOM_MAP[roomType]  || roomType;
   const collovStyle = COLLOV_STYLE_MAP[style]    || style;
 
   const form = new FormData();
-  form.append("uploadUrl", uploadUrl);
-  form.append("roomType",  collovRoom);
-  form.append("style",     collovStyle);
+  form.append("uploadUrl",      uploadUrl);
+  form.append("roomType",       collovRoom);
+  form.append("style",          collovStyle);
+  // "realistic" rendering mode — sharper, photo-realistic output (vs. "vivid")
+  form.append("renderingType",  "realistic");
   if (emptyRoomUrl) form.append("emptyRoomUrl", emptyRoomUrl);
+  // Style prompt gives Collov extra context for better aesthetic accuracy
+  if (stylePrompt)  form.append("prompt", stylePrompt);
 
-  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", emptyRoom=${!!emptyRoomUrl}`);
+  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", renderingType=realistic, emptyRoom=${!!emptyRoomUrl}, prompt=${!!stylePrompt}`);
 
   const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
@@ -163,26 +186,32 @@ async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?
   return { status: "processing" };
 }
 
+// Short focused prompts per style — tells Collov the aesthetic target clearly
+const VST_STYLE_PROMPTS: Record<string, string> = {
+  scandinavian:  "Scandinavian design: light oak furniture, white walls, wool and linen textiles, minimal clutter, warm hygge lighting.",
+  modern:        "Modern contemporary: sleek low-profile furniture, neutral greys and whites, architectural pendant lights, open uncluttered feel.",
+  luxury:        "Luxury interior: velvet and leather upholstery, jewel tones, brass and gold accents, dramatic statement chandelier.",
+  industrial:    "Industrial loft: dark steel frames, reclaimed wood, worn leather, Edison bulb pendants, exposed concrete texture.",
+  coastal:       "Coastal beach: rattan and wicker furniture, ocean blues and sandy whites, linen drapes, driftwood accents.",
+  transitional:  "Transitional style: classic silhouettes with contemporary finishes, warm neutrals, layered textures.",
+  farmhouse:     "Farmhouse style: reclaimed wood, white shiplap, galvanized metal accents, cozy plaid and linen textiles.",
+  midcentury:    "Mid-century modern: tapered walnut legs, mustard and teal accents, organic shapes, Eames-inspired aesthetic.",
+};
+
 // ── Full async VST workflow (runs entirely in background) ─────────────────────
 async function runVstWorkflow(designId: number, uploadUrl: string, roomType: string, style: string) {
-  const maxPollAttempts = 60;
+  // Realistic rendering takes longer — allow up to ~5 min total poll time
+  const maxPollAttempts = 80;
 
   try {
-    // Step 1+2: Clear room first (recommended for best quality), fallback to direct if it fails
-    let emptyRoomUrl: string | undefined;
-    try {
-      log(`Design ${designId}: starting empty room generation`);
-      const emptyId = await sendGenerateEmptyRoom(uploadUrl);
-      emptyRoomUrl = await pollEmptyRoom(emptyId);
-      log(`Design ${designId}: empty room ready → ${emptyRoomUrl}`);
-    } catch (err: any) {
-      log(`Design ${designId}: empty room step failed (${err.message}) — proceeding with direct staging`);
-    }
+    // Step 1+2: Empty the room so Collov places furniture from scratch (enables repositioning)
+    const emptyRoomUrl = await getEmptyRoomUrl(uploadUrl, designId);
 
-    // Step 3: Start staged design
-    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl);
+    // Step 3: Start staged design with realistic rendering + style prompt
+    const stylePrompt = VST_STYLE_PROMPTS[style];
+    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl, stylePrompt);
     await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-    log(`Design ${designId}: VST task started, uuid=${uuid}`);
+    log(`Design ${designId}: VST realistic task started, uuid=${uuid}`);
 
     // Step 4: Poll for final result
     let attempts = 0;
