@@ -1,0 +1,122 @@
+#!/usr/bin/env node
+import pg from "pg";
+import "dotenv/config";
+
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function main() {
+  const designId = process.argv[2] || 171;
+  
+  console.log("=".repeat(60));
+  console.log(`FARVE-DEBUG: Design #${designId}`);
+  console.log("=".repeat(60));
+
+  // 1. Hvad sagde vision?
+  const vision = await pool.query(
+    `SELECT vision_description FROM designs WHERE id = $1`, [designId]
+  );
+  console.log("\n--- 1. Vision beskrivelse ---");
+  console.log(`  "${vision.rows[0]?.vision_description}"`);
+
+  // Parse farver fra vision
+  const desc = vision.rows[0]?.vision_description || "";
+  const farver = [];
+  const farveKeywords = {
+    hvid: "white", hvidt: "white",
+    grå: "grey", lysegrå: "light_grey", mørkegrå: "dark_grey",
+    sort: "black", 
+    brun: "brown", lysbrun: "light_brown", mørkebrun: "dark_brown",
+    beige: "beige", creme: "cream",
+    blå: "blue", lyseblå: "light_blue", mørkeblå: "dark_blue",
+    grøn: "green", oliven: "olive", mørkegrøn: "dark_green",
+    rød: "red", gul: "yellow", orange: "orange",
+    pink: "pink", lilla: "purple",
+    natur: "natural", træ: "wood"
+  };
+  
+  for (const [dk, en] of Object.entries(farveKeywords)) {
+    if (desc.toLowerCase().includes(dk) || desc.toLowerCase().includes(en)) {
+      farver.push(en);
+    }
+  }
+  console.log(`  Parsed farver: [${[...new Set(farver)].join(", ")}]`);
+
+  // 2. Hvilke produkter matchede?
+  const matches = await pool.query(`
+    SELECT p.name_en, p.tags->>'color' as color, p.tags->>'style' as style,
+           p.tags->>'type' as type, pm.match_score, pm.match_type
+    FROM product_matches pm
+    JOIN products p ON pm.product_id = p.id
+    WHERE pm.design_id = $1
+    ORDER BY pm.rank
+  `, [designId]);
+
+  console.log("\n--- 2. Matches ---");
+  for (const m of matches.rows) {
+    console.log(`  ${m.match_type} | score:${m.match_score} | color:${m.color} | ${m.name_en?.substring(0,50)}`);
+  }
+
+  // 3. Hvilke produkter findes med de rigtige farver?
+  console.log("\n--- 3. Produkter med 'beige' farve ---");
+  const beige = await pool.query(`
+    SELECT name_en, tags->>'color' as color, tags->>'style' as style,
+           tags->>'type' as type, price, affiliate_url
+    FROM products
+    WHERE tags->>'color' = 'beige'
+      AND tags->>'type' = 'sofa'
+      AND tags->>'style' = 'scandinavian'
+    LIMIT 5
+  `);
+  for (const p of beige.rows) {
+    console.log(`  ${p.name_en} | ${p.color} | ${p.price} DKK`);
+  }
+
+  console.log("\n--- 4. Produkter med 'grey' farve ---");
+  const grey = await pool.query(`
+    SELECT name_en, tags->>'color' as color, tags->>'style' as style,
+           tags->>'type' as type, price, affiliate_url
+    FROM products
+    WHERE tags->>'color' = 'grey'
+      AND tags->>'type' = 'sofa'
+      AND tags->>'style' = 'scandinavian'
+    LIMIT 5
+  `);
+  for (const p of grey.rows) {
+    console.log(`  ${p.name_en} | ${p.color} | ${p.price} DKK`);
+  }
+
+  console.log("\n--- 5. Produkter med 'white' farve ---");
+  const white = await pool.query(`
+    SELECT name_en, tags->>'color' as color, tags->>'style' as style,
+           tags->>'type' as type, price, affiliate_url
+    FROM products
+    WHERE tags->>'color' = 'white'
+      AND tags->>'type' = 'sofa'
+      AND tags->>'style' = 'scandinavian'
+    LIMIT 5
+  `);
+  for (const p of white.rows) {
+    console.log(`  ${p.name_en} | ${p.color} | ${p.price} DKK`);
+  }
+
+  // 6. SQL scoring test
+  console.log("\n--- 6. SQL scoring for beige sofa ---");
+  const scoreTest = await pool.query(`
+    SELECT name_en, tags->>'color' as color,
+      (CASE WHEN tags->>'color' = ANY($1) THEN 25 ELSE 0 END) +
+      (CASE WHEN tags->>'style' = 'scandinavian' THEN 20 ELSE 0 END) +
+      (CASE WHEN tags->>'type' = 'sofa' THEN 60 ELSE 0 END) as score
+    FROM products
+    WHERE tags->>'type' = 'sofa'
+    ORDER BY score DESC, random()
+    LIMIT 6
+  `, [['beige']]);
+  for (const p of scoreTest.rows) {
+    console.log(`  score:${p.score} | color:${p.color} | ${p.name_en?.substring(0,50)}`);
+  }
+
+  await pool.end();
+}
+
+main();
