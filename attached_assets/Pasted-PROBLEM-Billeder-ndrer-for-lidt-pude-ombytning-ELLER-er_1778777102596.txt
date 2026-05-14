@@ -1,0 +1,55 @@
+PROBLEM: Billeder ændrer for lidt (pude-ombytning) ELLER er blur 
+(emptyRoom workflow). Brugeren vil have: skarpe billeder + nye møbler 
++ planter + bevaret rumstruktur.
+
+LØSNING: Skift primært endpoint fra VST til Photo Chat Editing 
+(/edit/generate). Én API-kald med detaljeret prompt = skarpt redesign.
+
+IMPLEMENTATION:
+
+1. NYT endpoint — Photo Chat Editing:
+   POST /flair/enterpriseApi/edit/generate
+   Headers: apiKey, Content-Type: multipart/form-data
+   Body:
+     - uploadUrl: <original foto URL>
+     - prompt: <detaljeret prompt per stil>
+
+2. Prompt-templates per stil (10 varianter):
+   
+   const PROMPTS = {
+     scandinavian: (roomType) => `Redesign this ${roomType} in scandinavian style. 
+       Replace existing furniture with light wood and white pieces. 
+       Add a light grey or cream sofa, natural wood coffee table, 
+       white or beige armchair, woven rug in neutral tones. 
+       Include green plants — monstera, snake plant, or succulent in ceramic pots. 
+       Add minimalist pendant lamp or floor lamp. 
+       Keep walls, floors, and architectural features exactly as they are.`,
+     
+     modern: (roomType) => `Redesign this ${roomType} in modern style.
+       Replace furniture with clean-lined pieces in black, white, and grey.
+       Add a low-profile sofa, glass or metal coffee table, leather accent chair.
+       Add geometric rug, abstract wall art, and metal floor lamp.
+       Include one statement plant — tall fiddle leaf fig or olive tree.
+       Keep walls, floors, and architectural features exactly as they are.`,
+     
+     // ... 8 flere stile
+   };
+
+3. Poll-resultat:
+   GET /flair/enterpriseApi/edit/getRecord?uuid=<uuid>
+   → data.status === "SUCCESS"
+   → data.generateUrl = færdigt billede
+
+4. Tilføj "Inkluder planter" toggle i UI:
+   Checkbox der tilføjer til prompt:
+   "Include several green indoor plants in ceramic and woven pots."
+
+5. Fallback hvis edit fejler:
+   Hvis Photo Chat Editing giver dårligt resultat → 
+   fallback til direkte VST (generateImgOnCommon uden emptyRoomUrl)
+
+6. FJERN generateEmptyRoom workflow helt.
+   Brug KUN Photo Chat Editing som default.
+
+FORVENTET RESULTAT: Skarpe, redesignede rum med nye møbler i valgt stil, 
+grønne planter, og bevaret rumstruktur — alt fra ét API-kald.

@@ -207,7 +207,7 @@ async function pollVstResult(uuid: string, versionIndex = 0): Promise<{ status: 
   return { status: "processing" };
 }
 
-// Short focused prompts per style — tells Collov the aesthetic target clearly
+// Short focused prompts per style — used as VST fallback
 const VST_STYLE_PROMPTS: Record<string, string> = {
   scandinavian:  "Scandinavian design: light oak furniture, white walls, wool and linen textiles, minimal clutter, warm hygge lighting.",
   modern:        "Modern contemporary: sleek low-profile furniture, neutral greys and whites, architectural pendant lights, open uncluttered feel.",
@@ -219,6 +219,64 @@ const VST_STYLE_PROMPTS: Record<string, string> = {
   midcentury:    "Mid-century modern: tapered walnut legs, mustard and teal accents, organic shapes, Eames-inspired aesthetic.",
 };
 
+// Detailed Photo Chat Editing prompts per style — primary workflow
+const EDIT_PROMPTS: Record<string, (roomType: string, includePlants: boolean) => string> = {
+  scandinavian: (r, p) =>
+    `Redesign this ${r} in Scandinavian style. Replace all existing furniture with new pieces: light oak or birch wood sofa frame with light grey linen cushions, natural wood coffee table, white or cream armchair, simple open shelving in pale wood. Add a wool or cotton rug in warm beige or off-white. Use pendant lamp in matte black or brushed brass. ${p ? "Add several green plants in white ceramic and woven rattan pots — monstera, snake plant, and potted herbs on shelves." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  modern: (r, p) =>
+    `Redesign this ${r} in modern contemporary style. Replace all furniture with: low-profile sofa in charcoal or slate grey, glass-top or brushed steel coffee table, sculptural leather accent chair, floating wall shelves. Add geometric rug in black and white or muted tones, abstract art on walls, slim metal floor lamp. ${p ? "Include one statement plant — a tall fiddle leaf fig or olive tree in a large concrete or matte black pot." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  luxury: (r, p) =>
+    `Redesign this ${r} in luxury interior style. Replace all furniture with: deep velvet sofa in emerald green or midnight blue with gold legs, marble-top coffee table, tufted accent chairs, ornate dresser or sideboard in dark wood with brass handles. Add richly layered rugs, silk drapes, and a dramatic chandelier or sculptural pendant. ${p ? "Include lush tropical plants in tall gold or brass planters — bird of paradise or palm." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  industrial: (r, p) =>
+    `Redesign this ${r} in industrial loft style. Replace all furniture with: dark steel-frame sofa with worn leather cushions, reclaimed wood coffee table with steel hairpin legs, metal bookshelf, vintage wooden dining chairs. Add Edison-bulb pendant lamps, raw steel floor lamp, distressed leather rug. ${p ? "Include rugged plants — a large cactus or rubber plant in aged terracotta pots." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  coastal: (r, p) =>
+    `Redesign this ${r} in coastal beach style. Replace all furniture with: rattan or wicker sofa with white and sandy linen cushions, driftwood-finish coffee table, whitewashed wooden chairs, open shelving with coastal decor. Add sheer white linen curtains, jute rug, woven sea-grass baskets. ${p ? "Include green plants in white ceramic and woven rattan pots — palms, ferns, or trailing pothos." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  transitional: (r, p) =>
+    `Redesign this ${r} in transitional style. Replace all furniture with: classic-silhouette sofa in warm taupe or greige upholstery, dark-stained wood coffee table with refined lines, rolled-arm accent chairs, understated wooden sideboard. Add layered neutral rugs, subtle patterned throw pillows, warm table lamps. ${p ? "Add elegant plants in ceramic or stone planters — a sculpted snake plant or ZZ plant." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  farmhouse: (r, p) =>
+    `Redesign this ${r} in farmhouse style. Replace all furniture with: large linen or cotton slip-cover sofa in cream or light grey, reclaimed barn wood coffee table, cross-back wooden chairs, open farmhouse shelving with vintage accessories. Add plaid or striped cotton throws, galvanized metal lamp, cotton rag rug. ${p ? "Add fresh herbs in terracotta pots on shelves and a large potted lavender or olive tree." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+
+  midcentury: (r, p) =>
+    `Redesign this ${r} in mid-century modern style. Replace all furniture with: low-profile sofa with tapered walnut legs in mustard or teal upholstery, round walnut coffee table, Eames-style lounge chair in cognac leather, teak credenza or sideboard. Add sunburst wall clock, geometric rug in warm oranges and browns, arc floor lamp in brushed brass. ${p ? "Include a large monstera deliciosa or fiddle leaf fig in a slim teak or ceramic pot." : ""} Keep all walls, floors, windows and architectural features exactly as they are. Make the result photorealistic and sharp.`,
+};
+
+// ── Photo Chat Editing: send edit request ─────────────────────────────────────
+async function sendEditGenerate(uploadUrl: string, prompt: string): Promise<string> {
+  const form = new FormData();
+  form.append("uploadUrl", uploadUrl);
+  form.append("prompt", prompt);
+
+  log(`sendEditGenerate: prompt="${prompt.slice(0, 80)}..."`);
+  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+    method: "POST",
+    headers: { apiKey: COLLOV_API_KEY! },
+    body: form,
+  });
+  log(`edit/generate response: ${JSON.stringify(json).slice(0, 300)}`);
+  if (!json.success || !json.data?.uuid) throw new Error(`Edit generate failed: ${JSON.stringify(json)}`);
+  return json.data.uuid;
+}
+
+// ── Photo Chat Editing: poll result ───────────────────────────────────────────
+async function pollEditResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
+  const json = await collovFetch(
+    `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+  );
+  const data = json.data || {};
+  const status = data.status;
+  log(`pollEditResult uuid=${uuid}: status=${status}`);
+  if (status === "SUCCESS") return { status: "completed", resultUrl: data.generateUrl };
+  if (status === "FAILED")  return { status: "failed", failReason: data.failReason ?? "generation_failed" };
+  return { status: "processing" };
+}
+
 // ── In-memory status message map (cleared on completion/failure) ───────────────
 const designStatusMessages = new Map<number, string>();
 function setStatusMsg(designId: number, msg: string) {
@@ -228,68 +286,129 @@ function clearStatusMsg(designId: number) {
   designStatusMessages.delete(designId);
 }
 
-// ── Full async VST workflow (runs entirely in background) ─────────────────────
-// Flow: generate empty room → stage with original+emptyRoom → sharpen locally
-async function runVstWorkflow(designId: number, uploadUrl: string, roomType: string, style: string) {
-  const maxPollAttempts = 80;
+// ── Generic poller — works for both edit and VST results ──────────────────────
+async function pollUntilDone(
+  designId: number,
+  pollFn: () => Promise<{ status: string; resultUrl?: string; failReason?: string }>,
+  maxAttempts = 80,
+): Promise<{ resultUrl: string } | null> {
+  const pollStart = Date.now();
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const elapsed = Math.round((Date.now() - pollStart) / 1000);
+    setStatusMsg(designId, `Venter på AI... (${elapsed} sek)`);
+    await sleep(3000);
+    try {
+      const result = await pollFn();
+      if (result.status === "completed" && result.resultUrl) return { resultUrl: result.resultUrl };
+      if (result.status === "failed") {
+        log(`Design ${designId}: poll returned FAILED — ${result.failReason}`);
+        return null;
+      }
+    } catch (pollErr: any) {
+      log(`Design ${designId}: poll error (attempt ${attempt + 1}): ${pollErr.message}`);
+    }
+  }
+  log(`Design ${designId}: polling timed out after ${maxAttempts * 3}s`);
+  return null;
+}
 
+// ── Shared finalise: sharpen + save to DB ────────────────────────────────────
+async function finaliseResult(designId: number, collovUrl: string): Promise<void> {
+  setStatusMsg(designId, "Efterbehandler billede...");
+  let finalUrl = collovUrl;
   try {
-    // Step 1+2: Generate empty room (enables full furniture repositioning)
-    setStatusMsg(designId, "Tømmer rum...");
-    const emptyRoomUrl = await getEmptyRoomUrl(uploadUrl, designId);
+    finalUrl = await sharpenAndSave(collovUrl, designId);
+  } catch (sharpErr: any) {
+    log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
+  }
+  clearStatusMsg(designId);
+  await storage.updateDesign(designId, {
+    status: "completed",
+    resultImageUrl: finalUrl,
+    versions: [finalUrl],
+  });
+  log(`Design ${designId}: completed → ${finalUrl}`);
+}
 
-    // Step 3: Stage with original photo as base + empty room as furniture hint
-    setStatusMsg(designId, `Designer ${roomType}...`);
-    const stylePrompt = VST_STYLE_PROMPTS[style];
-    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl, stylePrompt);
+// ── Primary: Photo Chat Editing workflow ──────────────────────────────────────
+async function runEditWorkflow(
+  designId: number,
+  uploadUrl: string,
+  roomType: string,
+  style: string,
+  includePlants: boolean,
+): Promise<boolean> {
+  try {
+    setStatusMsg(designId, "Analyserer rum...");
+    const promptFn = EDIT_PROMPTS[style];
+    if (!promptFn) throw new Error(`No edit prompt for style: ${style}`);
+    const prompt = promptFn(roomType, includePlants);
+
+    setStatusMsg(designId, "Sender til AI...");
+    const uuid = await sendEditGenerate(uploadUrl, prompt);
     await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-    log(`Design ${designId}: VST task started, uuid=${uuid}, emptyRoom=${!!emptyRoomUrl}`);
+    log(`Design ${designId}: edit/generate started, uuid=${uuid}`);
 
-    // Step 4: Poll for result
-    let attempts = 0;
-    const pollStart = Date.now();
-    while (attempts < maxPollAttempts) {
-      attempts++;
-      const elapsed = Math.round((Date.now() - pollStart) / 1000);
-      setStatusMsg(designId, `Venter på AI... (${elapsed} sek)`);
-      await sleep(3000);
-      try {
-        const result = await pollVstResult(uuid, 0);
-        if (result.status === "completed" && result.resultUrl) {
-          // Step 5: Sharpen the Collov output and save locally
-          setStatusMsg(designId, "Efterbehandler billede...");
-          let finalUrl = result.resultUrl;
-          try {
-            finalUrl = await sharpenAndSave(result.resultUrl, designId);
-          } catch (sharpErr: any) {
-            log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
-          }
-          clearStatusMsg(designId);
-          await storage.updateDesign(designId, {
-            status: "completed",
-            resultImageUrl: finalUrl,
-            versions: [finalUrl],
-          });
-          log(`Design ${designId}: completed in ~${attempts * 3}s → ${finalUrl}`);
-          return;
-        }
-        if (result.status === "failed") {
-          clearStatusMsg(designId);
-          await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "generation_failed" });
-          log(`Design ${designId}: FAILED — ${result.failReason}`);
-          return;
-        }
-      } catch (pollErr: any) {
-        log(`Design ${designId}: poll error (attempt ${attempts}): ${pollErr.message}`);
+    const result = await pollUntilDone(designId, () => pollEditResult(uuid));
+    if (!result) return false;
+
+    await finaliseResult(designId, result.resultUrl);
+    return true;
+  } catch (err: any) {
+    log(`Design ${designId}: edit workflow error — ${err.message}`);
+    return false;
+  }
+}
+
+// ── Fallback: VST direct staging (no emptyRoom) ───────────────────────────────
+async function runVstFallback(
+  designId: number,
+  uploadUrl: string,
+  roomType: string,
+  style: string,
+): Promise<boolean> {
+  try {
+    setStatusMsg(designId, `Designer ${roomType} (fallback)...`);
+    const stylePrompt = VST_STYLE_PROMPTS[style];
+    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, undefined, stylePrompt);
+    await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
+    log(`Design ${designId}: VST fallback started, uuid=${uuid}`);
+
+    const result = await pollUntilDone(designId, () => pollVstResult(uuid, 0));
+    if (!result) return false;
+
+    await finaliseResult(designId, result.resultUrl);
+    return true;
+  } catch (err: any) {
+    log(`Design ${designId}: VST fallback error — ${err.message}`);
+    return false;
+  }
+}
+
+// ── Main workflow: edit first → VST fallback ──────────────────────────────────
+async function runVstWorkflow(
+  designId: number,
+  uploadUrl: string,
+  roomType: string,
+  style: string,
+  includePlants = false,
+) {
+  try {
+    log(`Design ${designId}: starting edit/generate workflow`);
+    const editOk = await runEditWorkflow(designId, uploadUrl, roomType, style, includePlants);
+
+    if (!editOk) {
+      log(`Design ${designId}: edit failed — falling back to VST`);
+      setStatusMsg(designId, "Skifter til backup-metode...");
+      const vstOk = await runVstFallback(designId, uploadUrl, roomType, style);
+      if (!vstOk) {
+        clearStatusMsg(designId);
+        await storage.updateDesign(designId, { status: "failed", failReason: "generation_failed" });
       }
     }
-    clearStatusMsg(designId);
-    await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
-    log(`Design ${designId}: timed out after ${maxPollAttempts * 3}s`);
-
   } catch (err: any) {
     clearStatusMsg(designId);
-    log(`Design ${designId}: workflow error — ${err.message}`);
+    log(`Design ${designId}: top-level workflow error — ${err.message}`);
     await storage.updateDesign(designId, { status: "failed", failReason: err.message?.slice(0, 100) || "workflow_error" });
   }
 }
@@ -481,8 +600,9 @@ export async function registerRoutes(
         return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
       }
 
-      // Start full VST workflow in background — returns immediately
-      runVstWorkflow(design.id, publicUrl, parsed.data.roomType, parsed.data.style);
+      // Start workflow in background — edit/generate first, VST fallback
+      const includePlants = req.body.includePlants === "true";
+      runVstWorkflow(design.id, publicUrl, parsed.data.roomType, parsed.data.style, includePlants);
 
       const updated = await storage.getDesign(design.id);
       return res.json(updated);

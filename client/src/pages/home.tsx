@@ -207,6 +207,7 @@ export default function HomePage() {
   const [pollingDesignId, setPollingDesignId] = useState<number | null>(null);
   const [showValueModal, setShowValueModal] = useState(false);
   const [popupBudget, setPopupBudget] = useState<number>(initialBudget);
+  const [includePlants, setIncludePlants] = useState(true);
 
   const { data: designs = [] } = useQuery<Design[]>({
     queryKey: ["/api/designs", "my"],
@@ -359,6 +360,7 @@ export default function HomePage() {
     formData.append("roomType", roomType);
     formData.append("style", style);
     formData.append("budget", finalBudget.toString());
+    formData.append("includePlants", includePlants.toString());
     generateMutation.mutate(formData);
     setStep(3);
   };
@@ -371,6 +373,7 @@ export default function HomePage() {
     formData.append("roomType", roomType);
     formData.append("style", style);
     formData.append("budget", budget.toString());
+    formData.append("includePlants", includePlants.toString());
     generateMutation.mutate(formData);
     setStep(3);
   };
@@ -630,6 +633,26 @@ export default function HomePage() {
                       </div>
                     </motion.div>
                   )}
+
+                  <div className="flex items-center justify-between py-3 px-4 rounded-lg border border-border/60 bg-card/40">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg">🌿</span>
+                      <div>
+                        <p className="text-sm font-medium leading-tight">Inkluder planter</p>
+                        <p className="text-xs text-muted-foreground">Tilføjer grønne planter til redesignet</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIncludePlants(v => !v)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${includePlants ? "bg-foreground" : "bg-muted"}`}
+                      data-testid="toggle-include-plants"
+                      aria-pressed={includePlants}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${includePlants ? "translate-x-6" : "translate-x-1"}`}
+                      />
+                    </button>
+                  </div>
 
                   {user && creditsRemaining !== null && (
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-2" data-testid="text-credits-info">
