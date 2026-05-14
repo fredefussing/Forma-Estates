@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles } from "@shared/schema";
 import { styleVocabulary } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
@@ -87,43 +88,79 @@ async function collovFetch(url: string, options: RequestInit, retries = 5): Prom
   }
 }
 
-// ── Trigger a re-generation with the same uuid (different furniture placement) ─
-async function sendReGenerateImgOnCommon(uuid: string): Promise<void> {
+// ── Step 1: Generate empty room ───────────────────────────────────────────────
+async function sendGenerateEmptyRoom(uploadUrl: string): Promise<number> {
   const form = new FormData();
-  form.append("uuid", uuid);
-  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/reGenerateImgOnCommon`, {
+  form.append("uploadUrl", uploadUrl);
+  const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`, {
     method: "POST",
     headers: { apiKey: COLLOV_API_KEY! },
     body: form,
   });
-  log(`reGenerateImgOnCommon uuid=${uuid} response: ${JSON.stringify(json).slice(0, 300)}`);
-  if (!json.success) throw new Error(`reGenerate failed: ${JSON.stringify(json)}`);
+  log(`generateEmptyRoom response: ${JSON.stringify(json).slice(0, 300)}`);
+  if (!json.success || !json.data?.id) throw new Error(`Empty room start failed: ${JSON.stringify(json)}`);
+  return json.data.id;
+}
+
+// ── Step 2: Poll empty room until ready ───────────────────────────────────────
+async function pollEmptyRoom(id: number, timeoutMs = 180000): Promise<string> {
+  const start = Date.now();
+  while (true) {
+    const json = await collovFetch(
+      `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${id}`,
+      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+    );
+    const data = json.data || {};
+    log(`pollEmptyRoom id=${id}: status=${data.status}`);
+    if (data.status === "SUCCESS") return data.emptyRoomUrl;
+    if (data.status === "FAILED") throw new Error("Empty room generation failed");
+    if (Date.now() - start > timeoutMs) throw new Error("Empty room polling timed out");
+    await sleep(3000);
+  }
+}
+
+// ── Step 2b: Get empty room URL with one retry ────────────────────────────────
+async function getEmptyRoomUrl(uploadUrl: string, designId: number): Promise<string | undefined> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      log(`Design ${designId}: empty room attempt ${attempt}/2`);
+      const emptyId = await sendGenerateEmptyRoom(uploadUrl);
+      const url = await pollEmptyRoom(emptyId);
+      log(`Design ${designId}: empty room ready → ${url}`);
+      return url;
+    } catch (err: any) {
+      log(`Design ${designId}: empty room attempt ${attempt} failed — ${err.message}`);
+      if (attempt < 2) await sleep(4000);
+    }
+  }
+  log(`Design ${designId}: ⚠️ empty room failed both attempts — falling back to direct staging`);
+  return undefined;
 }
 
 // ── Step 3: Start staged room design ─────────────────────────────────────────
-// QUALITY NOTE: We always pass the original uploadUrl as the image base so that
-// Collov works from the original high-res photo. emptyRoomUrl is intentionally
-// NOT passed to staging — using it as the base introduces a second AI-generation
-// step that causes cumulative blur. Collov can still reposition furniture based
-// on roomType+style without needing the empty room image as staging base.
+// uploadUrl   = original high-res photo (always — this is the room structure base)
+// emptyRoomUrl = AI-generated empty room (furniture placement hint for Collov)
+// With both present, Collov stages fresh furniture in the target style while
+// preserving the original room's perspective and architecture.
 async function sendGenerateImgOnCommon(
   uploadUrl: string,
   roomType: string,
   style: string,
+  emptyRoomUrl?: string,
   stylePrompt?: string,
 ): Promise<string> {
   const collovRoom  = COLLOV_ROOM_MAP[roomType]  || roomType;
   const collovStyle = COLLOV_STYLE_MAP[style]    || style;
 
   const form = new FormData();
-  form.append("uploadUrl",      uploadUrl);   // always the original high-res photo
-  form.append("roomType",       collovRoom);
-  form.append("style",          collovStyle);
-  // "realistic" = photo-realistic sharpness (Collov's highest quality mode)
-  form.append("renderingType",  "realistic");
-  if (stylePrompt) form.append("prompt", stylePrompt);
+  form.append("uploadUrl",     uploadUrl);   // original photo — room structure base
+  form.append("roomType",      collovRoom);
+  form.append("style",         collovStyle);
+  form.append("renderingType", "realistic");
+  if (emptyRoomUrl) form.append("emptyRoomUrl", emptyRoomUrl); // furniture layout hint
+  if (stylePrompt)  form.append("prompt",       stylePrompt);
 
-  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", renderingType=realistic`);
+  log(`generateImgOnCommon: roomType="${collovRoom}", style="${collovStyle}", emptyRoom=${!!emptyRoomUrl}`);
 
   const json = await collovFetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`, {
     method: "POST",
@@ -133,6 +170,22 @@ async function sendGenerateImgOnCommon(
   log(`generateImgOnCommon response: ${JSON.stringify(json).slice(0, 300)}`);
   if (!json.success || !json.data?.uuid) throw new Error(`VST generate failed: ${JSON.stringify(json)}`);
   return json.data.uuid;
+}
+
+// ── Sharp post-processing: sharpen Collov output and save locally ─────────────
+async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
+  const res = await fetch(collovUrl);
+  if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const sharpened = await sharp(buffer)
+    .sharpen(1.5)
+    .jpeg({ quality: 95 })
+    .toBuffer();
+  const filename = `result-${designId}-${Date.now()}.jpg`;
+  const filepath = path.join(uploadDir, filename);
+  fs.writeFileSync(filepath, sharpened);
+  log(`Design ${designId}: sharpened image saved → /uploads/${filename}`);
+  return `/uploads/${filename}`;
 }
 
 // ── Poll VST design result at a specific version index ────────────────────────
@@ -167,15 +220,21 @@ const VST_STYLE_PROMPTS: Record<string, string> = {
 };
 
 // ── Full async VST workflow (runs entirely in background) ─────────────────────
+// Flow: generate empty room → stage with original+emptyRoom → sharpen locally
 async function runVstWorkflow(designId: number, uploadUrl: string, roomType: string, style: string) {
   const maxPollAttempts = 80;
 
   try {
-    const stylePrompt = VST_STYLE_PROMPTS[style];
-    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, stylePrompt);
-    await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-    log(`Design ${designId}: VST task started, uuid=${uuid}`);
+    // Step 1+2: Generate empty room (enables full furniture repositioning)
+    const emptyRoomUrl = await getEmptyRoomUrl(uploadUrl, designId);
 
+    // Step 3: Stage with original photo as base + empty room as furniture hint
+    const stylePrompt = VST_STYLE_PROMPTS[style];
+    const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl, stylePrompt);
+    await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
+    log(`Design ${designId}: VST task started, uuid=${uuid}, emptyRoom=${!!emptyRoomUrl}`);
+
+    // Step 4: Poll for result
     let attempts = 0;
     while (attempts < maxPollAttempts) {
       attempts++;
@@ -183,13 +242,19 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
       try {
         const result = await pollVstResult(uuid, 0);
         if (result.status === "completed" && result.resultUrl) {
-          // Store URL in both resultImageUrl and versions[0] so regen can extend it
+          // Step 5: Sharpen the Collov output and save locally
+          let finalUrl = result.resultUrl;
+          try {
+            finalUrl = await sharpenAndSave(result.resultUrl, designId);
+          } catch (sharpErr: any) {
+            log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
+          }
           await storage.updateDesign(designId, {
             status: "completed",
-            resultImageUrl: result.resultUrl,
-            versions: [result.resultUrl],
+            resultImageUrl: finalUrl,
+            versions: [finalUrl],
           });
-          log(`Design ${designId}: completed in ~${attempts * 3}s → ${result.resultUrl}`);
+          log(`Design ${designId}: completed in ~${attempts * 3}s → ${finalUrl}`);
           return;
         }
         if (result.status === "failed") {
@@ -207,46 +272,6 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
   } catch (err: any) {
     log(`Design ${designId}: workflow error — ${err.message}`);
     await storage.updateDesign(designId, { status: "failed", failReason: err.message?.slice(0, 100) || "workflow_error" });
-  }
-}
-
-// ── Async regeneration workflow — adds a new version to generateRecordList ────
-async function runVstRegenWorkflow(designId: number, uuid: string, versionIndex: number) {
-  const maxPollAttempts = 80;
-  try {
-    await sendReGenerateImgOnCommon(uuid);
-    log(`Design ${designId}: regen started for v${versionIndex}`);
-
-    let attempts = 0;
-    while (attempts < maxPollAttempts) {
-      attempts++;
-      await sleep(3000);
-      try {
-        const result = await pollVstResult(uuid, versionIndex);
-        if (result.status === "completed" && result.resultUrl) {
-          const design = await storage.getDesign(designId);
-          const currentVersions = design?.versions ?? [];
-          // Ensure array length matches — pad if needed, then set at versionIndex
-          const newVersions = [...currentVersions];
-          newVersions[versionIndex] = result.resultUrl;
-          await storage.updateDesign(designId, {
-            resultImageUrl: result.resultUrl,
-            versions: newVersions,
-          });
-          log(`Design ${designId}: regen v${versionIndex} done → ${result.resultUrl}`);
-          return;
-        }
-        if (result.status === "failed") {
-          log(`Design ${designId}: regen v${versionIndex} FAILED`);
-          return;
-        }
-      } catch (pollErr: any) {
-        log(`Design ${designId}: regen poll error (attempt ${attempts}): ${pollErr.message}`);
-      }
-    }
-    log(`Design ${designId}: regen v${versionIndex} timed out`);
-  } catch (err: any) {
-    log(`Design ${designId}: regen workflow error — ${err.message}`);
   }
 }
 
@@ -550,34 +575,6 @@ export async function registerRoutes(
     return res.json(design);
   });
 
-  // ── POST /api/designs/:id/regenerate ─────────────────────────────────────────
-  // Triggers a new Collov reGenerate call (different furniture placement) using
-  // the same uuid. Returns the versionIndex that will be populated when done.
-  // Frontend polls /api/designs/:id/status and watches versions array length.
-  app.post("/api/designs/:id/regenerate", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-
-      const design = await storage.getDesign(id);
-      if (!design) return res.status(404).json({ error: "Design not found" });
-      if (!design.collovUuid) return res.status(400).json({ error: "No Collov UUID for this design" });
-      if (design.status !== "completed") return res.status(400).json({ error: "Design not yet completed" });
-
-      const currentVersions = design.versions ?? [];
-      const versionIndex = currentVersions.length; // next slot in generateRecordList
-
-      // Fire and forget — frontend polls status for new version
-      runVstRegenWorkflow(id, design.collovUuid, versionIndex).catch((err) =>
-        log(`Regen workflow error for design ${id}: ${err.message}`)
-      );
-
-      return res.json({ ok: true, versionIndex });
-    } catch (err: any) {
-      log(`Regenerate route error: ${err.message}`);
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  });
 
   app.get("/api/designs/:id/status", async (req, res) => {
     try {
