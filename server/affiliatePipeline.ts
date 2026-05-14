@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 import { pool } from "./db";
-import { log } from "./index";
-import fetch from "node-fetch";
+import fs from "fs";
+import path from "path";
+
+const log = (msg: string) => console.log(`${new Date().toLocaleTimeString()} [express] ${msg}`);
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ── A. Vision analyse — GPT-4o-mini beskriver møbler i AI-billedet ───────────
+// ── A. Vision analyse — GPT-4o-mini beskriver møbler (base64, ikke URL) ──────
 async function analyzeVision(imageUrl: string, roomType: string): Promise<{
   description: string;
   types: string[];
@@ -13,9 +15,19 @@ async function analyzeVision(imageUrl: string, roomType: string): Promise<{
   styles: string[];
   materials: string[];
 }> {
-  const fullUrl = imageUrl.startsWith("/")
-    ? `http://localhost:${process.env.PORT || 5000}${imageUrl}`
-    : imageUrl;
+  // Læs lokalt fra disk (undgår localhost-problem for OpenAI)
+  let base64Image: string;
+  if (imageUrl.startsWith("/uploads/")) {
+    const filePath = path.join(process.cwd(), imageUrl);
+    const buf = fs.readFileSync(filePath);
+    base64Image = buf.toString("base64");
+  } else {
+    // Ekstern URL (Collov CDN) — hent som buffer
+    const { default: fetch } = await import("node-fetch");
+    const res = await fetch(imageUrl);
+    const arr = await res.arrayBuffer();
+    base64Image = Buffer.from(arr).toString("base64");
+  }
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -30,7 +42,7 @@ Use these exact type values: sofa, lounge_chair, dining_chair, bed, lamp, floor_
         role: "user",
         content: [
           { type: "text", text: `Analyze this ${roomType}.` },
-          { type: "image_url", image_url: { url: fullUrl, detail: "low" } }
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}`, detail: "low" } }
         ]
       }
     ],

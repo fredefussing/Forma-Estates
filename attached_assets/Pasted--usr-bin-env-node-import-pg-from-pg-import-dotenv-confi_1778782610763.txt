@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+import pg from "pg";
+import "dotenv/config";
+
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function main() {
+  const designId = process.argv[2] || (
+    await pool.query(`SELECT id FROM designs ORDER BY id DESC LIMIT 1`)
+  ).rows[0]?.id;
+
+  console.log("=".repeat(60));
+  console.log(`DEBUG: Design #${designId}`);
+  console.log("=".repeat(60));
+
+  // 1. Har designet vision_description?
+  const d = await pool.query(
+    `SELECT vision_description, status, result_image_url FROM designs WHERE id = $1`,
+    [designId]
+  );
+  console.log("\n--- 1. Vision ---");
+  console.log(`  vision_description: ${d.rows[0]?.vision_description ? "✅" : "❌ NULL"}`);
+  if (d.rows[0]?.vision_description) {
+    console.log(`  "${d.rows[0].vision_description.substring(0, 80)}..."`);
+  }
+
+  // 2. Findes product_matches?
+  const pm = await pool.query(
+    `SELECT COUNT(*) FROM product_matches WHERE design_id = $1`,
+    [designId]
+  );
+  console.log("\n--- 2. Product matches ---");
+  console.log(`  matches: ${pm.rows[0].count}`);
+
+  if (parseInt(pm.rows[0].count) > 0) {
+    const sample = await pool.query(`
+      SELECT pm.*, p.name, p.affiliate_url 
+      FROM product_matches pm
+      JOIN products p ON pm.product_id = p.id
+      WHERE pm.design_id = $1
+      ORDER BY pm.rank LIMIT 3
+    `, [designId]);
+    for (const r of sample.rows) {
+      console.log(`  #${r.rank}: ${r.name?.substring(0,40)} (${r.match_type}, score:${r.match_score})`);
+    }
+  }
+
+  // 3. Hvilke produkter har tags?
+  const tags = await pool.query(`
+    SELECT COUNT(*) FROM products WHERE tags IS NOT NULL AND tags != '{}'
+  `);
+  console.log("\n--- 3. Products with tags ---");
+  console.log(`  ${tags.rows[0].count} / 243897 har tags`);
+
+  // 4. Hvilke tags findes?
+  const tagSample = await pool.query(`
+    SELECT DISTINCT tags->>'type' as type, COUNT(*) 
+    FROM products WHERE tags->>'type' IS NOT NULL 
+    GROUP BY tags->>'type' ORDER BY COUNT DESC LIMIT 10
+  `);
+  console.log("\n--- 4. Tag-typer (top 10) ---");
+  for (const r of tagSample.rows) {
+    console.log(`  ${r.type}: ${r.count}`);
+  }
+
+  // 5. Tjek server-logs for affiliate fejl
+  console.log("\n--- 5. Hvad du skal tjekke ---");
+  console.log("  Se server-log efter:");
+  console.log('  "[Affiliate] Design X: starting vision..."');
+  console.log('  "[Affiliate] Design X: vision=..."');
+  console.log('  "[Affiliate] Design X: X product matches saved"');
+  console.log('  ELLER fejl som: "db.query is not a function"');
+  console.log('  ELLER: "Vision failed: ..."');
+
+  await pool.end();
+}
+main();
