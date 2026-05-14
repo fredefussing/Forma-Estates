@@ -219,6 +219,15 @@ const VST_STYLE_PROMPTS: Record<string, string> = {
   midcentury:    "Mid-century modern: tapered walnut legs, mustard and teal accents, organic shapes, Eames-inspired aesthetic.",
 };
 
+// ── In-memory status message map (cleared on completion/failure) ───────────────
+const designStatusMessages = new Map<number, string>();
+function setStatusMsg(designId: number, msg: string) {
+  designStatusMessages.set(designId, msg);
+}
+function clearStatusMsg(designId: number) {
+  designStatusMessages.delete(designId);
+}
+
 // ── Full async VST workflow (runs entirely in background) ─────────────────────
 // Flow: generate empty room → stage with original+emptyRoom → sharpen locally
 async function runVstWorkflow(designId: number, uploadUrl: string, roomType: string, style: string) {
@@ -226,9 +235,11 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
 
   try {
     // Step 1+2: Generate empty room (enables full furniture repositioning)
+    setStatusMsg(designId, "Tømmer rum...");
     const emptyRoomUrl = await getEmptyRoomUrl(uploadUrl, designId);
 
     // Step 3: Stage with original photo as base + empty room as furniture hint
+    setStatusMsg(designId, `Designer ${roomType}...`);
     const stylePrompt = VST_STYLE_PROMPTS[style];
     const uuid = await sendGenerateImgOnCommon(uploadUrl, roomType, style, emptyRoomUrl, stylePrompt);
     await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
@@ -236,19 +247,24 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
 
     // Step 4: Poll for result
     let attempts = 0;
+    const pollStart = Date.now();
     while (attempts < maxPollAttempts) {
       attempts++;
+      const elapsed = Math.round((Date.now() - pollStart) / 1000);
+      setStatusMsg(designId, `Venter på AI... (${elapsed} sek)`);
       await sleep(3000);
       try {
         const result = await pollVstResult(uuid, 0);
         if (result.status === "completed" && result.resultUrl) {
           // Step 5: Sharpen the Collov output and save locally
+          setStatusMsg(designId, "Efterbehandler billede...");
           let finalUrl = result.resultUrl;
           try {
             finalUrl = await sharpenAndSave(result.resultUrl, designId);
           } catch (sharpErr: any) {
             log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
           }
+          clearStatusMsg(designId);
           await storage.updateDesign(designId, {
             status: "completed",
             resultImageUrl: finalUrl,
@@ -258,6 +274,7 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
           return;
         }
         if (result.status === "failed") {
+          clearStatusMsg(designId);
           await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "generation_failed" });
           log(`Design ${designId}: FAILED — ${result.failReason}`);
           return;
@@ -266,10 +283,12 @@ async function runVstWorkflow(designId: number, uploadUrl: string, roomType: str
         log(`Design ${designId}: poll error (attempt ${attempts}): ${pollErr.message}`);
       }
     }
+    clearStatusMsg(designId);
     await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
     log(`Design ${designId}: timed out after ${maxPollAttempts * 3}s`);
 
   } catch (err: any) {
+    clearStatusMsg(designId);
     log(`Design ${designId}: workflow error — ${err.message}`);
     await storage.updateDesign(designId, { status: "failed", failReason: err.message?.slice(0, 100) || "workflow_error" });
   }
@@ -617,6 +636,7 @@ export async function registerRoutes(
         status: "processing",
         resultUrl: null,
         error: null,
+        statusMessage: designStatusMessages.get(id) ?? "Genererer...",
       });
     } catch (error: any) {
       log(`Status check failed: ${error.message}`);

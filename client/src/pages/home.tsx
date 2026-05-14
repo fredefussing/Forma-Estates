@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -690,14 +689,46 @@ export default function HomePage() {
                     <div className="relative mb-8">
                       <div className="w-14 h-14 rounded-full border-[3px] border-muted border-t-foreground animate-spin" />
                     </div>
-                    <h3 className="text-base font-medium mb-1" data-testid="text-generating">AI designer dit rum...</h3>
-                    <p className="text-sm text-muted-foreground mb-8">
-                      Dette tager normalt 15-45 sekunder
-                    </p>
-                    <div className="w-56 mb-8">
-                      <Progress value={job.progress} className="h-1.5" data-testid="progress-bar" />
-                      <p className="text-xs text-muted-foreground text-center mt-2 tabular-nums">{Math.round(job.progress)}%</p>
+
+                    {job.elapsed > 180 ? (
+                      <>
+                        <h3 className="text-base font-medium mb-1 text-destructive" data-testid="text-generating">Generering fejlede</h3>
+                        <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
+                          Noget gik galt. Prøv igen med et andet billede.
+                        </p>
+                      </>
+                    ) : job.elapsed > 90 ? (
+                      <>
+                        <h3 className="text-base font-medium mb-1" data-testid="text-generating">Tager lidt længere tid end normalt...</h3>
+                        <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
+                          AI'en arbejder stadig. Hold siden åben.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-base font-medium mb-1" data-testid="text-generating">AI designer dit rum...</h3>
+                        <p className="text-sm text-muted-foreground mb-8">
+                          Dette tager normalt 30–90 sekunder
+                        </p>
+                      </>
+                    )}
+
+                    <div className="flex flex-col items-center gap-2 mb-8">
+                      <p className="text-sm font-medium tabular-nums" data-testid="text-status-message">
+                        {job.statusMessage || "Starter generering..."}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:0ms]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:150ms]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:300ms]" />
+                      </div>
+                      {job.elapsed > 0 && (
+                        <p className="text-xs text-muted-foreground tabular-nums" data-testid="text-elapsed">
+                          {job.elapsed} sek
+                        </p>
+                      )}
                     </div>
+
                     <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground" data-testid="button-cancel">
                       Annuller
                     </Button>

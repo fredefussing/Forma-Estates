@@ -1,18 +1,20 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 export function useTransformationJob(designId: number | null) {
   const [status, setStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [versions, setVersions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [elapsed, setElapsed] = useState(0);
 
   const reset = useCallback(() => {
     setStatus('idle');
     setResultUrl(null);
     setVersions([]);
     setError(null);
-    setProgress(0);
+    setStatusMessage('');
+    setElapsed(0);
   }, []);
 
   useEffect(() => {
@@ -22,15 +24,29 @@ export function useTransformationJob(designId: number | null) {
     }
 
     setStatus('pending');
+    setStatusMessage('Starter generering...');
+    setElapsed(0);
+
     let isActive = true;
-    let attempts = 0;
-    const maxAttempts = 60;
-    const pollInterval = 3000;
+    const startTime = Date.now();
+    const POLL_INTERVAL = 3000;
+    const MAX_ELAPSED_MS = 240 * 1000; // 4 min hard stop
+
+    // Elapsed ticker — updates every second for live counter
+    const ticker = setInterval(() => {
+      if (!isActive) return;
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
 
     const poll = async () => {
-      while (isActive && attempts < maxAttempts) {
-        attempts++;
-        setProgress(Math.min((attempts / 20) * 100, 95));
+      while (isActive) {
+        const elapsedMs = Date.now() - startTime;
+
+        if (elapsedMs > MAX_ELAPSED_MS) {
+          setStatus('failed');
+          setError('Det tog for lang tid. Prøv igen eller kontakt support.');
+          break;
+        }
 
         try {
           const response = await fetch(`/api/designs/${designId}/status`);
@@ -42,38 +58,41 @@ export function useTransformationJob(designId: number | null) {
             setStatus('completed');
             setResultUrl(data.resultUrl);
             setVersions(Array.isArray(data.versions) ? data.versions : data.resultUrl ? [data.resultUrl] : []);
-            setProgress(100);
-            return;
+            setStatusMessage('Billede klar!');
+            break;
           }
 
           if (data.status === 'failed' || data.status === 'error') {
             setStatus('failed');
             setError(data.error || 'Noget gik galt. Prøv igen.');
-            console.error('[Polling fejl]', { designId, status: data.status, error: data.error, errorCode: data.errorCode });
-            return;
+            console.error('[Polling fejl]', { designId, status: data.status, error: data.error });
+            break;
           }
 
           setStatus('processing');
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          if (data.statusMessage) {
+            setStatusMessage(data.statusMessage);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
 
         } catch (err) {
-          console.error('Polling fejl:', err);
-          await new Promise(resolve => setTimeout(resolve, pollInterval * 2));
+          console.error('Polling netværksfejl:', err);
+          // On network error, wait longer and retry
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 2));
         }
       }
 
-      if (isActive && attempts >= maxAttempts) {
-        setStatus('failed');
-        setError('Det tog for lang tid. Prøv igen eller kontakt support.');
-      }
+      clearInterval(ticker);
     };
 
     poll();
 
     return () => {
       isActive = false;
+      clearInterval(ticker);
     };
   }, [designId, reset]);
 
-  return { status, resultUrl, versions, error, progress, reset };
+  return { status, resultUrl, versions, error, statusMessage, elapsed, reset };
 }
