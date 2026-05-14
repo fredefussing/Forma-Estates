@@ -68,6 +68,10 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   form.append("uploadUrl", uploadUrl);
   form.append("prompt", prompt);
 
+  console.log("=== COLLOV DEBUG ===");
+  console.log("Endpoint:", "https://api.collov.ai/flair/enterpriseApi/edit/generate");
+  console.log("uploadUrl:", uploadUrl);
+  console.log("=== END DEBUG ===");
   log(`Collov redesign send: style=${style}, roomType=${roomType}, prompt="${prompt.slice(0, 100)}..."`);
 
   const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
