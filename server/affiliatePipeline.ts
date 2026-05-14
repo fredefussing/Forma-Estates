@@ -7,22 +7,48 @@ const log = (msg: string) => console.log(`${new Date().toLocaleTimeString()} [ex
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ── A. Vision analyse — GPT-4o-mini beskriver møbler (base64, ikke URL) ──────
+// FIX 1: Præcis vision-prompt med eksplicit farve-vokabular
+const VISION_PROMPT = `Analyze this room photo with EXTREME color precision.
+
+Return JSON:
+{
+  "description": "short description",
+  "objects": [
+    { "type": "sofa", "color": "beige", "style": "scandinavian", "material": "fabric" },
+    { "type": "coffee_table", "color": "natural_wood", "style": "scandinavian", "material": "wood" }
+  ],
+  "types": ["sofa", "coffee_table"],
+  "colors": ["beige", "natural_wood"],
+  "styles": ["scandinavian"],
+  "materials": ["fabric", "wood"]
+}
+
+TYPE VALUES — use ONLY: sofa, lounge_chair, dining_chair, bed, lamp, floor_lamp, dining_table, coffee_table, side_table, bookshelf, mirror, rug, curtain, sideboard, wardrobe
+
+COLOR RULES — use ONLY these exact values:
+sofas/chairs: beige, grey, white, black, brown, cream, tan, olive
+wood: natural_wood, light_wood, dark_wood, oak, walnut, pine
+metals: brass, gold, chrome, black_metal
+plants: green
+glass: clear_glass, tinted_glass
+
+Be SPECIFIC. "beige fabric sofa" not "light colored seating".`;
+
+// ── A. Vision analyse — GPT-4o-mini beskriver hvert møbelobjekt ──────────────
 async function analyzeVision(imageUrl: string, roomType: string): Promise<{
   description: string;
+  objects: Array<{ type: string; color: string; style: string; material: string }>;
   types: string[];
   colors: string[];
   styles: string[];
   materials: string[];
 }> {
-  // Læs lokalt fra disk (undgår localhost-problem for OpenAI)
   let base64Image: string;
   if (imageUrl.startsWith("/uploads/")) {
     const filePath = path.join(process.cwd(), imageUrl);
     const buf = fs.readFileSync(filePath);
     base64Image = buf.toString("base64");
   } else {
-    // Ekstern URL (Collov CDN) — hent som buffer
     const { default: fetch } = await import("node-fetch");
     const res = await fetch(imageUrl);
     const arr = await res.arrayBuffer();
@@ -32,75 +58,94 @@ async function analyzeVision(imageUrl: string, roomType: string): Promise<{
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
-      {
-        role: "system",
-        content: `Analyze furniture in this AI-generated ${roomType} image. Return ONLY JSON:
-{ "description": "brief one sentence", "types": ["sofa","coffee_table","lamp"], "colors": ["grey","white"], "styles": ["scandinavian"], "materials": ["fabric","wood"] }
-Use these exact type values: sofa, lounge_chair, dining_chair, bed, lamp, floor_lamp, dining_table, coffee_table, side_table, bookshelf, mirror, rug, curtain, sideboard, wardrobe.`
-      },
+      { role: "system", content: VISION_PROMPT },
       {
         role: "user",
         content: [
-          { type: "text", text: `Analyze this ${roomType}.` },
-          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}`, detail: "low" } }
+          { type: "text", text: `Analyze furniture objects in this ${roomType}.` },
+          // FIX 1: detail "high" for better color accuracy
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}`, detail: "high" } }
         ]
       }
     ],
-    max_tokens: 300,
+    max_tokens: 500,
     response_format: { type: "json_object" },
   });
 
   const raw = response.choices[0].message.content || "{}";
-  return JSON.parse(raw);
+  const parsed = JSON.parse(raw);
+
+  // Ensure objects array exists — fallback to top-level arrays
+  if (!parsed.objects || !Array.isArray(parsed.objects)) {
+    parsed.objects = (parsed.types || []).map((t: string, i: number) => ({
+      type: t,
+      color: (parsed.colors || [])[i] ?? "neutral",
+      style: (parsed.styles || [])[0] ?? "scandinavian",
+      material: (parsed.materials || [])[i] ?? "mixed",
+    }));
+  }
+
+  return parsed;
 }
 
-// GPT returnerer engelske farver — DB har danske. Mapping til begge retninger.
-const COLOR_EN_TO_DK: Record<string, string[]> = {
-  grey:    ["grå", "lysegrå", "mørkegrå"],
-  gray:    ["grå", "lysegrå"],
-  white:   ["hvid"],
-  black:   ["sort"],
-  brown:   ["brun", "lysbrun", "mørkebrun"],
-  beige:   ["beige"],
-  cream:   ["beige", "hvid"],
-  blue:    ["blå", "lyseblå", "mørkeblå"],
-  green:   ["grøn", "oliven", "mørkegrøn"],
-  red:     ["rød"],
-  yellow:  ["gul"],
-  orange:  ["orange"],
-  pink:    ["lyserød"],
-  purple:  ["lilla"],
-  natural: ["beige", "brun", "neutral"],
-  wood:    ["brun", "neutral"],
-  oak:     ["brun", "neutral"],
-  neutral: ["neutral", "beige"],
+// ── Color mapping: GPT vocabulary → Danish DB color values ───────────────────
+const COLOR_TO_DK: Record<string, string[]> = {
+  beige:        ["beige"],
+  cream:        ["beige", "hvid"],
+  tan:          ["beige", "brun"],
+  grey:         ["grå", "lysegrå", "mørkegrå"],
+  gray:         ["grå", "lysegrå"],
+  white:        ["hvid"],
+  black:        ["sort"],
+  black_metal:  ["sort"],
+  brown:        ["brun", "lysbrun", "mørkebrun"],
+  olive:        ["grøn", "oliven"],
+  green:        ["grøn", "oliven"],
+  natural_wood: ["neutral", "brun", "beige"],
+  light_wood:   ["beige", "neutral"],
+  dark_wood:    ["brun", "mørkebrun"],
+  oak:          ["brun", "neutral"],
+  walnut:       ["brun", "mørkebrun"],
+  pine:         ["beige", "brun"],
+  brass:        ["guld", "sølv"],
+  gold:         ["guld"],
+  chrome:       ["sølv"],
+  clear_glass:  ["neutral"],
+  tinted_glass: ["grå"],
+  blue:         ["blå", "lyseblå", "mørkeblå"],
+  red:          ["rød"],
+  yellow:       ["gul"],
+  orange:       ["orange"],
+  pink:         ["lyserød"],
+  purple:       ["lilla"],
+  neutral:      ["neutral", "beige"],
 };
 
-function toDbColors(englishColors: string[]): string[] {
+function toDbColors(colors: string[]): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
-  for (const c of englishColors) {
-    const mapped = COLOR_EN_TO_DK[c.toLowerCase()];
-    const toAdd = mapped ?? [c];
-    for (const dk of toAdd) {
+  for (const c of colors) {
+    const mapped = COLOR_TO_DK[c.toLowerCase()] ?? [c];
+    for (const dk of mapped) {
       if (!seen.has(dk)) { seen.add(dk); result.push(dk); }
     }
   }
   return result;
 }
 
-// ── B. Match produkter via tags (jsonb) i products tabel ─────────────────────
-async function matchProducts(
-  designId: number,
-  vision: { types: string[]; colors: string[]; styles: string[]; materials: string[] },
-  roomType: string,
-): Promise<any[]> {
-  const types = vision.types.length > 0 ? vision.types : [roomType];
-  const dbColors = toDbColors(vision.colors.length > 0 ? vision.colors : []);
-  const styles = vision.styles.length > 0 ? vision.styles : [];
+// ── B. Match ét enkelt objekt mod products-tabellen ───────────────────────────
+async function matchSingleObject(obj: {
+  type: string; color: string; style: string; material: string;
+}): Promise<Array<{ id: number; name: string; name_en: string | null; price: string; image_url: string; affiliate_link: string; shop: string; tags: any; score: number }>> {
+  if (!obj.type) return [];
 
-  log(`[Affiliate] Matching: types=[${types}] colors=[${dbColors}] styles=[${styles}]`);
+  const dbColors = toDbColors([obj.color]);
+  const styles = [obj.style].filter(Boolean);
+  const materials = [obj.material].filter(Boolean);
 
+  log(`[Affiliate] Object: type=${obj.type} color=${obj.color}→[${dbColors}] style=${obj.style}`);
+
+  // FIX 2: Mandatory type filter, COLOR scores highest (60%)
   const { rows } = await pool.query<{
     id: number; name: string; name_en: string | null; price: string;
     image_url: string; affiliate_link: string; shop: string; tags: any; score: number;
@@ -109,46 +154,64 @@ async function matchProducts(
       p.id, p.name, p.name_en, p.price,
       p.image_url, p.affiliate_link, p.shop, p.tags,
       (
-        CASE WHEN p.tags->>'type' = ANY($1::text[]) THEN 60 ELSE 0 END +
-        CASE WHEN p.tags->>'color' = ANY($2::text[]) THEN 25 ELSE 0 END +
-        CASE WHEN p.tags->>'style' = ANY($3::text[]) THEN 20 ELSE 0 END
+        CASE WHEN p.tags->>'color' = ANY($2::text[]) THEN 60 ELSE 0 END +
+        CASE WHEN p.tags->>'style' = ANY($3::text[]) THEN 20 ELSE 0 END +
+        CASE WHEN p.tags->>'material' = ANY($4::text[]) THEN 20 ELSE 0 END
       ) AS score
     FROM products p
     WHERE
       p.image_url IS NOT NULL AND p.image_url != ''
       AND p.affiliate_link IS NOT NULL AND p.affiliate_link != ''
-      AND (
-        p.tags->>'type' = ANY($1::text[])
-        OR p.tags->>'style' = ANY($3::text[])
-      )
+      AND p.tags->>'type' = $1
     ORDER BY score DESC, random()
-    LIMIT 30
-  `, [types, dbColors, styles]);
+    LIMIT 6
+  `, [obj.type, dbColors, styles, materials]);
 
-  // Deduplicate by product id, then limit to max 2 of same furniture type for variety
+  return rows;
+}
+
+// ── C. Hoved-matching: matcher hvert objekt individuelt, maks 2 per objekt ───
+async function matchProducts(
+  designId: number,
+  vision: {
+    objects: Array<{ type: string; color: string; style: string; material: string }>;
+    types: string[];
+    styles: string[];
+  },
+  roomType: string,
+): Promise<any[]> {
+  // FIX 3: Match hvert objekt individuelt
+  const objects = vision.objects?.length > 0
+    ? vision.objects.slice(0, 4)  // maks 4 objekter
+    : [{ type: roomType, color: "neutral", style: vision.styles[0] ?? "scandinavian", material: "mixed" }];
+
+  const allMatches: any[] = [];
   const seenIds = new Set<number>();
-  const typeCount: Record<string, number> = {};
-  const unique: typeof rows = [];
-  for (const r of rows) {
-    if (seenIds.has(r.id)) continue;
-    const type: string = r.tags?.type ?? "other";
-    if ((typeCount[type] ?? 0) >= 2) continue;
-    seenIds.add(r.id);
-    typeCount[type] = (typeCount[type] ?? 0) + 1;
-    unique.push(r);
-    if (unique.length >= 12) break;
+
+  for (const obj of objects) {
+    const objMatches = await matchSingleObject(obj);
+    let taken = 0;
+    for (const m of objMatches) {
+      if (taken >= 2) break;  // maks 2 per objekt
+      if (seenIds.has(m.id)) continue;
+      seenIds.add(m.id);
+      allMatches.push(m);
+      taken++;
+    }
+    if (allMatches.length >= 8) break;
   }
 
-  // Top 3 = same_style, next 3 = alternative (all unique, diverse types)
-  const sameStyle = unique.slice(0, 3);
-  const alternative = unique.slice(3, 6);
+  // Top 3 = same_style, next 3 = alternative
+  const top6 = allMatches.slice(0, 6);
+  const sameStyle = top6.slice(0, 3);
+  const alternative = top6.slice(3, 6);
 
-  const matches: any[] = [
+  const matches = [
     ...sameStyle.map((r, i) => ({ ...r, match_type: "same_style", rank: i + 1 })),
     ...alternative.map((r, i) => ({ ...r, match_type: "alternative", rank: i + 4 })),
   ];
 
-  // Clear old matches for this design before inserting fresh ones
+  // Slet gamle matches og indsæt nye
   await pool.query(`DELETE FROM product_matches WHERE design_id = $1`, [designId]);
 
   for (const m of matches) {
@@ -161,7 +224,7 @@ async function matchProducts(
   return matches;
 }
 
-// ── C. Hoved-pipeline — kaldes når billede er completed ──────────────────────
+// ── D. Hoved-pipeline — kaldes når billede er completed ──────────────────────
 export async function runAffiliatePipeline(
   designId: number,
   resultImageUrl: string,
@@ -175,7 +238,7 @@ export async function runAffiliatePipeline(
       `UPDATE designs SET vision_description = $1 WHERE id = $2`,
       [vision.description, designId],
     );
-    log(`[Affiliate] Design ${designId}: vision="${vision.description.slice(0, 80)}"`);
+    log(`[Affiliate] Design ${designId}: vision="${vision.description?.slice(0, 80)}" objects=${vision.objects?.length ?? 0}`);
 
     const matches = await matchProducts(designId, vision, roomType);
     log(`[Affiliate] Design ${designId}: ${matches.length} product matches saved`);
