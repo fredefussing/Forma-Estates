@@ -106,8 +106,9 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
-    .sharpen(1.5)
-    .jpeg({ quality: 95 })
+    .clahe({ width: 50, height: 50, maxSlope: 3 })
+    .sharpen({ sigma: 1.5, m1: 0.5, m2: 3 })
+    .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const filepath = path.join(uploadDir, filename);
@@ -121,13 +122,13 @@ const designStatusMessages = new Map<number, string>();
 function setStatusMsg(designId: number, msg: string) { designStatusMessages.set(designId, msg); }
 function clearStatusMsg(designId: number) { designStatusMessages.delete(designId); }
 
-// ── Background poll with auto-retry (May 3 pattern) ──────────────────────────
+// ── Background poll with fast-retry (first attempt max 15 polls, then immediate retry) ──
 async function backgroundPoll(
   designId: number,
   uuid: string,
   retryFn?: () => Promise<string>,
 ) {
-  const maxAttempts = 40;
+  const maxAttempts = 15;   // 15 × 3s = 45s before retry fires (was 40 × 3s = 120s)
   const maxRetries = 1;
   let attempts = 0;
   let retryCount = 0;
@@ -186,10 +187,28 @@ async function backgroundPoll(
 
       if (attempts < maxAttempts) {
         setTimeout(poll, 3000);
+      } else if (retryCount < maxRetries && retryFn) {
+        // First attempt timed out → fire retry immediately (same as FAILED path)
+        retryCount++;
+        log(`Design ${designId} timed out after ${elapsed}s, firing retry ${retryCount}/${maxRetries}...`);
+        setStatusMsg(designId, "Prøver igen...");
+        await storage.updateDesign(designId, { status: "processing" });
+        try {
+          const newUuid = await retryFn();
+          uuid = newUuid;
+          attempts = 0;
+          await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
+          log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
+          setTimeout(poll, 3000);
+        } catch (retryErr: any) {
+          log(`Design ${designId} retry send failed: ${retryErr.message}`);
+          clearStatusMsg(designId);
+          await storage.updateDesign(designId, { status: "failed", failReason: "retry_send_failed" });
+        }
       } else {
         clearStatusMsg(designId);
         await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
-        log(`Design ${designId} timed out after ~${elapsed}s`);
+        log(`Design ${designId} timed out after ~${elapsed}s (all retries exhausted)`);
       }
     } catch (err) {
       log(`Poll error for design ${designId}: ${err}`);
@@ -394,22 +413,29 @@ export async function registerRoutes(
 
       const includePlants = req.body.includePlants === "true";
 
-      try {
-        const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
-        await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
-        setStatusMsg(design.id, "Venter på AI...");
+      // Respond immediately — Collov task is sent in background after 5s cold-start delay
+      setStatusMsg(design.id, "Starter generering...");
+      const updated = await storage.getDesign(design.id);
+      res.json(updated);
 
-        const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
-        backgroundPoll(design.id, uuid, retryFn);
+      // Background: wait 5s (Collov cold-start), then send task + poll
+      setTimeout(async () => {
+        try {
+          log(`Design ${design.id}: sending to Collov after 5s delay...`);
+          const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
+          await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
+          setStatusMsg(design.id, "Venter på AI...");
+          const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
+          backgroundPoll(design.id, uuid, retryFn);
+        } catch (err: any) {
+          log(`Collov API error (background send): ${err.message}`);
+          const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
+          clearStatusMsg(design.id);
+          await storage.updateDesign(design.id, { status: "failed", failReason });
+        }
+      }, 5000);
 
-        const updated = await storage.getDesign(design.id);
-        return res.json(updated);
-      } catch (err: any) {
-        log(`Collov API error: ${err.message}`);
-        const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
-        await storage.updateDesign(design.id, { status: "failed", failReason });
-        return res.status(500).json({ message: `AI generering fejlede: ${err.message}`, errorCode: failReason });
-      }
+      return;
     } catch (err: any) {
       log(`Upload error: ${err.message}`);
       return res.status(500).json({ message: err.message });
