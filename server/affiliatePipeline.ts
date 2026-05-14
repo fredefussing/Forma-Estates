@@ -133,11 +133,24 @@ function toDbColors(colors: string[]): string[] {
   return result;
 }
 
+// Kun disse typer giver meningsfulde møbelkøb — planter, udendørs m.m. filtreres fra
+const VALID_FURNITURE_TYPES = new Set([
+  "sofa", "lounge_chair", "dining_chair", "bed", "lamp", "floor_lamp",
+  "dining_table", "coffee_table", "side_table", "bookshelf", "mirror",
+  "rug", "curtain", "sideboard", "wardrobe", "shelf", "cabinet",
+  "pendant", "headboard", "bar_stool", "table",
+]);
+
 // ── B. Match ét enkelt objekt mod products-tabellen ───────────────────────────
 async function matchSingleObject(obj: {
   type: string; color: string; style: string; material: string;
 }): Promise<Array<{ id: number; name: string; name_en: string | null; price: string; image_url: string; affiliate_link: string; shop: string; tags: any; score: number }>> {
   if (!obj.type) return [];
+  // Skip ikke-møbel typer
+  if (!VALID_FURNITURE_TYPES.has(obj.type)) {
+    log(`[Affiliate] Skipping non-furniture type: ${obj.type}`);
+    return [];
+  }
 
   const dbColors = toDbColors([obj.color]);
   const styles = [obj.style].filter(Boolean);
@@ -199,6 +212,36 @@ async function matchProducts(
       taken++;
     }
     if (allMatches.length >= 8) break;
+  }
+
+  // Fallback: fyld op til 6 med stil-baserede matches hvis per-objekt gav for få
+  if (allMatches.length < 6) {
+    const style = vision.styles?.[0] ?? "scandinavian";
+    const validTypes = Array.from(VALID_FURNITURE_TYPES);
+    const needed = 6 - allMatches.length;
+    log(`[Affiliate] Fallback: fetching ${needed} extra products for style=${style}`);
+
+    const { rows: fallback } = await pool.query<{
+      id: number; name: string; name_en: string | null; price: string;
+      image_url: string; affiliate_link: string; shop: string; tags: any; score: number;
+    }>(`
+      SELECT p.id, p.name, p.name_en, p.price,
+             p.image_url, p.affiliate_link, p.shop, p.tags, 20 AS score
+      FROM products p
+      WHERE p.image_url IS NOT NULL AND p.image_url != ''
+        AND p.affiliate_link IS NOT NULL AND p.affiliate_link != ''
+        AND p.tags->>'style' = $1
+        AND p.tags->>'type' = ANY($2::text[])
+      ORDER BY random()
+      LIMIT $3
+    `, [style, validTypes, needed * 3]);
+
+    for (const r of fallback) {
+      if (allMatches.length >= 6) break;
+      if (seenIds.has(r.id)) continue;
+      seenIds.add(r.id);
+      allMatches.push(r);
+    }
   }
 
   // Top 3 = same_style, next 3 = alternative
