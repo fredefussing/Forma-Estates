@@ -13,6 +13,8 @@ interface ProductMatch {
   image_url: string | null;
   affiliate_link: string | null;
   shop: string | null;
+  tags: Record<string, any> | null;
+  category: string | null;
   match_type: "same_style" | "alternative";
   match_score: number;
   rank: number;
@@ -20,6 +22,101 @@ interface ProductMatch {
 
 interface ProductMatchesProps {
   designId: number;
+}
+
+// ── Fixed display order: type key → Danish label + emoji ─────────────────────
+const TYPE_ORDER = [
+  { type: "dining_chair",  label: "Spisebordsstole", icon: "🪑" },
+  { type: "lounge_chair",  label: "Lænestole",       icon: "🛋️" },
+  { type: "bar_stool",     label: "Barstole",         icon: "🪑" },
+  { type: "office_chair",  label: "Kontorstole",      icon: "💺" },
+  { type: "dining_table",  label: "Spiseborde",       icon: "🍽️" },
+  { type: "coffee_table",  label: "Sofaborde",        icon: "☕" },
+  { type: "side_table",    label: "Sideborde",        icon: "📦" },
+  { type: "desk",          label: "Skriveborde",      icon: "📝" },
+  { type: "bookshelf",     label: "Reoler",           icon: "📚" },
+  { type: "cabinet",       label: "Skabe",            icon: "🚪" },
+  { type: "sofa",          label: "Sofaer",           icon: "🛋️" },
+  { type: "sofa_bed",      label: "Sovesofaer",       icon: "🛏️" },
+  { type: "bed",           label: "Senge",            icon: "🛏️" },
+  { type: "lamp",          label: "Lamper",           icon: "💡" },
+  { type: "ceiling_lamp",  label: "Loftlamper",       icon: "💡" },
+  { type: "table_lamp",    label: "Bordlamper",       icon: "💡" },
+  { type: "floor_lamp",    label: "Gulvlamper",       icon: "💡" },
+  { type: "wall_lamp",     label: "Væglamper",        icon: "💡" },
+  { type: "rug",           label: "Tæpper",           icon: "🧶" },
+  { type: "mirror",        label: "Spejle",           icon: "🪞" },
+  { type: "curtain",       label: "Gardiner",         icon: "🪟" },
+  { type: "plant",         label: "Planter",          icon: "🌿" },
+  { type: "vase",          label: "Vaser",            icon: "🏺" },
+  { type: "cushion",       label: "Puder",            icon: "🪶" },
+  { type: "other",         label: "Andet",            icon: "📦" },
+];
+
+// ── Derive a specific TYPE_ORDER key from product tags + Danish category ──────
+function inferDisplayType(tags: Record<string, any> | null, category: string | null): string {
+  const base = tags?.type ?? "other";
+  const cat = (category ?? "").toLowerCase();
+
+  // Chairs — distinguish by category
+  if (base === "chair" || cat.includes("stol")) {
+    if (cat.includes("spisebordsst") || cat.includes("dining")) return "dining_chair";
+    if (cat.includes("lænestol") || cat.includes("gulvstol") || cat.includes("lounge")) return "lounge_chair";
+    if (cat.includes("barstol") || cat.includes("bar")) return "bar_stool";
+    if (cat.includes("kontor") || cat.includes("office")) return "office_chair";
+    return "dining_chair";
+  }
+
+  // Tables — distinguish by category
+  if (base === "table" || (cat.includes("bord") && !cat.includes("bordlampe"))) {
+    if (cat.includes("sofabord") || cat.includes("coffee")) return "coffee_table";
+    if (cat.includes("spise") || cat.includes("dining")) return "dining_table";
+    if (cat.includes("sidebord") || cat.includes("natbord")) return "side_table";
+    if (cat.includes("skrivebord") || cat.includes("desk")) return "desk";
+    return "coffee_table";
+  }
+
+  // Sofas
+  if (base === "sofa" || cat.includes("sofa")) {
+    if (cat.includes("sovesofa")) return "sofa_bed";
+    return "sofa";
+  }
+
+  // Beds
+  if (base === "bed" || cat.includes("seng")) return "bed";
+
+  // Lamps — distinguish by category
+  if (base === "lamp" || cat.includes("lampe") || cat.includes("lamper") || cat.includes("pendel")) {
+    if (cat.includes("gulvlampe")) return "floor_lamp";
+    if (cat.includes("bordlampe")) return "table_lamp";
+    if (cat.includes("loftpendler") || cat.includes("hængende") || cat.includes("loftlampe")) return "ceiling_lamp";
+    if (cat.includes("væglampe")) return "wall_lamp";
+    return "lamp";
+  }
+
+  // Shelves / cabinets
+  if (base === "cabinet" || cat.includes("skab") || cat.includes("reol") || cat.includes("skænk")) {
+    if (cat.includes("reol") || cat.includes("bogskab")) return "bookshelf";
+    return "cabinet";
+  }
+
+  // Rugs
+  if (base === "rug" || cat.includes("tæppe")) return "rug";
+
+  // Mirrors
+  if (base === "mirror" || cat.includes("spejl")) return "mirror";
+
+  // Curtains
+  if (base === "curtain" || cat.includes("gardin")) return "curtain";
+
+  // Plants / pots
+  if (base === "plant" || cat.includes("plante") || cat.includes("krukke")) return "plant";
+
+  // Cushions / vases / decor
+  if (base === "cushion" || cat.includes("pude")) return "cushion";
+  if (base === "vase" || cat.includes("vase")) return "vase";
+
+  return "other";
 }
 
 export function ProductMatches({ designId }: ProductMatchesProps) {
@@ -48,8 +145,13 @@ export function ProductMatches({ designId }: ProductMatchesProps) {
     );
   }
 
-  const sameStyle = data.products.filter(p => p.match_type === "same_style");
-  const alternatives = data.products.filter(p => p.match_type === "alternative");
+  // Group by inferred display type
+  const grouped = data.products.reduce<Record<string, ProductMatch[]>>((acc, p) => {
+    const key = inferDisplayType(p.tags, p.category);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(p);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-5">
@@ -69,29 +171,25 @@ export function ProductMatches({ designId }: ProductMatchesProps) {
         </p>
       </div>
 
-      {sameStyle.length > 0 && (
-        <div className="space-y-2.5">
-          <h4 className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            I samme stil
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {sameStyle.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
-        </div>
-      )}
+      {TYPE_ORDER.map(({ type, label, icon }) => {
+        const items = grouped[type];
+        if (!items || items.length === 0) return null;
 
-      {alternatives.length > 0 && (
-        <div className="space-y-2.5">
-          <h4 className="text-xs font-medium text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-stone-400" />
-            Alternativ
-          </h4>
-          <div className="grid grid-cols-3 gap-3">
-            {alternatives.map(p => <ProductCard key={p.id} product={p} />)}
+        return (
+          <div key={type} data-testid={`group-${type}`}>
+            <h4 className="text-xs font-semibold text-stone-600 dark:text-stone-400 flex items-center gap-1.5 mb-2">
+              <span>{icon}</span>
+              {label}
+              <span className="font-normal text-stone-400 dark:text-stone-500">({items.length})</span>
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              {items.slice(0, 3).map(p => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }

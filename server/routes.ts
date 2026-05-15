@@ -1477,6 +1477,7 @@ export async function registerRoutes(
       const { rows } = await pool.query(`
         SELECT p.id, p.name, p.name_en, p.price,
                p.image_url, p.affiliate_link, p.shop,
+               p.tags, p.category,
                pm.match_type, pm.match_score, pm.rank
         FROM product_matches pm
         JOIN products p ON pm.product_id = p.id
