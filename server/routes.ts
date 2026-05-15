@@ -99,7 +99,7 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
     .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .sharpen({ sigma: 1.5, m1: 0.5, m2: 3 })
+    .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
