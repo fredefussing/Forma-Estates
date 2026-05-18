@@ -204,18 +204,10 @@ async function runSolid10AndGetResult(
   throw new Error("SOLID10_TIMEOUT");
 }
 
-// ── VST sharp: minimal — VST output er allerede fotorealistisk ────────────────
+// ── VST finalize: gem rå Collov CDN URL direkte — ingen download, ingen re-encoding ──
 async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
-  const res = await fetch(collovUrl);
-  if (!res.ok) throw new Error(`Failed to fetch VST image: ${res.status}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const out = await sharp(buffer)
-    .jpeg({ quality: 95, mozjpeg: true })
-    .toBuffer();
-  const filename = `result-${designId}-${Date.now()}.jpg`;
-  fs.writeFileSync(path.join(uploadDir, filename), out);
-  log(`Design ${designId}: VST saved (no sharp) → /uploads/${filename}`);
-  return `/uploads/${filename}`;
+  log(`Design ${designId}: VST → rå CDN URL gemt direkte (ingen re-encoding)`);
+  return collovUrl;
 }
 
 // ── SOLID10 sharp: aggressiv — Photo Chat Edit har brug for hjælp ─────────────
