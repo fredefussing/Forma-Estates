@@ -106,7 +106,11 @@ async function pollEmptyRoom(taskId: string, timeoutMs = 60_000): Promise<string
     const data = json.data || {};
     const status = (data.status || "").toUpperCase();
     log(`VST emptyRoom poll taskId=${taskId}: status=${status}`);
-    if (status === "SUCCESS" && data.generateUrl) return data.generateUrl;
+    if (status === "SUCCESS") {
+      const url = data.emptyRoomUrl || data.generateUrl || data.url;
+      if (url) return url;
+      log(`VST emptyRoom taskId=${taskId}: SUCCESS but no URL yet, polling...`);
+    }
     if (status === "FAILED") throw new Error(`VST emptyRoom failed: ${data.failReason || "unknown"}`);
     await delay(2000);
   }
@@ -201,7 +205,7 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   const sharpened = await sharp(buffer)
     .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .unsharpMask({ sigma: 2, flat: 0.5, jagged: 2 } as any)
+    .sharpen({ sigma: 0.8, flat: 1, jagged: 1 })
     .modulate({ saturation: 1.05, brightness: 1.02 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
@@ -566,7 +570,7 @@ export async function registerRoutes(
       res.json(updated);
 
       // Background: start immediately (no delay — models are pre-warmed at server start)
-      setTimeout(async () => {
+      setImmediate(async () => {
         try {
           log(`Design ${design.id}: starting workflow...`);
           const rawImageUrl = await runDesignWorkflow(
