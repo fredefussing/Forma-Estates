@@ -48,8 +48,8 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, inc
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
   const vocab = styleVocabulary[style]?.[validTier];
   const base = vocab
-    ? vocab.prompt
-    : `Retain the exact same room structure: keep the original floor, ceiling, walls, windows, doors, and architectural features unchanged. Preserve all fixed elements including wooden beams, moldings, built-in fixtures, flooring material, wall colors, and natural lighting conditions exactly as they appear. Do NOT alter the room layout, proportions, or any structural details.\n\nOnly replace the movable furniture and decor with new pieces in ${style} style. The new furniture must blend naturally with the preserved room, matching the existing lighting, shadows, and perspective. Photorealistic rendering.`;
+    ? `Completely redesign this ${roomType}. ${vocab.prompt}`
+    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
   return `${base}${plantNote}`;
 }
