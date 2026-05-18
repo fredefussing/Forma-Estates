@@ -64,7 +64,8 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, inc
     : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
   const roomHint = roomTypeFurnitureHint[roomType.toLowerCase()] ? ` ${roomTypeFurnitureHint[roomType.toLowerCase()]}` : "";
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
-  return `${base}${roomHint}${plantNote}`;
+  const quality = " Photorealistic rendering, sharp focus, 8K detail, natural lighting with correct shadows and reflections, no blur, no soft focus, every texture crisp and defined.";
+  return `${base}${roomHint}${plantNote}${quality}`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
