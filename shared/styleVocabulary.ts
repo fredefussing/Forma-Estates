@@ -265,51 +265,115 @@ export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, 
     },
     "bedroom": {
       budget:
-        "Completely redesign this bedroom. Scandinavian design with light oak bed frame, simple nightstands, cotton duvet in warm white, woven rug, light wood dresser. Warm white, soft grey, light oak, natural cotton. Solid oak, cotton, natural linen. Calm and restful hygge atmosphere, simple functional design. Replace all existing furniture and decor.",
+        "Completely redesign this bedroom. Scandinavian design with light oak bed frame, simple nightstand, soft bedding, floor lamp. Warm white, light oak, soft grey, natural linen. Solid oak, natural linen, cotton. Cozy and calm, simple functional design. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this bedroom. Scandinavian design with quality oak bed with upholstered headboard, round oak nightstands, linen duvet cover, wool throw, minimal oak wardrobe. Warm white, light oak, muted grey, dusty blue. Solid oak, natural linen, pure wool, brushed brass. Quality craftsmanship and thoughtful details. Calm Nordic elegance. Replace all existing furniture and decor.",
+        "Completely redesign this bedroom. Scandinavian design with solid oak bed frame, oak nightstands, crisp white linen, soft wool throw, pendant lighting. Warm white, oak, soft grey, natural linen. Solid oak, natural wool, pure linen. Quality craftsmanship and thoughtful details. Peaceful retreat, restful atmosphere. Replace all existing furniture and decor.",
       luxury:
-        "Completely redesign this bedroom. Scandinavian design with designer oak platform bed, walnut nightstands, Louis Poulsen bedside lamps, premium linen bedding, bespoke oak wardrobe. Warm white, natural oak, forest green accents, brushed brass. Solid oak, premium linen, merino wool. Designer craftsmanship and subtle luxury. Timeless Danish bedroom design. Replace all existing furniture and decor.",
+        "Completely redesign this bedroom. Scandinavian design with master oak bed, designer nightstands, Egyptian cotton bedding, cashmere throw, architectural lighting. Warm white, oak, soft grey, forest green accents. Solid oak, premium wool, silk, linen. Designer pieces and bespoke craftsmanship. Serene luxury, curated calm. Replace all existing furniture and decor.",
     },
     "kitchen": {
       budget:
-        "Completely redesign this kitchen. Scandinavian design with white shaker cabinets, light oak open shelving, simple pendant lights, basic bar stools, clean countertops. Warm white, light oak, soft grey. Painted wood, solid oak, ceramic tiles. Functional and clean hygge atmosphere. Replace all existing furniture and decor.",
+        "Completely redesign this kitchen. Scandinavian design with light oak cabinets, white countertop, simple pendant lights, open shelving. Warm white, light oak, soft grey. Solid oak, ceramic, natural materials. Simple functional design, bright and airy. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this kitchen. Scandinavian design with warm white cabinetry, quality oak island with bar stools, designer pendant lights, open oak shelving, marble-effect countertops. Warm white, light oak, muted grey, brushed brass. Painted wood, solid oak, stone. Functional elegance and Nordic craftsmanship. Replace all existing furniture and decor.",
+        "Completely redesign this kitchen. Scandinavian design with oak cabinets, marble countertop, brass fixtures, pendant lights over island, bar stools. Warm white, oak, soft grey. Solid oak, marble, brass. Quality craftsmanship and thoughtful details. Functional elegance, warm and welcoming. Replace all existing furniture and decor.",
       luxury:
-        "Completely redesign this kitchen. Scandinavian design with bespoke white cabinetry, solid oak island, Louis Poulsen pendants, premium stone countertops, integrated appliances, oak open shelving with curated ceramics. Warm white, natural oak, forest green, brushed brass. Solid oak, Carrara marble, matte ceramic. Designer craftsmanship and timeless Danish kitchen design. Replace all existing furniture and decor.",
+        "Completely redesign this kitchen. Scandinavian design with custom oak cabinetry, Calacatta marble, designer brass fixtures, statement pendant, luxury bar stools. Warm white, oak, grey, forest green. Solid oak, Calacatta marble, brushed brass. Designer pieces and bespoke craftsmanship. Culinary sanctuary, architectural elegance. Replace all existing furniture and decor.",
     },
     "bathroom": {
       budget:
-        "Completely redesign this bathroom. Scandinavian design with white wall tiles, simple oak vanity, clean white bathtub or shower enclosure, woven cotton towels, simple mirror with shelf. Warm white, light oak, soft grey. Ceramic tile, solid oak, cotton. Clean and calm hygge atmosphere. Replace all existing furniture and decor.",
+        "Completely redesign this bathroom. Scandinavian design with white vanity, round mirror, brass fixtures, plush towels. White, warm white, soft grey. Ceramic, brass, cotton. Clean and bright, simple functional design. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this bathroom. Scandinavian design with large format white tiles, quality oak vanity with stone basin, designer mirror with integrated lighting, rainfall shower, linen towels, indoor plant. Warm white, light oak, muted grey, brushed brass. Ceramic, solid oak, natural stone. Nordic spa atmosphere. Replace all existing furniture and decor.",
+        "Completely redesign this bathroom. Scandinavian design with oak vanity, marble countertop, round mirror, brass fixtures, heated towel rail. White, oak, soft grey. Solid oak, marble, brass. Quality craftsmanship and thoughtful details. Spa-like calm, natural materials. Replace all existing furniture and decor.",
       luxury:
-        "Completely redesign this bathroom. Scandinavian design with floor-to-ceiling marble tiles, bespoke oak double vanity, freestanding soaking tub, Louis Poulsen lighting, premium linen towels, curated ceramics and indoor plants. Warm white, natural oak, Carrara marble, brushed brass. Premium stone, solid oak, pure linen. Luxurious Nordic spa, timeless Danish bathroom. Replace all existing furniture and decor.",
+        "Completely redesign this bathroom. Scandinavian design with freestanding bathtub, marble vanity, designer fixtures, frameless mirror, heated floor. White, marble, brass accents. Marble, solid oak, designer brass. Designer pieces and bespoke craftsmanship. Luxury wellness, serene retreat. Replace all existing furniture and decor.",
     },
     "dining room": {
       budget:
-        "Completely redesign this dining room. Scandinavian design with light oak dining table, simple matching chairs, white pendant light, small sideboard, woven rug. Warm white, light oak, soft grey, natural linen. Solid oak, cotton, ceramic. Cozy hygge dining atmosphere, simple and functional. Replace all existing furniture and decor.",
+        "Completely redesign this dining room. Scandinavian design with oak dining table, simple chairs, pendant light, woven rug. Warm white, light oak, natural linen. Solid oak, natural materials. Warm and inviting, simple functional design. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this dining room. Scandinavian design with quality round oak dining table, upholstered dining chairs in wool, designer pendant light, minimal oak sideboard, textured rug. Warm white, light oak, muted grey, brushed brass. Solid oak, natural wool, pure linen. Elegant Nordic dining with thoughtful details. Replace all existing furniture and decor.",
+        "Completely redesign this dining room. Scandinavian design with solid oak dining table, upholstered chairs, pendant light over table, oak sideboard. Warm white, oak, natural linen. Solid oak, wool, linen. Quality craftsmanship and thoughtful details. Convivial atmosphere, gathering space. Replace all existing furniture and decor.",
       luxury:
-        "Completely redesign this dining room. Scandinavian design with designer oval oak dining table, Fritz Hansen or Muuto chairs, Louis Poulsen pendant, bespoke oak sideboard, curated Nordic art, woven rug. Warm white, natural oak, forest green, brushed brass. Premium solid oak, wool, linen. Timeless Danish dining design with subtle luxury. Replace all existing furniture and decor.",
+        "Completely redesign this dining room. Scandinavian design with designer oak dining table, leather dining chairs, statement chandelier, bespoke sideboard. Warm white, natural oak, forest green. Solid oak, premium leather, brass. Designer pieces and bespoke craftsmanship. Refined entertaining, architectural elegance. Replace all existing furniture and decor.",
     },
     "home office": {
       budget:
-        "Completely redesign this home office. Scandinavian design with simple oak desk, basic ergonomic chair, light wood shelving, white task lamp, minimal decor. Warm white, light oak, soft grey. Solid oak, cotton, painted wood. Functional and calm workspace. Replace all existing furniture and decor.",
+        "Completely redesign this home office. Scandinavian design with oak desk, ergonomic chair, bookshelf, task lamp. White, light oak, soft grey. Solid oak, natural materials. Productive and calm, simple functional design. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this home office. Scandinavian design with quality oak desk, comfortable upholstered office chair, oak shelving unit, designer task lamp, indoor plant, minimal Nordic art. Warm white, light oak, muted grey, brushed brass. Solid oak, natural wool, pure linen. Productive Nordic workspace with thoughtful details. Replace all existing furniture and decor.",
+        "Completely redesign this home office. Scandinavian design with walnut desk, ergonomic chair, oak bookshelf, designer task lamp, woven rug. White, oak, grey. Solid oak, walnut, wool. Quality craftsmanship and thoughtful details. Focused workspace, natural inspiration. Replace all existing furniture and decor.",
       luxury:
-        "Completely redesign this home office. Scandinavian design with bespoke solid oak desk, designer ergonomic chair, floor-to-ceiling oak shelving, Louis Poulsen task lamp, premium indoor plants, curated Nordic art collection. Warm white, natural oak, forest green, brushed brass. Premium solid oak, leather, pure linen. Timeless Danish home office with subtle luxury. Replace all existing furniture and decor.",
+        "Completely redesign this home office. Scandinavian design with designer walnut desk, premium ergonomic chair, custom shelving, designer arc lamp, curated art. White, oak, walnut, grey. Solid walnut, premium wool, brass. Designer pieces and bespoke craftsmanship. Executive calm, creative sanctuary. Replace all existing furniture and decor.",
+    },
+    "kids room": {
+      budget:
+        "Completely redesign this kids room. Scandinavian design with white bed frame, colorful rug, simple storage, playful lamp. White, pastel colors, light wood. Solid wood, cotton. Playful and cozy, simple functional design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this kids room. Scandinavian design with oak bed frame, colorful textiles, bookshelf, toy storage, soft rug, playful pendant. White, pastels, light oak. Solid oak, natural wool, cotton. Quality craftsmanship and thoughtful details. Creative haven, safe and warm. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this kids room. Scandinavian design with designer oak bed, curated textiles, custom bookshelf, creative storage, designer lighting. White, pastels, oak. Solid oak, premium textiles. Designer pieces and bespoke craftsmanship. Whimsical luxury, imaginative space. Replace all existing furniture and decor.",
+    },
+    "studio": {
+      budget:
+        "Completely redesign this studio. Scandinavian design with sofa bed, simple desk, storage shelves, floor lamp. White, light oak, soft grey. Solid oak, natural materials. Compact and functional, uncluttered design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this studio. Scandinavian design with quality sofa bed, oak desk, modular shelving, designer pendant, room divider. White, oak, grey. Solid oak, wool, linen. Quality craftsmanship and thoughtful details. Versatile living, efficient elegance. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this studio. Scandinavian design with designer sofa bed, walnut desk, custom storage, statement lighting, artistic room divider. White, oak, walnut. Solid oak, walnut, premium fabrics. Designer pieces and bespoke craftsmanship. Curated compact luxury. Replace all existing furniture and decor.",
+    },
+    "game room": {
+      budget:
+        "Completely redesign this game room. Scandinavian design with comfortable sofa, coffee table, shelving, ambient lighting. White, light oak, soft grey. Solid oak, natural materials. Relaxed and fun, simple functional design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this game room. Scandinavian design with sectional sofa, media console, shelving, LED accent lighting. White, oak, grey. Solid oak, wool, natural materials. Quality craftsmanship and thoughtful details. Entertainment hub, cozy atmosphere. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this game room. Scandinavian design with designer sectional, custom media wall, ambient LED, premium sound integration. White, oak, walnut. Solid oak, premium fabrics, walnut. Designer pieces and bespoke craftsmanship. Entertainment sanctuary, immersive luxury. Replace all existing furniture and decor.",
+    },
+    "home gym": {
+      budget:
+        "Completely redesign this gym. Scandinavian design with basic equipment, storage bench, mirror wall, rubber flooring. White, light oak, grey. Solid oak, rubber, glass. Clean and functional, simple design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this gym. Scandinavian design with quality equipment, storage system, full mirror wall, proper flooring. White, oak, grey. Solid oak, premium rubber. Quality craftsmanship and thoughtful details. Motivating space, natural light. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this gym. Scandinavian design with premium equipment, custom storage, floor-to-ceiling mirrors, specialized flooring, integrated tech. White, oak, grey. Solid oak, premium materials. Designer pieces and bespoke craftsmanship. Private wellness club, architectural fitness. Replace all existing furniture and decor.",
+    },
+    "laundry room": {
+      budget:
+        "Completely redesign this laundry room. Scandinavian design with washer dryer setup, simple counter, storage shelves, task lighting. White, light oak, grey. Solid oak, ceramic. Clean and practical, simple functional design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this laundry room. Scandinavian design with quality appliances, marble counter, oak cabinets, brass fixtures, pendant light. White, oak, grey. Solid oak, marble, brass. Quality craftsmanship and thoughtful details. Beautiful utility, organized calm. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this laundry room. Scandinavian design with premium appliances, custom cabinetry, marble surfaces, designer fixtures. White, oak, marble. Solid oak, Calacatta marble, brass. Designer pieces and bespoke craftsmanship. Luxury utility, spa-like function. Replace all existing furniture and decor.",
+    },
+    "conference room": {
+      budget:
+        "Completely redesign this meeting room. Scandinavian design with conference table, office chairs, whiteboard, overhead lighting. White, light oak, grey. Solid oak, natural materials. Professional and clean, simple functional design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this meeting room. Scandinavian design with oak conference table, ergonomic chairs, presentation screen, designer pendant, storage. White, oak, grey. Solid oak, wool, brass. Quality craftsmanship and thoughtful details. Productive collaboration, professional warmth. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this meeting room. Scandinavian design with designer conference table, premium chairs, integrated tech, statement lighting, bespoke storage. White, oak, walnut. Solid oak, walnut, brass. Designer pieces and bespoke craftsmanship. Executive boardroom, architectural prestige. Replace all existing furniture and decor.",
+    },
+    "spa room": {
+      budget:
+        "Completely redesign this spa. Scandinavian design with relaxation bench, soft towels, ambient light, plant. White, warm white, natural. Solid oak, cotton, ceramic. Calm and simple, natural design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this spa. Scandinavian design with daybed, premium towels, candles, soft lighting, wooden accents. White, warm white, oak. Solid oak, natural linen, cotton. Quality craftsmanship and thoughtful details. Tranquil retreat, natural wellness. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this spa. Scandinavian design with designer daybed, luxury linens, aromatherapy, dimmable lighting, natural stone, zen garden elements. White, warm white, oak, stone. Solid oak, natural stone, silk. Designer pieces and bespoke craftsmanship. Holistic sanctuary, mindful luxury. Replace all existing furniture and decor.",
+    },
+    "outdoor": {
+      budget:
+        "Completely redesign this outdoor space. Scandinavian design with wooden deck chairs, simple table, potted plants, string lights. Natural wood, white, green. Solid wood, natural materials. Relaxed and natural, simple design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this outdoor space. Scandinavian design with teak lounge set, outdoor dining table, quality cushions, ambient lighting, planter boxes. Natural teak, white, grey. Solid teak, premium fabrics. Quality craftsmanship and thoughtful details. Alfresco living, Nordic summer. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this outdoor space. Scandinavian design with designer teak furniture, outdoor kitchen, fire pit, integrated lighting, landscaped planters. Natural teak, white, grey. Solid teak, premium stone. Designer pieces and bespoke craftsmanship. Luxury outdoor living, architectural garden. Replace all existing furniture and decor.",
     },
     "open living and dining room": {
       budget:
-        "Completely redesign this open living and dining room. Scandinavian design with light oak dining table and chairs, simple sofa with woven rug, white pendant lights, light wood shelving. Warm white, light oak, soft grey, natural linen. Solid oak, cotton, natural linen. Cozy and functional open-plan hygge atmosphere. Replace all existing furniture and decor.",
+        "Completely redesign this open living and dining space. Scandinavian design with oak sofa, coffee table, dining set, area rug, floor lamp. White, light oak, soft grey. Solid oak, natural linen. Open and airy, simple functional design. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this open living and dining room. Scandinavian design with quality round oak dining table, wool upholstered dining chairs, quality oak sofa with wool cushions, designer pendants over both zones, minimal oak shelving. Warm white, light oak, muted grey, natural linen. Solid oak, natural wool, brushed brass. Cohesive Nordic open-plan living. Replace all existing furniture and decor.",
+        "Completely redesign this open living and dining space. Scandinavian design with quality oak sofa, round coffee table, oak dining table, designer pendant, wool rug, shelving. White, oak, grey. Solid oak, natural wool, linen. Quality craftsmanship and thoughtful details. Flowing space, connected living. Replace all existing furniture and decor.",
       luxury:
-        "Completely redesign this open living and dining room. Scandinavian design with designer oval oak dining table, Fritz Hansen chairs, designer oak lounge sofa, Louis Poulsen pendants over both zones, bespoke oak shelving, curated Nordic art. Warm white, natural oak, forest green accents, brushed brass. Premium solid oak, wool, linen. Timeless Danish open-plan design with subtle luxury. Replace all existing furniture and decor.",
+        "Completely redesign this open living and dining space. Scandinavian design with designer oak lounge, marble coffee table, bespoke dining set, statement lighting, curated art. White, oak, walnut. Solid oak, marble, walnut. Designer pieces and bespoke craftsmanship. Grand open plan, architectural flow. Replace all existing furniture and decor.",
     },
   },
 };
