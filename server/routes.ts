@@ -176,7 +176,10 @@ async function runVstAndGetResult(originalImageUrl: string, roomType: string, st
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const result = await pollVstResult(uuid);
-    if (result.status === "completed" && result.resultUrl) return result.resultUrl;
+    if (result.status === "completed" && result.resultUrl) {
+      setStatusMsg(designId, "Gemmer billede (VST)...");
+      return await sharpenAndSaveVst(result.resultUrl, designId);
+    }
     if (result.status === "failed") throw new Error(result.failReason || "vst_failed");
   }
   throw new Error("VST_TIMEOUT");
@@ -201,22 +204,33 @@ async function runSolid10AndGetResult(
   throw new Error("SOLID10_TIMEOUT");
 }
 
-// ── Sharp post-processing — SOLID11 pipeline ─────────────────────────────────
+// ── VST sharp: minimal — VST output er allerede fotorealistisk ────────────────
+async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
+  const res = await fetch(collovUrl);
+  if (!res.ok) throw new Error(`Failed to fetch VST image: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const out = await sharp(buffer)
+    .jpeg({ quality: 95, mozjpeg: true })
+    .toBuffer();
+  const filename = `result-${designId}-${Date.now()}.jpg`;
+  fs.writeFileSync(path.join(uploadDir, filename), out);
+  log(`Design ${designId}: VST saved (no sharp) → /uploads/${filename}`);
+  return `/uploads/${filename}`;
+}
+
+// ── SOLID10 sharp: aggressiv — Photo Chat Edit har brug for hjælp ─────────────
 async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
   const res = await fetch(collovUrl);
   if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
-    .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .sharpen({ sigma: 1.0, flat: 0.3, jagged: 2 })
-    .modulate({ saturation: 1.05, brightness: 1.02 })
+    .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
-  const filepath = path.join(uploadDir, filename);
-  fs.writeFileSync(filepath, sharpened);
-  log(`Design ${designId}: sharpened image saved → /uploads/${filename}`);
+  fs.writeFileSync(path.join(uploadDir, filename), sharpened);
+  log(`Design ${designId}: SOLID10 sharpened saved → /uploads/${filename}`);
   return `/uploads/${filename}`;
 }
 
@@ -582,10 +596,13 @@ export async function registerRoutes(
           );
           setStatusMsg(design.id, "Efterbehandler billede...");
           let finalUrl = rawImageUrl;
-          try {
-            finalUrl = await sharpenAndSave(rawImageUrl, design.id);
-          } catch (sharpErr: any) {
-            log(`Design ${design.id}: sharp failed (using raw URL) — ${sharpErr.message}`);
+          // VST-stien returnerer allerede lokal sti — spring SOLID10-sharp over
+          if (!rawImageUrl.startsWith("/uploads/")) {
+            try {
+              finalUrl = await sharpenAndSave(rawImageUrl, design.id);
+            } catch (sharpErr: any) {
+              log(`Design ${design.id}: sharp failed (using raw URL) — ${sharpErr.message}`);
+            }
           }
           clearStatusMsg(design.id);
           const updated = await storage.getDesign(design.id);
