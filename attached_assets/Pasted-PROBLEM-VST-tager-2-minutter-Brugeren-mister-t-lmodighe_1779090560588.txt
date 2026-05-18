@@ -1,0 +1,94 @@
+PROBLEM: VST tager ~2 minutter. Brugeren mister tålmodighed.
+
+ANALYSE: To sekventielle kald + polling hvert 3. sekund.
+
+LØSNING: Hurtigere polling + Collov pre-warm. Ingen ændring af VST workflow.
+
+ÆNDRING 1: Reducer polling-interval fra 3000ms til 2000ms
+
+// FØR:
+const POLL_INTERVAL = 3000; // 3 sekunder
+
+// EFTER:
+const POLL_INTERVAL = 2000; // 2 sekunder
+
+// Effekt: Opdager SUCCESS ~33% hurtigere
+// Risiko: Højere load på Collov API — men indenfor rate limit (10/s)
+
+ÆNDRING 2: Pre-warm Collov ved server start
+
+// Tilføj i server startup (efter app.listen):
+
+setTimeout(async () => {
+  try {
+    console.log('[Pre-warm] Warming Collov models...');
+    
+    // Send dummy VST kald der fejler hurtigt
+    // Dette får Collov til at loade modeller i GPU RAM
+    const form = new FormData();
+    form.append('uploadUrl', 'https://example.com/dummy.jpg');
+    
+    await fetch('https://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom', {
+      method: 'POST',
+      headers: { apiKey: process.env.COLOV_API_KEY },
+      body: form
+    });
+    
+    // Forventet: 400 eller 500 fejl — men modeller er nu loaded
+    console.log('[Pre-warm] Models warmed');
+  } catch (err) {
+    // Forventet fejl — ignorer
+    console.log('[Pre-warm] Done (expected error)');
+  }
+}, 10000); // 10 sekunder efter server start
+
+ÆNDRING 3: Reducer maxAttempts for empty room
+
+// FØR:
+const MAX_ATTEMPTS_EMPTY = 20; // 20 × 3s = 60s timeout
+
+// EFTER:
+const MAX_ATTEMPTS_EMPTY = 15; // 15 × 2s = 30s timeout
+
+// Hvis tomt rum ikke er klar efter 30s → noget er galt
+// Men det burde være nok (normalt 15-25s)
+
+ÆNDRING 4: Reducer maxAttempts for design
+
+// FØR:
+const MAX_ATTEMPTS_DESIGN = 30; // 30 × 3s = 90s timeout
+
+// EFTER:
+const MAX_ATTEMPTS_DESIGN = 25; // 25 × 2s = 50s timeout
+
+// Hvis design ikke er klar efter 50s → fallback til SOLID10
+// (allerede implementeret i din timeout-fallback)
+
+ÆNDRING 5: Vis "rigtig" progress i UI
+
+// I stedet for spinner der kører i 2 minutter:
+// Vis hvad der faktisk sker
+
+const statusMessages = {
+  'empty': 'Forbereder rum...',
+  'empty_done': 'Rum klar. Designer dit nye rum...',
+  'design': 'Placerer møbler og lys...',
+  'design_done': 'Færdiggør detaljer...',
+  'sharp': 'Gør billedet skarpt...'
+};
+
+// Opdater UI med status hvert 5. sekund
+// Brugeren ser fremgang, ikke bare "venter"
+
+IMPLEMENTÉR ændring 1 + 2 + 3 + 4.
+Ændring 5 er valgfri (UI forbedring).
+
+FORVENTET RESULTAT:
+Før: ~120 sekunder (2 min)
+Efter: ~70-90 sekunder (1 min 10-30 sek)
+
+Ingen ændring af:
+- VST workflow (uploadUrl + emptyRoomUrl)
+- Sharp.js settings
+- Feature toggle (SOLID10_MODE=skandi)
+- Billede kvalitet

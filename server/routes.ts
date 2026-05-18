@@ -94,7 +94,7 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
 }
 
 // ── VST: Poll generateEmptyRoom task ─────────────────────────────────────────
-async function pollEmptyRoom(taskId: string, timeoutMs = 120_000): Promise<string> {
+async function pollEmptyRoom(taskId: string, timeoutMs = 60_000): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
   while (Date.now() < deadline) {
@@ -108,7 +108,7 @@ async function pollEmptyRoom(taskId: string, timeoutMs = 120_000): Promise<strin
     log(`VST emptyRoom poll taskId=${taskId}: status=${status}`);
     if (status === "SUCCESS" && data.generateUrl) return data.generateUrl;
     if (status === "FAILED") throw new Error(`VST emptyRoom failed: ${data.failReason || "unknown"}`);
-    await delay(4000);
+    await delay(2000);
   }
   throw new Error("VST emptyRoom timed out");
 }
@@ -163,10 +163,10 @@ async function runVstAndGetResult(originalImageUrl: string, roomType: string, st
   await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
   setStatusMsg(designId, "Møblerer rum (VST)...");
 
-  // Poll up to 90s
-  const maxAttempts = 22; // 22 × 4s ≈ 88s
+  // Poll up to 50s (25 × 2s)
+  const maxAttempts = 25;
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 4000));
+    await new Promise(r => setTimeout(r, 2000));
     const result = await pollVstResult(uuid);
     if (result.status === "completed" && result.resultUrl) return result.resultUrl;
     if (result.status === "failed") throw new Error(result.failReason || "vst_failed");
@@ -183,9 +183,9 @@ async function runSolid10AndGetResult(
   await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
   setStatusMsg(designId, "Venter på AI...");
 
-  const maxAttempts = 40; // 40 × 3s = 120s
+  const maxAttempts = 45; // 45 × 2s = 90s
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 2000));
     const result = await pollCollovResult(uuid);
     if (result.status === "completed" && result.resultUrl) return result.resultUrl;
     if (result.status === "failed") throw new Error(result.failReason || "solid10_failed");

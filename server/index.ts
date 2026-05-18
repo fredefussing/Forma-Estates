@@ -98,6 +98,23 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Pre-warm Collov GPU models 10s after start
+      setTimeout(async () => {
+        try {
+          log("[Pre-warm] Warming Collov models...");
+          const form = new FormData();
+          form.append("uploadUrl", "https://example.com/dummy.jpg");
+          await fetch("https://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom", {
+            method: "POST",
+            headers: { apiKey: process.env.COLLOV_API_KEY || "" },
+            body: form,
+          });
+          log("[Pre-warm] Done");
+        } catch {
+          log("[Pre-warm] Done (expected error)");
+        }
+      }, 10_000);
     },
   );
 })();
