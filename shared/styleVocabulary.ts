@@ -376,6 +376,128 @@ export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, 
         "Completely redesign this open living and dining space. Scandinavian design with designer oak lounge, marble coffee table, bespoke dining set, statement lighting, curated art. White, oak, walnut. Solid oak, marble, walnut. Designer pieces and bespoke craftsmanship. Grand open plan, architectural flow. Replace all existing furniture and decor.",
     },
   },
+  modern: {
+    "living room": {
+      budget:
+        "Completely redesign this living room. Modern design with low-profile grey sofa, geometric coffee table, black metal floor lamp, glass shelving, TV on media console. Charcoal, cream, matte black. Metal, glass, functional simplicity. Simple affordable pieces. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this living room. Modern design with charcoal sectional, marble coffee table, brushed brass arc floor lamp, walnut side table, abstract art, TV on media console. Charcoal, cream, brushed brass, matte black, walnut. Brushed metal, leather, marble, walnut. Quality craftsmanship and thoughtful details. Sophisticated and comfortable. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this living room. Modern design with Minotti-style leather sofa, Calacatta marble coffee table, designer brass pendant, walnut media unit, curated art piece, TV on media console. Charcoal, gold, walnut. Italian leather, Calacatta marble, brushed brass. Designer pieces and bespoke craftsmanship. Architectural elegance, timeless contemporary. Replace all existing furniture and decor.",
+    },
+    "bedroom": {
+      budget:
+        "Completely redesign this bedroom. Modern design with platform bed frame, simple dresser, bedside lamp, area rug. White, grey, matte black. Engineered wood, cotton. Clean and simple, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this bedroom. Modern design with walnut platform bed, clean-lined dresser, geometric mirror, minimalist bedside lamps. Charcoal, cream, walnut. Solid walnut, brushed metal, glass. Quality craftsmanship and thoughtful details. Serene retreat, restful atmosphere. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this bedroom. Modern design with designer upholstered bed, custom millwork, statement lighting, silk bedding, gallery-worthy art. Charcoal, cream, gold. Premium upholstery, silk, brushed brass. Designer pieces and bespoke craftsmanship. Luxury sanctuary, architectural calm. Replace all existing furniture and decor.",
+    },
+    "kitchen": {
+      budget:
+        "Completely redesign this kitchen. Modern design with white handleless cabinets, quartz countertop, simple pendant lights, bar stools. White, grey, stainless steel. Laminate, quartz, chrome. Clean and bright, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this kitchen. Modern design with grey handleless cabinets, quartz countertop, steel fixtures, under-cabinet lighting, designer bar stools. Charcoal, white, brushed steel. Matte lacquer, quartz, stainless steel. Quality craftsmanship and thoughtful details. Functional elegance, warm minimalism. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this kitchen. Modern design with custom handleless cabinetry, waterfall quartz, designer steel fixtures, statement pendant, luxury bar stools. Charcoal, white, brushed steel. Custom lacquer, waterfall quartz, designer steel. Designer pieces and bespoke craftsmanship. Culinary sanctuary, architectural precision. Replace all existing furniture and decor.",
+    },
+    "bathroom": {
+      budget:
+        "Completely redesign this bathroom. Modern design with floating vanity, round mirror, chrome fixtures, white towels. White, chrome, glass. Ceramic, chrome, cotton. Clean and bright, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this bathroom. Modern design with wall-mounted vanity, backlit mirror, matte black fixtures, heated towel rail. White, matte black, concrete. Wall-mounted vanity, backlit mirror, matte black metal. Quality craftsmanship and thoughtful details. Spa-like calm, urban minimalism. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this bathroom. Modern design with freestanding bathtub, floating double vanity, designer matte black fixtures, frameless glass shower, heated floor. White, marble, matte black. Solid surface, marble, designer matte black. Designer pieces and bespoke craftsmanship. Luxury wellness, architectural serenity. Replace all existing furniture and decor.",
+    },
+    "dining room": {
+      budget:
+        "Completely redesign this dining room. Modern design with glass dining table, simple chairs, pendant light, rug. White, clear glass, chrome. Tempered glass, chrome, faux leather. Clean and bright, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this dining room. Modern design with marble dining table, upholstered chairs, geometric chandelier, walnut sideboard. White, marble, walnut. Marble, walnut, brushed metal. Quality craftsmanship and thoughtful details. Convivial atmosphere, refined gathering. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this dining room. Modern design with designer marble table, leather dining chairs, statement chandelier, bespoke walnut sideboard. White, Calacatta marble, walnut. Calacatta marble, Italian leather, brushed brass. Designer pieces and bespoke craftsmanship. Refined entertaining, architectural grandeur. Replace all existing furniture and decor.",
+    },
+    "home office": {
+      budget:
+        "Completely redesign this home office. Modern design with white desk, ergonomic chair, shelving, task lamp. White, grey, chrome. MDF, chrome, mesh. Clean and productive, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this home office. Modern design with glass-top desk, ergonomic mesh chair, metal shelving, designer task lamp, area rug. White, chrome, walnut. Tempered glass, brushed steel, walnut. Quality craftsmanship and thoughtful details. Focused workspace, professional clarity. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this home office. Modern design with designer walnut desk, premium ergonomic chair, custom glass shelving, designer arc lamp, curated art. Walnut, glass, brushed brass. Solid walnut, tempered glass, designer brass. Designer pieces and bespoke craftsmanship. Executive calm, creative precision. Replace all existing furniture and decor.",
+    },
+    "kids room": {
+      budget:
+        "Completely redesign this kids room. Modern design with white platform bed, colorful rug, simple storage, fun lamp. White, pastels, grey. Engineered wood, cotton. Playful and clean, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this kids room. Modern design with grey platform bed, colorful textiles, modular shelving, toy storage, playful pendant. Grey, pastels, white. Laminate, cotton, modular systems. Quality craftsmanship and thoughtful details. Creative haven, modern play. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this kids room. Modern design with designer modular bed, curated textiles, custom storage system, creative lighting, interactive wall. White, curated pastels. Custom modular systems, premium textiles, interactive tech. Designer pieces and bespoke craftsmanship. Whimsical innovation, imaginative modern space. Replace all existing furniture and decor.",
+    },
+    "studio": {
+      budget:
+        "Completely redesign this studio. Modern design with modern sleeper sofa, simple desk, wall shelving, floor lamp. White, grey, chrome. MDF, chrome, cotton. Compact and clean, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this studio. Modern design with grey sectional sleeper, glass desk, modular wall shelving, designer pendant, room divider. Grey, white, chrome. Fabric, tempered glass, brushed steel. Quality craftsmanship and thoughtful details. Versatile living, efficient minimalism. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this studio. Modern design with designer convertible sofa, walnut desk, custom integrated storage, statement lighting, glass room divider. Charcoal, walnut, glass. Premium fabric, solid walnut, tempered glass. Designer pieces and bespoke craftsmanship. Curated compact luxury, architectural efficiency. Replace all existing furniture and decor.",
+    },
+    "game room": {
+      budget:
+        "Completely redesign this game room. Modern design with comfortable sectional, coffee table, shelving, LED strip. Charcoal, black, neon. Fabric, MDF, LED. Relaxed and fun, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this game room. Modern design with premium sectional, media console, floating shelving, ambient LED lighting, sound bar. Charcoal, black, LED accents. Fabric, brushed metal, integrated LED. Quality craftsmanship and thoughtful details. Entertainment hub, modern atmosphere. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this game room. Modern design with designer modular sectional, custom media wall, integrated LED, premium sound system, curated gaming setup. Charcoal, walnut, LED. Premium fabric, walnut, integrated LED. Designer pieces and bespoke craftsmanship. Entertainment sanctuary, immersive luxury. Replace all existing furniture and decor.",
+    },
+    "home gym": {
+      budget:
+        "Completely redesign this gym. Modern design with modern equipment, bench, mirror wall, rubber flooring. White, grey, black. Steel, rubber, glass. Clean and functional, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this gym. Modern design with sleek equipment, modular storage, full mirror wall, proper flooring, ambient lighting. White, grey, steel. Brushed steel, rubber, mirrors. Quality craftsmanship and thoughtful details. Motivating space, modern fitness. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this gym. Modern design with premium designer equipment, custom storage, floor-to-ceiling mirrors, specialized flooring, integrated tech displays. Charcoal, steel, mirror. Premium steel, specialized flooring, integrated tech. Designer pieces and bespoke craftsmanship. Private wellness club, architectural fitness. Replace all existing furniture and decor.",
+    },
+    "laundry room": {
+      budget:
+        "Completely redesign this laundry room. Modern design with washer dryer, simple counter, shelving, task light. White, grey, chrome. Laminate, chrome, ceramic. Clean and practical, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this laundry room. Modern design with quality appliances, quartz counter, grey cabinets, steel fixtures, pendant light. White, grey, brushed steel. Quartz, matte lacquer, steel. Quality craftsmanship and thoughtful details. Beautiful utility, organized calm. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this laundry room. Modern design with premium appliances, custom cabinetry, quartz surfaces, designer fixtures, integrated folding station. White, quartz, brushed steel. Waterfall quartz, custom lacquer, designer steel. Designer pieces and bespoke craftsmanship. Luxury utility, architectural function. Replace all existing furniture and decor.",
+    },
+    "conference room": {
+      budget:
+        "Completely redesign this meeting room. Modern design with glass conference table, mesh chairs, whiteboard, pendant lighting. White, clear glass, chrome. Tempered glass, chrome, mesh. Professional and clean, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this meeting room. Modern design with walnut conference table, ergonomic chairs, display screen, designer pendant, storage. White, walnut, brushed steel. Solid walnut, brushed steel, glass. Quality craftsmanship and thoughtful details. Productive collaboration, professional modernism. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this meeting room. Modern design with designer marble conference table, premium leather chairs, integrated AV, statement lighting, bespoke storage. White, Calacatta marble, walnut. Calacatta marble, Italian leather, brushed brass. Designer pieces and bespoke craftsmanship. Executive boardroom, architectural prestige. Replace all existing furniture and decor.",
+    },
+    "spa room": {
+      budget:
+        "Completely redesign this spa. Modern design with modern bench, soft towels, LED light, plant. White, grey, bamboo. Ceramic, cotton, bamboo. Calm and simple, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this spa. Modern design with contemporary daybed, premium towels, candles, dimmable LED, concrete accents. White, grey, concrete. Microcement, LED, natural fibers. Quality craftsmanship and thoughtful details. Tranquil retreat, urban wellness. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this spa. Modern design with designer daybed, luxury linens, chromotherapy lighting, natural stone, water feature. White, marble, stone. Natural stone, chromotherapy LED, silk. Designer pieces and bespoke craftsmanship. Holistic sanctuary, mindful luxury. Replace all existing furniture and decor.",
+    },
+    "outdoor": {
+      budget:
+        "Completely redesign this outdoor space. Modern design with metal lounge chairs, simple table, potted plants, LED string lights. Silver, white, green. Powder-coated metal, LED, ceramic. Relaxed and clean, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this outdoor space. Modern design with aluminium lounge set, outdoor dining table, quality cushions, integrated lighting, fire pit. Charcoal, aluminium, warm LED. Powder-coated aluminium, Sunbrella, integrated LED. Quality craftsmanship and thoughtful details. Alfresco living, modern outdoor. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this outdoor space. Modern design with designer modular outdoor set, outdoor kitchen island, fire table, landscape lighting, automated planters. Charcoal, teak, LED. Premium aluminium, teak, automated irrigation. Designer pieces and bespoke craftsmanship. Luxury outdoor living, architectural garden. Replace all existing furniture and decor.",
+    },
+    "open living and dining room": {
+      budget:
+        "Completely redesign this open living and dining space. Modern design with grey sofa, glass coffee table, dining set, area rug, floor lamp. Grey, glass, white. Fabric, tempered glass, engineered wood. Open and airy, minimal aesthetic. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this open living and dining space. Modern design with charcoal sectional, marble coffee table, walnut dining table, designer pendant, wool rug, shelving. Charcoal, marble, walnut. Fabric, marble, walnut. Quality craftsmanship and thoughtful details. Flowing space, connected living. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this open living and dining space. Modern design with designer leather sectional, Calacatta marble coffee table, bespoke walnut dining table, statement pendant, curated art. Charcoal, Calacatta marble, walnut. Italian leather, marble, brushed brass. Designer pieces and bespoke craftsmanship. Grand open plan, architectural flow. Replace all existing furniture and decor.",
+    },
+  },
 };
 
 const CAMERA_LOCK = " Keep the same camera angle, perspective and zoom as the original photo. Do not change the viewpoint.";
