@@ -93,6 +93,106 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
   return { status: "processing" };
 }
 
+// ── VST: Poll generateEmptyRoom task ─────────────────────────────────────────
+async function pollEmptyRoom(taskId: string, timeoutMs = 120_000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+  while (Date.now() < deadline) {
+    const res = await fetch(
+      `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${encodeURIComponent(taskId)}`,
+      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+    );
+    const json = (await res.json()) as any;
+    const data = json.data || {};
+    const status = (data.status || "").toUpperCase();
+    log(`VST emptyRoom poll taskId=${taskId}: status=${status}`);
+    if (status === "SUCCESS" && data.generateUrl) return data.generateUrl;
+    if (status === "FAILED") throw new Error(`VST emptyRoom failed: ${data.failReason || "unknown"}`);
+    await delay(4000);
+  }
+  throw new Error("VST emptyRoom timed out");
+}
+
+// ── VST: Step 1 (empty room) + Step 2 (staged result) → returns uuid ─────────
+async function sendVstWorkflow(originalImageUrl: string, roomType: string, style: string): Promise<string> {
+  const emptyForm = new FormData();
+  emptyForm.append("uploadUrl", originalImageUrl);
+  log(`VST step1: generateEmptyRoom`);
+  const emptyRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`,
+    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: emptyForm });
+  const emptyJson = (await emptyRes.json()) as any;
+  log(`VST step1 response: ${JSON.stringify(emptyJson).slice(0, 200)}`);
+  if (!emptyJson.data?.id) throw new Error(emptyJson.message || "VST generateEmptyRoom: no task id");
+
+  const emptyRoomUrl = await pollEmptyRoom(emptyJson.data.id, 90_000);
+  log(`VST step1 done: emptyRoomUrl=${emptyRoomUrl.slice(-50)}`);
+
+  const stageForm = new FormData();
+  stageForm.append("uploadUrl", originalImageUrl);
+  stageForm.append("emptyRoomUrl", emptyRoomUrl);
+  stageForm.append("roomType", roomType.toLowerCase());
+  stageForm.append("style", style.toLowerCase());
+  log(`VST step2: generateImgOnCommon roomType=${roomType} style=${style}`);
+  const stageRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
+    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: stageForm });
+  const stageJson = (await stageRes.json()) as any;
+  log(`VST step2 response: ${JSON.stringify(stageJson).slice(0, 200)}`);
+  if (!stageJson.data?.uuid) throw new Error(stageJson.message || "VST generateImgOnCommon: no uuid");
+  return stageJson.data.uuid;
+}
+
+// ── VST: Poll vst/getRecord ───────────────────────────────────────────────────
+async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
+  const res = await fetch(
+    `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
+    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+  );
+  const json = (await res.json()) as any;
+  const record = json.data?.generateRecordList?.[0];
+  if (!record) { log(`VST poll ${uuid}: no record yet`); return { status: "processing" }; }
+  const status = (record.status || "").toUpperCase();
+  log(`VST poll ${uuid}: status=${status}`);
+  if (status === "SUCCESS" && record.generateUrl) return { status: "completed", resultUrl: record.generateUrl };
+  if (status === "FAILED") return { status: "failed", failReason: record.failReason || "vst_failed" };
+  return { status: "processing" };
+}
+
+// ── VST: Full workflow with result — resolves with final image URL ─────────────
+async function runVstAndGetResult(originalImageUrl: string, roomType: string, style: string, designId: number): Promise<string> {
+  const uuid = await sendVstWorkflow(originalImageUrl, roomType, style);
+  await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
+  setStatusMsg(designId, "Møblerer rum (VST)...");
+
+  // Poll up to 90s
+  const maxAttempts = 22; // 22 × 4s ≈ 88s
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, 4000));
+    const result = await pollVstResult(uuid);
+    if (result.status === "completed" && result.resultUrl) return result.resultUrl;
+    if (result.status === "failed") throw new Error(result.failReason || "vst_failed");
+  }
+  throw new Error("VST_TIMEOUT");
+}
+
+// ── SOLID10: send + poll wrapper that resolves with final image URL ────────────
+async function runSolid10AndGetResult(
+  originalImageUrl: string, roomType: string, style: string, tier: string | undefined,
+  includePlants: boolean, designId: number,
+): Promise<string> {
+  const uuid = await sendCollovTask(originalImageUrl, roomType, style, tier, includePlants);
+  await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
+  setStatusMsg(designId, "Venter på AI...");
+
+  const maxAttempts = 40; // 40 × 3s = 120s
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const result = await pollCollovResult(uuid);
+    if (result.status === "completed" && result.resultUrl) return result.resultUrl;
+    if (result.status === "failed") throw new Error(result.failReason || "solid10_failed");
+  }
+  throw new Error("SOLID10_TIMEOUT");
+}
+
 // ── Sharp post-processing (SOLID10) ──────────────────────────────────────────
 async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
   const res = await fetch(collovUrl);
@@ -110,6 +210,49 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   fs.writeFileSync(filepath, sharpened);
   log(`Design ${designId}: sharpened image saved → /uploads/${filename}`);
   return `/uploads/${filename}`;
+}
+
+// ── Main workflow: VST vs SOLID10 based on SOLID10_MODE env var ──────────────
+// SOLID10_MODE=all   → alle stile bruger SOLID10
+// SOLID10_MODE=skandi → kun scandinavian prøver VST (60s timeout → SOLID10 fallback)
+// SOLID10_MODE=none  → alle stile prøver VST (60s timeout → SOLID10 fallback)
+async function runDesignWorkflow(
+  originalImageUrl: string,
+  roomType: string,
+  style: string,
+  tier: string | undefined,
+  includePlants: boolean,
+  designId: number,
+): Promise<string> {
+  const mode = (process.env.SOLID10_MODE || "skandi").toLowerCase();
+  const isScandi = style.toLowerCase() === "scandinavian";
+
+  const useVst = mode === "none" || (mode === "skandi" && isScandi);
+
+  if (!useVst) {
+    log(`[Workflow] Design ${designId}: SOLID10 path (mode=${mode}, style=${style})`);
+    setStatusMsg(designId, "Venter på AI...");
+    return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
+  }
+
+  // VST med 60s timeout → automatisk SOLID10 fallback
+  log(`[Workflow] Design ${designId}: VST path (mode=${mode}, style=${style}) — timeout 60s`);
+  setStatusMsg(designId, "Genererer tomt rum (VST)...");
+
+  try {
+    const rawUrl = await Promise.race([
+      runVstAndGetResult(originalImageUrl, roomType, style, designId),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("VST_TIMEOUT")), 60_000)
+      ),
+    ]);
+    log(`[Workflow] Design ${designId}: VST succeeded`);
+    return rawUrl;
+  } catch (vstErr: any) {
+    log(`[Workflow] Design ${designId}: VST failed (${vstErr.message}) → fallback SOLID10`);
+    setStatusMsg(designId, "Venter på AI (fallback)...");
+    return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
+  }
 }
 
 // ── In-memory status message map ──────────────────────────────────────────────
@@ -422,17 +565,32 @@ export async function registerRoutes(
       const updated = await storage.getDesign(design.id);
       res.json(updated);
 
-      // Background: wait 5s (Collov cold-start), then send task + poll
+      // Background: wait 5s cold-start, then run workflow (VST or SOLID10) + sharpen + save
       setTimeout(async () => {
         try {
-          log(`Design ${design.id}: sending to Collov after 5s delay...`);
-          const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
-          await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
-          setStatusMsg(design.id, "Venter på AI...");
-          const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
-          backgroundPoll(design.id, uuid, retryFn);
+          log(`Design ${design.id}: starting workflow after 5s delay...`);
+          const rawImageUrl = await runDesignWorkflow(
+            publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants, design.id,
+          );
+          setStatusMsg(design.id, "Efterbehandler billede...");
+          let finalUrl = rawImageUrl;
+          try {
+            finalUrl = await sharpenAndSave(rawImageUrl, design.id);
+          } catch (sharpErr: any) {
+            log(`Design ${design.id}: sharp failed (using raw URL) — ${sharpErr.message}`);
+          }
+          clearStatusMsg(design.id);
+          const updated = await storage.getDesign(design.id);
+          await storage.updateDesign(design.id, { status: "completed", resultImageUrl: finalUrl, versions: [finalUrl] });
+          log(`Design ${design.id}: completed`);
+          if (updated) {
+            const { runAffiliatePipeline } = await import("./affiliatePipeline");
+            runAffiliatePipeline(design.id, finalUrl, updated.roomType).catch(
+              (e: any) => log(`[Affiliate] Design ${design.id} pipeline uncaught: ${e.message}`)
+            );
+          }
         } catch (err: any) {
-          log(`Collov API error (background send): ${err.message}`);
+          log(`Workflow error design ${design.id}: ${err.message}`);
           const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
           clearStatusMsg(design.id);
           await storage.updateDesign(design.id, { status: "failed", failReason });

@@ -1,0 +1,78 @@
+OPGAVE: Gå tilbage til VST, men KUN for skandinavisk, med automatisk fallback.
+
+KRITISK: Hvis VST fejler → automatisk SOLID10. Bruger venter aldrig mere end 60 sek.
+
+1. FEATURE TOGGLE — 3 modes:
+
+SOLID10_MODE=all        // Alle stile bruger Photo Chat Edit
+SOLID10_MODE=skandi     // Kun skandinavisk bruger VST, resten SOLID10
+SOLID10_MODE=none       // Alle stile bruger VST (risikabelt)
+
+Default: SOLID10_MODE=skandi
+
+2. VST MED AUTOMATISK FALLBACK:
+
+async function runDesignWorkflow(originalUrl, roomType, style) {
+  const styleLower = style.toLowerCase();
+  const mode = process.env.SOLID10_MODE || 'skandi';
+  
+  // Bestem om VST skal bruges
+  const useVst = (mode === 'none') || 
+                 (mode === 'skandi' && styleLower === 'scandinavian');
+  
+  if (!useVst) {
+    console.log('[Workflow] Using SOLID10 for', style);
+    return runSolid10Design(originalUrl, roomType, style);
+  }
+  
+  // PRØV VST med 60 sek timeout
+  console.log('[Workflow] Trying VST for', style);
+  try {
+    const vstResult = await Promise.race([
+      runVstWorkflow(originalUrl, roomType, style),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('VST_TIMEOUT')), 60000)
+      )
+    ]);
+    
+    console.log('[Workflow] VST success');
+    return vstResult;
+    
+  } catch (err) {
+    // VST fejlede eller timeout → fallback til SOLID10
+    console.log('[Workflow] VST failed/timeout, falling back to SOLID10');
+    return runSolid10Design(originalUrl, roomType, style);
+  }
+}
+
+3. VST KODE — præcis som før (det der virkede):
+
+// Kopier det gamle VST workflow der virkede:
+// - sendVstWorkflow()
+// - pollEmptyRoom()
+// - pollVstResult()
+// - enhanceVstImage()
+
+INGEN ændringer i VST koden. Kun timeout + fallback tilføjes.
+
+4. TEST:
+
+A. SOLID10_MODE=skandi
+   - Skandinavisk → prøver VST (60 sek) → fallback SOLID10 hvis fejl
+   - Moderne → SOLID10 direkte
+   
+B. Hvis skandinavisk VST virker:
+   - Billeder skarpe → behold det
+   
+C. Hvis skandinavisk VST fejler:
+   - Fallback til SOLID10 → bruger får stadig billede
+   - Fix VST i dev, ikke i prod
+
+IMPLEMENTÉR:
+1. runDesignWorkflow() med timeout + fallback
+2. Kopier gammel VST kode (det der virkede før)
+3. SOLID10_MODE=skandi i env
+4. Test skandinavisk + moderne
+
+INGEN style-config. INGEN preserve-prompt. INGEN checkStructure.
+Kun: VST med timeout → SOLID10 fallback.
