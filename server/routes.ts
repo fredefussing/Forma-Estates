@@ -165,7 +165,7 @@ async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?
   return { status: "processing" };
 }
 
-// ── VST: Full workflow with result — resolves with sharpened local path ────────
+// ── VST: Full workflow with result — resolves with raw Collov URL ─────────────
 async function runVstAndGetResult(originalImageUrl: string, roomType: string, style: string, designId: number): Promise<string> {
   const uuid = await sendVstWorkflow(originalImageUrl, roomType, style);
   await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
@@ -176,11 +176,7 @@ async function runVstAndGetResult(originalImageUrl: string, roomType: string, st
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const result = await pollVstResult(uuid);
-    if (result.status === "completed" && result.resultUrl) {
-      // VST-output er allerede skarpt — let berøring og gem lokalt
-      setStatusMsg(designId, "Efterbehandler billede (VST)...");
-      return await sharpenAndSaveVst(result.resultUrl, designId);
-    }
+    if (result.status === "completed" && result.resultUrl) return result.resultUrl;
     if (result.status === "failed") throw new Error(result.failReason || "vst_failed");
   }
   throw new Error("VST_TIMEOUT");
@@ -205,37 +201,22 @@ async function runSolid10AndGetResult(
   throw new Error("SOLID10_TIMEOUT");
 }
 
-// ── Sharp post-processing ─────────────────────────────────────────────────────
-// VST output er allerede skarpt — let berøring
-async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
-  const res = await fetch(collovUrl);
-  if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const sharpened = await sharp(buffer)
-    .sharpen({ sigma: 0.8, flat: 1.5, jagged: 1.5 })
-    .jpeg({ quality: 95, mozjpeg: true })
-    .toBuffer();
-  const filename = `result-${designId}-${Date.now()}.jpg`;
-  const filepath = path.join(uploadDir, filename);
-  fs.writeFileSync(filepath, sharpened);
-  log(`Design ${designId}: VST sharpened saved → /uploads/${filename}`);
-  return `/uploads/${filename}`;
-}
-
-// SOLID10 output trænger til mere behandling — originale #182-indstillinger
+// ── Sharp post-processing — SOLID11 pipeline ─────────────────────────────────
 async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
   const res = await fetch(collovUrl);
   if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
+    .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 })
+    .sharpen({ sigma: 1.0, flat: 0.3, jagged: 2 })
+    .modulate({ saturation: 1.05, brightness: 1.02 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const filepath = path.join(uploadDir, filename);
   fs.writeFileSync(filepath, sharpened);
-  log(`Design ${designId}: SOLID10 sharpened saved → /uploads/${filename}`);
+  log(`Design ${designId}: sharpened image saved → /uploads/${filename}`);
   return `/uploads/${filename}`;
 }
 
@@ -270,7 +251,7 @@ async function runDesignWorkflow(
     const rawUrl = await Promise.race([
       runVstAndGetResult(originalImageUrl, roomType, style, designId),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("VST_TIMEOUT")), 90_000)
+        setTimeout(() => reject(new Error("VST_TIMEOUT")), 60_000)
       ),
     ]);
     log(`[Workflow] Design ${designId}: VST succeeded`);
@@ -601,13 +582,10 @@ export async function registerRoutes(
           );
           setStatusMsg(design.id, "Efterbehandler billede...");
           let finalUrl = rawImageUrl;
-          // VST-stien returnerer allerede lokal sti (/uploads/...) — spring sharp over
-          if (!rawImageUrl.startsWith("/uploads/")) {
-            try {
-              finalUrl = await sharpenAndSave(rawImageUrl, design.id);
-            } catch (sharpErr: any) {
-              log(`Design ${design.id}: sharp failed (using raw URL) — ${sharpErr.message}`);
-            }
+          try {
+            finalUrl = await sharpenAndSave(rawImageUrl, design.id);
+          } catch (sharpErr: any) {
+            log(`Design ${design.id}: sharp failed (using raw URL) — ${sharpErr.message}`);
           }
           clearStatusMsg(design.id);
           const updated = await storage.getDesign(design.id);
