@@ -44,6 +44,22 @@ const COLLOV_BASE = "https://api.collov.ai";
 // ── Feature toggle: SOLID10_MODE=true → old Photo Chat Edit, false → new VST ──
 const USE_SOLID10 = process.env.SOLID10_MODE === "true";
 
+// ── Per-style VST configuration ───────────────────────────────────────────────
+const STYLE_CONFIG: Record<string, {
+  emptyRoom: boolean;
+  extraPrompt: string | null;
+  fallback: "vstDirect" | null;
+}> = {
+  scandinavian: { emptyRoom: true, extraPrompt: null, fallback: null },
+  modern:       { emptyRoom: true, extraPrompt: "PRESERVE original walls, ceiling, floor layout exactly. Only change furniture and lighting.", fallback: "vstDirect" },
+  industrial:   { emptyRoom: true, extraPrompt: null, fallback: null },
+  classic:      { emptyRoom: true, extraPrompt: null, fallback: null },
+  bohemian:     { emptyRoom: true, extraPrompt: null, fallback: null },
+  minimalist:   { emptyRoom: true, extraPrompt: null, fallback: null },
+  rustic:       { emptyRoom: true, extraPrompt: null, fallback: null },
+  luxury:       { emptyRoom: true, extraPrompt: null, fallback: null },
+};
+
 
 // ── Style prompts — same as May 3 setup that produced good results ────────────
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
@@ -123,6 +139,7 @@ async function sendVstWorkflow(
   originalImageUrl: string,
   roomType: string,
   style: string,
+  extraPrompt?: string | null,
 ): Promise<string> {
   // Step 1: Generate empty room
   const emptyForm = new FormData();
@@ -148,8 +165,9 @@ async function sendVstWorkflow(
   stageForm.append("emptyRoomUrl", emptyRoomUrl);
   stageForm.append("roomType", roomType.toLowerCase());
   stageForm.append("style", style.toLowerCase());
+  if (extraPrompt) stageForm.append("prompt", extraPrompt);
 
-  log(`VST step2: generateImgOnCommon roomType=${roomType} style=${style}`);
+  log(`VST step2: generateImgOnCommon roomType=${roomType} style=${style}${extraPrompt ? " [+preserve prompt]" : ""}`);
   const stageRes = await fetch(
     `${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
     { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: stageForm },
@@ -158,6 +176,28 @@ async function sendVstWorkflow(
   log(`VST step2 response: ${JSON.stringify(stageJson).slice(0, 200)}`);
   if (!stageJson.data?.uuid) throw new Error(stageJson.message || "VST generateImgOnCommon: no uuid");
   return stageJson.data.uuid;
+}
+
+// ── VST-Direct: Stage without emptyRoom step (preserves more structure) ───────
+async function sendVstDirect(
+  originalImageUrl: string,
+  roomType: string,
+  style: string,
+): Promise<string> {
+  const form = new FormData();
+  form.append("uploadUrl", originalImageUrl);
+  form.append("roomType", roomType.toLowerCase());
+  form.append("style", style.toLowerCase());
+
+  log(`VST direct (no emptyRoom): generateImgOnCommon roomType=${roomType} style=${style}`);
+  const res = await fetch(
+    `${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
+    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: form },
+  );
+  const json = (await res.json()) as any;
+  log(`VST direct response: ${JSON.stringify(json).slice(0, 200)}`);
+  if (!json.data?.uuid) throw new Error(json.message || "VST direct: no uuid");
+  return json.data.uuid;
 }
 
 // ── VST: Poll vst/getRecord — parses generateRecordList[0] ───────────────────
@@ -539,12 +579,28 @@ export async function registerRoutes(
             backgroundPoll(design.id, uuid, retryFn, pollCollovResult);
           } else {
             // ── VST: Virtual Staging Technology path ──────────────────────
-            log(`Design ${design.id}: [VST] starting 2-step workflow (emptyRoom → stage)...`);
+            const styleConf = STYLE_CONFIG[parsed.data.style] ?? STYLE_CONFIG.scandinavian;
+
+            log(`Design ${design.id}: [VST] starting workflow for style="${parsed.data.style}" fallback="${styleConf.fallback ?? "none"}"`);
             setStatusMsg(design.id, "Genererer tomt rum...");
-            const uuid = await sendVstWorkflow(publicUrl, parsed.data.roomType, parsed.data.style);
+
+            const uuid = await sendVstWorkflow(
+              publicUrl,
+              parsed.data.roomType,
+              parsed.data.style,
+              styleConf.extraPrompt,
+            );
             await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
             setStatusMsg(design.id, "Møblerer rum...");
-            const vstRetryFn = () => sendVstWorkflow(publicUrl, parsed.data.roomType, parsed.data.style);
+
+            // Retry function: use vstDirect for styles configured with fallback="vstDirect"
+            const vstRetryFn = styleConf.fallback === "vstDirect"
+              ? () => {
+                  log(`Design ${design.id}: [VST] retry → vstDirect (no emptyRoom) for style="${parsed.data.style}"`);
+                  return sendVstDirect(publicUrl, parsed.data.roomType, parsed.data.style);
+                }
+              : () => sendVstWorkflow(publicUrl, parsed.data.roomType, parsed.data.style, styleConf.extraPrompt);
+
             backgroundPoll(design.id, uuid, vstRetryFn, pollVstResult);
           }
         } catch (err: any) {

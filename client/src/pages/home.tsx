@@ -690,13 +690,25 @@ export default function HomePage() {
               <div className="pb-16">
                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                   <div>
-                    <h2 className="text-xl font-semibold tracking-tight">
-                      {roomTypeLabels[activeDesign.roomType as RoomType] || activeDesign.roomType}
-                      <span className="text-muted-foreground font-normal mx-2">/</span>
-                      <span className="text-muted-foreground font-normal">
-                        {styleLabels[activeDesign.style as DesignStyle] || activeDesign.style}
-                      </span>
-                    </h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-xl font-semibold tracking-tight">
+                        {roomTypeLabels[activeDesign.roomType as RoomType] || activeDesign.roomType}
+                        <span className="text-muted-foreground font-normal mx-2">/</span>
+                        <span className="text-muted-foreground font-normal">
+                          {styleLabels[activeDesign.style as DesignStyle] || activeDesign.style}
+                        </span>
+                      </h2>
+                      {activeDesign.style === "scandinavian" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50" data-testid="badge-quality-hd">
+                          HD
+                        </span>
+                      )}
+                      {activeDesign.style === "modern" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800/50" data-testid="badge-quality-hdplus">
+                          HD+
+                        </span>
+                      )}
+                    </div>
                     {activeDesign.budget && activeDesign.tier && (
                       <p className="text-sm text-muted-foreground mt-0.5" data-testid="text-budget-info">
                         {formatDKK(activeDesign.budget)} · {getTierLabel(activeDesign.tier as BudgetTier)}
