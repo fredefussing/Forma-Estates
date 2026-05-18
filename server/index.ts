@@ -99,8 +99,8 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
 
-      // Pre-warm Collov GPU models 10s after start
-      setTimeout(async () => {
+      // Pre-warm Collov GPU models immediately after start
+      setImmediate(async () => {
         try {
           log("[Pre-warm] Warming Collov models...");
           const form = new FormData();
@@ -114,7 +114,7 @@ app.use((req, res, next) => {
         } catch {
           log("[Pre-warm] Done (expected error)");
         }
-      }, 10_000);
+      });
     },
   );
 })();

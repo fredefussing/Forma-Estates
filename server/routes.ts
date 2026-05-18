@@ -94,31 +94,33 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
 }
 
 // ── VST: Poll generateEmptyRoom task ─────────────────────────────────────────
-async function pollEmptyRoom(taskId: string, timeoutMs = 60_000): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-  while (Date.now() < deadline) {
+async function pollEmptyRoom(taskId: string): Promise<string> {
+  const maxAttempts = 20;
+  const interval = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
     const res = await fetch(
       `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${encodeURIComponent(taskId)}`,
       { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
     );
     const json = (await res.json()) as any;
-    const data = json.data || {};
-    const status = (data.status || "").toUpperCase();
+    const status = json.data?.status;
     log(`VST emptyRoom poll taskId=${taskId}: status=${status}`);
-    if (status === "SUCCESS") {
-      const url = data.emptyRoomUrl || data.generateUrl || data.url;
-      if (url) return url;
-      log(`VST emptyRoom taskId=${taskId}: SUCCESS but no URL yet, polling...`);
+
+    if (status === "SUCCESS" && json.data?.emptyRoomUrl) {
+      return json.data.emptyRoomUrl;
     }
-    if (status === "FAILED") throw new Error(`VST emptyRoom failed: ${data.failReason || "unknown"}`);
-    await delay(2000);
+    if (status === "FAILED") throw new Error("Empty room failed");
+
+    await new Promise(r => setTimeout(r, interval));
   }
-  throw new Error("VST emptyRoom timed out");
+  throw new Error("Empty room timeout");
 }
 
 // ── VST: Step 1 (empty room) + Step 2 (staged result) → returns uuid ─────────
 async function sendVstWorkflow(originalImageUrl: string, roomType: string, style: string): Promise<string> {
+  const styleLower = style.toLowerCase();
+
   const emptyForm = new FormData();
   emptyForm.append("uploadUrl", originalImageUrl);
   log(`VST step1: generateEmptyRoom`);
@@ -128,15 +130,15 @@ async function sendVstWorkflow(originalImageUrl: string, roomType: string, style
   log(`VST step1 response: ${JSON.stringify(emptyJson).slice(0, 200)}`);
   if (!emptyJson.data?.id) throw new Error(emptyJson.message || "VST generateEmptyRoom: no task id");
 
-  const emptyRoomUrl = await pollEmptyRoom(emptyJson.data.id, 90_000);
+  const emptyRoomUrl = await pollEmptyRoom(emptyJson.data.id);
   log(`VST step1 done: emptyRoomUrl=${emptyRoomUrl.slice(-50)}`);
 
   const stageForm = new FormData();
   stageForm.append("uploadUrl", originalImageUrl);
   stageForm.append("emptyRoomUrl", emptyRoomUrl);
-  stageForm.append("roomType", roomType.toLowerCase());
-  stageForm.append("style", style.toLowerCase());
-  log(`VST step2: generateImgOnCommon roomType=${roomType} style=${style}`);
+  stageForm.append("roomType", styleLower);
+  stageForm.append("style", styleLower);
+  log(`VST step2: generateImgOnCommon roomType=${styleLower} style=${styleLower}`);
   const stageRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
     { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: stageForm });
   const stageJson = (await stageRes.json()) as any;
@@ -204,9 +206,9 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
     .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
+    .sharpen({ sigma: 0.5, flat: 2, jagged: 0.5 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .convolve({ width: 3, height: 3, kernel: [-0.5, -0.5, -0.5, -0.5, 5, -0.5, -0.5, -0.5, -0.5] })
-    .modulate({ saturation: 1.05, brightness: 1.02 })
+    .sharpen({ sigma: 0.3, flat: 0.5, jagged: 1.5 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
@@ -247,7 +249,7 @@ async function runDesignWorkflow(
     const rawUrl = await Promise.race([
       runVstAndGetResult(originalImageUrl, roomType, style, designId),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("VST_TIMEOUT")), 60_000)
+        setTimeout(() => reject(new Error("VST_TIMEOUT")), 90_000)
       ),
     ]);
     log(`[Workflow] Design ${designId}: VST succeeded`);
