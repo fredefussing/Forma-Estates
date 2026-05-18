@@ -1,0 +1,243 @@
+gem disse settings som de er nu, hvor vi kalder det "SOLID10" vi skal teste en anden måde at få genereret billederne på, for at se om vi får samme gode billeder, men med bedre kvalitet. svar med okay når du er klar til at teste denne ændring, og om du har gemt dette nuværende system
+
+3 hours ago
+
+Show less
+
+2 actions
+Lad mig finde de nuværende Collov-indstillinger præcist:
+
+
+4 actions
+Gemmer de nuværende settings som SOLID10 — her er hvad der dokumenteres:
+
+
+3 actions
+Okay — SOLID10 er gemt i .local/snapshots/SOLID10.md.
+
+Det dokumenterer præcis:
+
+Endpoint: edit/generate med kun uploadUrl + prompt
+Prompt-opbygning: styleVocabulary tier-specifik tekst
+Post-processing: CLAHE (50×50, slope 3) + sharpen (σ1.8, flat 0.5, jagged 3) + JPEG 95 mozjpeg
+Polling: 3 sek interval, max 15 forsøg, 1 retry
+Klar til at teste den nye tilgang — hvad vil du ændre?
+OPGAVE: Skift fra Photo Chat Edit til Collov VST. 
+Behold "SOLID10" som fallback-feature toggle.
+
+KRITISK: uploadUrl skal være ORIGINAL foto, emptyRoomUrl skal være tomt rum.
+
+1. FEATURE TOGGLE "SOLID10":
+
+Tilføj env variabel:
+SOLID10_MODE=false  // sæt til "true" for at skifte tilbage til Photo Chat Edit
+
+I koden:
+const USE_SOLID10 = process.env.SOLID10_MODE === "true";
+
+// Hvis SOLID10=true → brug gammelt Photo Chat Edit system
+// Hvis SOLID10=false → brug nyt VST system
+
+2. NYT sendVstWorkflow() — bruges når SOLID10=false:
+
+async function sendVstWorkflow(originalImageUrl, roomType, style) {
+  // STEP 1: Generer tomt rum
+  const emptyForm = new FormData();
+  emptyForm.append("uploadUrl", originalImageUrl);
+  
+  const emptyRes = await fetch(
+    "https://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom ",
+    {
+      method: "POST",
+      headers: { apiKey: process.env.COLOV_API_KEY },
+      body: emptyForm
+    }
+  );
+  const emptyData = await emptyRes.json();
+  const emptyTaskId = emptyData.data.id;
+  
+  // Poll empty room
+  const emptyRoomUrl = await pollEmptyRoom(emptyTaskId);
+  
+  // STEP 2: Stage med BEGGE URLs
+  const stageForm = new FormData();
+  stageForm.append("uploadUrl", originalImageUrl);    // ← ORIGINAL foto
+  stageForm.append("emptyRoomUrl", emptyRoomUrl);     // ← Tomt rum
+  stageForm.append("roomType", roomType.toLowerCase());
+  stageForm.append("style", style.toLowerCase());
+  
+  const stageRes = await fetch(
+    "https://api.collov.ai/flair/enterpriseApi/vst/generateImgOnCommon ",
+    {
+      method: "POST",
+      headers: { apiKey: process.env.COLOV_API_KEY },
+      body: stageForm
+    }
+  );
+  const stageData = await stageRes.json();
+  return stageData.data.uuid;  // ← UUID til polling
+}
+
+3. POLL VST — korrekt parsing:
+
+async function pollVstResult(uuid) {
+  const form = new FormData();
+  form.append("uuid", uuid);
+  
+  const res = await fetch(
+    "https://api.collov.ai/flair/enterpriseApi/vst/getRecord ",
+    {
+      method: "GET",  // ← GET, multipart body
+      headers: { apiKey: process.env.COLOV_API_KEY },
+      body: form
+    }
+  );
+  
+  const data = await res.json();
+  
+  // KORREKT PATH: generateRecordList[0]
+  const record = data.data?.generateRecordList?.[0];
+  if (!record) return { status: "pending" };
+  
+  return {
+    status: record.status.toLowerCase(),  // "SUCCESS" | "PENDING" | "FAILED"
+    imageUrl: record.generateUrl,         // ← billed URL
+    duration: record.durationTime
+  };
+}
+
+4. SHARP.JS — aggressiv:
+
+const sharp = require("sharp");
+
+async function enhanceVstImage(buffer) {
+  return sharp(buffer)
+    // KANTER — maksimal skarphed
+    .sharpen({ 
+      sigma: 1.5,      // Radius
+      flat: 0.3,       // Mindre noise-reduktion = flere detaljer
+      jagged: 3        // Maksimal kant-forstærkning
+    })
+    // LOKAL KONTRAST — detaljer synlige
+    .clahe({ 
+      width: 50, 
+      height: 50, 
+      maxSlope: 3 
+    })
+    // MIKRO-SKARPHE
+    .unsharpMask({ 
+      sigma: 2, 
+      flat: 0.5, 
+      jagged: 2 
+    })
+    // FARVE — lidt mere liv
+    .modulate({ 
+      saturation: 1.05, 
+      brightness: 1.02 
+    })
+    .toBuffer();
+}
+
+5. RUN VST WORKFLOW:
+
+async function runVstDesign(originalImageUrl, roomType, style) {
+  // Skip hvis SOLID10 mode
+  if (USE_SOLID10) {
+    return runSolid10Design(originalImageUrl, roomType, style);
+  }
+  
+  const uuid = await sendVstWorkflow(originalImageUrl, roomType, style);
+  
+  // Poll med timeout
+  const result = await pollWithTimeout(uuid, 180000); // 3 min
+  
+  if (result.status !== "success") {
+    throw new Error("VST failed");
+  }
+  
+  // Hent billede
+  const imageRes = await fetch(result.imageUrl);
+  const imageBuffer = await imageRes.arrayBuffer();
+  
+  // Enhance
+  const enhanced = await enhanceVstImage(Buffer.from(imageBuffer));
+  
+  // Gem
+  const savedPath = await saveImage(enhanced);
+  
+  return savedPath;
+}
+
+6. REGENERATE — variationer:
+
+async function regenerateVst(uuid) {
+  const form = new FormData();
+  form.append("uuid", uuid);
+  
+  const res = await fetch(
+    "https://api.collov.ai/flair/enterpriseApi/vst/reGenerateImgOnCommon ",
+    {
+      method: "POST",
+      headers: { apiKey: process.env.COLOV_API_KEY },
+      body: form
+    }
+  );
+  
+  const data = await res.json();
+  return data.data.uuid;  // Samme UUID, nyt record i generateRecordList
+}
+
+7. TILBAGE TIL SOLID10:
+
+// Sæt i .env:
+SOLID10_MODE=true
+
+// Genstart server. Systemet bruger automatisk gammelt Photo Chat Edit.
+// Ingen kode-ændring nødvendig.
+
+IMPLEMENTÉR punkterne 1-6. 
+Punkt 7 (tilbage til SOLID10) virker automatisk via env variabel.
+
+TEST FLOW:
+1. SOLID10_MODE=false i .env
+2. Generér design → skal bruge VST
+3. Tjek skarphed
+4. Hvis IKKE god nok → SOLID10_MODE=true → genstart → tilbage
+
+VIKTIG: 
+- uploadUrl skal være original foto URL (https://...)
+- emptyRoomUrl skal være det genererede tomme rum URL
+- Poll tjekker generateRecordList[0].status
+- Gem SOLID10=false i backup før test
+
+SEND til mig når implementeret. Jeg verificerer ..
+Her er hvad der er implementeret:
+
+Feature toggle (punkt 1)
+SOLID10_MODE environment variabel. Som standard er den ikke sat → VST er aktiv. Sæt SOLID10_MODE=true og genstart for at gå tilbage til SOLID10.
+
+VST workflow (punkt 2–3)
+To-trins flow i sendVstWorkflow():
+
+vst/generateEmptyRoom → poller getEmptyRoomRecord hvert 4. sek (max 2 min)
+vst/generateImgOnCommon med uploadUrl (original) + emptyRoomUrl (det tomme rum)
+Polling af VST-resultat via pollVstResult() læser data.generateRecordList[0].status.
+
+Sharp post-processing (punkt 4)
+VST-stien bruger aggressiv processing: sharpen → CLAHE → unsharpMask → modulate (saturation 1.05, brightness 1.02). SOLID10-stien bevarer sine originale settings uændret.
+
+Statusbeskeder (punkt 5)
+Brugeren ser nu "Genererer tomt rum..." → "Møblerer rum..." i stedet for den generiske "Venter på AI...".
+
+Retry (punkt 6)
+vstRetryFn kalder sendVstWorkflow() på ny — starter hele 2-trins flowet forfra.
+
+For at teste:
+
+SOLID10_MODE=false   ← allerede default, ingen ændring nødvendig
+
+Generer et design normalt — systemet bruger automatisk VST.
+
+For at gå tilbage til SOLID10:
+
+SOLID10_MODE=true   ← sæt i environment secrets og genstart
