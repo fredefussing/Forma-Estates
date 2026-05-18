@@ -29,7 +29,7 @@ export function useTransformationJob(designId: number | null) {
 
     let isActive = true;
     const startTime = Date.now();
-    const POLL_INTERVAL = 3000;
+    const POLL_INTERVAL = 1000;
     const MAX_ELAPSED_MS = 240 * 1000; // 4 min hard stop
 
     // Elapsed ticker — updates every second for live counter

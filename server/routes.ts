@@ -560,15 +560,15 @@ export async function registerRoutes(
 
       const includePlants = req.body.includePlants === "true";
 
-      // Respond immediately — Collov task is sent in background after 5s cold-start delay
+      // Respond immediately — workflow starts right away (pre-warm handles cold-start)
       setStatusMsg(design.id, "Starter generering...");
       const updated = await storage.getDesign(design.id);
       res.json(updated);
 
-      // Background: wait 5s cold-start, then run workflow (VST or SOLID10) + sharpen + save
+      // Background: start immediately (no delay — models are pre-warmed at server start)
       setTimeout(async () => {
         try {
-          log(`Design ${design.id}: starting workflow after 5s delay...`);
+          log(`Design ${design.id}: starting workflow...`);
           const rawImageUrl = await runDesignWorkflow(
             publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants, design.id,
           );
