@@ -99,8 +99,10 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
+    .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 })
+    .unsharpMask({ sigma: 2, flat: 0.5, jagged: 2 } as any)
+    .modulate({ saturation: 1.05, brightness: 1.02 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
