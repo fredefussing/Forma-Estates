@@ -219,16 +219,28 @@ async function runSolid10AndGetResult(
   throw new Error("SOLID10_TIMEOUT");
 }
 
-// ── VST finalize: download + aggressiv sharp ─────────────────────────────────
+// ── Pre-process input image before sending to Collov ─────────────────────────
+// Resize to max 1920px, light sharpen, JPEG 96 → giver Collov en skarp reference
+async function prepareInputImage(filePath: string): Promise<void> {
+  const buffer = fs.readFileSync(filePath);
+  const processed = await sharp(buffer)
+    .resize(1920, 1920, { fit: "inside", withoutEnlargement: true })
+    .sharpen({ sigma: 0.8, flat: 0.5, jagged: 2 })
+    .jpeg({ quality: 96, mozjpeg: true })
+    .toBuffer();
+  fs.writeFileSync(filePath, processed);
+}
+
+// ── VST finalize: download + skarp post-processing ───────────────────────────
 async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
   const res = await fetch(collovUrl);
   if (!res.ok) throw new Error(`VST: Failed to fetch image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const enhanced = await sharp(buffer)
-    .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
+    .sharpen({ sigma: 1.0, flat: 0.5, jagged: 2 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
     .modulate({ saturation: 1.05, brightness: 1.02 })
-    .jpeg({ quality: 95, mozjpeg: true })
+    .jpeg({ quality: 96, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
   fs.writeFileSync(path.join(uploadDir, filename), enhanced);
@@ -555,6 +567,14 @@ export async function registerRoutes(
       // Collov's servers can reach the image in both dev and production.
       // REPLIT_DEV_DOMAIN / REPLIT_DOMAINS can be internal hostnames that are
       // not reachable from the public internet, so we do NOT use them here.
+      // Pre-process input: resize til max 1920px + let skarpning → bedre Collov-reference
+      try {
+        await prepareInputImage(req.file.path);
+        log(`Design input pre-processed: ${req.file.filename}`);
+      } catch (prepErr: any) {
+        log(`Design input pre-process failed (continuing with raw): ${prepErr.message}`);
+      }
+
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
       const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
