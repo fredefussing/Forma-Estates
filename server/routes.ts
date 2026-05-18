@@ -186,8 +186,8 @@ async function runVstAndGetResult(originalImageUrl: string, roomType: string, st
   await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
   setStatusMsg(designId, "Møblerer rum (VST)...");
 
-  // Poll up to 50s (25 × 2s)
-  const maxAttempts = 25;
+  // Poll up to 180s (90 × 2s)
+  const maxAttempts = 90;
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const result = await pollVstResult(uuid);
@@ -219,10 +219,21 @@ async function runSolid10AndGetResult(
   throw new Error("SOLID10_TIMEOUT");
 }
 
-// ── VST finalize: gem rå Collov CDN URL direkte — ingen download, ingen re-encoding ──
+// ── VST finalize: download + aggressiv sharp ─────────────────────────────────
 async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
-  log(`Design ${designId}: VST → rå CDN URL gemt direkte (ingen re-encoding)`);
-  return collovUrl;
+  const res = await fetch(collovUrl);
+  if (!res.ok) throw new Error(`VST: Failed to fetch image: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const enhanced = await sharp(buffer)
+    .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
+    .clahe({ width: 50, height: 50, maxSlope: 3 })
+    .modulate({ saturation: 1.05, brightness: 1.02 })
+    .jpeg({ quality: 95, mozjpeg: true })
+    .toBuffer();
+  const filename = `result-${designId}-${Date.now()}.jpg`;
+  fs.writeFileSync(path.join(uploadDir, filename), enhanced);
+  log(`Design ${designId}: VST enhanced saved → /uploads/${filename}`);
+  return `/uploads/${filename}`;
 }
 
 // ── SOLID10 save: rå output fra Collov — ingen post-processing ───────────────
@@ -245,10 +256,9 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   return `/uploads/${filename}`;
 }
 
-// ── Main workflow: VST vs SOLID10 based on SOLID10_MODE env var ──────────────
-// SOLID10_MODE=all   → alle stile bruger SOLID10
-// SOLID10_MODE=skandi → kun scandinavian prøver VST (60s timeout → SOLID10 fallback)
-// SOLID10_MODE=none  → alle stile prøver VST (60s timeout → SOLID10 fallback)
+// ── Main workflow ─────────────────────────────────────────────────────────────
+// SOLID10_MODE=true  → Photo Chat Edit (fallback/manual override)
+// SOLID10_MODE=false / ikke sat → VST primær med SOLID10 fallback
 async function runDesignWorkflow(
   originalImageUrl: string,
   roomType: string,
@@ -257,26 +267,23 @@ async function runDesignWorkflow(
   includePlants: boolean,
   designId: number,
 ): Promise<string> {
-  const mode = (process.env.SOLID10_MODE || "all").toLowerCase();
-  const isScandi = style.toLowerCase() === "scandinavian";
+  const useSolid10 = (process.env.SOLID10_MODE || "false").toLowerCase() === "true";
 
-  const useVst = mode === "none" || (mode === "skandi" && isScandi);
-
-  if (!useVst) {
-    log(`[Workflow] Design ${designId}: SOLID10 path (mode=${mode}, style=${style})`);
+  if (useSolid10) {
+    log(`[Workflow] Design ${designId}: SOLID10 path (forced via SOLID10_MODE=true)`);
     setStatusMsg(designId, "Venter på AI...");
     return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
   }
 
-  // VST med 60s timeout → automatisk SOLID10 fallback
-  log(`[Workflow] Design ${designId}: VST path (mode=${mode}, style=${style}) — timeout 60s`);
+  // VST primær med 180s timeout → SOLID10 fallback
+  log(`[Workflow] Design ${designId}: VST path — timeout 180s`);
   setStatusMsg(designId, "Genererer tomt rum (VST)...");
 
   try {
     const rawUrl = await Promise.race([
       runVstAndGetResult(originalImageUrl, roomType, style, designId),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("VST_TIMEOUT")), 60_000)
+        setTimeout(() => reject(new Error("VST_TIMEOUT")), 180_000)
       ),
     ]);
     log(`[Workflow] Design ${designId}: VST succeeded`);
