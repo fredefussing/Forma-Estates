@@ -275,24 +275,16 @@ async function runDesignWorkflow(
     return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
   }
 
-  // VST primær med 180s timeout → SOLID10 fallback
-  log(`[Workflow] Design ${designId}: VST path — timeout 180s`);
+  // Ren VST — ingen SOLID10 fallback
+  log(`[Workflow] Design ${designId}: VST path — timeout 180s (no fallback)`);
   setStatusMsg(designId, "Genererer tomt rum (VST)...");
 
-  try {
-    const rawUrl = await Promise.race([
-      runVstAndGetResult(originalImageUrl, roomType, style, designId),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("VST_TIMEOUT")), 180_000)
-      ),
-    ]);
-    log(`[Workflow] Design ${designId}: VST succeeded`);
-    return rawUrl;
-  } catch (vstErr: any) {
-    log(`[Workflow] Design ${designId}: VST failed (${vstErr.message}) → fallback SOLID10`);
-    setStatusMsg(designId, "Venter på AI (fallback)...");
-    return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
-  }
+  return Promise.race([
+    runVstAndGetResult(originalImageUrl, roomType, style, designId),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("VST_TIMEOUT")), 180_000)
+    ),
+  ]);
 }
 
 // ── In-memory status message map ──────────────────────────────────────────────
