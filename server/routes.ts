@@ -41,24 +41,6 @@ const upload = multer({
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
 const COLLOV_BASE = "https://api.collov.ai";
 
-// ── Feature toggle: SOLID10_MODE=true → old Photo Chat Edit, false → new VST ──
-const USE_SOLID10 = process.env.SOLID10_MODE === "true";
-
-// ── Per-style VST configuration ───────────────────────────────────────────────
-const STYLE_CONFIG: Record<string, {
-  emptyRoom: boolean;
-  extraPrompt: string | null;
-  fallback: "vstDirect" | null;
-}> = {
-  scandinavian: { emptyRoom: true, extraPrompt: null, fallback: null },
-  modern:       { emptyRoom: true, extraPrompt: "PRESERVE original walls, ceiling, floor layout exactly. Only change furniture and lighting.", fallback: "vstDirect" },
-  industrial:   { emptyRoom: true, extraPrompt: null, fallback: null },
-  classic:      { emptyRoom: true, extraPrompt: null, fallback: null },
-  bohemian:     { emptyRoom: true, extraPrompt: null, fallback: null },
-  minimalist:   { emptyRoom: true, extraPrompt: null, fallback: null },
-  rustic:       { emptyRoom: true, extraPrompt: null, fallback: null },
-  luxury:       { emptyRoom: true, extraPrompt: null, fallback: null },
-};
 
 
 // ── Style prompts — same as May 3 setup that produced good results ────────────
@@ -96,7 +78,7 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   return json.data.uuid;
 }
 
-// ── Poll edit/getRecord for result (SOLID10 path) ────────────────────────────
+// ── Poll edit/getRecord for result ───────────────────────────────────────────
 async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
   const res = await fetch(
     `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
@@ -111,147 +93,20 @@ async function pollCollovResult(uuid: string): Promise<{ status: string; resultU
   return { status: "processing" };
 }
 
-// ── VST: Poll generateEmptyRoom task ─────────────────────────────────────────
-async function pollEmptyRoom(taskId: string, timeoutMs = 120_000): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-  while (Date.now() < deadline) {
-    const res = await fetch(
-      `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${encodeURIComponent(taskId)}`,
-      { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-    );
-    const json = (await res.json()) as any;
-    const data = json.data || {};
-    const status = (data.status || "").toUpperCase();
-    log(`VST emptyRoom poll taskId=${taskId}: status=${status}`);
-
-    if (status === "SUCCESS" && data.generateUrl) return data.generateUrl;
-    if (status === "FAILED") throw new Error(`VST emptyRoom generation failed: ${data.failReason || data.message || "unknown"}`);
-
-    await delay(4000);
-  }
-  throw new Error("VST emptyRoom generation timed out");
-}
-
-// ── VST: Step 1 (empty room) + Step 2 (staged result) ────────────────────────
-async function sendVstWorkflow(
-  originalImageUrl: string,
-  roomType: string,
-  style: string,
-  extraPrompt?: string | null,
-): Promise<string> {
-  // Step 1: Generate empty room
-  const emptyForm = new FormData();
-  emptyForm.append("uploadUrl", originalImageUrl);
-
-  log(`VST step1: generateEmptyRoom for ${originalImageUrl.slice(-40)}`);
-  const emptyRes = await fetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`,
-    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: emptyForm },
-  );
-  const emptyJson = (await emptyRes.json()) as any;
-  log(`VST step1 response: ${JSON.stringify(emptyJson).slice(0, 200)}`);
-  if (!emptyJson.data?.id) throw new Error(emptyJson.message || "VST generateEmptyRoom: no task id");
-  const emptyTaskId = emptyJson.data.id;
-
-  // Poll empty room (up to 2 min)
-  const emptyRoomUrl = await pollEmptyRoom(emptyTaskId, 120_000);
-  log(`VST step1 done: emptyRoomUrl=${emptyRoomUrl.slice(-60)}`);
-
-  // Step 2: Stage with original + empty room URLs
-  const stageForm = new FormData();
-  stageForm.append("uploadUrl", originalImageUrl);
-  stageForm.append("emptyRoomUrl", emptyRoomUrl);
-  stageForm.append("roomType", roomType.toLowerCase());
-  stageForm.append("style", style.toLowerCase());
-  if (extraPrompt) stageForm.append("prompt", extraPrompt);
-
-  log(`VST step2: generateImgOnCommon roomType=${roomType} style=${style}${extraPrompt ? " [+preserve prompt]" : ""}`);
-  const stageRes = await fetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
-    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: stageForm },
-  );
-  const stageJson = (await stageRes.json()) as any;
-  log(`VST step2 response: ${JSON.stringify(stageJson).slice(0, 200)}`);
-  if (!stageJson.data?.uuid) throw new Error(stageJson.message || "VST generateImgOnCommon: no uuid");
-  return stageJson.data.uuid;
-}
-
-// ── VST-Direct: Stage without emptyRoom step (preserves more structure) ───────
-async function sendVstDirect(
-  originalImageUrl: string,
-  roomType: string,
-  style: string,
-): Promise<string> {
-  const form = new FormData();
-  form.append("uploadUrl", originalImageUrl);
-  form.append("roomType", roomType.toLowerCase());
-  form.append("style", style.toLowerCase());
-
-  log(`VST direct (no emptyRoom): generateImgOnCommon roomType=${roomType} style=${style}`);
-  const res = await fetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
-    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: form },
-  );
-  const json = (await res.json()) as any;
-  log(`VST direct response: ${JSON.stringify(json).slice(0, 200)}`);
-  if (!json.data?.uuid) throw new Error(json.message || "VST direct: no uuid");
-  return json.data.uuid;
-}
-
-// ── VST: Poll vst/getRecord — parses generateRecordList[0] ───────────────────
-async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
-  const res = await fetch(
-    `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
-    { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-  );
-  const json = (await res.json()) as any;
-  const record = json.data?.generateRecordList?.[0];
-
-  if (!record) {
-    log(`VST poll ${uuid}: no record yet (pending)`);
-    return { status: "processing" };
-  }
-
-  const status = (record.status || "").toUpperCase();
-  log(`VST poll ${uuid}: status=${status} duration=${record.durationTime ?? "?"}`);
-
-  if (status === "SUCCESS" && record.generateUrl) return { status: "completed", resultUrl: record.generateUrl };
-  if (status === "FAILED") return { status: "failed", failReason: record.failReason || record.message || "vst_failed" };
-  return { status: "processing" };
-}
-
-// ── Sharp post-processing — SOLID10: standard | VST: aggressive ──────────────
-async function sharpenAndSave(imageUrl: string, designId: number): Promise<string> {
-  const res = await fetch(imageUrl);
-  if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
+// ── Sharp post-processing (SOLID10) ──────────────────────────────────────────
+async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
+  const res = await fetch(collovUrl);
+  if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
-
-  let pipeline = sharp(buffer);
-
-  if (USE_SOLID10) {
-    // SOLID10 — original settings preserved exactly
-    pipeline = pipeline
-      .clahe({ width: 50, height: 50, maxSlope: 3 })
-      .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 });
-  } else {
-    // VST — aggressive post-processing
-    pipeline = pipeline
-      .sharpen({ sigma: 1.5, flat: 0.3, jagged: 3 })
-      .clahe({ width: 50, height: 50, maxSlope: 3 })
-      .unsharpMask({ sigma: 2, flat: 0.5, jagged: 2 } as any)
-      .modulate({ saturation: 1.05, brightness: 1.02 });
-  }
-
-  const sharpened = await pipeline
+  const sharpened = await sharp(buffer)
+    .clahe({ width: 50, height: 50, maxSlope: 3 })
+    .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer();
-
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const filepath = path.join(uploadDir, filename);
   fs.writeFileSync(filepath, sharpened);
-  log(`Design ${designId}: image saved → /uploads/${filename} [${USE_SOLID10 ? "SOLID10" : "VST"}]`);
+  log(`Design ${designId}: sharpened image saved → /uploads/${filename}`);
   return `/uploads/${filename}`;
 }
 
@@ -265,7 +120,6 @@ async function backgroundPoll(
   designId: number,
   uuid: string,
   retryFn?: () => Promise<string>,
-  pollFn: (uuid: string) => Promise<{ status: string; resultUrl?: string; failReason?: string }> = pollCollovResult,
 ) {
   const maxAttempts = 15;   // 15 × 3s = 45s before retry fires (was 40 × 3s = 120s)
   const maxRetries = 1;
@@ -279,7 +133,7 @@ async function backgroundPoll(
     setStatusMsg(designId, `Venter på AI... (${elapsed} sek)`);
 
     try {
-      const result = await pollFn(uuid);
+      const result = await pollCollovResult(uuid);
 
       if (result.status === "completed" && result.resultUrl) {
         setStatusMsg(designId, "Efterbehandler billede...");
@@ -566,45 +420,17 @@ export async function registerRoutes(
       const updated = await storage.getDesign(design.id);
       res.json(updated);
 
-      // Background: wait 5s (cold-start), then send task + poll
+      // Background: wait 5s (Collov cold-start), then send task + poll
       setTimeout(async () => {
         try {
-          if (USE_SOLID10) {
-            // ── SOLID10: Photo Chat Edit path ──────────────────────────────
-            log(`Design ${design.id}: [SOLID10] sending to Collov edit/generate after 5s delay...`);
-            const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
-            await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
-            setStatusMsg(design.id, "Venter på AI...");
-            const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
-            backgroundPoll(design.id, uuid, retryFn, pollCollovResult);
-          } else {
-            // ── VST: Virtual Staging Technology path ──────────────────────
-            const styleConf = STYLE_CONFIG[parsed.data.style] ?? STYLE_CONFIG.scandinavian;
-
-            log(`Design ${design.id}: [VST] starting workflow for style="${parsed.data.style}" fallback="${styleConf.fallback ?? "none"}"`);
-            setStatusMsg(design.id, "Genererer tomt rum...");
-
-            const uuid = await sendVstWorkflow(
-              publicUrl,
-              parsed.data.roomType,
-              parsed.data.style,
-              styleConf.extraPrompt,
-            );
-            await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
-            setStatusMsg(design.id, "Møblerer rum...");
-
-            // Retry function: use vstDirect for styles configured with fallback="vstDirect"
-            const vstRetryFn = styleConf.fallback === "vstDirect"
-              ? () => {
-                  log(`Design ${design.id}: [VST] retry → vstDirect (no emptyRoom) for style="${parsed.data.style}"`);
-                  return sendVstDirect(publicUrl, parsed.data.roomType, parsed.data.style);
-                }
-              : () => sendVstWorkflow(publicUrl, parsed.data.roomType, parsed.data.style, styleConf.extraPrompt);
-
-            backgroundPoll(design.id, uuid, vstRetryFn, pollVstResult);
-          }
+          log(`Design ${design.id}: sending to Collov after 5s delay...`);
+          const uuid = await sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
+          await storage.updateDesign(design.id, { collovUuid: uuid, status: "processing" });
+          setStatusMsg(design.id, "Venter på AI...");
+          const retryFn = () => sendCollovTask(publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants);
+          backgroundPoll(design.id, uuid, retryFn);
         } catch (err: any) {
-          log(`API error (background send): ${err.message}`);
+          log(`Collov API error (background send): ${err.message}`);
           const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
           clearStatusMsg(design.id);
           await storage.updateDesign(design.id, { status: "failed", failReason });
