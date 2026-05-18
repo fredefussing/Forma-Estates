@@ -223,18 +223,23 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   return collovUrl;
 }
 
-// ── SOLID10 sharp: aggressiv — Photo Chat Edit har brug for hjælp ─────────────
+// ── SOLID10 save: rå output fra Collov — ingen post-processing ───────────────
 async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
   const res = await fetch(collovUrl);
   if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
-  const sharpened = await sharp(buffer)
-    .sharpen({ sigma: 1.2, flat: 1.0, jagged: 2.0 })
-    .jpeg({ quality: 97, mozjpeg: true })
-    .toBuffer();
+  const contentType = res.headers.get("content-type") || "";
   const filename = `result-${designId}-${Date.now()}.jpg`;
-  fs.writeFileSync(path.join(uploadDir, filename), sharpened);
-  log(`Design ${designId}: SOLID10 sharpened saved → /uploads/${filename}`);
+  const outputPath = path.join(uploadDir, filename);
+  if (contentType.includes("webp") || collovUrl.endsWith(".webp")) {
+    // Konverter WebP → JPEG uden øvrig behandling
+    await sharp(buffer).jpeg({ quality: 95 }).toFile(outputPath);
+    log(`Design ${designId}: WebP→JPEG saved (no post-processing) → /uploads/${filename}`);
+  } else {
+    // Gem rå buffer direkte
+    fs.writeFileSync(outputPath, buffer);
+    log(`Design ${designId}: Raw saved (no post-processing) → /uploads/${filename}`);
+  }
   return `/uploads/${filename}`;
 }
 
