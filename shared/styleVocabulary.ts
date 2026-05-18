@@ -500,7 +500,7 @@ export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, 
   },
 };
 
-const CAMERA_LOCK = " Keep the same camera angle, perspective and zoom as the original photo. Do not change the viewpoint.";
+const CAMERA_LOCK = " Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint. Keep the same camera angle, perspective and zoom as the original photo.";
 
 export function getRoomStylePrompt(style: string, roomType: string, tier: BudgetTier): string | null {
   const prompt = roomStylePrompts[style.toLowerCase()]?.[roomType.toLowerCase()]?.[tier];
