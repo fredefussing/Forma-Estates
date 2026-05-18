@@ -43,15 +43,28 @@ const COLLOV_BASE = "https://api.collov.ai";
 
 
 
-// ── Style prompts — preserve-room-structure format ───────────────────────────
+// ── Room-type furniture hints — hjælper Collov forstå rumtypen ───────────────
+const roomTypeFurnitureHint: Record<string, string> = {
+  "dining room":    "Include a dining table with chairs, sideboard or buffet, and a pendant light hanging above the table.",
+  "bedroom":        "Include a bed with headboard, nightstands, wardrobe or dresser, and soft bedside lighting.",
+  "kitchen":        "Include kitchen cabinets, island or peninsula, bar stools, and pendant lights.",
+  "bathroom":       "Include bathtub or walk-in shower, vanity with mirror, towel rails, and soft lighting.",
+  "home office":    "Include a desk, office chair, shelving unit, and task lighting.",
+  "hallway":        "Include a console table, coat hooks, mirror, and floor lamp.",
+  "outdoor":        "Include outdoor sofa or lounge chairs, coffee table, planters, and string lights.",
+  "kids room":      "Include a bed, play area, storage shelving, and colorful soft furnishings.",
+};
+
+// ── Style prompts ─────────────────────────────────────────────────────────────
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
   const vocab = styleVocabulary[style]?.[validTier];
   const base = vocab
     ? `Completely redesign this ${roomType}. ${vocab.prompt}`
     : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+  const roomHint = roomTypeFurnitureHint[roomType.toLowerCase()] ? ` ${roomTypeFurnitureHint[roomType.toLowerCase()]}` : "";
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
-  return `${base}${plantNote}`;
+  return `${base}${roomHint}${plantNote}`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
@@ -216,9 +229,8 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
   if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const sharpened = await sharp(buffer)
-    .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .sharpen({ sigma: 1.8, flat: 0.5, jagged: 3 })
-    .jpeg({ quality: 95, mozjpeg: true })
+    .sharpen({ sigma: 1.2, flat: 1.0, jagged: 2.0 })
+    .jpeg({ quality: 97, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
   fs.writeFileSync(path.join(uploadDir, filename), sharpened);
@@ -238,7 +250,7 @@ async function runDesignWorkflow(
   includePlants: boolean,
   designId: number,
 ): Promise<string> {
-  const mode = (process.env.SOLID10_MODE || "skandi").toLowerCase();
+  const mode = (process.env.SOLID10_MODE || "all").toLowerCase();
   const isScandi = style.toLowerCase() === "scandinavian";
 
   const useVst = mode === "none" || (mode === "skandi" && isScandi);
