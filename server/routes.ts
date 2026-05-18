@@ -7,7 +7,7 @@ import path from "path";
 import fs from "fs";
 import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles } from "@shared/schema";
-import { styleVocabulary } from "@shared/styleVocabulary";
+import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail } from "./email";
@@ -58,15 +58,21 @@ const roomTypeFurnitureHint: Record<string, string> = {
 // ── Style prompts ─────────────────────────────────────────────────────────────
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
+
+  // Prøv room-specifik prompt først (korte, rene prompts der virker bedst med edit/generate)
+  const roomSpecific = getRoomStylePrompt(style, roomType, validTier);
+  if (roomSpecific) {
+    const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
+    return `${roomSpecific}${plantNote}`;
+  }
+
+  // Fallback: generisk vocab prompt (andre stilarter der ikke har rum-specifikke prompts endnu)
   const vocab = styleVocabulary[style]?.[validTier];
-  const structureLock = "Keep the original walls, floor, ceiling, windows, doors, beams, and all architectural features exactly as they are. Only replace the movable furniture and decor.";
   const base = vocab
-    ? `Completely redesign this ${roomType}. ${structureLock} ${vocab.prompt}`
-    : `Completely redesign this ${roomType} in ${style} style. ${structureLock} Replace all existing furniture and decor with new pieces that match the style.`;
-  const roomHint = roomTypeFurnitureHint[roomType.toLowerCase()] ? ` ${roomTypeFurnitureHint[roomType.toLowerCase()]}` : "";
+    ? `Completely redesign this ${roomType}. ${vocab.prompt}`
+    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
-  const quality = " Photorealistic rendering, sharp focus, 8K detail, natural lighting with correct shadows and reflections, no blur, no soft focus, every texture crisp and defined.";
-  return `${base}${roomHint}${plantNote}${quality}`;
+  return `${base}${plantNote}`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
@@ -269,8 +275,7 @@ async function sharpenAndSave(collovUrl: string, designId: number): Promise<stri
 }
 
 // ── Main workflow ─────────────────────────────────────────────────────────────
-// SOLID10_MODE=true  → Photo Chat Edit (fallback/manual override)
-// SOLID10_MODE=false / ikke sat → VST primær med SOLID10 fallback
+// Altid edit/generate (Photo Chat Edit) — præcis samme pipeline som agent design #58
 async function runDesignWorkflow(
   originalImageUrl: string,
   roomType: string,
@@ -279,24 +284,9 @@ async function runDesignWorkflow(
   includePlants: boolean,
   designId: number,
 ): Promise<string> {
-  const useSolid10 = (process.env.SOLID10_MODE || "false").toLowerCase() === "true";
-
-  if (useSolid10) {
-    log(`[Workflow] Design ${designId}: SOLID10 path (forced via SOLID10_MODE=true)`);
-    setStatusMsg(designId, "Venter på AI...");
-    return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
-  }
-
-  // Ren VST — ingen SOLID10 fallback
-  log(`[Workflow] Design ${designId}: VST path — timeout 180s (no fallback)`);
-  setStatusMsg(designId, "Genererer tomt rum (VST)...");
-
-  return Promise.race([
-    runVstAndGetResult(originalImageUrl, roomType, style, designId),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("VST_TIMEOUT")), 180_000)
-    ),
-  ]);
+  log(`[Workflow] Design ${designId}: edit/generate path`);
+  setStatusMsg(designId, "Venter på AI...");
+  return runSolid10AndGetResult(originalImageUrl, roomType, style, tier, includePlants, designId);
 }
 
 // ── In-memory status message map ──────────────────────────────────────────────
@@ -563,18 +553,7 @@ export async function registerRoutes(
         });
       }
 
-      // Always derive the public URL from the actual request headers so that
-      // Collov's servers can reach the image in both dev and production.
-      // REPLIT_DEV_DOMAIN / REPLIT_DOMAINS can be internal hostnames that are
-      // not reachable from the public internet, so we do NOT use them here.
-      // Pre-process input: resize til max 1920px + let skarpning → bedre Collov-reference
-      try {
-        await prepareInputImage(req.file.path);
-        log(`Design input pre-processed: ${req.file.filename}`);
-      } catch (prepErr: any) {
-        log(`Design input pre-process failed (continuing with raw): ${prepErr.message}`);
-      }
-
+      // Ingen pre-processing — rå fil sendes direkte til Collov (edit/generate bevarer struktur selv)
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
       const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
@@ -621,19 +600,10 @@ export async function registerRoutes(
       setImmediate(async () => {
         try {
           log(`Design ${design.id}: starting workflow...`);
-          const rawImageUrl = await runDesignWorkflow(
+          const finalUrl = await runDesignWorkflow(
             publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants, design.id,
           );
-          setStatusMsg(design.id, "Efterbehandler billede...");
-          let finalUrl = rawImageUrl;
-          // VST-stien returnerer allerede lokal sti — spring SOLID10-sharp over
-          if (!rawImageUrl.startsWith("/uploads/")) {
-            try {
-              finalUrl = await sharpenAndSave(rawImageUrl, design.id);
-            } catch (sharpErr: any) {
-              log(`Design ${design.id}: sharp failed (using raw URL) — ${sharpErr.message}`);
-            }
-          }
+          // Ingen post-processing — rå Collov CDN URL gemmes direkte (samme som agent design #58)
           clearStatusMsg(design.id);
           const updated = await storage.getDesign(design.id);
           await storage.updateDesign(design.id, { status: "completed", resultImageUrl: finalUrl, versions: [finalUrl] });

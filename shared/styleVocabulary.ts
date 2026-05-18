@@ -249,3 +249,71 @@ export const styleVocabulary: StyleVocabulary = {
     },
   },
 };
+
+// ── Room-specific prompts (scandinavian × 6 rum × 3 tiers) ───────────────────
+// Disse bruges af edit/generate pipelinen. Korte, rene prompts uden structureLock
+// eller quality-suffix — præcis samme format som agent design #58 der virkede bedst.
+export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, string>>> = {
+  scandinavian: {
+    "living room": {
+      budget:
+        "Completely redesign this living room. Scandinavian design with light oak sofa, simple coffee table, white floor lamp, woven rug, light wood shelving. Warm white, light oak, soft grey, natural linen. Solid oak, natural linen, cotton. Cozy hygge atmosphere, simple functional design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this living room. Scandinavian design with quality oak sofa, round oak coffee table, designer pendant light, woven wool armchair, minimal oak shelving. Warm white, light oak, muted grey, natural linen. Solid oak, natural wool, pure linen, brushed brass. Quality craftsmanship and thoughtful details. Cozy hygge, textured wool throws, functional elegance. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this living room. Scandinavian design with designer oak lounge, curated oak coffee table, Louis Poulsen pendant, Muuto wool armchair, oak shelving. Warm white, natural oak, forest green accents. Solid oak, premium wool, natural linen, brushed brass. Designer pieces and bespoke craftsmanship. Curated Nordic art, subtle luxury, timeless Danish design. Replace all existing furniture and decor.",
+    },
+    "bedroom": {
+      budget:
+        "Completely redesign this bedroom. Scandinavian design with light oak bed frame, simple nightstands, cotton duvet in warm white, woven rug, light wood dresser. Warm white, soft grey, light oak, natural cotton. Solid oak, cotton, natural linen. Calm and restful hygge atmosphere, simple functional design. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this bedroom. Scandinavian design with quality oak bed with upholstered headboard, round oak nightstands, linen duvet cover, wool throw, minimal oak wardrobe. Warm white, light oak, muted grey, dusty blue. Solid oak, natural linen, pure wool, brushed brass. Quality craftsmanship and thoughtful details. Calm Nordic elegance. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this bedroom. Scandinavian design with designer oak platform bed, walnut nightstands, Louis Poulsen bedside lamps, premium linen bedding, bespoke oak wardrobe. Warm white, natural oak, forest green accents, brushed brass. Solid oak, premium linen, merino wool. Designer craftsmanship and subtle luxury. Timeless Danish bedroom design. Replace all existing furniture and decor.",
+    },
+    "kitchen": {
+      budget:
+        "Completely redesign this kitchen. Scandinavian design with white shaker cabinets, light oak open shelving, simple pendant lights, basic bar stools, clean countertops. Warm white, light oak, soft grey. Painted wood, solid oak, ceramic tiles. Functional and clean hygge atmosphere. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this kitchen. Scandinavian design with warm white cabinetry, quality oak island with bar stools, designer pendant lights, open oak shelving, marble-effect countertops. Warm white, light oak, muted grey, brushed brass. Painted wood, solid oak, stone. Functional elegance and Nordic craftsmanship. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this kitchen. Scandinavian design with bespoke white cabinetry, solid oak island, Louis Poulsen pendants, premium stone countertops, integrated appliances, oak open shelving with curated ceramics. Warm white, natural oak, forest green, brushed brass. Solid oak, Carrara marble, matte ceramic. Designer craftsmanship and timeless Danish kitchen design. Replace all existing furniture and decor.",
+    },
+    "bathroom": {
+      budget:
+        "Completely redesign this bathroom. Scandinavian design with white wall tiles, simple oak vanity, clean white bathtub or shower enclosure, woven cotton towels, simple mirror with shelf. Warm white, light oak, soft grey. Ceramic tile, solid oak, cotton. Clean and calm hygge atmosphere. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this bathroom. Scandinavian design with large format white tiles, quality oak vanity with stone basin, designer mirror with integrated lighting, rainfall shower, linen towels, indoor plant. Warm white, light oak, muted grey, brushed brass. Ceramic, solid oak, natural stone. Nordic spa atmosphere. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this bathroom. Scandinavian design with floor-to-ceiling marble tiles, bespoke oak double vanity, freestanding soaking tub, Louis Poulsen lighting, premium linen towels, curated ceramics and indoor plants. Warm white, natural oak, Carrara marble, brushed brass. Premium stone, solid oak, pure linen. Luxurious Nordic spa, timeless Danish bathroom. Replace all existing furniture and decor.",
+    },
+    "dining room": {
+      budget:
+        "Completely redesign this dining room. Scandinavian design with light oak dining table, simple matching chairs, white pendant light, small sideboard, woven rug. Warm white, light oak, soft grey, natural linen. Solid oak, cotton, ceramic. Cozy hygge dining atmosphere, simple and functional. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this dining room. Scandinavian design with quality round oak dining table, upholstered dining chairs in wool, designer pendant light, minimal oak sideboard, textured rug. Warm white, light oak, muted grey, brushed brass. Solid oak, natural wool, pure linen. Elegant Nordic dining with thoughtful details. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this dining room. Scandinavian design with designer oval oak dining table, Fritz Hansen or Muuto chairs, Louis Poulsen pendant, bespoke oak sideboard, curated Nordic art, woven rug. Warm white, natural oak, forest green, brushed brass. Premium solid oak, wool, linen. Timeless Danish dining design with subtle luxury. Replace all existing furniture and decor.",
+    },
+    "home office": {
+      budget:
+        "Completely redesign this home office. Scandinavian design with simple oak desk, basic ergonomic chair, light wood shelving, white task lamp, minimal decor. Warm white, light oak, soft grey. Solid oak, cotton, painted wood. Functional and calm workspace. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this home office. Scandinavian design with quality oak desk, comfortable upholstered office chair, oak shelving unit, designer task lamp, indoor plant, minimal Nordic art. Warm white, light oak, muted grey, brushed brass. Solid oak, natural wool, pure linen. Productive Nordic workspace with thoughtful details. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this home office. Scandinavian design with bespoke solid oak desk, designer ergonomic chair, floor-to-ceiling oak shelving, Louis Poulsen task lamp, premium indoor plants, curated Nordic art collection. Warm white, natural oak, forest green, brushed brass. Premium solid oak, leather, pure linen. Timeless Danish home office with subtle luxury. Replace all existing furniture and decor.",
+    },
+    "open living and dining room": {
+      budget:
+        "Completely redesign this open living and dining room. Scandinavian design with light oak dining table and chairs, simple sofa with woven rug, white pendant lights, light wood shelving. Warm white, light oak, soft grey, natural linen. Solid oak, cotton, natural linen. Cozy and functional open-plan hygge atmosphere. Replace all existing furniture and decor.",
+      standard:
+        "Completely redesign this open living and dining room. Scandinavian design with quality round oak dining table, wool upholstered dining chairs, quality oak sofa with wool cushions, designer pendants over both zones, minimal oak shelving. Warm white, light oak, muted grey, natural linen. Solid oak, natural wool, brushed brass. Cohesive Nordic open-plan living. Replace all existing furniture and decor.",
+      luxury:
+        "Completely redesign this open living and dining room. Scandinavian design with designer oval oak dining table, Fritz Hansen chairs, designer oak lounge sofa, Louis Poulsen pendants over both zones, bespoke oak shelving, curated Nordic art. Warm white, natural oak, forest green accents, brushed brass. Premium solid oak, wool, linen. Timeless Danish open-plan design with subtle luxury. Replace all existing furniture and decor.",
+    },
+  },
+};
+
+export function getRoomStylePrompt(style: string, roomType: string, tier: BudgetTier): string | null {
+  return roomStylePrompts[style.toLowerCase()]?.[roomType.toLowerCase()]?.[tier] ?? null;
+}
