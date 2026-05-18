@@ -43,13 +43,13 @@ const COLLOV_BASE = "https://api.collov.ai";
 
 
 
-// ── Style prompts — same as May 3 setup that produced good results ────────────
+// ── Style prompts — preserve-room-structure format ───────────────────────────
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
   const vocab = styleVocabulary[style]?.[validTier];
   const base = vocab
-    ? `Completely redesign this ${roomType}. ${vocab.prompt} Replace all existing furniture and decor.`
-    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+    ? vocab.prompt
+    : `Retain the exact same room structure: keep the original floor, ceiling, walls, windows, doors, and architectural features unchanged. Preserve all fixed elements including wooden beams, moldings, built-in fixtures, flooring material, wall colors, and natural lighting conditions exactly as they appear. Do NOT alter the room layout, proportions, or any structural details.\n\nOnly replace the movable furniture and decor with new pieces in ${style} style. The new furniture must blend naturally with the preserved room, matching the existing lighting, shadows, and perspective. Photorealistic rendering.`;
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
   return `${base}${plantNote}`;
 }

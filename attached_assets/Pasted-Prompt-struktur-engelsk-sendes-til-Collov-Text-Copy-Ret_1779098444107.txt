@@ -1,0 +1,183 @@
+Prompt-struktur (engelsk — sendes til Collov)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in [STYLE] style. 
+New furniture: [detaljeret beskrivelse af møbler]. 
+Colors: [farver]. Materials: [materialer]. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering.
+Konkrete eksempler per style
+Skandinavisk (scandinavian)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in Scandinavian style. 
+New furniture: light oak sofa with clean lines, round oak coffee table, minimalist 
+floor lamp, simple shelving unit, woven rug. 
+Colors: warm white, light oak, soft grey, natural linen. 
+Materials: solid oak, natural linen, wool, rattan. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Hygge atmosphere, cozy but uncluttered.
+Moderne (modern)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in modern minimalist 
+style. New furniture: sleek low-profile sofa, geometric coffee table, statement 
+pendant lamp, modern side table, contemporary shelving. 
+Colors: charcoal, cream, brushed brass, matte black. 
+Materials: brushed metal, leather, glass, polished wood. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Clean lines, uncluttered, sophisticated.
+Industrielt (industrial)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in refined industrial 
+style. New furniture: distressed leather Chesterfield sofa, black metal pipe shelving, 
+reclaimed wood coffee table, vintage Edison bulb floor lamp, metal-framed armchair. 
+Colors: distressed brown leather, matte black metal, warm wood, aged brass. 
+Materials: full-grain leather, blackened steel, reclaimed wood, wrought iron. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Loft aesthetic, raw but refined.
+Luksus (luxury)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in luxury contemporary 
+style. New furniture: velvet sectional sofa, marble-top coffee table, designer 
+arc floor lamp, polished wood sideboard, statement armchair. 
+Colors: deep emerald, gold, cream, walnut, champagne. 
+Materials: Italian velvet, Calacatta marble, brushed brass, walnut, silk. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Opulent but tasteful, designer quality.
+Mid-century (mid-century)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in authentic mid-century 
+modern style. New furniture: Eames-style lounge chair, teak credenza, tulip coffee 
+table, sputnik chandelier, woven wool rug. 
+Colors: walnut, mustard yellow, teal, burnt orange, cream. 
+Materials: solid teak, molded fiberglass, wool, brass. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+1950s-1960s aesthetic, organic shapes.
+Kyst (coastal)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in coastal beach house 
+style. New furniture: whitewashed oak coffee table, linen slipcovered sofa, rattan 
+accent chair, rope-wrapped lamp, seagrass rug. 
+Colors: white, sand, ocean blue, driftwood grey, natural linen. 
+Materials: whitewashed oak, natural linen, rattan, seagrass, jute. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Breezy, relaxed, seaside elegance.
+Landlig (farmhouse)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in modern farmhouse 
+style. New furniture: reclaimed wood dining table, slipcovered roll-arm sofa, 
+vintage-style pendant lights, distressed wood coffee table, wrought iron shelf. 
+Colors: white, warm wood, sage green, cream, aged black. 
+Materials: reclaimed pine, natural cotton, wrought iron, distressed wood. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Cozy, rustic, lived-in charm.
+Boheme (bohemian)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in curated bohemian 
+style. New furniture: Moroccan pouf, vintage kilim rug, rattan peacock chair, 
+macrame wall hanging, low wooden table, layered textiles. 
+Colors: terracotta, mustard, deep blue, cream, coral. 
+Materials: handwoven wool, rattan, carved wood, vintage textiles, brass. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Eclectic, layered, collected-over-time aesthetic.
+Japandi (japandi)
+Text
+Copy
+Retain the exact same room structure: keep the original floor, ceiling, walls, 
+windows, doors, and architectural features unchanged. Preserve all fixed elements 
+including wooden beams, moldings, built-in fixtures, flooring material, wall colors, 
+and natural lighting conditions exactly as they appear. Do NOT alter the room layout, 
+proportions, or any structural details.
+
+Only replace the movable furniture and decor with new pieces in Japandi 
+(Japanese-Scandinavian) style. New furniture: low-profile oak platform sofa, 
+minimalist wooden coffee table, paper lantern pendant lamp, simple oak shelving, 
+tatami-inspired rug. 
+Colors: warm white, light oak, soft grey, charcoal, natural linen. 
+Materials: solid light oak, washi paper, natural linen, bamboo, stone. 
+The new furniture must blend naturally with the preserved room, matching the 
+existing lighting, shadows, and perspective. Photorealistic rendering. 
+Zen simplicity, wabi-sabi, functional beauty.
+Kritisk: Prompt-struktur der virker
+Table
+Element	Formål
+"Retain the exact same room structure" (første sætning)	Primær instruktion — sætter tonen
+"Keep original floor, ceiling, walls, windows, doors"	Specificerer præcis hvad der bevares
+"Preserve wooden beams, moldings, built-in fixtures"	Fanger detaljer brugeren elsker
+"Do NOT alter room layout, proportions, structural details"	Negativ prompt — forhindrer ændringer
+"Only replace movable furniture and decor"	Begrænsning — kun dette må ændres
+"Blend naturally with preserved room"	Sammenhæng — vigtigt for realismen
+"Match existing lighting, shadows, perspective"	Fotorealistisk integration
+"Photorealistic rendering"	Output-kvalitet
+Hvad du skal sende til Replit
+Opdater shared/styleVocabulary.ts så promptet for hver style starter med den bevare-tekst, derefter style-specifikke møbler/farver/materialer, og slutter med blend+photorealistic.
+Vigtigst: SOLID10_MODE=true i .env — ellers bruger systemet VST som gen-genererer HELE rummet (gulv, bjælker, vægge — det hele).
