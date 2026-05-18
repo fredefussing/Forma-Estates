@@ -59,9 +59,10 @@ const roomTypeFurnitureHint: Record<string, string> = {
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
   const vocab = styleVocabulary[style]?.[validTier];
+  const structureLock = "Keep the original walls, floor, ceiling, windows, doors, beams, and all architectural features exactly as they are. Only replace the movable furniture and decor.";
   const base = vocab
-    ? `Completely redesign this ${roomType}. ${vocab.prompt}`
-    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+    ? `Completely redesign this ${roomType}. ${structureLock} ${vocab.prompt}`
+    : `Completely redesign this ${roomType} in ${style} style. ${structureLock} Replace all existing furniture and decor with new pieces that match the style.`;
   const roomHint = roomTypeFurnitureHint[roomType.toLowerCase()] ? ` ${roomTypeFurnitureHint[roomType.toLowerCase()]}` : "";
   const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
   const quality = " Photorealistic rendering, sharp focus, 8K detail, natural lighting with correct shadows and reflections, no blur, no soft focus, every texture crisp and defined.";
