@@ -257,9 +257,9 @@ export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, 
   scandinavian: {
     "living room": {
       budget:
-        "Completely redesign this living room. Scandinavian design with light oak sofa, simple coffee table, white floor lamp, woven rug, light wood shelving. Warm white, light oak, soft grey, natural linen. Solid oak, natural linen, cotton. Cozy hygge atmosphere, simple functional design. Replace all existing furniture and decor.",
+        "Completely redesign this living room. Scandinavian design with light oak sofa, simple coffee table, white floor lamp, woven rug, light wood shelving. Warm white, light oak, soft grey, natural linen. Solid oak, natural linen, cotton. Cozy atmosphere, simple functional design. Replace all existing furniture and decor.",
       standard:
-        "Completely redesign this living room. Scandinavian design with quality oak sofa, round oak coffee table, designer pendant light, woven wool armchair, minimal oak shelving. Warm white, light oak, muted grey, natural linen. Solid oak, natural wool, pure linen, brushed brass. Quality craftsmanship and thoughtful details. Cozy hygge, textured wool throws, functional elegance. Replace all existing furniture and decor.",
+        "Completely redesign this living room. Scandinavian design with quality oak sofa, round oak coffee table, designer pendant light, woven wool armchair, minimal oak shelving. Warm white, light oak, muted grey, natural linen. Solid oak, natural wool, pure linen, brushed brass. Quality craftsmanship and thoughtful details. Cozy, textured wool throws, functional elegance. Replace all existing furniture and decor.",
       luxury:
         "Completely redesign this living room. Scandinavian design with designer oak lounge, curated oak coffee table, Louis Poulsen pendant, Muuto wool armchair, oak shelving. Warm white, natural oak, forest green accents. Solid oak, premium wool, natural linen, brushed brass. Designer pieces and bespoke craftsmanship. Curated Nordic art, subtle luxury, timeless Danish design. Replace all existing furniture and decor.",
     },
