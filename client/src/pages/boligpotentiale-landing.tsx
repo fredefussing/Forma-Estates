@@ -240,17 +240,21 @@ function HeroStage() {
   const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER;
   const VIDEO_DURATION = 9000;
 
-  const advance = () => setIndex((i) => (i + 1) % STAGE_SLIDES.length);
+  const resetTo = (next: number) => {
+    slideStartRef.current = performance.now();
+    setPos(1);
+    setProgress(0);
+    setIndex(next);
+  };
+  const advance = () => resetTo((index + 1) % STAGE_SLIDES.length);
   const go = (i: number) => {
     const next = ((i % STAGE_SLIDES.length) + STAGE_SLIDES.length) % STAGE_SLIDES.length;
     if (next === index) return;
-    setIndex(next);
+    resetTo(next);
   };
 
-  // Reset on slide change
+  // Side-effects on slide change (video restart only — pos/timer already reset above)
   useEffect(() => {
-    setPos(1);
-    slideStartRef.current = performance.now();
     if (slide.kind === "video" && videoRef.current) {
       videoRef.current.currentTime = 0;
       videoRef.current.play().catch(() => {});
