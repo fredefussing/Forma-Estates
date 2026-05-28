@@ -1,0 +1,115 @@
+OPGAVE: Tilføj 3 features til dashboard. Intet andet.
+
+═══════════════════════════════════════
+LAYOUT — PRÆCIS SÅDAN HER:
+═══════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────┐
+│  God morgen, fredefussing                               │
+│  Her er et overblik over dine sager i dag.              │
+├─────────────────────────────────────────────────────────┤
+│  OVERBLIK (6 statistik-kort)                            │
+├─────────────────────────────────────────────────────────┤
+│  Aktive Sager (kort grid)                               │
+├─────────────────────────────────────────────────────────┤
+│  ┌──────────────────────┐  ┌─────────────────────────┐ │
+│  │  HURTIG-HANDLINGER   │  │  SENESTE AKTIVITET      │ │
+│  │  [Upload billede]    │  │  • Stue/Skandi/T2 — 2m  │ │
+│  │  [+ Ny sag]          │  │  • Sag oprettet — 1h    │ │
+│  │                      │  │  • Billede uploadet —   │ │
+│  │  GENBRUG SENESTE     │  │    igår                 │ │
+│  │  [thumb] Stue T2 [↻]│  │                         │ │
+│  │  [thumb] Køk T3 [↻] │  │                         │ │
+│  │  [thumb] Bad T1 [↻] │  │                         │ │
+│  └──────────────────────┘  └─────────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│  DINE MEST BRUGTE VALG                                  │
+│  Skandi ████████░░ 8    Stue ██████░░░░ 6    T2 ████████░░ 8 │
+│  Modern ███░░░░░░░ 3    Køkken ████░░░░░░ 4    T3 ████░░░░░░ 4 │
+│  Japand ██░░░░░░░░ 2    Sov.  ██░░░░░░░░ 2    T1 ██░░░░░░░░ 2 │
+└─────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════
+FEATURE 1: SENESTE AKTIVITET
+═══════════════════════════════════════
+
+Placering: Højre kolonne, ved siden af Hurtig-handlinger
+
+Overskrift: "Seneste aktivitet"
+
+Vis seneste 5 handlinger fra:
+- generated_images (genereringer)
+- bolig_cases (sag oprettet)
+- bolig_case_uploads (billede uploadet)
+
+Format per linje:
+[ikon] [handling] — [tid siden]
+
+Ikoner:
+- 🎨 = Generering
+- 🏠 = Sag oprettet
+- 📤 = Billede uploadet
+
+Eksempler:
+• 🎨 Stue, Skandinavisk, Tier 2 — 2 minutter siden
+• 🏠 Sag "gernergade 21" oprettet — 1 time siden
+• 📤 Billede uploadet til "ravnehusvej 5" — i går
+
+Data: created_at DESC, LIMIT 5
+Tidsformat: "X minutter siden", "X timer siden", "i går", "X dage siden"
+
+═══════════════════════════════════════
+FEATURE 2: GENBRUG SENESTE
+═══════════════════════════════════════
+
+Placering: Under Upload billede + Ny sag knapperne
+
+Overskrift: "Genbrug seneste"
+
+Vis 3 kort i vandret række:
+[Thumbnail 40x40] | [Rum] | [Stil] | T[Tier] | [↻ Genbrug]
+
+Data: Sidste 3 fra generated_images tabellen
+ORDER BY created_at DESC LIMIT 3
+
+Klik på "Genbrug":
+- Hvis case_id: Åbn sag-detail med rum+stil+tier pre-valgt
+- Hvis is_quick_generation: Åbn hurtig-generering med samme valg
+
+Design:
+- Thumbnail: 40x40px, rounded
+- Tekst: lille, grå
+- Knap: "↻ Genbrug", outline, kompakt
+
+═══════════════════════════════════════
+FEATURE 3: MEST BRUGTE
+═══════════════════════════════════════
+
+Placering: Nederst på dashboard, fuld bredde
+
+Overskrift: "Dine mest brugte valg"
+
+3 sektioner side-by-side:
+STIL | RUM | BUDGET
+
+Hver sektion:
+- Progress bar (10 segmenter, fyldt = mørk, tom = lys)
+- Tal ved siden af
+
+Data fra generated_images:
+- STIL: GROUP BY style, COUNT(*), ORDER BY count DESC LIMIT 3
+- RUM: GROUP BY room_type, COUNT(*), ORDER BY count DESC LIMIT 3
+- BUDGET: GROUP BY budget_tier, COUNT(*), ORDER BY count DESC LIMIT 3
+
+Vis kun top 3 per kategori.
+
+Design:
+- Kompakt, grå baggrund
+- Segmenter: 10 stk, hver 10%
+- Farve: brand-farve (mørk) vs lys grå
+
+═══════════════════════════════════════
+IMPLEMENTÉR KUN DETTE. INTET ANDET.
+═══════════════════════════════════════
+
+SVAR MED "3 FEATURES IMPLEMENTERET" når done.

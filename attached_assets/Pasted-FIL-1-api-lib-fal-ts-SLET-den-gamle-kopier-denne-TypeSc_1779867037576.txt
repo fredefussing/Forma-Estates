@@ -1,0 +1,921 @@
+FIL 1: api/lib/fal.ts
+(SLET den gamle, kopier denne)
+TypeScript
+Copy
+import { fal } from "@fal-ai/client";
+
+const FAL_KEY = "c65c6d36-3cbb-40d1-a034-db4e11121156:d928cf5dd4498b7acb6f81095912120d";
+fal.config({ credentials: FAL_KEY });
+
+export async function generate3DFloorplan(prompt: string, aspectRatio: string = "16:9"): Promise<{ imageUrl: string }> {
+  const result = await fal.subscribe("fal-ai/nano-banana-2", {
+    input: {
+      prompt: `Isometric 3D architectural floor plan visualization, ${prompt}, viewed from a 35-degree elevated angle, natural daylight, soft shadows, architectural cutaway style showing interior details, photorealistic 3D render, 8k`,
+      aspect_ratio: aspectRatio as any,
+      resolution: "2K",
+    },
+  });
+  const imageUrl = (result.data as any).images?.[0]?.url;
+  if (!imageUrl) throw new Error("No image generated");
+  return { imageUrl };
+}
+
+export async function generateAfterImage(beforeImageUrl: string, roomName: string, style: string, roomDescription: string): Promise<{ imageUrl: string }> {
+  const stylePrompts: Record<string, string> = {
+    moderne: "modern minimalist interior, clean lines, neutral palette, floor-to-ceiling windows, polished floors, warm ambient lighting",
+    klassisk: "classic luxury interior, ornate moldings, dark wood paneling, crystal chandelier, rich fabrics, marble fireplace",
+    nordisk: "Scandinavian interior, light oak wood, white walls, cozy textiles, natural light, hygge atmosphere, green plants",
+    kyst: "coastal interior, ocean views, white and beige palette, natural materials, sheer curtains, indoor palm plants",
+    luksus: "luxury penthouse interior, marble floors, gold accents, designer furniture, panoramic windows, dramatic lighting",
+  };
+  const styleDesc = stylePrompts[style] || stylePrompts.nordisk;
+  const result = await fal.subscribe("fal-ai/nano-banana-2", {
+    input: {
+      prompt: `Renovated ${roomName}, ${styleDesc}. ${roomDescription} Photorealistic architectural visualization, 8k, ultra-detailed, same camera angle and room layout`,
+      image_url: beforeImageUrl,
+      aspect_ratio: "16:9",
+      resolution: "2K",
+    } as any,
+  });
+  const imageUrl = (result.data as any).images?.[0]?.url;
+  if (!imageUrl) throw new Error("No after image generated");
+  return { imageUrl };
+}
+
+export async function generate360Panorama(roomName: string, style: string, roomDescription: string, angle: string): Promise<{ imageUrl: string }> {
+  const angleDesc: Record<string, string> = {
+    entrance: "viewed from the entrance doorway looking inward",
+    window: "viewed from near the large window, natural daylight streaming in",
+    corner: "viewed from a corner position showing the full room layout",
+    center: "viewed from the center of the room, 360 perspective",
+  };
+  const result = await fal.subscribe("fal-ai/nano-banana-2", {
+    input: {
+      prompt: `360 degree equirectangular panorama of a ${roomName}, ${style} interior design, ${angleDesc[angle] || angleDesc.center}. ${roomDescription} Seamless wraparound, complete room visible in all directions, photorealistic, 8k`,
+      aspect_ratio: "16:9",
+      resolution: "2K",
+    },
+  });
+  const imageUrl = (result.data as any).images?.[0]?.url;
+  if (!imageUrl) throw new Error("No panorama generated");
+  return { imageUrl };
+}
+
+export async function generateAnimationVideo(beforeImageUrl: string, _afterImageUrl: string, roomType: string = "room"): Promise<{ videoUrl: string }> {
+  const result = await fal.subscribe("fal-ai/kling-video/v3/pro/image-to-video", {
+    input: {
+      image_url: beforeImageUrl,
+      prompt: `Cinematic renovation of a ${roomType}. Camera pushes forward as the room transforms — walls change, flooring spreads, furniture materializes, warm lighting illuminates. Smooth, elegant, no abrupt cuts. Photorealistic, 8k.`,
+      end_image_url: _afterImageUrl,
+      duration: "8" as any,
+      aspect_ratio: "16:9",
+    } as any,
+  });
+  const videoUrl = (result.data as any).video?.url;
+  if (!videoUrl) throw new Error("No video generated");
+  return { videoUrl };
+}
+
+export function hasFalKey(): boolean {
+  return true;
+}
+FIL 2: api/routers/generate.ts
+TypeScript
+Copy
+import { z } from "zod";
+import { createRouter, publicQuery } from "../middleware";
+import { generate3DFloorplan, generateAfterImage, generate360Panorama, generateAnimationVideo } from "../lib/fal";
+
+export const generateRouter = createRouter({
+  checkKey: publicQuery.query(() => ({ hasKey: true })),
+
+  floorplan3d: publicQuery
+    .input(z.object({ prompt: z.string().min(1), aspectRatio: z.string().default("16:9") }))
+    .mutation(async ({ input }) => {
+      return await generate3DFloorplan(input.prompt, input.aspectRatio);
+    }),
+
+  afterImage: publicQuery
+    .input(z.object({ beforeImageUrl: z.string().url(), roomName: z.string(), style: z.string(), roomDescription: z.string().default("") }))
+    .mutation(async ({ input }) => {
+      return await generateAfterImage(input.beforeImageUrl, input.roomName, input.style, input.roomDescription);
+    }),
+
+  panorama: publicQuery
+    .input(z.object({ roomName: z.string(), style: z.string(), roomDescription: z.string().default(""), angle: z.string().default("center") }))
+    .mutation(async ({ input }) => {
+      return await generate360Panorama(input.roomName, input.style, input.roomDescription, input.angle);
+    }),
+
+  animationVideo: publicQuery
+    .input(z.object({ beforeImageUrl: z.string().url(), afterImageUrl: z.string().url(), roomType: z.string().default("room") }))
+    .mutation(async ({ input }) => {
+      return await generateAnimationVideo(input.beforeImageUrl, input.afterImageUrl, input.roomType);
+    }),
+});
+FIL 3: api/routers/renovation.ts
+TypeScript
+Copy
+import { z } from "zod";
+import { createRouter, publicQuery } from "../middleware";
+import { getDb } from "../queries/connection";
+import { renovations } from "@db/schema";
+import { eq } from "drizzle-orm";
+import { generateAnimationVideo } from "../lib/fal";
+
+export const renovationRouter = createRouter({
+  create: publicQuery
+    .input(z.object({ name: z.string().min(1), beforeImageUrl: z.string().url(), afterImageUrl: z.string().url(), roomType: z.string().default("room") }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const [renovation] = await db.insert(renovations).values({
+        name: input.name,
+        beforeImageUrl: input.beforeImageUrl,
+        afterImageUrl: input.afterImageUrl,
+        roomType: input.roomType,
+        status: "pending",
+      }).$returningId();
+      return { id: renovation.id };
+    }),
+
+  generateVideo: publicQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const [renovation] = await db.select().from(renovations).where(eq(renovations.id, input.id));
+      if (!renovation) return { success: false, error: "Not found" };
+
+      await db.update(renovations).set({ status: "generating" }).where(eq(renovations.id, input.id));
+
+      try {
+        const result = await generateAnimationVideo(renovation.beforeImageUrl, renovation.afterImageUrl, renovation.roomType || "room");
+        await db.update(renovations).set({ videoUrl: result.videoUrl, status: "completed" }).where(eq(renovations.id, input.id));
+        return { success: true, videoUrl: result.videoUrl };
+      } catch (error: any) {
+        await db.update(renovations).set({ status: "failed" }).where(eq(renovations.id, input.id));
+        return { success: false, error: error.message };
+      }
+    }),
+
+  list: publicQuery.query(async () => {
+    const db = getDb();
+    return db.select().from(renovations).orderBy(renovations.createdAt);
+  }),
+
+  get: publicQuery
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const [renovation] = await db.select().from(renovations).where(eq(renovations.id, input.id));
+      return renovation || null;
+    }),
+
+  delete: publicQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db.delete(renovations).where(eq(renovations.id, input.id));
+      return { success: true };
+    }),
+});
+FIL 4: api/routers/property.ts (NY)
+TypeScript
+Copy
+import { z } from "zod";
+import { createRouter, publicQuery } from "../middleware";
+import { getDb } from "../queries/connection";
+import { properties, propertyRooms, roomImages } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+export const propertyRouter = createRouter({
+  create: publicQuery
+    .input(z.object({ name: z.string().min(1), floorplanUrl: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const [prop] = await db.insert(properties).values({
+        name: input.name,
+        floorplanUrl: input.floorplanUrl,
+        status: "uploading",
+      }).$returningId();
+      return { id: prop.id };
+    }),
+
+  setRooms: publicQuery
+    .input(z.object({
+      propertyId: z.number(),
+      rooms: z.array(z.object({ name: z.string(), posX: z.number(), posY: z.number(), width: z.number(), height: z.number(), color: z.string() })),
+    }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db.delete(propertyRooms).where(eq(propertyRooms.propertyId, input.propertyId));
+      if (input.rooms.length > 0) {
+        await db.insert(propertyRooms).values(input.rooms.map((r) => ({
+          propertyId: input.propertyId,
+          name: r.name,
+          posX: r.posX,
+          posY: r.posY,
+          width: r.width,
+          height: r.height,
+          color: r.color,
+        })));
+      }
+      await db.update(properties).set({ status: "mapping" }).where(eq(properties.id, input.propertyId));
+      return { success: true };
+    }),
+
+  setStyle: publicQuery
+    .input(z.object({ propertyId: z.number(), style: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db.update(properties).set({ style: input.style }).where(eq(properties.id, input.propertyId));
+      return { success: true };
+    }),
+
+  setStatus: publicQuery
+    .input(z.object({ propertyId: z.number(), status: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db.update(properties).set({ status: input.status }).where(eq(properties.id, input.propertyId));
+      return { success: true };
+    }),
+
+  get: publicQuery
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const [prop] = await db.select().from(properties).where(eq(properties.id, input.id));
+      if (!prop) return null;
+      const rooms = await db.select().from(propertyRooms).where(eq(propertyRooms.propertyId, input.id));
+      return { ...prop, rooms };
+    }),
+
+  list: publicQuery.query(async () => {
+    const db = getDb();
+    return db.select().from(properties).orderBy(properties.createdAt);
+  }),
+
+  delete: publicQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db.delete(propertyRooms).where(eq(propertyRooms.propertyId, input.id));
+      await db.delete(properties).where(eq(properties.id, input.id));
+      return { success: true };
+    }),
+});
+FIL 5: api/router.ts
+TypeScript
+Copy
+import { createRouter, publicQuery } from "./middleware";
+import { generateRouter } from "./routers/generate";
+import { renovationRouter } from "./routers/renovation";
+import { propertyRouter } from "./routers/property";
+
+export const appRouter = createRouter({
+  ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
+  generate: generateRouter,
+  renovation: renovationRouter,
+  property: propertyRouter,
+});
+
+export type AppRouter = typeof appRouter;
+FIL 6: db/schema.ts
+TypeScript
+Copy
+import { mysqlTable, int, varchar, text, timestamp, float } from "drizzle-orm/mysql-core";
+
+export const properties = mysqlTable("properties", {
+  id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  floorplanUrl: varchar("floorplan_url", { length: 1000 }),
+  floorplan3dUrl: varchar("floorplan_3d_url", { length: 1000 }),
+  style: varchar("style", { length: 100 }),
+  status: varchar("status", { length: 50 }).notNull().default("uploading"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const propertyRooms = mysqlTable("property_rooms", {
+  id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+  propertyId: int("property_id", { unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  posX: float("pos_x").notNull().default(0),
+  posY: float("pos_y").notNull().default(0),
+  width: float("width").notNull().default(10),
+  height: float("height").notNull().default(10),
+  color: varchar("color", { length: 50 }).notNull().default("#8B9EB7"),
+  hasImages: int("has_images", { unsigned: true }).notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const renovations = mysqlTable("renovations", {
+  id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  beforeImageUrl: varchar("before_image_url", { length: 1000 }).notNull(),
+  afterImageUrl: varchar("after_image_url", { length: 1000 }).notNull(),
+  videoUrl: varchar("video_url", { length: 1000 }),
+  status: varchar("status", { length: 50 }).notNull().default("pending"),
+  roomType: varchar("room_type", { length: 255 }).default("room"),
+  prompt: text("prompt"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+FIL 7: src/App.tsx
+tsx
+Copy
+import { Routes, Route } from "react-router";
+import Home from "./pages/Home";
+import PropertyViewer from "./pages/PropertyViewer";
+import Floorplan3D from "./pages/Floorplan3D";
+import AnimatedVideos from "./pages/AnimatedVideos";
+import Viewer from "./pages/Viewer";
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/property/:id" element={<PropertyViewer />} />
+      <Route path="/viewer/:id" element={<Viewer />} />
+      <Route path="/3d-plantegning" element={<Floorplan3D />} />
+      <Route path="/animerede-videoer" element={<AnimatedVideos />} />
+    </Routes>
+  );
+}
+FIL 8: src/pages/Home.tsx
+tsx
+Copy
+import { useState } from "react";
+import { trpc } from "@/providers/trpc";
+import { useNavigate } from "react-router";
+import PropertyWizard from "@/components/PropertyWizard";
+import FloorplanForm from "@/components/FloorplanForm";
+import RenovationVideo from "@/components/RenovationVideo";
+import { Button } from "@/components/ui/button";
+import { Home as HomeIcon, Trash2, ChevronRight, Box, Layers, Film, PenTool, Compass } from "lucide-react";
+
+type Tab = "fremviser" | "3d-floorplan" | "manual-3d" | "renovation-video";
+
+export default function Home() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<Tab>("fremviser");
+
+  const { data: properties, refetch: refetchProperties } = trpc.property.list.useQuery();
+  const deleteProperty = trpc.property.delete.useMutation({ onSuccess: () => refetchProperties() });
+
+  const tabs = [
+    { id: "fremviser" as Tab, label: "Bolig Fremviser", icon: Compass, primary: true },
+    { id: "3d-floorplan" as Tab, label: "3D Plantegning", icon: Layers },
+    { id: "manual-3d" as Tab, label: "Manuel 3D", icon: PenTool },
+    { id: "renovation-video" as Tab, label: "Animerede Videoer", icon: Film },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border">
+        <div className="max-w-6xl mx-auto h-16 flex items-center justify-between px-4 md:px-8">
+          <div className="flex items-center gap-3">
+            <Box size={22} className="text-primary" />
+            <span className="text-sm font-medium text-foreground tracking-wide">BoligViseren</span>
+          </div>
+        </div>
+      </header>
+
+      <section className="pt-32 pb-8 px-4 md:px-8 text-center">
+        <h1 className="font-display text-4xl md:text-5xl text-foreground mb-4 leading-tight">AI-drevet boligvisualisering</h1>
+        <p className="max-w-xl mx-auto text-muted-foreground text-base leading-relaxed">Vælg en funktion — upload plantegning og billeder, og lad AI skabe en magisk 3D fremvisning.</p>
+      </section>
+
+      <section className="px-4 md:px-8 pb-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1 rounded-xl bg-secondary border border-border">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id ? (tab.primary ? "bg-primary text-primary-foreground shadow-sm" : "bg-primary/80 text-primary-foreground") : "text-muted-foreground hover:text-foreground"}`}>
+                  <Icon size={16} /><span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 md:px-8 pb-16">
+        <div className="max-w-3xl mx-auto">
+          {activeTab === "fremviser" && (
+            <div className="space-y-8">
+              <PropertyWizard />
+              <div>
+                <h2 className="font-display text-xl text-foreground mb-4 flex items-center gap-2"><Compass size={18} className="text-primary" /> Mine Boligfremvisninger</h2>
+                {properties && properties.length > 0 ? (
+                  <div className="space-y-2">
+                    {properties.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card group hover:border-primary/30 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/15"><HomeIcon size={18} className="text-primary" /></div>
+                          <div>
+                            <div className="font-medium text-sm text-foreground">{p.name}</div>
+                            <div className="text-xs text-muted-foreground">{p.status === "ready" ? "Klar" : p.status} — {new Date(p.createdAt).toLocaleDateString("da-DK")}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/property/${p.id}`)} className="text-muted-foreground hover:text-foreground">Åbn <ChevronRight size={16} className="ml-1" /></Button>
+                          <button onClick={() => { if (confirm("Slet?")) deleteProperty.mutate({ id: p.id }); }} className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/10 text-muted-foreground"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 rounded-xl border border-dashed border-border bg-card"><Compass size={28} className="mx-auto mb-2 text-muted-foreground" /><p className="text-sm text-muted-foreground">Ingen fremvisninger endnu — opret din første ovenfor!</p></div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "3d-floorplan" && (
+            <div className="p-6 rounded-2xl border border-border bg-card">
+              <h2 className="font-display text-2xl text-foreground mb-2">3D Plantegning</h2>
+              <p className="text-sm text-muted-foreground mb-6">Beskriv din bolig — AI genererer en smuk 3D isometrisk plantegning.</p>
+              <p className="text-sm text-primary">Kommer snart...</p>
+            </div>
+          )}
+
+          {activeTab === "manual-3d" && (
+            <div className="p-6 rounded-2xl border border-border bg-card">
+              <h2 className="font-display text-2xl text-foreground mb-2">Manuel 3D-visning</h2>
+              <p className="text-sm text-muted-foreground mb-6">Definér rum manuelt og se dem i interaktiv 3D.</p>
+              <FloorplanForm />
+            </div>
+          )}
+
+          {activeTab === "renovation-video" && (
+            <div className="p-6 rounded-2xl border border-border bg-card">
+              <h2 className="font-display text-2xl text-foreground mb-2">Animerede Videoer</h2>
+              <p className="text-sm text-muted-foreground mb-6">Før/efter-billeder → AI animationsvideo med Kling 3.0 Pro.</p>
+              <RenovationVideo />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <footer className="border-t border-border py-8 px-4 md:px-8 bg-background">
+        <div className="max-w-6xl mx-auto text-center text-muted-foreground text-sm">BoligViseren — AI-drevet boligvisualisering</div>
+      </footer>
+    </div>
+  );
+}
+FIL 9: src/pages/PropertyViewer.tsx (NY)
+tsx
+Copy
+import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router";
+import { trpc } from "@/providers/trpc";
+import { ArrowLeft, ChevronLeft, ChevronRight, Box } from "lucide-react";
+
+interface Room {
+  id: number;
+  name: string;
+  posX: number;
+  posY: number;
+  width: number;
+  height: number;
+  color: string;
+  hasImages: number;
+  images: RoomImage[];
+}
+
+interface RoomImage {
+  id: number;
+  angle: string;
+  beforeUrl: string | null;
+  afterUrl: string | null;
+  status: string;
+}
+
+const ANGLE_LABELS: Record<string, string> = {
+  entrance: "Fra indgangen",
+  window: "Fra vinduet",
+  corner: "Fra hjørnet",
+  center: "Fra midten",
+};
+
+export default function PropertyViewer() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const propertyId = parseInt(id || "0");
+
+  const { data: property, isLoading } = trpc.property.get.useQuery(
+    { id: propertyId },
+    { enabled: propertyId > 0 }
+  );
+
+  const [mode, setMode] = useState<"floorplan" | "room">("floorplan");
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [revealPercent, setRevealPercent] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Box size={40} className="animate-pulse text-primary" /></div>;
+  }
+
+  if (!property) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Boligen blev ikke fundet</p></div>;
+  }
+
+  const rooms = (property.rooms || []) as Room[];
+  const currentRoom = selectedRoom || rooms[0] || null;
+  const currentImage = currentRoom?.images?.[selectedImageIndex];
+
+  const handleRoomClick = (room: Room) => {
+    if (room.images.length === 0) return;
+    setSelectedRoom(room);
+    setSelectedImageIndex(0);
+    setRevealPercent(50);
+    setMode("room");
+  };
+
+  const handlePointerDown = (clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    setRevealPercent(Math.max(2, Math.min(98, (x / rect.width) * 100)));
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setRevealPercent(Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100)));
+  };
+
+  const handlePointerUp = () => setIsDragging(false);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => handlePointerMove(e.clientX);
+    const onUp = () => handlePointerUp();
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, [isDragging]);
+
+  const handleBack = () => { setMode("floorplan"); setSelectedRoom(null); };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border">
+        <div className="max-w-7xl mx-auto h-14 flex items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => (mode === "room" ? handleBack() : navigate("/"))} className="p-2 rounded-lg hover:bg-muted text-muted-foreground"><ArrowLeft size={18} /></button>
+            <h1 className="text-sm font-medium text-foreground">{property.name}</h1>
+          </div>
+          {mode === "room" && currentRoom && (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-primary/15 text-primary">
+              <span className="w-2 h-2 rounded-full" style={{ background: currentRoom.color }} />{currentRoom.name}
+            </span>
+          )}
+        </div>
+      </header>
+
+      {mode === "floorplan" && (
+        <div className="pt-20 pb-8 px-4 h-screen flex flex-col">
+          <div className="text-center mb-4"><p className="text-xs text-muted-foreground">Klik på et rum for at gå ind og se før/efter</p></div>
+          <div className="flex-1 relative rounded-2xl overflow-hidden border border-border bg-card" style={{ minHeight: "400px" }}>
+            {property.floorplanUrl && <img src={property.floorplanUrl} alt="Plantegning" className="absolute inset-0 w-full h-full object-contain opacity-40" />}
+            {rooms.map((room) => (
+              <button key={room.id} onClick={() => handleRoomClick(room)} className="absolute rounded-xl transition-all duration-300 hover:scale-105 hover:z-10 group"
+                style={{ left: `${room.posX}%`, top: `${room.posY}%`, width: `${room.width}%`, height: `${room.height}%`, backgroundColor: `${room.color}30`, border: `2px solid ${room.color}`, cursor: room.images.length > 0 ? "pointer" : "not-allowed", opacity: room.images.length > 0 ? 1 : 0.3 }}>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xs font-bold text-white drop-shadow-md" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{room.name}</span>
+                  {room.images.length > 0 && <span className="text-[10px] text-white/80 mt-0.5" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{room.images.length} vinkel{room.images.length > 1 ? "e" : ""}</span>}
+                </div>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-background/90 text-[10px] text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Klik for at se {room.name}</div>
+              </button>
+            ))}
+            <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+              {rooms.filter((r) => r.images.length > 0).map((room) => (
+                <div key={room.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-background/80 text-[10px] text-muted-foreground">
+                  <span className="w-2 h-2 rounded-full" style={{ background: room.color }} />{room.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mode === "room" && currentRoom && currentImage && (
+        <div className="pt-16 pb-4 px-4 h-screen flex flex-col">
+          {currentRoom.images.length > 1 && (
+            <div className="flex items-center justify-center gap-2 mb-3 py-2">
+              {currentRoom.images.map((img, i) => (
+                <button key={i} onClick={() => { setSelectedImageIndex(i); setRevealPercent(50); }} className={`px-3 py-1.5 rounded-full text-xs transition-all ${selectedImageIndex === i ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                  {ANGLE_LABELS[img.angle] || img.angle}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div ref={containerRef} className="flex-1 relative rounded-2xl overflow-hidden cursor-ew-resize select-none" style={{ boxShadow: "0 32px 80px rgba(0,0,0,0.4)", minHeight: "300px" }} onMouseDown={(e) => handlePointerDown(e.clientX)}>
+            {currentImage.afterUrl && <img src={currentImage.afterUrl} alt={`${currentRoom.name} - Efter`} className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
+            {currentImage.beforeUrl && <img src={currentImage.beforeUrl} alt={`${currentRoom.name} - Før`} className="absolute inset-0 w-full h-full object-cover" draggable={false} style={{ clipPath: `inset(0 ${100 - revealPercent}% 0 0)` }} />}
+            <div className="absolute top-0 bottom-0 z-10" style={{ left: `${revealPercent}%`, width: "4px", background: "#C9A96E", cursor: "ew-resize", boxShadow: "0 0 30px rgba(201,169,110,0.3)" }}>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center" style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#C9A96E", boxShadow: "0 4px 20px rgba(201,169,110,0.4), 0 0 60px 20px rgba(201,169,110,0.12)" }}>
+                <ChevronLeft size={14} color="#0C0C0C" strokeWidth={2.5} /><ChevronRight size={14} color="#0C0C0C" strokeWidth={2.5} />
+              </div>
+            </div>
+            <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur text-xs font-medium text-white">FØR</div>
+            <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur text-xs font-medium text-white">EFTER</div>
+            <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3 py-2 rounded-lg bg-black/60 backdrop-blur">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: currentRoom.color }} />
+              <span className="text-xs text-white font-medium">{currentRoom.name}</span>
+              <span className="text-xs text-white/60">— {ANGLE_LABELS[currentImage.angle] || currentImage.angle}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+            {rooms.filter((r) => r.images.length > 0).map((room) => (
+              <button key={room.id} onClick={() => { setSelectedRoom(room); setSelectedImageIndex(0); setRevealPercent(50); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all ${selectedRoom?.id === room.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                <span className="w-2 h-2 rounded-full" style={{ background: room.color }} />{room.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+FIL 10: src/components/PropertyWizard.tsx (NY)
+tsx
+Copy
+import { useState } from "react";
+import { trpc } from "@/providers/trpc";
+import { useNavigate } from "react-router";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Check, ChevronRight, ChevronLeft, Sparkles, Image, Box } from "lucide-react";
+
+type Step = 1 | 2 | 3 | 4 | 5;
+
+interface Room {
+  id?: number;
+  name: string;
+  posX: number;
+  posY: number;
+  width: number;
+  height: number;
+  color: string;
+  images: { angle: string; beforeUrl: string; afterUrl?: string }[];
+}
+
+const COLORS = ["#8B9EB7", "#D4A373", "#9B8AA5", "#7BA7BC", "#A8B5A0", "#C9A96E", "#B5C4B1", "#D4A5A5"];
+
+const ANGLES = [
+  { id: "entrance", label: "Fra indgangen" },
+  { id: "window", label: "Fra vinduet" },
+  { id: "corner", label: "Fra hjørnet" },
+  { id: "center", label: "Fra midten" },
+];
+
+const STYLES = [
+  { id: "moderne", name: "Moderne", desc: "Strømlinet og minimalistisk" },
+  { id: "klassisk", name: "Klassisk", desc: "Tidløs elegance" },
+  { id: "nordisk", name: "Nordisk", desc: "Lyst og naturligt" },
+  { id: "kyst", name: "Kyst", desc: "Afslappet og luftigt" },
+  { id: "luksus", name: "Luksus", desc: "Glamourøst og sofistikeret" },
+];
+
+export default function PropertyWizard() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<Step>(1);
+  const [propertyId, setPropertyId] = useState<number | null>(null);
+  const [name, setName] = useState("");
+  const [floorplanUrl, setFloorplanUrl] = useState("");
+  const [rooms, setRooms] = useState<Room[]>([
+    { name: "Stue", posX: 5, posY: 5, width: 30, height: 25, color: COLORS[0], images: [] },
+    { name: "Køkken", posX: 40, posY: 5, width: 25, height: 25, color: COLORS[1], images: [] },
+    { name: "Soveværelse", posX: 5, posY: 40, width: 25, height: 25, color: COLORS[2], images: [] },
+    { name: "Badeværelse", posX: 35, posY: 40, width: 15, height: 20, color: COLORS[3], images: [] },
+  ]);
+  const [selectedRoom, setSelectedRoom] = useState<number>(0);
+  const [selectedStyle, setSelectedStyle] = useState("nordisk");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createProperty = trpc.property.create.useMutation();
+  const setRoomsApi = trpc.property.setRooms.useMutation();
+  const setStyleApi = trpc.property.setStyle.useMutation();
+  const generateAfter = trpc.generate.afterImage.useMutation();
+  const setStatusApi = trpc.property.setStatus.useMutation();
+
+  const handleStep1 = async () => {
+    if (!name.trim() || !floorplanUrl.trim()) return;
+    setIsSubmitting(true);
+    const result = await createProperty.mutateAsync({ name: name.trim(), floorplanUrl: floorplanUrl.trim() });
+    setPropertyId(result.id);
+    setIsSubmitting(false);
+    setStep(2);
+  };
+
+  const handleStep2 = async () => {
+    if (!propertyId) return;
+    setIsSubmitting(true);
+    await setRoomsApi.mutateAsync({ propertyId, rooms });
+    setIsSubmitting(false);
+    setStep(3);
+  };
+
+  const addImageToRoom = (roomIndex: number, angle: string, beforeUrl: string) => {
+    const updated = [...rooms];
+    updated[roomIndex].images.push({ angle, beforeUrl });
+    setRooms(updated);
+  };
+
+  const removeImage = (roomIndex: number, imgIndex: number) => {
+    const updated = [...rooms];
+    updated[roomIndex].images.splice(imgIndex, 1);
+    setRooms(updated);
+  };
+
+  const handleStep4 = async () => {
+    if (!propertyId) return;
+    setIsSubmitting(true);
+    await setStyleApi.mutateAsync({ propertyId, style: selectedStyle });
+
+    for (let i = 0; i < rooms.length; i++) {
+      const room = rooms[i];
+      for (let j = 0; j < room.images.length; j++) {
+        const img = room.images[j];
+        if (!img.afterUrl && img.beforeUrl) {
+          try {
+            const result = await generateAfter.mutateAsync({
+              beforeImageUrl: img.beforeUrl,
+              roomName: room.name,
+              style: selectedStyle,
+              roomDescription: `${room.name} in a modern apartment`,
+            });
+            if (result.imageUrl) {
+              const updated = [...rooms];
+              updated[i].images[j].afterUrl = result.imageUrl;
+              setRooms(updated);
+            }
+          } catch (e) { console.error(e); }
+        }
+      }
+    }
+    setIsSubmitting(false);
+    setStep(5);
+  };
+
+  const handleStep5 = async () => {
+    if (!propertyId) return;
+    await setStatusApi.mutateAsync({ propertyId, status: "ready" });
+    navigate(`/property/${propertyId}`);
+  };
+
+  const updateRoom = (index: number, field: string, value: string | number) => {
+    const updated = [...rooms];
+    updated[index] = { ...updated[index], [field]: value };
+    setRooms(updated);
+  };
+
+  return (
+    <div className="w-full max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        {[{ num: 1, label: "Plantegning" }, { num: 2, label: "Rum" }, { num: 3, label: "Billeder" }, { num: 4, label: "Stil" }, { num: 5, label: "Færdig" }].map((s) => (
+          <div key={s.num} className="flex flex-col items-center">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= s.num ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{step > s.num ? <Check size={14} /> : s.num}</div>
+            <span className={`text-xs mt-1 ${step >= s.num ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {step === 1 && (
+        <div className="space-y-6">
+          <div className="text-center mb-6">
+            <h2 className="font-display text-2xl text-foreground mb-2">Trin 1: Upload plantegning</h2>
+            <p className="text-sm text-muted-foreground">Start med at give boligen et navn og upload plantegningen.</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-border bg-card space-y-5">
+            <div><Label className="text-sm font-medium text-foreground mb-2 block">Boligens navn</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="f.eks. 3-værelses på Østerbro" className="bg-secondary border-border text-foreground" /></div>
+            <div><Label className="text-sm font-medium text-foreground mb-2 block">Plantegning URL</Label><Input value={floorplanUrl} onChange={(e) => setFloorplanUrl(e.target.value)} placeholder="https://... link til plantegning" className="bg-secondary border-border text-foreground" /><p className="text-xs text-muted-foreground mt-1">Upload plantegningen til Imgur/Cloudinary og indsæt linket her.</p></div>
+            {floorplanUrl && <div className="rounded-lg overflow-hidden border border-border"><img src={floorplanUrl} alt="Plantegning" className="w-full max-h-64 object-contain bg-secondary" /></div>}
+            <Button onClick={handleStep1} disabled={!name.trim() || !floorplanUrl.trim() || isSubmitting} className="w-full h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium">{isSubmitting ? <Loader2 size={18} className="mr-2 animate-spin" /> : <ChevronRight size={18} className="mr-2" />}Næste: Definér rum</Button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-6">
+          <div className="text-center mb-6">
+            <h2 className="font-display text-2xl text-foreground mb-2">Trin 2: Definér rum</h2>
+            <p className="text-sm text-muted-foreground">Tilpas rum-navne og tilføj/flere rum efter behov.</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
+            {rooms.map((room, i) => (
+              <div key={i} className="p-4 rounded-lg border border-border bg-secondary/30">
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs text-muted-foreground mb-1 block">Navn</Label><Input value={room.name} onChange={(e) => updateRoom(i, "name", e.target.value)} className="h-9 text-sm bg-secondary border-border text-foreground" /></div>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1"><Label className="text-xs text-muted-foreground mb-1 block">Farve</Label><div className="flex gap-1">{COLORS.slice(0, 6).map((c) => (<button key={c} onClick={() => updateRoom(i, "color", c)} className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110" style={{ backgroundColor: c, borderColor: room.color === c ? "#fff" : "transparent" }} />))}</div></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => setRooms([...rooms, { name: "Nyt rum", posX: 50, posY: 50, width: 15, height: 15, color: COLORS[rooms.length % COLORS.length], images: [] }])} className="w-full py-3 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all">+ Tilføj rum</button>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setStep(1)} className="flex-1 h-11 rounded-full border-border text-muted-foreground"><ChevronLeft size={16} className="mr-1" /> Tilbage</Button>
+              <Button onClick={handleStep2} disabled={isSubmitting} className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium">{isSubmitting ? <Loader2 size={16} className="mr-1 animate-spin" /> : <ChevronRight size={16} className="mr-1" />}Næste: Upload billeder</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="space-y-6">
+          <div className="text-center mb-6">
+            <h2 className="font-display text-2xl text-foreground mb-2">Trin 3: Upload FØR billeder</h2>
+            <p className="text-sm text-muted-foreground">Vælg et rum og indsæt link til FØR billedet. Du kan tilføje flere vinkler per rum.</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-border bg-card space-y-5">
+            <div className="flex flex-wrap gap-2">
+              {rooms.map((room, i) => (<button key={i} onClick={() => setSelectedRoom(i)} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedRoom === i ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}><span className="w-2 h-2 rounded-full inline-block mr-1.5" style={{ background: room.color }} />{room.name} {room.images.length > 0 && `(${room.images.length})`}</button>))}
+            </div>
+            <div className="p-4 rounded-lg border border-border bg-secondary/20">
+              <h3 className="font-medium text-foreground mb-3 flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: rooms[selectedRoom].color }} />{rooms[selectedRoom].name}</h3>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div><Label className="text-xs text-muted-foreground mb-1 block">Vinkel</Label><select id={`angle-${selectedRoom}`} className="w-full h-9 px-3 rounded-md bg-secondary border border-border text-foreground text-sm">{ANGLES.map((a) => (<option key={a.id} value={a.id}>{a.label}</option>))}</select></div>
+                <div><Label className="text-xs text-muted-foreground mb-1 block">FØR billede URL</Label><Input id={`url-${selectedRoom}`} placeholder="https://..." className="h-9 text-sm bg-secondary border-border text-foreground" /></div>
+              </div>
+              <Button onClick={() => { const angleEl = document.getElementById(`angle-${selectedRoom}`) as HTMLSelectElement; const urlEl = document.getElementById(`url-${selectedRoom}`) as HTMLInputElement; if (urlEl.value.trim()) { addImageToRoom(selectedRoom, angleEl.value, urlEl.value.trim()); urlEl.value = ""; } }} variant="outline" className="w-full h-9 border-border text-muted-foreground hover:text-foreground"><Image size={14} className="mr-1" /> Tilføj billede</Button>
+            </div>
+            {rooms.some((r) => r.images.length > 0) && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Uploadede billeder</p>
+                {rooms.map((room, ri) => room.images.map((img, ii) => (<div key={`${ri}-${ii}`} className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/30"><div className="flex items-center gap-3"><span className="w-2.5 h-2.5 rounded-full" style={{ background: room.color }} /><span className="text-sm text-foreground">{room.name}</span><span className="text-xs text-muted-foreground">— {ANGLES.find((a) => a.id === img.angle)?.label}</span></div><button onClick={() => removeImage(ri, ii)} className="text-xs text-muted-foreground hover:text-red-400">Fjern</button></div>)))}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-11 rounded-full border-border text-muted-foreground"><ChevronLeft size={16} className="mr-1" /> Tilbage</Button>
+              <Button onClick={() => rooms.some((r) => r.images.length > 0) ? setStep(4) : alert("Tilføj mindst ét billede")} className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"><ChevronRight size={16} className="mr-1" /> Næste: Vælg stil</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="space-y-6">
+          <div className="text-center mb-6">
+            <h2 className="font-display text-2xl text-foreground mb-2">Trin 4: Vælg stil</h2>
+            <p className="text-sm text-muted-foreground">AI genererer EFTER-billeder i den valgte stil for alle dine rum.</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-border bg-card space-y-5">
+            <div className="space-y-2">
+              {STYLES.map((style) => (<button key={style.id} onClick={() => setSelectedStyle(style.id)} className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${selectedStyle === style.id ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:border-primary/30"}`}><div className="text-left"><div className="font-medium text-sm text-foreground">{style.name}</div><div className="text-xs text-muted-foreground">{style.desc}</div></div>{selectedStyle === style.id && <Check size={18} className="text-primary" />}</button>))}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setStep(3)} className="flex-1 h-11 rounded-full border-border text-muted-foreground"><ChevronLeft size={16} className="mr-1" /> Tilbage</Button>
+              <Button onClick={handleStep4} disabled={isSubmitting} className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium">{isSubmitting ? <><Loader2 size={16} className="mr-1 animate-spin" />Genererer...</> : <><Sparkles size={16} className="mr-1" />Generer EFTER-billeder</>}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="space-y-6">
+          <div className="text-center mb-6">
+            <h2 className="font-display text-2xl text-foreground mb-2">Trin 5: Færdig!</h2>
+            <p className="text-sm text-muted-foreground">Din boligfremvisning er klar.</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {rooms.map((room, i) => (<div key={i} className="p-3 rounded-lg border border-border bg-secondary/20"><div className="flex items-center gap-2 mb-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: room.color }} /><span className="text-sm font-medium text-foreground">{room.name}</span></div><div className="text-xs text-muted-foreground">{room.images.length} vinkel{room.images.length > 1 ? "e" : ""}{room.images.every((img) => img.afterUrl) && <span className="text-green-400 ml-1">— Klar</span>}</div></div>))}
+            </div>
+            <Button onClick={handleStep5} className="w-full h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-base"><Box size={18} className="mr-2" /> Se 3D Fremvisning</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+KOMMANDOER I REPLIT TERMINAL
+bash
+Copy
+npm install @fal-ai/client lucide-react
+npx drizzle-kit generate
+npm run db:migrate
+npm run build
+TJEKLISTE
+Table
+#	Fil	Handling
+1	api/lib/fal.ts	Erstat med ny kode
+2	api/routers/generate.ts	Erstat med ny kode
+3	api/routers/renovation.ts	Erstat med ny kode
+4	api/routers/property.ts	Opret ny fil
+5	api/router.ts	Erstat med ny kode
+6	db/schema.ts	Erstat med ny kode
+7	src/App.tsx	Erstat med ny kode
+8	src/pages/Home.tsx	Erstat med ny kode
+9	src/pages/PropertyViewer.tsx	Opret ny fil
+10	src/components/PropertyWizard.tsx	Opret ny fil
+Eksisterende filer (House3D.tsx, FloorplanForm.tsx, FloorplanUpload.tsx, RoomModal.tsx, Viewer.tsx, AnimatedVideos.tsx, Floorplan3D.tsx) forbliver som de er.

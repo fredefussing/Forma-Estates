@@ -1,0 +1,234 @@
+OPGAVE: Alt genereret data skal synkroniseres på tværs af hele systemet. 
+Brug de prompts der allerede findes i main versionen.
+
+═══════════════════════════════════════
+DEL 1: UNIVERSAL GENERERINGS-TABEL
+═══════════════════════════════════════
+
+ERSTAT alle separate tabeller med ÉN tabel:
+
+CREATE TABLE generated_images (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  
+  -- Hvis tilknyttet sag:
+  case_id INTEGER REFERENCES bolig_cases(id) ON DELETE SET NULL,
+  
+  -- Hvis hurtig generering (uden sag):
+  is_quick_generation BOOLEAN DEFAULT FALSE,
+  quick_session_id TEXT,
+  
+  -- Billed-data:
+  image_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  original_image_url TEXT,
+  
+  -- Valg (altid udfyldt):
+  room_type TEXT NOT NULL,
+  style TEXT NOT NULL,
+  budget_tier INTEGER NOT NULL,
+  
+  -- Prompt brugt:
+  prompt_text TEXT,
+  
+  -- Metadata:
+  created_at TIMESTAMP DEFAULT NOW(),
+  generation_time_ms INTEGER,
+  created_date DATE DEFAULT CURRENT_DATE
+);
+
+INDEXES:
+- INDEX ON (user_id, created_date)
+- INDEX ON (user_id, case_id)
+- INDEX ON (user_id, is_quick_generation)
+
+═══════════════════════════════════════
+DEL 2: BRUG MAIN VERSIONENS PROMPTS
+═══════════════════════════════════════
+
+2.1 Prompts eksisterer allerede i main versionen.
+Brug SAMME prompt-system som main version:
+- SAMME prompt-filer/-database
+- SAMME 90 prompts (15 rum × 2 stilarter × 3 tiers)
+- SAMME rækkefølge af rum: Stue, Soveværelse, Køkken, Badeværelse, Spisestue, Hjemmekontor, Børneværelse, Studio, Spillerum, Træningsrum, Vaskerum, Mødelokale, Spa, Udendørs, Åben stue/spisestue
+- SAMME stilarter: Skandinavisk, Moderne
+- SAMME tiers: Budget, Standard, Premium
+
+2.2 API endpoint til prompts:
+GET /api/prompts?room=X&style=Y&tier=Z
+→ Returnerer prompt fra main versionens eksisterende prompts
+→ IKKE skriv nye prompts — genbrug dem der er
+
+2.3 Prompt-lookup logik (kopier fra main version):
+- Når brugeren vælger rum + stil + tier
+- Slå op i eksisterende prompt-database/filer
+- Returner prompt til Collov AI API
+
+═══════════════════════════════════════
+DEL 3: GENERERINGS-FLOW (SAMME FOR ALLE)
+═══════════════════════════════════════
+
+3.1 Uanset hvor brugeren klikker "Generer":
+- Kald SAMME mutation: generateImageMutation
+- Brug SAMME prompt-lookup som main version
+- Gem ALTID i generated_images tabel
+- Returnér image med metadata
+
+3.2 Frontend mutation:
+
+const generateImageMutation = useMutation({
+  mutationFn: async (params: {
+    caseId?: number;
+    isQuick?: boolean;
+    roomType: string;
+    style: string;
+    budgetTier: number;
+    originalImageUrl?: string;
+  }) => {
+    const token = await auth.currentUser?.getIdToken();
+    
+    // 1. Hent prompt fra main versionens prompts
+    const promptRes = await fetch(
+      `/api/prompts?room=${params.roomType}&style=${params.style}&tier=${params.budgetTier}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const { prompt } = await promptRes.json();
+    
+    // 2. Send til Collov AI med prompt
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ ...params, prompt }),
+    });
+    
+    if (!res.ok) throw new Error("Generering fejlede");
+    return res.json();
+  },
+  
+  onSuccess: (data) => {
+    // INVALIDÉR ALLE relevante queries
+    queryClient.invalidateQueries({ queryKey: ["/api/stats/today"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/stats/total"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+    
+    if (data.caseId) {
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/bolig/cases", data.caseId, "images"] 
+      });
+    }
+    
+    showToast({ title: "Billede genereret!" });
+  },
+});
+
+═══════════════════════════════════════
+DEL 4: DASHBOARD STATISTIK — ALT HÆNGER SAMMEN
+═══════════════════════════════════════
+
+4.1 API endpoints:
+
+GET /api/stats/today
+→ SELECT COUNT(*) FROM generated_images 
+   WHERE user_id = $1 AND created_date = CURRENT_DATE
+
+GET /api/stats/total
+→ SELECT COUNT(*) FROM generated_images 
+   WHERE user_id = $1
+
+GET /api/stats/cases/active
+→ SELECT COUNT(*) FROM bolig_cases 
+   WHERE user_id = $1 AND status = 'active'
+
+GET /api/stats/cases/sold
+→ SELECT COUNT(*) FROM bolig_cases 
+   WHERE user_id = $1 AND status = 'sold'
+
+GET /api/stats/cases/total
+→ SELECT COUNT(*) FROM bolig_cases 
+   WHERE user_id = $1
+
+GET /api/stats/avg-days
+→ SELECT AVG(
+     EXTRACT(DAY FROM NOW() - created_at)
+   ) FROM bolig_cases 
+   WHERE user_id = $1 AND status = 'active'
+
+4.2 "Visuals i dag" nulstilles automatisk:
+- created_date = CURRENT_DATE
+- Ved midnat (00:00) er CURRENT_DATE ny dato
+- COUNT bliver 0 automatisk — ingen cron job nødvendigt
+
+4.3 Dashboard viser ALTID korrekte tal:
+- Hurtig generering → +1 i "visuals i dag" og "visuals i alt"
+- Sag-generering → +1 i begge + vises i sag-galleri
+
+═══════════════════════════════════════
+DEL 5: SAG-GALLERI + HURTIG-GENERERING
+═══════════════════════════════════════
+
+5.1 Sag-detail galleri:
+GET /api/bolig/cases/:id/images
+→ SELECT * FROM generated_images 
+   WHERE case_id = $1 AND user_id = $2
+   ORDER BY created_at DESC
+
+5.2 "Alle genererede billeder" side:
+GET /api/generations/all
+→ SELECT * FROM generated_images 
+   WHERE user_id = $1
+   ORDER BY created_at DESC
+   LIMIT 50
+
+5.3 Hurtig-generering:
+- Gemmer i generated_images med is_quick_generation = TRUE
+- Vises i "Alle genererede billeder"
+- TÆLLER med i dashboard statistik
+
+═══════════════════════════════════════
+DEL 6: SAG-DETAIL = MAIN VERSION LAYOUT
+═══════════════════════════════════════
+
+6.1 Layout (to kolonner):
+Venstre (60%): HISTORY GALLERY
+Højre (40%): GENERERINGS-PANEL
+
+6.2 History Gallery:
+- Grid: 2 kolonner
+- Hvert billede: thumbnail + metadata badges
+  * "Stue" (rum badge)
+  * "Skandinavisk" (stil badge)
+  * "Tier 2" (budget badge)
+- Klik → lightbox med download
+
+6.3 Genererings-panel:
+- Upload billede (øverst)
+- RUMTYPE: grid 2 kolonner (15 rum fra main version)
+- STIL: grid 2 kolonner (Skandinavisk, Moderne)
+- BUDGET: liste 3 tiers
+- GENERÉR knap
+
+═══════════════════════════════════════
+DEL 7: VERIFICERING
+═══════════════════════════════════════
+
+Test 1: Hurtig generering
+1. Upload billede, vælg Stue, Skandinavisk, Tier 2
+2. Tjek dashboard: "Visuals i dag" = +1, "Visuals i alt" = +1
+3. Prompt skal være IDENTISK med main version
+
+Test 2: Sag-generering
+1. Opret sag, upload boligbillede
+2. Vælg Køkken, Moderne, Tier 3
+3. Tjek sag-galleri: Billede vises
+4. Tjek dashboard: "Visuals i dag" = +2, "Visuals i alt" = +2
+
+Test 3: Prompt sammenligning
+1. Generér billede i main version: Stue, Skandinavisk, Tier 2
+2. Generér billede i sag-system: Stue, Skandinavisk, Tier 2
+3. Tjek at prompt er IDENTISK i begge
+
+IMPLEMENTÉR ALLE 7 DELE. BRUG KUN MAIN VERSIONENS EKSISTERENDE PROMPTS.
+SVAR KUN MED "UNIVERSALT DATA-FLOW IMPLEMENTERET" når alt er testet.

@@ -1,0 +1,282 @@
+Løsning A: Depth Estimation → Three.js 3D Scene (anbefalet)
+Koncept: Ét efter-billede + AI-genereret dybde-kort = 3D scene man kan bevæge sig rundt i.
+plain
+Copy
+1. Collov genererer efter-billede (2D)
+         ↓
+2. fal-ai/midas genererer dybde-kort (gråtone: hvid=nært, sort=langt væk)
+         ↓
+3. Three.js: Billede som texture på en plane med displacement fra dybde-kort
+         ↓
+4. OrbitControls: Bruger trækker musen → kamera bevæger sig rundt i rummet
+Kode: Three.js 3D Room Viewer
+TypeScript
+Copy
+// src/components/Room360Viewer.tsx
+import { useRef, useEffect } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+
+interface Room360ViewerProps {
+  imageUrl: string;       // Efter-billede fra Collov
+  depthMapUrl: string;    // AI-genereret dybde-kort
+}
+
+export default function Room360Viewer({ imageUrl, depthMapUrl }: Room360ViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 3);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // OrbitControls — dette giver "se rundt" følelsen
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableZoom = false;        // Ingen zoom, kun rotation
+    controls.enablePan = false;         // Ingen pan, kun rotation
+    controls.rotateSpeed = 0.4;         // Blød rotation
+    controls.minPolarAngle = Math.PI * 0.3;  // Stop før gulvet
+    controls.maxPolarAngle = Math.PI * 0.7;  // Stop før loftet
+    controls.minAzimuthAngle = -Math.PI * 0.4; // Max 40° til hver side
+    controls.maxAzimuthAngle = Math.PI * 0.4;
+
+    // Load textures
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Color texture (after image)
+    const colorTexture = textureLoader.load(imageUrl);
+    colorTexture.colorSpace = THREE.SRGBColorSpace;
+    
+    // Depth map (grayscale: white=close, black=far)
+    const depthTexture = textureLoader.load(depthMapUrl);
+
+    // Geometry: High-res plane for smooth displacement
+    const geometry = new THREE.PlaneGeometry(5, 3, 128, 128);
+    
+    // Material: displaces vertices based on depth map
+    const material = new THREE.MeshStandardMaterial({
+      map: colorTexture,
+      displacementMap: depthTexture,
+      displacementScale: 1.5,      // Højere = mere dybde
+      displacementBias: -0.5,
+      side: THREE.DoubleSide,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    // Lighting (needed for displacement to show)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    // Animation loop
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // Resize handler
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      renderer.dispose();
+      geometry.dispose();
+      material.dispose();
+      if (containerRef.current && renderer.domElement.parentNode) {
+        containerRef.current.removeChild(renderer.domElement);
+      }
+    };
+  }, [imageUrl, depthMapUrl]);
+
+  return <div ref={containerRef} className="w-full h-full" />;
+}
+Backend: Generer dybde-kort
+TypeScript
+Copy
+// Tilføj til jeres generate router:
+
+// POST /api/generate/depth-map
+router.post("/depth-map", async (req, res) => {
+  const { imageUrl } = req.body;
+  
+  // Brug fal.ai MiDaS til depth estimation
+  const result = await fal.subscribe("fal-ai/imageutils/midas", {
+    input: { image_url: imageUrl },
+  });
+  
+  const depthUrl = (result.data as any).image?.url;
+  
+  res.json({ depthUrl });
+});
+Flow: Hvordan det ser ud for brugeren
+plain
+Copy
+1. AI genererer efter-billede ✓
+        ↓
+2. System genererer automatisk dybde-kort (2 sekunder)
+        ↓
+3. Fremvisning viser 3D scene
+        ↓
+4. Bruger trækker musen → kamera bevæger sig rundt i rummet
+   (som at stå i rummet og kigge rundt)
+Løsning B: Multiple AI Vinkler (alternativ)
+Hvis depth estimation er for tungt, generer 4 vinkler af samme rum:
+TypeScript
+Copy
+// Generer 4 billeder fra forskellige vinkler:
+const angles = [
+  { id: "center", prompt: "straight on view" },
+  { id: "left",   prompt: "view from left side" },
+  { id: "right",  prompt: "view from right side" },
+  { id: "back",   prompt: "view from back corner" },
+];
+
+// Kør parallelt:
+const images = await Promise.all(
+  angles.map(a => collovGenerate({
+    beforeImageUrl,
+    prompt: `...STRICT PRESERVATION... view angle: ${a.prompt}`,
+    roomType,
+    style,
+  }))
+);
+
+// Frontend: Cross-fade mellem billeder baseret på museposition
+// (ikke ægte 3D, men føles som at se rundt)
+DEL 2: AI Analyse af Plantegning (skal med)
+TypeScript
+Copy
+// api/routes/ai-boligfremvisning.ts
+
+// POST /api/ai-boligfremvisning/analyze-floorplan
+router.post("/analyze-floorplan", async (req, res) => {
+  const { propertyId, floorplanUrl } = req.body;
+  
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `Analyze this floor plan image. For each room identify:
+- Room name
+- Which walls have windows (and approximate size/position)
+- Which walls have doors and what room they connect to
+- Which walls are exterior walls
+- Approximate area in m²
+
+Respond ONLY as JSON:
+{
+  "rooms": [
+    {
+      "name": "Living Room",
+      "windows": [{"wall": "south", "position": "center", "size": "large"}],
+      "doors": [{"wall": "west", "connectsTo": "Hallway", "position": "left"}],
+      "exteriorWalls": ["south", "east"],
+      "areaSqm": 28,
+      "specialFeatures": ["balcony-access"]
+    }
+  ],
+  "layoutType": "through-apartment",
+  "totalAreaSqm": 95
+}`
+        },
+        {
+          type: "image_url",
+          image_url: { url: floorplanUrl }
+        }
+      ]
+    }],
+    max_tokens: 2000,
+  });
+
+  const analysis = JSON.parse(completion.choices[0].message.content);
+  
+  // Gem per rum
+  for (const room of analysis.rooms) {
+    await db
+      .update(propertyRooms)
+      .set({ analysisData: JSON.stringify(room) })
+      .where(and(
+        eq(propertyRooms.propertyId, propertyId),
+        ilike(propertyRooms.name, room.name)  // case-insensitive match
+      ));
+  }
+
+  res.json({ success: true, roomsUpdated: analysis.rooms.length });
+});
+Brug analysen i generate-after
+TypeScript
+Copy
+// I jeres eksisterende generate-after endpoint:
+
+// 1. Hent rum fra DB
+const room = await db.select().from(propertyRooms).where(eq(propertyRooms.id, roomId));
+const analysis = room.analysisData ? JSON.parse(room.analysisData) : null;
+
+// 2. Byg struktur-kontekst (tilføjes til jeres EKSISTERENDE prompt)
+let structureContext = "";
+if (analysis) {
+  const windowDesc = analysis.windows.map(
+    (w: any) => `${w.size || ""} window on ${w.wall} wall (${w.position})`
+  ).join(", ");
+  
+  const doorDesc = analysis.doors.map(
+    (d: any) => `door on ${d.wall} wall connecting to ${d.connectsTo}`
+  ).join(", ");
+  
+  structureContext = `\nArchitectural facts from floor plan: ${windowDesc}. ${doorDesc}. Exterior walls: ${analysis.exteriorWalls?.join(", ") || "unknown"}.\n`;
+}
+
+// 3. Append til prompt — rør IKKE jeres eksisterende prompt
+const finalPrompt = existingPrompt + structureContext;
+Komplet Flow
+plain
+Copy
+Bruger:
+  1. Upload plantegning
+  2. AI analyserer plantegning → JSON med vinduer/døre per rum (GPT-4o vision)
+  3. Vælg rum + upload før-billede
+  4. Vælg stil → Generér
+
+System:
+  5. Collov genererer efter-billede (med struktur-kontekst fra analyse)
+  6. fal.ai genererer dybde-kort fra efter-billede
+  7. Gem begge i DB
+
+Fremvisning:
+  8. 3D plantegning med klikbare rum
+  9. Klik → GSAP zoom ind
+  10. Three.js scene med billede + dybde-kort
+  11. Bruger trækker musen → ser rundt i rummet i 360°
+  12. Før/Efter knap skifter mellem før-billede og 3D scene
+Hvad I skal kopiere til Replit
+Table
+Del	Kode
+AI Analyse	Plantegning → GPT-4o vision → JSON per rum
+Depth Map	fal-ai/midas endpoint
+3D Viewer	Three.js + OrbitControls komponent
+GSAP Zoom	Zoom fra plantegning til rum
+Pris per sag:
+AI analyse af plantegning: ~$0.01 (én GPT-4o-mini vision call)
+Depth map: ~$0.02 (fal.ai MiDaS)
+Total ekstra omkostning: ~$0.03 per bolig

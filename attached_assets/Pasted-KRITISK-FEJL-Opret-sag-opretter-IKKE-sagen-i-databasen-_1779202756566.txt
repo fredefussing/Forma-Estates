@@ -1,0 +1,302 @@
+KRITISK FEJL: "Opret sag" opretter IKKE sagen i databasen, eller den oprettes men vises ikke. Dashboard står tomt.
+
+Jeg har sendt dig min kode før. Her er de PRÆCIS linjer der skal fixes — kopier og erstat:
+
+═══════════════════════════════════════
+FIX 1: MUTATION — Sørg for at pendingCase bliver SAT KORREKT
+═══════════════════════════════════════
+
+I din boligpotentiale-dashboard.tsx, find createCaseMutation:
+
+ERSTAT din onSuccess med DETTE:
+
+onSuccess: (newCase) => {
+  console.log("✅ MUTATION SUCCESS — newCase:", newCase);
+  
+  // 1. Sæt pendingCase STRAKS
+  setPendingCase(newCase);
+  
+  // 2. Opdater cache MANUELT først
+  queryClient.setQueryData(["/api/bolig/cases"], (old: any) => {
+    const updated = old ? [...old, newCase] : [newCase];
+    console.log("✅ Cache opdateret, antal sager:", updated.length);
+    return updated;
+  });
+  
+  // 3. Luk modal
+  setModal(null);
+  
+  // 4. Sæt section og selectedCaseId
+  setSection("sag-detail");
+  setSelectedCaseId(newCase.id);
+  
+  // 5. Vis toast
+  showToast({
+    title: "Sag oprettet",
+    description: `Sag ${newCase.caseNo || newCase.id} er oprettet`,
+  });
+  
+  // 6. Invalidér queries i baggrunden (ikke vent på det)
+  setTimeout(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+  }, 100);
+},
+
+onError: (error) => {
+  console.error("❌ MUTATION ERROR:", error);
+  showToast({
+    title: "Fejl",
+    description: "Kunne ikke oprette sag. Prøv igen.",
+    variant: "destructive",
+  });
+},
+
+═══════════════════════════════════════
+FIX 2: SAG-DETALJE RENDER — Brug pendingCase hvis cases ikke er loaded
+═══════════════════════════════════════
+
+I din render-logic hvor du viser sag-detail, find dette:
+
+ERSTAT med DETTE:
+
+// Hent cases fra query
+const { data: cases = [], isLoading: casesLoading } = useQuery({
+  queryKey: ["/api/bolig/cases"],
+  queryFn: async () => {
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch("/api/bolig/cases", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Kunne ikke hente sager");
+    return res.json();
+  },
+});
+
+// Find den valgte sag
+let selectedCase = null;
+
+if (selectedCaseId && cases.length > 0) {
+  selectedCase = cases.find((c: any) => c.id === selectedCaseId);
+}
+
+// FALLBACK: Brug pendingCase hvis cases ikke har den endnu
+if (!selectedCase && pendingCase && pendingCase.id === selectedCaseId) {
+  selectedCase = pendingCase;
+  console.log("✅ Bruger pendingCase som fallback");
+}
+
+// VISNING af sag-detail
+if (section === "sag-detail") {
+  if (!selectedCase) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <p className="text-muted-foreground">Indlæser sag...</p>
+        <Button onClick={() => setSection("oversigt")}>
+          Tilbage til oversigt
+        </Button>
+      </div>
+    );
+  }
+  
+  return <SagDetail case={selectedCase} />;
+}
+
+═══════════════════════════════════════
+FIX 3: BUTTON — Disable + loading state
+═══════════════════════════════════════
+
+I din NewSagModal, find submit-knappen:
+
+ERSTAT med DETTE:
+
+<<Button 
+  onClick={handleCreate}
+  disabled={createCaseMutation.isPending || !address.trim()}
+  className="w-full"
+>
+  {createCaseMutation.isPending ? (
+    <span className="flex items-center gap-2">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      Opretter...
+    </span>
+  ) : (
+    "Opret sag"
+  )}
+</Button>
+
+OG tilføj import:
+import { Loader2 } from "lucide-react";
+
+═══════════════════════════════════════
+FIX 4: handleCreate funktion — Tjek at mutation køres
+═══════════════════════════════════════
+
+ERSTAT din handleCreate med DETTE:
+
+const handleCreate = async () => {
+  if (!address.trim()) {
+    showToast({ title: "Fejl", description: "Indtast venligst en adresse", variant: "destructive" });
+    return;
+  }
+  
+  console.log("🚀 Starter sag-oprettelse...");
+  console.log("📍 Adresse:", address);
+  console.log("📝 Sagsnummer:", caseNo);
+  console.log("📋 Noter:", notes);
+  
+  createCaseMutation.mutate(
+    { 
+      address: address.trim(), 
+      caseNo: caseNo.trim() || undefined, 
+      notes: notes.trim() || undefined 
+    },
+    {
+      onSuccess: (data) => {
+        console.log("✅ Sag oprettet med ID:", data.id);
+      },
+      onError: (err) => {
+        console.error("❌ Fejl ved oprettelse:", err);
+      }
+    }
+  );
+};
+
+═══════════════════════════════════════
+FIX 5: SAG-DETAIL KOMPONENT — Vis data korrekt
+═══════════════════════════════════════
+
+Sørg for at din SagDetail komponent modtager og viser data:
+
+interface SagDetailProps {
+  case: {
+    id: number;
+    caseNo?: string;
+    address: string;
+    notes?: string;
+    marketDateISO?: string;
+    createdAt: string;
+    status: string;
+  };
+}
+
+function SagDetail({ case: sag }: SagDetailProps) {
+  // Beregn dage på markedet
+  const marketDate = sag.marketDateISO ? new Date(sag.marketDateISO) : new Date(sag.createdAt);
+  const today = new Date();
+  const daysOnMarket = Math.floor((today.getTime() - marketDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold">
+            {sag.caseNo || `Sag #${sag.id}`}
+          </h1>
+          <p className="text-muted-foreground">{sag.address}</p>
+        </div>
+        <Badge variant="outline">{sag.status}</Badge>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Sagsinfo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between">
+            <span>Dage på markedet:</span>
+            <span className="font-semibold">{daysOnMarket} dage</span>
+          </div>
+          {sag.notes && (
+            <div>
+              <span className="text-muted-foreground">Bemærkninger:</span>
+              <p>{sag.notes}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <div className="flex gap-4">
+        <Button>Upload boligbillede</Button>
+        <Button variant="outline">Generer potentiale</Button>
+      </div>
+    </div>
+  );
+}
+
+═══════════════════════════════════════
+DEBUG: Tjek at backend returnerer korrekt data
+═══════════════════════════════════════
+
+I din server/routes.ts, find POST /api/bolig/cases og tilføj logging:
+
+app.post("/api/bolig/cases", async (req, res) => {
+  try {
+    console.log("📥 POST /api/bolig/cases modtaget");
+    console.log("📥 Body:", req.body);
+    
+    const authHeader = req.headers.authorization;
+    console.log("📥 Auth header:", authHeader ? "Tilstede" : "MANGLER");
+    
+    const user = await verifyFirebaseToken(authHeader);
+    console.log("📥 Firebase UID:", user.uid);
+    
+    const dbUser = await storage.getUserByFirebaseUid(user.uid);
+    console.log("📥 DB User:", dbUser ? `ID ${dbUser.id}` : "IKKE FUNDET");
+    
+    if (!dbUser) {
+      console.error("❌ Bruger ikke fundet i DB");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const { address, caseNo, notes, marketDateISO } = req.body;
+    
+    const newCase = await storage.createBoligCase({
+      userId: dbUser.id,
+      address,
+      caseNo,
+      notes,
+      status: "active",
+      marketDateISO: marketDateISO || new Date().toISOString().split('T')[0],
+    });
+    
+    console.log("✅ Sag oprettet:", newCase);
+    res.status(201).json(newCase);
+    
+  } catch (error) {
+    console.error("❌ Fejl i POST /api/bolig/cases:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+═══════════════════════════════════════
+VERIFICERING — TEST DETTE:
+═══════════════════════════════════════
+
+1. Åbn browser console (F12)
+2. Klik "Opret sag"
+3. Udfyld adresse: "Testvej 1, 1000 København"
+4. Klik "Opret sag"
+5. Tjek console — du SKAL se:
+   - 🚀 Starter sag-oprettelse...
+   - ✅ MUTATION SUCCESS — newCase: {id: X, ...}
+   - ✅ Cache opdateret, antal sager: Y
+   - ✅ Bruger pendingCase som fallback
+   
+6. Hvis du IKKE ser disse beskeder, er mutationen ikke kørt
+
+7. Tjek Network tab:
+   - POST /api/bolig/cases → skal give 201
+   - Response skal indeholde {id, address, ...}
+
+8. Tjek at sag-detail vises med:
+   - Sagsnummer
+   - Adresse
+   - Dage på markedet
+   - Status badge
+
+IMPLEMENTÉR ALLE 5 FIXES OG TEST. RAPPORTER:
+- Ser du console.logs?
+- Hvad er status koden på POST /api/bolig/cases?
+- Viser sag-detail data korrekt?
+
+SVAR KUN MED "IMPLEMENTERET OG TESTET — SAG-OPRETTELSE VIRKER" + din console output.

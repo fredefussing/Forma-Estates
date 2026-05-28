@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, numeric, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, numeric, boolean, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -46,6 +46,7 @@ export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   firebaseUid: varchar("firebase_uid", { length: 255 }).notNull().unique(),
+  displayName: text("display_name"),
   customerCode: varchar("customer_code", { length: 20 }).unique(),
   creditsRemaining: integer("credits_remaining").notNull().default(0),
   totalCreditsUsed: integer("total_credits_used").notNull().default(0),
@@ -224,3 +225,177 @@ export type InsertSpecialRequest = z.infer<typeof insertSpecialRequestSchema>;
 export type SpecialRequest = typeof specialRequests.$inferSelect;
 export type InsertQuoteRequest = z.infer<typeof insertQuoteRequestSchema>;
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
+
+// ── AI BoligPotentiale: Cases ─────────────────────────────────────────────────
+export const boligCases = pgTable("bolig_cases", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  address: text("address").notNull(),
+  caseNo: text("case_no"),
+  notes: text("notes"),
+  status: text("status").notNull().default("active"),
+  marketDateISO: text("market_date_iso").notNull(),
+  soldDateISO: text("sold_date_iso"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const boligCaseImages = pgTable("bolig_case_images", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  caseId: integer("case_id").references(() => boligCases.id).notNull(),
+  style: text("style").notNull(),
+  room: text("room").notNull(),
+  tier: text("tier").default("tier2"),
+  promptUsed: text("prompt_used"),
+  src: text("src").notNull(),
+  beforeSrc: text("before_src"),
+  daysAfterMarket: integer("days_after_market").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ── Universal Generated Images ─────────────────────────────────────────────────
+export const generatedImages = pgTable("generated_images", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  caseId: integer("case_id").references(() => boligCases.id, { onDelete: "set null" }),
+  isQuickGeneration: boolean("is_quick_generation").default(false),
+  isDesignAgent: boolean("is_design_agent").default(false),
+  quickSessionId: text("quick_session_id"),
+  imageUrl: text("image_url").notNull(),
+  originalImageUrl: text("original_image_url"),
+  roomType: text("room_type").notNull(),
+  style: text("style").notNull(),
+  budgetTier: text("budget_tier").notNull().default("tier2"),
+  promptText: text("prompt_text"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  generationTimeMs: integer("generation_time_ms"),
+  createdDate: date("created_date").defaultNow(),
+});
+
+export const insertGeneratedImageSchema = createInsertSchema(generatedImages).omit({ id: true as never, createdAt: true as never });
+export type InsertGeneratedImage = z.infer<typeof insertGeneratedImageSchema>;
+export type GeneratedImage = typeof generatedImages.$inferSelect;
+
+export const insertBoligCaseSchema = createInsertSchema(boligCases).omit({ id: true as never, createdAt: true as never });
+export const insertBoligCaseImageSchema = createInsertSchema(boligCaseImages).omit({ id: true as never, createdAt: true as never });
+export type InsertBoligCase = z.infer<typeof insertBoligCaseSchema>;
+export type BoligCase = typeof boligCases.$inferSelect;
+export type InsertBoligCaseImage = z.infer<typeof insertBoligCaseImageSchema>;
+export type BoligCaseImage = typeof boligCaseImages.$inferSelect;
+
+// ── AI Boligfremvisning (property tours) ─────────────────────────────────────
+export const aiTourProperties = pgTable("ai_tour_properties", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  floorplanUrl: text("floorplan_url").notNull(),
+  threedPlanUrl: text("threed_plan_url"),
+  style: text("style"),
+  tier: text("tier").default("standard"),
+  status: text("status").notNull().default("uploading"),
+  // GPT-4o-mini vision analysis of the uploaded floor plan. Used to feed
+  // architectural facts (windows/doors/exterior walls) into the after-image
+  // and panorama prompts WITHOUT modifying the prompt library itself.
+  floorplanAnalysis: jsonb("floorplan_analysis"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const aiTourRooms = pgTable("ai_tour_rooms", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  propertyId: integer("property_id").references(() => aiTourProperties.id, { onDelete: "cascade" }).notNull(),
+  name: text("name").notNull(),
+  posX: numeric("pos_x").notNull().default("0"),
+  posY: numeric("pos_y").notNull().default("0"),
+  width: numeric("width").notNull().default("10"),
+  height: numeric("height").notNull().default("10"),
+  color: text("color").notNull().default("#C8956C"),
+  included: boolean("included").notNull().default(false),
+  style: text("style"),
+  // Strategy B (2-angle uploads). roomPhotoUrl / afterImageUrl remain the
+  // primary "angle 1" fields for back-compat with all existing sags. The
+  // *2 fields are populated only when the user uploads a second angle —
+  // when both exist we stitch a true 360° panorama from both.
+  roomPhotoUrl: text("room_photo_url"),
+  roomPhotoUrl2: text("room_photo_url_2"),
+  afterImageUrl: text("after_image_url"),
+  afterImageUrl2: text("after_image_url_2"),
+  panoramaUrl: text("panorama_url"),
+  // Cached synthetic anchor angles generated by Collov "rotate N°" prompts.
+  // Used by the AI boligfremvisning panorama endpoint to give nano-banana-2
+  // multiple stil-konsistente reference views even when the user only
+  // uploaded 1 vinkel. Persisted so panorama regenerations don't recompute.
+  syntheticAngleUrls: text("synthetic_angle_urls").array(),
+  // Anchor metadata for the most recent panorama (real vs. synthetic count)
+  // — shown to the user via a "Premium 360°" quality badge.
+  panoramaAnchors: jsonb("panorama_anchors"),
+  videoUrl: text("video_url"),
+  // Per-room slice of property.floorplanAnalysis (windows/doors/exteriorWalls
+  // for THIS room). Populated by /analyze-floorplan; appended as architectural
+  // facts to the after-image + panorama prompts.
+  analysisData: jsonb("analysis_data"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAiTourPropertySchema = createInsertSchema(aiTourProperties).omit({ id: true as never, createdAt: true as never });
+export const insertAiTourRoomSchema = createInsertSchema(aiTourRooms).omit({ id: true as never, createdAt: true as never });
+export type InsertAiTourProperty = z.infer<typeof insertAiTourPropertySchema>;
+export type AiTourProperty = typeof aiTourProperties.$inferSelect;
+export type InsertAiTourRoom = z.infer<typeof insertAiTourRoomSchema>;
+export type AiTourRoom = typeof aiTourRooms.$inferSelect;
+
+// ── Subscriptions (Stripe-ready scaffold) ────────────────────────────────────
+export const subscriptions = pgTable("subscriptions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  planType: text("plan_type").notNull(),
+  status: text("status").notNull().default("trialing"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  creditsPerMonth: integer("credits_per_month").notNull().default(0),
+  creditsUsedThisMonth: integer("credits_used_this_month").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true as never, createdAt: true as never });
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+
+// ── Team ──────────────────────────────────────────────────────────────────────
+export const teams = pgTable("teams", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  ownerUserId: integer("owner_user_id").references(() => users.id).notNull(),
+  creditsRemaining: integer("credits_remaining").notNull().default(0),
+  creditsUsedThisMonth: integer("credits_used_this_month").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const teamMembers = pgTable("team_members", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  teamId: integer("team_id").references(() => teams.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  role: text("role").notNull().default("user"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+});
+
+export const teamInvites = pgTable("team_invites", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  teamId: integer("team_id").references(() => teams.id).notNull(),
+  email: text("email"),
+  token: text("token").notNull().unique(),
+  usedAt: timestamp("used_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTeamSchema = createInsertSchema(teams).omit({ id: true as never, createdAt: true as never });
+export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true as never, joinedAt: true as never });
+export const insertTeamInviteSchema = createInsertSchema(teamInvites).omit({ id: true as never, createdAt: true as never });
+
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
+export type TeamInvite = typeof teamInvites.$inferSelect;
+export type InsertTeamInvite = z.infer<typeof insertTeamInviteSchema>;

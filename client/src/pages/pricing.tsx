@@ -1,60 +1,99 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame, User, LogIn } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame, User, LogIn, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 
-const packages = [
+type Plan = {
+  name: string;
+  key: string;
+  price: string;
+  period: string;
+  images: string;
+  icon: typeof Sparkles;
+  subtitle: string;
+  features: string[];
+  productUrl: string | null;
+  popular: boolean;
+  custom?: boolean;
+};
+
+const packages: Plan[] = [
   {
-    name: "Basic",
-    key: "basic",
-    price: 49,
-    images: 10,
+    name: "Starter",
+    key: "starter",
+    price: "2.499",
+    period: "kr./ måned",
+    images: "25 billeder / md.",
     icon: Sparkles,
-    subtitle: "Perfekt til at prøve flere stilarter",
+    subtitle: "Til dig der vil prøve AI-visualisering af og til.",
     features: [
-      "10 AI-billeder",
-      "Alle 8 stilarter",
-      "Alle 15 rum-typer",
-      "Alle 3 budget-niveauer",
+      "25 billeder / md.",
+      "5 designstile",
+      "HD download",
+      "Email support",
     ],
-    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-10-ai-genererede-billeder-af-dit-rum",
+    productUrl: null,
     popular: false,
   },
   {
     name: "Pro",
     key: "pro",
-    price: 99,
-    images: 25,
+    price: "4.999",
+    period: "kr./ måned",
+    images: "100 billeder / md.",
     icon: Zap,
-    subtitle: "Til dig der vil eksperimentere",
+    subtitle: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
     features: [
-      "25 AI-billeder",
-      "Alle 8 stilarter",
-      "Alle 15 rum-typer",
-      "Alle 3 budget-niveauer",
-      "Hurtigere generering",
+      "100 billeder / md.",
+      "Alle 8 designstile",
+      "4K download",
+      "Prioriteret support",
+      "Branding på billeder",
     ],
-    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-25-ai-genererede-billeder-af-dit-rum",
+    productUrl: null,
     popular: true,
   },
   {
-    name: "Unlimited",
-    key: "unlimited",
-    price: 149,
-    images: 60,
+    name: "Business",
+    key: "business",
+    price: "9.999",
+    period: "kr./ måned",
+    images: "250 billeder / md.",
     icon: Crown,
-    subtitle: "Fuld frihed til dit hjem",
+    subtitle: "Til bureauer og mæglerkæder med høj volumen.",
     features: [
-      "60 AI-billeder",
-      "Alle 8 stilarter",
-      "Alle 15 rum-typer",
-      "Alle 3 budget-niveauer",
-      "Prioriteret support",
+      "250 billeder / md.",
+      "Alle designstile",
+      "4K download",
+      "API adgang",
+      "Hvid-label mulighed",
+      "Dedikeret support",
     ],
-    productUrl: "https://ej8jeq-rs.myshopify.com/products/fa-60-ai-genererede-billeder-vores-bedste-tilbud",
+    productUrl: null,
     popular: false,
+  },
+  {
+    name: "Enterprise",
+    key: "enterprise",
+    price: "Custom",
+    period: "kontakt os",
+    images: "Ubegrænsede billeder",
+    icon: Building2,
+    subtitle: "Skræddersyet plan til store organisationer med særlige behov.",
+    features: [
+      "Ubegrænsede billeder",
+      "Alle designstile + custom",
+      "4K download",
+      "Fuld API adgang",
+      "Hvid-label mulighed",
+      "Dedikeret onboarding",
+      "SLA & dedikeret support",
+    ],
+    productUrl: null,
+    popular: false,
+    custom: true,
   },
 ];
 
@@ -62,12 +101,20 @@ export default function PricingPage() {
   const { user, loading, creditsRemaining } = useAuth();
   const [, setLocation] = useLocation();
 
-  const handleBuy = (pkg: typeof packages[number]) => {
+  const handleBuy = (pkg: Plan) => {
+    if (pkg.custom) {
+      window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
+      return;
+    }
     if (!user) {
       setLocation("/login?redirect=/pris");
       return;
     }
-    window.open(pkg.productUrl, "_blank", "noopener,noreferrer");
+    if (pkg.productUrl) {
+      window.open(pkg.productUrl, "_blank", "noopener,noreferrer");
+    } else {
+      window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Abonnement%3A%20" + encodeURIComponent(pkg.name);
+    }
   };
 
   return (
@@ -131,8 +178,8 @@ export default function PricingPage() {
               ? "Du har 2 billeder tilbage. Opgrader for at få flere!"
               : "Opret en konto og få 2 AI-billeder med det samme!"}
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" data-testid="text-title">Vælg dit abonnement</h1>
-          <p className="text-muted-foreground" data-testid="text-subtitle">Få adgang til alle stilarter og generér flere billeder</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" data-testid="text-title">Vælg din plan</h1>
+          <p className="text-muted-foreground" data-testid="text-subtitle">Alle nye konti inkluderer 1 gratis visualisering — ingen kreditkort krævet</p>
         </div>
 
         {loading ? (
@@ -140,7 +187,7 @@ export default function PricingPage() {
             <div className="text-muted-foreground">Indlæser...</div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" data-testid="grid-packages">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="grid-packages">
             {packages.map((pkg, index) => {
               const Icon = pkg.icon;
               return (
@@ -174,13 +221,13 @@ export default function PricingPage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold" data-testid={`text-package-name-${pkg.key}`}>{pkg.name}</h3>
-                        <p className="text-xs text-muted-foreground">{pkg.images} billeder</p>
+                        <p className="text-xs text-muted-foreground">{pkg.images}</p>
                       </div>
                     </div>
 
                     <div className="mb-2">
                       <span className="text-4xl font-bold" data-testid={`text-price-${pkg.key}`}>{pkg.price}</span>
-                      <span className="text-muted-foreground ml-1">kr</span>
+                      <span className="text-muted-foreground ml-1">{pkg.period}</span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-6">{pkg.subtitle}</p>
 
@@ -200,7 +247,12 @@ export default function PricingPage() {
                       onClick={() => handleBuy(pkg)}
                       data-testid={`button-select-${pkg.key}`}
                     >
-                      {user ? (
+                      {pkg.custom ? (
+                        <>
+                          Kontakt os
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      ) : user ? (
                         <>
                           Vælg {pkg.name}
                           <ArrowRight className="w-4 h-4 ml-2" />

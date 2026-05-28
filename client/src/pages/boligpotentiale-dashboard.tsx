@@ -1,0 +1,6343 @@
+import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
+import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
+import formaEstatesLogo from "@assets/forma-estates-logo.png";
+import { Link, useLocation } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
+  LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
+  ArrowUpRight, Check, LogOut, Trash2, ArrowRight, TrendingUp,
+  CheckCircle2, BarChart3, ImageIcon, PackageCheck, PartyPopper,
+  PenTool, Sparkles, RotateCcw, ChevronDown, Mail, Copy, CheckCheck,
+  Shield, UserPlus, Crown, Clock, Building2, Coins,
+  User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
+  FileText, FileImage, Box, Video, ArrowLeft,
+} from "lucide-react";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type Section = "dashboard" | "upload" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering";
+type Modal = "newSag" | null;
+type Stage = "upload" | "config" | "loading" | "result";
+
+interface ApiCase {
+  id: number;
+  userId: number;
+  address: string;
+  caseNo: string | null;
+  notes: string | null;
+  status: string;
+  marketDateISO: string;
+  soldDateISO: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  imageCount: number;
+  latestImageUrl: string | null;
+}
+
+interface ApiCaseImage {
+  id: number;
+  caseId: number;
+  style: string;
+  room: string;
+  tier: string | null;
+  promptUsed: string | null;
+  src: string;
+  beforeSrc: string | null;
+  daysAfterMarket: number;
+  createdAt: string;
+}
+
+// ── Media type helper ─────────────────────────────────────────────────────────
+function isVideoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}
+
+// ── Download helper ───────────────────────────────────────────────────────────
+function slugifyForFilename(input: string | null | undefined): string {
+  if (!input) return "";
+  return input
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/æ/g, "ae").replace(/ø/g, "o").replace(/å/g, "a")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+function buildImageFilename(opts: { address?: string | null; room?: string | null; style?: string | null; ext?: string }): string {
+  const date = new Date().toISOString().slice(0, 10);
+  const parts = [opts.address, opts.room, opts.style].map(slugifyForFilename).filter(Boolean);
+  const stem = parts.length > 0 ? parts.join("-") : "visualisering";
+  const ext = (opts.ext || "jpg").replace(/^\./, "");
+  return `${stem}-${date}.${ext}`;
+}
+async function fetchImageAsDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number; mime: string } | null> {
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+    const dims: { w: number; h: number } = await new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
+      im.onerror = () => resolve({ w: 1600, h: 1067 });
+      im.src = dataUrl;
+    });
+    return { dataUrl, w: dims.w, h: dims.h, mime: blob.type || "image/jpeg" };
+  } catch {
+    return null;
+  }
+}
+export async function downloadCasePdf(opts: {
+  url: string;
+  beforeUrl?: string | null;
+  address?: string | null;
+  room?: string | null;
+  style?: string | null;
+  mode?: "presentation" | "images-only";
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!opts.url) return { ok: false, error: "Intet billede" };
+  const mode = opts.mode ?? "presentation";
+  try {
+    const { jsPDF } = await import("jspdf");
+    const after = await fetchImageAsDataUrl(opts.url);
+    if (!after) return { ok: false, error: "Kunne ikke hente billede" };
+    const before = opts.beforeUrl ? await fetchImageAsDataUrl(opts.beforeUrl) : null;
+
+    // Images-only mode: a single PDF page that is exactly the after-image at
+    // its original aspect ratio — no margins, no text, no branding. The page
+    // size matches the image so it crops cleanly for social media or reuse.
+    if (mode === "images-only") {
+      const mmPerPx = 25.4 / 150; // assume 150 DPI for sane page dimensions
+      const pageW = Math.max(50, after.w * mmPerPx);
+      const pageH = Math.max(50, after.h * mmPerPx);
+      const pdfImg = new jsPDF({
+        orientation: pageW >= pageH ? "landscape" : "portrait",
+        unit: "mm",
+        format: [pageW, pageH],
+      });
+      pdfImg.addImage(after.dataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
+      const filenameImg = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: "pdf" });
+      pdfImg.save(filenameImg);
+      return { ok: true };
+    }
+
+    const roomLabel = opts.room ? (BOLIG_ROOM_LABELS[opts.room] || opts.room) : "";
+    const styleLabel = opts.style ? (BOLIG_STYLE_LABELS[opts.style] || opts.style) : "";
+    const dateStr = new Date().toLocaleDateString("da-DK", { day: "2-digit", month: "long", year: "numeric" });
+
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 16;
+    const navy = [15, 29, 47] as const;
+    const muted = [107, 107, 107] as const;
+    const accent = [200, 149, 108] as const;
+
+    const drawFooter = () => {
+      pdf.setDrawColor(217, 213, 207);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, pageH - 14, pageW - margin, pageH - 14);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(muted[0], muted[1], muted[2]);
+      pdf.text(
+        "Billederne er AI-genererede visualiseringer og skal ses som inspiration. Det endelige resultat kan variere.",
+        margin, pageH - 9, { maxWidth: pageW - margin * 2 }
+      );
+      pdf.text("Forma Estates", pageW - margin, pageH - 5, { align: "right" });
+    };
+
+    // ── Page 1: Cover ────────────────────────────────────────────────────────
+    pdf.setFillColor(15, 29, 47);
+    pdf.rect(0, 0, pageW, 6, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(accent[0], accent[1], accent[2]);
+    pdf.text("AI BOLIGPOTENTIALE", margin, 22);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(28);
+    pdf.setTextColor(navy[0], navy[1], navy[2]);
+    pdf.text("AI-visualisering", margin, 42, { maxWidth: pageW - margin * 2 });
+    pdf.text("af boligens potentiale", margin, 54, { maxWidth: pageW - margin * 2 });
+    pdf.setDrawColor(accent[0], accent[1], accent[2]);
+    pdf.setLineWidth(0.8);
+    pdf.line(margin, 62, margin + 40, 62);
+    if (opts.address) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
+      pdf.text(opts.address, margin, 76, { maxWidth: pageW - margin * 2 });
+    }
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(muted[0], muted[1], muted[2]);
+    let metaY = opts.address ? 84 : 76;
+    if (roomLabel || styleLabel) {
+      pdf.text([roomLabel, styleLabel].filter(Boolean).join(" · "), margin, metaY);
+      metaY += 6;
+    }
+    pdf.text(dateStr, margin, metaY);
+    // Hero thumbnail on cover
+    const heroMaxW = pageW - margin * 2;
+    const heroMaxH = pageH - metaY - 30;
+    const heroRatio = after.w / after.h;
+    let heroW = heroMaxW, heroH = heroMaxW / heroRatio;
+    if (heroH > heroMaxH) { heroH = heroMaxH; heroW = heroMaxH * heroRatio; }
+    const heroX = (pageW - heroW) / 2;
+    const heroY = metaY + 8;
+    pdf.addImage(after.dataUrl, "JPEG", heroX, heroY, heroW, heroH, undefined, "FAST");
+    drawFooter();
+
+    // ── Page 2: Før / Efter (or large single) ────────────────────────────────
+    pdf.addPage();
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.setTextColor(navy[0], navy[1], navy[2]);
+    pdf.text("Visualisering" + (roomLabel ? ` af ${roomLabel.toLowerCase()}` : "") + (styleLabel ? ` i ${styleLabel.toLowerCase()}` : ""), margin, 22, { maxWidth: pageW - margin * 2 });
+    pdf.setDrawColor(accent[0], accent[1], accent[2]);
+    pdf.setLineWidth(0.6);
+    pdf.line(margin, 26, margin + 30, 26);
+    const imgTop = 36;
+    const imgBottom = pageH - 22;
+    if (before) {
+      const half = (pageW - margin * 2 - 6) / 2;
+      const drawHalf = (img: { dataUrl: string; w: number; h: number }, x: number, label: string) => {
+        const r = img.w / img.h;
+        let w = half, h = half / r;
+        const maxH = imgBottom - imgTop - 8;
+        if (h > maxH) { h = maxH; w = maxH * r; }
+        const ox = x + (half - w) / 2;
+        pdf.addImage(img.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9);
+        pdf.setTextColor(accent[0], accent[1], accent[2]);
+        pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
+      };
+      drawHalf(before, margin, "FØR");
+      drawHalf(after, margin + half + 6, "EFTER");
+    } else {
+      const maxW = pageW - margin * 2;
+      const maxH = imgBottom - imgTop;
+      const r = after.w / after.h;
+      let w = maxW, h = maxW / r;
+      if (h > maxH) { h = maxH; w = maxH * r; }
+      pdf.addImage(after.dataUrl, "JPEG", (pageW - w) / 2, imgTop, w, h, undefined, "FAST");
+    }
+    drawFooter();
+
+    const filename = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: "pdf" });
+    pdf.save(filename);
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Ukendt fejl" };
+  }
+}
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objUrl; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(objUrl);
+}
+export async function downloadImageFile(
+  url: string,
+  opts: { address?: string | null; room?: string | null; style?: string | null; format?: "jpg" | "png" } = {}
+): Promise<void> {
+  if (!url) return;
+  const format = opts.format ?? "jpg";
+  const filename = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: format });
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    if (format === "png" && !blob.type.includes("png")) {
+      // Convert via canvas so the user really gets PNG bytes, not a renamed JPEG.
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result as string);
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+      const img: HTMLImageElement = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = reject;
+        im.src = dataUrl;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context unavailable");
+      ctx.drawImage(img, 0, 0);
+      const pngBlob: Blob = await new Promise((resolve, reject) =>
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png")
+      );
+      triggerBlobDownload(pngBlob, filename);
+    } else {
+      triggerBlobDownload(blob, filename);
+    }
+  } catch {
+    // Fallback: open in new tab so the user can save manually if CORS blocked the fetch.
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.target = "_blank"; a.rel = "noopener noreferrer";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+}
+
+// ── Download buttons (JPG / PNG / PDF billeder / PDF præsentation) ───────────
+type DownloadMenuVariant = "icon-dark" | "pill-outline" | "pill-light" | "primary";
+type DownloadKind = "jpg" | "png" | "pdf-images" | "pdf-presentation";
+function DownloadMenu(props: {
+  url: string;
+  beforeUrl?: string | null;
+  address?: string | null;
+  room?: string | null;
+  style?: string | null;
+  variant: DownloadMenuVariant;
+  testIdPrefix: string;
+  stopPropagation?: boolean;
+}) {
+  const { url, beforeUrl, address, room, style, variant, testIdPrefix, stopPropagation } = props;
+  const [busy, setBusy] = useState<DownloadKind | null>(null);
+
+  const run = (kind: DownloadKind) => async (e: ReactMouseEvent) => {
+    if (stopPropagation) e.stopPropagation();
+    if (busy) return;
+    setBusy(kind);
+    try {
+      if (kind === "jpg" || kind === "png") {
+        await downloadImageFile(url, { address, room, style, format: kind });
+      } else {
+        const mode = kind === "pdf-images" ? "images-only" : "presentation";
+        const r = await downloadCasePdf({ url, beforeUrl, address, room, style, mode });
+        if (!r.ok) alert("PDF'en kunne ikke genereres. Prøv igen.");
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const items: { kind: DownloadKind; label: string; short: string; Icon: typeof Download; tone: "neutral" | "accent" }[] = [
+    { kind: "jpg",              label: "JPG",                 short: "JPG", Icon: ImageIcon, tone: "neutral" },
+    { kind: "png",              label: "PNG",                 short: "PNG", Icon: ImageIcon, tone: "neutral" },
+    { kind: "pdf-images",       label: "PDF (kun billeder)",  short: "PDF", Icon: FileImage, tone: "neutral" },
+    { kind: "pdf-presentation", label: "PDF præsentation",    short: "PDF+", Icon: FileText, tone: "accent" },
+  ];
+
+  if (variant === "icon-dark") {
+    return (
+      <div className="flex gap-1">
+        {items.map((it) => {
+          const isPresentation = it.tone === "accent";
+          const loading = busy === it.kind;
+          return (
+            <button
+              key={it.kind}
+              type="button"
+              onClick={run(it.kind)}
+              disabled={busy !== null}
+              title={it.label}
+              data-testid={`${testIdPrefix}-${it.kind}`}
+              className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold disabled:opacity-50"
+              style={{
+                background: isPresentation ? "rgba(200,149,108,0.95)" : "rgba(0,0,0,0.55)",
+                color: "#fff",
+              }}
+            >
+              <it.Icon className="w-3 h-3" />
+              <span>{loading ? "…" : it.short}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const sizeCls =
+    variant === "primary"        ? "h-11 px-4 text-sm" :
+    variant === "pill-outline"   ? "h-11 px-4 text-sm" :
+                                   "h-8 px-3 text-xs";
+  const baseCls = `${sizeCls} rounded-full font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50`;
+  const styleFor = (it: typeof items[number]): { cls: string; style: CSSProperties } => {
+    const isPresentation = it.tone === "accent";
+    if (variant === "primary") {
+      return isPresentation
+        ? { cls: `${baseCls} text-white hover:opacity-90`, style: { background: "#C8956C" } }
+        : { cls: `${baseCls} text-white hover:opacity-90`, style: { background: "#0F1D2F" } };
+    }
+    if (variant === "pill-outline") {
+      return isPresentation
+        ? { cls: `${baseCls} text-white hover:opacity-90`,             style: { background: "#C8956C" } }
+        : { cls: `${baseCls} border-2 border-[#D9D5CF] hover:border-[#C8956C]`, style: { color: "#0F1D2F" } };
+    }
+    // pill-light (lightbox over dark background)
+    return isPresentation
+      ? { cls: `${baseCls} text-white hover:opacity-90`,                                style: { background: "#C8956C" } }
+      : { cls: `${baseCls} hover:bg-white/10`,                                          style: { color: "#C8956C", border: "1px solid rgba(200,149,108,0.4)" } };
+  };
+  const iconSize = variant === "pill-light" ? "w-3.5 h-3.5" : "w-4 h-4";
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((it) => {
+        const s = styleFor(it);
+        const loading = busy === it.kind;
+        return (
+          <button
+            key={it.kind}
+            type="button"
+            onClick={run(it.kind)}
+            disabled={busy !== null}
+            data-testid={`${testIdPrefix}-${it.kind}`}
+            className={s.cls}
+            style={s.style}
+          >
+            <it.Icon className={iconSize} />
+            <span>{loading ? "Henter..." : it.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const ROOM_TYPES = [
+  { value: "living room",      label: "Stue" },
+  { value: "bedroom",          label: "Soveværelse" },
+  { value: "kitchen",          label: "Køkken" },
+  { value: "bathroom",         label: "Badeværelse" },
+  { value: "dining room",      label: "Spisestue" },
+  { value: "home office",      label: "Hjemmekontor" },
+  { value: "kids room",        label: "Børneværelse" },
+  { value: "studio",           label: "Studio" },
+  { value: "game room",        label: "Spillerum" },
+  { value: "gym",              label: "Træningsrum" },
+  { value: "laundry room",     label: "Vaskerum" },
+  { value: "meeting room",     label: "Mødelokale" },
+  { value: "spa",              label: "Spa" },
+  { value: "outdoor",          label: "Udendørs" },
+  { value: "open plan living", label: "Åben stue/spisestue" },
+  { value: "entryway",         label: "Entré" },
+];
+
+const STYLES = [
+  { value: "scandinavian", label: "Skandinavisk" },
+  { value: "modern",       label: "Moderne" },
+  { value: "luxury",       label: "Luksus" },
+  { value: "industrial",   label: "Industriel" },
+  { value: "coastal",      label: "Kyst" },
+  { value: "transitional", label: "Overgangs" },
+  { value: "rustic",       label: "Landlig" },
+  { value: "midcentury",   label: "Midcentury" },
+];
+
+const BUDGET_TIERS = [
+  { value: "tier1", label: "Tier 1 — Budget",   sub: "IKEA / JYSK niveau" },
+  { value: "tier2", label: "Tier 2 — Standard", sub: "Mellemklasse" },
+  { value: "tier3", label: "Tier 3 — Premium",  sub: "Designermøbler" },
+];
+
+const DEFAULT_THUMB = "/bolig-images/living-scandi-before.jpg";
+
+function timeAgo(dateStr: string | Date): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return "lige nu";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min siden`;
+  if (diff < 7200) return "1 time siden";
+  if (diff < 86400) return `${Math.floor(diff / 3600)} timer siden`;
+  if (diff < 172800) return "i går";
+  return `${Math.floor(diff / 86400)} dage siden`;
+}
+
+function liveDaysFromISO(iso: string, now: number): number {
+  return Math.max(0, Math.floor((now - new Date(iso).getTime()) / 86_400_000));
+}
+
+
+// ── Case Detail Panel ─────────────────────────────────────────────────────────
+function CaseDetailPanel({
+  caseData,
+  onBack,
+  onDeleted,
+  onStatusChanged,
+}: {
+  caseData: ApiCase;
+  onBack: () => void;
+  onDeleted: () => void;
+  onStatusChanged: (newStatus: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [now, setNow] = useState(Date.now());
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [roomType, setRoomType] = useState("living room");
+  const [style, setStyle] = useState("scandinavian");
+  const [tier, setTier] = useState("tier2");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [promptUsed, setPromptUsed] = useState<string | null>(null);
+  const [processingTime, setProcessingTime] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; desc: string; confirmLabel: string; onConfirm: () => void; variant?: "danger" | "success" } | null>(null);
+  const [activityLightbox, setActivityLightbox] = useState<string | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<ApiCaseImage | null>(null);
+  const [lbPos, setLbPos] = useState(50);
+  const lbRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [genStep, setGenStep] = useState<0|1|2|3>(0);
+  const [includePlants, setIncludePlants] = useState(false);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const liveDays = liveDaysFromISO(caseData.marketDateISO, now);
+
+  const { data: images = [], refetch: refetchImages } = useQuery<ApiCaseImage[]>({
+    queryKey: ["/api/bolig/cases", caseData.id, "images"],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/cases/${caseData.id}/images`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Could not load images");
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/cases/${caseData.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Kunne ikke slette sagen");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      onDeleted();
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async (newStatus: "active" | "sold") => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/cases/${caseData.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Kunne ikke opdatere status");
+      return res.json() as Promise<ApiCase>;
+    },
+    onSuccess: (updatedCase) => {
+      queryClient.setQueryData(["/api/bolig/cases"], (old: ApiCase[] | undefined) =>
+        old ? old.map((c) => (c.id === updatedCase.id ? updatedCase : c)) : [updatedCase]
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      onStatusChanged(updatedCase.status);
+    },
+  });
+
+  const deleteImageMutation = useMutation({
+    mutationFn: async (imageId: number) => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/generated-images/${imageId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Kunne ikke slette billedet");
+    },
+    onSuccess: () => {
+      refetchImages();
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      setConfirmDialog(null);
+    },
+  });
+
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError(null);
+    setResultUrl(null);
+  };
+
+  const handleGenerate = async () => {
+    if (!imageFile) return;
+    setIsGenerating(true);
+    setError(null);
+    const startTime = Date.now();
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      fd.append("style", style);
+      fd.append("room", roomType);
+      fd.append("tier", tier);
+      fd.append("caseId", String(caseData.id));
+      const res = await fetch("/api/bolig/generate", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
+      setResultUrl(data.image_url);
+      setPromptUsed(data.prompt_used ?? null);
+      setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
+      // Auto-saved — immediately refresh gallery and all live-tracking sections
+      await refetchImages();
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      setGenStep(3);
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt. Prøv igen.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const updateLbPos = useCallback((clientX: number) => {
+    if (!lbRef.current) return;
+    const rect = lbRef.current.getBoundingClientRect();
+    setLbPos(Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)));
+  }, []);
+
+  const tierLabel = (t: string) => t === "tier1" ? "Budget" : t === "tier3" ? "Premium" : "Standard";
+
+  return (
+    <motion.div key="case-detail" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="flex items-start gap-4 min-w-0">
+          <button
+            onClick={onBack}
+            className="mt-1.5 flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity flex-shrink-0"
+            style={{ color: "#6B6B6B" }}
+            data-testid="bolig-case-back"
+          >
+            <ChevronLeft className="w-4 h-4" /> Tilbage
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold truncate mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{caseData.address}</h1>
+            {caseData.caseNo && <p className="text-xs mb-1.5" style={{ color: "#6B6B6B" }}>Sagsnr. {caseData.caseNo}</p>}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: caseData.status === "active" ? "rgba(45,106,79,0.1)" : "rgba(200,149,108,0.1)", color: caseData.status === "active" ? "#2D6A4F" : "#C8956C" }}>
+                {caseData.status === "active" ? "Aktiv — I salg" : "Afsluttet"}
+              </span>
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D9D5CF]" style={{ color: "#6B6B6B" }}>
+                {liveDays} dage på markedet
+              </span>
+              {images.length > 0 && (
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D9D5CF]" style={{ color: "#6B6B6B" }}>
+                  {images.length} visual{images.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {caseData.notes && <p className="text-xs mt-1.5 max-w-xl" style={{ color: "#6B6B6B" }}>{caseData.notes}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {caseData.status === "active" ? (
+            <button
+              onClick={() => setConfirmDialog({
+                title: "Marker solgt",
+                desc: "Du sætter sagen som solgt. Den flyttes til Solgte sager.",
+                confirmLabel: "Marker solgt",
+                variant: "success",
+                onConfirm: () => { statusMutation.mutate("sold"); setConfirmDialog(null); },
+              })}
+              disabled={statusMutation.isPending}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border transition-colors disabled:opacity-60"
+              style={{ borderColor: "rgba(45,106,79,0.3)", color: "#2D6A4F", background: "rgba(45,106,79,0.06)" }}
+              data-testid="bolig-case-mark-sold-btn"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {statusMutation.isPending ? "..." : "Marker solgt"}
+            </button>
+          ) : (
+            <button
+              onClick={() => statusMutation.mutate("active")}
+              disabled={statusMutation.isPending}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border transition-colors disabled:opacity-60"
+              style={{ borderColor: "rgba(200,149,108,0.4)", color: "#C8956C", background: "rgba(200,149,108,0.08)" }}
+              data-testid="bolig-case-reactivate-btn"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              {statusMutation.isPending ? "..." : "Genaktiver"}
+            </button>
+          )}
+          <button
+            onClick={() => setConfirmDialog({
+              title: "Slet sag",
+              desc: `Du sletter nu sagen "${caseData.address}" og alle dens billeder permanent.`,
+              confirmLabel: "Slet sag",
+              onConfirm: () => deleteMutation.mutate(),
+            })}
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border border-red-200 hover:border-red-400 hover:bg-red-50 transition-colors"
+            style={{ color: "#DC2626" }}
+            data-testid="bolig-case-delete-btn"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Slet sag
+          </button>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* GALLERY VIEW (genStep === 0) */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {genStep === 0 && (
+        <div className="grid lg:grid-cols-[60%_40%] gap-6 items-start">
+
+          {/* LEFT: HISTORY GALLERY */}
+          <div>
+            {images.length === 0 ? (
+              <div className="rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center py-20 px-8" style={{ borderColor: "#D9D5CF", background: "#FAFAF9" }}>
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#F0EDE7" }}>
+                  <Search className="w-7 h-7" style={{ color: "#C8956C" }} />
+                </div>
+                <p className="font-semibold mb-2" style={{ color: "#0F1D2F" }}>Ingen genererede billeder endnu</p>
+                <p className="text-sm max-w-xs mb-6" style={{ color: "#6B6B6B" }}>Upload et rumfoto og generer dit første AI-potentialebillede</p>
+                <button
+                  onClick={() => setGenStep(1)}
+                  className="h-10 px-6 rounded-full font-semibold text-white text-sm flex items-center gap-2 transition-all hover:-translate-y-0.5"
+                  style={{ background: "#0F1D2F" }}
+                  data-testid="bolig-gallery-empty-generate"
+                >
+                  <TrendingUp className="w-4 h-4" /> Generer første billede
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9B9690" }}>Genererede billeder</p>
+                  <div className="flex-1 h-px" style={{ background: "#E8E4DE" }} />
+                  <span className="text-xs" style={{ color: "#9B9690" }}>{images.length} billede{images.length !== 1 ? "r" : ""}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {images.map((img) => (
+                    <div
+                      key={img.id}
+                      className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-white group cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => { setLightboxImg(img); setLbPos(50); }}
+                      data-testid={`bolig-history-img-${img.id}`}
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        {isVideoUrl(img.src) ? (
+                          <>
+                            <video src={img.src} className="w-full h-full object-cover bg-black" muted playsInline preload="metadata" />
+                            <div className="absolute top-2 left-2 flex items-center gap-1 text-[10px] font-semibold text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(15,29,47,0.7)" }}>
+                              <Video className="w-3 h-3" /> Video
+                            </div>
+                          </>
+                        ) : (
+                          <img src={img.src} alt={img.room} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(15,29,47,0.4)" }}>
+                          <span className="text-white text-[11px] font-semibold px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                            {isVideoUrl(img.src) ? "Afspil video" : img.beforeSrc ? "Vis Før / Efter" : "Åbn"}
+                          </span>
+                        </div>
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <DownloadMenu
+                            url={img.src}
+                            beforeUrl={img.beforeSrc}
+                            address={caseData.address}
+                            room={img.room}
+                            style={img.style}
+                            variant="icon-dark"
+                            testIdPrefix={`bolig-gallery-download-${img.id}`}
+                            stopPropagation
+                          />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDialog({ title: "Slet billede", desc: "Vil du slette dette billede? Det kan ikke fortrydes.", confirmLabel: "Slet billede", onConfirm: () => deleteImageMutation.mutate(img.id) }); }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center"
+                            style={{ background: "rgba(220,38,38,0.85)" }}
+                            data-testid={`bolig-delete-image-btn-${img.id}`}
+                          >
+                            <Trash2 className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>{img.room}</p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{img.style}</span>
+                          {img.tier && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(img.tier)}</span>}
+                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>Dag {img.daysAfterMarket}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: QUICK GENERATE ENTRY */}
+          <div className="rounded-2xl border border-[#E8E4DE] p-6 flex flex-col gap-5" style={{ background: "#fff" }}>
+            <div>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1" style={{ color: "#9B9690" }}>Generer nyt billede</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload et rumfoto og lad AI'en vise boligens fulde potentiale</p>
+            </div>
+            <div className="flex flex-col gap-2 text-sm" style={{ color: "#1A1A1A" }}>
+              {[
+                { n: "1", label: "Upload et rumfoto" },
+                { n: "2", label: "Vælg rum, stil & budget" },
+                { n: "3", label: "Se AI-visualisering" },
+              ].map((s) => (
+                <div key={s.n} className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0" style={{ background: "#F0EDE7", color: "#C8956C" }}>{s.n}</span>
+                  <span className="text-sm" style={{ color: "#6B6B6B" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setGenStep(1)}
+              className="w-full h-12 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
+              style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.2)" }}
+              data-testid="bolig-case-start-generate"
+            >
+              <TrendingUp className="w-4 h-4" /> Generer potentialebillede
+            </button>
+            {images.length > 0 && (
+              <p className="text-center text-xs" style={{ color: "#9B9690" }}>{images.length} tidligere visual{images.length !== 1 ? "s" : ""} i galleriet</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* GENERATE FLOW (genStep 1 / 2 / 3) */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {genStep > 0 && (
+        <div>
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {([
+              { n: 1, label: "Upload billede" },
+              { n: 2, label: "Vælg stil & budget" },
+              { n: 3, label: "Resultat" },
+            ] as const).map(({ n, label }, idx) => (
+              <div key={n} className="flex items-center gap-2">
+                {idx > 0 && (
+                  <div className="w-10 sm:w-16 h-px" style={{ background: genStep > idx ? "#0F1D2F" : "#D9D5CF" }} />
+                )}
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all"
+                    style={{
+                      background: genStep >= n ? "#0F1D2F" : "#F0EDE7",
+                      color: genStep >= n ? "#fff" : "#9B9690",
+                    }}
+                  >
+                    {genStep > n ? <Check className="w-3 h-3" /> : n}
+                  </div>
+                  <span className="text-xs hidden sm:inline" style={{ color: genStep >= n ? "#0F1D2F" : "#9B9690" }}>{label}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <AnimatePresence mode="wait">
+
+            {/* STEP 1 — UPLOAD */}
+            {genStep === 1 && (
+              <motion.div key="gen-step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28, ease: "easeOut" }}>
+                <div className="max-w-xl mx-auto text-center pt-4 pb-10">
+                  <h2 className="text-3xl sm:text-4xl font-semibold mb-4" style={{ color: "#0F1D2F", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+                    Upload et rumfoto
+                  </h2>
+                  <p className="text-[15px] mb-2 max-w-sm mx-auto" style={{ color: "#6B6B6B", lineHeight: 1.7 }}>
+                    Tag et foto af rummet — AI'en viser boligens fulde potentiale
+                  </p>
+                  <div className="flex items-center justify-center gap-4 text-[13px] mb-8">
+                    <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#0F1D2F" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> Klar på 30–60 sek</span>
+                    <span className="flex items-center gap-1.5" style={{ color: "#6B6B6B" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> Ingen design-erfaring nødvendig</span>
+                  </div>
+
+                  {/* Upload box */}
+                  <div
+                    className="rounded-2xl border transition-all duration-200 cursor-pointer py-16 px-8 flex flex-col items-center"
+                    style={{
+                      borderColor: isDragging ? "#C8956C" : "#D9D5CF",
+                      background: isDragging ? "rgba(200,149,108,0.04)" : "#fff",
+                      boxShadow: isDragging ? "0 8px 32px rgba(200,149,108,0.12)" : "0 2px 16px rgba(15,29,47,0.06)",
+                    }}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) { handleFile(f); setGenStep(2); } }}
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="bolig-case-upload-zone"
+                  >
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleFile(f); setGenStep(2); } }} />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(15,29,47,0.04)" }}>
+                      <Upload className="w-5 h-5" style={{ color: "#6B6B6B" }} />
+                    </div>
+                    <p className="text-[15px] font-medium mb-1.5" style={{ color: "#0F1D2F" }}>Klik eller træk et billede hertil</p>
+                    <p className="text-sm mb-1" style={{ color: "#6B6B6B" }}>JPG, PNG eller HEIC</p>
+                    <p className="text-xs" style={{ color: "#9B9690" }}>Max 10 MB</p>
+                  </div>
+
+                  {error && <div className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded-xl">{error}</div>}
+
+                  {/* Step guide */}
+                  <div className="flex items-center justify-center gap-3 mt-8 text-xs" style={{ color: "#9B9690" }}>
+                    {["Upload foto", "Vælg stil", "Se resultat"].map((lbl, i) => (
+                      <div key={lbl} className="flex items-center gap-3">
+                        {i > 0 && <ArrowRight className="w-3 h-3 flex-shrink-0" />}
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full border border-[#D9D5CF] flex items-center justify-center text-[10px] font-semibold">{i + 1}</span>
+                          <span className="hidden sm:inline">{lbl}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Example images */}
+                  <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>Eller prøv med et eksempelbillede:</p>
+                  <div className="flex gap-3 justify-center">
+                    {[
+                      { src: "/bolig-images/living-scandi-before.jpg", label: "Stue" },
+                      { src: "/bolig-images/kitchen-before.jpg", label: "Køkken" },
+                      { src: "/bolig-images/living-modern-before.jpg", label: "Stue 2" },
+                    ].map((ex) => (
+                      <button key={ex.src}
+                        onClick={async () => { const r = await fetch(ex.src); const blob = await r.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); setGenStep(2); }}
+                        className="relative rounded-xl overflow-hidden border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-all"
+                        data-testid={`bolig-example-${ex.label}`}
+                      >
+                        <img src={ex.src} alt={ex.label} className="w-24 h-16 object-cover" />
+                        <div className="absolute inset-0 bg-black/20 flex items-end p-1.5">
+                          <span className="text-[10px] text-white font-medium">{ex.label}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <button onClick={() => { setGenStep(0); setError(null); }} className="text-sm hover:opacity-70 transition-opacity" style={{ color: "#9B9690" }}>
+                    ← Annuller og gå tilbage
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* STEP 2 — CONFIGURE */}
+            {genStep === 2 && (
+              <motion.div key="gen-step2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28, ease: "easeOut" }}>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                  {/* LEFT col-span-5: image preview */}
+                  <div className="lg:col-span-5">
+                    <p className="text-xs font-medium tracking-widest uppercase mb-2" style={{ color: "#9B9690" }}>Dit billede</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => { setImageFile(null); setImagePreview(null); setGenStep(1); }}
+                        className="h-7 px-2 rounded-lg text-xs hover:opacity-70 transition-opacity border border-[#D9D5CF]"
+                        style={{ color: "#6B6B6B" }}
+                      >
+                        Skift foto
+                      </button>
+                    </div>
+                    {imagePreview && (
+                      <img src={imagePreview} alt="Preview" className="rounded-xl border border-[#E8E4DE] w-full object-contain" style={{ maxHeight: "420px" }} />
+                    )}
+                  </div>
+
+                  {/* RIGHT col-span-7: settings */}
+                  <div className="lg:col-span-7 space-y-6">
+
+                    {/* ① RUMTYPE */}
+                    <div>
+                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>Rumtype</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {ROOM_TYPES.map((r) => (
+                          <button
+                            key={r.value}
+                            onClick={() => setRoomType(r.value)}
+                            className="px-3.5 py-2.5 rounded-lg border text-left transition-all"
+                            style={{
+                              borderColor: roomType === r.value ? "#0F1D2F" : "#D9D5CF",
+                              background: roomType === r.value ? "#0F1D2F" : "#fff",
+                              color: roomType === r.value ? "#fff" : "rgba(26,26,26,0.7)",
+                            }}
+                            data-testid={`bolig-room-${r.value}`}
+                          >
+                            <span className="text-[13px] font-medium truncate block">{r.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px" style={{ background: "#E8E4DE" }} />
+
+                    {/* ② STIL */}
+                    <div>
+                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>Stil</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {STYLES.map((s) => (
+                          <button
+                            key={s.value}
+                            onClick={() => setStyle(s.value)}
+                            className="px-3.5 py-3 rounded-lg border text-left transition-all flex flex-col"
+                            style={{
+                              borderColor: style === s.value ? "#C8956C" : "#D9D5CF",
+                              background: style === s.value ? "rgba(200,149,108,0.08)" : "#fff",
+                              color: "#1A1A1A",
+                            }}
+                            data-testid={`bolig-style-${s.value}`}
+                          >
+                            <span className="text-sm font-medium">{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px" style={{ background: "#E8E4DE" }} />
+
+                    {/* ③ BUDGET */}
+                    <div>
+                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>Budget</p>
+                      <div className="flex flex-col gap-2">
+                        {BUDGET_TIERS.map((t) => (
+                          <button
+                            key={t.value}
+                            onClick={() => setTier(t.value)}
+                            className="flex items-center justify-between px-4 py-3 rounded-lg border transition-all"
+                            style={{
+                              borderColor: tier === t.value ? "#0F1D2F" : "#D9D5CF",
+                              background: tier === t.value ? "#0F1D2F" : "#fff",
+                              color: tier === t.value ? "#fff" : "#1A1A1A",
+                            }}
+                            data-testid={`bolig-tier-${t.value}`}
+                          >
+                            <span className="text-sm font-medium">{t.label}</span>
+                            <span className="text-xs" style={{ opacity: 0.6 }}>{t.sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px" style={{ background: "#E8E4DE" }} />
+
+                    {/* ④ INKLUDER PLANTER */}
+                    <div
+                      className="flex items-center justify-between px-4 py-3 rounded-lg border border-[#E8E4DE] cursor-pointer select-none"
+                      style={{ background: "#FAFAF9" }}
+                      onClick={() => setIncludePlants(!includePlants)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">🌿</span>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>Inkluder planter</p>
+                          <p className="text-xs" style={{ color: "#9B9690" }}>Tilføj grønne planter til rummet</p>
+                        </div>
+                      </div>
+                      <div
+                        className="relative h-6 w-11 rounded-full transition-all flex-shrink-0"
+                        style={{ background: includePlants ? "#0F1D2F" : "#D9D5CF" }}
+                      >
+                        <div
+                          className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+                          style={{ left: includePlants ? "calc(100% - 1.375rem)" : "2px" }}
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50" data-testid="bolig-case-error">{error}</div>
+                    )}
+
+                    {/* ⑥ GENERATE BUTTON */}
+                    <button
+                      onClick={handleGenerate}
+                      disabled={isGenerating}
+                      className="w-full h-12 rounded-full font-medium text-white text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0"
+                      style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}
+                      data-testid="bolig-case-generate-btn"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
+                          Genererer visualisering...
+                        </>
+                      ) : (
+                        <>
+                          <TrendingUp className="w-4 h-4" />
+                          Se dit rums potentiale →
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {isGenerating && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-12 flex flex-col items-center justify-center text-center"
+                  >
+                    <div className="relative w-16 h-16 mb-6">
+                      <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: "#F0EDE7" }} />
+                      <div className="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: "#C8956C", borderTopColor: "transparent" }} />
+                    </div>
+                    <p className="text-lg font-semibold mb-1" style={{ color: "#0F1D2F" }}>Genererer visualisering...</p>
+                    <p className="text-sm" style={{ color: "#6B6B6B" }}>AI'en arbejder. Ca. 30–60 sekunder.</p>
+                    <div className="flex gap-8 mt-6">
+                      {["Analyserer rum", "Anvender stil", "Renderer"].map((step, i) => (
+                        <div key={i} className="flex flex-col items-center gap-2">
+                          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                          <span className="text-xs" style={{ color: "#9B9690" }}>{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {!isGenerating && (
+                  <div className="flex justify-center mt-6">
+                    <button onClick={() => { setGenStep(1); setError(null); }} className="text-sm hover:opacity-70 transition-opacity" style={{ color: "#9B9690" }}>
+                      ← Skift billede
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* STEP 3 — RESULT */}
+            {genStep === 3 && resultUrl && (
+              <motion.div key="gen-step3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>
+                <div className="mb-5">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>
+                    <Check className="w-3 h-3" /> Gemt i galleri{processingTime ? ` · ${processingTime} sek` : ""}
+                  </span>
+                  <h2 className="text-2xl font-semibold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Forvandlingen er klar!</h2>
+                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Træk slideren for at sammenligne før og efter</p>
+                </div>
+                <div>
+                  <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={resultUrl} />
+                  <div className="flex flex-wrap gap-3 mt-5">
+                    <button
+                      onClick={() => { setResultUrl(null); setImageFile(null); setImagePreview(null); setGenStep(0); }}
+                      className="h-11 px-6 rounded-full font-semibold text-white text-sm flex items-center gap-2 transition-all hover:-translate-y-0.5"
+                      style={{ background: "#0F1D2F" }}
+                      data-testid="bolig-case-back-to-gallery-btn"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Se i galleri
+                    </button>
+                    <button onClick={() => { setResultUrl(null); setGenStep(2); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] text-sm transition-colors" style={{ color: "#0F1D2F" }}>
+                      Generer igen
+                    </button>
+                    <button onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setGenStep(1); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] text-sm transition-colors" style={{ color: "#6B6B6B" }}>
+                      Nyt billede
+                    </button>
+                    <DownloadMenu
+                      url={resultUrl}
+                      beforeUrl={imagePreview}
+                      address={caseData.address}
+                      room={roomType}
+                      style={style}
+                      variant="pill-outline"
+                      testIdPrefix="bolig-case-result-download"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* ── Lightbox modal ── */}
+      <AnimatePresence>
+        {lightboxImg && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
+            onClick={() => setLightboxImg(null)}
+            data-testid="bolig-lightbox-overlay"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.18 }}
+              className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="bolig-lightbox-modal"
+            >
+              {isVideoUrl(lightboxImg.src) ? (
+                <video
+                  src={lightboxImg.src}
+                  controls
+                  autoPlay
+                  loop
+                  className="w-full h-auto bg-black"
+                  style={{ maxHeight: "70vh" }}
+                  data-testid="bolig-lightbox-video"
+                />
+              ) : lightboxImg.beforeSrc ? (
+                <div
+                  ref={lbRef}
+                  className="relative select-none touch-none cursor-col-resize"
+                  onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); updateLbPos(e.clientX); }}
+                  onPointerMove={(e) => { if (e.buttons > 0) updateLbPos(e.clientX); }}
+                  onPointerUp={() => {}}
+                >
+                  {/* invisible spacer — sets natural image height */}
+                  <img src={lightboxImg.src} alt="" className="w-full h-auto block invisible" style={{ maxHeight: "70vh" }} draggable={false} />
+                  {/* after layer */}
+                  <img src={lightboxImg.src} alt="Efter" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                  {/* before layer — clipped to lbPos% */}
+                  <div className="absolute top-0 left-0 bottom-0 overflow-hidden" style={{ width: `${lbPos}%` }}>
+                    <img
+                      src={lightboxImg.beforeSrc}
+                      alt="Før"
+                      className="absolute top-0 left-0 h-full object-contain"
+                      style={{ width: lbRef.current ? `${lbRef.current.offsetWidth}px` : "800px", maxWidth: "none" }}
+                      draggable={false}
+                    />
+                  </div>
+                  {/* handle */}
+                  <div className="absolute top-0 bottom-0 w-px bg-white/90 z-10" style={{ left: `${lbPos}%`, transform: "translateX(-50%)" }}>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
+                      <ChevronLeft className="w-3 h-3" style={{ color: "#0F1D2F" }} />
+                      <ChevronRight className="w-3 h-3" style={{ color: "#0F1D2F" }} />
+                    </div>
+                  </div>
+                  <span className="absolute bottom-3 left-3 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full font-medium z-10 pointer-events-none" style={{ opacity: lbPos > 15 ? 1 : 0 }}>Før</span>
+                  <span className="absolute bottom-3 right-3 text-white text-xs px-2.5 py-1 rounded-full font-medium z-10 pointer-events-none" style={{ background: "#C8956C", opacity: lbPos < 85 ? 1 : 0 }}>Efter</span>
+                </div>
+              ) : (
+                <img src={lightboxImg.src} alt={lightboxImg.room} className="w-full h-auto" style={{ maxHeight: "70vh", objectFit: "contain" }} />
+              )}
+              <div className="flex items-center justify-between px-5 py-3" style={{ background: "#0F1D2F" }}>
+                <div className="flex gap-2">
+                  <span className="text-[11px] font-semibold text-white">{lightboxImg.room}</span>
+                  <span className="text-[11px] text-white/60">·</span>
+                  <span className="text-[11px] text-white/70">{lightboxImg.style}</span>
+                  {lightboxImg.tier && <><span className="text-[11px] text-white/60">·</span><span className="text-[11px] text-white/70">{tierLabel(lightboxImg.tier)}</span></>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <DownloadMenu
+                    url={lightboxImg.src}
+                    beforeUrl={lightboxImg.beforeSrc}
+                    address={caseData.address}
+                    room={lightboxImg.room}
+                    style={lightboxImg.style}
+                    variant="pill-light"
+                    testIdPrefix="bolig-lightbox-download"
+                    stopPropagation
+                  />
+                  <button onClick={() => setLightboxImg(null)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: "#fff" }} data-testid="bolig-lightbox-close">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Unified confirm dialog ── */}
+      <AnimatePresence>
+        {confirmDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.45)" }}
+            onClick={() => setConfirmDialog(null)}
+            data-testid="bolig-confirm-overlay"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="bolig-confirm-modal"
+            >
+              {confirmDialog.variant === "success" ? (
+                <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(45,106,79,0.1)" }}>
+                  <PartyPopper className="w-5 h-5" style={{ color: "#2D6A4F" }} />
+                </div>
+              ) : (
+                <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(220,38,38,0.08)" }}>
+                  <Trash2 className="w-5 h-5" style={{ color: "#DC2626" }} />
+                </div>
+              )}
+              <h3 className="text-base font-semibold mb-1.5" style={{ color: "#1A1A1A" }}>{confirmDialog.title}</h3>
+              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>{confirmDialog.desc}</p>
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="flex-1 h-10 rounded-full text-sm font-medium border border-[#D9D5CF] hover:bg-[#F0EDE7] transition-colors"
+                  style={{ color: "#6B6B6B" }}
+                  data-testid="bolig-confirm-cancel"
+                >
+                  Annuller
+                </button>
+                <button
+                  onClick={confirmDialog.onConfirm}
+                  disabled={deleteMutation.isPending || deleteImageMutation.isPending || statusMutation.isPending}
+                  className="flex-1 h-10 rounded-full text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-70"
+                  style={{ background: confirmDialog.variant === "success" ? "#2D6A4F" : "#DC2626" }}
+                  data-testid="bolig-confirm-action"
+                >
+                  {(deleteMutation.isPending || deleteImageMutation.isPending || statusMutation.isPending) ? "Arbejder..." : confirmDialog.confirmLabel}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Activity image lightbox ── */}
+      <AnimatePresence>
+        {activityLightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
+            onClick={() => setActivityLightbox(null)}
+            data-testid="bolig-activity-lightbox"
+          >
+            <img
+              src={activityLightbox}
+              alt="Genereret billede"
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setActivityLightbox(null)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+              data-testid="bolig-activity-lightbox-close"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ── Standalone Upload Flow (for "Upload Billede" section) ─────────────────────
+function UploadFlow({ onBack }: { onBack: () => void }) {
+  const queryClient = useQueryClient();
+  const [stage, setStage] = useState<Stage>("upload");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [roomType, setRoomType] = useState("living room");
+  const [style, setStyle] = useState("scandinavian");
+  const [tier, setTier] = useState("tier2");
+  const [isDragging, setIsDragging] = useState(false);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [processingTime, setProcessingTime] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setStage("config");
+    setError(null);
+  };
+
+  const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) handleFile(f); };
+
+  const handleGenerate = async () => {
+    if (!imageFile) return;
+    setStage("loading"); setError(null);
+    const startTime = Date.now();
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      fd.append("style", style);
+      fd.append("room", roomType);
+      fd.append("tier", tier);
+      fd.append("isQuick", "true");
+      const res = await fetch("/api/bolig/generate", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
+      setResultUrl(data.image_url);
+      setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      setStage("result");
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt. Prøv igen.");
+      setStage("config");
+    }
+  };
+
+  const reset = () => { setStage("upload"); setImageFile(null); setImagePreview(null); setResultUrl(null); setError(null); setProcessingTime(null); };
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity" style={{ color: "#6B6B6B" }} data-testid="bolig-upload-back">
+          <ChevronLeft className="w-4 h-4" /> Tilbage til Dashboard
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {stage === "upload" && (
+          <motion.div key="upload" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Upload et rumfoto</h1>
+            <p className="text-sm mb-8" style={{ color: "#6B6B6B" }}>Vælg et foto af rummet du vil visualisere</p>
+            <div
+              className="rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center p-16 cursor-pointer"
+              style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#fff" }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={onDrop}
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="bolig-upload-zone"
+            >
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#F0EDE7" }}>
+                <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
+              </div>
+              <p className="font-semibold mb-1" style={{ color: "#0F1D2F" }}>Klik eller træk et billede hertil</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG eller HEIC · Max 10 MB</p>
+            </div>
+            {error && <div className="mt-4 text-sm text-red-600 text-center">{error}</div>}
+            <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>Eller prøv med et eksempelbillede:</p>
+            <div className="flex gap-3 flex-wrap">
+              {[{ src: "/bolig-images/living-scandi-before.jpg", label: "Stue" }, { src: "/bolig-images/kitchen-before.jpg", label: "Køkken" }, { src: "/bolig-images/living-modern-before.jpg", label: "Stue 2" }].map((ex) => (
+                <button key={ex.src} onClick={async () => { const res = await fetch(ex.src); const blob = await res.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); }}
+                  className="relative rounded-xl overflow-hidden border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-all">
+                  <img src={ex.src} alt={ex.label} className="w-24 h-16 object-cover" />
+                  <div className="absolute inset-0 bg-black/20 flex items-end p-1.5"><span className="text-[10px] text-white font-medium">{ex.label}</span></div>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {stage === "config" && (
+          <motion.div key="config" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
+            <div className="grid lg:grid-cols-2 gap-10 items-start">
+              <div>
+                <div className="relative rounded-2xl overflow-hidden" style={{ aspectRatio: "4/3" }}>
+                  <img src={imagePreview!} alt="Preview" className="w-full h-full object-cover" />
+                  <button onClick={reset} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70"><X className="w-4 h-4" /></button>
+                </div>
+                <p className="text-xs mt-2 text-center" style={{ color: "#6B6B6B" }}>{imageFile?.name}</p>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold mb-1" style={{ color: "#0F1D2F" }}>Konfigurer visualisering</h2>
+                  <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg rumtype og designstil</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-3" style={{ color: "#0F1D2F" }}>Rumtype</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ROOM_TYPES.map((r) => (
+                      <button key={r.value} onClick={() => setRoomType(r.value)}
+                        className="h-10 px-4 rounded-xl text-sm font-medium border-2 transition-all text-left"
+                        style={{ background: roomType === r.value ? "#0F1D2F" : "#fff", borderColor: roomType === r.value ? "#0F1D2F" : "#D9D5CF", color: roomType === r.value ? "#fff" : "#1A1A1A" }}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-3" style={{ color: "#0F1D2F" }}>Designstil</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {STYLES.map((s) => (
+                      <button key={s.value} onClick={() => setStyle(s.value)}
+                        className="h-10 px-4 rounded-xl text-sm font-medium border-2 transition-all text-left"
+                        style={{ background: style === s.value ? "#C8956C" : "#fff", borderColor: style === s.value ? "#C8956C" : "#D9D5CF", color: style === s.value ? "#fff" : "#1A1A1A" }}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-3" style={{ color: "#0F1D2F" }}>Budget</label>
+                  <div className="flex flex-col gap-2">
+                    {BUDGET_TIERS.map((t) => (
+                      <button key={t.value} onClick={() => setTier(t.value)}
+                        className="flex items-center justify-between px-4 py-2.5 rounded-xl border-2 text-sm transition-all"
+                        style={{ background: tier === t.value ? "#0F1D2F" : "#fff", borderColor: tier === t.value ? "#0F1D2F" : "#D9D5CF", color: tier === t.value ? "#fff" : "#1A1A1A" }}>
+                        <span className="font-medium">{t.label}</span>
+                        <span className="text-xs opacity-60">{t.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {error && <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50">{error}</div>}
+                <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}>
+                  Generer visualisering →
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {stage === "loading" && (
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+            className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="relative w-20 h-20 mb-8">
+              <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
+              <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Genererer visualisering...</h2>
+            <p className="text-base" style={{ color: "#6B6B6B" }}>AI'en arbejder på dit rum. Ca. 30–60 sekunder.</p>
+            <div className="mt-8 flex gap-8">
+              {["Analyserer rum", "Anvender stil", "Renderer"].map((step, i) => (
+                <div key={i} className="flex flex-col items-center gap-2">
+                  <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                  <div className="text-xs" style={{ color: "#6B6B6B" }}>{step}</div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {stage === "result" && resultUrl && (
+          <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-3" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
+                <Check className="w-3 h-3" /> Visualisering klar{processingTime ? ` · ${processingTime} sek` : ""}
+              </div>
+              <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Forvandlingen er klar!</h2>
+              <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Træk slideren for at sammenligne før og efter</p>
+            </div>
+            <div className="max-w-3xl">
+              <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={resultUrl} />
+              <div className="flex flex-wrap gap-3 mt-5">
+                <DownloadMenu
+                  url={resultUrl}
+                  beforeUrl={imagePreview}
+                  room={roomType}
+                  style={style}
+                  variant="primary"
+                  testIdPrefix="bolig-upload-result-download"
+                />
+                <button onClick={() => { setStage("config"); setResultUrl(null); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }}>Prøv anden stil</button>
+                <button onClick={reset} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#6B6B6B" }}>Nyt billede</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── 3D Plantegning Flow (fal.ai nano-banana-2/edit — 2D plan → 3D dollhouse) ─
+function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
+  const [showCaseDropdown, setShowCaseDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeCases = cases.filter((c) => c.status !== "sold");
+  const hasUnsaved = !!resultUrl && saveCaseId === null;
+  useUnsavedExitGuard(hasUnsaved);
+
+  useEffect(() => {
+    if (!showCaseDropdown) return;
+    const onDown = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowCaseDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showCaseDropdown]);
+
+  const confirmDiscardOr = (action: () => void) => {
+    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne 3D plantegning?")) return;
+    action();
+  };
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Vælg venligst en billedfil");
+      return;
+    }
+    setImageFile(file);
+    setResultUrl(null);
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleGenerate = async () => {
+    if (!imageFile) return;
+    setIsGenerating(true);
+    setError(null);
+    setResultUrl(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      const res = await fetch("/api/bolig/floorplan-3d", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes");
+      setResultUrl(data.image_url);
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>3D plantegning</h1>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en 2D plantegning — AI bygger et møbleret 3D dukkehus set fra oven, baseret på rumlayoutet.</p>
+      </div>
+
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
+        <div>
+          <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Plantegning (2D)</label>
+          {!imagePreview ? (
+            <label
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) handleFile(f);
+              }}
+              className="block cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors"
+              style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
+              data-testid="dropzone-floorplan-image"
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                data-testid="input-floorplan-image"
+              />
+              <Upload className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
+              <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
+              <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
+            </label>
+          ) : (
+            <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE]">
+              <img src={imagePreview} alt="Plantegning" className="w-full max-h-96 object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
+              <button
+                onClick={() => confirmDiscardOr(() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setSaveCaseId(null); })}
+                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white"
+                data-testid="button-clear-floorplan-image"
+              >
+                <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleGenerate}
+          disabled={!imageFile || isGenerating}
+          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+          style={{ background: "#C8956C" }}
+          data-testid="button-generate-floorplan"
+        >
+          {isGenerating ? (
+            <>
+              <RotateCcw className="w-4 h-4 animate-spin" />
+              Genererer 3D plantegning... (kan tage 30-90 sek)
+            </>
+          ) : (
+            <>
+              <Box className="w-4 h-4" />
+              Generér 3D plantegning
+            </>
+          )}
+        </button>
+
+        {error && (
+          <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-floorplan-error">
+            {error}
+          </div>
+        )}
+
+        {resultUrl && (
+          <>
+            <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
+              {imagePreview ? (
+                <div data-testid="slider-floorplan-compare">
+                  <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={resultUrl} />
+                </div>
+              ) : (
+                <img src={resultUrl} alt="3D plantegning" className="w-full block" data-testid="img-floorplan-result" />
+              )}
+              <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
+                <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
+                {imagePreview ? "Træk slideren for at sammenligne 2D og 3D" : "AI-genereret 3D render"}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <DownloadMenu
+                url={resultUrl}
+                style="3d-floorplan"
+                variant="primary"
+                testIdPrefix="floorplan-download"
+              />
+
+              {activeCases.length > 0 && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowCaseDropdown((v) => !v)}
+                    className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                    data-testid="button-floorplan-save-case"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    {saveCaseId ? "Gemt til mappe" : "Gem til mappe"}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {showCaseDropdown && (
+                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
+                      {activeCases.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={async () => {
+                            setShowCaseDropdown(false);
+                            setSaveCaseId(c.id);
+                            try {
+                              const token = await user?.getIdToken();
+                              const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                },
+                                body: JSON.stringify({
+                                  imageUrl: resultUrl,
+                                  originalImageUrl: null,
+                                  roomType: "floorplan",
+                                  style: "3d-floorplan",
+                                  budgetTier: "tier2",
+                                  promptText: "3D plantegning genereret af AI",
+                                  isDesignAgent: true,
+                                }),
+                              });
+                              if (!r.ok) {
+                                setSaveCaseId(null);
+                                const msg = await r.text().catch(() => "");
+                                alert(`Kunne ikke gemme til mappen. ${msg}`);
+                                return;
+                              }
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+                            } catch (err) {
+                              setSaveCaseId(null);
+                              alert("Kunne ikke gemme til mappen. Prøv igen.");
+                            }
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
+                          style={{ color: "#1A1A1A" }}
+                          data-testid={`button-floorplan-save-case-${c.id}`}
+                        >
+                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
+                          <span className="truncate">{c.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Transformeringsvideo Flow (fal.ai luma dream machine — før → efter) ──────
+function useUnsavedExitGuard(hasUnsaved: boolean) {
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsaved]);
+}
+
+async function downloadFromUrl(url: string, filename: string) {
+  try {
+    const r = await fetch(url);
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    const objectUrl = URL.createObjectURL(blob);
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [beforeFile, setBeforeFile] = useState<File | null>(null);
+  const [beforePreview, setBeforePreview] = useState<string | null>(null);
+  const [afterFile, setAfterFile] = useState<File | null>(null);
+  const [afterPreview, setAfterPreview] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dragSide, setDragSide] = useState<"before" | "after" | null>(null);
+  const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
+  const [showCaseDropdown, setShowCaseDropdown] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeCases = cases.filter((c) => c.status !== "sold");
+
+  const hasUnsaved = !!videoUrl && saveCaseId === null;
+  useUnsavedExitGuard(hasUnsaved);
+
+  useEffect(() => {
+    if (!showCaseDropdown) return;
+    const onDown = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowCaseDropdown(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showCaseDropdown]);
+
+  const handleFile = (side: "before" | "after", file: File) => {
+    if (!file.type.startsWith("image/")) { setError("Vælg venligst en billedfil"); return; }
+    setError(null);
+    setVideoUrl(null);
+    setSaveCaseId(null);
+    const url = URL.createObjectURL(file);
+    if (side === "before") {
+      setBeforeFile(file);
+      setBeforePreview(url);
+    } else {
+      setAfterFile(file);
+      setAfterPreview(url);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!beforeFile || !afterFile) return;
+    setIsGenerating(true);
+    setError(null);
+    setVideoUrl(null);
+    setSaveCaseId(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("beforeImage", beforeFile);
+      fd.append("afterImage", afterFile);
+      const res = await fetch("/api/bolig/transform-video", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const ctype = res.headers.get("content-type") || "";
+      if (!ctype.includes("application/json")) {
+        throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.request_id) {
+        throw new Error(data.message || "Indsendelse mislykkedes");
+      }
+      const requestId = data.request_id as string;
+      // Poll every 6s for up to ~8 minutes.
+      const maxAttempts = 80;
+      let finalUrl: string | null = null;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((r) => setTimeout(r, 6000));
+        const sres = await fetch(`/api/bolig/transform-video/status/${requestId}`);
+        const sctype = sres.headers.get("content-type") || "";
+        if (!sctype.includes("application/json")) continue;
+        const sdata = await sres.json();
+        if (sdata.status === "COMPLETED" && sdata.video_url) {
+          finalUrl = sdata.video_url;
+          break;
+        }
+        if (sdata.status === "FAILED") {
+          throw new Error(sdata.message || "Generering mislykkedes");
+        }
+      }
+      if (!finalUrl) throw new Error("Generering tog for lang tid. Prøv igen.");
+      setVideoUrl(finalUrl);
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
+    setBeforeFile(null); setBeforePreview(null);
+    setAfterFile(null); setAfterPreview(null);
+    setVideoUrl(null);
+    setSaveCaseId(null);
+    setError(null);
+  };
+
+  const saveToCase = async (c: ApiCase) => {
+    if (!videoUrl) return;
+    setShowCaseDropdown(false);
+    setSaveCaseId(c.id);
+    try {
+      const token = await user?.getIdToken();
+      const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          imageUrl: videoUrl,
+          originalImageUrl: null,
+          roomType: "transform-video",
+          style: "transform-video",
+          budgetTier: "tier2",
+          promptText: "Transformeringsvideo (før → efter)",
+          isDesignAgent: true,
+        }),
+      });
+      if (!r.ok) {
+        setSaveCaseId(null);
+        const msg = await r.text().catch(() => "");
+        alert(`Kunne ikke gemme til mappen. ${msg}`);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+    } catch {
+      setSaveCaseId(null);
+      alert("Kunne ikke gemme til mappen. Prøv igen.");
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!videoUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const ts = new Date().toISOString().slice(0, 10);
+      await downloadFromUrl(videoUrl, `transformeringsvideo-${ts}.mp4`);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const renderDrop = (side: "before" | "after", preview: string | null, label: string) => (
+    <div>
+      <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>{label}</label>
+      {!preview ? (
+        <label
+          onDragOver={(e) => { e.preventDefault(); setDragSide(side); }}
+          onDragLeave={() => setDragSide(null)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragSide(null);
+            const f = e.dataTransfer.files?.[0];
+            if (f) handleFile(side, f);
+          }}
+          className="block cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors"
+          style={{ borderColor: dragSide === side ? "#C8956C" : "#D9D5CF", background: dragSide === side ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
+          data-testid={`dropzone-video-${side}`}
+        >
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(side, f); }}
+            data-testid={`input-video-${side}`}
+          />
+          <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
+          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billede hertil</p>
+          <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG, PNG</p>
+        </label>
+      ) : (
+        <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE]">
+          <img src={preview} alt={label} className="w-full h-56 object-cover" data-testid={`img-video-${side}-preview`} />
+          <button
+            onClick={() => {
+              if (side === "before") { setBeforeFile(null); setBeforePreview(null); }
+              else { setAfterFile(null); setAfterPreview(null); }
+              setVideoUrl(null);
+              setSaveCaseId(null);
+            }}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white"
+            data-testid={`button-clear-video-${side}`}
+          >
+            <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload et før-billede og det færdige efter-billede — AI skaber en cinematisk transformationsvideo mellem de to.</p>
+      </div>
+
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {renderDrop("before", beforePreview, "Før-billede")}
+          {renderDrop("after", afterPreview, "Efter-billede")}
+        </div>
+
+        <button
+          onClick={handleGenerate}
+          disabled={!beforeFile || !afterFile || isGenerating}
+          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+          style={{ background: "#C8956C" }}
+          data-testid="button-generate-video"
+        >
+          {isGenerating ? (
+            <>
+              <RotateCcw className="w-4 h-4 animate-spin" />
+              Genererer video... (1-3 minutter)
+            </>
+          ) : (
+            <>
+              <Video className="w-4 h-4" />
+              Generér transformeringsvideo
+            </>
+          )}
+        </button>
+
+        {error && (
+          <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-video-error">
+            {error}
+          </div>
+        )}
+
+        {videoUrl && (
+          <>
+            <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
+              <video src={videoUrl} controls autoPlay loop className="w-full block bg-black" data-testid="video-result" />
+              <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
+                <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
+                AI-genereret transformeringsvideo
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-50"
+                style={{ background: "#0F1D2F" }}
+                data-testid="button-download-video"
+              >
+                <Download className="w-4 h-4" /> {downloading ? "Henter…" : "Download MP4"}
+              </button>
+
+              {activeCases.length > 0 && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowCaseDropdown((v) => !v)}
+                    className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                    data-testid="button-video-save-case"
+                  >
+                    <Video className="w-4 h-4" />
+                    {saveCaseId ? "Gemt til mappe" : "Gem til mappe"}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {showCaseDropdown && (
+                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
+                      {activeCases.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => saveToCase(c)}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
+                          style={{ color: "#1A1A1A" }}
+                          data-testid={`button-video-save-case-${c.id}`}
+                        >
+                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
+                          <span className="truncate">{c.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={handleReset}
+                className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                data-testid="button-video-reset"
+              >
+                <RotateCcw className="w-4 h-4" /> Prøv igen
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── AI Design Agent Flow ───────────────────────────────────────────────────────
+// ── AI Boligfremvisning (property tours) ─────────────────────────────────────
+interface AiTourProperty {
+  id: number;
+  name: string;
+  floorplanUrl: string;
+  threedPlanUrl: string | null;
+  style: string | null;
+  tier: string | null;
+  status: string;
+  createdAt: string;
+}
+
+interface AiTourRoom {
+  id: number;
+  propertyId: number;
+  name: string;
+  posX: string | number;
+  posY: string | number;
+  width: string | number;
+  height: string | number;
+  color: string;
+  included: boolean;
+  style: string | null;
+  roomPhotoUrl: string | null;
+  roomPhotoUrl2: string | null;
+  afterImageUrl: string | null;
+  afterImageUrl2: string | null;
+  panoramaUrl: string | null;
+  videoUrl: string | null;
+  analysisData: any | null;
+}
+
+// Tier presets surfaced in the picker. Internally maps to the existing Bolig
+// prompt tiers (tier1/tier2/tier3) on the server. "premium" is exposed in the
+// UI but stored as "luxury" so it aligns with BOLIG_STYLE_LABELS.
+const TOUR_TIER_OPTIONS: Array<{ key: "budget" | "standard" | "premium"; label: string; sub: string }> = [
+  { key: "budget",   label: "Budget",   sub: "Hurtigt overblik" },
+  { key: "standard", label: "Standard", sub: "Balanceret stil" },
+  { key: "premium",  label: "Premium",  sub: "Højest detalje" },
+];
+
+const ROOM_COLORS = ["#C8956C", "#7A8F6F", "#6F8FA8", "#A87B6F", "#8B7AA8", "#A89E6F"];
+const ROOM_NAME_SUGGESTIONS = ["Stue", "Køkken", "Soveværelse", "Badeværelse", "Entré", "Spisestue", "Børneværelse", "Kontor"];
+
+function PropertyTourFlow() {
+  const queryClient = useQueryClient();
+  const [mode, setMode] = useState<"list" | "create" | "detail" | "final">("list");
+  const [currentId, setCurrentId] = useState<number | null>(null);
+  const [name, setName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: properties = [], isLoading } = useQuery<AiTourProperty[]>({
+    queryKey: ["/api/ai-boligfremvisning/properties"],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/ai-boligfremvisning/properties", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
+  });
+
+  const resetCreate = () => {
+    setName("");
+    setFile(null);
+    setPreview(null);
+    setError(null);
+  };
+
+  const handleFile = (f: File) => {
+    if (!f.type.startsWith("image/")) { setError("Vælg venligst en billedfil"); return; }
+    setFile(f);
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.readAsDataURL(f);
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim() || !file) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("name", name.trim());
+      fd.append("floorplan", file);
+      const res = await fetch("/api/ai-boligfremvisning/properties", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Kunne ikke oprette projekt");
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties"] });
+      resetCreate();
+      // Jump straight into the new project so the user can start marking
+      // rooms immediately — they shouldn't have to bounce back to the list
+      // and re-click the card they just created.
+      if (data?.id) {
+        setCurrentId(data.id);
+        setMode("detail");
+      } else {
+        setMode("list");
+      }
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Slet dette projekt?")) return;
+    const token = await auth.currentUser?.getIdToken();
+    await fetch(`/api/ai-boligfremvisning/properties/${id}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties"] });
+  };
+
+  if (mode === "detail" && currentId !== null) {
+    return (
+      <PropertyTourDetail
+        propertyId={currentId}
+        onBack={() => { setCurrentId(null); setMode("list"); }}
+        onFinish={() => setMode("final")}
+      />
+    );
+  }
+
+  if (mode === "final" && currentId !== null) {
+    return (
+      <PropertyTourFinal
+        propertyId={currentId}
+        onBack={() => setMode("detail")}
+        onClose={() => { setCurrentId(null); setMode("list"); }}
+      />
+    );
+  }
+
+  if (mode === "create") {
+    return (
+      <div className="max-w-3xl">
+        <div className="mb-8">
+          <button
+            onClick={() => { resetCreate(); setMode("list"); }}
+            className="text-xs font-semibold tracking-wider uppercase mb-3 inline-flex items-center gap-1"
+            style={{ color: "#6B6B6B" }}
+            data-testid="button-back-to-tour-list"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" /> Tilbage
+          </button>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Nyt boligfremvisnings-projekt</h1>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>Giv projektet et navn og upload plantegningen. Næste skridt bliver at markere rummene.</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
+          <div>
+            <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Projektnavn</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="f.eks. Strandvejen 12"
+              className="w-full h-11 px-4 rounded-lg border border-[#E8E4DE] text-sm outline-none focus:border-[#C8956C]"
+              data-testid="input-tour-name"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Plantegning</label>
+            {!preview ? (
+              <label
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFile(f);
+                }}
+                className="block cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors"
+                style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
+                data-testid="dropzone-tour-floorplan"
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                  data-testid="input-tour-floorplan"
+                />
+                <Upload className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
+                <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
+                <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
+              </label>
+            ) : (
+              <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE]">
+                <img src={preview} alt="Plantegning" className="w-full max-h-96 object-contain bg-[#F8F6F3]" data-testid="img-tour-floorplan-preview" />
+                <button
+                  onClick={() => { setFile(null); setPreview(null); }}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white"
+                  data-testid="button-clear-tour-floorplan"
+                >
+                  <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleCreate}
+            disabled={!name.trim() || !file || submitting}
+            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+            style={{ background: "#C8956C" }}
+            data-testid="button-create-tour-project"
+          >
+            {submitting ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Opretter...</>) : (<>Opret projekt</>)}
+          </button>
+
+          {error && (
+            <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-tour-error">
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl">
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-ai-boligfremvisning">AI boligfremvisning</h1>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en plantegning, markér rum, vælg stil, og lad AI generere en komplet visuel boligfremvisning.</p>
+        </div>
+        <button
+          onClick={() => setMode("create")}
+          className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 flex-shrink-0"
+          style={{ background: "#C8956C" }}
+          data-testid="button-new-tour-project"
+        >
+          <Upload className="w-4 h-4" /> Nyt projekt
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-sm" style={{ color: "#6B6B6B" }}>Indlæser projekter...</div>
+      ) : properties.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#D9D5CF] bg-[#F8F6F3] p-12 text-center">
+          <Home className="w-10 h-10 mx-auto mb-3" style={{ color: "#C8956C" }} />
+          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Ingen projekter endnu</p>
+          <p className="text-xs mb-5" style={{ color: "#6B6B6B" }}>Start dit første boligfremvisnings-projekt ved at uploade en plantegning.</p>
+          <button
+            onClick={() => setMode("create")}
+            className="h-10 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2"
+            style={{ background: "#C8956C" }}
+            data-testid="button-empty-new-tour-project"
+          >
+            <Upload className="w-4 h-4" /> Opret projekt
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {properties.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => { setCurrentId(p.id); setMode("detail"); }}
+              className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden flex flex-col cursor-pointer hover:border-[#C8956C] transition-colors"
+              data-testid={`card-tour-project-${p.id}`}
+            >
+              <div className="aspect-[4/3] bg-[#F8F6F3] overflow-hidden">
+                <img src={p.floorplanUrl} alt={p.name} className="w-full h-full object-contain" />
+              </div>
+              <div className="p-4 flex-1 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-semibold truncate" style={{ color: "#0F1D2F" }} data-testid={`text-tour-name-${p.id}`}>{p.name}</h3>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                    className="p-1 rounded hover:bg-[#F8F6F3] flex-shrink-0"
+                    data-testid={`button-delete-tour-${p.id}`}
+                    aria-label="Slet projekt"
+                  >
+                    <X className="w-4 h-4" style={{ color: "#9B9690" }} />
+                  </button>
+                </div>
+                <span
+                  className="inline-flex w-fit text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}
+                  data-testid={`text-tour-status-${p.id}`}
+                >
+                  {p.status === "mapping" ? "Klar til rum-markering" : p.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Detail/mapping view for a single tour project. Lets the user draw rectangles
+// on top of the floor plan to mark rooms, name them, and persist the layout.
+// Coordinates are stored as percentages (0–100) of the floor plan image so they
+// stay correct regardless of how the image is later rendered.
+interface DraftRoom {
+  id: number;        // negative = new (server will assign id on save), positive = DB id
+  name: string;
+  posX: number;
+  posY: number;
+  width: number;
+  height: number;
+  color: string;
+  included: boolean;              // checkbox: include this room in the tour
+  roomPhotoUrl?: string | null;   // before-photo for this room (server-side path)
+  roomPhotoUrl2?: string | null;  // Strategy B — optional 2nd angle for true 360°
+  afterImageUrl?: string | null;  // Collov-generated after-image (CDN URL)
+  afterImageUrl2?: string | null; // Strategy B — after-image for the 2nd angle
+  panoramaUrl?: string | null;    // stitched equirectangular panorama URL
+  generating?: boolean;           // local-only flag while a generate request is in flight
+}
+
+// Global styles offered to the user. Keys match Collov / BOLIG_STYLE_LABELS;
+// labels are the Danish text shown in the picker.
+const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: "scandinavian", label: "Skandinavisk" },
+  { key: "modern",       label: "Moderne" },
+  { key: "luxury",       label: "Luksus" },
+  { key: "classical",    label: "Klassisk" },
+  { key: "coastal",      label: "Kyst" },
+];
+
+function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
+  const queryClient = useQueryClient();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [rooms, setRooms] = useState<DraftRoom[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ startX: number; startY: number; curX: number; curY: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const nextLocalIdRef = useRef(-1);
+  // After mouseup we stash the just-drawn rectangle here and show the room-
+  // type picker. The rectangle is *not* added to `rooms` until the user
+  // chooses a name (or cancels, which discards it).
+  const [pendingRoom, setPendingRoom] = useState<
+    { posX: number; posY: number; width: number; height: number; color: string } | null
+  >(null);
+  const [pendingCustomName, setPendingCustomName] = useState("");
+
+  const { data: property, isLoading } = useQuery<AiTourProperty & { rooms: AiTourRoom[] }>({
+    queryKey: ["/api/ai-boligfremvisning/properties", propertyId],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
+    // Poll while the 3D plan is being generated in the background so the
+    // marking surface auto-swaps to the 3D render the moment it's ready —
+    // user marks rooms on the prettier 3D image instead of the flat 2D.
+    refetchInterval: (q) => (q.state.data?.threedPlanUrl ? false : 4000),
+  });
+
+  const [styleKey, setStyleKey] = useState<string | null>(null);
+  const [tierKey, setTierKey] = useState<"budget" | "standard" | "premium">("standard");
+  const [batchRunning, setBatchRunning] = useState(false);
+  // Tracks whether we've already kicked off the auto 3D-plan generation for
+  // this property in this session (component mount). Prevents double-firing
+  // on React StrictMode remounts and on every refetch.
+  const auto3DRef = useRef<Set<number>>(new Set());
+  const [regenerating3D, setRegenerating3D] = useState(false);
+
+  const handleRegenerate3D = async () => {
+    if (!property || regenerating3D) return;
+    setRegenerating3D(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      await fetch(`/api/ai-boligfremvisning/properties/${property.id}/generate-3d-plan`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+    } catch (e) {
+      console.error("[ai-tour] regenerate 3D plan failed", e);
+    } finally {
+      setRegenerating3D(false);
+    }
+  };
+
+  // Hydrate local draft state from server payload exactly once per load.
+  // (Photo / after-image updates after this point are applied in-place from
+  // each endpoint response so we don't blow away unsaved layout edits.)
+  useEffect(() => {
+    if (!property) return;
+    setRooms(property.rooms.map((r) => ({
+      id: r.id,
+      name: r.name,
+      posX: Number(r.posX),
+      posY: Number(r.posY),
+      width: Number(r.width),
+      height: Number(r.height),
+      color: r.color,
+      included: !!r.included,
+      roomPhotoUrl: r.roomPhotoUrl ?? null,
+      roomPhotoUrl2: (r as any).roomPhotoUrl2 ?? null,
+      afterImageUrl: r.afterImageUrl ?? null,
+      afterImageUrl2: (r as any).afterImageUrl2 ?? null,
+      panoramaUrl: r.panoramaUrl ?? null,
+    })));
+    setStyleKey(property.style ?? null);
+    const t = property.tier === "luxury" ? "premium" : (property.tier as any);
+    if (t === "budget" || t === "standard" || t === "premium") setTierKey(t);
+  }, [property?.id]);
+
+  // Auto-trigger 3D plantegning generation in the background as soon as the
+  // user lands on a project that doesn't yet have one. The user explicitly
+  // asked for "så lidt klikkeri som muligt" — they upload the floor plan and
+  // by the time they're done marking rooms the 3D render is ready in the
+  // final view. Uses the same fal pipeline as the standalone /3d-plantegning
+  // feature; nothing else in that flow is touched.
+  useEffect(() => {
+    if (!property) return;
+    if (property.threedPlanUrl) return;
+    if (auto3DRef.current.has(property.id)) return;
+    auto3DRef.current.add(property.id);
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        await fetch(`/api/ai-boligfremvisning/properties/${property.id}/generate-3d-plan`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+      } catch (e) {
+        console.error("[ai-tour] auto 3D plan failed", e);
+      }
+    })();
+  }, [property?.id, property?.threedPlanUrl, propertyId, queryClient]);
+
+  // Strategy B — auto-trigger floor-plan analysis (GPT-4o-mini vision) in the
+  // background as soon as the user lands. Silent, idempotent, non-blocking.
+  // The result is used by /generate-after and /generate-panorama as APPENDED
+  // architectural context (windows/doors/exterior walls) — the existing
+  // prompts in shared/boligPrompts.ts stay completely untouched.
+  const autoAnalyzeRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!property) return;
+    if ((property as any).floorplanAnalysis) return;
+    if (autoAnalyzeRef.current.has(property.id)) return;
+    autoAnalyzeRef.current.add(property.id);
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        await fetch(`/api/ai-boligfremvisning/properties/${property.id}/analyze-floorplan`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+      } catch (e) {
+        // Non-fatal — we fall back to coordinate heuristics only.
+        console.warn("[ai-tour] auto analyze-floorplan failed", e);
+      }
+    })();
+  }, [property?.id, (property as any)?.floorplanAnalysis, propertyId, queryClient]);
+
+  const authHeader = async () => {
+    const token = await auth.currentUser?.getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const patchProperty = async (body: Record<string, any>) => {
+    try {
+      const headers = await authHeader();
+      await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleStyleChange = (key: string) => { setStyleKey(key); patchProperty({ style: key }); };
+  const handleTierChange = (key: "budget" | "standard" | "premium") => { setTierKey(key); patchProperty({ tier: key }); };
+
+  // Batch-generate after-images for every included room that has a before-photo
+  // and doesn't yet have an after-image. Calls the existing per-room
+  // /generate-after endpoint in parallel — each request handles its own
+  // Collov polling server-side, so we just await Promise.allSettled here.
+  const handleBatchGenerate = async () => {
+    if (!styleKey) { alert("Vælg en stil først."); return; }
+    const targets = rooms.filter((r) => r.id > 0 && r.included && r.roomPhotoUrl && !r.afterImageUrl);
+    if (targets.length === 0) { alert("Ingen rum klar til generering. Vælg rum og upload billeder først."); return; }
+    setBatchRunning(true);
+    setRooms((rs) => rs.map((r) => (targets.some((t) => t.id === r.id) ? { ...r, generating: true } : r)));
+    try {
+      const headers = await authHeader();
+      await Promise.allSettled(targets.map(async (room) => {
+        try {
+          const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${room.id}/generate-after`, {
+            method: "POST",
+            headers,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+          setRooms((rs) => rs.map((r) => (r.id === room.id ? { ...r, afterImageUrl: data.afterImageUrl, generating: false } : r)));
+        } catch (e: any) {
+          console.error(`[ai-tour] batch generate failed for room ${room.id}`, e);
+          setRooms((rs) => rs.map((r) => (r.id === room.id ? { ...r, generating: false } : r)));
+        }
+      }));
+    } finally {
+      setBatchRunning(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+    }
+  };
+
+  const handlePhotoUpload = async (roomId: number, file: File, angle: 1 | 2 = 1) => {
+    if (roomId < 0) {
+      alert("Gem rummene først, før du uploader billeder.");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("photo", file);
+    try {
+      const headers = await authHeader();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/photo?angle=${angle}`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updated = await res.json();
+      setRooms((rs) => rs.map((r) => (r.id === roomId
+        ? { ...r, roomPhotoUrl: updated.roomPhotoUrl ?? r.roomPhotoUrl, roomPhotoUrl2: updated.roomPhotoUrl2 ?? r.roomPhotoUrl2 }
+        : r)));
+    } catch (err) {
+      console.error(err);
+      alert("Kunne ikke uploade billede");
+    }
+  };
+
+  const handleGenerate = async (roomId: number) => {
+    if (roomId < 0) { alert("Gem rummene først."); return; }
+    if (!styleKey) { alert("Vælg en stil først."); return; }
+    setRooms((rs) => rs.map((r) => (r.id === roomId ? { ...r, generating: true } : r)));
+    try {
+      const headers = await authHeader();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/generate-after`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || `HTTP ${res.status}`);
+      }
+      const updated = await res.json();
+      setRooms((rs) => rs.map((r) => (r.id === roomId ? { ...r, afterImageUrl: updated.afterImageUrl, generating: false } : r)));
+    } catch (err: any) {
+      console.error(err);
+      alert("Generering fejlede: " + (err.message || ""));
+      setRooms((rs) => rs.map((r) => (r.id === roomId ? { ...r, generating: false } : r)));
+    }
+  };
+
+  const getPct = (clientX: number, clientY: number) => {
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("[data-room-rect]")) return; // clicking an existing room — don't start drawing
+    const { x, y } = getPct(e.clientX, e.clientY);
+    setDrag({ startX: x, startY: y, curX: x, curY: y });
+    setSelectedId(null);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!drag) return;
+    const { x, y } = getPct(e.clientX, e.clientY);
+    setDrag({ ...drag, curX: x, curY: y });
+  };
+
+  const handleMouseUp = () => {
+    if (!drag) return;
+    const x = Math.min(drag.startX, drag.curX);
+    const y = Math.min(drag.startY, drag.curY);
+    const w = Math.abs(drag.curX - drag.startX);
+    const h = Math.abs(drag.curY - drag.startY);
+    setDrag(null);
+    if (w < 2 || h < 2) return; // ignore stray clicks
+    // Don't commit a room yet — first show the room-type picker so the user
+    // chooses which rum det er (i stedet for at vi auto-vælger "Stue").
+    const idx = rooms.length;
+    setPendingRoom({
+      posX: x,
+      posY: y,
+      width: w,
+      height: h,
+      color: ROOM_COLORS[idx % ROOM_COLORS.length],
+    });
+  };
+
+  // Commit a pending rectangle into the rooms list under the chosen name.
+  // Called from the room-type picker popover.
+  const commitPendingRoom = (name: string) => {
+    if (!pendingRoom) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const localId = nextLocalIdRef.current--;
+    const newRoom: DraftRoom = {
+      id: localId,
+      name: trimmed,
+      posX: pendingRoom.posX,
+      posY: pendingRoom.posY,
+      width: pendingRoom.width,
+      height: pendingRoom.height,
+      color: pendingRoom.color,
+      // New rooms default to included so the user doesn't have to tick a
+      // checkbox immediately after drawing each one — explicit opt-out is
+      // cheaper than explicit opt-in here.
+      included: true,
+    };
+    // Build the next rooms list explicitly so we can pass it straight to
+    // handleSave — relying on setRooms + setTimeout caused a stale-closure
+    // bug where the save POSTed the OLD rooms list and the server returned
+    // {rooms:[]}, wiping the new room from local state.
+    const nextRooms = [...rooms, newRoom];
+    setRooms(nextRooms);
+    setSelectedId(localId);
+    setPendingRoom(null);
+    setSaved(false);
+    // Auto-persist with the explicit snapshot so the user doesn't have to
+    // click "Gem rum" before uploading a photo for the new room.
+    void handleSave(nextRooms);
+  };
+
+  const updateRoom = (id: number, patch: Partial<DraftRoom>) => {
+    setRooms((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setSaved(false);
+  };
+
+  const removeRoom = (id: number) => {
+    setRooms((rs) => rs.filter((r) => r.id !== id));
+    if (selectedId === id) setSelectedId(null);
+    setSaved(false);
+  };
+
+  const handleSave = async (snapshot?: DraftRoom[]) => {
+    setSaving(true);
+    try {
+      const source = snapshot ?? rooms;
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          rooms: source.map((r) => ({
+            // Send positive ids so the server preserves photo/after-image; new
+            // rooms (negative local id) are omitted so the server inserts them.
+            ...(r.id > 0 ? { id: r.id } : {}),
+            name: r.name,
+            posX: r.posX,
+            posY: r.posY,
+            width: r.width,
+            height: r.height,
+            color: r.color,
+            included: r.included,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error("Kunne ikke gemme");
+      const body = await res.json();
+      // Re-key local state from server response so newly-inserted rooms pick
+      // up their real DB ids (needed before they can accept photo uploads).
+      if (Array.isArray(body.rooms)) {
+        setRooms(body.rooms.map((r: AiTourRoom) => ({
+          id: r.id,
+          name: r.name,
+          posX: Number(r.posX),
+          posY: Number(r.posY),
+          width: Number(r.width),
+          height: Number(r.height),
+          color: r.color,
+          included: !!r.included,
+          roomPhotoUrl: r.roomPhotoUrl ?? null,
+          roomPhotoUrl2: (r as any).roomPhotoUrl2 ?? null,
+          afterImageUrl: r.afterImageUrl ?? null,
+          afterImageUrl2: (r as any).afterImageUrl2 ?? null,
+          panoramaUrl: r.panoramaUrl ?? null,
+        })));
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+      setSaved(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const drawPreview = drag
+    ? {
+        x: Math.min(drag.startX, drag.curX),
+        y: Math.min(drag.startY, drag.curY),
+        w: Math.abs(drag.curX - drag.startX),
+        h: Math.abs(drag.curY - drag.startY),
+      }
+    : null;
+
+  return (
+    <div className="max-w-6xl">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <button
+            onClick={onBack}
+            className="text-xs font-semibold tracking-wider uppercase mb-3 inline-flex items-center gap-1"
+            style={{ color: "#6B6B6B" }}
+            data-testid="button-back-to-tour-list-from-detail"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" /> Tilbage til projekter
+          </button>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-tour-detail">
+            {property?.name || "Indlæser..."}
+          </h1>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>Træk på plantegningen for at markere rum. Klik et rum for at omdøbe det.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="h-11 px-5 rounded-full font-semibold text-sm inline-flex items-center gap-2 disabled:opacity-50 border"
+            style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
+            data-testid="button-save-tour-rooms"
+          >
+            {saving ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Gemmer...</>) : saved ? (<>Gemt</>) : (<>Gem rum ({rooms.length})</>)}
+          </button>
+          {/* "Færdig" advances to the final view (3D plan + 360° rooms). Only
+              meaningful once at least one room has an after-image — otherwise
+              there's nothing to show in the rundvisning yet. */}
+          {/* Færdig: only meaningful once every *included* room has an after-
+              image, so the rundvisning has something to show in each hotspot. */}
+          <button
+            onClick={onFinish}
+            disabled={(() => {
+              const included = rooms.filter((r) => r.included);
+              return included.length === 0 || included.some((r) => !r.afterImageUrl);
+            })()}
+            className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-40"
+            style={{ background: "#0F1D2F" }}
+            data-testid="button-tour-finish"
+          >
+            Færdig — vis 3D rundvisning <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {isLoading || !property ? (
+        <div className="text-sm" style={{ color: "#6B6B6B" }}>Indlæser plantegning...</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3] select-none">
+              <img
+                src={property.floorplanUrl}
+                alt={property.name}
+                className="w-full block pointer-events-none"
+                draggable={false}
+                data-testid="img-tour-floorplan-detail"
+              />
+              <div
+                ref={overlayRef}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={() => setDrag(null)}
+                className="absolute inset-0 cursor-crosshair"
+                data-testid="overlay-tour-rooms"
+              >
+                {rooms.map((r) => {
+                  const isSelected = r.id === selectedId;
+                  return (
+                    <div
+                      key={r.id}
+                      data-room-rect
+                      data-testid={`rect-tour-room-${r.id}`}
+                      onMouseDown={(e) => { e.stopPropagation(); setSelectedId(r.id); }}
+                      style={{
+                        position: "absolute",
+                        left: `${r.posX}%`,
+                        top: `${r.posY}%`,
+                        width: `${r.width}%`,
+                        height: `${r.height}%`,
+                        background: `${r.color}33`,
+                        border: `2px solid ${r.color}`,
+                        boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 4px ${r.color}` : undefined,
+                        cursor: "pointer",
+                      }}
+                      className="flex items-center justify-center"
+                    >
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded"
+                        style={{ background: r.color, color: "white" }}
+                      >
+                        {r.name}
+                      </span>
+                    </div>
+                  );
+                })}
+                {drawPreview && drawPreview.w > 0 && drawPreview.h > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: `${drawPreview.x}%`,
+                      top: `${drawPreview.y}%`,
+                      width: `${drawPreview.w}%`,
+                      height: `${drawPreview.h}%`,
+                      background: "rgba(200,149,108,0.2)",
+                      border: "2px dashed #C8956C",
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
+
+                {/* Just-drawn-but-not-yet-named rectangle stays dashed until
+                    the user picks a navn. The picker itself is rendered as a
+                    centered modal (see below) so it never gets clipped by the
+                    floor-plan container's overflow-hidden rounding. */}
+                {pendingRoom && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: `${pendingRoom.posX}%`,
+                      top: `${pendingRoom.posY}%`,
+                      width: `${pendingRoom.width}%`,
+                      height: `${pendingRoom.height}%`,
+                      background: `${pendingRoom.color}33`,
+                      border: `2px dashed ${pendingRoom.color}`,
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+            <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>
+              Tip: Træk for at tegne et rektangel rundt om et rum. Brug rumlisten til højre for at omdøbe eller slette.
+            </p>
+          </div>
+
+          <div>
+            {/* 3D plantegning status pill — auto-generated in the background as
+                soon as the user opens the project. */}
+            <div
+              className="mb-4 p-3 rounded-xl border text-xs flex items-center gap-2"
+              style={{
+                background: property.threedPlanUrl ? "#F0F5EE" : "#FFF7ED",
+                borderColor: property.threedPlanUrl ? "#A8C4A2" : "#FBD38D",
+                color: "#0F1D2F",
+              }}
+              data-testid="status-3d-plan"
+            >
+              {property.threedPlanUrl ? (
+                <><Check className="w-3.5 h-3.5" /> 3D plantegning klar</>
+              ) : (
+                <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> 3D plantegning genereres i baggrunden…</>
+              )}
+            </div>
+
+            {property.threedPlanUrl && (
+              <button
+                onClick={handleRegenerate3D}
+                disabled={regenerating3D}
+                className="w-full mb-4 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: "white", color: "#0F1D2F", borderColor: "#E8E4DE" }}
+                data-testid="button-regenerate-3d-plan"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${regenerating3D ? "animate-spin" : ""}`} />
+                {regenerating3D ? "Genererer ny 3D plan…" : "Regenerér 3D plan"}
+              </button>
+            )}
+
+            {/* Global style picker — applies to every room when generating after-images */}
+            <h3 className="text-xs font-semibold tracking-wider uppercase mb-2" style={{ color: "#0F1D2F" }}>Stil til hele boligen</h3>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {TOUR_STYLE_OPTIONS.map((opt) => {
+                const active = styleKey === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => handleStyleChange(opt.key)}
+                    className="h-10 rounded-lg text-xs font-semibold border transition-colors"
+                    style={{
+                      background: active ? "#C8956C" : "white",
+                      color: active ? "white" : "#0F1D2F",
+                      borderColor: active ? "#C8956C" : "#E8E4DE",
+                    }}
+                    data-testid={`button-tour-style-${opt.key}`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Kvalitets-/budget-vælger. Maps internt til Bolig-prompt tier1/2/3. */}
+            <h3 className="text-xs font-semibold tracking-wider uppercase mb-2" style={{ color: "#0F1D2F" }}>Kvalitet</h3>
+            <div className="grid grid-cols-3 gap-2 mb-5">
+              {TOUR_TIER_OPTIONS.map((opt) => {
+                const active = tierKey === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => handleTierChange(opt.key)}
+                    className="h-14 rounded-lg text-[11px] font-semibold border transition-colors flex flex-col items-center justify-center leading-tight px-1"
+                    style={{
+                      background: active ? "#0F1D2F" : "white",
+                      color: active ? "white" : "#0F1D2F",
+                      borderColor: active ? "#0F1D2F" : "#E8E4DE",
+                    }}
+                    data-testid={`button-tour-tier-${opt.key}`}
+                  >
+                    <span>{opt.label}</span>
+                    <span className="text-[9px] font-normal opacity-75 mt-0.5">{opt.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Batch generate — primary action so the user doesn't need to
+                click Generér on every single room individually. */}
+            {(() => {
+              const included = rooms.filter((r) => r.included);
+              const ready = included.filter((r) => r.id > 0 && r.roomPhotoUrl && !r.afterImageUrl);
+              const totalIncluded = included.length;
+              const withAfter = included.filter((r) => r.afterImageUrl).length;
+              const allDone = totalIncluded > 0 && withAfter === totalIncluded;
+              return (
+                <div className="mb-5">
+                  <button
+                    onClick={handleBatchGenerate}
+                    disabled={batchRunning || !styleKey || ready.length === 0}
+                    className="w-full h-11 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-40"
+                    style={{ background: "#C8956C" }}
+                    data-testid="button-tour-batch-generate"
+                  >
+                    {batchRunning ? (
+                      <><RotateCcw className="w-4 h-4 animate-spin" /> Genererer {ready.length} rum…</>
+                    ) : allDone ? (
+                      <>Alle valgte rum klar ({withAfter}/{totalIncluded})</>
+                    ) : (
+                      <><Sparkles className="w-4 h-4" /> Generér alle valgte rum ({ready.length})</>
+                    )}
+                  </button>
+                  {totalIncluded > 0 && (
+                    <p className="text-[11px] mt-2 text-center" style={{ color: "#6B6B6B" }}>
+                      {withAfter} af {totalIncluded} valgte rum har efter-billede
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
+            <h3 className="text-xs font-semibold tracking-wider uppercase mb-3" style={{ color: "#0F1D2F" }}>Rum ({rooms.length})</h3>
+            {rooms.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#D9D5CF] bg-[#F8F6F3] p-6 text-center text-xs" style={{ color: "#6B6B6B" }}>
+                Ingen rum markeret endnu. Træk på plantegningen for at starte.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {rooms.map((r) => {
+                  const isSelected = r.id === selectedId;
+                  const isPersisted = r.id > 0;
+                  const canGenerate = isPersisted && !!r.roomPhotoUrl && !!styleKey && !r.generating;
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => setSelectedId(r.id)}
+                      className="rounded-xl border bg-white p-3 cursor-pointer"
+                      style={{ borderColor: isSelected ? r.color : "#E8E4DE" }}
+                      data-testid={`row-tour-room-${r.id}`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {/* Include-in-tour checkbox. Hides upload + generate UI
+                            below when unchecked so the user only sees the rum
+                            de faktisk vil bruge. */}
+                        <input
+                          type="checkbox"
+                          checked={r.included}
+                          onChange={(e) => { e.stopPropagation(); updateRoom(r.id, { included: e.target.checked }); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 accent-[#C8956C] flex-shrink-0"
+                          aria-label="Inkludér rum i rundvisning"
+                          data-testid={`checkbox-tour-include-${r.id}`}
+                        />
+                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: r.color }} />
+                        <input
+                          type="text"
+                          value={r.name}
+                          onChange={(e) => updateRoom(r.id, { name: e.target.value })}
+                          className="flex-1 text-sm font-medium outline-none bg-transparent min-w-0"
+                          style={{ color: r.included ? "#0F1D2F" : "#9B9690" }}
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`input-tour-room-name-${r.id}`}
+                        />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
+                          className="p-1 rounded hover:bg-[#F8F6F3] flex-shrink-0"
+                          data-testid={`button-delete-tour-room-${r.id}`}
+                          aria-label="Slet rum"
+                        >
+                          <X className="w-3.5 h-3.5" style={{ color: "#9B9690" }} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1 mb-3">
+                        {ROOM_COLORS.map((c) => (
+                          <button
+                            key={c}
+                            onClick={(e) => { e.stopPropagation(); updateRoom(r.id, { color: c }); }}
+                            className="w-5 h-5 rounded-full border-2"
+                            style={{ background: c, borderColor: r.color === c ? "#0F1D2F" : "transparent" }}
+                            aria-label={`Farve ${c}`}
+                            data-testid={`button-tour-room-color-${r.id}-${c.slice(1)}`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Before-photo upload + after-image preview. Only shown
+                          for included rooms — others stay collapsed so the
+                          sidebar reflects "kun ☑️ rum viser upload-zone". */}
+                      {!r.included ? (
+                        <p className="text-[10px]" style={{ color: "#9B9690" }}>Sæt kryds for at inkludere og uploade billede.</p>
+                      ) : (
+                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                        {/* Strategy B — 2 angle slots. Vinkel 1 is required;
+                            Vinkel 2 unlocks a real stitched 360° panorama. */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {[1, 2].map((angle) => {
+                            const url = angle === 1 ? r.roomPhotoUrl : r.roomPhotoUrl2;
+                            const label = angle === 1 ? "Vinkel 1" : "Vinkel 2 (360°)";
+                            return (
+                              <div key={angle}>
+                                <div className="text-[10px] font-semibold tracking-wider uppercase mb-1" style={{ color: angle === 2 ? "#C8956C" : "#6B6B6B" }}>
+                                  {label}
+                                </div>
+                                {url ? (
+                                  <img src={url} alt={label} className="w-full h-20 object-cover rounded-md border border-[#E8E4DE]" data-testid={`img-tour-before-${angle}-${r.id}`} />
+                                ) : (
+                                  <label
+                                    className={`flex items-center justify-center h-20 rounded-md border border-dashed text-[11px] ${isPersisted ? "cursor-pointer hover:bg-[#F8F6F3]" : "opacity-40 cursor-not-allowed"}`}
+                                    style={{ borderColor: angle === 2 ? "#E8C9A8" : "#D9D5CF", color: "#6B6B6B" }}
+                                  >
+                                    <Upload className="w-3.5 h-3.5 mr-1" /> {angle === 2 ? "Valgfri" : "Upload"}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      disabled={!isPersisted}
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
+                                      data-testid={`input-tour-before-${angle}-${r.id}`}
+                                    />
+                                  </label>
+                                )}
+                                {url && (
+                                  <label className="text-[10px] mt-1 inline-block cursor-pointer underline" style={{ color: "#6B6B6B" }}>
+                                    Skift
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] italic" style={{ color: "#9B9690" }}>
+                          Tip: Tag vinkel 2 fra den modsatte ende af rummet for et ægte 360° resultat.
+                        </p>
+                        <div>
+                          <div className="text-[10px] font-semibold tracking-wider uppercase mb-1" style={{ color: "#6B6B6B" }}>Efter</div>
+                          {r.afterImageUrl ? (
+                            <img src={r.afterImageUrl} alt="Efter" className="w-full h-20 object-cover rounded-md border border-[#E8E4DE]" data-testid={`img-tour-after-${r.id}`} />
+                          ) : (
+                            <div className="flex items-center justify-center h-20 rounded-md border border-dashed text-[11px]" style={{ borderColor: "#D9D5CF", color: "#9B9690" }}>
+                              {r.generating ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : "—"}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleGenerate(r.id)}
+                            disabled={!canGenerate}
+                            className="w-full mt-1 h-7 rounded-md text-[11px] font-semibold text-white disabled:opacity-40"
+                            style={{ background: "#0F1D2F" }}
+                            data-testid={`button-tour-generate-${r.id}`}
+                          >
+                            {r.generating ? "Genererer..." : r.afterImageUrl ? "Generér igen" : "Generér"}
+                          </button>
+                        </div>
+                      </div>
+                      )}
+
+                      {r.included && !isPersisted && (
+                        <p className="text-[10px] mt-2" style={{ color: "#9B9690" }}>Gem rummet for at uploade billede.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Centered modal picker for the just-drawn rum. Rendered at the root
+          of PropertyTourDetail (outside the floor-plan's overflow-hidden box)
+          so it can never get clipped, regardless of where on the plan the
+          rectangle was drawn — fixed the issue hvor pickeren gik ud over
+          rammen. */}
+      {pendingRoom && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(15,29,47,0.45)" }}
+          onClick={() => { setPendingRoom(null); setPendingCustomName(""); }}
+          data-testid="modal-pending-room"
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white border shadow-2xl p-5"
+            style={{ borderColor: "#E8E4DE" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Hvilket rum er det?</div>
+            <p className="text-xs mb-4" style={{ color: "#6B6B6B" }}>Vælg et forslag eller skriv dit eget navn.</p>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {ROOM_NAME_SUGGESTIONS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => commitPendingRoom(n)}
+                  className="h-10 rounded-lg text-sm font-medium border hover:bg-[#F8F6F3] transition-colors"
+                  style={{ borderColor: "#E8E4DE", color: "#0F1D2F" }}
+                  data-testid={`button-pick-room-${n.toLowerCase()}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={pendingCustomName}
+                onChange={(e) => setPendingCustomName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pendingCustomName.trim()) {
+                    commitPendingRoom(pendingCustomName);
+                    setPendingCustomName("");
+                  }
+                }}
+                autoFocus
+                placeholder="Andet navn…"
+                className="flex-1 h-10 px-3 rounded-lg border text-sm outline-none"
+                style={{ borderColor: "#E8E4DE", color: "#0F1D2F" }}
+                data-testid="input-pending-room-custom"
+              />
+              <button
+                onClick={() => { if (pendingCustomName.trim()) { commitPendingRoom(pendingCustomName); setPendingCustomName(""); } }}
+                disabled={!pendingCustomName.trim()}
+                className="h-10 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-40"
+                style={{ background: "#C8956C" }}
+                data-testid="button-pending-room-add"
+              >
+                Tilføj
+              </button>
+            </div>
+            <button
+              onClick={() => { setPendingRoom(null); setPendingCustomName(""); }}
+              className="mt-4 w-full h-9 text-xs font-medium rounded-lg hover:bg-[#F8F6F3]"
+              style={{ color: "#6B6B6B" }}
+              data-testid="button-pending-room-cancel"
+            >
+              Annuller
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// PropertyTourFinal — "AI boligfremvisning" final view.
+//   - Shows the auto-generated 3D dollhouse render of the floor plan with
+//     clickable hotspots overlaid using each room's saved bounding rectangle
+//     (from the 2D plan — coordinates are stored as % so they line up on the
+//     3D image with acceptable accuracy).
+//   - Only rooms with `included=true` AND an after-image become hotspots.
+//   - Clicking a hotspot opens a fullscreen viewer that zooms into the
+//     after-image with a slow Ken Burns animation + mouse-driven parallax —
+//     gives a 3D feel without the cost / complexity of a real 360° panorama.
+// ============================================================================
+function PropertyTourFinal({
+  propertyId,
+  onBack,
+  onClose,
+}: {
+  propertyId: number;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [generating3D, setGenerating3D] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [viewerRoomId, setViewerRoomId] = useState<number | null>(null);
+
+  const { data: property } = useQuery<AiTourProperty & { rooms: AiTourRoom[] }>({
+    queryKey: ["/api/ai-boligfremvisning/properties", propertyId],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
+    // Poll while the 3D plan is being generated in the background so the user
+    // doesn't have to refresh manually.
+    refetchInterval: (q) => (q.state.data?.threedPlanUrl ? false : 5000),
+  });
+
+  const rooms: AiTourRoom[] = property?.rooms ?? [];
+  const tourRooms = rooms.filter((r) => r.included && r.afterImageUrl);
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+
+  // Manual re-trigger in case the auto-generation from the detail view failed
+  // (e.g. user closed the tab before it finished). Same endpoint either way.
+  const generate3D = async () => {
+    setGenerating3D(true);
+    setError(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/generate-3d-plan`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Kunne ikke generere 3D plan");
+      invalidate();
+    } catch (e: any) {
+      setError(e.message || "Fejl ved 3D generering");
+    } finally {
+      setGenerating3D(false);
+    }
+  };
+
+  const viewerRoom = tourRooms.find((r) => r.id === viewerRoomId) || null;
+
+  // Strategy B — auto-generate stitched 360° panoramas for rooms that have
+  // both after-images. Runs in the background once per session per room so the
+  // panorama is ready by the time the user clicks the hotspot. Single-angle
+  // rooms simply fall back to the Ken Burns viewer; no panorama is forced.
+  const autoPanoRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    tourRooms.forEach((r) => {
+      if (r.panoramaUrl) return;
+      // Auto-fire as soon as we have AT LEAST the first after-image. The
+      // server-side panorama pipeline now tops up to 4 anchors via synthetic
+      // Collov rotations when the user only uploaded 1 vinkel, so we no
+      // longer need to wait for vinkel 2 before kicking off generation.
+      if (!r.afterImageUrl) return;
+      if (autoPanoRef.current.has(r.id)) return;
+      autoPanoRef.current.add(r.id);
+      (async () => {
+        try {
+          const token = await auth.currentUser?.getIdToken();
+          await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${r.id}/generate-panorama`, {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          invalidate();
+        } catch (e) {
+          console.warn("[ai-tour] auto panorama failed", e);
+        }
+      })();
+    });
+  }, [tourRooms.map((r) => `${r.id}:${r.panoramaUrl ? 1 : 0}:${r.afterImageUrl ? 1 : 0}`).join(",")]);
+
+  return (
+    <div className="max-w-6xl">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-sm font-medium"
+          style={{ color: "#6B6B6B" }}
+          data-testid="button-tour-final-back"
+        >
+          <ArrowLeft className="w-4 h-4" /> Tilbage til rum
+        </button>
+        <button
+          onClick={onClose}
+          className="inline-flex items-center gap-2 text-sm font-medium"
+          style={{ color: "#6B6B6B" }}
+          data-testid="button-tour-final-close"
+        >
+          Til projektliste
+        </button>
+      </div>
+
+      <h1 className="text-3xl font-bold mb-2" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
+        {property?.name || "Indlæser..."} — 3D rundvisning
+      </h1>
+      <p className="text-sm mb-8" style={{ color: "#6B6B6B" }}>
+        Klik på et rum i 3D plantegningen for at zoome ind på det færdige design.
+      </p>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: "#FEF2F2", color: "#B91C1C" }}>
+          {error}
+        </div>
+      )}
+
+      {/* 3D plantegning med interaktive hotspots */}
+      <section className="mb-10">
+        <div
+          className="relative rounded-2xl overflow-hidden border bg-white"
+          style={{ borderColor: "#E5E5E5", aspectRatio: "16/9" }}
+        >
+          {property?.threedPlanUrl ? (
+            <>
+              <img
+                src={property.threedPlanUrl}
+                alt="3D plantegning"
+                className="w-full h-full object-contain"
+                data-testid="img-tour-3d-plan"
+              />
+              {/* Hotspots overlaid using the original 2D plan room rectangles.
+                  The 3D render preserves the floor plan geometry (nano-banana
+                  edit pipeline), so the % coords stay roughly correct. */}
+              <div className="absolute inset-0">
+                {tourRooms.map((r) => {
+                  const cx = Number(r.posX) + Number(r.width) / 2;
+                  const cy = Number(r.posY) + Number(r.height) / 2;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => setViewerRoomId(r.id)}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 group"
+                      style={{ left: `${cx}%`, top: `${cy}%` }}
+                      data-testid={`hotspot-tour-room-${r.id}`}
+                      aria-label={`Vis ${r.name}`}
+                    >
+                      <span
+                        className="relative flex items-center justify-center w-10 h-10 rounded-full shadow-lg ring-2 ring-white transition-transform group-hover:scale-110"
+                        style={{ background: r.color }}
+                      >
+                        <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: r.color }} />
+                        <ChevronRight className="w-4 h-4 text-white relative" />
+                      </span>
+                      <span
+                        className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap shadow"
+                        style={{ background: "white", color: "#0F1D2F" }}
+                      >
+                        {r.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8 text-center">
+              <RotateCcw className="w-6 h-6 animate-spin" style={{ color: "#C8956C" }} />
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>
+                3D plantegningen genereres… (ca. 30–60 sekunder)
+              </p>
+              <button
+                onClick={generate3D}
+                disabled={generating3D}
+                className="h-9 px-4 rounded-full font-semibold text-xs inline-flex items-center gap-2 disabled:opacity-50 border"
+                style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
+                data-testid="button-generate-3d-plan"
+              >
+                {generating3D ? "Genererer..." : "Prøv igen"}
+              </button>
+            </div>
+          )}
+        </div>
+        {tourRooms.length === 0 && property?.threedPlanUrl && (
+          <p className="mt-3 text-xs text-center" style={{ color: "#9B9690" }}>
+            Ingen rum med efter-billede endnu — gå tilbage og generér rummene.
+          </p>
+        )}
+      </section>
+
+      <AnimatePresence>
+        {viewerRoom && (
+          <motion.div
+            key={viewerRoom.id}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-50"
+            data-testid="tour-viewer-transition"
+          >
+            {viewerRoom.panoramaUrl ? (
+              <Panorama360Viewer
+                panoramaUrl={viewerRoom.panoramaUrl}
+                title={viewerRoom.name}
+                anchors={(viewerRoom as any).panoramaAnchors as { real?: number; synthetic?: number } | null | undefined}
+                onClose={() => setViewerRoomId(null)}
+              />
+            ) : (
+              <ParallaxKenBurnsViewer
+                imageUrl={viewerRoom.afterImageUrl!}
+                title={viewerRoom.name}
+                onClose={() => setViewerRoomId(null)}
+              />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Pannellum-powered true 360° equirectangular viewer. Loaded lazily from CDN
+// the first time a panorama is opened to avoid bundling cost — most sags
+// won't have a panorama at all (Strategy B requires 2-angle uploads). Falls
+// back to the Ken Burns viewer when Pannellum fails to load.
+const PANNELLUM_CSS = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css";
+const PANNELLUM_JS = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js";
+
+function loadPannellum(): Promise<any> {
+  if (typeof window === "undefined") return Promise.reject(new Error("SSR"));
+  const w = window as any;
+  if (w.pannellum) return Promise.resolve(w.pannellum);
+  if (w.__pannellumPromise) return w.__pannellumPromise;
+  w.__pannellumPromise = new Promise((resolve, reject) => {
+    if (!document.querySelector(`link[href="${PANNELLUM_CSS}"]`)) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = PANNELLUM_CSS;
+      document.head.appendChild(link);
+    }
+    const script = document.createElement("script");
+    script.src = PANNELLUM_JS;
+    script.async = true;
+    script.onload = () => resolve(w.pannellum);
+    script.onerror = () => reject(new Error("Pannellum failed to load"));
+    document.head.appendChild(script);
+  });
+  return w.__pannellumPromise;
+}
+
+function Panorama360Viewer({ panoramaUrl, title, anchors, onClose }: { panoramaUrl: string; title: string; anchors?: { real?: number; synthetic?: number } | null; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadPannellum()
+      .then((pannellum) => {
+        if (cancelled || !containerRef.current) return;
+        viewerRef.current = pannellum.viewer(containerRef.current, {
+          type: "equirectangular",
+          panorama: panoramaUrl,
+          autoLoad: true,
+          autoRotate: -2,
+          showZoomCtrl: true,
+          showFullscreenCtrl: true,
+          compass: false,
+          hfov: 100,
+        });
+      })
+      .catch((e) => setError(e.message));
+    return () => {
+      cancelled = true;
+      try { viewerRef.current?.destroy?.(); } catch {}
+    };
+  }, [panoramaUrl]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#000" }} data-testid="modal-panorama-viewer">
+      <div className="flex items-center justify-between px-6 py-4 gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <h3 className="text-white font-semibold truncate" data-testid="text-panorama-title">{title} — 360°</h3>
+          {anchors && typeof anchors.real === "number" && (
+            <span
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide"
+              style={{ background: "rgba(200, 149, 108, 0.18)", color: "#E8C9A8", border: "1px solid rgba(200, 149, 108, 0.4)" }}
+              data-testid="badge-panorama-quality"
+              title={`${anchors.real} reel${(anchors.real ?? 0) === 1 ? "" : "le"} vinkel${(anchors.real ?? 0) === 1 ? "" : "er"}${anchors.synthetic ? ` + ${anchors.synthetic} AI-genereret${anchors.synthetic === 1 ? "" : "e"} mellemvinkler` : ""}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#C8956C" }} />
+              Premium 360°
+              <span className="text-white/60 font-normal">
+                · {anchors.real} reel{(anchors.real ?? 0) === 1 ? "" : "le"}{anchors.synthetic ? ` + ${anchors.synthetic} AI` : ""}
+              </span>
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="text-white/80 hover:text-white text-sm font-medium px-4 py-1.5 rounded-full border border-white/30 shrink-0"
+          data-testid="button-close-panorama"
+        >
+          Luk
+        </button>
+      </div>
+      <div ref={containerRef} className="flex-1 w-full" />
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center text-white p-8 text-center">
+          <p>Kunne ikke indlæse 360° visning: {error}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Fullscreen "zoom + Ken Burns + mouse parallax" viewer. Replaces the previous
+// Pannellum 360° flow per the project spec — the user explicitly didn't want
+// a real panorama. The image starts slightly zoomed in and slowly drifts
+// (Ken Burns); the mouse position adds a small parallax offset so the still
+// image feels three-dimensional.
+function ParallaxKenBurnsViewer({
+  imageUrl,
+  title,
+  onClose,
+}: {
+  imageUrl: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const [parallax, setParallax] = useState({ x: 0, y: 0 });
+  const surfaceRef = useRef<HTMLDivElement>(null);
+
+  // Close on ESC for kbd users.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = surfaceRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // Normalised -1..1 from centre, then clamped to a gentle ±20px shift.
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+    setParallax({ x: -nx * 20, y: -ny * 20 });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.92)" }}
+      onClick={onClose}
+      data-testid="modal-parallax-viewer"
+    >
+      <div
+        ref={surfaceRef}
+        className="relative w-full h-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        onMouseMove={handleMove}
+        onMouseLeave={() => setParallax({ x: 0, y: 0 })}
+      >
+        {/* Ken Burns layer — slow drift via CSS keyframes injected once. */}
+        <img
+          src={imageUrl}
+          alt={title}
+          className="absolute inset-0 w-full h-full object-cover ken-burns"
+          style={{
+            transform: `translate(${parallax.x}px, ${parallax.y}px) scale(1.15)`,
+            transition: "transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "transform",
+          }}
+          data-testid="img-parallax-after"
+        />
+        {/* Vignette so the floating chrome stays legible. */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)" }}
+        />
+        <div className="absolute top-4 left-6 right-6 flex items-center justify-between pointer-events-none">
+          <span className="text-white text-lg font-semibold drop-shadow" data-testid="text-parallax-title">{title}</span>
+          <button
+            onClick={onClose}
+            className="pointer-events-auto h-10 w-10 rounded-full bg-white/90 hover:bg-white inline-flex items-center justify-center shadow-lg"
+            data-testid="button-close-parallax"
+            aria-label="Luk"
+          >
+            <X className="w-5 h-5" style={{ color: "#0F1D2F" }} />
+          </button>
+        </div>
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs pointer-events-none">
+          Bevæg musen for at se rummet i 3D
+        </div>
+      </div>
+      {/* Ken Burns keyframes — defined inline so we don't have to touch the
+          global stylesheet. Kept short so multiple viewers don't fight. */}
+      <style>{`
+        @keyframes kenBurns {
+          0%   { transform-origin: 50% 50%; }
+          50%  { transform-origin: 30% 70%; }
+          100% { transform-origin: 70% 30%; }
+        }
+        .ken-burns { animation: kenBurns 18s ease-in-out infinite alternate; }
+      `}</style>
+    </div>
+  );
+}
+
+function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCase[] }) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [promptText, setPromptText] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [stage, setStage] = useState<"idle" | "loading" | "result">("idle");
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
+  const [showCaseDropdown, setShowCaseDropdown] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError(null);
+    setResultUrl(null);
+    setStage("idle");
+  };
+
+  const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) handleFile(f); };
+
+  const handleGenerate = async () => {
+    if (!imageFile || !promptText.trim()) return;
+    setStage("loading"); setError(null);
+    try {
+      const token = await user?.getIdToken();
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      fd.append("isDesignAgent", "true");
+      fd.append("promptText", promptText.trim());
+      const res = await fetch("/api/bolig/generate", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
+      setResultUrl(data.image_url);
+      setStage("result");
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt. Prøv igen.");
+      setStage("idle");
+    }
+  };
+
+  const activeCases = cases.filter((c) => c.status !== "sold");
+  const hasUnsaved = !!resultUrl && saveCaseId === null;
+  useUnsavedExitGuard(hasUnsaved);
+
+  const confirmDiscard = () =>
+    !hasUnsaved || window.confirm("Er du sikker på du ikke vil gemme dette design?");
+
+  const handleReset = () => {
+    if (!confirmDiscard()) return;
+    setStage("idle"); setResultUrl(null); setError(null); setSaveCaseId(null);
+  };
+
+  const handleBack = () => { if (confirmDiscard()) onBack(); };
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={handleBack} className="flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity" style={{ color: "#6B6B6B" }} data-testid="bolig-agent-back">
+          <ChevronLeft className="w-4 h-4" /> Tilbage til Dashboard
+        </button>
+      </div>
+
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>AI Design Agent</h1>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Beskriv præcis hvad du vil ændre — AI'en følger dine instruktioner</p>
+      </div>
+
+      {/* Info card */}
+      <div className="rounded-2xl p-5 mb-6 border border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
+        <div className="flex gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#0F1D2F" }}>
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Lav dine egne ændringer</p>
+            <p className="text-sm mb-3" style={{ color: "#6B6B6B" }}>Upload et billede og beskriv præcis hvad du vil ændre — fjern møbler, skift farver, tilføj detaljer, eller giv rummet helt nyt liv.</p>
+            <p className="text-xs font-semibold mb-1.5" style={{ color: "#9B9690" }}>Perfekt til:</p>
+            <ul className="text-sm space-y-1" style={{ color: "#6B6B6B" }}>
+              <li className="flex items-start gap-2"><span style={{ color: "#C8956C", fontWeight: 600 }}>·</span> At fjerne eller tilføje elementer i et allerede genereret billede</li>
+              <li className="flex items-start gap-2"><span style={{ color: "#C8956C", fontWeight: 600 }}>·</span> At redesigne dit eget boligfoto efter dine egne instruktioner</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 max-w-2xl">
+        {/* Upload zone */}
+        <div>
+          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Upload billede</p>
+          {imagePreview ? (
+            <div className="relative rounded-2xl overflow-hidden border border-[#D9D5CF]">
+              <img src={imagePreview} alt="Preview" className="w-full h-56 object-cover" />
+              <button
+                onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setStage("idle"); }}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                data-testid="bolig-agent-remove-img"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div
+              className="rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center p-12 cursor-pointer"
+              style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#fff" }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={onDrop}
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="bolig-agent-upload-zone"
+            >
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#F0EDE7" }}>
+                <Upload className="w-5 h-5" style={{ color: "#C8956C" }} />
+              </div>
+              <p className="font-semibold text-sm mb-1" style={{ color: "#0F1D2F" }}>Træk et billede hertil</p>
+              <p className="text-xs" style={{ color: "#6B6B6B" }}>eller klik for at vælge · JPG, PNG — Max 10 MB</p>
+            </div>
+          )}
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        </div>
+
+        {/* Instructions */}
+        <div>
+          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Dine instruktioner</p>
+          <textarea
+            value={promptText}
+            onChange={(e) => setPromptText(e.target.value.slice(0, 500))}
+            placeholder={"Beskriv præcis hvad du vil ændre...\n\nEksempler:\n\"Fjern den røde sofa og tilføj en grå\"\n\"Skift gulvet til mørkt træ\"\n\"Tilføj en stor plante i hjørnet\"\n\"Lav hele rummet om til japansk stil\""}
+            rows={7}
+            className="w-full px-4 py-3 rounded-2xl border text-sm resize-none outline-none transition-all"
+            style={{ borderColor: "#D9D5CF", background: "#fff", color: "#1A1A1A", lineHeight: 1.6 }}
+            onFocus={(e) => (e.target.style.borderColor = "#C8956C")}
+            onBlur={(e) => (e.target.style.borderColor = "#D9D5CF")}
+            data-testid="bolig-agent-prompt"
+          />
+          <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/500 tegn</p>
+        </div>
+
+        {/* Generate button */}
+        <button
+          onClick={handleGenerate}
+          disabled={!imageFile || !promptText.trim() || stage === "loading"}
+          className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: "#0F1D2F" }}
+          data-testid="bolig-agent-generate"
+        >
+          {stage === "loading" ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Genererer billede...
+            </>
+          ) : (
+            <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
+          )}
+        </button>
+
+        {/* Result */}
+        {stage === "result" && resultUrl && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Resultat</p>
+            <div className="rounded-2xl overflow-hidden border border-[#E8E4DE]">
+              {imagePreview ? (
+                <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={resultUrl} />
+              ) : (
+                <img src={resultUrl} alt="Genereret" className="w-full h-auto" />
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <DownloadMenu
+                url={resultUrl}
+                beforeUrl={imagePreview}
+                style="ai-agent"
+                variant="primary"
+                testIdPrefix="bolig-agent-download"
+              />
+
+              {/* Gem til sag dropdown */}
+              {activeCases.length > 0 && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowCaseDropdown((v) => !v)}
+                    className="h-10 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                    data-testid="bolig-agent-save-sag"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    {saveCaseId ? `Gemt til sag` : "Gem til sag"}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {showCaseDropdown && (
+                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
+                      {activeCases.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={async () => {
+                            setShowCaseDropdown(false);
+                            setSaveCaseId(c.id);
+                            try {
+                              const token = await user?.getIdToken();
+                              const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                },
+                                body: JSON.stringify({
+                                  imageUrl: resultUrl,
+                                  originalImageUrl: null,
+                                  roomType: "other",
+                                  style: "ai-agent",
+                                  budgetTier: "tier2",
+                                  promptText,
+                                  isDesignAgent: true,
+                                }),
+                              });
+                              if (!r.ok) {
+                                setSaveCaseId(null);
+                                const msg = await r.text().catch(() => "");
+                                alert(`Kunne ikke gemme til sag. ${msg}`);
+                                return;
+                              }
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+                            } catch {
+                              setSaveCaseId(null);
+                              alert("Kunne ikke gemme til sag. Prøv igen.");
+                            }
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
+                          style={{ color: "#1A1A1A" }}
+                          data-testid={`bolig-agent-save-case-${c.id}`}
+                        >
+                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
+                          <span className="truncate">{c.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={handleReset}
+                className="h-10 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                data-testid="bolig-agent-retry"
+              >
+                <RotateCcw className="w-4 h-4" /> Prøv igen
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Ny Sag Modal ──────────────────────────────────────────────────────────────
+function NewSagModal({ onClose, onCreated, isPending }: { onClose: () => void; onCreated: (address: string, caseNo: string, notes: string) => void; isPending?: boolean }) {
+  const [address, setAddress] = useState("");
+  const [caseNo, setCaseNo] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const handleCreate = () => {
+    if (!address.trim()) return;
+    onCreated(address.trim(), caseNo.trim(), notes.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose} data-testid="bolig-new-sag-overlay">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}
+        className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()} data-testid="bolig-new-sag-modal">
+        <div className="flex items-center justify-between p-6 pb-0">
+          <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>Opret ny sag</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F0EDE7] transition-colors" style={{ color: "#6B6B6B" }} data-testid="bolig-new-sag-close"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>Boligadresse *</label>
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="fx Elm Street 42, 4000 Roskilde"
+              className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-[#C8956C]" style={{ borderColor: "#E8E4DE" }} data-testid="bolig-new-sag-address" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>Sagsnummer (valgfrit)</label>
+            <input value={caseNo} onChange={(e) => setCaseNo(e.target.value)} placeholder="fx 2024-001"
+              className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-[#C8956C]" style={{ borderColor: "#E8E4DE" }} data-testid="bolig-new-sag-caseno" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>Bemærkninger</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Noter om boligen..." rows={3}
+              className="w-full px-4 py-3 rounded-xl border text-sm outline-none resize-none transition-colors focus:border-[#C8956C]" style={{ borderColor: "#E8E4DE", fontFamily: "inherit" }} data-testid="bolig-new-sag-notes" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <button onClick={onClose} className="h-10 px-5 rounded-full text-sm font-medium border border-[#D9D5CF] hover:bg-[#F0EDE7] transition-colors" style={{ color: "#6B6B6B" }} data-testid="bolig-new-sag-cancel">Annuller</button>
+          <button onClick={handleCreate} disabled={!address.trim() || isPending} className="h-10 px-5 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60" style={{ background: "#C8956C" }} data-testid="bolig-new-sag-submit">
+            {isPending ? "Opretter..." : "Opret sag"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  return (
+    <motion.div initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.25 }}
+      onAnimationComplete={() => setTimeout(onDone, 2500)}
+      className="fixed bottom-8 right-8 z-[200] px-6 py-4 rounded-xl text-sm font-medium shadow-xl"
+      style={{ background: "#0F1D2F", color: "#F5F3EF" }} data-testid="bolig-toast">
+      <div className="flex items-center gap-2"><Check className="w-4 h-4" style={{ color: "#C8956C" }} />{message}</div>
+    </motion.div>
+  );
+}
+
+// ── Team Case Modal (admin-only) ───────────────────────────────────────────────
+function TeamCaseModal({ caseInfo, user, onClose }: {
+  caseInfo: { id: number; address: string; ownerName: string; status: string };
+  user: import("firebase/auth").User;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(0);
+
+  const { data: imgs = [], isLoading } = useQuery<Array<{
+    id: number; src: string; beforeSrc: string | null; room: string; style: string; tier: string; createdAt: string;
+  }>>({
+    queryKey: ["/api/bolig/team/cases", caseInfo.id, "images"],
+    queryFn: async () => {
+      const token = await user.getIdToken();
+      const r = await fetch(`/api/bolig/team/cases/${caseInfo.id}/images`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Kunne ikke hente billeder");
+      return r.json();
+    },
+  });
+
+  useEffect(() => { setIdx(0); }, [caseInfo.id]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") setIdx((i) => Math.min(i + 1, imgs.length - 1));
+      if (e.key === "ArrowLeft") setIdx((i) => Math.max(i - 1, 0));
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, imgs.length]);
+
+  const current = imgs[idx] ?? null;
+  const isSold = caseInfo.status === "sold";
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-start justify-center p-4 overflow-y-auto"
+      style={{ background: "rgba(15,29,47,0.72)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      data-testid="team-case-modal-overlay">
+
+      <motion.div initial={{ scale: 0.96, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 10 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-4" onClick={(e) => e.stopPropagation()}
+        data-testid="team-case-modal">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#F0EDE7]">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold truncate" style={{ color: "#0F1D2F" }}>{caseInfo.address}</h2>
+              {isSold && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(45,106,79,0.12)", color: "#2D6A4F" }}>SOLGT</span>}
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: "#9B9690" }}>{caseInfo.ownerName} · {imgs.length} billede{imgs.length !== 1 ? "r" : ""}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-[#F0EDE7] flex-shrink-0 transition-colors" data-testid="team-case-modal-close">
+            <X className="w-4 h-4" style={{ color: "#6B6B6B" }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <div className="w-6 h-6 rounded-full border-2 border-[#C8956C]/30 border-t-[#C8956C] animate-spin" />
+            </div>
+          ) : imgs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 gap-2">
+              <ImageIcon className="w-8 h-8" style={{ color: "#D9D5CF" }} />
+              <p className="text-sm" style={{ color: "#9B9690" }}>Ingen billeder genereret endnu</p>
+            </div>
+          ) : (
+            <>
+              {/* Main image / slider */}
+              <div className="mb-4">
+                {current?.beforeSrc ? (
+                  <BeforeAfterSlider beforeSrc={current.beforeSrc} afterSrc={current.src} />
+                ) : (
+                  <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
+                    <img src={current?.src} alt={caseInfo.address} className="w-full object-contain max-h-[60vh]" style={{ background: "#F5F3EF" }} />
+                  </div>
+                )}
+                <div className="flex items-center justify-between mt-2.5">
+                  <p className="text-xs" style={{ color: "#9B9690" }}>
+                    {current?.room} · {current?.style}
+                    {current?.createdAt ? ` · ${new Date(current.createdAt).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                  </p>
+                  <p className="text-xs font-medium" style={{ color: "#6B6B6B" }}>{idx + 1} / {imgs.length}</p>
+                </div>
+              </div>
+
+              {/* Prev / Next */}
+              {imgs.length > 1 && (
+                <div className="flex items-center gap-3 mb-4">
+                  <button onClick={() => setIdx((i) => Math.max(i - 1, 0))} disabled={idx === 0}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-sm font-medium transition-all hover:bg-[#F5F3EF] disabled:opacity-30"
+                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }} data-testid="team-case-prev">
+                    <ChevronLeft className="w-4 h-4" /> Forrige
+                  </button>
+                  <button onClick={() => setIdx((i) => Math.min(i + 1, imgs.length - 1))} disabled={idx === imgs.length - 1}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-sm font-medium transition-all hover:bg-[#F5F3EF] disabled:opacity-30"
+                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }} data-testid="team-case-next">
+                    Næste <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Thumbnail strip */}
+              {imgs.length > 1 && (
+                <div className="flex gap-2 flex-wrap">
+                  {imgs.map((img, i) => (
+                    <button key={img.id} onClick={() => setIdx(i)}
+                      className="w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0"
+                      style={{ borderColor: i === idx ? "#C8956C" : "#E8E4DE" }}
+                      data-testid={`team-case-thumb-${img.id}`}>
+                      <img src={img.src} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Team View ─────────────────────────────────────────────────────────────────
+interface TeamApiResponse {
+  noTeam?: boolean;
+  team?: { id: number; name: string; code: string; ownerUserId: number; creditsRemaining: number; creditsUsedThisMonth: number; createdAt: string };
+  ownerIsAdmin?: boolean;
+  ownerSubscriptionTier?: string | null;
+  isUnlimited?: boolean;
+  teamTotalUsed?: number;
+  role?: string;
+  isAdmin?: boolean;
+  ownerEmail?: string;
+  ownerDisplayName?: string | null;
+  myUserId?: number;
+  members?: Array<{ id: number; teamId: number; userId: number; role: string; joinedAt: string; email: string; creditsRemaining: number; displayName?: string | null }>;
+  stats?: { memberCount: number; visualsThisMonth: number; activeCases: number };
+  performance?: Array<{ userId: number; name: string; email: string; visuals: number; activeCases: number; avgTimeMs: number | null }>;
+  activeCases?: Array<{ id: number; address: string; caseNo: string | null; status: string; ownerEmail: string; ownerName: string; latestImageUrl: string | null; imageCount: number }>;
+  soldCases?: Array<{ id: number; address: string; caseNo: string | null; soldDateISO: string | null; ownerName: string; latestImageUrl: string | null; imageCount: number }>;
+  error?: string;
+}
+
+function TeamView({ user }: { user: import("firebase/auth").User }) {
+  const qc = useQueryClient();
+  const [createName, setCreateName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [allocateModal, setAllocateModal] = useState(false);
+  const [allocateUserId, setAllocateUserId] = useState<number | null>(null);
+  const [allocateAmount, setAllocateAmount] = useState("10");
+  const [localToast, setLocalToast] = useState<string | null>(null);
+  const [teamCaseModal, setTeamCaseModal] = useState<{ id: number; address: string; ownerName: string; status: string } | null>(null);
+
+  const showToast = (msg: string) => { setLocalToast(msg); setTimeout(() => setLocalToast(null), 3500); };
+
+  const { data, isLoading } = useQuery<TeamApiResponse>({
+    queryKey: ["/api/team"],
+    queryFn: async () => {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/team", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  });
+
+  const createTeamMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/team", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast("Team oprettet!"); },
+    onError: (e: Error) => showToast(e.message),
+  });
+
+  const joinByCodeMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/teams/join", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: (d) => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast(`Du er nu med i ${d.teamName}!`); },
+    onError: (e: Error) => showToast(e.message),
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: number) => {
+      const token = await user.getIdToken();
+      const r = await fetch(`/api/team/members/${memberId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast("Medlem fjernet"); },
+    onError: (e: Error) => showToast(e.message),
+  });
+
+  const allocateMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: number; amount: number }) => {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/team/credits/allocate", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ userId, amount }) });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); setAllocateModal(false); showToast("Credits tildelt!"); },
+    onError: (e: Error) => showToast(e.message),
+  });
+
+  const copyToClipboard = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+    showToast("Link kopieret!");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
+          <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  // ── No Team: Create or Join ────────────────────────────────────────────────
+  if (data?.noTeam) {
+    return (
+      <motion.div key="no-team" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+        <div className="max-w-lg mx-auto py-16">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "#F0EDE7" }}>
+            <Users className="w-7 h-7" style={{ color: "#C8956C" }} />
+          </div>
+          <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Team</h1>
+          <p className="text-sm mb-8 text-center" style={{ color: "#6B6B6B" }}>Opret et nyt team, eller tilslut dig et eksisterende med en invite-kode.</p>
+
+          {/* Create team */}
+          <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Crown className="w-4 h-4" style={{ color: "#C8956C" }} />
+              <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Opret nyt team</h2>
+            </div>
+            <input
+              type="text"
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createName.trim().length >= 2 && createTeamMutation.mutate(createName.trim())}
+              placeholder="F.eks. Nybolig Bagsværd"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30 mb-3"
+              style={{ color: "#1A1A1A" }}
+              data-testid="team-create-name-input"
+            />
+            <button
+              onClick={() => createName.trim().length >= 2 && createTeamMutation.mutate(createName.trim())}
+              disabled={createName.trim().length < 2 || createTeamMutation.isPending}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-40"
+              style={{ background: "#C8956C" }}
+              data-testid="team-create-submit">
+              {createTeamMutation.isPending ? "Opretter…" : "Opret team"}
+            </button>
+          </div>
+
+          {/* Join with code */}
+          <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus className="w-4 h-4" style={{ color: "#6B6B6B" }} />
+              <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Tilslut med invite-kode</h2>
+            </div>
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && joinCode.length >= 4 && joinByCodeMutation.mutate(joinCode.trim())}
+              placeholder="F.eks. NYBBAG26"
+              maxLength={8}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30 mb-3"
+              style={{ color: "#1A1A1A" }}
+              data-testid="team-join-code-input"
+            />
+            <button
+              onClick={() => joinCode.trim().length >= 4 && joinByCodeMutation.mutate(joinCode.trim())}
+              disabled={joinCode.trim().length < 4 || joinByCodeMutation.isPending}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm border transition-all hover:bg-[#F5F3EF] disabled:opacity-40"
+              style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }}
+              data-testid="team-join-submit">
+              {joinByCodeMutation.isPending ? "Tilslutter…" : "Tilslut team"}
+            </button>
+          </div>
+        </div>
+        {localToast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1D2F] text-white text-sm px-4 py-2.5 rounded-xl shadow-lg z-50 font-medium">{localToast}</div>
+        )}
+      </motion.div>
+    );
+  }
+
+  if (!data?.team) return null;
+
+  const { team, isAdmin, ownerEmail, ownerDisplayName, members = [], stats, performance = [], activeCases = [], soldCases = [], myUserId, isUnlimited = false, teamTotalUsed = 0 } = data;
+  const inviteLink = `${window.location.origin}/join/${team.code}`;
+
+  // ── Member View ────────────────────────────────────────────────────────────
+  if (!isAdmin) {
+    const myPerf = performance.find((p) => p.userId === myUserId) ?? { visuals: 0, activeCases: 0, avgTimeMs: null };
+    return (
+      <motion.div key="member-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Du er med i {team.name}</h1>
+          <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { icon: <ImageIcon className="w-5 h-5" />, value: myPerf.visuals, label: "Visuals denne md." },
+            { icon: <Building2 className="w-5 h-5" />, value: myPerf.activeCases, label: "Aktive sager" },
+            { icon: <Clock className="w-5 h-5" />, value: myPerf.avgTimeMs ? `${Math.round(myPerf.avgTimeMs / 1000)} sek` : "–", label: "Gns. tid" },
+          ].map((s, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+              <div className="mb-2" style={{ color: "#C8956C" }}>{s.icon}</div>
+              <div className="text-2xl font-bold mb-0.5" style={{ color: "#0F1D2F" }}>{s.value}</div>
+              <div className="text-xs" style={{ color: "#9B9690" }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        {activeCases.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+            <p className="text-xs font-semibold mb-3" style={{ color: "#6B6B6B" }}>TEAMETS AKTIVE SAGER ({stats?.activeCases ?? 0})</p>
+            <div className="space-y-2">
+              {activeCases.slice(0, 5).map((c) => (
+                <div key={c.id} className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0"><img src={c.latestImageUrl ?? DEFAULT_THUMB} className="w-full h-full object-cover" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{c.address}</p>
+                    <p className="text-xs" style={{ color: "#9B9690" }}>{c.ownerName}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {localToast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1D2F] text-white text-sm px-4 py-2.5 rounded-xl shadow-lg z-50 font-medium">{localToast}</div>}
+      </motion.div>
+    );
+  }
+
+  // ── Admin View ─────────────────────────────────────────────────────────────
+  return (
+    <motion.div key="admin-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
+
+      {/* Header + Invite link */}
+      <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <Crown className="w-4 h-4" style={{ color: "#C8956C" }} />
+              <h1 className="text-xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{team.name}</h1>
+            </div>
+            <p className="text-xs" style={{ color: "#9B9690" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
+          </div>
+        </div>
+
+        {/* Invite code block */}
+        <div className="mt-4 rounded-xl p-4" style={{ background: "#F5F3EF" }}>
+          <p className="text-xs font-semibold mb-2" style={{ color: "#6B6B6B" }}>INVITE-KODE — Del med kollega</p>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-2xl font-bold tracking-[0.15em]" style={{ color: "#0F1D2F", fontFamily: "monospace" }}>{team.code}</span>
+          </div>
+          <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-[#E8E4DE] mb-3">
+            <span className="text-xs flex-1 truncate" style={{ color: "#6B6B6B", fontFamily: "monospace" }}>{inviteLink}</span>
+          </div>
+          <button
+            onClick={() => copyToClipboard(inviteLink)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
+            style={{ background: copied ? "#2D6A4F" : "#C8956C" }}
+            data-testid="team-copy-invite-link">
+            {copied ? <><CheckCheck className="w-4 h-4" /> Kopieret!</> : <><Copy className="w-4 h-4" /> Kopier invite-link</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { icon: <Users className="w-5 h-5" />, value: stats?.memberCount ?? 0, label: "Medlemmer" },
+          { icon: <ImageIcon className="w-5 h-5" />, value: stats?.visualsThisMonth ?? 0, label: "Visuals denne md." },
+          { icon: <Building2 className="w-5 h-5" />, value: stats?.activeCases ?? 0, label: "Aktive sager" },
+        ].map((s, i) => (
+          <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+            <div className="mb-2" style={{ color: "#C8956C" }}>{s.icon}</div>
+            <div className="text-2xl font-bold mb-0.5" style={{ color: "#0F1D2F" }}>{s.value}</div>
+            <div className="text-xs" style={{ color: "#9B9690" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Performance table */}
+      <div className="bg-white rounded-2xl border border-[#E8E4DE] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#F0EDE7] flex items-center gap-2">
+          <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
+          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>TEAM PERFORMANCE</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr style={{ background: "#F5F3EF" }}>
+              {["Navn", "Visuals", "Sager", "Avg. tid"].map((h) => (
+                <th key={h} className="px-5 py-3 text-left text-xs font-semibold" style={{ color: "#6B6B6B" }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {performance.length === 0 ? (
+                <tr><td colSpan={4} className="px-5 py-8 text-center text-sm" style={{ color: "#9B9690" }}>Ingen data endnu</td></tr>
+              ) : performance.map((p) => (
+                <tr key={p.userId} className="border-t border-[#F0EDE7]" data-testid={`team-perf-row-${p.userId}`}>
+                  <td className="px-5 py-3.5 font-medium" style={{ color: "#1A1A1A" }}>{p.name}</td>
+                  <td className="px-5 py-3.5" style={{ color: "#1A1A1A" }}>{p.visuals}</td>
+                  <td className="px-5 py-3.5" style={{ color: "#1A1A1A" }}>{p.activeCases}</td>
+                  <td className="px-5 py-3.5" style={{ color: "#6B6B6B" }}>{p.avgTimeMs ? `${Math.round(p.avgTimeMs / 1000)} sek` : "–"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Active cases */}
+      {activeCases.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 className="w-4 h-4" style={{ color: "#C8956C" }} />
+            <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>AKTIVE SAGER — HELE TEAMET</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {activeCases.map((c) => (
+              <button key={c.id} onClick={() => setTeamCaseModal({ id: c.id, address: c.address, ownerName: c.ownerName, status: c.status })}
+                className="rounded-xl overflow-hidden border border-[#E8E4DE] text-left w-full transition-all hover:shadow-md hover:border-[#C8956C]/40 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
+                data-testid={`team-case-card-${c.id}`}>
+                <div className="h-24 overflow-hidden"><img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" /></div>
+                <div className="p-2.5">
+                  <p className="text-xs font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</p>
+                  <p className="text-[11px]" style={{ color: "#9B9690" }}>{c.ownerName}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sold cases */}
+      {soldCases.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCheck className="w-4 h-4" style={{ color: "#2D6A4F" }} />
+            <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>SOLGTE SAGER — HELE TEAMET</h2>
+            <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.12)", color: "#2D6A4F" }}>{soldCases.length}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {soldCases.map((c) => (
+              <button key={c.id} onClick={() => setTeamCaseModal({ id: c.id, address: c.address, ownerName: c.ownerName, status: "sold" })}
+                className="rounded-xl overflow-hidden border border-[#E8E4DE] text-left w-full transition-all hover:shadow-md hover:border-[#2D6A4F]/40 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/40"
+                data-testid={`team-sold-card-${c.id}`}>
+                <div className="h-24 overflow-hidden relative">
+                  <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" />
+                  <span className="absolute top-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(45,106,79,0.9)", color: "#fff" }}>SOLGT</span>
+                </div>
+                <div className="p-2.5">
+                  <p className="text-xs font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</p>
+                  <p className="text-[11px]" style={{ color: "#9B9690" }}>{c.ownerName}{c.soldDateISO ? ` · ${new Date(c.soldDateISO).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" })}` : ""}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Credits */}
+      <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Coins className="w-4 h-4" style={{ color: "#C8956C" }} />
+          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>CREDITS & FORBRUG</h2>
+        </div>
+        <div className="flex flex-wrap gap-6 mb-4">
+          <div data-testid="team-credits-remaining">
+            {isUnlimited ? (
+              <>
+                <span className="text-2xl font-bold" style={{ color: "#C8956C" }}>Uendelig</span>
+                <span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>billeder</span>
+              </>
+            ) : (
+              <>
+                <span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{team.creditsRemaining}</span>
+                <span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>tilbage</span>
+              </>
+            )}
+          </div>
+          <div data-testid="team-credits-month"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{stats?.visualsThisMonth ?? 0}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>brugt denne md.</span></div>
+          <div data-testid="team-credits-total"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{teamTotalUsed}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>brugt i alt</span></div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <a href="https://www.nordichomebuild.dk/products/credits" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+            style={{ background: "#C8956C" }} data-testid="team-credits-buy">
+            <CreditCard className="w-4 h-4" /> Køb credits
+          </a>
+          <button onClick={() => setAllocateModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all hover:bg-[#F5F3EF]"
+            style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }} data-testid="team-credits-allocate">
+            <ArrowUpRight className="w-4 h-4" /> Tildel til medlem
+          </button>
+        </div>
+      </div>
+
+      {/* Members list */}
+      <div className="bg-white rounded-2xl border border-[#E8E4DE] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#F0EDE7] flex items-center gap-2">
+          <Users className="w-4 h-4" style={{ color: "#C8956C" }} />
+          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>TEAM MEDLEMMER</h2>
+        </div>
+        {/* Owner */}
+        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0EDE7]">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: "#0F1D2F" }}>{(ownerDisplayName || ownerEmail)?.[0]?.toUpperCase() ?? "A"}</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{ownerDisplayName || ownerEmail?.split("@")[0]}</p>
+            <p className="text-xs truncate" style={{ color: "#9B9690" }}>{ownerEmail}</p>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(200,149,108,0.15)", color: "#C8956C" }}>
+            <Crown className="w-3 h-3" /> Ejer
+          </span>
+        </div>
+        {members.map((m) => {
+          const perf = performance.find((p) => p.userId === m.userId);
+          const isMe = m.userId === myUserId;
+          const memberName = m.displayName || m.email?.split("@")[0] || "?";
+          return (
+            <div key={m.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0EDE7] last:border-0" data-testid={`team-member-row-${m.id}`}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#F0EDE7", color: "#C8956C" }}>{memberName[0]?.toUpperCase() ?? "?"}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{memberName}</p>
+                <p className="text-xs truncate" style={{ color: "#9B9690" }}>{m.email} · {perf?.visuals ?? 0} visuals</p>
+              </div>
+              {!isMe && (
+                <button onClick={() => removeMemberMutation.mutate(m.id)} disabled={removeMemberMutation.isPending}
+                  className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40 flex-shrink-0"
+                  style={{ borderColor: "#D9D5CF", color: "#9B9690" }} data-testid={`team-remove-member-${m.id}`}>
+                  Fjern
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {members.length === 0 && (
+          <div className="px-5 py-6 text-sm text-center" style={{ color: "#9B9690" }}>Del invite-koden ovenfor for at tilføje kollegaer.</div>
+        )}
+      </div>
+
+      {/* Allocate Credits Modal */}
+      <AnimatePresence>
+        {allocateModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,29,47,0.5)" }}
+            onClick={(e) => { if (e.target === e.currentTarget) setAllocateModal(false); }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold" style={{ color: "#0F1D2F" }}>Tildel credits til medlem</h3>
+                <button onClick={() => setAllocateModal(false)} className="p-1 rounded-lg hover:bg-[#F0EDE7]"><X className="w-4 h-4" style={{ color: "#6B6B6B" }} /></button>
+              </div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>VÆLG MEDLEM</label>
+              <select value={allocateUserId ?? ""} onChange={(e) => setAllocateUserId(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30" data-testid="team-allocate-member-select">
+                <option value="">Vælg et medlem…</option>
+                {members.map((m) => <option key={m.id} value={m.userId}>{m.email?.split("@")[0] ?? m.userId}</option>)}
+              </select>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>ANTAL CREDITS</label>
+              <input type="number" min="1" max={team.creditsRemaining} value={allocateAmount} onChange={(e) => setAllocateAmount(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30" data-testid="team-allocate-amount-input" />
+              <button onClick={() => allocateUserId && allocateMutation.mutate({ userId: allocateUserId, amount: parseInt(allocateAmount) })}
+                disabled={!allocateUserId || !allocateAmount || allocateMutation.isPending}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-40" style={{ background: "#C8956C" }} data-testid="team-allocate-submit">
+                {allocateMutation.isPending ? "Tildeler…" : "Tildel credits"}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Team Case Modal */}
+      <AnimatePresence>
+        {teamCaseModal && (
+          <TeamCaseModal caseInfo={teamCaseModal} user={user} onClose={() => setTeamCaseModal(null)} />
+        )}
+      </AnimatePresence>
+
+      {localToast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1D2F] text-white text-sm px-4 py-2.5 rounded-xl shadow-lg z-50 font-medium">{localToast}</div>}
+    </motion.div>
+  );
+}
+
+// ── Settings View ─────────────────────────────────────────────────────────────
+type TeamActivityItem = {
+  type: "generation" | "case";
+  userName: string;
+  userEmail: string;
+  roomType?: string;
+  style?: string;
+  tier?: string;
+  address?: string;
+  caseId?: number | null;
+  imageUrl?: string;
+  createdAt: string;
+};
+
+const SETTINGS_TABS = [
+  { id: "profil",          label: "Profil",          icon: UserIcon },
+  { id: "udseende",        label: "Udseende",        icon: Palette },
+  { id: "standardvalg",    label: "Standardvalg",    icon: SlidersHorizontal },
+  { id: "notifikationer",  label: "Notifikationer",  icon: Bell },
+  { id: "konto",           label: "Konto",           icon: KeyRound },
+] as const;
+type SettingsTab = typeof SETTINGS_TABS[number]["id"];
+
+const TIER_LABELS: Record<string, string> = { tier1: "Budget", tier2: "Standard", tier3: "Luksus" };
+
+const ACCENT_COLORS: Record<string, string> = {
+  bronze: "#C8956C",
+  blue:   "#3B82F6",
+  green:  "#2D6A4F",
+  orange: "#F97316",
+  purple: "#8B5CF6",
+  navy:   "#0F1D2F",
+};
+
+function loadJSON<T>(key: string, fallback: T): T {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) as T : fallback; } catch { return fallback; }
+}
+function saveJSON(key: string, value: unknown) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
+
+// Live brand-color override: replaces inline #0F1D2F backgrounds with the
+// user's chosen accent color, and adjusts contrast text color.
+function applyBoligBrand() {
+  if (typeof document === "undefined") return;
+  const accent = loadJSON<string>("bolig-accent", "bronze");
+  const textMode = loadJSON<"light" | "dark">("bolig-text-mode", "light");
+  const accentColor = ACCENT_COLORS[accent] ?? "#0F1D2F";
+  const bg = textMode === "light" ? accentColor : `${accentColor}26`;
+  const fg = textMode === "light" ? "#FFFFFF" : accentColor;
+  const selectors = [
+    '[style*="background: #0F1D2F"]',
+    '[style*="background:#0F1D2F"]',
+    '[style*="background-color: #0F1D2F"]',
+    '[style*="background-color:#0F1D2F"]',
+    '[style*="background: rgb(15, 29, 47)"]',
+    '[style*="background-color: rgb(15, 29, 47)"]',
+  ].join(",");
+  const selectorsChildren = selectors.split(",").map((s) => `${s} *`).join(",");
+  const css = `
+    ${selectors} { background-color: ${bg} !important; color: ${fg} !important; }
+    ${selectorsChildren} { color: ${fg} !important; }
+  `;
+  let el = document.getElementById("bolig-brand-style") as HTMLStyleElement | null;
+  if (!el) {
+    el = document.createElement("style");
+    el.id = "bolig-brand-style";
+    document.head.appendChild(el);
+  }
+  el.textContent = css;
+}
+
+function SettingsView({ user, displayName, isAdmin, showToast }: {
+  user: import("firebase/auth").User;
+  displayName: string;
+  isAdmin: boolean;
+  showToast: (msg: string) => void;
+}) {
+  const [tab, setTab] = useState<SettingsTab>("profil");
+
+  // ── Profil ──
+  const [nameInput, setNameInput] = useState(displayName);
+  const [savingName, setSavingName] = useState(false);
+  const handleSaveName = async () => {
+    if (!nameInput.trim() || nameInput.trim() === displayName) return;
+    setSavingName(true);
+    try {
+      await updateProfile(user, { displayName: nameInput.trim() });
+      const token = await user.getIdToken(true);
+      await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+      showToast("Navn opdateret");
+    } catch (err: any) {
+      showToast(`Fejl: ${err.message ?? "Kunne ikke gemme"}`);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  // ── Udseende ──
+  const [theme, setTheme] = useState<string>(() => loadJSON("bolig-theme", "lys"));
+  const [accent, setAccent] = useState<string>(() => loadJSON("bolig-accent", "bronze"));
+  const [textMode, setTextMode] = useState<"light" | "dark">(() => loadJSON("bolig-text-mode", "light"));
+  const handleAccent = (v: string) => { setAccent(v); saveJSON("bolig-accent", v); applyBoligBrand(); };
+  const handleTextMode = (v: "light" | "dark") => { setTextMode(v); saveJSON("bolig-text-mode", v); applyBoligBrand(); };
+
+  // ── Standardvalg ──
+  const [defaults, setDefaults] = useState(() =>
+    loadJSON("bolig-defaults", { room: "living room", style: "scandinavian", format: "4:3", remember: true, lastUpload: true })
+  );
+
+  // ── Notifikationer ──
+  const [notif, setNotif] = useState(() =>
+    loadJSON("bolig-notif", { generation: true, invite: true, weekly: false })
+  );
+
+  // ── Konto ──
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const handlePasswordReset = async () => {
+    if (!user.email) return;
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      showToast("Vi har sendt et link til at skifte password");
+    } catch (err: any) {
+      showToast(`Fejl: ${err.message ?? "Kunne ikke sende email"}`);
+    }
+  };
+
+  // ── Live team activity ──
+  const { data: teamActivity = [] } = useQuery<TeamActivityItem[]>({
+    queryKey: ["/api/bolig/team-activity"],
+    queryFn: async () => {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/bolig/team-activity", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 5000,
+  });
+
+  const sectionBox = "rounded-2xl border p-6 bg-white";
+  const sectionStyle = { borderColor: "#E8E4DE" } as const;
+  const labelClass = "block text-sm font-medium mb-1.5";
+  const inputClass = "w-full px-3.5 py-2.5 rounded-lg text-sm outline-none transition-colors";
+  const inputStyle = { background: "#F5F3EF", border: "1px solid #D9D5CF", color: "#1A1A1A" } as const;
+  const primaryBtn = "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50";
+
+  return (
+    <motion.div key="indstillinger-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+      className="max-w-5xl mx-auto pb-8" data-testid="bolig-settings-view">
+
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "#F0EDE7" }}>
+          <Settings className="w-5 h-5" style={{ color: "#C8956C" }} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>Indstillinger</h2>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>Tilpas din konto og se live team-aktivitet.</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1 mb-6 p-1 rounded-xl border" style={{ background: "#F5F3EF", borderColor: "#E8E4DE" }}>
+        {SETTINGS_TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex-1 min-w-[120px] justify-center"
+              style={{ background: active ? "#fff" : "transparent", color: active ? "#0F1D2F" : "#6B6B6B", boxShadow: active ? "0 1px 2px rgba(15,29,47,0.06)" : "none" }}
+              data-testid={`bolig-settings-tab-${t.id}`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab content */}
+      <div className={sectionBox} style={sectionStyle}>
+        {tab === "profil" && (
+          <div className="space-y-5 max-w-md" data-testid="bolig-settings-profil">
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Navn</label>
+              <input value={nameInput} onChange={(e) => setNameInput(e.target.value)} className={inputClass} style={inputStyle} data-testid="bolig-settings-name-input" />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Email</label>
+              <input value={user.email ?? ""} readOnly className={inputClass} style={{ ...inputStyle, color: "#6B6B6B", cursor: "not-allowed" }} data-testid="bolig-settings-email-input" />
+              <p className="text-xs mt-1.5" style={{ color: "#6B6B6B" }}>Email ændres via support.</p>
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Profilbillede</label>
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center text-base font-semibold text-white" style={{ background: "#C8956C" }}>
+                  {(displayName || user.email || "?").substring(0, 2).toUpperCase()}
+                </div>
+                <button type="button" className="px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#D9D5CF", color: "#6B6B6B", cursor: "not-allowed" }} title="Snart tilgængelig">Skift billede</button>
+              </div>
+            </div>
+            <button onClick={handleSaveName} disabled={savingName || !nameInput.trim() || nameInput.trim() === displayName} className={primaryBtn} style={{ background: "#C8956C" }} data-testid="bolig-settings-save-profil">
+              {savingName ? "Gemmer..." : "Gem"}
+            </button>
+          </div>
+        )}
+
+        {tab === "udseende" && (
+          <div className="space-y-6" data-testid="bolig-settings-udseende">
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Tema</label>
+              <div className="flex gap-2 flex-wrap">
+                {[{ v: "lys", l: "Lys" }, { v: "mørk", l: "Mørk" }, { v: "auto", l: "Auto" }].map((o) => (
+                  <button key={o.v} onClick={() => { setTheme(o.v); saveJSON("bolig-theme", o.v); }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border transition-all"
+                    style={{ background: theme === o.v ? "#C8956C" : "#fff", color: theme === o.v ? "#fff" : "#0F1D2F", borderColor: theme === o.v ? "#C8956C" : "#D9D5CF" }}
+                    data-testid={`bolig-settings-theme-${o.v}`}
+                  >{o.l}</button>
+                ))}
+              </div>
+              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>Mørk og auto kommer snart — valg gemmes lokalt.</p>
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Accentfarve</label>
+              <div className="flex gap-2 flex-wrap">
+                {[{ v: "navy", c: "#0F1D2F", l: "Navy" }, { v: "bronze", c: "#C8956C", l: "Bronze" }, { v: "blue", c: "#3B82F6", l: "Blå" }, { v: "green", c: "#2D6A4F", l: "Grøn" }, { v: "orange", c: "#F97316", l: "Orange" }, { v: "purple", c: "#8B5CF6", l: "Lilla" }].map((o) => (
+                  <button key={o.v} onClick={() => handleAccent(o.v)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium border transition-all"
+                    style={{ background: accent === o.v ? "#F5F3EF" : "#fff", borderColor: accent === o.v ? o.c : "#D9D5CF", color: "#1A1A1A" }}
+                    data-testid={`bolig-settings-accent-${o.v}`}
+                  >
+                    <span className="w-4 h-4 rounded-full" style={{ background: o.c }} />
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>Skifter brand-farven (header, knapper, aktive states) live.</p>
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "#1A1A1A" }}>Tekstfarve på brand-elementer</label>
+              <div className="flex gap-2 flex-wrap">
+                {([{ v: "light", l: "Lys tekst på mørk baggrund" }, { v: "dark", l: "Mørk tekst på lys baggrund" }] as const).map((o) => (
+                  <button key={o.v} onClick={() => handleTextMode(o.v)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border transition-all"
+                    style={{ background: textMode === o.v ? (ACCENT_COLORS[accent] ?? "#0F1D2F") : "#fff", color: textMode === o.v ? "#fff" : "#1A1A1A", borderColor: textMode === o.v ? (ACCENT_COLORS[accent] ?? "#0F1D2F") : "#D9D5CF" }}
+                    data-testid={`bolig-settings-textmode-${o.v}`}
+                  >{o.l}</button>
+                ))}
+              </div>
+              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>Vælg om brand-elementer skal vise lys eller mørk tekst.</p>
+            </div>
+          </div>
+        )}
+
+        {tab === "standardvalg" && (
+          <div className="space-y-5 max-w-md" data-testid="bolig-settings-standardvalg">
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Forvalgt rum</label>
+              <select value={defaults.room} onChange={(e) => { const v = { ...defaults, room: e.target.value }; setDefaults(v); saveJSON("bolig-defaults", v); }} className={inputClass} style={inputStyle} data-testid="bolig-settings-default-room">
+                {Object.entries(BOLIG_ROOM_LABELS).slice(0, 16).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Forvalgt stil</label>
+              <select value={defaults.style} onChange={(e) => { const v = { ...defaults, style: e.target.value }; setDefaults(v); saveJSON("bolig-defaults", v); }} className={inputClass} style={inputStyle} data-testid="bolig-settings-default-style">
+                {Object.entries(BOLIG_STYLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Forvalgt format</label>
+              <select value={defaults.format} onChange={(e) => { const v = { ...defaults, format: e.target.value }; setDefaults(v); saveJSON("bolig-defaults", v); }} className={inputClass} style={inputStyle} data-testid="bolig-settings-default-format">
+                {["4:3", "16:9", "1:1", "3:2"].map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2 pt-2">
+              {([["remember", "Husk seneste valg"], ["lastUpload", "Start med sidste uploadede billede"]] as const).map(([k, l]) => (
+                <label key={k} className="flex items-center gap-2.5 cursor-pointer">
+                  <input type="checkbox" checked={(defaults as any)[k]} onChange={(e) => { const v = { ...defaults, [k]: e.target.checked }; setDefaults(v); saveJSON("bolig-defaults", v); }}
+                    className="w-4 h-4 rounded accent-[#C8956C]" data-testid={`bolig-settings-default-${k}`} />
+                  <span className="text-sm" style={{ color: "#0F1D2F" }}>{l}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs" style={{ color: "#6B6B6B" }}>Gemmes automatisk lokalt.</p>
+          </div>
+        )}
+
+        {tab === "notifikationer" && (
+          <div className="space-y-3 max-w-md" data-testid="bolig-settings-notifikationer">
+            {([["generation", "Email ved ny generering"], ["invite", "Email ved team-invite"], ["weekly", "Email ved ugentlig opsummering"]] as const).map(([k, l]) => (
+              <label key={k} className="flex items-center gap-2.5 cursor-pointer p-3 rounded-lg border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#E8E4DE" }}>
+                <input type="checkbox" checked={(notif as any)[k]} onChange={(e) => { const v = { ...notif, [k]: e.target.checked }; setNotif(v); saveJSON("bolig-notif", v); }}
+                  className="w-4 h-4 rounded accent-[#C8956C]" data-testid={`bolig-settings-notif-${k}`} />
+                <span className="text-sm" style={{ color: "#0F1D2F" }}>{l}</span>
+              </label>
+            ))}
+            <p className="text-xs pt-1" style={{ color: "#6B6B6B" }}>Email-udsendelse kommer snart — valg gemmes lokalt.</p>
+          </div>
+        )}
+
+        {tab === "konto" && (
+          <div className="space-y-3 max-w-md" data-testid="bolig-settings-konto">
+            <button onClick={handlePasswordReset} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#E8E4DE" }} data-testid="bolig-settings-reset-password">
+              <div className="text-left">
+                <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Skift password</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Vi sender et link til {user.email}</div>
+              </div>
+              <ArrowRight className="w-4 h-4" style={{ color: "#6B6B6B" }} />
+            </button>
+            <button onClick={() => setDeleteOpen(true)} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5" }} data-testid="bolig-settings-delete-account">
+              <div className="text-left">
+                <div className="text-sm font-semibold" style={{ color: "#B91C1C" }}>Slet min konto</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Permanent — kan ikke fortrydes</div>
+              </div>
+              <Trash2 className="w-4 h-4" style={{ color: "#B91C1C" }} />
+            </button>
+            <p className="text-xs pt-1" style={{ color: "#6B6B6B" }}>Alle brugere kan slette deres egen konto. Kun ejer og admin kan slette andres konto fra Team-sektionen.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Live activity feed */}
+      <div className={`${sectionBox} mt-6`} style={sectionStyle}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "#F0EDE7" }}>
+            <Activity className="w-4.5 h-4.5" style={{ color: "#C8956C" }} />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Live team-aktivitet</div>
+            <div className="text-xs" style={{ color: "#6B6B6B" }}>Opdateres hvert 5. sekund</div>
+          </div>
+          <span className="flex items-center gap-1.5 text-xs" style={{ color: "#2D6A4F" }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            Live
+          </span>
+        </div>
+
+        {teamActivity.length === 0 ? (
+          <div className="text-center py-8 text-sm" style={{ color: "#6B6B6B" }} data-testid="bolig-team-activity-empty">
+            Ingen aktivitet endnu. Når dit team begynder at oprette sager og generere billeder, vises det her live.
+          </div>
+        ) : (
+          <ul className="space-y-1.5" data-testid="bolig-team-activity-list">
+            {teamActivity.map((a, i) => {
+              const room = a.roomType ? (BOLIG_ROOM_LABELS[a.roomType] ?? a.roomType) : "";
+              const style = a.style ? (BOLIG_STYLE_LABELS[a.style] ?? a.style) : "";
+              const tier = a.tier ? (TIER_LABELS[a.tier] ?? a.tier) : "";
+              const desc = a.type === "generation"
+                ? `genererede ${[room, style, tier].filter(Boolean).join(", ")}`
+                : `oprettede sag "${a.address}"`;
+              return (
+                <li key={`${a.createdAt}-${i}`} className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-[#F5F3EF] transition-colors" data-testid={`bolig-team-activity-item-${i}`}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 mt-0.5" style={{ background: a.type === "generation" ? "#C8956C" : "#0F1D2F" }}>
+                    {a.userName.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm" style={{ color: "#1A1A1A" }}>
+                      <span className="font-semibold">{a.userName}</span> {desc}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{timeAgo(a.createdAt)}</div>
+                  </div>
+                  {a.type === "generation" && a.imageUrl && !isVideoUrl(a.imageUrl) && (
+                    <img src={a.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  )}
+                  {a.type === "generation" && a.imageUrl && isVideoUrl(a.imageUrl) && (
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#E8E4DE]" style={{ background: "#F0EDE7" }}>
+                      <Video className="w-4 h-4" style={{ color: "#C8956C" }} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Delete account confirm */}
+      <AnimatePresence>
+        {deleteOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,29,47,0.55)" }}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" data-testid="bolig-delete-account-modal">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-100">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Slet min konto?</h3>
+              </div>
+              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>
+                Dette sletter permanent din konto og alle dine sager. Handlingen kan ikke fortrydes. Kontakt support på <span className="font-semibold">hello@nordichomebuild.com</span> for at gennemføre sletningen.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }} data-testid="bolig-delete-account-cancel">Annuller</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
+export default function BoligpotentialeDashboard() {
+  const { user, loading: authLoading, isAdmin, creditsRemaining } = useAuth();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [section, setSection] = useState<Section>("dashboard");
+  const [modal, setModal] = useState<Modal>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null);
+  const [prevSection, setPrevSection] = useState<Section>("dashboard");
+  const [now, setNow] = useState(Date.now());
+  const [pendingCase, setPendingCase] = useState<ApiCase | null>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => { applyBoligBrand(); }, []);
+
+  const openCase = (id: number) => {
+    setSelectedCaseId(id);
+    setPrevSection(section);
+    setSection("sag-detail");
+  };
+
+  const closeCase = () => {
+    setSection(prevSection);
+    setSelectedCaseId(null);
+    setPendingCase(null);
+  };
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation("/login?redirect=/boligpotentiale/dashboard");
+    }
+  }, [user, authLoading, setLocation]);
+
+  const showToast = (msg: string) => setToast(msg);
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    setLocation("/boligpotentiale");
+  };
+
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Mægler";
+  const initials = displayName.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+
+  // ── Stats query ────────────────────────────────────────────────────────────
+  const { data: stats } = useQuery<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>({
+    queryKey: ["/api/bolig/stats"],
+    queryFn: async () => {
+      const token = await user!.getIdToken();
+      const res = await fetch("/api/bolig/stats", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed to load stats");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  // ── Cases query ───────────────────────────────────────────────────────────
+  const { data: cases = [], isLoading: casesLoading } = useQuery<ApiCase[]>({
+    queryKey: ["/api/bolig/cases"],
+    queryFn: async () => {
+      const token = await user!.getIdToken();
+      const res = await fetch("/api/bolig/cases", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load cases");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  // ── Activity query ─────────────────────────────────────────────────────────
+  const { data: activity = [], refetch: refetchActivity } = useQuery<Array<{ type: "generation" | "case"; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: string; isDesignAgent?: boolean; promptText?: string }>>({
+    queryKey: ["/api/bolig/activity"],
+    queryFn: async () => {
+      if (!user) return [];
+      const token = await user.getIdToken();
+      if (!token) return [];
+      const res = await fetch("/api/bolig/activity", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 60_000,
+  });
+
+  // ── Most-used query ────────────────────────────────────────────────────────
+  const { data: mostUsed, refetch: refetchMostUsed } = useQuery<{ styles: Array<{ key: string; count: number }>; rooms: Array<{ key: string; count: number }>; tiers: Array<{ key: string; count: number }> }>({
+    queryKey: ["/api/bolig/most-used"],
+    queryFn: async () => {
+      if (!user) return { styles: [], rooms: [], tiers: [] };
+      const token = await user.getIdToken();
+      if (!token) return { styles: [], rooms: [], tiers: [] };
+      const res = await fetch("/api/bolig/most-used", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return { styles: [], rooms: [], tiers: [] };
+      return res.json();
+    },
+    enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  // ── Force-refetch activity + most-used when returning to dashboard ─────────
+  useEffect(() => {
+    if (section === "dashboard" && user) {
+      refetchActivity();
+      refetchMostUsed();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, user]);
+
+  // ── Auto-join pending team code from localStorage (set by join page) ────────
+  useEffect(() => {
+    if (!user) return;
+    const pendingCode = localStorage.getItem("pendingTeamCode");
+    if (!pendingCode) return;
+    localStorage.removeItem("pendingTeamCode");
+    user.getIdToken().then((token) => {
+      fetch("/api/teams/join", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ code: pendingCode }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success) {
+            setToast(`Du er nu med i ${d.teamName}!`);
+            queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+          }
+        })
+        .catch(() => {});
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // ── Recent images query ────────────────────────────────────────────────────
+  const { data: recentImages = [] } = useQuery<Array<{ id: number; imageUrl: string; roomType: string; style: string; budgetTier: string; caseId?: number | null }>>({
+    queryKey: ["/api/bolig/recent-images"],
+    queryFn: async () => {
+      if (!user) return [];
+      const token = await user.getIdToken();
+      const res = await fetch("/api/bolig/recent-images", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  // ── Create case mutation ───────────────────────────────────────────────────
+  const createCaseMutation = useMutation({
+    mutationFn: async ({ address, caseNo, notes }: { address: string; caseNo: string; notes: string }) => {
+      const token = await auth.currentUser?.getIdToken();
+      const isoToday = new Date().toISOString().slice(0, 10);
+      const res = await fetch("/api/bolig/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address, caseNo: caseNo || null, notes: notes || null, marketDateISO: isoToday }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Kunne ikke oprette sag" }));
+        throw new Error(err.message ?? "Kunne ikke oprette sag");
+      }
+      return res.json() as Promise<ApiCase>;
+    },
+    onSuccess: (newCase) => {
+      setPendingCase(newCase);
+      queryClient.setQueryData(["/api/bolig/cases"], (old: ApiCase[] | undefined) => {
+        const updated = old ? [newCase, ...old] : [newCase];
+        return updated;
+      });
+      setModal(null);
+      setPrevSection(section);
+      setSelectedCaseId(newCase.id);
+      setSection("sag-detail");
+      showToast(`Sag oprettet: ${newCase.address}`);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      }, 100);
+    },
+    onError: (err: any) => {
+      showToast(`Fejl: ${err.message ?? "Kunne ikke oprette sag. Prøv igen."}`);
+    },
+  });
+
+  const handleNewCase = (address: string, caseNo: string, notes: string) => {
+    createCaseMutation.mutate({ address, caseNo, notes });
+  };
+
+  // Filter cases by search
+  const filteredCases = search.trim()
+    ? cases.filter((c) => {
+        const q = search.toLowerCase().trim();
+        return c.address.toLowerCase().includes(q) || (c.caseNo ?? "").toLowerCase().includes(q);
+      })
+    : cases;
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F5F3EF" }}>
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
+          <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
+        </div>
+      </div>
+    );
+  }
+  if (!user) return null;
+
+  const soldCount = cases.filter((c) => c.status === "sold").length;
+
+  const NAV = [
+    { id: "dashboard" as Section, label: "Dashboard", icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
+    { id: "sager" as Section, label: "Alle sager", icon: <FolderOpen className="w-[18px] h-[18px]" /> },
+    { id: "solgte" as Section, label: "Solgte sager", icon: <PackageCheck className="w-[18px] h-[18px]" />, badge: soldCount > 0 ? soldCount : null },
+    { id: "ai-design-agent" as Section, label: "AI Design Agent", icon: <PenTool className="w-[18px] h-[18px]" /> },
+    { id: "3d-plantegning" as Section, label: "3D plantegning", icon: <Box className="w-[18px] h-[18px]" /> },
+    { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" /> },
+    { id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> },
+    { id: "upload" as Section, label: "Upload billede", icon: <Upload className="w-[18px] h-[18px]" /> },
+    { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
+  ];
+
+  const NAV_BOTTOM = [
+    { id: "indstillinger" as Section, label: "Indstillinger", icon: <Settings className="w-[18px] h-[18px]" /> },
+    { id: "pris" as Section, label: "Pris", icon: <Coins className="w-[18px] h-[18px]" /> },
+    { id: "fakturering" as Section, label: "Fakturering", icon: <CreditCard className="w-[18px] h-[18px]" /> },
+  ];
+
+  const SidebarContent = () => (
+    <>
+      <button
+        onClick={() => { setModal("newSag"); setSidebarOpen(false); }}
+        className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold text-sm text-white mb-5 transition-all hover:opacity-90 active:scale-95"
+        style={{ background: "#C8956C" }}
+        data-testid="bolig-sidebar-new-sag"
+      >
+        <Plus className="w-4 h-4" /> Ny sag
+      </button>
+
+      <nav className="space-y-0.5 flex-1">
+        {NAV.map((item) => {
+          const isActive = section === item.id || (section === "sag-detail" && item.id === "sager");
+          return (
+            <button key={item.id}
+              onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all"
+              style={{ background: isActive ? "rgba(200,149,108,0.18)" : "transparent", color: isActive ? "#C8956C" : "rgba(245,243,239,0.7)" }}
+              data-testid={`bolig-nav-${item.id}`}
+            >
+              {item.icon}
+              <span className="md:inline flex-1">{item.label}</span>
+              {"badge" in item && item.badge != null && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.25)", color: "#86efac" }}>{item.badge}</span>
+              )}
+            </button>
+          );
+        })}
+
+        <div className="my-3" style={{ height: "1px", background: "rgba(245,243,239,0.1)" }} />
+
+        {NAV_BOTTOM.map((item) => (
+          <button key={item.id}
+            onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all"
+            style={{ background: section === item.id ? "rgba(200,149,108,0.18)" : "transparent", color: section === item.id ? "#C8956C" : "rgba(245,243,239,0.7)" }}
+            data-testid={`bolig-nav-${item.id}`}
+          >
+            {item.icon} <span className="md:inline">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="mt-auto pt-4" style={{ borderTop: "1px solid rgba(245,243,239,0.1)" }}>
+        <Link href="/boligpotentiale">
+          <button
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all hover:bg-white/5"
+            style={{ color: "rgba(245,243,239,0.55)" }}
+            data-testid="bolig-nav-forside"
+          >
+            <Home className="w-[18px] h-[18px]" />
+            <span className="md:inline">Forside</span>
+            <ArrowUpRight className="w-3.5 h-3.5 ml-auto opacity-60" />
+          </button>
+        </Link>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col font-sans" style={{ background: "#F5F3EF", color: "#1A1A1A" }}>
+
+      {/* ── TOPBAR ── */}
+      <header className="fixed top-0 left-0 right-0 z-40 h-32 flex items-center px-6 gap-5 border-b" style={{ background: "#0F1D2F", borderColor: "rgba(245,243,239,0.1)" }}>
+        <button className="md:hidden flex flex-col gap-[5px] mr-1" onClick={() => setSidebarOpen((o) => !o)} data-testid="bolig-topbar-hamburger">
+          <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
+          <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
+          <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
+        </button>
+
+        <img
+          src={formaEstatesLogo}
+          alt="Forma Estates"
+          className="h-24 w-auto select-none"
+          style={{ filter: "brightness(0) invert(1)", minWidth: "fit-content" }}
+          data-testid="bolig-topbar-logo"
+        />
+
+        <div className="flex-1 max-w-xs hidden sm:block">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 z-10" style={{ color: "rgba(245,243,239,0.45)" }} />
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const first = filteredCases[0];
+                  if (first) {
+                    setPrevSection(section);
+                    setSelectedCaseId(first.id);
+                    setSection("sag-detail");
+                    setSearch("");
+                    setSearchOpen(false);
+                    (e.target as HTMLInputElement).blur();
+                  }
+                } else if (e.key === "Escape") {
+                  setSearchOpen(false);
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              type="text"
+              placeholder="Søg i sager..."
+              className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm outline-none"
+              style={{ background: "rgba(245,243,239,0.1)", border: "1px solid rgba(245,243,239,0.2)", color: "#F5F3EF", caretColor: "#C8956C" }}
+              data-testid="bolig-topbar-search"
+            />
+            <AnimatePresence>
+              {searchOpen && search.trim() && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute left-0 right-0 top-full mt-1 rounded-xl shadow-xl border overflow-hidden z-50 max-h-80 overflow-y-auto"
+                  style={{ background: "#fff", borderColor: "#E8E4DE" }}
+                  data-testid="bolig-search-dropdown"
+                >
+                  {filteredCases.length === 0 ? (
+                    <div className="px-4 py-3 text-sm" style={{ color: "#6B6B6B" }} data-testid="bolig-search-no-results">
+                      Ingen sager fundet
+                    </div>
+                  ) : (
+                    filteredCases.slice(0, 8).map((c) => (
+                      <button
+                        key={c.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setPrevSection(section);
+                          setSelectedCaseId(c.id);
+                          setSection("sag-detail");
+                          setSearch("");
+                          setSearchOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 transition-colors hover:bg-[#F5F3EF] border-b last:border-b-0"
+                        style={{ borderColor: "#F0EDE7" }}
+                        data-testid={`bolig-search-result-${c.id}`}
+                      >
+                        <div className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{c.address}</div>
+                        {c.caseNo && (
+                          <div className="text-xs truncate" style={{ color: "#6B6B6B" }}>Sag #{c.caseNo}</div>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-3 relative">
+          {isAdmin && (
+            <span className="hidden sm:inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>Ejer</span>
+          )}
+          <span className="text-sm hidden sm:block truncate max-w-[130px]" style={{ color: "rgba(245,243,239,0.8)" }} data-testid="bolig-topbar-username">{displayName}</span>
+          <button
+            onClick={() => setProfileOpen((o) => !o)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0 transition-opacity hover:opacity-80"
+            style={{ background: "#C8956C" }}
+            data-testid="bolig-topbar-avatar"
+          >{initials}</button>
+
+          <AnimatePresence>
+            {profileOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-11 z-50 w-52 rounded-xl shadow-xl border overflow-hidden"
+                  style={{ background: "#fff", borderColor: "#E8E4DE" }}>
+                  <div className="px-4 py-3 border-b border-[#E8E4DE]">
+                    <div className="text-sm font-semibold truncate" style={{ color: "#1A1A1A" }}>{displayName}</div>
+                    <div className="text-xs truncate" style={{ color: "#6B6B6B" }}>{user.email}</div>
+                    {creditsRemaining !== null && (
+                      <div className="text-xs mt-1" style={{ color: "#C8956C" }}>{creditsRemaining} kreditter tilbage</div>
+                    )}
+                  </div>
+                  <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors hover:bg-[#F0EDE7]" style={{ color: "#1A1A1A" }} data-testid="bolig-signout">
+                    <LogOut className="w-4 h-4" style={{ color: "#6B6B6B" }} /> Log ud
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+      </header>
+
+      <div className="flex flex-1 pt-32">
+        {/* ── DESKTOP SIDEBAR ── */}
+        <aside className="hidden md:flex flex-col w-56 flex-shrink-0 fixed left-0 top-32 bottom-0 px-4 py-5" style={{ background: "#0F1D2F" }} data-testid="bolig-sidebar">
+          <SidebarContent />
+        </aside>
+
+        {/* ── MOBILE SIDEBAR OVERLAY ── */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-30 md:hidden" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => setSidebarOpen(false)} />
+              <motion.aside initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }} transition={{ duration: 0.22, ease: "easeOut" }}
+                className="fixed top-0 left-0 bottom-0 z-40 w-60 flex flex-col px-4 py-5 md:hidden" style={{ background: "#0F1D2F" }}>
+                <img
+                  src={formaEstatesLogo}
+                  alt="Forma Estates"
+                  className="h-32 w-auto mb-4 mt-2"
+                  style={{ filter: "brightness(0) invert(1)" }}
+                />
+                <SidebarContent />
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── MAIN CONTENT ── */}
+        <main className="flex-1 md:ml-56 p-6 md:p-8 min-h-[calc(100vh-64px)]" data-testid="bolig-main">
+
+          {/* Dashboard overview */}
+          {section === "dashboard" && (
+            <motion.div key="dashboard-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Godmorgen, {displayName.split(" ")[0]}</h1>
+                <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Her får du et hurtigt overblik over dine sager og visualiseringer.</p>
+              </div>
+
+              {/* Statistik — 6 kort */}
+              <div className="mb-6" data-testid="bolig-stats">
+                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>Overblik</h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: stats ? String(stats.todayImages) : "—", label: "visualiseringer i dag" },
+                    { value: stats ? String(stats.totalImages) : "—", label: "visualiseringer i alt" },
+                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: "aktive sager" },
+                    { value: stats ? String(stats.soldCases) : String(soldCount), label: "solgte sager" },
+                    { value: stats ? String(stats.totalCases) : String(cases.length), label: "sager i alt" },
+                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: "gns. dage på markedet" },
+                  ].map((s, i) => (
+                    <div key={i} className="rounded-xl p-4 border border-[#E8E4DE] hover:shadow-sm transition-shadow" style={{ background: "#fff" }} data-testid={`bolig-stat-${i}`}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.value}</div>
+                      <div className="text-xs" style={{ color: "#9B9690" }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Aktive Sager */}
+              <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-active-cases">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>Aktive Sager</h2>
+                  <button onClick={() => setSection("sager")} className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "#C8956C" }} data-testid="bolig-see-all-cases">
+                    Se alle <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {casesLoading ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="rounded-xl overflow-hidden border border-[#E8E4DE] animate-pulse" style={{ background: "#F5F3EF" }}>
+                        <div className="h-36 bg-[#E8E4DE]" />
+                        <div className="p-3 space-y-2"><div className="h-3 bg-[#E8E4DE] rounded w-3/4" /><div className="h-2.5 bg-[#E8E4DE] rounded w-1/2" /></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {cases.filter((c) => c.status === "active").slice(0, 3).map((c) => {
+                      const days = liveDaysFromISO(c.marketDateISO, now);
+                      return (
+                        <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ background: "#F5F3EF" }} data-testid={`bolig-case-card-${c.id}`}>
+                          <div className="relative h-36">
+                            <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" />
+                            <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
+                          </div>
+                          <div className="p-3">
+                            <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
+                            <p className="text-xs mb-2" style={{ color: "#6B6B6B" }}>{days} dage på markedet</p>
+                            <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>Aktiv</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[180px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)]" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-add-case">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE7" }}><Plus className="w-5 h-5" style={{ color: "#C8956C" }} /></div>
+                      <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Solgte Sager — mini preview */}
+              {soldCount > 0 && (
+                <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-sold-cases-preview">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>Solgte sager</h2>
+                      <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{soldCount}</span>
+                    </div>
+                    <button onClick={() => setSection("solgte")} className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "#C8956C" }} data-testid="bolig-see-sold-cases">
+                      Se alle <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {cases.filter((c) => c.status === "sold").slice(0, 3).map((c) => (
+                      <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md opacity-85 hover:opacity-100" style={{ background: "#F5F3EF" }} data-testid={`bolig-sold-card-${c.id}`}>
+                        <div className="relative h-36">
+                          <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover grayscale-[20%]" />
+                          <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.75)" }}>Solgt</span>
+                        </div>
+                        <div className="p-3">
+                          <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
+                          <p className="text-xs" style={{ color: "#9B9690" }}>{c.soldDateISO ? `Solgt ${c.soldDateISO}` : "Solgt"}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Hurtig-handlinger + Seneste aktivitet */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4" data-testid="bolig-bottom-row">
+
+                {/* Venstre: Hurtig-handlinger + Genbrug seneste */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-quick-actions">
+                  <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Hurtige handlinger</h2>
+                  <div className="flex flex-wrap gap-3 mb-6">
+                    <button onClick={() => setSection("upload")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90" style={{ background: "#C8956C" }} data-testid="bolig-quick-upload">
+                      <Upload className="w-4 h-4" /> Upload billede
+                    </button>
+                    <button onClick={() => setModal("newSag")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm border transition-all hover:bg-[#F0EDE7]" style={{ color: "#1A1A1A", borderColor: "#D9D5CF" }} data-testid="bolig-quick-new-sag">
+                      <Plus className="w-4 h-4" /> Ny sag
+                    </button>
+                  </div>
+                  {recentImages.length > 0 && (
+                    <>
+                      <h3 className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Genbrug seneste valg</h3>
+                      <div className="space-y-2">
+                        {recentImages.map((img) => (
+                          <div key={img.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F5F3EF] transition-colors" data-testid={`bolig-reuse-${img.id}`}>
+                            <img src={img.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-[#E8E4DE]" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>{BOLIG_ROOM_LABELS[img.roomType] ?? img.roomType}</p>
+                              <p className="text-[11px]" style={{ color: "#9B9690" }}>{BOLIG_STYLE_LABELS[img.style] ?? img.style} · {img.budgetTier.replace("tier", "T")}</p>
+                            </div>
+                            {img.caseId && (
+                              <button
+                                onClick={() => openCase(img.caseId!)}
+                                className="flex-shrink-0 text-[11px] font-medium px-3 py-1 rounded-full border transition-colors hover:bg-[#F0EDE7]"
+                                style={{ color: "#C8956C", borderColor: "rgba(200,149,108,0.35)" }}
+                                data-testid={`bolig-reuse-btn-${img.id}`}
+                              >
+                                Genbrug
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Højre: Seneste aktivitet + Mest brugte */}
+                <div className="flex flex-col gap-4">
+                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-activity">
+                    <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Seneste aktivitet</h2>
+                    {activity.length === 0 ? (
+                      <p className="text-sm" style={{ color: "#9B9690" }}>Ingen aktivitet endnu.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {activity.map((item, i) => (
+                          item.type === "generation" && item.isDesignAgent ? (
+                            <button
+                              key={i}
+                              onClick={() => setSection("ai-design-agent")}
+                              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#F5F3EF] transition-colors text-left"
+                              data-testid={`bolig-activity-item-${i}`}
+                            >
+                              <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#E8E4DE]" style={{ background: "#F0EDE7" }}>
+                                <PenTool className="w-4 h-4" style={{ color: "#C8956C" }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium leading-snug truncate" style={{ color: "#1A1A1A" }}>
+                                  Design Agent{item.promptText ? `: "${item.promptText.slice(0, 30)}${item.promptText.length > 30 ? "…" : ""}"` : ""}
+                                </p>
+                                <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#D9D5CF" }} />
+                            </button>
+                          ) : item.type === "generation" ? (
+                            <button
+                              key={i}
+                              onClick={() => item.imageUrl && setActivityLightbox(item.imageUrl)}
+                              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#F5F3EF] transition-colors text-left"
+                              data-testid={`bolig-activity-item-${i}`}
+                            >
+                              {isVideoUrl(item.imageUrl) ? (
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border border-[#E8E4DE]" style={{ background: "#F0EDE7" }}>
+                                  <Video className="w-4 h-4" style={{ color: "#C8956C" }} />
+                                </div>
+                              ) : (
+                                <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-[#E8E4DE]" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium leading-snug" style={{ color: "#1A1A1A" }}>
+                                  {BOLIG_ROOM_LABELS[item.roomType ?? ""] ?? item.roomType}
+                                  {" · "}{BOLIG_STYLE_LABELS[item.style ?? ""] ?? item.style}
+                                  {" · "}{item.tier?.replace("tier", "T")}
+                                </p>
+                                <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
+                              </div>
+                              {item.caseId && (
+                                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#D9D5CF" }} />
+                              )}
+                            </button>
+                          ) : (
+                            <div key={i} className="flex items-center gap-3 px-2 py-2">
+                              <div className="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center border border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
+                                <Home className="w-4 h-4" style={{ color: "#9B9690" }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>Sag "{item.address}" oprettet</p>
+                                <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Dine mest brugte valg — fuld bredde under begge kolonner */}
+              <div className="rounded-2xl p-6 border border-[#E8E4DE] mt-4" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
+                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>Dine standardvalg</h2>
+                {!mostUsed ? (
+                  <div className="grid grid-cols-3 gap-6">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="space-y-3">
+                        <div className="h-2.5 w-12 rounded-full bg-[#E8E4DE] animate-pulse" />
+                        {[0, 1, 2].map((j) => (
+                          <div key={j} className="space-y-1.5">
+                            <div className="h-2 w-20 rounded-full bg-[#E8E4DE] animate-pulse" />
+                            <div className="flex gap-0.5">{Array.from({ length: 10 }).map((_, s) => <div key={s} className="h-1.5 flex-1 rounded-full bg-[#E8E4DE] animate-pulse" />)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : mostUsed.styles.length === 0 && mostUsed.rooms.length === 0 && mostUsed.tiers.length === 0 ? (
+                  <p className="text-sm" style={{ color: "#9B9690" }}>Generer dit første billede for at se statistik her.</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-6">
+                    {[
+                      { title: "Stil", items: mostUsed.styles, labelFn: (k: string) => BOLIG_STYLE_LABELS[k] ?? k },
+                      { title: "Rum", items: mostUsed.rooms, labelFn: (k: string) => BOLIG_ROOM_LABELS[k] ?? k },
+                      { title: "Budget", items: mostUsed.tiers, labelFn: (k: string) => k.replace("tier", "T") },
+                    ].map((col) => {
+                      const max = col.items[0]?.count ?? 1;
+                      return (
+                        <div key={col.title}>
+                          <p className="text-[11px] font-bold tracking-[0.06em] uppercase mb-3" style={{ color: "#9B9690" }}>{col.title}</p>
+                          <div className="space-y-2.5">
+                            {col.items.map((item) => (
+                              <div key={item.key}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs truncate" style={{ color: "#1A1A1A" }}>{col.labelFn(item.key)}</span>
+                                  <span className="text-xs font-semibold ml-2 flex-shrink-0" style={{ color: "#9B9690" }}>{item.count}</span>
+                                </div>
+                                <div className="flex gap-0.5">
+                                  {Array.from({ length: 10 }).map((_, seg) => (
+                                    <div key={seg} className="h-1.5 flex-1 rounded-full" style={{ background: seg < Math.round((item.count / max) * 10) ? "#C8956C" : "#D9D5CF" }} />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* AI Design Agent section */}
+          {section === "ai-design-agent" && (
+            <motion.div key="ai-design-agent-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
+            </motion.div>
+          )}
+
+          {/* 3D plantegning section */}
+          {section === "3d-plantegning" && (
+            <motion.div key="3d-plantegning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <Floorplan3DFlow cases={cases} />
+            </motion.div>
+          )}
+
+          {/* Transformering video section */}
+          {section === "transformering-video" && (
+            <motion.div key="transformering-video-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <TransformVideoFlow cases={cases} />
+            </motion.div>
+          )}
+
+          {/* AI boligfremvisning section */}
+          {section === "ai-boligfremvisning" && (
+            <motion.div key="ai-boligfremvisning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <PropertyTourFlow />
+            </motion.div>
+          )}
+
+          {/* Upload section */}
+          {section === "upload" && (
+            <motion.div key="upload-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <UploadFlow onBack={() => setSection("dashboard")} />
+            </motion.div>
+          )}
+
+          {/* Alle Sager */}
+          {section === "sager" && (
+            <motion.div key="sager-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Alle sager</h1>
+                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{filteredCases.length} sag{filteredCases.length !== 1 ? "er" : ""} i alt</p>
+                </div>
+                <button onClick={() => setModal("newSag")} className="inline-flex items-center gap-2 h-10 px-5 rounded-full font-semibold text-sm text-white" style={{ background: "#C8956C" }} data-testid="bolig-sager-new">
+                  <Plus className="w-4 h-4" /> Ny sag
+                </button>
+              </div>
+
+              {casesLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="rounded-xl overflow-hidden border border-[#E8E4DE] animate-pulse bg-white">
+                      <div className="h-40 bg-[#E8E4DE]" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-3 bg-[#E8E4DE] rounded w-3/4" />
+                        <div className="h-2.5 bg-[#E8E4DE] rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Aktive */}
+                  <div className="mb-8">
+                    <h3 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>
+                      Aktive — {filteredCases.filter((c) => c.status === "active").length}
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {filteredCases.filter((c) => c.status === "active").map((c) => {
+                        const days = liveDaysFromISO(c.marketDateISO, now);
+                        return (
+                          <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white" data-testid={`bolig-case-card-${c.id}`}>
+                            <div className="relative h-40">
+                              <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" />
+                              <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
+                            </div>
+                            <div className="p-4">
+                              <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
+                              <p className="text-xs mb-2" style={{ color: days > 14 ? "#C8956C" : "#6B6B6B" }}>{days} dage på markedet</p>
+                              <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>Aktiv</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[200px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)]" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-sager-add">
+                        <Plus className="w-6 h-6" style={{ color: "#C8956C" }} />
+                        <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Solgte */}
+                  {filteredCases.filter((c) => c.status === "sold").length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>
+                        Solgte — {filteredCases.filter((c) => c.status === "sold").length}
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {filteredCases.filter((c) => c.status === "sold").map((c) => (
+                          <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white opacity-80 hover:opacity-100" data-testid={`bolig-sold-card-${c.id}`}>
+                            <div className="relative h-40">
+                              <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover grayscale-[25%]" />
+                              <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.75)" }}>Solgt</span>
+                            </div>
+                            <div className="p-4">
+                              <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
+                              <p className="text-xs mb-2" style={{ color: "#9B9690" }}>{c.soldDateISO ? `Solgt ${c.soldDateISO}` : "Solgt"}</p>
+                              <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>Solgt</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          )}
+
+          {/* Sag Detail */}
+          {section === "sag-detail" && selectedCaseId !== null && (() => {
+            const c = cases.find((x) => x.id === selectedCaseId)
+              ?? (pendingCase?.id === selectedCaseId ? pendingCase : null);
+            return c ? (
+              <CaseDetailPanel
+                caseData={c}
+                onBack={closeCase}
+                onDeleted={() => {
+                  showToast("Sag slettet");
+                  closeCase();
+                }}
+                onStatusChanged={(newStatus) => {
+                  if (newStatus === "sold") {
+                    showToast("Sag markeret som solgt");
+                    closeCase();
+                  } else {
+                    showToast("Sag genaktiveret");
+                  }
+                }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-24">
+                <div className="relative w-10 h-10 mb-4">
+                  <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
+                  <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
+                </div>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>Indlæser sag...</p>
+              </div>
+            );
+          })()}
+
+          {/* Solgte Sager — dedikeret sektion */}
+          {section === "solgte" && (
+            <motion.div key="solgte-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <div className="mb-8 flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Solgte sager</h1>
+                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Alle afsluttede handler med AI-visuals.</p>
+                </div>
+                <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{soldCount} solgt</span>
+              </div>
+              {casesLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-xl overflow-hidden border border-[#E8E4DE] animate-pulse" style={{ background: "#F5F3EF" }}>
+                      <div className="h-40 bg-[#E8E4DE]" />
+                      <div className="p-4 space-y-2"><div className="h-3 bg-[#E8E4DE] rounded w-3/4" /><div className="h-2.5 bg-[#E8E4DE] rounded w-1/2" /></div>
+                    </div>
+                  ))}
+                </div>
+              ) : soldCount === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: "#F0EDE7" }}>
+                    <PackageCheck className="w-7 h-7" style={{ color: "#C8956C" }} />
+                  </div>
+                  <h2 className="text-lg font-bold mb-2" style={{ color: "#0F1D2F" }}>Ingen solgte sager endnu</h2>
+                  <p className="text-sm" style={{ color: "#6B6B6B" }}>Marker en aktiv sag som solgt for at se den her.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {cases.filter((c) => c.status === "sold").map((c) => (
+                    <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white" data-testid={`bolig-solgt-card-${c.id}`}>
+                      <div className="relative h-40">
+                        <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover grayscale-[20%]" />
+                        <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.75)" }}>Solgt</span>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
+                        <p className="text-xs mb-2" style={{ color: "#9B9690" }}>{c.soldDateISO ? `Solgt ${c.soldDateISO}` : "Solgt"}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>Solgt</span>
+                          <span className="text-[11px]" style={{ color: "#9B9690" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Team section */}
+          {section === "team" && (
+            <TeamView user={user} />
+          )}
+
+          {/* Settings view */}
+          {section === "indstillinger" && (
+            <SettingsView user={user} displayName={displayName} isAdmin={isAdmin} showToast={showToast} />
+          )}
+
+          {section === "pris" && (
+            <motion.div key="pris-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Pris</h2>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov. Alle nye konti inkluderer 1 gratis visualisering.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="settings-pricing-grid">
+                {[
+                  {
+                    name: "Starter",
+                    price: "2.499",
+                    period: "kr./ måned",
+                    desc: "Til dig der vil prøve AI-visualisering af og til.",
+                    features: ["25 billeder / md.", "5 designstile", "HD download", "Email support"],
+                    cta: "Vælg Starter",
+                    highlight: false,
+                    custom: false,
+                  },
+                  {
+                    name: "Pro",
+                    price: "4.999",
+                    period: "kr./ måned",
+                    desc: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
+                    features: ["100 billeder / md.", "Alle 8 designstile", "4K download", "Prioriteret support", "Branding på billeder"],
+                    cta: "Vælg Pro",
+                    highlight: true,
+                    custom: false,
+                  },
+                  {
+                    name: "Business",
+                    price: "9.999",
+                    period: "kr./ måned",
+                    desc: "Til bureauer og mæglerkæder med høj volumen.",
+                    features: ["250 billeder / md.", "Alle designstile", "4K download", "API adgang", "Hvid-label mulighed", "Dedikeret support"],
+                    cta: "Vælg Business",
+                    highlight: false,
+                    custom: false,
+                  },
+                  {
+                    name: "Enterprise",
+                    price: "Custom",
+                    period: "kontakt os",
+                    desc: "Skræddersyet plan til store organisationer med særlige behov.",
+                    features: ["Ubegrænsede billeder", "Alle designstile + custom", "4K download", "Fuld API adgang", "Hvid-label mulighed", "Dedikeret onboarding", "SLA & dedikeret support"],
+                    cta: "Kontakt os",
+                    highlight: false,
+                    custom: true,
+                  },
+                ].map((plan) => (
+                  <div
+                    key={plan.name}
+                    className="p-7 rounded-2xl border flex flex-col relative"
+                    style={{
+                      background: plan.highlight ? "#0F1D2F" : "#FFFFFF",
+                      borderColor: plan.highlight ? "#0F1D2F" : "#E5E2DC",
+                    }}
+                    data-testid={`settings-pricing-${plan.name.toLowerCase()}`}
+                  >
+                    {plan.highlight && (
+                      <div className="text-[10px] font-bold mb-3 px-2.5 py-1 rounded-full self-start tracking-wider" style={{ background: "#C8956C", color: "#fff" }}>
+                        MEST POPULÆR
+                      </div>
+                    )}
+                    <div className="font-bold text-base mb-1" style={{ color: plan.highlight ? "#C8956C" : "#6B6B6B" }}>{plan.name}</div>
+                    <div className="flex items-end gap-1 mb-3">
+                      <span className="text-4xl font-bold" style={{ color: plan.highlight ? "#fff" : "#0F1D2F" }}>{plan.price}</span>
+                      <span className="text-sm mb-1" style={{ color: plan.highlight ? "rgba(255,255,255,0.6)" : "#6B6B6B" }}>
+                        {plan.custom ? plan.period : `kr.${plan.period.replace(/^kr\./, "")}`}
+                      </span>
+                    </div>
+                    <p className="text-sm mb-6 leading-relaxed" style={{ color: plan.highlight ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{plan.desc}</p>
+                    <ul className="space-y-2.5 mb-7 flex-1">
+                      {plan.features.map((f) => (
+                        <li key={f} className="flex items-center gap-2 text-sm" style={{ color: plan.highlight ? "#fff" : "#0F1D2F" }}>
+                          <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#C8956C" }} />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => {
+                        if (plan.custom) {
+                          window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
+                        } else {
+                          window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Abonnement%3A%20" + encodeURIComponent(plan.name);
+                        }
+                      }}
+                      className="w-full h-11 rounded-full font-semibold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"
+                      style={{
+                        background: plan.highlight ? "#C8956C" : "#0F1D2F",
+                        color: "#fff",
+                      }}
+                      data-testid={`settings-pricing-cta-${plan.name.toLowerCase()}`}
+                    >
+                      {plan.cta}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {section === "fakturering" && (() => {
+            const usedThisMonth = stats?.totalImages ?? 0;
+            const currentPlan = {
+              name: "Gratis prøveperiode",
+              includedText: "1 gratis visualisering",
+              creditsPerMonth: null as number | null,
+            };
+            const billingHistory: { date: string; description: string; amount: string }[] = [];
+            const referencePlans = [
+              { name: "Starter", price: "2.499 kr/md", features: ["25 billeder / md.", "5 designstile", "HD download", "Email support"], highlight: false },
+              { name: "Pro", price: "4.999 kr/md", features: ["100 billeder / md.", "Alle 8 designstile", "4K download", "Branding", "Prioriteret support"], highlight: true },
+              { name: "Business", price: "9.999 kr/md", features: ["250 billeder / md.", "Alle designstile", "4K + API adgang", "Hvid-label", "Dedikeret support"], highlight: false },
+              { name: "Enterprise", price: "Kontakt os", features: ["Ubegrænsede billeder", "Custom stile", "Fuld API", "Hvid-label", "Onboarding + SLA"], highlight: false },
+            ];
+            const downloadCsv = () => {
+              const rows = [
+                ["dato", "type", "antal", "beskrivelse"],
+                [new Date().toISOString().slice(0, 10), "forbrug", String(usedThisMonth), "Visualiseringer denne måned"],
+                ...billingHistory.map((b) => [b.date, "betaling", "1", `${b.description} – ${b.amount}`]),
+              ];
+              const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `forbrugsrapport-${new Date().toISOString().slice(0, 10)}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            };
+            return (
+              <motion.div key="fakturering-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Fakturering</h2>
+                  <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov.</p>
+                </div>
+
+                {/* ── Current plan ── */}
+                <div className="rounded-2xl border p-6 mb-8" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }} data-testid="billing-current-plan">
+                  <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase mb-1" style={{ color: "#C8956C" }}>Din nuværende plan</p>
+                      <h3 className="text-xl font-bold" style={{ color: "#0F1D2F" }}>{currentPlan.name}</h3>
+                    </div>
+                    <button
+                      disabled
+                      className="px-4 py-2 rounded-full text-sm font-semibold cursor-not-allowed opacity-70"
+                      style={{ background: "#F0EDE7", color: "#6B6B6B" }}
+                      data-testid="billing-upgrade-button"
+                    >
+                      Opgrader til betalt plan — kommer snart
+                    </button>
+                  </div>
+                  <p className="text-sm mb-2" style={{ color: "#6B6B6B" }}>Inkluderet:</p>
+                  <ul className="space-y-1.5">
+                    <li className="flex items-center gap-2 text-sm" style={{ color: "#0F1D2F" }}>
+                      <Check className="w-4 h-4" style={{ color: "#C8956C" }} /> {currentPlan.includedText}
+                    </li>
+                    <li className="flex items-center gap-2 text-sm" style={{ color: "#0F1D2F" }}>
+                      <Check className="w-4 h-4" style={{ color: "#C8956C" }} /> Alle stilarter tilgængelige
+                    </li>
+                  </ul>
+                  <div className="mt-5 pt-5 border-t" style={{ borderColor: "#E5E2DC" }}>
+                    <div className="flex items-center justify-between text-sm" style={{ color: "#6B6B6B" }}>
+                      <span>Brugt denne måned</span>
+                      <span className="font-semibold" style={{ color: "#0F1D2F" }} data-testid="billing-usage-count">{usedThisMonth} {usedThisMonth === 1 ? "billede" : "billeder"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Billing history ── */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Forbrugshistorik</h3>
+                    <button
+                      onClick={downloadCsv}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-90"
+                      style={{ background: "#0F1D2F", color: "#fff" }}
+                      data-testid="billing-download-csv"
+                    >
+                      <Download className="w-4 h-4" /> Download forbrugsrapport (CSV)
+                    </button>
+                  </div>
+                  {billingHistory.length === 0 ? (
+                    <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }} data-testid="billing-history-empty">
+                      <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen betalinger endnu. Gratis prøveperiode.</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border overflow-hidden" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }}>
+                      {billingHistory.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between px-5 py-4 border-b last:border-b-0" style={{ borderColor: "#E5E2DC" }}>
+                          <div>
+                            <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.description}</p>
+                            <p className="text-xs" style={{ color: "#6B6B6B" }}>{item.date}</p>
+                          </div>
+                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Reference plans ── */}
+                <div>
+                  <h3 className="text-lg font-bold mb-1" style={{ color: "#0F1D2F" }}>Prisplaner</h3>
+                  <p className="text-xs mb-5" style={{ color: "#6B6B6B" }}>Stripe-integration kommer snart — knapperne er deaktiveret indtil videre.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="billing-reference-plans">
+                    {referencePlans.map((plan) => (
+                      <div
+                        key={plan.name}
+                        className="p-5 rounded-2xl border flex flex-col relative"
+                        style={{
+                          background: plan.highlight ? "#0F1D2F" : "#FFFFFF",
+                          borderColor: plan.highlight ? "#0F1D2F" : "#E5E2DC",
+                        }}
+                        data-testid={`billing-plan-${plan.name.toLowerCase()}`}
+                      >
+                        {plan.highlight && (
+                          <div className="text-[10px] font-bold mb-2 px-2 py-0.5 rounded-full self-start tracking-wider" style={{ background: "#C8956C", color: "#fff" }}>
+                            MEST POPULÆR
+                          </div>
+                        )}
+                        <div className="font-bold text-base mb-1" style={{ color: plan.highlight ? "#C8956C" : "#0F1D2F" }}>{plan.name}</div>
+                        <div className="text-xl font-bold mb-4" style={{ color: plan.highlight ? "#fff" : "#0F1D2F" }}>{plan.price}</div>
+                        <ul className="space-y-1.5 mb-5 flex-1">
+                          {plan.features.map((f) => (
+                            <li key={f} className="flex items-start gap-1.5 text-xs" style={{ color: plan.highlight ? "rgba(255,255,255,0.85)" : "#0F1D2F" }}>
+                              <Check className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                        <button
+                          disabled
+                          className="w-full h-10 rounded-full font-semibold text-xs cursor-not-allowed opacity-70 inline-flex items-center justify-center gap-1.5"
+                          style={{ background: "#F0EDE7", color: "#6B6B6B" }}
+                          data-testid={`billing-plan-cta-${plan.name.toLowerCase()}`}
+                        >
+                          <Clock className="w-3 h-3" /> Kommer snart
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
+        </main>
+      </div>
+
+      {/* ── MODALS ── */}
+      <AnimatePresence>
+        {modal === "newSag" && (
+          <NewSagModal
+            onClose={() => setModal(null)}
+            onCreated={handleNewCase}
+            isPending={createCaseMutation.isPending}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── TOAST ── */}
+      <AnimatePresence>
+        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      </AnimatePresence>
+    </div>
+  );
+}

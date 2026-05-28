@@ -1,0 +1,195 @@
+OPGAVE: Fix at seneste aktivitet og mest brugte IKKE viser genererede billeder på dashboard.
+
+PROBLEM: Brugeren genererer billede → går til dashboard → intet nyt vises.
+
+═══════════════════════════════════════
+DIAGNOSE — TJEK DETTE FØRST
+═══════════════════════════════════════
+
+1. Åbn browser console (F12)
+2. Generér et billede
+3. Gå til dashboard
+4. Tjek om du ser:
+   - "Dashboard mounted"
+   - "Activity data:" med array
+   - "Most used data:" med object
+
+Hvis du IKKE ser disse = query kører ikke eller returnerer tomt.
+
+═══════════════════════════════════════
+FIX 1: SIKR AT INVALIDATE KØRER UANSET SECTION
+═══════════════════════════════════════
+
+Når brugeren genererer et billede, skifter section til sag-detail.
+Dashboard unmountes. invalidateQueries mens unmounted = virker ikke.
+
+I generate mutation onSuccess:
+
+onSuccess: (data) => {
+  // INVALIDÉR queries — dette virker selvom dashboard er unmounted
+  queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+  queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
+  queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+  
+  // SÆT DATA DIREKTE i cache så det er klar når dashboard remountes
+  queryClient.setQueryData(["/api/bolig/activity"], (old: any) => {
+    if (!old) return [data];
+    return [data, ...old].slice(0, 5);
+  });
+  
+  // Vis toast
+  showToast({ title: "Billede genereret" });
+}
+
+═══════════════════════════════════════
+FIX 2: SIKR AT DASHBOARD REFETCHER VED MOUNT
+═══════════════════════════════════════
+
+I dashboard komponent:
+
+const { data: activity = [], refetch: refetchActivity } = useQuery({
+  queryKey: ["/api/bolig/activity"],
+  queryFn: fetchActivity,
+  staleTime: 0,        // ← ALTID stale, refetch ved mount
+  refetchOnMount: true, // ← REFETCH når component mountes
+});
+
+const { data: mostUsed, refetch: refetchMostUsed } = useQuery({
+  queryKey: ["/api/bolig/most-used"],
+  queryFn: fetchMostUsed,
+  staleTime: 0,
+  refetchOnMount: true,
+});
+
+useEffect(() => {
+  console.log("Dashboard mounted — refetching");
+  refetchActivity();
+  refetchMostUsed();
+}, []); // ← KUN ved mount
+
+═══════════════════════════════════════
+FIX 3: TJEK AT QUERY KEY MATCHER 100%
+═══════════════════════════════════════
+
+Dashboard query:
+queryKey: ["/api/bolig/activity"]
+
+Invalidation efter generering:
+queryKey: ["/api/bolig/activity"]
+
+SKAL VÆRE IDENTISK — tjek for typos, ekstra spaces, forskellig casing.
+
+Brug KUN useQueryClient() hook — ikke importeret instance.
+
+═══════════════════════════════════════
+FIX 4: TJEK OM ACTIVITY HENTER FRA generated_images
+═══════════════════════════════════════
+
+I storage.getRecentActivity:
+
+ERSTAT:
+SELECT * FROM bolig_cases WHERE user_id = $1 ORDER BY created_at DESC
+
+MED:
+SELECT 
+  gi.id,
+  gi.room_type as roomType,
+  gi.style,
+  gi.budget_tier as budgetTier,
+  gi.image_url as imageUrl,
+  gi.created_at as createdAt,
+  'generation' as type
+FROM generated_images gi
+WHERE gi.user_id = $1
+ORDER BY gi.created_at DESC
+LIMIT 5
+
+Hvis du vil have SAG-oprettelser også:
+UNION ALL
+SELECT 
+  bc.id,
+  bc.address as roomType,
+  null as style,
+  null as budgetTier,
+  null as imageUrl,
+  bc.created_at as createdAt,
+  'case' as type
+FROM bolig_cases bc
+WHERE bc.user_id = $1
+ORDER BY createdAt DESC
+LIMIT 5
+
+═══════════════════════════════════════
+FIX 5: TJEK OM MOST USED HENTER FRA ALLE generated_images
+═══════════════════════════════════════
+
+I storage.getMostUsed:
+
+ERSTAT:
+SELECT style, COUNT(*) as count 
+FROM generated_images gi
+JOIN bolig_cases bc ON gi.case_id = bc.id
+WHERE bc.user_id = $1
+
+MED:
+SELECT style, COUNT(*) as count 
+FROM generated_images
+WHERE user_id = $1
+GROUP BY style
+ORDER BY count DESC
+LIMIT 3
+
+(VIGTIGT: Fjern JOIN med bolig_cases — det ekskluderer hurtig-genereringer!)
+
+SAMME for rooms og tiers:
+SELECT room_type, COUNT(*) as count FROM generated_images WHERE user_id = $1...
+SELECT budget_tier, COUNT(*) as count FROM generated_images WHERE user_id = $1...
+
+═══════════════════════════════════════
+FIX 6: TJEK RENDERING — CONSOLE.LOG I BROWSER
+═══════════════════════════════════════
+
+I dashboard render:
+
+console.log("Rendering activity:", activity);
+console.log("Rendering mostUsed:", mostUsed);
+
+if (activity.length === 0) {
+  console.log("Activity is empty — viser tom state");
+  return <p>Ingen aktivitet</p>;
+}
+
+return (
+  <div>
+    {activity.map((item: any) => (
+      <div key={item.id}>
+        {console.log("Activity item:", item)}
+        <img src={item.imageUrl} />  ← TJEK at imageUrl eksisterer
+        <span>{item.roomType} | {item.style} | Tier {item.budgetTier}</span>
+      </div>
+    ))}
+  </div>
+);
+
+Hvis activity er tomt array = query returnerer ingenting.
+Hvis activity har items men imageUrl er undefined = backend returnerer ikke feltet.
+
+═══════════════════════════════════════
+VERIFICERING
+═══════════════════════════════════════
+
+1. Generér et billede
+2. Gå til dashboard
+3. Tjek browser console:
+   - "Dashboard mounted — refetching" ← skal vises
+   - "Activity data:" med array ← skal have items
+   - "Most used data:" med object ← skal have tal
+
+4. Tjek at "Seneste aktivitet" viser nyt item med thumbnail
+5. Tjek at "Dine mest brugte valg" viser opdaterede tal
+
+Hvis stadig tomt:
+- Tjek Replit console for "GET /api/bolig/activity" logs
+- Hvis ingen logs = route rammes ikke (rækkefølge/proxy problem)
+
+SVAR MED "DASHBOARD TRACKING FIXET" når done

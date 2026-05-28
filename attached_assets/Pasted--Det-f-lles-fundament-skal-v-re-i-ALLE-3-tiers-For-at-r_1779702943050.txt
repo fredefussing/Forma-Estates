@@ -1,0 +1,50 @@
+🎯 Det fælles fundament (skal være i ALLE 3 tiers)
+For at rummet ser ægte ud, skal hver eneste prompt indeholde disse "ankre" — det er dem der typisk mangler og gør at AI flytter vinduer rundt eller laver svævende møbler:
+
+PRESERVE the existing room architecture exactly: keep all walls, windows, 
+doors, ceiling, floor type, ceiling beams, radiators, wall outlets, and 
+window frames in their exact original positions. Match the existing 
+lighting direction, shadows, perspective and camera angle. Only replace 
+the movable furniture and decor. Furniture must sit naturally on the 
+floor with realistic contact shadows. Photorealistic rendering, sharp 
+focus, natural daylight, no fish-eye distortion.
+
+→ Dette er forskellen mellem "AI-look" og "rigtigt foto-look". Hvis du kun ændrer én ting i prompts, så start her.
+
+🥉 BUDGET-tier — "Førstegangskøber / studielejlighed"
+Idé: Funktionelt, men ikke kedeligt. Skal ligne en lejlighed der er sat op af et ungt par med IKEA-budget men god smag.
+
+Scandinavian budget interior. Furniture: white-painted pine sofa with 
+light grey linen-look upholstery, simple birch coffee table with thin 
+black metal legs, single white paper pendant lamp, flat-weave cotton 
+rug in cream, open pine bookshelf with a few books and one small plant. 
+Materials: pine, MDF with veneer, woven cotton, basic ceramic. 
+Color palette: warm white walls, light pine, soft grey, single muted 
+sage accent. Atmosphere: bright, uncluttered, slightly minimal — like 
+a first apartment that has been thoughtfully styled but not lavishly 
+furnished. Avoid: empty floor space, oversized furniture, designer brands.
+
+Karaktertræk der gør det troværdigt som "budget":
+
+Pine (fyrretræ) i stedet for solid oak
+Cotton i stedet for uld
+Paper pendant i stedet for designerlampe
+"A few books and one small plant" — ikke overstyling
+Eksplicit "MDF with veneer" — billige materialer er en del af æstetikken
+🥈 STANDARD-tier — "Etableret familie / midaldrende par"
+Idé: Investeret i kvalitet, men ikke statussøgende. Det rum man tager kunder med ind i uden at undskylde noget.
+
+Scandinavian quality interior. Furniture: solid light oak 3-seater sofa 
+with natural wool upholstery in oatmeal, round solid oak coffee table 
+with chamfered edge, soft wool armchair in deep grey, brushed brass 
+floor lamp with linen shade, hand-woven wool rug in layered tones of 
+beige and grey, oak-and-glass display cabinet with curated ceramics 
+and 3-4 art books, two indoor plants (monstera and small fig) in 
+terracotta pots. Materials: solid oak (visible grain), pure new wool, 
+washed linen, brushed brass, hand-thrown ceramic. Color palette: warm 
+white walls, natural oak, oatmeal, charcoal grey, subtle forest green 
+accent in one cushion or vase. Atmosphere: lived-in, hygge, evening 
+warmth from layered lighting (pendant + floor lamp + table lamp). 
+Styled but not staged — visible signs of life: a folded throw, an open 
+book, a coffee cup. Avoid: matchy-matchy sets, plastic finishes, 
+over-symmetry.

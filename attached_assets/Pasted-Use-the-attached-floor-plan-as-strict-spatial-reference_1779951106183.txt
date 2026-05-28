@@ -1,0 +1,33 @@
+Use the attached floor plan as strict spatial reference and generate a highly detailed, ultra-sharp 3D architectural floor plan visualization.
+
+The output must accurately convert the 2D floor plan into a structured 3D layout that clearly shows all rooms, circulation paths, and exterior areas for easy readability and user understanding.
+
+Strictly preserve the exact floor plan layout, including all wall positions, structural geometry, room proportions, door placements, windows, and outdoor/terrace areas. Clearly differentiate indoor and outdoor spaces — terraces, balconies, and exterior zones must remain open-air and NOT be treated as interior rooms or furnished indoor spaces.
+
+Only furnish interior rooms (living rooms, kitchens, bedrooms, bathrooms, etc.). Outdoor areas such as terraces, balconies, and gardens must remain minimal, open, and lightly styled with outdoor furniture only if appropriate.
+
+Style: modern architectural visualization with a clean real estate presentation style, warm neutral Scandinavian-inspired palette, realistic wood, stone, glass, and fabric materials, physically based rendering.
+
+Camera: strict top-down orthographic view or near-orthographic view (NOT angled), with no perspective distortion. The goal is maximum readability of room layout, making it easy to distinguish and understand each space. Maintain a flat, map-like presentation with slight elevation only for depth clarity, but no strong tilt.
+
+Lighting: even, soft global illumination with balanced exposure. No dramatic shadows. Ensure all rooms are equally visible and clearly readable.
+
+Rendering quality: ultra-sharp focus, 8K resolution, crisp edges, high clarity, clean separation between rooms, architectural visualization quality.
+
+Clarity rules:
+
+Clearly distinguish indoor vs outdoor spaces
+Terraces, balconies, and gardens must remain open and not enclosed
+Ensure all rooms are easy to read and identify
+No blur, no depth-of-field effects
+No cinematic perspective distortion
+Emphasize layout clarity over visual drama
+
+Important constraints:
+
+Do not change or distort the floor plan structure
+Do not modify walls, room sizes, or geometry
+Preserve exact architectural accuracy
+Do not convert outdoor areas into indoor rooms
+
+Final output should look like a premium real estate floor plan visualization with maximum clarity, readability, and architectural precision.

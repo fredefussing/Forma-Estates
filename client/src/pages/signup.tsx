@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { ArrowLeft, UserPlus } from "lucide-react";
 
 export default function SignupPage() {
   const { user, loading: authLoading } = useAuth();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,6 +32,11 @@ export default function SignupPage() {
     setError("");
     setSuccess("");
 
+    if (!displayName.trim() || displayName.trim().length < 2) {
+      setError("Skriv dit fulde navn (mindst 2 tegn).");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords matcher ikke. Prøv igen.");
       return;
@@ -40,6 +46,8 @@ export default function SignupPage() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: displayName.trim() });
+
       const signupSource = redirect !== "/min-konto"
         ? `Signup via ${redirect} redirect`
         : `Direkte signup (/opret)`;
@@ -48,6 +56,7 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userCredential.user.email, source: signupSource }),
       }).catch(() => {});
+
       setSuccess("Bruger oprettet! Sender dig videre...");
       setTimeout(() => {
         setLocation(redirect);
@@ -80,6 +89,19 @@ export default function SignupPage() {
         <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Start med 2 gratis AI-billeder</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label htmlFor="displayName">Dit navn</Label>
+            <Input
+              id="displayName"
+              type="text"
+              required
+              placeholder="F.eks. John Doe"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="mt-1.5"
+              data-testid="input-display-name"
+            />
+          </div>
           <div>
             <Label htmlFor="email">Email</Label>
             <Input

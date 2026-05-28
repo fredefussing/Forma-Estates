@@ -1,0 +1,199 @@
+📋 PROMPT TIL REPLIT
+Kopier ALLE instruktionerne nedenfor og send dem til Replit. Jeg har delt det op i klare trin:
+🎯 INSTRUKTION: Opdater landingssiden
+Jeg har en landingsside der bruger emojis til ikoner, hvilket ser uprofessionelt ud. Opdater siden med disse ændringer. Lav IKKE en ny side — opdater den eksisterende.
+✅ TRIN 1: Erstat alle emojis med inline SVG-ikoner
+Find og erstat ALLE emojis på siden. Brug disse inline SVG'er:
+Trin 01 — Upload foto (erstat 📷):
+HTML
+Preview
+Copy
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+  <circle cx="12" cy="13" r="4"/>
+</svg>
+Trin 02 — Vælg stil (erstat 🎨):
+HTML
+Preview
+Copy
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="13.5" cy="6.5" r="0.5" fill="#0F1D2F" stroke="none"/>
+  <circle cx="17.5" cy="10.5" r="0.5" fill="#0F1D2F" stroke="none"/>
+  <circle cx="8.5" cy="7.5" r="0.5" fill="#0F1D2F" stroke="none"/>
+  <circle cx="6.5" cy="12.5" r="0.5" fill="#0F1D2F" stroke="none"/>
+  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.94 0 1.85-.13 2.71-.37l.92-3.48a1 1 0 0 0-.78-1.24l-2.4-.48a1 1 0 0 0-1.16.74l-.27 1.01c-.18.67-.86 1.05-1.51.86l-.09-.03a8.003 8.003 0 0 1-5.04-7.01c0-4.42 3.58-8 8-8s8 3.58 8 8c0 1.1-.22 2.14-.62 3.09l-1.24 3.1a1 1 0 0 0 .93 1.38h4.86a1 1 0 0 0 1-1V12c0-5.52-4.48-10-10-10z"/>
+</svg>
+Trin 03 — Download (erstat ⚡):
+HTML
+Preview
+Copy
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+  <polyline points="7 10 12 15 17 10"/>
+  <line x1="12" y1="15" x2="12" y2="3"/>
+</svg>
+Feature: Realistisk AI (erstat 🖼️):
+HTML
+Preview
+Copy
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="3" width="18" height="18" rx="2"/>
+  <circle cx="8.5" cy="8.5" r="1.5"/>
+  <path d="M21 15l-5-5L5 21"/>
+</svg>
+Feature: 8 designstile (erstat ✨):
+HTML
+Preview
+Copy
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+  <polyline points="2 17 12 22 22 17"/>
+  <polyline points="2 12 12 17 22 12"/>
+</svg>
+Feature: Klar på 30 sek (erstat ⚡):
+HTML
+Preview
+Copy
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="13 2 13 10 21 10"/>
+  <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+</svg>
+Feature: Browser (erstat 💻):
+HTML
+Preview
+Copy
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2" y="3" width="20" height="14" rx="2"/>
+  <line x1="8" y1="21" x2="16" y2="21"/>
+  <line x1="12" y1="17" x2="12" y2="21"/>
+</svg>
+Feature: Download HD (erstat 📥):
+HTML
+Preview
+Copy
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+  <polyline points="7 10 12 15 17 10"/>
+  <line x1="12" y1="15" x2="12" y2="3"/>
+</svg>
+Feature: Dansk support (erstat 🇩🇰):
+HTML
+Preview
+Copy
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F1D2F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+  <circle cx="9" cy="7" r="4"/>
+  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+</svg>
+✅ TRIN 2: Opdater tekst og farver
+Hero-sektion:
+Skift overskrift fra: "Vis boligens fulde potentiale på 60 sekunder"
+Til: "Vis boligens fulde potentiale på 30 sekunder"
+Skift accentfarve på "30" til: #C8956C (samme bronze som label)
+Skift sub-tekst fra: "Vores AI giver dig et realistisk redesign klar til brug i din annonce — hurtigt og uden besvær."
+Til: "Upload et foto af et rum. Få et professionelt redesign klar til din annonce — på under 30 sekunder, til en brøkdel af prisen."
+Fjern knappen "Se eksempler". Behold kun én CTA: "Prøv gratis — 1 billede inkl. →"
+Steps-sektion:
+Skift overskrift fra: "Tre trin. Ét minut."
+Til: "Tre trin. Under ét minut."
+Skift step 03 tekst fra: "Inden for 60 sekunder genererer AI'en et realistisk billede klar til brug i din boligannonce."
+Til: "AI'en genererer dit billede på under 30 sekunder. Klar til download i fuld kvalitet."
+Eksempler-sektion:
+Behold som den er — den er god
+Features-sektion:
+Skift feature 3 overskrift fra: "Klar på under 60 sek."
+Til: "Klar på under 30 sek."
+Skift feature 3 tekst fra: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet."
+Til: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet — hurtigere end at tage en kop kaffe."
+✅ TRIN 3: Opdater nav-logo
+Skift logo-tekst fra: "Nordic Homebuild"
+Til: "AI BoligPotentiale"
+Font: Samme font, samme størrelse, bare ny tekst.
+✅ TRIN 4: Ingen trust der ikke findes
+Lav IKKE:
+❌ Ingen falske kundeudtalelser
+❌ Ingen "500+ mæglere bruger os"
+❌ Ingen "Spar X kroner"
+❌ Ingen logoer fra kæder vi ikke arbejder med
+Det eneste trust-element der er ægte:
+✅ "Ingen kreditkort krævet"
+✅ "1 gratis billede ved oprettelse"
+Behold disse. Det er nok til MVP.
+✅ TRIN 5: Feature-kort styling
+Gør feature-kortene mere visuelle:
+css
+Copy
+.feature-card {
+  background: #FFFFFF;
+  border: 1px solid #E8E4DE;
+  border-radius: 12px;
+  padding: 32px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.feature-card:hover {
+  box-shadow: 0 4px 24px rgba(15, 29, 47, 0.06);
+  border-color: #D9D5CF;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #F0EDE7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+✅ TRIN 6: Hero slider autoplay
+Lad hero-slideren køre automatisk:
+Start med "Før" billede synligt (slider helt til venstre)
+Efter 4 sekunder: swipe langsomt (3 sekunder) mod "Efter"
+Vis "Efter" i 4 sekunder
+Skift til næste billede-par
+Gentag for alle 3 par
+Brug JavaScript med requestAnimationFrame for smooth animation.
+✅ TRIN 7: Priser-opdatering
+Opdater priserne til:
+Table
+Pakke	Pris	Billeder	Detaljer
+Starter	2.499 kr/md	25 billeder	5 stilarter, HD download, email support
+Pro (mest populær)	4.999 kr/md	100 billeder	Alle 8 stilarter, 4K download, branding på billeder, prioriteret support
+Business	9.999 kr/md	Ubegrænsede	Alle stilarter, API adgang, hvid-label mulighed, dedikeret support
+CTA'er:
+Starter: "Vælg Starter"
+Pro: "Vælg Pro" (fremhævet knap)
+Business: "Kontakt os"
+Badge på Pro: "MEST POPULÆR" i bronze (#C8956C)
+✅ TRIN 8: Footer-opdatering
+Skift footer-brand fra: "Nordic Homebuild"
+Til: "AI BoligPotentiale"
+Behold teksten: "AI-drevne boligvisualisering til ejendomsmæglere og boligejere i Danmark."
+Skift copyright fra: "© 2026 Nordic Homebuild · AI BoligPotentiale"
+Til: "© 2026 AI BoligPotentiale · Danskjlet og udviklet i Danmark"
+🎨 FARVER der skal bruges overalt
+Table
+Brug	Hex
+Baggrund (lys)	#F5F3EF
+Baggrund (hvid)	#FFFFFF
+Primær tekst	#1A1A1A
+Sekundær tekst	#6B6B6B
+Navy (mørk)	#0F1D2F
+Accent (bronze)	#C8956C
+Accent hover	#B38158
+Grøn (success)	#2D6A4F
+Border	#D9D5CF
+Border lys	#E8E4DE
+📋 TJEKLISTE: Verificer at alt er ændret
+[ ] Alle emojis erstattet med SVG
+[ ] "60 sekunder" → "30 sekunder" overalt
+[ ] "Nordic Homebuild" → "AI BoligPotentiale" i logo og footer
+[ ] "Se eksempler" knap fjernet fra hero
+[ ] Priser opdateret (2499 / 4999 / 9999)
+[ ] Feature-kort har SVG ikoner og hover-effekt
+[ ] Hero slider autoplay fungerer
+[ ] Ingen falske trust-elementer tilføjet
+[ ] "MEST POPULÆR" badge på Pro
+[ ] Copyright opdateret

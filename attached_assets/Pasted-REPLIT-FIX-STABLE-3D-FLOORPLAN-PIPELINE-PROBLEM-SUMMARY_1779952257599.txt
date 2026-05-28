@@ -1,0 +1,235 @@
+REPLIT FIX — STABLE 3D FLOORPLAN PIPELINE
+PROBLEM SUMMARY
+
+The current 3D floorplan generation pipeline has become unstable because the AI model is interpreting the request as a creative interior redesign instead of a strict architectural floorplan reconstruction.
+
+Main issues:
+
+Model generates interior perspective renders instead of dollhouse floorplans
+AI hallucinates extra rooms or changes layout
+Terraces/balconies become enclosed rooms
+Aspect ratio auto-detection causes reframing
+Input images contain UI artifacts and whitespace
+Prompt is overly cinematic and too long for precise spatial tasks
+REQUIRED FIXES
+1. PREPROCESS FLOORPLAN IMAGE BEFORE SENDING TO fal.ai
+
+Before uploadToFal(), preprocess the image automatically:
+
+REQUIRED IMAGE CLEANUP
+Crop tightly to the actual floorplan
+Remove all UI elements/buttons/text outside plan
+Remove large white borders/margins
+Normalize brightness and contrast
+Sharpen wall lines slightly
+Preserve original orientation
+IMPORTANT
+
+The AI must ONLY see the architectural floorplan itself.
+
+UI buttons, whitespace, labels outside the plan, or screenshots from apps/websites confuse the model and cause layout hallucinations.
+
+2. CHANGE MODEL SETTINGS
+DO NOT USE:
+
+aspect_ratio: "auto"
+
+USE:
+
+aspect_ratio: "1:1"
+
+OR dynamically calculate the closest square-safe ratio.
+
+Reason:
+Auto aspect ratio causes reframing and spatial reinterpretation.
+
+3. USE A MUCH SHORTER AND STRICTER PROMPT
+REPLACE CURRENT PROMPT WITH:
+
+Generate a top-down 3D architectural dollhouse floor plan based STRICTLY on the attached floor plan image.
+
+The output MUST remain a 3D floor plan visualization — NOT an eye-level interior render, NOT a cinematic room scene, and NOT an architectural perspective photograph.
+
+Preserve the exact room layout, wall positions, room shapes, doors, windows, terraces, balconies, and circulation paths exactly as shown in the input image.
+
+DO NOT:
+
+add rooms
+remove rooms
+change room sizes
+alter wall geometry
+rotate the floor plan
+reinterpret the structure
+
+Camera:
+
+fixed near-top-down orthographic view
+same orientation and rotation as input
+minimal perspective distortion
+slight elevation only to reveal wall height
+maintain maximum room readability
+
+Walls:
+
+visible thickness
+realistic vertical wall height
+crisp architectural edges
+clear room separation
+
+Terraces and balconies must remain exterior open-air spaces and must never become enclosed interior rooms.
+
+Outdoor areas may contain minimal outdoor patio furniture only.
+
+Only furnish interior rooms using clean modern Scandinavian furniture appropriate to room type.
+
+Lighting:
+
+neutral soft daylight
+evenly distributed illumination
+no dramatic shadows
+no cinematic lighting
+
+Rendering:
+
+ultra-sharp architectural visualization
+crisp edges
+high room readability
+no blur
+no depth of field
+professional real-estate dollhouse style
+
+The final result must look like a professional 3D real-estate floorplan visualization with strict architectural accuracy.
+
+4. IMPORTANT MODEL BEHAVIOR RULE
+
+The AI model must prioritize:
+
+layout preservation
+room accuracy
+architectural readability
+
+over:
+
+aesthetics
+cinematic mood
+interior styling
+artistic interpretation
+5. FIX CAMERA FAILURE
+
+REMOVE all wording like:
+
+cinematic
+editorial
+dramatic
+atmospheric
+cozy
+luxurious
+immersive
+
+These words trigger interior-scene generation instead of architectural floorplan rendering.
+
+6. ADD DETERMINISTIC SEED
+
+Always use:
+seed: fixed integer
+
+Example:
+seed: 42
+
+Reason:
+This allows reproducible good generations and easier debugging.
+
+7. BEST fal.ai MODEL FOR THIS TASK
+BEST CURRENT OPTION:
+
+fal-ai/flux-pro/kontext/max
+
+Reason:
+
+better structure preservation
+stronger spatial consistency
+better architectural understanding
+less hallucination
+more stable geometry
+cleaner orthographic outputs
+
+Nano Banana is excellent for creative edits but weaker for strict spatial architectural reconstruction.
+
+RECOMMENDED FALLBACK MODELS
+OPTION 2
+
+fal-ai/flux-pro/kontext
+
+Good balance between:
+
+speed
+consistency
+cost
+OPTION 3
+
+fal-ai/imagen4/preview/edit
+
+Very strong:
+
+layout preservation
+clean architecture
+readability
+
+But:
+
+more conservative styling
+slower
+NOT RECOMMENDED FOR THIS TASK
+Avoid:
+
+fal-ai/nano-banana-2/edit
+
+for production-grade floorplan reconstruction.
+
+Reason:
+Nano Banana prioritizes semantic reinterpretation and creative editing over strict architectural preservation.
+
+It is better for:
+
+interior redesigns
+object replacement
+style transformations
+before/after renders
+
+NOT precise floorplan reconstruction.
+
+IDEAL LONG-TERM ARCHITECTURE
+
+For maximum production reliability:
+
+STEP 1:
+computer vision preprocessing
+
+STEP 2:
+wall/room detection
+
+STEP 3:
+clean vectorized floorplan extraction
+
+STEP 4:
+AI visualization generation
+
+This dramatically reduces hallucinated rooms and geometry drift.
+
+EXPECTED RESULT AFTER FIXES
+
+After implementing:
+
+image preprocessing
+strict top-down prompt
+fixed aspect ratio
+reduced cinematic language
+stronger model
+
+The system should:
+
+consistently generate proper 3D dollhouse floorplans
+preserve room structure accurately
+stop generating random rooms
+stop switching to interior perspective renders
+produce cleaner and more readable outputs

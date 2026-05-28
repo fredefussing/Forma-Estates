@@ -6,14 +6,16 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
-import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles, type InsertAiTourProperty } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
+import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail } from "./email";
 import { analyzeDesignImage } from "./ai_analyzer";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
+import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, downloadToUploads } from "./fal";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -56,23 +58,43 @@ const roomTypeFurnitureHint: Record<string, string> = {
 };
 
 // ── Style prompts ─────────────────────────────────────────────────────────────
-function buildRedesignPrompt(roomType: string, style: string, tier?: string, includePlants = false): string {
+const BOLIG_ROOM_ALIASES: Record<string, string> = {
+  "open living and dining room": "open plan living",
+  "open_plan_living": "open plan living",
+  "living_room": "living room",
+  "dining_room": "dining room",
+  "home_office": "home office",
+  "kids_room": "kids room",
+  "game_room": "game room",
+  "laundry_room": "laundry room",
+  "meeting_room": "meeting room",
+  "hallway": "entryway",
+};
+
+function buildRedesignPrompt(roomType: string, style: string, tier?: string, _includePlants = false): string {
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
 
-  // Prøv room-specifik prompt først (korte, rene prompts der virker bedst med edit/generate)
+  // 1) Prøv room-specifik prompt fra det gamle vocab (Skandinavisk/Moderne har dækning her).
   const roomSpecific = getRoomStylePrompt(style, roomType, validTier);
-  if (roomSpecific) {
-    const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
-    return `${roomSpecific}${plantNote}`;
+  if (roomSpecific) return roomSpecific;
+
+  // 2) Fallback til nye Bolig-prompts (Luksus, Industriel, Kyst, Overgangs, Landlig, Midcentury).
+  const tierMap: Record<string, "tier1" | "tier2" | "tier3"> = {
+    budget: "tier1", standard: "tier2", luxury: "tier3",
+  };
+  const boligTier = tierMap[validTier];
+  const boligRoom = BOLIG_ROOM_ALIASES[roomType.toLowerCase()] ?? roomType.toLowerCase();
+  const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
+  if (boligPrompt && !boligPrompt.includes(`${BOLIG_STYLE_LABELS[style.toLowerCase()] ?? style} design with appropriate furniture`)) {
+    // getBoligPrompt har en generisk final fallback — kun brug den hvis vi fik en rigtig prompt.
+    return boligPrompt;
   }
 
-  // Fallback: generisk vocab prompt (andre stilarter der ikke har rum-specifikke prompts endnu)
+  // 3) Sidste udvej: generisk vocab prompt.
   const vocab = styleVocabulary[style]?.[validTier];
-  const base = vocab
+  return vocab
     ? `Completely redesign this ${roomType}. ${vocab.prompt}`
     : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
-  const plantNote = includePlants ? " Include several green indoor plants in ceramic and woven pots." : "";
-  return `${base}${plantNote}`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
@@ -207,34 +229,41 @@ async function runVstAndGetResult(originalImageUrl: string, roomType: string, st
 }
 
 // ── SOLID10: send + poll wrapper that resolves with final image URL ────────────
+// Identisk retry-logik som AI Design Agent: 2 retries, 10s mellem forsøg.
 async function runSolid10AndGetResult(
   originalImageUrl: string, roomType: string, style: string, tier: string | undefined,
   includePlants: boolean, designId: number,
 ): Promise<string> {
-  const uuid = await sendCollovTask(originalImageUrl, roomType, style, tier, includePlants);
-  await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
-  setStatusMsg(designId, "Venter på AI...");
+  const maxRetries = 2;
+  let lastErr: any = null;
 
-  const maxAttempts = 45; // 45 × 2s = 90s
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 2000));
-    const result = await pollCollovResult(uuid);
-    if (result.status === "completed" && result.resultUrl) return result.resultUrl;
-    if (result.status === "failed") throw new Error(result.failReason || "solid10_failed");
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      log(`Design ${designId}: retry ${attempt}/${maxRetries} (waiting 10s)`);
+      setStatusMsg(designId, "Prøver igen...");
+      await new Promise(r => setTimeout(r, 10000));
+    }
+
+    try {
+      const uuid = await sendCollovTask(originalImageUrl, roomType, style, tier, includePlants);
+      await storage.updateDesign(designId, { collovUuid: uuid, status: "processing" });
+      setStatusMsg(designId, "Venter på AI...");
+
+      const maxAttempts = 45; // 45 × 2s = 90s
+      let timedOut = true;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const result = await pollCollovResult(uuid);
+        if (result.status === "completed" && result.resultUrl) return result.resultUrl;
+        if (result.status === "failed") { lastErr = new Error(result.failReason || "solid10_failed"); timedOut = false; break; }
+      }
+      if (timedOut) lastErr = new Error("SOLID10_TIMEOUT");
+    } catch (err: any) {
+      lastErr = err;
+    }
   }
-  throw new Error("SOLID10_TIMEOUT");
-}
 
-// ── Pre-process input image before sending to Collov ─────────────────────────
-// Resize to max 1920px, light sharpen, JPEG 96 → giver Collov en skarp reference
-async function prepareInputImage(filePath: string): Promise<void> {
-  const buffer = fs.readFileSync(filePath);
-  const processed = await sharp(buffer)
-    .resize(1920, 1920, { fit: "inside", withoutEnlargement: true })
-    .sharpen({ sigma: 0.8, flat: 0.5, jagged: 2 })
-    .jpeg({ quality: 96, mozjpeg: true })
-    .toBuffer();
-  fs.writeFileSync(filePath, processed);
+  throw lastErr || new Error("SOLID10_FAILED");
 }
 
 // ── VST finalize: download + skarp post-processing ───────────────────────────
@@ -251,26 +280,6 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   const filename = `result-${designId}-${Date.now()}.jpg`;
   fs.writeFileSync(path.join(uploadDir, filename), enhanced);
   log(`Design ${designId}: VST enhanced saved → /uploads/${filename}`);
-  return `/uploads/${filename}`;
-}
-
-// ── SOLID10 save: rå output fra Collov — ingen post-processing ───────────────
-async function sharpenAndSave(collovUrl: string, designId: number): Promise<string> {
-  const res = await fetch(collovUrl);
-  if (!res.ok) throw new Error(`Failed to fetch Collov image: ${res.status}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const contentType = res.headers.get("content-type") || "";
-  const filename = `result-${designId}-${Date.now()}.jpg`;
-  const outputPath = path.join(uploadDir, filename);
-  if (contentType.includes("webp") || collovUrl.endsWith(".webp")) {
-    // Konverter WebP → JPEG uden øvrig behandling
-    await sharp(buffer).jpeg({ quality: 95 }).toFile(outputPath);
-    log(`Design ${designId}: WebP→JPEG saved (no post-processing) → /uploads/${filename}`);
-  } else {
-    // Gem rå buffer direkte
-    fs.writeFileSync(outputPath, buffer);
-    log(`Design ${designId}: Raw saved (no post-processing) → /uploads/${filename}`);
-  }
   return `/uploads/${filename}`;
 }
 
@@ -293,118 +302,6 @@ async function runDesignWorkflow(
 const designStatusMessages = new Map<number, string>();
 function setStatusMsg(designId: number, msg: string) { designStatusMessages.set(designId, msg); }
 function clearStatusMsg(designId: number) { designStatusMessages.delete(designId); }
-
-// ── Background poll with fast-retry (first attempt max 15 polls, then immediate retry) ──
-async function backgroundPoll(
-  designId: number,
-  uuid: string,
-  retryFn?: () => Promise<string>,
-) {
-  const maxAttempts = 15;   // 15 × 3s = 45s before retry fires (was 40 × 3s = 120s)
-  const maxRetries = 1;
-  let attempts = 0;
-  let retryCount = 0;
-  const pollStart = Date.now();
-
-  const poll = async () => {
-    attempts++;
-    const elapsed = Math.round((Date.now() - pollStart) / 1000);
-    setStatusMsg(designId, `Venter på AI... (${elapsed} sek)`);
-
-    try {
-      const result = await pollCollovResult(uuid);
-
-      if (result.status === "completed" && result.resultUrl) {
-        setStatusMsg(designId, "Efterbehandler billede...");
-        let finalUrl = result.resultUrl;
-        try {
-          finalUrl = await sharpenAndSave(result.resultUrl, designId);
-        } catch (sharpErr: any) {
-          log(`Design ${designId}: sharp failed (using Collov URL) — ${sharpErr.message}`);
-        }
-        clearStatusMsg(designId);
-        const design = await storage.getDesign(designId);
-        await storage.updateDesign(designId, {
-          status: "completed",
-          resultImageUrl: finalUrl,
-          versions: [finalUrl],
-        });
-        log(`Design ${designId} completed in ~${elapsed}s`);
-
-        // Kør affiliate pipeline i baggrunden (blokerer ikke polling)
-        if (design) {
-          const { runAffiliatePipeline } = await import("./affiliatePipeline");
-          runAffiliatePipeline(designId, finalUrl, design.roomType).catch(
-            (e: any) => log(`[Affiliate] Design ${designId} pipeline uncaught: ${e.message}`)
-          );
-        }
-        return;
-      }
-
-      if (result.status === "failed") {
-        if (retryCount < maxRetries && retryFn) {
-          retryCount++;
-          log(`Design ${designId} failed (reason: ${result.failReason}), retry ${retryCount}/${maxRetries}...`);
-          setStatusMsg(designId, "Prøver igen...");
-          await storage.updateDesign(designId, { status: "processing" });
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          try {
-            const newUuid = await retryFn();
-            uuid = newUuid;
-            attempts = 0;
-            await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
-            log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
-            setTimeout(poll, 3000);
-            return;
-          } catch (retryErr: any) {
-            log(`Design ${designId} retry ${retryCount} send failed: ${retryErr.message}`);
-          }
-        }
-        clearStatusMsg(designId);
-        await storage.updateDesign(designId, { status: "failed", failReason: result.failReason || "ai_generation_failed" });
-        log(`Design ${designId} failed permanently after ${retryCount} retries, reason: ${result.failReason}`);
-        return;
-      }
-
-      if (attempts < maxAttempts) {
-        setTimeout(poll, 3000);
-      } else if (retryCount < maxRetries && retryFn) {
-        // First attempt timed out → fire retry immediately (same as FAILED path)
-        retryCount++;
-        log(`Design ${designId} timed out after ${elapsed}s, firing retry ${retryCount}/${maxRetries}...`);
-        setStatusMsg(designId, "Prøver igen...");
-        await storage.updateDesign(designId, { status: "processing" });
-        try {
-          const newUuid = await retryFn();
-          uuid = newUuid;
-          attempts = 0;
-          await storage.updateDesign(designId, { collovUuid: newUuid, status: "processing" });
-          log(`Design ${designId} retry ${retryCount} started with uuid: ${newUuid}`);
-          setTimeout(poll, 3000);
-        } catch (retryErr: any) {
-          log(`Design ${designId} retry send failed: ${retryErr.message}`);
-          clearStatusMsg(designId);
-          await storage.updateDesign(designId, { status: "failed", failReason: "retry_send_failed" });
-        }
-      } else {
-        clearStatusMsg(designId);
-        await storage.updateDesign(designId, { status: "failed", failReason: "timeout" });
-        log(`Design ${designId} timed out after ~${elapsed}s (all retries exhausted)`);
-      }
-    } catch (err) {
-      log(`Poll error for design ${designId}: ${err}`);
-      if (attempts < maxAttempts) {
-        setTimeout(poll, 5000);
-      } else {
-        clearStatusMsg(designId);
-        await storage.updateDesign(designId, { status: "failed", failReason: "poll_error" });
-      }
-    }
-  };
-
-  poll();
-}
-
 
 export async function registerRoutes(
   httpServer: Server,
@@ -445,7 +342,7 @@ export async function registerRoutes(
 
   app.post("/api/auth/verify", async (req, res) => {
     try {
-      const { uid, email } = await verifyFirebaseToken(req.headers.authorization);
+      const { uid, email, name } = await verifyFirebaseToken(req.headers.authorization);
 
       let user = await storage.getUserByFirebaseUid(uid);
 
@@ -463,6 +360,7 @@ export async function registerRoutes(
           user = await storage.createUser({
             email,
             firebaseUid: uid,
+            displayName: name ?? null,
             creditsRemaining: 2,
             totalCreditsUsed: 0,
           });
@@ -476,6 +374,12 @@ export async function registerRoutes(
 
           log(`New user created: ${email} (uid: ${uid}) with 2 free credits`);
         }
+      }
+
+      // Sync displayName from Firebase token to DB if it has changed
+      if (name && user.displayName !== name) {
+        await storage.updateUser(user.id, { displayName: name });
+        user = { ...user, displayName: name };
       }
 
       return res.json({
@@ -1706,6 +1610,1389 @@ export async function registerRoutes(
       return res.json({ success: true, products, designId });
     } catch (err: any) {
       log(`designs/:id/products fejl: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── AI BoligPotentiale: Case CRUD ─────────────────────────────────────────
+  app.get("/api/bolig/cases", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const cases = await storage.getBoligCasesByUser(user.id);
+      const enriched = await Promise.all(cases.map(async (c) => {
+        const imgs = await storage.getGeneratedImagesByCaseId(c.id, user.id);
+        const thumbs = imgs.filter((i) => i.style !== "transform-video");
+        return { ...c, imageCount: imgs.length, latestImageUrl: thumbs[0]?.imageUrl ?? null };
+      }));
+      return res.json(enriched);
+    } catch (err: any) {
+      return res.status(401).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/bolig/cases", async (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    try {
+      log(`📥 POST /api/bolig/cases — body: ${JSON.stringify(req.body)}`);
+      const authHeader = req.headers.authorization;
+      log(`📥 Auth header: ${authHeader ? "tilstede" : "MANGLER"}`);
+      const { uid } = await verifyFirebaseToken(authHeader);
+      log(`📥 Firebase UID: ${uid}`);
+      const user = await storage.getUserByFirebaseUid(uid);
+      log(`📥 DB User: ${user ? `ID ${user.id}` : "IKKE FUNDET"}`);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const { address, caseNo, notes, marketDateISO } = req.body;
+      if (!address?.trim()) return res.status(400).json({ message: "address er påkrævet" });
+      const newCase = await storage.createBoligCase({
+        userId: user.id, address: address.trim(),
+        caseNo: caseNo?.trim() || null, notes: notes?.trim() || null,
+        status: "active", marketDateISO: marketDateISO || new Date().toISOString().slice(0, 10),
+      });
+      log(`✅ Sag oprettet: ID ${newCase.id}, adresse: ${newCase.address}`);
+      return res.status(201).json({ ...newCase, imageCount: 0, latestImageUrl: null });
+    } catch (err: any) {
+      log(`❌ Fejl i POST /api/bolig/cases: ${err.message}`);
+      return res.status(500).json({ message: err.message ?? "Internal server error" });
+    }
+  });
+
+  app.patch("/api/bolig/cases/:id/status", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getBoligCase(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const { status } = req.body;
+      if (!["active", "sold", "archived"].includes(status)) return res.status(400).json({ message: "Invalid status" });
+      const soldDateISO = status === "sold" ? new Date().toISOString().slice(0, 10) : null;
+      const updated = await storage.updateBoligCaseStatus(id, status, soldDateISO);
+      const imgs = await storage.getGeneratedImagesByCaseId(id, user.id);
+      const thumbs = imgs.filter((i) => i.style !== "transform-video");
+      return res.json({ ...updated, imageCount: imgs.length, latestImageUrl: thumbs[0]?.imageUrl ?? null });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/stats", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const stats = await storage.getBoligStats(user.id);
+      return res.json(stats);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/activity", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const activity = await storage.getBoligActivity(user.id);
+      return res.json(activity);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/team-activity", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const membership = await storage.getTeamByUserId(user.id);
+      if (!membership) return res.json([]);
+      const activity = await storage.getTeamActivity(membership.team.id);
+      return res.json(activity);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/most-used", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const data = await storage.getBoligMostUsed(user.id);
+      return res.json(data);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/recent-images", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const imgs = await storage.getAllGeneratedImages(user.id, 20);
+      return res.json(imgs.filter((i) => i.style !== "transform-video").slice(0, 3));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/bolig/cases/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getBoligCase(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteBoligCase(id);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/cases/:id/images", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const caseId = parseInt(req.params.id);
+      if (isNaN(caseId)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getBoligCase(caseId);
+      if (!existing || existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const marketMs = new Date(existing.marketDateISO).getTime();
+      const imgs = await storage.getGeneratedImagesByCaseId(caseId, user.id);
+      return res.json(imgs.map((img) => ({
+        id: img.id,
+        caseId: img.caseId,
+        src: img.imageUrl,
+        beforeSrc: img.originalImageUrl ?? null,
+        room: img.roomType,
+        style: img.style,
+        tier: img.budgetTier,
+        promptUsed: img.promptText ?? null,
+        daysAfterMarket: Math.max(0, Math.floor((new Date(img.createdAt).getTime() - marketMs) / 86_400_000)),
+        createdAt: img.createdAt,
+      })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin-only: fetch any team member's case images
+  app.get("/api/bolig/team/cases/:id/images", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const membership = await storage.getTeamByUserId(user.id);
+      if (!membership) return res.status(403).json({ message: "Not in a team" });
+      const { team, role } = membership;
+      const isAdmin = role === "admin" || team.ownerUserId === user.id;
+      if (!isAdmin) return res.status(403).json({ message: "Admin only" });
+
+      const caseId = parseInt(req.params.id);
+      if (isNaN(caseId)) return res.status(400).json({ message: "Invalid id" });
+
+      // Verify case belongs to someone in this team
+      const caseRow = await pool.query<{ user_id: number; address: string; market_date_iso: string }>(
+        "SELECT user_id, address, market_date_iso FROM bolig_cases WHERE id = $1", [caseId]
+      );
+      if (!caseRow.rows[0]) return res.status(404).json({ message: "Case not found" });
+
+      const memberCheck = await pool.query(
+        `SELECT 1 FROM users u WHERE u.id = $1 AND u.id IN (
+          SELECT owner_user_id FROM teams WHERE id = $2
+          UNION SELECT user_id FROM team_members WHERE team_id = $2
+        )`,
+        [caseRow.rows[0].user_id, team.id]
+      );
+      if (!memberCheck.rows.length) return res.status(403).json({ message: "Case not in your team" });
+
+      const marketMs = new Date(caseRow.rows[0].market_date_iso).getTime();
+      const imgs = await storage.getGeneratedImagesByCaseId(caseId, caseRow.rows[0].user_id);
+      return res.json(imgs.map((img) => ({
+        id: img.id,
+        caseId: img.caseId,
+        src: img.imageUrl,
+        beforeSrc: img.originalImageUrl ?? null,
+        room: img.roomType,
+        style: img.style,
+        tier: img.budgetTier,
+        daysAfterMarket: Math.max(0, Math.floor((new Date(img.createdAt).getTime() - marketMs) / 86_400_000)),
+        createdAt: img.createdAt,
+      })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/bolig/cases/:id/images", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const caseId = parseInt(req.params.id);
+      if (isNaN(caseId)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getBoligCase(caseId);
+      if (!existing || existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const {
+        imageUrl, originalImageUrl,
+        roomType, style, budgetTier,
+        promptText, isDesignAgent,
+      } = req.body || {};
+      if (!imageUrl) return res.status(400).json({ message: "imageUrl required" });
+      const img = await storage.createGeneratedImage({
+        userId: user.id,
+        caseId,
+        imageUrl,
+        originalImageUrl: originalImageUrl || null,
+        roomType: roomType || "other",
+        style: style || "custom",
+        budgetTier: budgetTier || "tier2",
+        promptText: promptText || null,
+        isDesignAgent: !!isDesignAgent,
+        isQuickGeneration: false,
+        quickSessionId: null,
+        generationTimeMs: null,
+      });
+      return res.json(img);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Bolig prompts lookup ────────────────────────────────────────────────────
+  app.get("/api/prompts", async (req, res) => {
+    try {
+      const room = (req.query.room as string) || "living room";
+      const style = (req.query.style as string) || "scandinavian";
+      const tierRaw = (req.query.tier as string) || "2";
+      const tier = tierRaw === "1" || tierRaw === "tier1" ? "tier1" : tierRaw === "3" || tierRaw === "tier3" ? "tier3" : "tier2";
+      const prompt = getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
+      return res.json({ prompt, room, style, tier });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Generations: all ────────────────────────────────────────────────────────
+  app.get("/api/generations/all", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const imgs = await storage.getAllGeneratedImages(user.id);
+      return res.json(imgs.map((img) => ({
+        id: img.id,
+        caseId: img.caseId,
+        isQuickGeneration: img.isQuickGeneration,
+        src: img.imageUrl,
+        beforeSrc: img.originalImageUrl ?? null,
+        room: img.roomType,
+        style: img.style,
+        tier: img.budgetTier,
+        promptUsed: img.promptText ?? null,
+        createdAt: img.createdAt,
+        generationTimeMs: img.generationTimeMs,
+      })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Delete a generated image ────────────────────────────────────────────────
+  app.delete("/api/bolig/generated-images/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      await storage.deleteGeneratedImage(id, user.id);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── AI BoligPotentiale: generate endpoint ──────────────────────────────────
+  app.post("/api/bolig/generate", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "Intet billede uploadet" });
+      }
+
+      // Auth — try Firebase token first, then fall back to case-owner lookup
+      let authedUserId: number | null = null;
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (u) authedUserId = u.id;
+        else log(`[BoligPotentiale] auth: uid ${uid} not found in DB`);
+      } catch (authErr: any) {
+        log(`[BoligPotentiale] auth fallback (${authErr?.message})`);
+      }
+      // Secondary fallback: if a caseId was supplied, resolve owner from the case
+      if (!authedUserId && req.body.caseId) {
+        const rawCid = parseInt(req.body.caseId as string);
+        if (!isNaN(rawCid)) {
+          const fallbackCase = await storage.getBoligCase(rawCid);
+          if (fallbackCase) { authedUserId = fallbackCase.userId; log(`[BoligPotentiale] auth resolved from caseId ${rawCid} → userId ${authedUserId}`); }
+        }
+      }
+
+      const isDesignAgent = req.body.isDesignAgent === "true" || req.body.isDesignAgent === true;
+      const style = isDesignAgent ? "Custom" : (req.body.style as string) || "scandinavian";
+      const room = isDesignAgent ? "Design Agent" : (req.body.room as string) || "living room";
+      const tierRaw = (req.body.tier as string) || "tier2";
+      const tier = (tierRaw === "tier1" || tierRaw === "tier2" || tierRaw === "tier3") ? tierRaw : "tier2";
+      const caseId = req.body.caseId ? parseInt(req.body.caseId as string) : null;
+      const isQuickGeneration = req.body.isQuick === "true" || req.body.isQuick === true;
+      const customPromptText = (req.body.promptText as string) || "";
+
+      if (!COLLOV_API_KEY) {
+        return res.status(500).json({ success: false, message: "API nøgle ikke konfigureret" });
+      }
+
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      log(`[BoligPotentiale] generate: room=${room}, style=${style}, tier=${tier}, url=${publicUrl}`);
+
+      const startTime = Date.now();
+
+      // Build prompt — use custom text for design agent, structured prompt otherwise
+      const prompt = isDesignAgent ? customPromptText : getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
+
+      // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
+      // 2 retries med 10s mellem forsøg.
+      const maxRetries = 2;
+      let collovImageUrl: string | null = null;
+      let lastFailReason: string | null = null;
+
+      for (let attempt = 0; attempt <= maxRetries && !collovImageUrl; attempt++) {
+        if (attempt > 0) {
+          log(`[BoligPotentiale] retry ${attempt}/${maxRetries} (waiting 10s)`);
+          await new Promise(r => setTimeout(r, 10000));
+        }
+
+        const form = new FormData();
+        form.append("uploadUrl", publicUrl);
+        form.append("prompt", prompt);
+
+        const collovRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+          method: "POST",
+          headers: { apiKey: COLLOV_API_KEY! },
+          body: form,
+        });
+        const collovJson = (await collovRes.json()) as any;
+        log(`[BoligPotentiale] Collov response: ${JSON.stringify(collovJson).slice(0, 200)}`);
+
+        if (!collovJson.success || !collovJson.data?.uuid) {
+          lastFailReason = collovJson.message || "Collov API fejl";
+          continue;
+        }
+
+        const uuid = collovJson.data.uuid;
+        const maxAttempts = 45; // 45 × 2s = 90s
+        let attemptFailed = false;
+
+        for (let i = 0; i < maxAttempts; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const pollRes = await fetch(
+            `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+            { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+          );
+          const pollJson = (await pollRes.json()) as any;
+          const status = pollJson.data?.status;
+          log(`[BoligPotentiale] poll ${uuid}: ${status}`);
+
+          if (status === "SUCCESS" && pollJson.data?.generateUrl) {
+            collovImageUrl = pollJson.data.generateUrl;
+            break;
+          }
+          if (status === "FAILED") {
+            lastFailReason = pollJson.data?.failReason || "Generering mislykkedes";
+            attemptFailed = true;
+            break;
+          }
+        }
+
+        if (!collovImageUrl && !attemptFailed) {
+          lastFailReason = "Generering tog for lang tid";
+        }
+      }
+
+      if (!collovImageUrl) {
+        return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes" });
+      }
+
+      // Ingen download eller konvertering — gem Collovs CDN URL direkte (samme som AI Design Agent).
+      const processingTimeMs = Date.now() - startTime;
+      const processingTime = Math.round(processingTimeMs / 1000);
+
+      // Auto-save to universal generated_images table
+      let generationId: number | null = null;
+      if (authedUserId) {
+        try {
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const genImg = await storage.createGeneratedImage({
+            userId: authedUserId,
+            caseId: (caseId && !isNaN(caseId)) ? caseId : null,
+            isQuickGeneration: isQuickGeneration || !caseId,
+            isDesignAgent,
+            imageUrl: collovImageUrl,
+            originalImageUrl: `/uploads/${req.file!.filename}`,
+            roomType: room,
+            style,
+            budgetTier: isDesignAgent ? "0" : tier,
+            promptText: isDesignAgent ? customPromptText : prompt,
+            generationTimeMs: processingTimeMs,
+            createdDate: todayStr,
+          });
+          generationId = genImg.id;
+        } catch (saveErr: any) {
+          log(`[BoligPotentiale] auto-save warning: ${saveErr.message}`);
+        }
+      }
+
+      return res.json({ success: true, image_url: collovImageUrl, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
+    } catch (err: any) {
+      log(`[BoligPotentiale] generate error: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  // ── 3D Plantegning (fal.ai nano-banana-2/edit — 2D plan → 3D dollhouse) ───
+  app.post("/api/bolig/floorplan-3d", upload.single("image"), async (req, res) => {
+    try {
+      if (!isFalConfigured()) {
+        return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "Intet plantegning-billede uploadet" });
+      }
+
+      const localPath = path.join(uploadDir, req.file.filename);
+      log(`[3D] uploading plan to fal.storage…`);
+      const falUrl = await uploadToFal(localPath, req.file.mimetype);
+
+      log(`[3D] floorplan input: ${falUrl}`);
+      const startTime = Date.now();
+      const { imageUrl } = await generate3DFloorplan(falUrl);
+      const processingTime = Math.round((Date.now() - startTime) / 1000);
+      log(`[3D] floorplan done in ${processingTime}s → ${imageUrl.slice(0, 60)}`);
+      return res.json({
+        success: true,
+        image_url: imageUrl,
+        source_url: `/uploads/${req.file.filename}`,
+        processing_time: processingTime,
+      });
+    } catch (err: any) {
+      log(`[3D] floorplan error: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message || "Generering mislykkedes" });
+    }
+  });
+
+  // ── Transformeringsvideo (fal.ai luma dream machine — før → efter) ────────
+  app.post(
+    "/api/bolig/transform-video",
+    upload.fields([
+      { name: "beforeImage", maxCount: 1 },
+      { name: "afterImage", maxCount: 1 },
+    ]),
+    async (req, res) => {
+      try {
+        if (!isFalConfigured()) {
+          return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+        }
+        const files = req.files as { [k: string]: Express.Multer.File[] } | undefined;
+        const beforeFile = files?.beforeImage?.[0];
+        const afterFile = files?.afterImage?.[0];
+        if (!beforeFile || !afterFile) {
+          return res.status(400).json({ success: false, message: "Både før- og efter-billede skal uploades" });
+        }
+
+        const beforePath = path.join(uploadDir, beforeFile.filename);
+        const afterPath = path.join(uploadDir, afterFile.filename);
+        log(`[Video] uploading before+after to fal.storage…`);
+        const [beforeFalUrl, afterFalUrl] = await Promise.all([
+          uploadToFal(beforePath, beforeFile.mimetype),
+          uploadToFal(afterPath, afterFile.mimetype),
+        ]);
+
+        log(`[Video] submit before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
+        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl);
+        log(`[Video] submitted request_id=${requestId}`);
+
+        return res.json({
+          success: true,
+          request_id: requestId,
+          before_url: `/uploads/${beforeFile.filename}`,
+          after_url: `/uploads/${afterFile.filename}`,
+        });
+      } catch (err: any) {
+        log(`[Video] submit error: ${err.message}`);
+        return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
+      }
+    },
+  );
+
+  // Poll status of an in-flight video job. When COMPLETED, persists the mp4
+  // locally and returns the /uploads/... URL.
+  app.get("/api/bolig/transform-video/status/:requestId", async (req, res) => {
+    try {
+      if (!isFalConfigured()) {
+        return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+      }
+      const { requestId } = req.params;
+      const result = await getAnimationVideoStatus(requestId);
+      if (result.status === "COMPLETED" && result.videoUrl) {
+        let localVideoUrl = result.videoUrl;
+        try {
+          localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
+          log(`[Video] persisted → ${localVideoUrl}`);
+        } catch (e: any) {
+          log(`[Video] persist failed (using fal url): ${e.message}`);
+        }
+        return res.json({ success: true, status: "COMPLETED", video_url: localVideoUrl });
+      }
+      if (result.status === "FAILED") {
+        return res.json({ success: false, status: "FAILED", message: result.error || "Generering mislykkedes" });
+      }
+      return res.json({ success: true, status: result.status });
+    } catch (err: any) {
+      log(`[Video] status error: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message || "Status mislykkedes" });
+    }
+  });
+
+  // ── AI Boligfremvisning (property tours) ──────────────────────────────────
+  // List the current user's tour projects.
+  app.get("/api/ai-boligfremvisning/properties", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const list = await storage.getAiTourPropertiesByUser(user.id);
+      return res.json(list);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Create a new tour project — uploads the floor plan image and persists the
+  // project with status "mapping" (the next step is marking rooms on the plan).
+  app.post("/api/ai-boligfremvisning/properties", upload.single("floorplan"), async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+
+      const name = String(req.body?.name || "").trim();
+      if (!name) return res.status(400).json({ message: "Projektnavn er påkrævet" });
+      if (!req.file) return res.status(400).json({ message: "Plantegning skal uploades" });
+
+      const floorplanUrl = `/uploads/${req.file.filename}`;
+      const prop = await storage.createAiTourProperty({
+        userId: user.id,
+        name,
+        floorplanUrl,
+        status: "mapping",
+      });
+      return res.json(prop);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Fetch a single project with its rooms.
+  app.get("/api/ai-boligfremvisning/properties/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const id = Number(req.params.id);
+      const prop = await storage.getAiTourProperty(id, user.id);
+      if (!prop) return res.status(404).json({ message: "Projekt ikke fundet" });
+      const rooms = await storage.getAiTourRooms(id, user.id);
+      return res.json({ ...prop, rooms });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Replace the full set of rooms on a property (used by the room-mapping UI).
+  // Body: { rooms: Array<{ name, posX, posY, width, height, color }> }
+  app.post("/api/ai-boligfremvisning/properties/:id/rooms", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const id = Number(req.params.id);
+      const rooms = Array.isArray(req.body?.rooms) ? req.body.rooms : [];
+      const sanitized = rooms.map((r: any) => ({
+        // Positive numeric id → update existing row (preserves photo + after-image).
+        ...(typeof r.id === "number" && r.id > 0 ? { id: r.id } : {}),
+        name: String(r.name || "").slice(0, 100) || "Rum",
+        posX: String(Number(r.posX) || 0),
+        posY: String(Number(r.posY) || 0),
+        width: String(Number(r.width) || 10),
+        height: String(Number(r.height) || 10),
+        color: String(r.color || "#C8956C"),
+        included: typeof r.included === "boolean" ? r.included : false,
+      }));
+      const saved = await storage.setAiTourRooms(id, user.id, sanitized);
+      return res.json({ rooms: saved });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Set the project's global style (used for every room's after-image generation).
+  app.patch("/api/ai-boligfremvisning/properties/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const id = Number(req.params.id);
+      const updates: Partial<InsertAiTourProperty> = {};
+      if (typeof req.body?.style === "string") updates.style = req.body.style.trim().slice(0, 50);
+      if (typeof req.body?.name === "string") updates.name = req.body.name.trim().slice(0, 200);
+      if (typeof req.body?.tier === "string") {
+        // Accept the user-facing aliases (budget/standard/premium) — internally
+        // we map "premium" to "luxury" so the Bolig prompt tier table matches.
+        const t = req.body.tier.trim().toLowerCase();
+        if (t === "budget" || t === "standard" || t === "premium" || t === "luxury") {
+          updates.tier = t === "premium" ? "luxury" : t;
+        }
+      }
+      const saved = await storage.updateAiTourProperty(id, user.id, updates);
+      if (!saved) return res.status(404).json({ message: "Projekt ikke fundet" });
+      return res.json(saved);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Strategy B — AI floor-plan analysis. Runs the uploaded plantegning through
+  // GPT-4o-mini vision and stores a structured JSON describing windows, doors,
+  // exterior walls and approximate area for each room. The result is saved on
+  // the property AND distributed per-room (case-insensitive name match) so
+  // /generate-after and /generate-panorama can append architectural facts to
+  // their prompts without modifying the prompt library itself. Safe-fails:
+  // any error is logged but the endpoint returns 200 with success:false so the
+  // wizard can keep going (we fall back to coordinate heuristics).
+  app.post("/api/ai-boligfremvisning/properties/:id/analyze-floorplan", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const propertyId = Number(req.params.id);
+      const property = await storage.getAiTourProperty(propertyId, user.id);
+      if (!property) return res.status(404).json({ message: "Projekt ikke fundet" });
+
+      // Idempotent: if we've already analysed it, just return what we have.
+      if ((property as any).floorplanAnalysis) {
+        return res.json({ success: true, cached: true, analysis: (property as any).floorplanAnalysis });
+      }
+
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const absUrl = property.floorplanUrl.startsWith("http")
+        ? property.floorplanUrl
+        : `${protocol}://${host}${property.floorplanUrl}`;
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      log(`[ai-tour] analyze floorplan property=${propertyId}`);
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: `Analyze this floor plan image. For each visible room identify the room name, which walls have windows, which walls have doors and what they connect to, which walls are exterior walls (no neighboring room), and approximate area in square meters. Walls are described as one of: north, south, east, west.\n\nRespond ONLY with valid JSON in this exact shape, no prose:\n{\n  "rooms": [\n    {\n      "name": "Living Room",\n      "windows": [{"wall": "south", "position": "center", "size": "large"}],\n      "doors": [{"wall": "west", "connectsTo": "Hallway", "position": "left"}],\n      "exteriorWalls": ["south", "east"],\n      "areaSqm": 28\n    }\n  ],\n  "totalAreaSqm": 95\n}` },
+            { type: "image_url", image_url: { url: absUrl } },
+          ],
+        }],
+        max_tokens: 1500,
+        response_format: { type: "json_object" },
+      });
+
+      const raw = completion.choices[0]?.message?.content || "{}";
+      let analysis: any;
+      try { analysis = JSON.parse(raw); } catch { analysis = { rooms: [] }; }
+
+      await storage.updateAiTourProperty(propertyId, user.id, { floorplanAnalysis: analysis } as any);
+
+      // Distribute per room (case-insensitive substring match on name).
+      const allRooms = await storage.getAiTourRooms(propertyId, user.id);
+      const norm = (s: string) => (s || "").toLowerCase().replace(/[^a-zæøå0-9 ]/gi, "").trim();
+      for (const r of allRooms) {
+        const match = (analysis.rooms || []).find((ar: any) => {
+          const a = norm(ar.name);
+          const b = norm(r.name);
+          return a === b || a.includes(b) || b.includes(a);
+        });
+        if (match) {
+          await storage.updateAiTourRoom(r.id, user.id, { analysisData: match } as any);
+        }
+      }
+
+      return res.json({ success: true, analysis });
+    } catch (err: any) {
+      log(`[ai-tour] analyze-floorplan error: ${err.message}`);
+      return res.json({ success: false, message: err.message });
+    }
+  });
+
+  // Upload a "before" photo for a specific room.
+  app.post("/api/ai-boligfremvisning/properties/:id/rooms/:roomId/photo", upload.single("photo"), async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      if (!req.file) return res.status(400).json({ message: "Billede mangler" });
+      const roomId = Number(req.params.roomId);
+      const url = `/uploads/${req.file.filename}`;
+      // ?angle=2 writes to the second-angle slot (used for true 360° panorama
+      // stitching). Default angle=1 preserves the original single-upload
+      // behaviour so every existing client keeps working unchanged.
+      const angle = String(req.query.angle || "1") === "2" ? 2 : 1;
+      const patch = angle === 2 ? { roomPhotoUrl2: url } : { roomPhotoUrl: url };
+      const saved = await storage.updateAiTourRoom(roomId, user.id, patch);
+      if (!saved) return res.status(404).json({ message: "Rum ikke fundet" });
+      return res.json(saved);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Generate the after-image for a single room using Collov's edit/generate
+  // pipeline (same engine that powers /api/bolig/generate). The project's
+  // global `style` and the room's uploaded `roomPhotoUrl` are required.
+  app.post("/api/ai-boligfremvisning/properties/:id/rooms/:roomId/generate-after", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      if (!COLLOV_API_KEY) return res.status(500).json({ message: "API nøgle ikke konfigureret" });
+
+      const propertyId = Number(req.params.id);
+      const roomId = Number(req.params.roomId);
+      const property = await storage.getAiTourProperty(propertyId, user.id);
+      if (!property) return res.status(404).json({ message: "Projekt ikke fundet" });
+      if (!property.style) return res.status(400).json({ message: "Vælg en stil for projektet først" });
+
+      const rooms = await storage.getAiTourRooms(propertyId, user.id);
+      const room = rooms.find(r => r.id === roomId);
+      if (!room) return res.status(404).json({ message: "Rum ikke fundet" });
+      if (!room.roomPhotoUrl) return res.status(400).json({ message: "Upload først et før-billede af rummet" });
+
+      // Collov needs an absolute URL it can fetch. roomPhotoUrl is stored as
+      // a relative /uploads/... path; rebuild against the public host here.
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const absolutePhotoUrl = room.roomPhotoUrl.startsWith("http")
+        ? room.roomPhotoUrl
+        : `${protocol}://${host}${room.roomPhotoUrl}`;
+
+      // Heuristic: map the user-typed Danish room name (e.g. "Stue", "Køkken")
+      // into one of Collov's known room_type buckets so the prompt vocabulary
+      // pulls from the right tier table. Falls back to "living room".
+      const inferRoomType = (name: string): string => {
+        const n = name.toLowerCase();
+        if (/k[oø]kken|kitchen/.test(n))            return "kitchen";
+        if (/bade|toilet|brus|bath/.test(n))         return "bathroom";
+        if (/sove|seng|bed/.test(n))                 return "bedroom";
+        if (/spise|dining/.test(n))                  return "dining room";
+        if (/kontor|office|arbejds/.test(n))         return "home office";
+        if (/b[oø]rn|kid/.test(n))                   return "kids room";
+        if (/entr[eé]|gang|hallway|hall/.test(n))    return "entryway";
+        if (/vaske|bryggers|laundry/.test(n))        return "laundry room";
+        return "living room";
+      };
+      const roomType = inferRoomType(room.name);
+      // Map the project's tier (budget/standard/luxury) onto the Bolig prompt
+      // tier table (tier1/tier2/tier3). Defaults to tier2 so legacy projects
+      // (no tier set) keep behaving exactly as before.
+      const tierMap: Record<string, "tier1" | "tier2" | "tier3"> = {
+        budget: "tier1", standard: "tier2", luxury: "tier3",
+      };
+      const tier = tierMap[(property.tier || "standard").toLowerCase()] || "tier2";
+      const basePrompt = getBoligPrompt(roomType, property.style, tier);
+      // Floor-plan-aware context: the user explicitly asked the AI to know
+      // window/door positions inferred from the plantegning. We append the
+      // room's relative size (% of total floor area) and nearest-wall hints
+      // derived from its bounding box on the plan. The actual JPEG of the
+      // floor plan is not sent to Collov (their edit endpoint takes a single
+      // image_url — the before-photo), but these heuristics still tilt the
+      // generation toward correct camera angle and openings.
+      const allRooms = rooms;
+      const totalArea = allRooms.reduce((s, x) => s + (Number(x.width) * Number(x.height)), 0) || 1;
+      const myArea = Number(room.width) * Number(room.height);
+      const pct = Math.round((myArea / totalArea) * 100);
+      const cx = Number(room.posX) + Number(room.width) / 2;
+      const cy = Number(room.posY) + Number(room.height) / 2;
+      const horiz = cx < 33 ? "left side" : cx > 66 ? "right side" : "center";
+      const vert = cy < 33 ? "front" : cy > 66 ? "back" : "middle";
+      // Find adjacency hints (rooms sharing an edge) so AI knows where doors are.
+      const neighbors = allRooms
+        .filter((x) => x.id !== room.id)
+        .filter((x) => {
+          const ax1 = Number(x.posX), ay1 = Number(x.posY);
+          const ax2 = ax1 + Number(x.width), ay2 = ay1 + Number(x.height);
+          const bx1 = Number(room.posX), by1 = Number(room.posY);
+          const bx2 = bx1 + Number(room.width), by2 = by1 + Number(room.height);
+          const overlapX = Math.min(ax2, bx2) - Math.max(ax1, bx1) > 1;
+          const overlapY = Math.min(ay2, by2) - Math.max(ay1, by1) > 1;
+          const touchH = overlapY && (Math.abs(ax2 - bx1) < 3 || Math.abs(bx2 - ax1) < 3);
+          const touchV = overlapX && (Math.abs(ay2 - by1) < 3 || Math.abs(by2 - ay1) < 3);
+          return touchH || touchV;
+        })
+        .map((x) => x.name.toLowerCase());
+      const layoutCtx = ` Floor-plan context: this ${roomType} occupies the ${horiz}-${vert} of the plan and is about ${pct}% of the home's floor area. ${neighbors.length ? `Doors should be placed on walls shared with: ${neighbors.join(", ")}.` : ""} Windows should be on exterior walls (walls without neighbors). Preserve the original camera angle, perspective, and zoom exactly.`;
+      // Strategy B — append architectural facts from the GPT-4o-mini floor-
+      // plan analysis when present. Prompts themselves stay UNTOUCHED; this
+      // is purely additive context that tells Collov where the real windows
+      // and doors are so it doesn't invent new ones.
+      const archFactsStr = (() => {
+        const a = (room as any).analysisData;
+        if (!a) return "";
+        const wins = Array.isArray(a.windows) ? a.windows.map((w: any) => `${w.size || ""} window on ${w.wall} wall (${w.position || "center"})`).filter(Boolean).join(", ") : "";
+        const doors = Array.isArray(a.doors) ? a.doors.map((d: any) => `door on ${d.wall} wall to ${d.connectsTo || "next room"}`).filter(Boolean).join(", ") : "";
+        const ext = Array.isArray(a.exteriorWalls) ? a.exteriorWalls.join(", ") : "";
+        const parts = [wins && `Windows: ${wins}`, doors && `Doors: ${doors}`, ext && `Exterior walls: ${ext}`].filter(Boolean);
+        return parts.length ? ` Architectural facts from floor plan: ${parts.join(". ")}.` : "";
+      })();
+      const prompt = basePrompt + layoutCtx + archFactsStr;
+
+      // Helper: run one Collov edit job against a single before-photo URL
+      // and return the resulting after-image URL (or throw with reason).
+      const runCollov = async (beforeUrl: string): Promise<string> => {
+        const form = new FormData();
+        form.append("uploadUrl", beforeUrl);
+        form.append("prompt", prompt);
+        const collovRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+          method: "POST",
+          headers: { apiKey: COLLOV_API_KEY! },
+          body: form,
+        });
+        const collovJson = (await collovRes.json()) as any;
+        if (!collovJson?.success || !collovJson?.data?.uuid) {
+          throw new Error(collovJson?.message || "Collov afviste opgaven");
+        }
+        const uuid = collovJson.data.uuid;
+        for (let i = 0; i < 45; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const pollRes = await fetch(
+            `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+            { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+          );
+          const pollJson = (await pollRes.json()) as any;
+          const status = pollJson?.data?.status;
+          if (status === "SUCCESS" && pollJson.data?.generateUrl) return pollJson.data.generateUrl as string;
+          if (status === "FAILED") throw new Error(pollJson.data?.failReason || "Collov fejl");
+        }
+        throw new Error("Tog for lang tid");
+      };
+
+      // Strategy B: if a second-angle before-photo exists, generate after-
+      // image for both angles in parallel. The 2nd angle is OPTIONAL — if it
+      // isn't uploaded we still produce the 1st angle exactly like before.
+      const angle2Abs = room.roomPhotoUrl2
+        ? (room.roomPhotoUrl2.startsWith("http") ? room.roomPhotoUrl2 : `${protocol}://${host}${room.roomPhotoUrl2}`)
+        : null;
+      log(`[ai-tour] generate room=${room.name} (${roomType}) style=${property.style} angles=${angle2Abs ? 2 : 1}`);
+
+      let after1: string | null = null;
+      let after2: string | null = null;
+      try {
+        if (angle2Abs) {
+          [after1, after2] = await Promise.all([runCollov(absolutePhotoUrl), runCollov(angle2Abs)]);
+        } else {
+          after1 = await runCollov(absolutePhotoUrl);
+        }
+      } catch (e: any) {
+        return res.status(504).json({ message: e.message || "Generering fejlede" });
+      }
+
+      const patch: any = { afterImageUrl: after1 };
+      if (after2) patch.afterImageUrl2 = after2;
+      const updated = await storage.updateAiTourRoom(roomId, user.id, patch);
+      return res.json(updated);
+    } catch (err: any) {
+      log(`[ai-tour] generate error: ${err.message}`);
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Generate a 3D dollhouse render of the property's floor plan. Uses the
+  // existing `generate3DFloorplan` helper (fal-ai/nano-banana-2/edit) — the
+  // same engine that powers the standalone "3D plantegning" feature; we just
+  // store the result on the tour project so the final view can show it.
+  app.post("/api/ai-boligfremvisning/properties/:id/generate-3d-plan", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const id = Number(req.params.id);
+      const prop = await storage.getAiTourProperty(id, user.id);
+      if (!prop) return res.status(404).json({ message: "Projekt ikke fundet" });
+
+      const { generate3DFloorplan, uploadToFal } = await import("./fal");
+      // Feed the model the exact same kind of input the working standalone
+      // /api/bolig/floorplan-3d endpoint uses — a canonical fal.storage URL.
+      // Passing a Replit dev URL (https://<repl>.replit.dev/uploads/...) made
+      // nano-banana-2/edit hallucinate a new layout (extra rooms, wrong
+      // structure) instead of preserving the original floor plan.
+      let falInputUrl: string;
+      if (prop.floorplanUrl.startsWith("http")) {
+        falInputUrl = prop.floorplanUrl;
+      } else {
+        const localPath = path.join(uploadDir, path.basename(prop.floorplanUrl));
+        const ext = path.extname(localPath).toLowerCase();
+        const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+        falInputUrl = await uploadToFal(localPath, mime);
+      }
+      log(`[ai-tour] generate 3D plan for property ${id} (input: ${falInputUrl.slice(0, 60)})`);
+      const { imageUrl } = await generate3DFloorplan(falInputUrl);
+      const updated = await storage.updateAiTourProperty(id, user.id, { threedPlanUrl: imageUrl });
+      return res.json(updated);
+    } catch (err: any) {
+      log(`[ai-tour] 3d plan error: ${err.message}`);
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Generate a 360° equirectangular panorama for a single room.
+  //
+  // STRATEGY (Plantegnings-guidet Syntetisk 360°):
+  //   1. Real anchor(s) = whatever after-images the user has (1 or 2).
+  //   2. Top up to 4 stil-konsistente anchors by asking Collov for synthetic
+  //      "same room from a rotated camera angle" renders, guided by the
+  //      arkitektoniske fakta (windows/doors/exterior walls) for THIS room.
+  //   3. Feed all 4 anchors to nano-banana-2/edit so the panorama outpainting
+  //      has reference every ~90° instead of hallucinating 300°.
+  //   4. Cache synthetic angles in `syntheticAngleUrls` so regenerations
+  //      don't pay the Collov cost twice.
+  //   5. Return panoramaAnchors metadata (real vs synthetic count) so the
+  //      UI can show an honest "Premium 360°" quality badge.
+  app.post("/api/ai-boligfremvisning/properties/:id/rooms/:roomId/generate-panorama", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      if (!COLLOV_API_KEY) return res.status(500).json({ message: "API nøgle ikke konfigureret" });
+      const propertyId = Number(req.params.id);
+      const roomId = Number(req.params.roomId);
+      const property = await storage.getAiTourProperty(propertyId, user.id);
+      if (!property) return res.status(404).json({ message: "Projekt ikke fundet" });
+      const rooms = await storage.getAiTourRooms(propertyId, user.id);
+      const room = rooms.find(r => r.id === roomId);
+      if (!room) return res.status(404).json({ message: "Rum ikke fundet" });
+      if (!room.afterImageUrl) return res.status(400).json({ message: "Generér efter-billedet først" });
+
+      const styleLabel = BOLIG_STYLE_LABELS[property.style || "scandinavian"] || "Scandinavian";
+
+      // ── 1. Collect REAL anchors (what user actually uploaded photos for) ──
+      const realAnchors: string[] = [room.afterImageUrl];
+      if (room.afterImageUrl2) realAnchors.push(room.afterImageUrl2);
+
+      // ── 2. Arkitektoniske fakta for THIS room (guides every angle) ──
+      const a = (room as any).analysisData;
+      const windowFacts = a && Array.isArray(a.windows) && a.windows.length
+        ? a.windows.map((w: any) => `${w.size || "medium"} window on ${w.wall} wall`).join(", ") : "";
+      const doorFacts = a && Array.isArray(a.doors) && a.doors.length
+        ? a.doors.map((d: any) => `door on ${d.wall} wall leading to ${d.connectsTo || "next room"}`).join(", ") : "";
+      const extFacts = a && Array.isArray(a.exteriorWalls) && a.exteriorWalls.length
+        ? `exterior walls face ${a.exteriorWalls.join(", ")}` : "";
+      const archFactsForPanorama = [
+        windowFacts && `windows on ${(a.windows || []).map((w: any) => w.wall).join(", ")} wall(s)`,
+        doorFacts && `doors on ${(a.doors || []).map((d: any) => d.wall).join(", ")} wall(s)`,
+        extFacts,
+      ].filter(Boolean).join("; ") || undefined;
+
+      // ── 3. Need to top up to 4 anchors? Use cached or generate fresh. ──
+      const TARGET = 4;
+      const slotsNeeded = Math.max(0, TARGET - realAnchors.length);
+      const cached: string[] = Array.isArray((room as any).syntheticAngleUrls) ? (room as any).syntheticAngleUrls : [];
+      let synthetic: string[] = [];
+
+      if (slotsNeeded > 0 && cached.length >= slotsNeeded) {
+        // Cache hit — skip the expensive regeneration.
+        synthetic = cached.slice(0, slotsNeeded);
+        log(`[ai-tour] panorama room=${room.name}: ${realAnchors.length} real + ${synthetic.length} cached synthetic anchors`);
+      } else if (slotsNeeded > 0) {
+        // Generate fresh synthetic anchors via Collov, each grounded in the
+        // room's after-image (style anchor) + explicit rotation + arch facts.
+        // Rotation degrees are evenly spaced from the real anchor coverage.
+        // 1 real → ask for 90°, 180°, 270°. 2 real (front+back) → ask for 90°+270°.
+        const rotations = realAnchors.length === 1 ? [90, 180, 270] : [90, 270];
+        const targetRotations = rotations.slice(0, slotsNeeded);
+
+        const anchorAfter = room.afterImageUrl!; // style + content anchor
+        const archHint = [
+          windowFacts && `Windows: ${windowFacts}.`,
+          doorFacts && `Doors: ${doorFacts}.`,
+          extFacts && `${extFacts.charAt(0).toUpperCase()}${extFacts.slice(1)}.`,
+        ].filter(Boolean).join(" ");
+
+        const runRotation = async (degrees: number): Promise<string> => {
+          const rotationDescription = degrees === 90
+            ? "Camera rotated 90 degrees clockwise from the reference, now facing the wall to the right of the original viewpoint."
+            : degrees === 180
+              ? "Camera rotated 180 degrees from the reference, now showing the opposite end of the room (the wall behind the original viewpoint)."
+              : "Camera rotated 270 degrees clockwise (90 degrees counter-clockwise) from the reference, now facing the wall to the left of the original viewpoint.";
+          const prompt = [
+            `Photorealistic interior view of the EXACT SAME room shown in the reference photo.`,
+            `${rotationDescription}`,
+            `Maintain identical ${styleLabel} style, identical wall colors, identical flooring, identical lighting temperature and identical furniture family as the reference — only the camera viewpoint changes.`,
+            archHint,
+            `Do NOT redesign or restyle anything; treat this as a different photograph of the same finished room.`,
+            `8K, architectural visualization quality, eye-level perspective.`,
+          ].filter(Boolean).join(" ");
+
+          const form = new FormData();
+          form.append("uploadUrl", anchorAfter);
+          form.append("prompt", prompt);
+          const collovRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+            method: "POST",
+            headers: { apiKey: COLLOV_API_KEY! },
+            body: form,
+          });
+          const collovJson = (await collovRes.json()) as any;
+          if (!collovJson?.success || !collovJson?.data?.uuid) {
+            throw new Error(collovJson?.message || "Collov afviste syntetisk vinkel");
+          }
+          const uuid = collovJson.data.uuid;
+          for (let i = 0; i < 45; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            const pollRes = await fetch(
+              `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+              { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+            );
+            const pollJson = (await pollRes.json()) as any;
+            const status = pollJson?.data?.status;
+            if (status === "SUCCESS" && pollJson.data?.generateUrl) return pollJson.data.generateUrl as string;
+            if (status === "FAILED") throw new Error(pollJson.data?.failReason || "Collov fejl");
+          }
+          throw new Error("Syntetisk vinkel tog for lang tid");
+        };
+
+        log(`[ai-tour] panorama room=${room.name}: generating ${targetRotations.length} synthetic anchors (rotations=${targetRotations.join(",")}°)`);
+        const settled = await Promise.allSettled(targetRotations.map(runRotation));
+        synthetic = settled
+          .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
+          .map(r => r.value);
+        const failed = settled.length - synthetic.length;
+        if (failed > 0) log(`[ai-tour] panorama room=${room.name}: ${failed} synthetic anchor(s) failed — proceeding with what we have`);
+
+        // Cache successful synthetic angles so panorama-regenerations don't pay again.
+        if (synthetic.length > 0) {
+          await storage.updateAiTourRoom(roomId, user.id, { syntheticAngleUrls: synthetic } as any);
+        }
+      }
+
+      // ── 4. Stitch the panorama from real + synthetic anchors ──
+      const allAnchors = [...realAnchors, ...synthetic];
+      const { generate360Panorama } = await import("./fal");
+      log(`[ai-tour] generate panorama room=${room.name} style=${styleLabel} anchors=${allAnchors.length} (real=${realAnchors.length}, synth=${synthetic.length})`);
+      const { imageUrl } = await generate360Panorama(allAnchors, room.name, styleLabel, archFactsForPanorama);
+
+      const anchorMeta = { real: realAnchors.length, synthetic: synthetic.length, total: allAnchors.length };
+      const updated = await storage.updateAiTourRoom(roomId, user.id, {
+        panoramaUrl: imageUrl,
+        panoramaAnchors: anchorMeta,
+      } as any);
+      return res.json(updated);
+    } catch (err: any) {
+      log(`[ai-tour] panorama error: ${err.message}`);
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  app.delete("/api/ai-boligfremvisning/properties/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      await storage.deleteAiTourProperty(Number(req.params.id), user.id);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // ── Team API ──────────────────────────────────────────────────────────────
+  app.get("/api/team", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const membership = await storage.getTeamByUserId(dbUser.id);
+      if (!membership) return res.json({ noTeam: true });
+
+      const { team, role } = membership;
+      const isAdmin = role === "admin" || team.ownerUserId === dbUser.id;
+      const [members, stats, performance, activeCases, soldCases] = await Promise.all([
+        storage.getTeamMembers(team.id),
+        storage.getTeamStats(team.id),
+        isAdmin ? storage.getTeamMemberPerformance(team.id) : Promise.resolve([]),
+        isAdmin ? storage.getTeamActiveCases(team.id) : Promise.resolve([]),
+        isAdmin ? storage.getTeamSoldCases(team.id) : Promise.resolve([]),
+      ]);
+
+      // Enrich members with user emails and display names
+      const memberDetails = await Promise.all(
+        members.map(async (m) => {
+          const raw = await pool.query<{ email: string; credits_remaining: number; display_name: string | null }>(
+            "SELECT email, credits_remaining, display_name FROM users WHERE id = $1", [m.userId]
+          );
+          const row = raw.rows[0];
+          return { ...m, email: row?.email ?? "–", creditsRemaining: row?.credits_remaining ?? 0, displayName: row?.display_name ?? null };
+        })
+      );
+
+      // Get owner info
+      const ownerRow = await pool.query<{ email: string; display_name: string | null; is_admin: boolean; subscription_tier: string | null; total_credits_used: number }>(
+        "SELECT email, display_name, is_admin, subscription_tier, total_credits_used FROM users WHERE id = $1", [team.ownerUserId]
+      );
+      const ownerEmail = ownerRow.rows[0]?.email ?? "–";
+      const ownerDisplayName = ownerRow.rows[0]?.display_name ?? null;
+      const ownerIsAdmin = !!ownerRow.rows[0]?.is_admin;
+      const ownerSubscriptionTier = ownerRow.rows[0]?.subscription_tier ?? null;
+      const isUnlimited = ownerIsAdmin || ownerSubscriptionTier === "unlimited";
+
+      // Team total all-time used = completed designs + generated_images for all team members.
+      // (We count actual generations, not users.total_credits_used, because admin/unlimited
+      // users skip credit deduction so that counter stays at 0.)
+      const memberIds = [team.ownerUserId, ...memberDetails.map((m) => m.userId)];
+      const totalRow = await pool.query<{ total: string }>(
+        `SELECT (
+           (SELECT COUNT(*) FROM designs WHERE user_id = ANY($1::int[]) AND status = 'completed')
+           +
+           (SELECT COUNT(*) FROM generated_images WHERE user_id = ANY($1::int[]))
+         )::text AS total`,
+        [memberIds]
+      );
+      const teamTotalUsed = parseInt(totalRow.rows[0]?.total ?? "0", 10);
+
+      return res.json({
+        team,
+        role,
+        isAdmin,
+        ownerEmail,
+        ownerDisplayName,
+        ownerIsAdmin,
+        ownerSubscriptionTier,
+        isUnlimited,
+        teamTotalUsed,
+        members: memberDetails,
+        stats,
+        performance,
+        activeCases,
+        soldCases,
+        myUserId: dbUser.id,
+      });
+    } catch (err: any) {
+      return res.status(401).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/team", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const existing = await storage.getTeamByUserId(dbUser.id);
+      if (existing) return res.status(400).json({ error: "Du er allerede i et team" });
+
+      const { name } = req.body;
+      if (!name || typeof name !== "string" || name.trim().length < 2) {
+        return res.status(400).json({ error: "Teamnavn skal være mindst 2 tegn" });
+      }
+
+      const team = await storage.createTeam(name.trim(), dbUser.id);
+      return res.json({ team, role: "admin", isAdmin: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Simple code-based join ─────────────────────────────────────────────────
+  // Public endpoint: validate a code and return team name (no auth required)
+  app.get("/api/teams/code/:code", async (req, res) => {
+    try {
+      const team = await storage.getTeamByCode(req.params.code);
+      if (!team) return res.status(404).json({ error: "Koden findes ikke" });
+      return res.json({ valid: true, teamId: team.id, teamName: team.name, code: team.code });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Authenticated endpoint: join a team by 8-char code
+  app.post("/api/teams/join", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ error: "Kode mangler" });
+
+      const result = await storage.joinTeamByCode(code, dbUser.id);
+      if ("error" in result) return res.status(400).json({ error: result.error });
+      return res.json({ success: true, teamName: result.team.name });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/team/invite", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const membership = await storage.getTeamByUserId(dbUser.id);
+      if (!membership) return res.status(400).json({ error: "Du er ikke i et team" });
+      const { team, role } = membership;
+      if (role !== "admin" && team.ownerUserId !== dbUser.id) {
+        return res.status(403).json({ error: "Kun admins kan invitere" });
+      }
+
+      const { email } = req.body;
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(24).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const invite = await storage.createTeamInvite({
+        teamId: team.id,
+        email: email?.trim() || null,
+        token,
+        usedAt: null,
+        expiresAt,
+      });
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const inviteLink = `${baseUrl}/boligpotentiale/join-team?token=${token}`;
+
+      if (email?.trim()) {
+        const { sendTeamInviteEmail } = await import("./email");
+        await sendTeamInviteEmail(email.trim(), team.name, inviteLink);
+      }
+
+      return res.json({ invite, inviteLink });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/team/members/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const membership = await storage.getTeamByUserId(dbUser.id);
+      if (!membership) return res.status(400).json({ error: "Ikke i et team" });
+      const { team, role } = membership;
+      if (role !== "admin" && team.ownerUserId !== dbUser.id) {
+        return res.status(403).json({ error: "Kun admins kan fjerne medlemmer" });
+      }
+
+      const memberId = parseInt(req.params.id);
+      await storage.removeTeamMember(memberId);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/team/credits/allocate", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const membership = await storage.getTeamByUserId(dbUser.id);
+      if (!membership) return res.status(400).json({ error: "Ikke i et team" });
+      const { team, role } = membership;
+      if (role !== "admin" && team.ownerUserId !== dbUser.id) {
+        return res.status(403).json({ error: "Kun admins kan tildele credits" });
+      }
+
+      const { userId, amount } = req.body;
+      if (!userId || !amount || amount <= 0) {
+        return res.status(400).json({ error: "Ugyldig userId eller amount" });
+      }
+      if (team.creditsRemaining < amount) {
+        return res.status(400).json({ error: "Ikke nok credits på teamet" });
+      }
+
+      await storage.allocateCreditsToMember(team.id, userId, amount);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/team/join", async (req, res) => {
+    try {
+      const { token } = req.query as { token?: string };
+      if (!token) return res.status(400).json({ error: "Token mangler" });
+
+      const invite = await storage.getTeamInviteByToken(token);
+      if (!invite) return res.status(404).json({ error: "Invitation ikke fundet" });
+      if (invite.usedAt) return res.status(400).json({ error: "Invitationen er allerede brugt" });
+      if (new Date() > invite.expiresAt) return res.status(400).json({ error: "Invitationen er udløbet" });
+
+      const team = await storage.getTeamById(invite.teamId);
+      if (!team) return res.status(404).json({ error: "Team ikke fundet" });
+
+      return res.json({ valid: true, teamName: team.name, teamId: team.id, inviteId: invite.id });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/team/join", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ error: "Token mangler" });
+
+      const invite = await storage.getTeamInviteByToken(token);
+      if (!invite) return res.status(404).json({ error: "Invitation ikke fundet" });
+      if (invite.usedAt) return res.status(400).json({ error: "Invitationen er allerede brugt" });
+      if (new Date() > invite.expiresAt) return res.status(400).json({ error: "Invitationen er udløbet" });
+
+      // Check user is not already in this team
+      const existing = await storage.getTeamByUserId(dbUser.id);
+      if (existing) return res.status(400).json({ error: "Du er allerede i et team" });
+
+      await storage.addTeamMember({ teamId: invite.teamId, userId: dbUser.id, role: "user" });
+      await storage.markTeamInviteUsed(invite.id);
+
+      return res.json({ success: true });
+    } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
   });

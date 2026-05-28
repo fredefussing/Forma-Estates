@@ -1,0 +1,92 @@
+Prompt: Logo i Fokus — Navbar & Footer
+Problem
+Logoet er for lille og drukner i layoutet. FE-monogrammet er næsten usynligt, og "FORMA ESTATES"-teksten har for lille font-vægt. Logoet skal være det første øjet fanger — det er brandets ansigt.
+1. Navbar — Logo (Venstre Side)
+Nuværende: Lille monogram + lille regular tekst.
+Ny styling:
+css
+Copy
+/* Container */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;           /* Øget afstand mellem monogram og tekst */
+  text-decoration: none;
+}
+
+/* FE Monogram */
+.logo-monogram {
+  height: 42px;        /* Nu: ~24px-ish. Ny: 42px */
+  width: auto;
+  display: block;
+}
+
+/* Tekst: FORMA ESTATES */
+.logo-text {
+  font-family: 'Playfair Display', serif;   /* Matcher logoets serif-stil */
+  font-size: 20px;                          /* Nu: ~13px. Ny: 20px */
+  font-weight: 600;
+  letter-spacing: 0.25em;                   /* Luksus-spacing */
+  color: var(--navy);
+  text-transform: uppercase;
+}
+Visuel effekt: Monogrammet skal være ca. 1.5-2x større end nu. Teksten skal være i Playfair Display (serif, som matcher logoet) med højere vægt og større størrelse. Det skal fylde markant mere i navbarens venstre side.
+2. Footer — Logo
+Nuværende: Lille logo tekst i footer.
+Ny styling:
+css
+Copy
+.footer-logo-monogram {
+  height: 56px;           /* Endnu større i footer — ingen navbegrænsning */
+  width: auto;
+  display: block;
+  margin-bottom: 20px;    /* Luft under monogram før tekst */
+}
+
+.footer-logo-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.footer-tagline {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 280px;
+}
+Layout i footer: Logo-sektionen (kolonne 1) skal have mere plads — ca. 30% af footer-bredden (nu: ~25%). Monogrammet vises stort og centreret over teksten i stedet for side om side — det gør det til et statement.
+Forslag til footer-kolonne 1 layout:
+plain
+Copy
+[        FE        ]     ← 56px højt monogram, centreret
+   FORMA ESTATES          ← 22px Playfair, hvid, wide tracking
+   
+AI-drevet boligvisualisering    ← tagline
+til ejendomsmæglere i Danmark.
+3. Mobile Justering
+Nav på mobil:
+Monogram: 36px højde
+Tekst: Skjules på mobil — kun monogram vises for at spare plads
+Footer på mobil:
+Logo-centreret fuld bredde
+Monogram: 48px
+Tekst under som desktop
+4. Ekstra: Favicon & Browser Tab
+Brug FE-monogram som favicon (32x32 og 180x180 for Apple touch)
+Tab title: "Forma Estates"
+Samlet Ændring
+Table
+Element	Nu	Ny
+Nav monogram højde	~24px	42px
+Nav tekst størrelse	~13px	20px
+Nav tekst font	Sans-serif	Playfair Display serif
+Nav tekst vægt	400	600
+Footer monogram højde	Lille	56px
+Footer tekst størrelse	Lille	22px
+Footer layout	Side om side	Monogram over tekst
+Footer kolonne bredde	~25%	~30%

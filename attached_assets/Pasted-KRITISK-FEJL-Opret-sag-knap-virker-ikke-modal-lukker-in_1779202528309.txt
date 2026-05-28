@@ -1,0 +1,118 @@
+KRITISK FEJL: "Opret sag" knap virker ikke — modal lukker, intet sker, brugeren klikker igen og igen.
+
+HER ER DIN NUVÆRENDE KODE OG PRÆCIS HVAD DER SKAL FIXES:
+
+PROBLEM 1: cases.find() returnerer undefined på første render
+Din kode:
+- onSuccess: setPendingCase(newCase) → setModal(null) → openCase(newCase.id)
+- openCase sætter: setSection("sag-detail") + setSelectedCaseId(newCase.id)
+- React re-render: cases.find(x => x.id === selectedCaseId)
+- MEN: cases kommer fra useQuery, og TanStack Query opdaterer IKKE med det samme
+- Resultat: cases.find() = undefined → blank skærm / intet sker
+
+FIX 1: Brug pendingCase som fallback korrekt
+I din render-logic hvor du finder selectedCase:
+const selectedCase = cases.find(x => x.id === selectedCaseId) ?? pendingCase;
+
+ELLER endnu bedre: Brug newCase direkte fra mutation i stedet for at finde den igen:
+onSuccess: (newCase) => {
+  setPendingCase(newCase);
+  setSelectedCaseId(newCase.id);
+  setSection("sag-detail");  // ← IKKE openCase()
+  setModal(null);
+  // Invalidate queries EFTER navigation
+  queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+}
+
+PROBLEM 2: Brugeren klikker flere gange fordi modal ikke lukker synligt
+Din kode laver flere POST /api/bolig/cases (200 OK hver gang) = flere sager oprettes
+
+FIX 2: Disable knap under mutation + vis loading
+<<Button 
+  onClick={handleCreate} 
+  disabled={createCaseMutation.isPending}
+>
+  {createCaseMutation.isPending ? "Opretter..." : "Opret sag"}
+</Button>
+
++ Vis loading-spinner i modal mens mutation kører
++ Luk modal STRAKS (ikke efter animation) når mutation er success
+
+PROBLEM 3: Navigation sker ikke korrekt
+Din kode bruger openCase(newCase.id) som sætter section + selectedCaseId
+MEN: Hvis cases-array ikke er opdateret endnu, vises intet
+
+FIX 3: Brug pendingCase direkte i sag-detalje-viewet
+I din sag-detail render:
+const displayCase = cases.find(c => c.id === selectedCaseId) || pendingCase;
+
+if (!displayCase) {
+  return <div>Indlæser sag...</div>;  // ← Vis loading i stedet for blank
+}
+
+// Vis sag-detalje med displayCase
+
+PROBLEM 4: Modal forbliver måske åben (z-index eller animation)
+FIX 4: Force luk modal uden animation
+setModal(null);  // ← skal køre SYNKRONT i onSuccess
+// IKKE i setTimeout eller efter animation
+
+ELLER: Render sag-detail direkte uden at lukke modal først:
+onSuccess: (newCase) => {
+  setPendingCase(newCase);
+  setSelectedCaseId(newCase.id);
+  setSection("sag-detail");
+  // setModal(null) ← FJERN DENNE, modal skjules automatisk når section skifter
+}
+
+PROBLEM 5: Hvis section="sag-detail" men ingen case vises
+Tjek din conditional rendering:
+if (section === "sag-detail") {
+  const caseToShow = cases.find(c => c.id === selectedCaseId) || pendingCase;
+  
+  if (!caseToShow) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <p>Sagen kunne ikke indlæses.</p>
+        <Button onClick={() => setSection("oversigt")}>Tilbage til oversigt</Button>
+      </div>
+    );
+  }
+  
+  return <SagDetail case={caseToShow} />;
+}
+
+IMPLEMENTER FØLGENDE ÆNDRINGER I REPLITS KODE:
+
+1. I boligpotentiale-dashboard.tsx:
+   - Tilføj pendingCase som fallback i sag-detail view
+   - Disable "Opret sag" knap under isPending
+   - Vis loading-tekst på knappen
+   - Luk modal straks uden animation-delay
+
+2. I onSuccess handler:
+   - Sæt pendingCase FØRST
+   - Sæt selectedCaseId
+   - Sæt section="sag-detail" direkte (ikke via openCase)
+   - Invalidér queries EFTER (ikke før)
+   - Fjern setModal(null) hvis modal skjules af section-skift
+
+3. I sag-detail komponent:
+   - Tjek om case findes, vis fallback/loading hvis ikke
+   - Brug pendingCase som nødfallback
+
+4. Tilføj console.log i onSuccess for at verificere rækkefølge:
+   console.log("Sag oprettet:", newCase.id);
+   console.log("Sætter section til sag-detail");
+   console.log("pendingCase:", newCase);
+
+TEST EFTER IMPLEMENTERING:
+1. Klik "Opret sag" → modal åbner
+2. Udfyld adresse → klik "Opret sag"
+3. Knap skal vise "Opretter..." og være disabled
+4. Modal lukker STRAKS
+5. URL/side skifter til sag-detail
+6. Sagsnummer, adresse, dage på markedet vises
+7. Console viser: "Sag oprettet: [ID]"
+
+SVAR KUN MED "IMPLEMENTERET OG TESTET" NÅR DU HAR VERIFICERET AT SAG-OPRETTELSE VIRKER I ÉT KLIK UDEN DOBBELT-POSTS

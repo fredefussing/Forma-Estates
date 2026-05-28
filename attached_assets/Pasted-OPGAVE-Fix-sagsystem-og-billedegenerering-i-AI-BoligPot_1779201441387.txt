@@ -1,0 +1,53 @@
+OPGAVE: Fix sagsystem og billedegenerering i AI BoligPotentiale
+
+DEL 1: SAG-OPRETTELSE (KRITISK FEJL)
+Når brugeren trykker "Opret sag" skal systemet:
+1. Oprette en ny sag med unikt sagsnummer (auto-genereret eller brugerindtastet)
+2. Videresende brugeren til en sag-detaljeside der viser:
+   - Sagsnummer
+   - Adresse (hvis indtastet)
+   - Bemærkninger (hvis indtastet)
+   - Hvor længe boligen har været på markedet (antal dage fra oprettelsesdato)
+   - Markedsstatus (aktiv/solgt/afsluttet)
+   - Knappen "Generer potentiale" der starter billedegenerering
+   - Liste over tidligere genererede billeder for denne sag
+
+Fejl der skal fixes: "Opret sag" knappen virker ikke — den skal redirecte til sag-detaljesiden.
+
+DEL 2: BILLEDEGENERERING — SAG-SPECIFIK MAPPESTRUKTUR
+Når brugeren trykker "Generer" inde i en specifik sag:
+1. Billeder skal KUN gemmes under den pågældende sags mappe
+2. Filnavn-format: [DATO]_[BILLEDE-NR]_[RUM]_[STIL]_[TIER].jpg
+   Eksempel: 2026-05-19_001_Stue_Skandinavisk_Tier3.jpg
+3. Metadata skal gemmes sammen med billedet:
+   - Dato og tidspunkt
+   - Billedenummer (auto-increment inden for sagen)
+   - Rum-type
+   - Stil
+   - Budget-tier (1/2/3)
+   - Prompt brugt til generering
+
+DEL 3: GENERERINGS-VALG SKAL MATCHE MAIN VERSION
+Dropdown-menuer ved generering skal være IDENTISKE med main version:
+- RUM: Stue, Soveværelse, Køkken, Badeværelse, Entré, Bryggers, Toilet, Spisestue, Kontor, Børneværelse
+- STIL: Skandinavisk, Moderne, Klassisk, Industriel, Landlig, Minimalistisk, Boheme, Japandi
+- BUDGET-TIER: 
+  * Tier 1 = Budget (IKEA/JYSK niveau)
+  * Tier 2 = Standard (mid-range)
+  * Tier 3 = Premium (designermøbler)
+
+DEL 4: RUM- OG STIL-SPECIFIKKE PROMPTS
+Hvert kombination af RUM + STIL + TIER skal have sit EGET unikke prompt.
+Eksempel: "Stue + Skandinavisk + Tier 3" skal bruge prompten:
+"Transform this room into a premium Scandinavian living room with high-end designer furniture, natural oak floors, neutral color palette with warm accents, plush textiles, designer lighting from &Tradition or Louis Poulsen, minimalist art, premium materials like marble and brass, photorealistic, 4K"
+
+Prompt-databasen skal indeholde alle kombinationer (8 stile × 3 tiers × alle rum).
+
+DEL 5: SAG-OVERSIGT
+Hovedsiden skal vise:
+- Liste over alle aktive sager
+- Sagsnummer, adresse, status, dage på markedet
+- Antal genererede billeder per sag
+- Klik på sag åbner sag-detaljesiden
+
+IMPLEMENTER ALLE 5 DELE. SVAR KUN MED "IMPLEMENTERET" NÅR ALT ER KODE OG FUNKTIONELT

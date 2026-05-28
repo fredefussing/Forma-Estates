@@ -6,10 +6,19 @@ import {
   type User, type InsertUser, users,
   type CreditTransaction, type InsertCreditTransaction, creditTransactions,
   type AgentDesign, type InsertAgentDesign, agentDesigns,
+  type BoligCase, type InsertBoligCase, boligCases,
+  type BoligCaseImage, type InsertBoligCaseImage, boligCaseImages,
+  type AiTourProperty, type InsertAiTourProperty, aiTourProperties,
+  type AiTourRoom, type InsertAiTourRoom, aiTourRooms,
+  type GeneratedImage, type InsertGeneratedImage, generatedImages,
+  type Team, type InsertTeam, teams,
+  type TeamMember, type InsertTeamMember, teamMembers,
+  type TeamInvite, type InsertTeamInvite, teamInvites,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
-import { eq, desc, sql, or, ilike } from "drizzle-orm";
+import { eq, desc, sql, or, ilike, and } from "drizzle-orm";
+import { BOLIG_STYLE_LABELS, BOLIG_ROOM_LABELS } from "@shared/boligPrompts";
 
 export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
@@ -51,6 +60,52 @@ export interface IStorage {
   getAgentDesign(id: number): Promise<AgentDesign | undefined>;
   getAgentDesignsByUser(userId: number): Promise<AgentDesign[]>;
   updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined>;
+
+  createBoligCase(data: InsertBoligCase): Promise<BoligCase>;
+  getBoligCasesByUser(userId: number): Promise<BoligCase[]>;
+  getBoligCase(id: number): Promise<BoligCase | undefined>;
+  deleteBoligCase(id: number): Promise<void>;
+  updateBoligCaseStatus(id: number, status: string, soldDateISO?: string | null): Promise<BoligCase>;
+  addBoligCaseImage(data: InsertBoligCaseImage): Promise<BoligCaseImage>;
+  getBoligCaseImages(caseId: number): Promise<BoligCaseImage[]>;
+  getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>;
+  createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage>;
+  getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]>;
+  getAllGeneratedImages(userId: number, limit?: number): Promise<GeneratedImage[]>;
+  deleteGeneratedImage(id: number, userId: number): Promise<void>;
+  getBoligActivity(userId: number): Promise<Array<{ type: "generation" | "case"; label: string; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: Date }>>;
+  getTeamActivity(teamId: number): Promise<Array<{ type: "generation" | "case"; userName: string; userEmail: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; imageUrl?: string; createdAt: Date }>>;
+  getBoligMostUsed(userId: number): Promise<{ styles: Array<{ key: string; count: number }>; rooms: Array<{ key: string; count: number }>; tiers: Array<{ key: string; count: number }> }>;
+
+  // Team
+  createTeam(name: string, ownerUserId: number): Promise<Team>;
+  getTeamByUserId(userId: number): Promise<{ team: Team; role: string } | null>;
+  getTeamById(teamId: number): Promise<Team | undefined>;
+  getTeamByCode(code: string): Promise<Team | undefined>;
+  joinTeamByCode(code: string, userId: number): Promise<{ team: Team } | { error: string }>;
+  getTeamMembers(teamId: number): Promise<TeamMember[]>;
+  addTeamMember(data: InsertTeamMember): Promise<TeamMember>;
+  removeTeamMember(memberId: number): Promise<void>;
+  updateTeamMemberRole(memberId: number, role: string): Promise<TeamMember | undefined>;
+  createTeamInvite(data: InsertTeamInvite): Promise<TeamInvite>;
+  getTeamInviteByToken(token: string): Promise<TeamInvite | undefined>;
+  markTeamInviteUsed(id: number): Promise<void>;
+  getTeamStats(teamId: number): Promise<{ memberCount: number; visualsThisMonth: number; activeCases: number }>;
+  getTeamMemberPerformance(teamId: number): Promise<Array<{ userId: number; name: string; email: string; visuals: number; activeCases: number; avgTimeMs: number | null }>>;
+  getTeamActiveCases(teamId: number): Promise<Array<{ id: number; address: string; caseNo: string | null; status: string; ownerEmail: string; ownerName: string; latestImageUrl: string | null; imageCount: number }>>;
+  getTeamSoldCases(teamId: number): Promise<Array<{ id: number; address: string; caseNo: string | null; soldDateISO: string | null; ownerName: string; latestImageUrl: string | null; imageCount: number }>>;
+  allocateCreditsToMember(fromTeamId: number, toUserId: number, amount: number): Promise<void>;
+  updateTeamCreditsUsed(teamId: number, amount: number): Promise<void>;
+
+  // AI Boligfremvisning
+  createAiTourProperty(data: InsertAiTourProperty): Promise<AiTourProperty>;
+  getAiTourPropertiesByUser(userId: number): Promise<AiTourProperty[]>;
+  getAiTourProperty(id: number, userId: number): Promise<AiTourProperty | undefined>;
+  updateAiTourProperty(id: number, userId: number, updates: Partial<InsertAiTourProperty>): Promise<AiTourProperty | undefined>;
+  deleteAiTourProperty(id: number, userId: number): Promise<void>;
+  setAiTourRooms(propertyId: number, userId: number, rooms: Array<Omit<InsertAiTourRoom, "propertyId">>): Promise<AiTourRoom[]>;
+  getAiTourRooms(propertyId: number, userId: number): Promise<AiTourRoom[]>;
+  updateAiTourRoom(roomId: number, userId: number, updates: Partial<InsertAiTourRoom>): Promise<AiTourRoom | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -71,7 +126,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode">>): Promise<User | undefined> {
+  async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode" | "displayName">>): Promise<User | undefined> {
     const [result] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     return result;
   }
@@ -270,6 +325,438 @@ export class DatabaseStorage implements IStorage {
   async updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined> {
     const [result] = await db.update(agentDesigns).set(updates).where(eq(agentDesigns.id, id)).returning();
     return result;
+  }
+
+  async createBoligCase(data: InsertBoligCase): Promise<BoligCase> {
+    const [result] = await db.insert(boligCases).values(data).returning();
+    return result;
+  }
+
+  async getBoligCasesByUser(userId: number): Promise<BoligCase[]> {
+    return db.select().from(boligCases)
+      .where(eq(boligCases.userId, userId))
+      .orderBy(desc(boligCases.createdAt));
+  }
+
+  async getBoligCase(id: number): Promise<BoligCase | undefined> {
+    const [result] = await db.select().from(boligCases).where(eq(boligCases.id, id));
+    return result;
+  }
+
+  async deleteBoligCase(id: number): Promise<void> {
+    await db.delete(boligCaseImages).where(eq(boligCaseImages.caseId, id));
+    await db.delete(boligCases).where(eq(boligCases.id, id));
+  }
+
+  async updateBoligCaseStatus(id: number, status: string, soldDateISO?: string | null): Promise<BoligCase> {
+    const updates: Record<string, unknown> = { status, updatedAt: new Date() };
+    if (soldDateISO !== undefined) updates.soldDateISO = soldDateISO;
+    const [result] = await db.update(boligCases).set(updates).where(eq(boligCases.id, id)).returning();
+    return result;
+  }
+
+  async getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }> {
+    const userCases = await db.select().from(boligCases).where(eq(boligCases.userId, userId));
+    const allGenImgs = await db.select().from(generatedImages).where(eq(generatedImages.userId, userId));
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayImages = allGenImgs.filter((img) => img.createdDate === todayStr).length;
+    const totalImages = allGenImgs.length;
+    const activeCases = userCases.filter((c) => c.status === "active");
+    const soldCases = userCases.filter((c) => c.status === "sold").length;
+    const now = Date.now();
+    const avgDaysOnMarket = activeCases.length > 0
+      ? Math.round(activeCases.reduce((s, c) => s + Math.max(0, Math.floor((now - new Date(c.marketDateISO).getTime()) / 86_400_000)), 0) / activeCases.length)
+      : 0;
+    return { todayImages, totalImages, activeCases: activeCases.length, soldCases, totalCases: userCases.length, avgDaysOnMarket };
+  }
+
+  async createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage> {
+    const [result] = await db.insert(generatedImages).values(data).returning();
+    return result;
+  }
+
+  async getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]> {
+    return db.select().from(generatedImages)
+      .where(eq(generatedImages.caseId, caseId))
+      .orderBy(desc(generatedImages.createdAt));
+  }
+
+  async getAllGeneratedImages(userId: number, limit = 50): Promise<GeneratedImage[]> {
+    return db.select().from(generatedImages)
+      .where(eq(generatedImages.userId, userId))
+      .orderBy(desc(generatedImages.createdAt))
+      .limit(limit);
+  }
+
+  async deleteGeneratedImage(id: number, userId: number): Promise<void> {
+    await db.delete(generatedImages).where(
+      and(eq(generatedImages.id, id), eq(generatedImages.userId, userId))
+    );
+  }
+
+  async getBoligActivity(userId: number): Promise<Array<{ type: "generation" | "case"; label: string; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: Date; isDesignAgent?: boolean; promptText?: string }>> {
+    const [gens, cases] = await Promise.all([
+      db.select({ imageUrl: generatedImages.imageUrl, roomType: generatedImages.roomType, style: generatedImages.style, tier: generatedImages.budgetTier, caseId: generatedImages.caseId, createdAt: generatedImages.createdAt, isDesignAgent: generatedImages.isDesignAgent, promptText: generatedImages.promptText })
+        .from(generatedImages).where(eq(generatedImages.userId, userId)).orderBy(desc(generatedImages.createdAt)).limit(8),
+      db.select({ id: boligCases.id, address: boligCases.address, createdAt: boligCases.createdAt })
+        .from(boligCases).where(eq(boligCases.userId, userId)).orderBy(desc(boligCases.createdAt)).limit(5),
+    ]);
+    const items = [
+      ...gens.map(g => ({ type: "generation" as const, label: "", imageUrl: g.imageUrl, roomType: g.roomType, style: g.style, tier: g.tier, caseId: g.caseId, createdAt: g.createdAt, isDesignAgent: g.isDesignAgent ?? false, promptText: g.promptText ?? undefined })),
+      ...cases.map(c => ({ type: "case" as const, label: c.address, address: c.address, caseId: c.id, createdAt: c.createdAt })),
+    ];
+    return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 8);
+  }
+
+  async getBoligMostUsed(userId: number): Promise<{ styles: Array<{ key: string; count: number }>; rooms: Array<{ key: string; count: number }>; tiers: Array<{ key: string; count: number }> }> {
+    const imgs = await db.select({ style: generatedImages.style, roomType: generatedImages.roomType, tier: generatedImages.budgetTier, isDesignAgent: generatedImages.isDesignAgent })
+      .from(generatedImages).where(eq(generatedImages.userId, userId));
+    const standard = imgs.filter(i => !i.isDesignAgent);
+    const designAgentCount = imgs.filter(i => i.isDesignAgent).length;
+    const countTop = (keys: string[]) => {
+      const map: Record<string, number> = {};
+      keys.forEach(k => { map[k] = (map[k] || 0) + 1; });
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, count]) => ({ key, count }));
+    };
+    // Normalize style keys to Danish display labels to merge duplicates
+    const normalizedStyles = standard.map(i => BOLIG_STYLE_LABELS[i.style] ?? i.style);
+    if (designAgentCount > 0) normalizedStyles.push(...Array(designAgentCount).fill("AI Design Agent"));
+    // Normalize room keys to Danish display labels to merge duplicates
+    const normalizedRooms = standard.map(i => BOLIG_ROOM_LABELS[i.roomType] ?? i.roomType);
+    return {
+      styles: countTop(normalizedStyles),
+      rooms: countTop(normalizedRooms),
+      tiers: countTop(standard.map(i => i.tier)),
+    };
+  }
+
+  async addBoligCaseImage(data: InsertBoligCaseImage): Promise<BoligCaseImage> {
+    const [result] = await db.insert(boligCaseImages).values(data).returning();
+    return result;
+  }
+
+  async getBoligCaseImages(caseId: number): Promise<BoligCaseImage[]> {
+    return db.select().from(boligCaseImages)
+      .where(eq(boligCaseImages.caseId, caseId))
+      .orderBy(desc(boligCaseImages.createdAt));
+  }
+
+  // ── Team methods ────────────────────────────────────────────────────────────
+  async createTeam(name: string, ownerUserId: number): Promise<Team> {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    let attempts = 0;
+    while (attempts < 10) {
+      code = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      const existing = await db.select({ id: teams.id }).from(teams).where(sql`UPPER(${teams.code}) = UPPER(${code})`);
+      if (existing.length === 0) break;
+      attempts++;
+    }
+    const [result] = await db.insert(teams).values({ name, code, ownerUserId, creditsRemaining: 0, creditsUsedThisMonth: 0 }).returning();
+    return result;
+  }
+
+  async getTeamByCode(code: string): Promise<Team | undefined> {
+    const [result] = await db.select().from(teams).where(sql`UPPER(${teams.code}) = UPPER(${code})`);
+    return result;
+  }
+
+  async joinTeamByCode(code: string, userId: number): Promise<{ team: Team } | { error: string }> {
+    const team = await this.getTeamByCode(code);
+    if (!team) return { error: "Ugyldig kode. Tjek at du har skrevet den korrekt." };
+    const existing = await this.getTeamByUserId(userId);
+    if (existing) return { error: "Du er allerede i et team." };
+    await db.insert(teamMembers).values({ teamId: team.id, userId, role: "user" });
+    return { team };
+  }
+
+  async getTeamByUserId(userId: number): Promise<{ team: Team; role: string } | null> {
+    // Check if user owns a team
+    const [owned] = await db.select().from(teams).where(eq(teams.ownerUserId, userId));
+    if (owned) return { team: owned, role: "admin" };
+    // Check if user is a member
+    const [membership] = await db.select({ team: teams, role: teamMembers.role })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+      .where(eq(teamMembers.userId, userId));
+    if (membership) return { team: membership.team, role: membership.role };
+    return null;
+  }
+
+  async getTeamById(teamId: number): Promise<Team | undefined> {
+    const [result] = await db.select().from(teams).where(eq(teams.id, teamId));
+    return result;
+  }
+
+  async getTeamMembers(teamId: number): Promise<TeamMember[]> {
+    return db.select().from(teamMembers)
+      .where(eq(teamMembers.teamId, teamId))
+      .orderBy(teamMembers.joinedAt);
+  }
+
+  async addTeamMember(data: InsertTeamMember): Promise<TeamMember> {
+    const [result] = await db.insert(teamMembers).values(data).returning();
+    return result;
+  }
+
+  async removeTeamMember(memberId: number): Promise<void> {
+    await db.delete(teamMembers).where(eq(teamMembers.id, memberId));
+  }
+
+  async updateTeamMemberRole(memberId: number, role: string): Promise<TeamMember | undefined> {
+    const [result] = await db.update(teamMembers).set({ role }).where(eq(teamMembers.id, memberId)).returning();
+    return result;
+  }
+
+  async createTeamInvite(data: InsertTeamInvite): Promise<TeamInvite> {
+    const [result] = await db.insert(teamInvites).values(data).returning();
+    return result;
+  }
+
+  async getTeamInviteByToken(token: string): Promise<TeamInvite | undefined> {
+    const [result] = await db.select().from(teamInvites).where(eq(teamInvites.token, token));
+    return result;
+  }
+
+  async markTeamInviteUsed(id: number): Promise<void> {
+    await db.update(teamInvites).set({ usedAt: new Date() }).where(eq(teamInvites.id, id));
+  }
+
+  async getTeamStats(teamId: number): Promise<{ memberCount: number; visualsThisMonth: number; activeCases: number }> {
+    const result = await pool.query<{ member_count: string; visuals_this_month: string; active_cases: string }>(`
+      SELECT
+        (SELECT COUNT(*) FROM team_members WHERE team_id = $1) +
+        (SELECT COUNT(*) FROM teams WHERE id = $1) AS member_count,
+        (SELECT (
+          (SELECT COUNT(*) FROM generated_images gi
+            JOIN users u ON gi.user_id = u.id
+            LEFT JOIN team_members tm ON u.id = tm.user_id AND tm.team_id = $1
+            LEFT JOIN teams t ON u.id = t.owner_user_id AND t.id = $1
+            WHERE (tm.team_id = $1 OR t.id = $1)
+            AND gi.created_at >= DATE_TRUNC('month', NOW()))
+          +
+          (SELECT COUNT(*) FROM designs d
+            JOIN users u ON d.user_id = u.id
+            LEFT JOIN team_members tm ON u.id = tm.user_id AND tm.team_id = $1
+            LEFT JOIN teams t ON u.id = t.owner_user_id AND t.id = $1
+            WHERE (tm.team_id = $1 OR t.id = $1)
+            AND d.status = 'completed'
+            AND d.created_at >= DATE_TRUNC('month', NOW()))
+        )) AS visuals_this_month,
+        (SELECT COUNT(*) FROM bolig_cases bc
+          JOIN users u ON bc.user_id = u.id
+          LEFT JOIN team_members tm ON u.id = tm.user_id AND tm.team_id = $1
+          LEFT JOIN teams t ON u.id = t.owner_user_id AND t.id = $1
+          WHERE (tm.team_id = $1 OR t.id = $1)
+          AND bc.status = 'active') AS active_cases
+    `, [teamId]);
+    const row = result.rows[0];
+    return {
+      memberCount: parseInt(row.member_count) || 0,
+      visualsThisMonth: parseInt(row.visuals_this_month) || 0,
+      activeCases: parseInt(row.active_cases) || 0,
+    };
+  }
+
+  async getTeamMemberPerformance(teamId: number): Promise<Array<{ userId: number; name: string; email: string; visuals: number; activeCases: number; avgTimeMs: number | null }>> {
+    const result = await pool.query<{ user_id: number; display_name: string | null; email: string; visuals: string; active_cases: string; avg_time_ms: string | null }>(`
+      SELECT
+        u.id AS user_id,
+        u.display_name,
+        u.email,
+        COUNT(DISTINCT gi.id) FILTER (WHERE gi.created_at >= DATE_TRUNC('month', NOW())) AS visuals,
+        COUNT(DISTINCT bc.id) FILTER (WHERE bc.status = 'active') AS active_cases,
+        AVG(gi.generation_time_ms) FILTER (WHERE gi.created_at >= DATE_TRUNC('month', NOW())) AS avg_time_ms
+      FROM users u
+      LEFT JOIN generated_images gi ON u.id = gi.user_id
+      LEFT JOIN bolig_cases bc ON u.id = bc.user_id
+      WHERE u.id IN (
+        SELECT owner_user_id FROM teams WHERE id = $1
+        UNION
+        SELECT user_id FROM team_members WHERE team_id = $1
+      )
+      GROUP BY u.id, u.display_name, u.email
+      ORDER BY visuals DESC
+    `, [teamId]);
+    return result.rows.map(r => ({
+      userId: r.user_id,
+      name: r.display_name || r.email.split("@")[0],
+      email: r.email,
+      visuals: parseInt(r.visuals) || 0,
+      activeCases: parseInt(r.active_cases) || 0,
+      avgTimeMs: r.avg_time_ms ? parseFloat(r.avg_time_ms) : null,
+    }));
+  }
+
+  async getTeamActiveCases(teamId: number): Promise<Array<{ id: number; address: string; caseNo: string | null; status: string; ownerEmail: string; ownerName: string; latestImageUrl: string | null; imageCount: number }>> {
+    const result = await pool.query<{ id: number; address: string; case_no: string | null; status: string; owner_email: string; owner_name: string | null; latest_image_url: string | null; image_count: string }>(`
+      SELECT
+        bc.id, bc.address, bc.case_no, bc.status,
+        u.email AS owner_email, u.display_name AS owner_name,
+        (SELECT image_url FROM generated_images WHERE case_id = bc.id AND style != 'transform-video' ORDER BY created_at DESC LIMIT 1) AS latest_image_url,
+        (SELECT COUNT(*) FROM generated_images WHERE case_id = bc.id)::int AS image_count
+      FROM bolig_cases bc
+      JOIN users u ON bc.user_id = u.id
+      WHERE u.id IN (
+        SELECT owner_user_id FROM teams WHERE id = $1
+        UNION
+        SELECT user_id FROM team_members WHERE team_id = $1
+      )
+      AND bc.status = 'active'
+      ORDER BY bc.created_at DESC
+      LIMIT 20
+    `, [teamId]);
+    return result.rows.map(r => ({
+      id: r.id,
+      address: r.address,
+      caseNo: r.case_no,
+      status: r.status,
+      ownerEmail: r.owner_email,
+      ownerName: r.owner_name || r.owner_email.split("@")[0],
+      latestImageUrl: r.latest_image_url,
+      imageCount: parseInt(r.image_count as unknown as string) || 0,
+    }));
+  }
+
+  async getTeamSoldCases(teamId: number): Promise<Array<{ id: number; address: string; caseNo: string | null; soldDateISO: string | null; ownerName: string; latestImageUrl: string | null; imageCount: number }>> {
+    const result = await pool.query<{ id: number; address: string; case_no: string | null; sold_date_iso: string | null; owner_email: string; owner_name: string | null; latest_image_url: string | null; image_count: string }>(`
+      SELECT
+        bc.id, bc.address, bc.case_no, bc.sold_date_iso,
+        u.email AS owner_email, u.display_name AS owner_name,
+        (SELECT image_url FROM generated_images WHERE case_id = bc.id AND style != 'transform-video' ORDER BY created_at DESC LIMIT 1) AS latest_image_url,
+        (SELECT COUNT(*) FROM generated_images WHERE case_id = bc.id)::int AS image_count
+      FROM bolig_cases bc
+      JOIN users u ON bc.user_id = u.id
+      WHERE u.id IN (
+        SELECT owner_user_id FROM teams WHERE id = $1
+        UNION
+        SELECT user_id FROM team_members WHERE team_id = $1
+      )
+      AND bc.status = 'sold'
+      ORDER BY bc.sold_date_iso DESC NULLS LAST, bc.created_at DESC
+      LIMIT 30
+    `, [teamId]);
+    return result.rows.map(r => ({
+      id: r.id,
+      address: r.address,
+      caseNo: r.case_no,
+      soldDateISO: r.sold_date_iso,
+      ownerName: r.owner_name || r.owner_email.split("@")[0],
+      latestImageUrl: r.latest_image_url,
+      imageCount: parseInt(r.image_count as unknown as string) || 0,
+    }));
+  }
+
+  async getTeamActivity(teamId: number): Promise<Array<{ type: "generation" | "case"; userName: string; userEmail: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; imageUrl?: string; createdAt: Date }>> {
+    const gens = await pool.query<{ user_name: string | null; user_email: string; room_type: string; style: string; tier: string; case_id: number | null; image_url: string; created_at: Date }>(`
+      SELECT u.display_name AS user_name, u.email AS user_email, gi.room_type, gi.style, gi.budget_tier AS tier, gi.case_id, gi.image_url, gi.created_at
+      FROM generated_images gi JOIN users u ON gi.user_id = u.id
+      WHERE u.id IN (
+        SELECT owner_user_id FROM teams WHERE id = $1
+        UNION
+        SELECT user_id FROM team_members WHERE team_id = $1
+      )
+      ORDER BY gi.created_at DESC LIMIT 15
+    `, [teamId]);
+    const cases = await pool.query<{ user_name: string | null; user_email: string; id: number; address: string; created_at: Date }>(`
+      SELECT u.display_name AS user_name, u.email AS user_email, bc.id, bc.address, bc.created_at
+      FROM bolig_cases bc JOIN users u ON bc.user_id = u.id
+      WHERE u.id IN (
+        SELECT owner_user_id FROM teams WHERE id = $1
+        UNION
+        SELECT user_id FROM team_members WHERE team_id = $1
+      )
+      ORDER BY bc.created_at DESC LIMIT 10
+    `, [teamId]);
+    const items = [
+      ...gens.rows.map(g => ({ type: "generation" as const, userName: g.user_name || g.user_email.split("@")[0], userEmail: g.user_email, roomType: g.room_type, style: g.style, tier: g.tier, caseId: g.case_id, imageUrl: g.image_url, createdAt: new Date(g.created_at) })),
+      ...cases.rows.map(c => ({ type: "case" as const, userName: c.user_name || c.user_email.split("@")[0], userEmail: c.user_email, address: c.address, caseId: c.id, createdAt: new Date(c.created_at) })),
+    ];
+    return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 15);
+  }
+
+  async allocateCreditsToMember(fromTeamId: number, toUserId: number, amount: number): Promise<void> {
+    await pool.query("UPDATE teams SET credits_remaining = credits_remaining - $1 WHERE id = $2", [amount, fromTeamId]);
+    await pool.query("UPDATE users SET credits_remaining = credits_remaining + $1 WHERE id = $2", [amount, toUserId]);
+  }
+
+  async updateTeamCreditsUsed(teamId: number, amount: number): Promise<void> {
+    await pool.query("UPDATE teams SET credits_used_this_month = credits_used_this_month + $1 WHERE id = $2", [amount, teamId]);
+  }
+
+  // ── AI Boligfremvisning ──────────────────────────────────────────────────
+  async createAiTourProperty(data: InsertAiTourProperty): Promise<AiTourProperty> {
+    const [row] = await db.insert(aiTourProperties).values(data).returning();
+    return row;
+  }
+
+  async getAiTourPropertiesByUser(userId: number): Promise<AiTourProperty[]> {
+    return db.select().from(aiTourProperties)
+      .where(eq(aiTourProperties.userId, userId))
+      .orderBy(desc(aiTourProperties.createdAt));
+  }
+
+  async getAiTourProperty(id: number, userId: number): Promise<AiTourProperty | undefined> {
+    const [row] = await db.select().from(aiTourProperties)
+      .where(and(eq(aiTourProperties.id, id), eq(aiTourProperties.userId, userId)));
+    return row;
+  }
+
+  async updateAiTourProperty(id: number, userId: number, updates: Partial<InsertAiTourProperty>): Promise<AiTourProperty | undefined> {
+    const [row] = await db.update(aiTourProperties).set(updates)
+      .where(and(eq(aiTourProperties.id, id), eq(aiTourProperties.userId, userId)))
+      .returning();
+    return row;
+  }
+
+  async deleteAiTourProperty(id: number, userId: number): Promise<void> {
+    const owned = await this.getAiTourProperty(id, userId);
+    if (!owned) return;
+    await db.delete(aiTourRooms).where(eq(aiTourRooms.propertyId, id));
+    await db.delete(aiTourProperties).where(eq(aiTourProperties.id, id));
+  }
+
+  // Reconcile the full room set for a property: rows whose id is in `keepIds`
+  // are updated in place (preserving uploaded photo + generated after-image);
+  // rows not in `keepIds` are deleted; rows without an id are inserted.
+  async setAiTourRooms(
+    propertyId: number,
+    userId: number,
+    rooms: Array<Omit<InsertAiTourRoom, "propertyId"> & { id?: number }>,
+  ): Promise<AiTourRoom[]> {
+    const owned = await this.getAiTourProperty(propertyId, userId);
+    if (!owned) return [];
+    const existing = await db.select().from(aiTourRooms).where(eq(aiTourRooms.propertyId, propertyId));
+    const keepIds = new Set(rooms.map(r => r.id).filter((x): x is number => typeof x === "number" && x > 0));
+    const toDelete = existing.filter(r => !keepIds.has(r.id));
+    for (const r of toDelete) {
+      await db.delete(aiTourRooms).where(eq(aiTourRooms.id, r.id));
+    }
+    for (const r of rooms) {
+      if (typeof r.id === "number" && r.id > 0 && keepIds.has(r.id)) {
+        const { id: _id, ...rest } = r as any;
+        await db.update(aiTourRooms).set(rest).where(eq(aiTourRooms.id, r.id));
+      } else {
+        const { id: _id, ...rest } = r as any;
+        await db.insert(aiTourRooms).values({ ...rest, propertyId });
+      }
+    }
+    return db.select().from(aiTourRooms).where(eq(aiTourRooms.propertyId, propertyId)).orderBy(aiTourRooms.id);
+  }
+
+  async getAiTourRooms(propertyId: number, userId: number): Promise<AiTourRoom[]> {
+    const owned = await this.getAiTourProperty(propertyId, userId);
+    if (!owned) return [];
+    return db.select().from(aiTourRooms).where(eq(aiTourRooms.propertyId, propertyId)).orderBy(aiTourRooms.id);
+  }
+
+  async updateAiTourRoom(roomId: number, userId: number, updates: Partial<InsertAiTourRoom>): Promise<AiTourRoom | undefined> {
+    const [room] = await db.select().from(aiTourRooms).where(eq(aiTourRooms.id, roomId));
+    if (!room) return undefined;
+    const owned = await this.getAiTourProperty(room.propertyId, userId);
+    if (!owned) return undefined;
+    const [row] = await db.update(aiTourRooms).set(updates).where(eq(aiTourRooms.id, roomId)).returning();
+    return row;
   }
 }
 

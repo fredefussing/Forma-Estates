@@ -1,0 +1,1 @@
+- [Drizzle-kit push interactive prompt](drizzle-push-prompt.md) — `npm run db:push` blocks on a "rename or create" prompt that doesn't accept piped input; fall back to direct `psql` DDL.

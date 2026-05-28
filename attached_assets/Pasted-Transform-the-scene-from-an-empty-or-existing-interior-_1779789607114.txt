@@ -1,0 +1,21 @@
+Transform the scene from an empty or existing interior into a fully furnished, fully designed modern space through a smooth architectural growth animation.
+
+All furniture, architectural elements, and decor begin at minimal or reduced scale within the room and gradually scale up into their final full-size positions. Objects emerge naturally from the floor, walls, and structural surfaces with smooth, physically realistic motion.
+
+The entire room structure refines progressively: flooring extends and completes itself, wall materials finish and refine, built-in elements grow into place, and architectural details resolve from simple forms into fully detailed surfaces.
+
+All furniture appears in correct spatial positions according to a realistic interior layout, including seating areas, tables, storage units, lighting fixtures, and decorative elements appropriate to the room type. Each element expands smoothly with natural easing and settles gently into its final position.
+
+Windows, doors, and fixed architectural boundaries remain constant throughout the animation and act as stable anchors for the transformation.
+
+Lighting transitions gradually from neutral base lighting to a fully realized atmospheric lighting setup, with warm ambient illumination and soft natural daylight blending seamlessly. Interior lights fade in naturally as furniture and materials finalize.
+
+Materials evolve from basic surfaces into fully detailed, high-quality finishes such as wood, stone, fabric, glass, and metal, with realistic reflections and physically based rendering.
+
+A slow cinematic camera movement pushes gently through the space, maintaining a wide-angle architectural perspective with subtle parallax to enhance depth. Foreground and background elements shift naturally to reinforce realism.
+
+The motion is smooth, elegant, and continuous with no abrupt transitions. The entire transformation feels like a real-time architectural build-up of the space.
+
+Final result: a fully realized, photorealistic interior environment with cinematic lighting, high detail, and cohesive design.
+
+Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality

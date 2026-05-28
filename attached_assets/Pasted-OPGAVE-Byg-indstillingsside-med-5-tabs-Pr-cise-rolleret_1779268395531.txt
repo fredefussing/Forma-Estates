@@ -1,0 +1,143 @@
+OPGAVE: Byg indstillingsside med 5 tabs. Præcise rollerettigheder.
+
+═══════════════════════════════════════
+ROLLERETTIGHEDER — HÅNDHÆVES I KODE
+═══════════════════════════════════════
+
+EJER (kun 1 per team):
+- Alt: køb credits, slet team, ændr ejer, kick alle (admin + medlemmer), ændr roller
+- Kan IKKE fjernes af andre
+- Kan overføre ejerskab til admin
+
+ADMIN:
+- Inviter medlemmer, fjern MEDLEMMER
+- Se forbrug, tildel credits (hvis ejer har givet adgang)
+- Ændr medlem-roller
+- KAN IKKE: købe credits, slette team, fjerne EJER, ændr ejerskab
+
+MEDLEM:
+- Bruge systemet, egne sager
+- KAN IKKE: se Team-tab, invitere, fjerne, købe credits
+
+═══════════════════════════════════════
+LAYOUT — 5 TABS
+═══════════════════════════════════════
+
+Indstillinger
+├── Profil
+├── Udseende
+├── Standardvalg
+├── Notifikationer
+├── Konto
+└── Team (kun EJER + ADMIN vises denne)
+
+═══════════════════════════════════════
+TAB 1: PROFIL (alle)
+═══════════════════════════════════════
+
+Navn: [________]
+Email: [________]
+Profilbillede: [Nuværende] [Skift]
+
+[Gem]
+
+═══════════════════════════════════════
+TAB 2: UDSEENDE (alle)
+═══════════════════════════════════════
+
+Tema: [Lys ▼] [Mørk ▼] [Auto ▼]
+Accentfarve: [Blå ▼] [Grøn ▼] [Orange ▼] [Lilla ▼]
+
+[Gem]
+
+═══════════════════════════════════════
+TAB 3: STANDARDVALG (alle)
+═══════════════════════════════════════
+
+Forvalg ved generering:
+Rum: [Stue ▼]
+Stil: [Skandinavisk ▼]
+Format: [4:3 ▼]
+
+[✓] Husk seneste valg
+[✓] Start med sidste uploadede billede
+
+[Gem]
+
+═══════════════════════════════════════
+TAB 4: NOTIFIKATIONER (alle)
+═══════════════════════════════════════
+
+[✓] Email ved ny generering
+[✓] Email ved team-invite
+[ ] Email ved ugentlig opsummering
+
+[Gem]
+
+═══════════════════════════════════════
+TAB 5: KONTO (alle)
+═══════════════════════════════════════
+
+[Skift password]
+[Slet min konto] — bekræftelses-popup
+
+═══════════════════════════════════════
+TAB 6: TEAM (kun EJER + ADMIN)
+═══════════════════════════════════════
+
+Teamnavn: [Nybolig Bagsværd] [Rediger]
+
+── MEDLEMMER ──
+EJER:
+[Dit navn]  Ejer  [Kan ikke fjernes]
+
+ADMIN:
+Anna K.   Admin  [EJER KAN: Fjern] [EJER KAN: Sænk til medlem]
+Peter N.  Admin  [EJER KAN: Fjern] [EJER KAN: Sænk til medlem]
+
+MEDLEMMER:
+Louise M. Medlem [ADMIN KAN: Fjern] [ADMIN/EJER: Gør til admin]
+Søren H.  Medlem [ADMIN KAN: Fjern]
+
+[+ Inviter medlem]
+Invite-kode: NYBBAG26 [Kopier] [Generer ny] (kun EJER)
+
+── CREDITS ──
+Tilbage: 847
+
+[Køb flere] — KUN EJER SER DENNE KNAP
+[Tildel til medlem] — KUN EJER (admin ser tekst: "Kontakt ejer for credits")
+
+Aktivitetslog (seneste 10):
+• Peter N. genererede Stue, Skandi — 2 min siden
+• Anna K. oprettede sag "Ravnehusvej 5" — 1 time siden
+
+═══════════════════════════════════════
+API-SIKKERHED — TJEK ROLLE PÅ SERVER
+═══════════════════════════════════════
+
+ALLE endpoints skal tjekke rolle:
+
+POST /api/teams/credits/buy
+→ if (user.role !== 'owner') return 403
+
+DELETE /api/teams/members/:id
+→ if (target.role === 'owner') return 403
+→ if (target.role === 'admin' && user.role !== 'owner') return 403
+
+PATCH /api/teams/members/:id/role
+→ if (target.role === 'owner') return 403
+→ if (newRole === 'owner' && user.role !== 'owner') return 403
+
+═══════════════════════════════════════
+IMPLEMENTÉR KUN DETTE
+═══════════════════════════════════════
+
+1. 5 tabs: Profil, Udseende, Standardvalg, Notifikationer, Konto
+2. Team tab: kun EJER + ADMIN
+3. Roller: Ejer, Admin, Medlem
+4. Rettigheder håndhævet i backend
+5. Ejer: kan købe credits, slette team, kick alle
+6. Admin: kan invitere, fjerne medlemmer, IKKE købe credits, IKKE kick ejer
+
+SVAR MED "INDSTILLINGER MED ROLLER IMPLEMENTERET" når done.

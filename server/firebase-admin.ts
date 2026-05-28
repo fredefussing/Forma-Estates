@@ -7,7 +7,7 @@ if (getApps().length === 0) {
   });
 }
 
-export async function verifyFirebaseToken(authHeader: string | undefined): Promise<{ uid: string; email: string }> {
+export async function verifyFirebaseToken(authHeader: string | undefined): Promise<{ uid: string; email: string; name?: string }> {
   if (!authHeader?.startsWith("Bearer ")) {
     throw new Error("Ingen token");
   }
@@ -16,5 +16,5 @@ export async function verifyFirebaseToken(authHeader: string | undefined): Promi
   if (!decoded.email) {
     throw new Error("Ingen email i token");
   }
-  return { uid: decoded.uid, email: decoded.email };
+  return { uid: decoded.uid, email: decoded.email, name: decoded.name ?? undefined };
 }

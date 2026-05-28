@@ -1,0 +1,170 @@
+OPGAVE: Byg team-system med invite-link der virker direkte. Koden placeres korrekt.
+
+═══════════════════════════════════════
+DEL 1: KODE PLACERING
+═══════════════════════════════════════
+
+1.1 Database schema:
+- Fil: server/schema.ts  (eller db/schema.ts)
+- Tilføj: teams tabel, team_members tabel, opdater users tabel
+
+1.2 API routes:
+- Fil: server/routes.ts  (eller server/index.ts)
+- Tilføj ALLE team routes HER, før catch-all routes
+- Rækkefølge i Express MATTERS — specifikke routes først
+
+1.3 Frontend:
+- Sidebar: client/src/components/Sidebar.tsx  (eller App.tsx)
+- Team side: client/src/pages/TeamPage.tsx  (ny fil)
+- Invite side: client/src/pages/TeamInvitePage.tsx  (ny fil)
+- Router: client/src/App.tsx — tilføj routes
+
+1.4 Invite-link:
+- Base URL: window.location.origin  (auto-detekterer domæne)
+- Format: https://[dit-domæne]/join/[team-kode]
+- Eksempel: https://nordichomebuild.repl.co/join/NYB-BAG-2026
+
+═══════════════════════════════════════
+DEL 2: INVITE-LINK FLOW
+═══════════════════════════════════════
+
+2.1 Admin opretter team:
+- Klik "Team" i sidebar
+- "Opret team" → indtast navn
+- System genererer kode: 8 tegn, store bogstaver+tal
+  Eksempel: NYBBAG26, REMAX01, HOME2026
+- Viser invite-link: [origin]/join/[kode]
+
+2.2 Admin kopierer link:
+- [Kopier link] knap → kopierer til clipboard
+- Admin sender link til kollega (Slack, mail, SMS)
+
+2.3 Kollega klikker link:
+- Åbner: https://nordichomebuild.repl.co/join/NYBBAG26
+- Tjekker: Findes koden? → ja → viser teamnavn
+- Viser: "Du er inviteret til Nybolig Bagsværd"
+- To knapper:
+  * [Jeg har allerede konto] → login → auto-tilsluttes
+  * [Opret ny konto] → signup → auto-tilsluttes
+
+2.4 Efter login/signup:
+- System tjekker: invite kode i URL?
+- Ja → kald API: POST /api/teams/join med kode
+- Bruger tilsluttes team
+- Redirect til dashboard
+- Viser toast: "Du er nu medlem af Nybolig Bagsværd"
+
+═══════════════════════════════════════
+DEL 3: ROUTES — RÆKKEFØLGE I EXPRESS
+═══════════════════════════════════════
+
+I server/routes.ts (eller server/index.ts):
+
+// 1. Auth routes (først)
+app.post("/api/auth/verify", ...);
+app.post("/api/auth/login", ...);
+
+// 2. Team routes (før catch-all)
+app.post("/api/teams", ...);           // opret team
+app.post("/api/teams/join", ...);      // tilslut med kode
+app.get("/api/teams/:id", ...);        // hent team
+app.get("/api/teams/:id/members", ...); // medlemmer
+app.post("/api/teams/invite", ...);    // invite via email
+
+// 3. Andre API routes
+app.get("/api/bolig/cases", ...);
+app.post("/api/generate", ...);
+
+// 4. Catch-all — SIDST
+app.get("*", ...);  // ← Vite/frontend fallback
+
+VIGTIGT: Team routes skal være FØR catch-all, ellers fanger catch-all dem.
+
+═══════════════════════════════════════
+DEL 4: FRONTEND ROUTER
+═══════════════════════════════════════
+
+I client/src/App.tsx:
+
+<<Route path="/" element={<LandingPage />} />
+<<Route path="/dashboard" element={<Dashboard />} />
+<<Route path="/team" element={<TeamPage />} />           ← NY
+<<Route path="/join/:code" element={<TeamInvitePage />} /> ← NY
+<<Route path="/bolig/:id" element={<SagDetail />} />
+
+TeamInvitePage:
+- Tjekker om bruger er logget ind
+- Hvis nej: vis login/signup + gem invite kode i localStorage
+- Efter login: læs kode fra localStorage → kald join API
+- Hvis ja: kald join API direkte → redirect dashboard
+
+═══════════════════════════════════════
+DEL 5: INVITE-LINK VIRKER HVER GANG
+═══════════════════════════════════════
+
+5.1 Kode generering:
+function generateTeamCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';  // uden I, O, 0, 1
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;  // fx "NYBBAG26"
+}
+
+5.2 Kode tjek:
+- Unik i database (UNIQUE constraint)
+- Case-insensitive tjek ved join
+- Aldrig udløber (eller 30 dage hvis du vil)
+
+5.3 Link format:
+const inviteLink = `${window.location.origin}/join/${team.code}`;
+
+Dette virker på:
+- Replit: https://nordichomebuild.repl.co/join/NYBBAG26
+- Railway: https://nordichomebuild.dk/join/NYBBAG26
+- Lokal: http://localhost:3000/join/NYBBAG26
+
+═══════════════════════════════════════
+DEL 6: KOLLEGA MED EKSISTERENDE KONTO
+═══════════════════════════════════════
+
+Flow:
+1. Kollega logger ind (normalt)
+2. Går til "Team" i sidebar
+3. Viser: "Tilslut team med kode"
+4. Indtaster: NYBBAG26
+5. [Tilslut] → API kald → medlem af team
+6. Dashboard viser nu team-statistik
+
+Alternativ:
+1. Kollega klikker invite-link
+2. Er allerede logget ind → auto-tilsluttes
+3. Er IKKE logget ind → login → auto-tilsluttes
+
+═══════════════════════════════════════
+DEL 7: ADMIN MANAGEMENT
+═══════════════════════════════════════
+
+Admin ser i Team side:
+- Team navn + kode
+- [Kopier invite-link]
+- [Vis QR-kode] (valgfri)
+- Liste over medlemmer
+- [Fjern medlem] knap
+- [Tildel credits] knap
+
+Admin kan IKKE fjerne sig selv (skal overføre admin først).
+
+═══════════════════════════════════════
+IMPLEMENTER KUN DETTE
+═══════════════════════════════════════
+
+1. Database: teams, team_members tabeller
+2. API: team routes FØR catch-all i Express
+3. Frontend: TeamPage + TeamInvitePage
+4. Router: /team + /join/:code routes
+5. Invite-link: auto-detekterer domæne, virker på alle miljøer
+6. Auto-tilslutning efter login/signup
+
+SVAR MED "TEAM SYSTEM MED INVITE-LINK IMPLEMENTERET" nar done.

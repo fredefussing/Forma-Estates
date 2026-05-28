@@ -1,0 +1,184 @@
+OPGAVE: Omskriv sag-detail layout så det matcher main versionen 100%.
+
+═══════════════════════════════════════
+NÅRVÆRENDE LAYOUT (Billede 1):
+═══════════════════════════════════════
+- Venstre: Stort upload-område + thumbnails under
+- Højre: Valg-panel (rum, stil, budget)
+- Problem: Upload og generering er blandet sammen
+
+═══════════════════════════════════════
+TARGET LAYOUT (Billede 2 — Main Version):
+═══════════════════════════════════════
+┌─────────────────────────────────────────────────────────┐
+│  ← Tilbage    gernergade 21          [Slet sag]        │
+│  Aktiv — I salg    0 dage på markedet                   │
+│                                                         │
+│  ┌──────────────────────┐  ┌─────────────────────────┐ │
+│  │                      │  │  RUMTYPE                  │ │
+│  │  HISTORY GALLERY     │  │  [Stue] [Soveværelse]   │ │
+│  │                      │  │  [Køkken][Badeværelse]   │ │
+│  │  [Billede 1] [2] [3]│  │  [Entré] [Bryggers]      │ │
+│  │  [Billede 4] [5] [6]│  │  [Toilet][Spisestue]     │ │
+│  │                      │  │  [Kontor][Børneværelse]  │ │
+│  │  Badeværelse         │  │                           │ │
+│  │  Skandinavisk        │  │  STIL                     │ │
+│  │  Budget              │  │  [Skandinavisk][Moderne]  │ │
+│  │                      │  │  [Klassisk][Industriel]   │ │
+│  │                      │  │  [Landlig][Minimalistisk] │ │
+│  │                      │  │  [Boheme][Japandi]         │ │
+│  │                      │  │                           │ │
+│  │                      │  │  BUDGET                   │ │
+│  │                      │  │  Tier 1 — Budget          │ │
+│  │                      │  │    IKEA / JYSK niveau     │ │
+│  │                      │  │  Tier 2 — Standard        │ │
+│  │                      │  │    Mellemklasse           │ │
+│  │                      │  │  Tier 3 — Premium         │ │
+│  │                      │  │    Designermøbler         │ │
+│  │                      │  │                           │ │
+│  │                      │  │  [UPLOAD FOTO → GENERER]  │ │
+│  └──────────────────────┘  └─────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════
+IMPLEMENTÉR DETTE:
+═══════════════════════════════════════
+
+DEL 1: HEADER (øverst på siden)
+─────────────────────────────────────────
+- Venstre: ← Tilbage (link til oversigt)
+- Midte: Sagsadresse (fet, stor tekst) + Sagsnr. X under
+- Højre: [Slet sag] knap (rød outline)
+- Under adressen: Status badge + Dage på markedet badge
+  * "Aktiv — I salg" (grøn badge)
+  * "X dage på markedet" (grå badge)
+
+DEL 2: TO-KOLONNE LAYOUT
+─────────────────────────────────────────
+Venstre kolonne (60% bredde): HISTORY GALLERY
+Højre kolonne (40% bredde): GENERERINGS-PANEL
+
+DEL 3: VENSTRE KOLONNE — HISTORY GALLERY
+─────────────────────────────────────────
+- Overskrift: "GENEREREDE BILLEDER" (hvis der er billeder)
+- ELLER "Ingen genererede billeder endnu" (hvis tom)
+- Grid: 2 kolonner på desktop, 1 på mobil
+- Hvert billede-kort:
+  * Billede (aspect-ratio 4:3, object-fit cover)
+  * Under billede: Rumtype (fet) + Stil + Budget-tier
+  * Labels som badges under billedet
+  * Eksempel: "Badeværelse" / "Skandinavisk" / "Budget"
+- Klik på billede → åbn i modal/lightbox med download-knap
+- Hvis ingen billeder: Vis tom state med tekst
+  "Upload et foto og vælg rum, stil og budget for at generere dit første potentialebillede"
+
+DEL 4: HØJRE KOLONNE — GENERERINGS-PANEL
+─────────────────────────────────────────
+4.1 RUMTYPE sektion:
+- Label: "RUMTYPE" (små bogstaver, grå)
+- Grid: 2 kolonner
+- Knapper: Stue, Soveværelse, Køkken, Badeværelse, Entré, Bryggers, Toilet, Spisestue, Kontor, Børneværelse
+- Selected state: Mørk baggrund, hvid tekst
+- Unselected: Lys baggrund, mørk tekst
+
+4.2 STIL sektion:
+- Label: "STIL"
+- Grid: 2 kolonner
+- Knapper: Skandinavisk, Moderne, Klassisk, Industriel, Landlig, Minimalistisk, Boheme, Japandi
+- Selected: Mørk baggrund, hvid tekst
+- Unselected: Lys baggrund, mørk tekst
+
+4.3 BUDGET sektion:
+- Label: "BUDGET"
+- Liste (1 kolonne):
+  * Tier 1 — Budget        (højre: IKEA / JYSK niveau)
+  * Tier 2 — Standard      (højre: Mellemklasse)
+  * Tier 3 — Premium       (højre: Designermøbler)
+- Selected: Mørk baggrund, hvid tekst
+- Unselected: Lys baggrund, mørk tekst
+
+4.4 GENERER-KNAP:
+- Tekst: "Upload et foto for at generere" (når intet foto valgt)
+- Tekst: "Generer potentiale" (når foto valgt)
+- State: Disabled/grå når ingen foto valgt
+- State: Aktiv/mørk når foto valgt
+
+DEL 5: UPLOAD-FUNKTIONALITET (ændret!)
+─────────────────────────────────────────
+I stedet for stort upload-område i venstre side:
+- Tilføj et "Upload foto" område ØVERST i højre kolonne (over RUMTYPE)
+- ELLER: Vis upload som et modal/step FØR generering
+- Når foto er uploaded: Vis thumbnail i højre panel + "Skift foto" knap
+- Upload gemmes i sagen: /cases/[user]/[sag]/uploads/
+- Max 1 foto per generering (main version style)
+
+DEL 6: DATASTRUKTUR FOR GENEREREDE BILLEDER
+─────────────────────────────────────────
+Hvert genereret billede skal gemme:
+{
+  id: number,
+  caseId: number,
+  imageUrl: string,
+  thumbnailUrl: string,
+  roomType: string,      // "Stue", "Køkken", etc.
+  style: string,         // "Skandinavisk", etc.
+  budgetTier: number,    // 1, 2, 3
+  prompt: string,        // Det prompt der blev sendt til Collov
+  createdAt: string
+}
+
+API endpoint: GET /api/bolig/cases/[id]/images
+Returnerer: Array af billeder med metadata
+
+DEL 7: RÆKkefølge af rum (SKAL være samme som main):
+─────────────────────────────────────────
+1. Stue
+2. Soveværelse
+3. Køkken
+4. Badeværelse
+5. Entré
+6. Bryggers
+7. Toilet
+8. Spisestue
+9. Kontor
+10. Børneværelse
+
+DEL 8: RÆKkefølge af stilarter (SKAL være samme som main):
+─────────────────────────────────────────
+1. Skandinavisk
+2. Moderne
+3. Klassisk
+4. Industriel
+5. Landlig
+6. Minimalistisk
+7. Boheme
+8. Japandi
+
+DEL 9: RÆKkefølge af budget-tiers (SKAL være samme som main):
+─────────────────────────────────────────
+1. Tier 1 — Budget (IKEA / JYSK niveau)
+2. Tier 2 — Standard (Mellemklasse)
+3. Tier 3 — Premium (Designermøbler)
+
+DEL 10: TOM STATE (når ingen billeder genereret)
+─────────────────────────────────────────
+Venstre kolonne viser:
+- Stort ikon (billede/ramme)
+- Tekst: "Ingen genererede billeder endnu"
+- Subtekst: "Vælg et rum, stil og budget, upload et foto og klik 'Generer'"
+- ELLER vis upload-område her hvis brugeren ikke har uploaded endnu
+
+═══════════════════════════════════════
+IMPLEMENTÉR RÆKkefølge:
+═══════════════════════════════════════
+
+1. Opret API endpoint: GET /api/bolig/cases/:id/images
+2. Opret database tabel: generated_images (hvis ikke eksisterer)
+3. Omskriv SagDetail komponent til to-kolonne layout
+4. Flyt upload fra venstre til højre kolonne (eller modal)
+5. Implementér History Gallery med grid
+6. Sørg for at valg-panel matcher main version styling
+7. Test at rækkefølge af rum/stil/budget er korrekt
+8. Test at genereret billede vises i galleri med metadata
+
+SVAR KUN MED "LAYOUT MATCHER MAIN VERSION" når alt er implementeret og testet.

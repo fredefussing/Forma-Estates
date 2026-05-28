@@ -1,0 +1,193 @@
+Komplet Redesign-Prompt: Forma Estates Landing Page
+0. Globale Ændringer (Gælder Hele Siden)
+Brand-navn: Alle steder der står "AI BoligPotentiale" skal ændres til "Forma Estates". Produkttjenesten kan omtales som "AI-visualisering" eller "boligvisualisering" — men brandet er Forma Estates overalt.
+Logo: Brug FE-monogrammet i venstre side af navbar og footer. Tekst "FORMA ESTATES" i uppercase ved siden af monogrammet.
+Favicon: FE-monogram som favicon (.ico + 180x180 png).
+Meta-tags:
+Title: "Forma Estates — AI boligvisualisering til ejendomsmæglere"
+Description: "Professionel boligvisualisering på 30 sekunder. Upload et foto, vælg en stil, og få et AI-redesign klar til din annonce."
+Open Graph: Billede med Forma Estates logo + tagline.
+Fjern: "Update from main" Vercel-popup skal fjernes fuldstændigt fra produktion.
+1. Farvepalett (Globalt CSS)
+Erstat alle nuværende farver med:
+css
+Copy
+--navy: #0F1923;
+--navy-deep: #0A1219;
+--gold: #C9A96E;
+--gold-hover: #B8975D;
+--gold-tint: rgba(201, 169, 110, 0.1);
+--gold-border: rgba(201, 169, 110, 0.3);
+--bg-white: #FFFFFF;
+--bg-warm: #F8F6F3;
+--text-primary: #1A1A1A;
+--text-muted: #6B6B6B;
+--text-on-dark: #FFFFFF;
+--border-light: #E8E8E8;
+--shadow-card: 0 4px 24px rgba(15, 25, 35, 0.08);
+--shadow-card-hover: 0 8px 32px rgba(15, 25, 35, 0.12);
+2. Typografi (Globalt CSS)
+Headings: font-family: 'Playfair Display', serif; — weight 500-600.
+H1: 56px desktop / 36px mobil, line-height 1.15
+H2: 42px desktop / 28px mobil, line-height 1.2
+H3: 24px, line-height 1.3
+Body: font-family: 'Inter', sans-serif; — weight 400.
+Body: 16-18px, line-height 1.6
+Small: 13-14px
+Labels/Overlines: Inter, uppercase, letter-spacing: 0.15em, 12px, --gold eller --text-muted.
+3. Navigation (Navbar)
+Venstre: FE-monogram + "FORMA ESTATES" i uppercase, letter-spacing: 0.2em, 13px, --navy.
+Midte: Links i uppercase, 12px, letter-spacing: 0.1em, --text-muted. Links: "SÅDAN VIRKER DET", "EKSEMPLER", "PRISER", "FAQ". Hover: --navy med 2px guld underline der animerer ind fra venstre.
+Højre:
+[Log ind] — outline-knap, 1px --navy border, transparent bg, --navy tekst, 8px radius, padding: 10px 24px.
+[Kom i gang] --solid --gold bg, hvid tekst, 8px radius, padding: 10px 24px. Hover: --gold-hover.
+Scroll-opførsel: Efter 50px scroll → navbar får backdrop-filter: blur(12px), semi-transparent hvid bg (rgba(255,255,255,0.85)), subtil bottom-border (--border-light).
+4. Hero-Sektion
+Baggrund: --bg-white. Padding: 120px top, 100px bottom.
+Layout: To kolonner, 55% / 45% split.
+Venstre kolonne:
+Tag: Pill med tekst "AI-drevet boligvisualisering". Styling: --gold tekst, --gold-tint bg, border-radius: 4px, 12px uppercase, padding: 6px 14px.
+H1: Serif (Playfair), 56px, --navy: "Vis boligens fulde potentiale på 30 sekunder" — "30 sekunder" i --gold.
+Subline: Inter, 18px, --text-muted, max-width 480px: "Upload et foto af et rum. Få et professionelt redesign klar til din annonce — på under 30 sekunder, til en brøkdel af prisen."
+CTA: [Prøv gratis — 1 billede inkl. →] — solid --gold, hvid tekst, padding: 16px 32px, 8px radius, font-weight: 500. Pil-ikon fra Lucide (ArrowRight).
+Mikro-copy: 13px, --text-muted, margin-top: 12px: "Ingen kredtikort krævet · 1 gratis billede ved oprettelse"
+Højre kolonne:
+Stor Before/After-slider der fylder kolonnen, border-radius: 12px.
+Små badges: "Før" og "Efter" øverst på billederne — --navy bg, hvid tekst, 11px uppercase, border-radius: 4px.
+Under slider: centreret, 13px, --text-muted: "Køkken · Moderne · Træk for at sammenligne"
+Animation: Venstre kolonne fader ind fra venstre (translateX(-20px) → 0), højre kolonne fader ind fra højre. Varighed: 0.7s, ease-out.
+5. Sådan Virker Det (3-trin)
+Baggrund: --bg-warm. Padding: 100px vertical.
+Overskrift: Overline "SÅDAN VIRKER DET" i --gold, uppercase. H2 serif: "Tre trin. Under ét minut." Subline Inter: "Ingen software, ingen teknisk viden — bare et foto og et klik."
+3 kort i row, gap: 32px.
+Hvert kort:
+Hvid bg, border-radius: 8px, padding: 48px 36px, --shadow-card.
+Nummerering øverst: "01", "02", "03" i --gold, Playfair, 28px.
+Lucide-ikon centreret i cirkel: border: 1px solid --gold-border, width: 64px, height: 64px, ikon 28px i --gold.
+01: Camera (Lucide)
+02: SlidersHorizontal (Lucide)
+03: Download (Lucide)
+Titel: Inter, 18px, --navy, font-weight: 600, margin-top: 20px.
+Beskrivelse: Inter, 15px, --text-muted.
+Indhold:
+Upload et rumfoto — "Tag et foto af rummet med din telefon eller kamera. Ingen professionel fotografering nødvendig."
+Vælg rumtype og stil — "Angiv rumtype og vælg en af vores designstile — fra skandinavisk minimalisme til moderne luksus."
+Download din visualisering — "AI'en genererer dit billede på under 30 sekunder. Klar til download i fuld kvalitet."
+Animation: Kortene fader ind med translateY(30px) → 0, stagger 0.15s mellem hvert kort. Trigger ved scroll into view.
+6. Eksempler / "Se forvandlingen"
+Baggrund: --bg-white. Padding: 100px vertical.
+Overskrift: Overline "EKSEMPLER" i --gold. H2 serif: "Se forvandlingen." Subline: "Ægte resultater — genereret med vores AI fra almindelige rumfotos."
+Layout: Maks 3 eksempel-par, margin-bottom: 64px mellem hver.
+Hvert par:
+Label øverst: "01 · Stue · Skandinavisk" format — --gold, 13px, font-weight: 500.
+To billeder side om side (Før/Efter), gap: 24px, border-radius: 8px.
+Under hvert billede: caption "Før" og "Efter — AI redesign" i --text-muted, 12px.
+Mobil: Billederne stacker vertikalt.
+CTA: Centreret efter eksemplerne. [Prøv selv gratis →] — outline-knap, 1px --navy border, --navy tekst, 8px radius, Lucide ArrowRight. Mikro-copy under: "1 gratis visualisering ved oprettelse" i --text-muted.
+7. Funktioner / "Alt hvad du behøver"
+Baggrund: --bg-warm. Padding: 100px vertical.
+Overskrift: Overline "FUNKTIONER" i --gold. H2 serif: "Alt hvad du behøver."
+Layout: 3x2 grid, gap: 24px.
+Hvert kort:
+Hvid bg, border-radius: 8px, padding: 36px 32px, --shadow-card.
+Lucide-ikon øverst: 32px, --gold, i cirkel 48x48 med border: 1px solid --gold-border.
+Home (Realistisk AI-rendering)
+Palette (8 designstile)
+Zap (Klar på under 30 sek.)
+Monitor (Direkte i browseren)
+Download (Download i høj opløsning)
+MessageCircle (Dansk support)
+Titel: Inter, 16px, --navy, font-weight: 600.
+Beskrivelse: Inter, 14px, --text-muted.
+Indhold:
+Realistisk AI-rendering — "Bevarer rummets vægge, vinduer og lysindfald — kun indretningen ændres."
+8 designstile — "Skandinavisk, moderne, industrielt, boho, klassisk og mere."
+Klar på under 30 sek. — "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet — hurtigere end at tage en kop kaffe."
+Direkte i browseren — "Ingen software eller installation. Alt foregår online."
+Download i høj opløsning — "Klar til brug på boligportaler, sociale medier og tryksager."
+Dansk support — "Vi sidder i Danmark og besvarer dine spørgsmål på hverdage."
+Hover: translateY(-4px), --shadow-card-hover. Transition: 0.3s ease.
+8. Prissektion
+Baggrund: --navy. Padding: 100px vertical.
+Overskrift: Centreret. Overline "PRISER" i --gold. H2 serif: "Vælg din plan." Subline: "Alle nye konti inkluderer 1 gratis visualisering — ingen kredtikort krævet" (bold på "1 gratis visualisering").
+Toggle: [Månedlig] / [Årlig — spar 20%] over kortene. Toggle-switch i --gold.
+4 prismodeller:
+Table
+Starter	Pro	Business	Enterprise
+Pris	2.499 kr./md.	4.999 kr./md.	9.999 kr./md.	Custom
+Badge	—	MEST POPULÆR	—	—
+CTA	Vælg Starter (outline)	Vælg Pro (solid gold)	Vælg Business (outline)	Kontakt os (outline)
+Kort-design:
+Alle: border-radius: 8px, border: 1px solid rgba(255,255,255,0.08).
+Pro: transform: scale(1.02), border-color: --gold, badge øverst centreret: --gold bg, --navy tekst, 11px uppercase, padding: 6px 16px, border-radius: 4px. Baggrund: --gold-tint.
+Andre kort: Gennemsigtig mørk baggrund.
+Pris: Playfair, hvid, 40px. "kr./måned" i 14px, --text-muted.
+Features: 14px hvid tekst, tjekmark Check (Lucide) i --gold, margin-right: 10px.
+CTA'er:
+Outline: border: 1px solid --gold, --gold tekst, transparent bg, padding: 12px 24px, 8px radius. Hover: --gold bg, --navy tekst.
+Pro CTA: --gold bg, --navy tekst, font-weight: 500. Hover: --gold-hover.
+Starter: 25 billeder/md., 5 designstile, HD download, Email support.
+Pro: 100 billeder/md., alle 8 designstile, 4K download, Prioriteret support, Branding på billeder.
+Business: 250 billeder/md., alle designstile, 4K, API adgang, Hvid-label mulighed, Dedikeret support.
+Enterprise: Ubegrænsede billeder, alle designstile + custom, 4K, Fuld API, Hvid-label, Dedikeret onboarding, SLA & dedikeret support.
+9. FAQ
+Baggrund: --bg-white. Padding: 100px vertical.
+Layout: 2 kolonner desktop (60/40). 1 kolonne mobil.
+Venstre (FAQ):
+Accordion-items: border-bottom: 1px solid --border-light, padding: 24px 0.
+Spørgsmål: Inter, 16px, --navy, font-weight: 500.
+Pil: ChevronDown (Lucide), 20px, --gold. Roterer 180° ved åben.
+Svar: Inter, 15px, --text-muted, line-height: 1.7. Smooth expand med max-height transition.
+FAQ-indhold:
+Hvad er Forma Estates?
+Hvad får jeg gratis, og hvad koster det?
+Hvilke filformater kan jeg uploade?
+Kan jeg bruge billederne i mine boligannoncer?
+Bevarer AI'en rummets struktur?
+Er mine billeder fortrolige?
+Højre (Info-boks — kun desktop):
+Hvid bg, border-radius: 8px, border: 1px solid --border-light, padding: 40px.
+Titel: Inter, 20px, --navy, font-weight: 600.
+Tekst: "Har du spørgsmål? Vi sidder klar til at hjælpe dig. Send os en besked, så vender vi tilbage inden for 24 timer." — 15px, --text-muted.
+[Skriv til os] — solid --gold, --navy tekst, 8px radius.
+10. CTA-Sektion (Pre-footer)
+Baggrund: --navy. Padding: 100px vertical.
+Indhold: Centreret.
+H2 serif: "Klar til at vise boligens potentiale?" — hvid, 42px.
+Subline: "Opret en konto på 2 minutter — ingen kredtikort nødvendigt." — --text-muted, 18px.
+To knapper side om side, gap: 16px:
+[Opret konto gratis →] — solid --gold, --navy tekst, padding: 16px 32px. Lucide ArrowRight.
+[Se priser] — outline, 1px hvid border, hvid tekst, transparent bg. Hover: hvid bg, --navy tekst.
+11. Footer
+Baggrund: --navy-deep. Padding: 64px top, 32px bottom.
+Layout: 4 kolonner desktop.
+Kolonne 1:
+FE-monogram + "FORMA ESTATES".
+Tagline: "AI-drevet boligvisualisering til ejendomsmæglere i Danmark." — 14px, --text-muted.
+Kolonne 2 — PRODUKT: Sådan virker det, Eksempler, Priser. 14px, --text-muted, hover: hvid.
+Kolonne 3 — SUPPORT: FAQ, Kontakt, Privatlivspolitik. Samme styling.
+Kolonne 4 — KOM I GANG:
+[Opret konto gratis] — solid --gold, --navy tekst, 8px radius.
+Bundlinje: border-top: 1px solid rgba(255,255,255,0.08), padding-top: 24px, margin-top: 48px.
+Venstre: "© 2026 Forma Estates · Danskudviklet og bygget i Danmark" — 12px, --text-muted.
+12. Animationer & Interaktioner
+Scroll-reveal: Alle sektioner fader ind ved scroll into view. Brug Intersection Observer. Animation: opacity: 0 → 1, translateY(30px) → 0. Varighed: 0.6s, ease-out. For kort-grids: stagger 0.1s mellem elementer.
+Hover-effekter:
+Kort: translateY(-4px) + skygge transition 0.3s.
+Knapper: farve-transition 0.2s.
+Nav-links: guld underline animerer fra venstre.
+FAQ accordion: Smooth max-height + opacity transition, 0.3s.
+Ingen animationer der forsinker brugeren — alt skal føles responsivt.
+13. Mobil (Under 768px)
+Nav: Hamburger-menu. Links i fullscreen overlay, centreret, store tekster.
+Hero: Stacked — tekst øverst, slider under. H1: 36px. CTA: full-width.
+3-trin / Features: 1 kolonne.
+Eksempler: Billeder stacker vertikalt.
+Priser: Horisontalt scroll-carousel eller stacked kort. Pro-kort først.
+FAQ: 1 kolonne, info-boks under accordions.
+Footer: 1 kolonne, centreret.
+14. Tekniske Krav
+Lucide React til alle ikoner — ingen emoji, ingen andre ikon-biblioteker.
+Google Fonts: Playfair Display (400, 500, 600) + Inter (400, 500, 600).
+Alle CTA-knapper er funktionelle — ingen døde links.
+Loading states: Skeleton screens eller pulserende placeholders når AI genererer billeder.

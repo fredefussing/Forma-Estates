@@ -500,3 +500,35 @@ export async function sendAIAnalysisEmail(data: {
     log(`Failed to send AI analysis admin email: ${err.message}`);
   }
 }
+
+export async function sendTeamInviteEmail(toEmail: string, teamName: string, inviteLink: string) {
+  try {
+    await sendBrevoEmail({
+      to: toEmail,
+      subject: `Du er inviteret til teamet "${teamName}" på Nordic Homebuild`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #F5F3EF; padding: 32px;">
+          <div style="background: #0F1D2F; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #C8956C; font-size: 22px; margin: 0;">Nordic Homebuild</h1>
+            <p style="color: rgba(245,243,239,0.6); font-size: 13px; margin: 4px 0 0;">Forma Estates</p>
+          </div>
+          <div style="background: #fff; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #E8E4DE;">
+            <h2 style="color: #0F1D2F; font-size: 20px; margin: 0 0 16px;">Du er inviteret!</h2>
+            <p style="color: #6B6B6B; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+              Du er blevet inviteret til at blive medlem af teamet <strong style="color: #1A1A1A;">"${teamName}"</strong> på Forma Estates.
+            </p>
+            <a href="${inviteLink}" style="display: inline-block; background: #C8956C; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+              Accepter invitation
+            </a>
+            <p style="color: #9B9690; font-size: 13px; margin: 24px 0 0;">Linket udløber om 7 dage. Hvis du ikke forventede denne invitation, kan du ignorere denne email.</p>
+          </div>
+        </div>
+      `,
+    });
+    log(`Team invite email sent to ${toEmail} for team "${teamName}"`);
+  } catch (err: any) {
+    log(`Failed to send team invite email to ${toEmail}: ${err.message}`);
+  }
+}

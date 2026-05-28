@@ -1,0 +1,179 @@
+OPGAVE: Tilføj Team Admin Dashboard. Kun admin ser dette. Klik på "Team" i sidebar.
+
+═══════════════════════════════════════
+ROLLER
+═══════════════════════════════════════
+
+users tabel — tilføj:
+role: text DEFAULT 'user' CHECK (role IN ('user', 'admin'))
+team_id: integer REFERENCES teams(id)
+
+teams tabel:
+id | name | owner_user_id | created_at
+
+team_members tabel:
+id | team_id | user_id | role | joined_at
+
+Admin = bruger med role = 'admin' i team_members
+Eller = bruger der oprettede teamet (owner_user_id)
+
+Normal bruger = role = 'user'
+
+═══════════════════════════════════════
+SIDEBAR — TEAM MENUPUNKT
+═══════════════════════════════════════
+
+Alle brugere ser "Team" i sidebar.
+
+Klik på Team:
+- Admin → Team Admin Dashboard (dette layout)
+- Normal bruger → "Du er medlem af [Teamnavn]" + egne stats
+
+═══════════════════════════════════════
+TEAM ADMIN DASHBOARD — LAYOUT
+═══════════════════════════════════════
+
+URL: /team
+
+┌─────────────────────────────────────────────────────────┐
+│  [Teamnavn] — Team Oversigt                             │
+│  Admin: [Dit navn]                                      │
+├─────────────────────────────────────────────────────────┤
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐        │
+│  │  [X]        │ │  [Y]        │ │  [Z]        │        │
+│  │  medlemmer  │ │  visuals    │ │  aktive     │        │
+│  │             │ │  denne md   │ │  sager      │        │
+│  └─────────────┘ └─────────────┘ └─────────────┘        │
+├─────────────────────────────────────────────────────────┤
+│  TEAM PERFORMANCE                                        │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Navn      │ Visuals │ Sager │ Avg. tid │ Status │ │
+│  │  ─────────────────────────────────────────────────  │ │
+│  │  Anna K.   │   45    │   8   │  32 sek  │  Aktiv │ │
+│  │  Peter N.  │   32    │   5   │  28 sek  │  Aktiv │ │
+│  │  Louise M. │   28    │   4   │  41 sek  │  Aktiv │ │
+│  └────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│  AKTIVE SAGER — HELE TEAMET                              │
+│  [Kort grid med alle teamets sager]                      │
+│  Hvert kort viser: Adresse + ejer (navn) + status      │
+├─────────────────────────────────────────────────────────┤
+│  CREDITS & FORBRUG                                       │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Tilbage: 847 credits    Forbrugt: 153 denne md   │ │
+│  │  [+ Køb flere]  [Tildel til medlem]               │ │
+│  └────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│  TEAM MEDLEMMER                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Anna K.   │  Admin  │  45 visuals  │  [Fjern]   │ │
+│  │  Peter N.  │  Bruger │  32 visuals  │  [Fjern]   │ │
+│  │  Louise M. │  Bruger │  28 visuals  │  [Fjern]   │ │
+│  │  [+ Inviter nyt medlem]                            │ │
+│  └────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════
+DATA-BEREGNING
+═══════════════════════════════════════
+
+Medlemmer: COUNT team_members WHERE team_id = X
+
+Visuals denne måned:
+SELECT COUNT(*) FROM generated_images gi
+JOIN users u ON gi.user_id = u.id
+WHERE u.team_id = X
+AND gi.created_at >= DATE_TRUNC('month', NOW())
+
+Aktive sager:
+SELECT COUNT(*) FROM bolig_cases bc
+JOIN users u ON bc.user_id = u.id
+WHERE u.team_id = X AND bc.status = 'active'
+
+Team Performance per medlem:
+SELECT 
+  u.name,
+  COUNT(gi.id) as visuals,
+  COUNT(DISTINCT bc.id) as sager,
+  AVG(gi.generation_time_ms) as avg_tid
+FROM users u
+LEFT JOIN generated_images gi ON u.id = gi.user_id 
+  AND gi.created_at >= DATE_TRUNC('month', NOW())
+LEFT JOIN bolig_cases bc ON u.id = bc.user_id AND bc.status = 'active'
+WHERE u.team_id = X
+GROUP BY u.id, u.name
+
+Credits:
+Gem i teams tabel: credits_remaining, credits_used_this_month
+
+═══════════════════════════════════════
+API ENDPOINTS
+═══════════════════════════════════════
+
+GET /api/team
+→ Tjek om bruger er admin i team
+→ Returner team data + medlemmer + stats
+
+GET /api/team/members
+→ Alle medlemmer i team med stats
+
+POST /api/team/invite
+→ Body: { email }
+→ Send invite link
+→ Opret invite token
+
+DELETE /api/team/members/:id
+→ Fjern medlem fra team
+→ Kun admin
+
+POST /api/team/credits/allocate
+→ Body: { userId, amount }
+→ Overfør credits til medlem
+→ Kun admin
+
+═══════════════════════════════════════
+INVITATION FLOW
+═══════════════════════════════════════
+
+Admin klikker "Inviter nyt medlem":
+→ Modal: Indtast email
+→ Send email med invite link: /join-team?token=XYZ
+→ Bruger klikker link → opretter konto → tilføjes til team
+
+ELLER:
+
+Admin klikker "Inviter":
+→ Kopier invite link
+→ Deler med kollega
+→ Kollega opretter konto med team pre-selected
+
+═══════════════════════════════════════
+NORMAL BRUGER — TEAM SIDE
+═══════════════════════════════════════
+
+Hvis normal bruger klikker Team:
+┌─────────────────────────────────────────────────────────┐
+│  Du er medlem af [Teamnavn]                             │
+│  Admin: [Admin navn]                                      │
+├─────────────────────────────────────────────────────────┤
+│  Din performance denne måned:                             │
+│  • 12 visuals genereret                                   │
+│  • 3 sager aktive                                         │
+│  • Gns. genereringstid: 35 sek                            │
+├─────────────────────────────────────────────────────────┤
+│  Teamets aktive sager: [antal]                            │
+│  [Vis 5 seneste team-sager]                               │
+└─────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════
+IMPLEMENTER KUN DETTE
+═══════════════════════════════════════
+
+1. Database: teams, team_members tabeller + user role
+2. API: /api/team endpoints med admin-check
+3. Sidebar: Team menu for alle
+4. Team Admin Dashboard: Kun admin
+5. Team Normal View: For almindelige medlemmer
+6. Invitation flow: Email eller link
+
+SVAR MED "TEAM ADMIN DASHBOARD IMPLEMENTERET" nar done.

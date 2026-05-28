@@ -1,0 +1,202 @@
+KRITISK FEJL: "Opret sag" returnerer HTML i stedet for JSON.
+
+Fejlmeddelelse: Failed to execute 'json' on 'Response': Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+
+Dette betyder: Din POST /api/bolig/cases returnerer HTML, ikke JSON.
+
+═══════════════════════════════════════
+DIAGNOSE — Find årsagen:
+═══════════════════════════════════════
+
+Tilføj DETTE i din frontend mutation (før res.json()):
+
+mutationFn: async ({ address, caseNo, notes }) => {
+  const token = await auth.currentUser?.getIdToken();
+  console.log("🔑 Token:", token ? "Tilstede" : "MANGLER");
+  
+  const res = await fetch("/api/bolig/cases", {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}` 
+    },
+    body: JSON.stringify({ 
+      address, 
+      caseNo, 
+      notes, 
+      marketDateISO: new Date().toISOString().split('T')[0] 
+    }),
+  });
+  
+  console.log("📡 Response status:", res.status);
+  console.log("📡 Response headers:", Object.fromEntries(res.headers));
+  
+  // Tjek om det er JSON eller HTML
+  const contentType = res.headers.get("content-type");
+  console.log("📡 Content-Type:", contentType);
+  
+  if (!contentType?.includes("application/json")) {
+    const text = await res.text();
+    console.error("📡 Response er IKKE JSON:");
+    console.error(text.substring(0, 500));  // Vis første 500 chars
+    throw new Error(`Server returnerede ${res.status} med ${contentType}, ikke JSON`);
+  }
+  
+  return res.json();
+},
+
+═══════════════════════════════════════
+MEST SANNSYNLIGE ÅRSAGER OG FIXES:
+═══════════════════════════════════════
+
+ÅRSAG 1: Route er ikke registreret korrekt i Express
+─────────────────────────────────────────
+Tjek at din route findes i server/routes.ts:
+
+app.post("/api/bolig/cases", async (req, res) => {
+  // ... din kode
+});
+
+ERSTAT med eksplicit JSON middleware sikring:
+
+app.post("/api/bolig/cases", async (req, res) => {
+  try {
+    // Sikr at vi altid returnerer JSON
+    res.setHeader('Content-Type', 'application/json');
+    
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Missing authorization header" });
+    }
+    
+    const user = await verifyFirebaseToken(authHeader);
+    const dbUser = await storage.getUserByFirebaseUid(user.uid);
+    
+    if (!dbUser) {
+      return res.status(401).json({ error: "User not found in database" });
+    }
+    
+    const { address, caseNo, notes, marketDateISO } = req.body;
+    
+    if (!address || !address.trim()) {
+      return res.status(400).json({ error: "Address is required" });
+    }
+    
+    const newCase = await storage.createBoligCase({
+      userId: dbUser.id,
+      address: address.trim(),
+      caseNo: caseNo?.trim() || null,
+      notes: notes?.trim() || null,
+      status: "active",
+      marketDateISO: marketDateISO || new Date().toISOString().split('T')[0],
+    });
+    
+    return res.status(201).json(newCase);
+    
+  } catch (error) {
+    console.error("❌ POST /api/bolig/cases fejl:", error);
+    // VIKTIG: Returner alltid JSON, aldri HTML
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+
+ÅRSAG 2: verifyFirebaseToken fejler og kaster exception
+─────────────────────────────────────────
+Tjek din verifyFirebaseToken funktion. Hvis den fejler, skal den fanges i try-catch.
+
+ÅRSAG 3: Storage/createBoligCase fejler
+─────────────────────────────────────────
+Tjek at din storage funktion eksisterer:
+
+I din storage.ts eller database.ts:
+
+async createBoligCase(data: {
+  userId: number;
+  address: string;
+  caseNo?: string | null;
+  notes?: string | null;
+  status: string;
+  marketDateISO: string;
+}) {
+  console.log("💾 Opretter sag:", data);
+  
+  const [result] = await db.insert(boligCases).values({
+    userId: data.userId,
+    address: data.address,
+    caseNo: data.caseNo || null,
+    notes: data.notes || null,
+    status: data.status,
+    marketDateISO: data.marketDateISO,
+    createdAt: new Date(),
+  }).returning();
+  
+  console.log("💾 Sag oprettet:", result);
+  return result;
+}
+
+ÅRSAG 4: Database tabel mangler
+─────────────────────────────────────────
+Tjek at bolig_cases tabellen eksisterer:
+
+I din schema.ts:
+
+export const boligCases = pgTable("bolig_cases", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  address: text("address").notNull(),
+  caseNo: text("case_no"),
+  notes: text("notes"),
+  status: text("status").notNull().default("active"),
+  marketDateISO: text("market_date_iso").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+Kør migration hvis tabellen mangler:
+npm run db:push
+
+═══════════════════════════════════════
+GLOBAL FEJLHÅNDTERING — Sikr at server aldri returnerer HTML
+═══════════════════════════════════════
+
+I din server.ts eller app.ts, tilføj DETTE EFTER alle routes:
+
+// Catch-all for 404 — returner JSON, ikke HTML
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found", path: req.path });
+});
+
+// Global error handler — returner JSON, ikke HTML
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error("❌ Global error:", err);
+  res.status(500).json({ 
+    error: "Internal server error",
+    message: err.message || "Unknown error"
+  });
+});
+
+═══════════════════════════════════════
+VERIFICERING — TEST DETTE:
+═══════════════════════════════════════
+
+1. Åbn browser console (F12)
+2. Klik "Opret sag" og udfyld
+3. Tjek console:
+   - 🔑 Token: Tilstede (hvis ikke, er auth problemet)
+   - 📡 Response status: 201 (hvis 404/500, er route problemet)
+   - 📡 Content-Type: application/json (hvis text/html, er server problemet)
+   - 📡 Response er IKKE JSON: [viser HTML] (hvis denne vises, se årsag ovenfor)
+
+4. Tjek Replit console (backend):
+   - 💾 Opretter sag: {...} (hvis denne vises, er storage OK)
+   - ❌ POST /api/bolig/cases fejl: ... (hvis denne vises, se fejlen)
+
+IMPLEMENTÉR ALLE FIXES OG TEST. RAPPORTER:
+1. Hvad er Response status?
+2. Hvad er Content-Type?
+3. Viser backend console "💾 Opretter sag" eller en fejl?
+4. Hvilken årsag (1-4) var problemet?
+
+SVAR KUN MED "JSON FEJL FIXET — SAG-OPRETTELSE VIRKER" + din diagnose

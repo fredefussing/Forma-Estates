@@ -1,0 +1,34 @@
+Use the attached floor plan as strict spatial reference and generate a highly detailed, ultra-sharp 3D architectural floor plan visualization.
+
+Convert the 2D floor plan into a structured 3D layout showing all rooms, circulation paths, doors, windows, and exterior areas with maximum clarity and readability.
+
+Strictly preserve the exact layout, geometry, proportions, wall positions, and architectural structure. Do not modify or reinterpret the floor plan.
+
+Clearly differentiate indoor and outdoor spaces. Terraces, balconies, and outdoor zones must remain open-air and not be enclosed or treated as interior rooms.
+
+Only furnish interior spaces such as living rooms, kitchens, bedrooms, and bathrooms. Outdoor areas must remain minimal, open, and only contain simple exterior-grade furniture when appropriate.
+
+Style: modern architectural visualization, premium real estate presentation, Scandinavian-inspired palette, realistic wood, stone, glass, and fabric materials, physically based rendering.
+
+Camera: strict top-down orthographic or near-orthographic view with no perspective distortion. Flat map-like readability with slight elevation for depth clarity.
+
+Lighting: soft global illumination combined with subtle warm interior lamp lighting in each room. The lamp light should create a cozy, warm, inviting atmosphere without overpowering natural lighting or reducing readability. Lighting must remain balanced, even, and consistent across all rooms.
+
+Rendering quality: ultra-sharp, 8K, crisp edges, high clarity, clean separation between rooms, architectural visualization quality.
+
+Clarity rules:
+
+Clearly distinguish indoor vs outdoor spaces
+Terraces and balconies must remain open and not enclosed
+No blur or depth-of-field
+No cinematic angle or dramatic shadows
+Emphasize readability over aesthetics
+
+Important constraints:
+
+Do not change the floor plan structure
+Do not alter walls, geometry, or room sizes
+Preserve architectural accuracy
+Do not convert outdoor areas into indoor rooms
+
+Final output should look like a premium real estate floor plan visualization with warm, cozy, realistic interior lamp lighting and maximum clarity.
