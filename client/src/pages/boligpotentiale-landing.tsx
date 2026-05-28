@@ -321,7 +321,7 @@ function HeroStage() {
   return (
     <section
       className="relative"
-      style={{ background: C.warm, paddingTop: 14, paddingBottom: 18 }}
+      style={{ background: C.navy, paddingTop: 14, paddingBottom: 18 }}
       data-testid="bolig-hero-stage"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -551,7 +551,7 @@ function HeroStage() {
                   height: 8,
                   width: 8,
                   borderRadius: 999,
-                  background: active ? C.gold : "#D8D4CC",
+                  background: active ? C.gold : "rgba(201,169,110,0.28)",
                 }}
                 aria-label={s.title}
                 data-testid={`bolig-hero-indicator-${i}`}
@@ -1148,12 +1148,12 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div id="top" style={{ paddingTop: 142, background: C.warm }} data-testid="bolig-hero">
+      <div id="top" style={{ paddingTop: 142, background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
       </div>
 
-      {/* ── CATEGORY TABS — minimal centered uppercase row, hover → gold ── */}
-      <section style={{ background: C.warm, paddingTop: 14, paddingBottom: 14 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
+      {/* ── CATEGORY TABS — navy background with gold text ── */}
+      <section style={{ background: C.navy, paddingTop: 18, paddingBottom: 22 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
           <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
@@ -1171,7 +1171,7 @@ export default function BoligpotentialeLanding() {
                 href={p.href}
                 className="transition-colors whitespace-nowrap"
                 style={{
-                  color: C.muted,
+                  color: C.gold,
                   fontSize: "0.7rem",
                   fontWeight: 600,
                   letterSpacing: "0.14em",
@@ -1179,8 +1179,8 @@ export default function BoligpotentialeLanding() {
                   paddingBottom: 4,
                   borderBottom: "1px solid transparent",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderBottomColor = C.gold; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderBottomColor = "transparent"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#E4CB94"; e.currentTarget.style.borderBottomColor = "#E4CB94"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderBottomColor = "transparent"; }}
                 data-testid={`bolig-pill-${p.label}`}
               >
                 {p.label}
