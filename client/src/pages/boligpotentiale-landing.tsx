@@ -330,13 +330,13 @@ function HeroStage() {
   return (
     <section
       className="relative"
-      style={{ background: C.navy, paddingTop: 14, paddingBottom: 18 }}
+      style={{ background: C.navy, paddingTop: 6, paddingBottom: 8 }}
       data-testid="bolig-hero-stage"
     >
       <div className="w-full px-2 sm:px-3 lg:px-4">
         <div
           className="relative w-full flex items-stretch gap-3 sm:gap-4"
-          style={{ height: "min(61vh, calc((100vw - 32px) * 9 / 21 * 0.85))" }}
+          style={{ height: "min(56vh, calc((100vw - 32px) * 9 / 21 * 0.78))" }}
         >
           {/* PREV peek */}
           <button
@@ -1050,7 +1050,7 @@ export default function BoligpotentialeLanding() {
         {/* Top utility bar — clean centered wordmark with thin underline (DR1-style) */}
         <div
           className="hidden md:flex items-center justify-center relative"
-          style={{ height: 30 }}
+          style={{ height: 22 }}
           data-testid="bolig-nav-wordmark-bar"
         >
           <span
@@ -1074,8 +1074,8 @@ export default function BoligpotentialeLanding() {
         </div>
 
         <div
-          className="mx-auto max-w-7xl flex items-center justify-between px-6 h-28 relative"
-          style={{ borderBottom: `1px solid ${C.border}` }}
+          className="mx-auto max-w-7xl flex items-center justify-between px-6 relative"
+          style={{ height: 72, borderBottom: `1px solid ${C.border}` }}
         >
           <div className="flex items-center gap-10">
             <Link href="/boligpotentiale">
@@ -1084,7 +1084,7 @@ export default function BoligpotentialeLanding() {
                   src={formaEstatesLogo}
                   alt="Forma Estates"
                   className="w-auto"
-                  style={{ height: 168 }}
+                  style={{ height: 92 }}
                 />
               </div>
             </Link>
@@ -1212,6 +1212,30 @@ export default function BoligpotentialeLanding() {
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
       <div id="top" style={{ background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
+        {/* Bouncing "Udforsk mere" scroll cue — sits centered below hero images */}
+        <div className="flex justify-center" style={{ paddingBottom: 14 }}>
+          <a
+            href="#how-it-works"
+            className="group flex flex-col items-center gap-1.5 transition-colors"
+            style={{ color: "#E4CB94" }}
+            data-testid="bolig-hero-scroll-cue"
+          >
+            <span
+              className="uppercase"
+              style={{ fontSize: 11, letterSpacing: "0.28em", fontWeight: 500, opacity: 0.85 }}
+            >
+              Udforsk mere
+            </span>
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              className="flex items-center justify-center rounded-full"
+              style={{ width: 34, height: 34, border: "1px solid rgba(228,203,148,0.55)" }}
+            >
+              <ChevronDown className="w-4 h-4" />
+            </motion.div>
+          </a>
+        </div>
       </div>
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
