@@ -1255,10 +1255,8 @@ export default function BoligpotentialeLanding() {
           <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
               { label: "Sådan virker det", href: "#how-it-works" },
-              { label: "Før / Efter", href: "/boligpotentiale/foer-efter" },
-              { label: "3D Plantegning", href: "/boligpotentiale/3d-plantegning" },
-              { label: "Branchevideo", href: "/boligpotentiale/branchevideo" },
-              { label: "AI Design Agent", href: "/boligpotentiale/ai-design-agent" },
+              { label: "Eksempler", href: "#showcase" },
+              { label: "Priser", href: "#pricing" },
             ].map((p) => {
               const tabStyle = {
                 color: C.gold,
