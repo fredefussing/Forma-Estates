@@ -1188,43 +1188,81 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
 
-      {/* ── HVORFOR VISUALISERING — value tiles with descriptive headlines ── */}
-      <section style={{ background: C.warm, paddingTop: 24, paddingBottom: 48 }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
-        <div className="mx-auto" style={{ maxWidth: 1184 }}>
-          <div className="text-center mb-8">
+      {/* ── HVORFOR VISUALISERING — cinematic image-led tiles ── */}
+      <section style={{ background: C.warm, paddingTop: 80, paddingBottom: 96 }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
+        <div className="mx-auto" style={{ maxWidth: 1280 }}>
+          <div className="text-center mb-14">
             <span
               className="uppercase"
-              style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}
+              style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em" }}
             >
               Hvorfor visualisering
             </span>
             <h2
-              className="mt-2"
-              style={{ fontFamily: SERIF, color: C.navy, fontSize: 28, fontWeight: 500, lineHeight: 1.2 }}
+              className="mt-4"
+              style={{ fontFamily: SERIF, color: C.navy, fontSize: 42, fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}
             >
-              Tre måder at vise boligens potentiale på
+              Vis potentialet.<br />Ikke det tomme rum.
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             {[
-              { eyebrow: "Før / Efter", title: "AI-iscenesættelse", desc: "Vis det tomme rum forvandlet til et indbydende hjem på sekunder." },
-              { eyebrow: "3D Plantegning", title: "Forstå flowet", desc: "Lad køber se rummet i dybden med en interaktiv plantegning." },
-              { eyebrow: "Branchevideo", title: "Cinematisk fortælling", desc: "Skab en levende videogennemgang der vækker følelser." },
+              {
+                eyebrow: "Før / Efter",
+                title: "AI-iscenesættelse",
+                desc: "Et tomt rum bliver til et hjem på sekunder.",
+                media: { kind: "image" as const, src: "/bolig-images/living-scandi-after.jpg" },
+              },
+              {
+                eyebrow: "3D Plantegning",
+                title: "Forstå flowet",
+                desc: "Lad køber gå gennem rummet før første visning.",
+                media: { kind: "image" as const, src: "/bolig-images/floorplan-3d.jpg" },
+              },
+              {
+                eyebrow: "Branchevideo",
+                title: "Cinematisk fortælling",
+                desc: "Vækk følelser med en levende videogennemgang.",
+                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/kitchen-after.jpg" },
+              },
             ].map((t) => (
               <div
                 key={t.eyebrow}
-                className="transition-shadow hover:shadow-lg"
-                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "22px 24px" }}
+                className="group cursor-pointer transition-all duration-500 hover:-translate-y-1"
+                style={{ background: C.white, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 40px rgba(15,25,35,0.06)" }}
                 data-testid={`bolig-why-tile-${t.eyebrow}`}
               >
-                <div className="uppercase mb-2" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.18em" }}>
-                  {t.eyebrow}
+                <div className="relative overflow-hidden" style={{ aspectRatio: "4 / 3" }}>
+                  {t.media.kind === "video" ? (
+                    <video
+                      src={t.media.src}
+                      poster={t.media.poster}
+                      muted
+                      loop
+                      playsInline
+                      onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
+                      onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <img
+                      src={t.media.src}
+                      alt={t.title}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    />
+                  )}
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.35) 0%, rgba(15,25,35,0) 45%)" }} />
+                  <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(255,255,255,0.92)", color: C.navy, padding: "6px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
+                    {t.eyebrow}
+                  </div>
                 </div>
-                <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 19, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>
-                  {t.title}
-                </div>
-                <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.55 }}>
-                  {t.desc}
+                <div style={{ padding: "28px 30px 32px" }}>
+                  <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 24, fontWeight: 500, lineHeight: 1.25, marginBottom: 10, letterSpacing: "-0.005em" }}>
+                    {t.title}
+                  </div>
+                  <div style={{ color: C.muted, fontSize: 15, lineHeight: 1.6 }}>
+                    {t.desc}
+                  </div>
                 </div>
               </div>
             ))}
