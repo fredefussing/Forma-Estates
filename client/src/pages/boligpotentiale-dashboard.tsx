@@ -6002,13 +6002,16 @@ export default function BoligpotentialeDashboard() {
           <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
         </button>
 
-        <img
-          src={formaEstatesLogo}
-          alt="Forma Estates"
-          className="h-24 w-auto select-none"
-          style={{ filter: "brightness(0) invert(1)", minWidth: "fit-content" }}
-          data-testid="bolig-topbar-logo"
-        />
+        <Link href="/">
+          <img
+            src={formaEstatesLogo}
+            alt="Forma Estates – tilbage til forsiden"
+            title="Tilbage til forsiden"
+            className="h-24 w-auto select-none cursor-pointer"
+            style={{ filter: "brightness(0) invert(1)", minWidth: "fit-content" }}
+            data-testid="bolig-topbar-logo"
+          />
+        </Link>
 
         <div className="flex-1 max-w-xs hidden sm:block">
           <div className="relative">
@@ -6134,12 +6137,16 @@ export default function BoligpotentialeDashboard() {
                 className="fixed inset-0 z-30 md:hidden" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => setSidebarOpen(false)} />
               <motion.aside initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }} transition={{ duration: 0.22, ease: "easeOut" }}
                 className="fixed top-0 left-0 bottom-0 z-40 w-60 flex flex-col px-4 py-5 md:hidden" style={{ background: "#0F1D2F" }}>
-                <img
-                  src={formaEstatesLogo}
-                  alt="Forma Estates"
-                  className="h-32 w-auto mb-4 mt-2"
-                  style={{ filter: "brightness(0) invert(1)" }}
-                />
+                <Link href="/" onClick={() => setSidebarOpen(false)}>
+                  <img
+                    src={formaEstatesLogo}
+                    alt="Forma Estates – tilbage til forsiden"
+                    title="Tilbage til forsiden"
+                    className="h-32 w-auto mb-4 mt-2 cursor-pointer"
+                    style={{ filter: "brightness(0) invert(1)" }}
+                    data-testid="bolig-sidebar-logo"
+                  />
+                </Link>
                 <SidebarContent />
               </motion.aside>
             </>
