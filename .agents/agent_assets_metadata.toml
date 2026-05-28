@@ -6,3 +6,9 @@ id = "viBqTeE5k129fcKlo1WRJ"
 uri = "file://clip_input.csv"
 type = "table"
 title = "clip_input.csv — 243.897 produkt-URLs"
+
+[[outputs]]
+id = "fW8BH7_x5BVZ1hRqZyMeB"
+uri = "file://test-output/1779956134062-31ayfzb417l.mp4"
+type = "video"
+title = "Transformeringsvideo (test)"

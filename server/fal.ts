@@ -16,10 +16,32 @@ export function isFalConfigured(): boolean {
 // fal cannot fetch from localhost / private hosts, so anything we feed it
 // as image_url must first be uploaded here.
 export async function uploadToFal(localFilePath: string, mimeType?: string): Promise<string> {
-  const buffer = fs.readFileSync(localFilePath);
-  const filename = path.basename(localFilePath);
-  const type = mimeType || "image/jpeg";
-  const file = new File([buffer], filename, { type });
+  // Saner filnavnet til ren ASCII (non-ASCII havner ellers som `?` i URL'en
+  // og knækker downstream fetch) og down-scale til max 1920px på længste
+  // led — Luma og flere andre fal-modeller afviser med 422 over det.
+  const ext = ".jpg";
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+
+  let outBuffer: Buffer;
+  try {
+    const image = await Jimp.read(localFilePath);
+    const w = image.bitmap.width;
+    const h = image.bitmap.height;
+    const MAX = 1920;
+    if (Math.max(w, h) > MAX) {
+      if (w >= h) {
+        image.resize({ w: MAX });
+      } else {
+        image.resize({ h: MAX });
+      }
+    }
+    outBuffer = Buffer.from(await image.getBuffer(JimpMime.jpeg));
+  } catch (e) {
+    console.warn("[uploadToFal] resize failed, sending raw:", e);
+    outBuffer = fs.readFileSync(localFilePath);
+  }
+
+  const file = new File([outBuffer], filename, { type: "image/jpeg" });
   return await fal.storage.upload(file);
 }
 
@@ -288,16 +310,16 @@ Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high 
 // Kling 2.0/v1.6 pro på fal.ai eksponerer ikke tail_image_url, så vi kan
 // ikke give modellen et "efter"-billede der. Luma er den nærmeste model
 // her som garanteret animerer fra før-billedet til efter-billedet.
-const VIDEO_ENDPOINT = "fal-ai/luma-dream-machine";
+const VIDEO_ENDPOINT = "fal-ai/luma-dream-machine/ray-2/image-to-video";
 
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string) {
   return {
     prompt: TRANSFORM_VIDEO_PROMPT,
+    image_url: beforeImageUrl,
+    end_image_url: afterImageUrl,
     aspect_ratio: "16:9",
-    keyframes: {
-      frame0: { type: "image", url: beforeImageUrl },
-      frame1: { type: "image", url: afterImageUrl },
-    },
+    resolution: "720p",
+    duration: "5s",
   };
 }
 
