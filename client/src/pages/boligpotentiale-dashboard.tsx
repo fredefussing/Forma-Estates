@@ -5343,7 +5343,7 @@ export default function BoligpotentialeDashboard() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F5F3EF" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0F1D2F" }}>
         <div className="relative w-12 h-12">
           <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
           <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
@@ -5434,7 +5434,7 @@ export default function BoligpotentialeDashboard() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col font-sans" style={{ background: "#F5F3EF", color: "#1A1A1A" }}>
+    <div className="min-h-screen flex flex-col font-sans" style={{ background: "#0F1D2F", color: "#1A1A1A" }}>
 
       {/* ── TOPBAR ── */}
       <header className="fixed top-0 left-0 right-0 z-40 h-32 flex items-center px-6 gap-5 border-b" style={{ background: "#0F1D2F", borderColor: "rgba(245,243,239,0.1)" }}>

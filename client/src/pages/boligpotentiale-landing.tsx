@@ -497,15 +497,15 @@ export default function BoligpotentialeLanding() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: C.navy, color: C.text, fontFamily: SANS }}>
+    <div className="min-h-screen" style={{ background: C.white, color: C.text, fontFamily: SANS }}>
 
       {/* ── NAV ── */}
       <header
         className="fixed top-0 left-0 right-0 z-50 transition-all duration-200"
         style={{
-          background: scrolled ? "rgba(15,25,35,0.85)" : C.navy,
+          background: scrolled ? "rgba(255,255,255,0.85)" : C.white,
           backdropFilter: scrolled ? "blur(12px)" : "none",
-          borderBottom: scrolled ? `1px solid ${C.goldBorder}` : "1px solid transparent",
+          borderBottom: scrolled ? `1px solid ${C.border}` : "1px solid transparent",
         }}
       >
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-20">
@@ -521,7 +521,7 @@ export default function BoligpotentialeLanding() {
                 className="hidden md:block uppercase"
                 style={{
                   fontFamily: SERIF,
-                  color: C.white,
+                  color: C.navy,
                   fontSize: 20,
                   fontWeight: 600,
                   letterSpacing: "0.25em",
@@ -539,10 +539,10 @@ export default function BoligpotentialeLanding() {
                 key={l.label}
                 href={l.href}
                 className="group relative transition-colors"
-                style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, fontWeight: 500, letterSpacing: "0.1em" }}
+                style={{ color: C.muted, fontSize: 12, fontWeight: 500, letterSpacing: "0.1em" }}
                 data-testid={`bolig-nav-${l.label}`}
               >
-                <span className="group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.gold }}>{l.label}</span>
+                <span className="group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy }}>{l.label}</span>
                 <span className="absolute -bottom-1.5 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-300" style={{ background: C.gold }} />
               </a>
             ))}
@@ -551,8 +551,8 @@ export default function BoligpotentialeLanding() {
           <div className="hidden md:flex items-center gap-3">
             <Link href="/login?redirect=/boligpotentiale/dashboard">
               <button
-                className="transition-colors hover:bg-white/10"
-                style={{ padding: "10px 24px", borderRadius: 8, border: `1px solid rgba(255,255,255,0.4)`, color: C.white, fontSize: 13, fontWeight: 500, background: "transparent", fontFamily: SANS }}
+                className="transition-colors hover:bg-[color:var(--bg-warm)]"
+                style={{ ['--bg-warm' as any]: C.warm, padding: "10px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent", fontFamily: SANS }}
                 data-testid="bolig-nav-login"
               >
                 Log ind
@@ -572,7 +572,7 @@ export default function BoligpotentialeLanding() {
           <button
             className="md:hidden p-2"
             onClick={() => setMobileOpen((o) => !o)}
-            style={{ color: C.white }}
+            style={{ color: C.navy }}
             data-testid="bolig-mobile-menu-toggle"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -586,7 +586,7 @@ export default function BoligpotentialeLanding() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               className="md:hidden px-6 py-6 flex flex-col gap-5"
-              style={{ background: C.navy, borderTop: `1px solid ${C.goldBorder}` }}
+              style={{ background: C.white, borderTop: `1px solid ${C.border}` }}
               data-testid="bolig-mobile-menu"
             >
               {NAV_LINKS.map((l) => (
@@ -594,13 +594,13 @@ export default function BoligpotentialeLanding() {
                   key={l.label}
                   href={l.href}
                   onClick={() => setMobileOpen(false)}
-                  style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 500, letterSpacing: "0.12em" }}
+                  style={{ color: C.muted, fontSize: 13, fontWeight: 500, letterSpacing: "0.12em" }}
                 >
                   {l.label}
                 </a>
               ))}
               <Link href="/login?redirect=/boligpotentiale/dashboard">
-                <button className="w-full mt-2" style={{ padding: "12px 24px", borderRadius: 8, border: `1px solid rgba(255,255,255,0.4)`, color: C.white, fontSize: 13, fontWeight: 500, background: "transparent" }} data-testid="bolig-mobile-login">
+                <button className="w-full mt-2" style={{ padding: "12px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent" }} data-testid="bolig-mobile-login">
                   Log ind
                 </button>
               </Link>
@@ -636,7 +636,7 @@ export default function BoligpotentialeLanding() {
               <h1
                 className="mb-6"
                 style={{
-                  color: C.white,
+                  color: C.navy,
                   fontFamily: SERIF,
                   fontWeight: 500,
                   fontSize: "clamp(36px, 5.4vw, 56px)",
@@ -647,7 +647,7 @@ export default function BoligpotentialeLanding() {
                 Vis boligens fulde potentiale på{" "}
                 <span style={{ color: C.gold, fontStyle: "italic" }}>30 sekunder</span>
               </h1>
-              <p className="mb-9" style={{ color: "rgba(255,255,255,0.75)", fontSize: 18, lineHeight: 1.6, maxWidth: 480 }}>
+              <p className="mb-9" style={{ color: C.muted, fontSize: 18, lineHeight: 1.6, maxWidth: 480 }}>
                 Upload et foto af et rum. Få et professionelt redesign klar til din annonce — på under 30 sekunder, til en brøkdel af prisen.
               </p>
               <Link href="/opret">
@@ -668,7 +668,7 @@ export default function BoligpotentialeLanding() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
-              <p className="mt-3" style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+              <p className="mt-3" style={{ color: C.muted, fontSize: 13 }}>
                 Kom i gang gratis på 30 sekunder
               </p>
             </motion.div>
