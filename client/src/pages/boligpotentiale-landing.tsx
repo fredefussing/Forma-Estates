@@ -233,12 +233,14 @@ function HeroStage() {
   const slide = STAGE_SLIDES[index];
 
   // Slide timing (ms)
-  const SWIPE_BEFORE = 1500;
+  // Anim starts 1s after slide loads; auto-advance loader stays at 0 for 3s then fills.
+  const SWIPE_BEFORE = 1000;
   const SWIPE_IN = 2200;
   const SWIPE_AFTER = 2500;
   const SWIPE_OUT = 600;
   const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER + SWIPE_OUT;
   const VIDEO_DURATION = 7000;
+  const LOADER_DELAY = 3000;
 
   const advance = () => setIndex((i) => (i + 1) % STAGE_SLIDES.length);
   const go = (i: number) => {
@@ -301,7 +303,9 @@ function HeroStage() {
     const loop = () => {
       const dur = slide.kind === "swipe" ? SWIPE_TOTAL : VIDEO_DURATION;
       const e = paused ? progress * dur : performance.now() - slideStartRef.current;
-      setProgress(Math.min(1, e / dur));
+      const loaderWindow = Math.max(1, dur - LOADER_DELAY);
+      const loaderElapsed = Math.max(0, e - LOADER_DELAY);
+      setProgress(Math.min(1, loaderElapsed / loaderWindow));
       id = requestAnimationFrame(loop);
     };
     id = requestAnimationFrame(loop);
