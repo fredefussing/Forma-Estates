@@ -336,7 +336,7 @@ function HeroStage() {
       <div className="w-full px-2 sm:px-3 lg:px-4">
         <div
           className="relative w-full flex items-stretch gap-3 sm:gap-4"
-          style={{ height: "min(66.5vh, calc((100vw - 32px) * 9 / 21 * 0.9025))" }}
+          style={{ height: "min(67.2vh, calc((100vw - 32px) * 9 / 21 * 0.9115))" }}
         >
           {/* PREV peek */}
           <button
