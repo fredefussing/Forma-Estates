@@ -325,7 +325,7 @@ function HeroStage() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: 1184 }}>
+      <div className="w-full px-2 sm:px-3 lg:px-4">
         <div className="relative w-full flex items-stretch gap-3 sm:gap-4" style={{ aspectRatio: "21 / 9" }}>
           {/* PREV peek */}
           <button
@@ -1094,7 +1094,7 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div style={{ paddingTop: 128 }} data-testid="bolig-hero">
+      <div style={{ paddingTop: 100 }} data-testid="bolig-hero">
         <HeroStage />
       </div>
 
@@ -1155,6 +1155,50 @@ export default function BoligpotentialeLanding() {
         >
           FORMA ESTATES
         </h1>
+      </section>
+
+      {/* ── HVORFOR VISUALISERING — value tiles with descriptive headlines ── */}
+      <section style={{ background: C.warm, paddingTop: 24, paddingBottom: 48 }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
+        <div className="mx-auto" style={{ maxWidth: 1184 }}>
+          <div className="text-center mb-8">
+            <span
+              className="uppercase"
+              style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}
+            >
+              Hvorfor visualisering
+            </span>
+            <h2
+              className="mt-2"
+              style={{ fontFamily: SERIF, color: C.navy, fontSize: 28, fontWeight: 500, lineHeight: 1.2 }}
+            >
+              Tre måder at vise boligens potentiale på
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { eyebrow: "Før / Efter", title: "AI-iscenesættelse", desc: "Vis det tomme rum forvandlet til et indbydende hjem på sekunder." },
+              { eyebrow: "3D Plantegning", title: "Forstå flowet", desc: "Lad køber se rummet i dybden med en interaktiv plantegning." },
+              { eyebrow: "Branchevideo", title: "Cinematisk fortælling", desc: "Skab en levende videogennemgang der vækker følelser." },
+            ].map((t) => (
+              <div
+                key={t.eyebrow}
+                className="transition-shadow hover:shadow-lg"
+                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "22px 24px" }}
+                data-testid={`bolig-why-tile-${t.eyebrow}`}
+              >
+                <div className="uppercase mb-2" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.18em" }}>
+                  {t.eyebrow}
+                </div>
+                <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 19, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>
+                  {t.title}
+                </div>
+                <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.55 }}>
+                  {t.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── HOW IT WORKS ── */}
