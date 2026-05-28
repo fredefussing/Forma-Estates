@@ -46,9 +46,6 @@ const SANS = "'Inter', system-ui, -apple-system, sans-serif";
 const NAV_LINKS = [
   { label: "SÅDAN VIRKER DET", href: "#how-it-works" },
   { label: "EKSEMPLER", href: "#showcase" },
-  { label: "3D PLANTEGNING", href: "#3d-plantegning" },
-  { label: "AI AGENT", href: "#ai-design-agent" },
-  { label: "VIDEO", href: "#cinematisk-video" },
   { label: "PRISER", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -162,6 +159,378 @@ const FAQS = [
     a: "Ja. Uploadede billeder bruges udelukkende til at generere din visualisering og deles ikke med tredjepart.",
   },
 ];
+
+// ── DR1-style hero stage: auto-rotating slides w/ swipe + video ──────────────
+type StageSlide =
+  | {
+      kind: "swipe";
+      before: string;
+      after: string;
+      beforeLabel: string;
+      afterLabel: string;
+      title: string;
+      caption: string;
+      meta: string;
+    }
+  | {
+      kind: "video";
+      src: string;
+      poster?: string;
+      title: string;
+      caption: string;
+      meta: string;
+    };
+
+const STAGE_SLIDES: StageSlide[] = [
+  {
+    kind: "swipe",
+    before: "/bolig-images/kitchen-before.jpg",
+    after: "/bolig-images/kitchen-after.jpg",
+    beforeLabel: "Før",
+    afterLabel: "Efter",
+    title: "Før & efter",
+    caption: "Upload et rumfoto — AI'en redesigner indretningen på under 30 sekunder.",
+    meta: "Køkken · Moderne",
+  },
+  {
+    kind: "swipe",
+    before: "/bolig-images/floorplan-2d.jpg",
+    after: "/bolig-images/floorplan-3d.jpg",
+    beforeLabel: "2D plan",
+    afterLabel: "3D",
+    title: "3D Plantegning",
+    caption: "Fra flad plantegning til levende 3D-rum, køberen kan fornemme.",
+    meta: "Stand-in eksempel",
+  },
+  {
+    kind: "video",
+    src: "/videos/transformation-kling-v16-pro.mp4",
+    title: "Cinematisk video",
+    caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
+    meta: "Kling 1.6 Pro · 1080p",
+  },
+  {
+    kind: "swipe",
+    before: "/bolig-images/ai-agent-before.jpg",
+    after: "/bolig-images/ai-agent-after.jpg",
+    beforeLabel: "Før prompt",
+    afterLabel: "Efter AI",
+    title: "AI Design Agent",
+    caption: "Beskriv ændringen i ord — AI'en gør resten. Fjern møbler, skift gulv, tilføj planter.",
+    meta: "Stue · Skandinavisk",
+  },
+];
+
+function HeroStage() {
+  const [index, setIndex] = useState(0);
+  const [pos, setPos] = useState(1); // swipe split (1 = fully before, 0 = fully after)
+  const [paused, setPaused] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const slideStartRef = useRef<number>(performance.now());
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const slide = STAGE_SLIDES[index];
+
+  // Slide timing (ms)
+  const SWIPE_BEFORE = 1500;
+  const SWIPE_IN = 2200;
+  const SWIPE_AFTER = 2500;
+  const SWIPE_OUT = 600;
+  const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER + SWIPE_OUT;
+  const VIDEO_DURATION = 7000;
+
+  const advance = () => setIndex((i) => (i + 1) % STAGE_SLIDES.length);
+  const go = (i: number) => {
+    setIndex(((i % STAGE_SLIDES.length) + STAGE_SLIDES.length) % STAGE_SLIDES.length);
+    setPos(1);
+    slideStartRef.current = performance.now();
+  };
+
+  // Reset on slide change
+  useEffect(() => {
+    setPos(1);
+    slideStartRef.current = performance.now();
+    if (slide.kind === "video" && videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [index]);
+
+  // Animation loop
+  useEffect(() => {
+    if (paused) return;
+
+    const tick = (now: number) => {
+      const elapsed = now - slideStartRef.current;
+
+      if (slide.kind === "swipe") {
+        if (elapsed < SWIPE_BEFORE) {
+          setPos(1);
+        } else if (elapsed < SWIPE_BEFORE + SWIPE_IN) {
+          const t = (elapsed - SWIPE_BEFORE) / SWIPE_IN;
+          const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          setPos(1 - eased);
+        } else if (elapsed < SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER) {
+          setPos(0);
+        } else if (elapsed < SWIPE_TOTAL) {
+          const t = (elapsed - (SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER)) / SWIPE_OUT;
+          setPos(t);
+        } else {
+          advance();
+          return;
+        }
+      } else {
+        if (elapsed >= VIDEO_DURATION) {
+          advance();
+          return;
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [index, paused]);
+
+  // Progress 0..1 for current slide (for thin progress bar under dots)
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    let id: number;
+    const loop = () => {
+      const dur = slide.kind === "swipe" ? SWIPE_TOTAL : VIDEO_DURATION;
+      const e = paused ? progress * dur : performance.now() - slideStartRef.current;
+      setProgress(Math.min(1, e / dur));
+      id = requestAnimationFrame(loop);
+    };
+    id = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(id);
+  }, [index, paused]);
+
+  const splitPct = pos * 100;
+
+  return (
+    <section
+      className="relative"
+      style={{ background: C.warm, paddingTop: 32, paddingBottom: 56 }}
+      data-testid="bolig-hero-stage"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: 1280 }}>
+        <div
+          className="relative w-full overflow-hidden"
+          style={{
+            borderRadius: 14,
+            background: "#000",
+            aspectRatio: "16 / 9",
+            boxShadow: "0 24px 60px rgba(15,25,35,0.18)",
+          }}
+        >
+          {/* Slide content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute inset-0"
+            >
+              {slide.kind === "swipe" ? (
+                <div className="relative w-full h-full select-none">
+                  <img
+                    src={slide.after}
+                    alt={slide.afterLabel}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ width: `${splitPct}%` }}
+                  >
+                    <img
+                      src={slide.before}
+                      alt={slide.beforeLabel}
+                      className="absolute inset-0 h-full object-cover"
+                      style={{ width: `${100 / ((splitPct / 100) || 0.001)}%` }}
+                    />
+                  </div>
+                  <div
+                    className="absolute top-0 bottom-0 flex items-center"
+                    style={{ left: `${splitPct}%`, transform: "translateX(-50%)" }}
+                  >
+                    <div className="w-[2px] h-full bg-white/85" />
+                    <div className="absolute w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
+                      <ChevronLeft className="w-3.5 h-3.5 -mr-0.5" style={{ color: C.navy }} />
+                      <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
+                    </div>
+                  </div>
+                  <div
+                    className="absolute top-4 left-4 text-white text-[11px] font-medium uppercase"
+                    style={{
+                      background: C.navy,
+                      padding: "5px 11px",
+                      borderRadius: 4,
+                      letterSpacing: "0.1em",
+                    }}
+                  >
+                    {slide.beforeLabel}
+                  </div>
+                  <div
+                    className="absolute top-4 right-4 text-[11px] font-medium uppercase"
+                    style={{
+                      background: C.gold,
+                      color: C.navy,
+                      padding: "5px 11px",
+                      borderRadius: 4,
+                      letterSpacing: "0.1em",
+                    }}
+                  >
+                    {slide.afterLabel}
+                  </div>
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  src={slide.src}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover"
+                  data-testid="bolig-hero-stage-video"
+                />
+              )}
+
+              {/* Bottom gradient for caption readability */}
+              <div
+                className="absolute left-0 right-0 bottom-0 pointer-events-none"
+                style={{
+                  height: "55%",
+                  background:
+                    "linear-gradient(to top, rgba(15,25,35,0.78) 0%, rgba(15,25,35,0.35) 45%, rgba(15,25,35,0) 100%)",
+                }}
+              />
+
+              {/* Caption — bottom left, DR1 style */}
+              <div className="absolute left-0 right-0 bottom-0 p-6 sm:p-10">
+                <div className="max-w-2xl">
+                  <div
+                    className="uppercase mb-2"
+                    style={{
+                      color: C.gold,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.16em",
+                      fontFamily: SANS,
+                    }}
+                  >
+                    {slide.meta}
+                  </div>
+                  <h2
+                    className="mb-2"
+                    style={{
+                      fontFamily: SERIF,
+                      color: C.white,
+                      fontSize: "clamp(24px, 3.4vw, 38px)",
+                      fontWeight: 500,
+                      lineHeight: 1.2,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {slide.title}
+                  </h2>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.85)",
+                      fontSize: "clamp(14px, 1.4vw, 16px)",
+                      lineHeight: 1.55,
+                      maxWidth: 560,
+                      fontFamily: SANS,
+                    }}
+                  >
+                    {slide.caption}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Side arrows */}
+          <button
+            onClick={() => go(index - 1)}
+            aria-label="Forrige"
+            className="hidden sm:flex absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 items-center justify-center transition-colors hover:bg-white/30"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.18)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              color: C.white,
+              zIndex: 10,
+            }}
+            data-testid="bolig-hero-prev"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => go(index + 1)}
+            aria-label="Næste"
+            className="hidden sm:flex absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 items-center justify-center transition-colors hover:bg-white/30"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.18)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              color: C.white,
+              zIndex: 10,
+            }}
+            data-testid="bolig-hero-next"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Indicators */}
+        <div className="flex items-center justify-center gap-3 mt-6">
+          {STAGE_SLIDES.map((s, i) => {
+            const active = i === index;
+            return (
+              <button
+                key={i}
+                onClick={() => go(i)}
+                className="relative overflow-hidden transition-all"
+                style={{
+                  height: 4,
+                  width: active ? 64 : 28,
+                  borderRadius: 999,
+                  background: active ? "rgba(15,25,35,0.18)" : C.border,
+                }}
+                aria-label={s.title}
+                data-testid={`bolig-hero-indicator-${i}`}
+              >
+                {active && (
+                  <div
+                    className="absolute inset-y-0 left-0"
+                    style={{
+                      width: `${progress * 100}%`,
+                      background: C.gold,
+                      transition: paused ? "none" : "width 80ms linear",
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 // ── Auto-play hero slider with smooth swipe animation ─────────────────────────
 function HeroSliderSection() {
@@ -698,71 +1067,10 @@ export default function BoligpotentialeLanding() {
         </AnimatePresence>
       </header>
 
-      {/* ── HERO ── */}
-      <section className="pt-20" data-testid="bolig-hero">
-        <div className="mx-auto max-w-6xl px-6" style={{ paddingTop: 100, paddingBottom: 100 }}>
-          <div className="grid lg:grid-cols-[55fr_45fr] gap-14 lg:gap-16 items-center">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}>
-              <div
-                className="inline-flex items-center uppercase mb-7"
-                style={{
-                  color: C.gold,
-                  background: C.goldTint,
-                  borderRadius: 4,
-                  padding: "6px 14px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: "0.15em",
-                }}
-              >
-                AI-drevet boligvisualisering
-              </div>
-              <h1
-                className="mb-6"
-                style={{
-                  color: C.navy,
-                  fontFamily: SERIF,
-                  fontWeight: 500,
-                  fontSize: "clamp(36px, 5.4vw, 56px)",
-                  lineHeight: 1.15,
-                  letterSpacing: "-0.015em",
-                }}
-              >
-                Vis boligens fulde potentiale på{" "}
-                <span style={{ color: C.gold, fontStyle: "italic" }}>30 sekunder</span>
-              </h1>
-              <p className="mb-9" style={{ color: C.muted, fontSize: 18, lineHeight: 1.6, maxWidth: 480 }}>
-                Upload et foto af et rum. Få et professionelt redesign klar til din annonce — på under 30 sekunder, til en brøkdel af prisen.
-              </p>
-              <Link href="/opret">
-                <button
-                  className="inline-flex items-center gap-2 text-white transition-colors hover:bg-[color:var(--gold-h)]"
-                  style={{
-                    ['--gold-h' as any]: C.goldHover,
-                    background: C.gold,
-                    padding: "16px 32px",
-                    borderRadius: 8,
-                    fontSize: 15,
-                    fontWeight: 500,
-                    fontFamily: SANS,
-                  }}
-                  data-testid="bolig-hero-cta-primary"
-                >
-                  Prøv gratis — 1 billede inkl.
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </Link>
-              <p className="mt-3" style={{ color: C.muted, fontSize: 13 }}>
-                Kom i gang gratis på 30 sekunder
-              </p>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}>
-              <HeroSliderSection />
-            </motion.div>
-          </div>
-        </div>
-      </section>
+      {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
+      <div className="pt-20" data-testid="bolig-hero">
+        <HeroStage />
+      </div>
 
       {/* ── HOW IT WORKS ── */}
       <section id="how-it-works" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} className="px-6" data-testid="bolig-how-it-works">
