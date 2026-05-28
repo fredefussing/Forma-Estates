@@ -226,10 +226,12 @@ const STAGE_SLIDES: StageSlide[] = [
 function HeroStage() {
   const [index, setIndex] = useState(0);
   const [pos, setPos] = useState(1); // swipe split (1 = fully before, 0 = fully after)
-  const [paused, setPaused] = useState(false);
   const rafRef = useRef<number | null>(null);
   const slideStartRef = useRef<number>(performance.now());
   const videoRef = useRef<HTMLVideoElement>(null);
+  // After a manual click we wait this long before auto-advancing resumes.
+  const AUTO_RESUME_AFTER = 7000;
+  const lastInteractionRef = useRef<number>(0);
 
   const slide = STAGE_SLIDES[index];
 
@@ -250,7 +252,13 @@ function HeroStage() {
   const advance = () => resetTo((index + 1) % STAGE_SLIDES.length);
   const go = (i: number) => {
     const next = ((i % STAGE_SLIDES.length) + STAGE_SLIDES.length) % STAGE_SLIDES.length;
-    if (next === index) return;
+    lastInteractionRef.current = performance.now();
+    if (next === index) {
+      // Re-play the current slide cleanly.
+      resetTo(next === 0 ? STAGE_SLIDES.length - 1 : next);
+      resetTo(next);
+      return;
+    }
     resetTo(next);
   };
 
@@ -264,10 +272,10 @@ function HeroStage() {
 
   // Animation loop
   useEffect(() => {
-    if (paused) return;
-
     const tick = (now: number) => {
       const elapsed = now - slideStartRef.current;
+      const sinceInteraction = now - lastInteractionRef.current;
+      const autoAdvanceAllowed = sinceInteraction > AUTO_RESUME_AFTER;
 
       if (slide.kind === "swipe") {
         if (elapsed < SWIPE_BEFORE) {
@@ -276,14 +284,14 @@ function HeroStage() {
           const t = (elapsed - SWIPE_BEFORE) / SWIPE_IN;
           const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
           setPos(1 - eased);
-        } else if (elapsed < SWIPE_TOTAL) {
+        } else if (elapsed < SWIPE_TOTAL || !autoAdvanceAllowed) {
           setPos(0);
         } else {
           advance();
           return;
         }
       } else {
-        if (elapsed >= VIDEO_DURATION) {
+        if (elapsed >= VIDEO_DURATION && autoAdvanceAllowed) {
           advance();
           return;
         }
@@ -294,7 +302,7 @@ function HeroStage() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [index, paused]);
+  }, [index]);
 
   // Progress 0..1 for current slide (for thin progress bar under dots)
   const [progress, setProgress] = useState(0);
@@ -302,13 +310,13 @@ function HeroStage() {
     let id: number;
     const loop = () => {
       const dur = slide.kind === "swipe" ? SWIPE_TOTAL : VIDEO_DURATION;
-      const e = paused ? progress * dur : performance.now() - slideStartRef.current;
+      const e = performance.now() - slideStartRef.current;
       setProgress(Math.min(1, e / dur));
       id = requestAnimationFrame(loop);
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [index, paused]);
+  }, [index]);
 
   const splitPct = pos * 100;
 
@@ -323,8 +331,6 @@ function HeroStage() {
       className="relative"
       style={{ background: C.navy, paddingTop: 14, paddingBottom: 18 }}
       data-testid="bolig-hero-stage"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
     >
       <div className="w-full px-2 sm:px-3 lg:px-4">
         <div
@@ -448,8 +454,8 @@ function HeroStage() {
                 }}
               />
 
-              {/* Caption — sits higher so it's clearly readable in full-bleed view */}
-              <div className="absolute left-0 right-0" style={{ bottom: "clamp(72px, 9vh, 120px)", paddingLeft: "clamp(24px, 4vw, 56px)", paddingRight: "clamp(24px, 4vw, 56px)" }}>
+              {/* Caption — sits low so the image/video stays in focus */}
+              <div className="absolute left-0 right-0" style={{ bottom: "clamp(20px, 3vh, 40px)", paddingLeft: "clamp(24px, 4vw, 56px)", paddingRight: "clamp(24px, 4vw, 56px)" }}>
                 <div className="max-w-2xl">
                   <div
                     className="uppercase mb-2"
