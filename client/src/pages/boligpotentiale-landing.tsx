@@ -242,9 +242,9 @@ function HeroStage() {
 
   const advance = () => setIndex((i) => (i + 1) % STAGE_SLIDES.length);
   const go = (i: number) => {
-    setIndex(((i % STAGE_SLIDES.length) + STAGE_SLIDES.length) % STAGE_SLIDES.length);
-    setPos(1);
-    slideStartRef.current = performance.now();
+    const next = ((i % STAGE_SLIDES.length) + STAGE_SLIDES.length) % STAGE_SLIDES.length;
+    if (next === index) return;
+    setIndex(next);
   };
 
   // Reset on slide change
