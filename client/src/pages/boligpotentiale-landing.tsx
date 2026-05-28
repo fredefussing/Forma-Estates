@@ -205,6 +205,7 @@ const STAGE_SLIDES: StageSlide[] = [
   {
     kind: "video",
     src: "/videos/transformation-kling-v16-pro.mp4",
+    poster: "/bolig-images/kitchen-after.jpg",
     title: "Cinematisk video",
     caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
     meta: "Kling 1.6 Pro · 1080p",
@@ -309,6 +310,12 @@ function HeroStage() {
 
   const splitPct = pos * 100;
 
+  const prevIndex = (index - 1 + STAGE_SLIDES.length) % STAGE_SLIDES.length;
+  const nextIndex = (index + 1) % STAGE_SLIDES.length;
+  const prevSlide = STAGE_SLIDES[prevIndex];
+  const nextSlide = STAGE_SLIDES[nextIndex];
+  const sidePreview = (s: StageSlide) => (s.kind === "swipe" ? s.after : s.poster || "");
+
   return (
     <section
       className="relative"
@@ -317,17 +324,41 @@ function HeroStage() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: 1280 }}>
-        <div
-          className="relative w-full overflow-hidden"
-          style={{
-            borderRadius: 14,
-            background: "#000",
-            aspectRatio: "16 / 9",
-            boxShadow: "0 24px 60px rgba(15,25,35,0.18)",
-          }}
-        >
-          {/* Slide content */}
+      <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: 1480 }}>
+        <div className="relative w-full flex items-stretch gap-3 sm:gap-4" style={{ aspectRatio: "21 / 9" }}>
+          {/* PREV peek */}
+          <button
+            onClick={() => go(prevIndex)}
+            aria-label={`Forrige: ${prevSlide.title}`}
+            className="hidden md:block relative overflow-hidden transition-all duration-300 group flex-shrink-0"
+            style={{
+              width: "16%",
+              borderRadius: 14,
+              background: "#000",
+              boxShadow: "0 12px 32px rgba(15,25,35,0.12)",
+            }}
+            data-testid="bolig-hero-peek-prev"
+          >
+            <img src={sidePreview(prevSlide)} alt={prevSlide.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(15,25,35,0.55) 0%, rgba(15,25,35,0.25) 100%)" }} />
+            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-left">
+              <div className="uppercase mb-1" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em" }}>Forrige</div>
+              <div style={{ fontFamily: SERIF, color: C.white, fontSize: 15, lineHeight: 1.25, fontWeight: 500 }}>{prevSlide.title}</div>
+            </div>
+            <div className="absolute top-1/2 -translate-y-1/2 right-3 flex items-center justify-center transition-opacity opacity-80 group-hover:opacity-100" style={{ width: 36, height: 36, borderRadius: 999, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.4)" }}>
+              <ChevronLeft className="w-4 h-4" style={{ color: C.white }} />
+            </div>
+          </button>
+
+          {/* CENTER stage */}
+          <div
+            className="relative flex-1 overflow-hidden"
+            style={{
+              borderRadius: 14,
+              background: "#000",
+              boxShadow: "0 24px 60px rgba(15,25,35,0.22)",
+            }}
+          >
           <AnimatePresence mode="wait">
             <motion.div
               key={index}
@@ -456,42 +487,49 @@ function HeroStage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Side arrows */}
+            {/* Mobile-only side arrows (peek panels hidden < md) */}
+            <button
+              onClick={() => go(index - 1)}
+              aria-label="Forrige"
+              className="md:hidden absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors hover:bg-white/30"
+              style={{ width: 40, height: 40, borderRadius: 999, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.35)", color: C.white, zIndex: 10 }}
+              data-testid="bolig-hero-prev-mobile"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => go(index + 1)}
+              aria-label="Næste"
+              className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors hover:bg-white/30"
+              style={{ width: 40, height: 40, borderRadius: 999, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.35)", color: C.white, zIndex: 10 }}
+              data-testid="bolig-hero-next-mobile"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* NEXT peek */}
           <button
-            onClick={() => go(index - 1)}
-            aria-label="Forrige"
-            className="hidden sm:flex absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 items-center justify-center transition-colors hover:bg-white/30"
+            onClick={() => go(nextIndex)}
+            aria-label={`Næste: ${nextSlide.title}`}
+            className="hidden md:block relative overflow-hidden transition-all duration-300 group flex-shrink-0"
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.18)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.35)",
-              color: C.white,
-              zIndex: 10,
+              width: "16%",
+              borderRadius: 14,
+              background: "#000",
+              boxShadow: "0 12px 32px rgba(15,25,35,0.12)",
             }}
-            data-testid="bolig-hero-prev"
+            data-testid="bolig-hero-peek-next"
           >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => go(index + 1)}
-            aria-label="Næste"
-            className="hidden sm:flex absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 items-center justify-center transition-colors hover:bg-white/30"
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.18)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.35)",
-              color: C.white,
-              zIndex: 10,
-            }}
-            data-testid="bolig-hero-next"
-          >
-            <ChevronRight className="w-5 h-5" />
+            <img src={sidePreview(nextSlide)} alt={nextSlide.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to left, rgba(15,25,35,0.55) 0%, rgba(15,25,35,0.25) 100%)" }} />
+            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-right">
+              <div className="uppercase mb-1" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em" }}>Næste</div>
+              <div style={{ fontFamily: SERIF, color: C.white, fontSize: 15, lineHeight: 1.25, fontWeight: 500 }}>{nextSlide.title}</div>
+            </div>
+            <div className="absolute top-1/2 -translate-y-1/2 left-3 flex items-center justify-center transition-opacity opacity-80 group-hover:opacity-100" style={{ width: 36, height: 36, borderRadius: 999, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.4)" }}>
+              <ChevronRight className="w-4 h-4" style={{ color: C.white }} />
+            </div>
           </button>
         </div>
 
