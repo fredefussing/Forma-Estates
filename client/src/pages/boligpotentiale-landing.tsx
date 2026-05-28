@@ -32,7 +32,6 @@ const C = {
   goldTint: "rgba(201, 169, 110, 0.10)",
   goldBorder: "rgba(201, 169, 110, 0.30)",
   white: "#FFFFFF",
-  cream: "#FAF6EC",
   warm: "#F8F6F3",
   champagne: "#E8DFD0",
   text: "#1A1A1A",
@@ -1336,7 +1335,7 @@ export default function BoligpotentialeLanding() {
               <div
                 key={t.eyebrow}
                 className="group cursor-pointer transition-all duration-500 hover:-translate-y-1"
-                style={{ background: C.cream, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 40px rgba(15,25,35,0.06)" }}
+                style={{ background: C.white, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 40px rgba(15,25,35,0.06)" }}
                 data-testid={`bolig-why-tile-${t.eyebrow}`}
               >
                 <div className="relative overflow-hidden" style={{ aspectRatio: "4 / 3" }}>
@@ -1399,7 +1398,7 @@ export default function BoligpotentialeLanding() {
                   transition={{ duration: 0.6, delay: i * 0.15, ease: "easeOut" }}
                   className="transition-all duration-300 hover:-translate-y-1"
                   style={{
-                    background: C.cream,
+                    background: C.white,
                     borderRadius: 8,
                     padding: "48px 36px",
                     boxShadow: C.shadowCard,
@@ -1566,7 +1565,7 @@ export default function BoligpotentialeLanding() {
               <div
                 className="mb-5"
                 style={{
-                  background: C.cream,
+                  background: C.white,
                   border: `1px solid ${C.border}`,
                   borderRadius: 8,
                   padding: "18px 18px",
@@ -1710,7 +1709,7 @@ export default function BoligpotentialeLanding() {
                   transition={{ duration: 0.5, delay: (i % 3) * 0.1, ease: "easeOut" }}
                   className="transition-all duration-300 hover:-translate-y-1"
                   style={{
-                    background: C.cream,
+                    background: C.white,
                     borderRadius: 8,
                     padding: "36px 32px",
                     boxShadow: C.shadowCard,
@@ -1912,7 +1911,7 @@ export default function BoligpotentialeLanding() {
             </div>
             <div
               style={{
-                background: C.cream,
+                background: C.white,
                 border: `1px solid ${C.border}`,
                 borderRadius: 14,
                 padding: "28px 30px",
@@ -1951,7 +1950,7 @@ export default function BoligpotentialeLanding() {
             <aside className="hidden lg:block" data-testid="bolig-faq-info">
               <div
                 style={{
-                  background: C.cream,
+                  background: C.white,
                   border: `1px solid ${C.border}`,
                   borderRadius: 8,
                   padding: 40,
