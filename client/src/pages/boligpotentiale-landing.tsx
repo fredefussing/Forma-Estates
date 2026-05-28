@@ -1401,7 +1401,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── SHOWCASE ── */}
-      <section id="showcase" className="px-6" style={{ background: C.white, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-showcase">
+      <section id="showcase" className="px-6" style={{ background: C.champagne, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-showcase">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-14">
             <Overline>Eksempler</Overline>
@@ -1514,7 +1514,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── AI DESIGN AGENT ── */}
-      <section id="ai-design-agent" className="px-6" style={{ background: C.white, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-agent">
+      <section id="ai-design-agent" className="px-6" style={{ background: C.champagne, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-agent">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <Overline>AI Design Agent</Overline>
@@ -1912,7 +1912,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── FAQ ── */}
-      <section id="faq" className="px-6" style={{ background: C.white, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-faq">
+      <section id="faq" className="px-6" style={{ background: C.champagne, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-faq">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>FAQ</Overline>
