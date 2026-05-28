@@ -1028,8 +1028,11 @@ export default function BoligpotentialeLanding() {
           />
         </div>
 
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 h-28">
-          <div className="flex items-end gap-8">
+        <div
+          className="mx-auto max-w-7xl flex items-center justify-between px-6 h-28 relative"
+          style={{ borderBottom: `1px solid ${C.border}` }}
+        >
+          <div className="flex items-center gap-10">
             <Link href="/boligpotentiale">
               <div className="flex items-center cursor-pointer select-none" data-testid="bolig-nav-logo">
                 <img
@@ -1041,7 +1044,7 @@ export default function BoligpotentialeLanding() {
               </div>
             </Link>
 
-            <nav className="hidden md:flex items-end gap-7 h-full pb-3">
+            <nav className="hidden md:flex items-stretch gap-7 self-stretch">
               {NAV_LINKS.map((l) => {
                 const isActive = activeNav === l.label;
                 return (
@@ -1049,13 +1052,12 @@ export default function BoligpotentialeLanding() {
                     key={l.label}
                     href={l.href}
                     onClick={() => setActiveNav(l.label)}
-                    className="group relative transition-colors"
+                    className="group relative transition-colors flex items-center"
                     style={{
                       color: isActive ? C.navy : C.muted,
                       fontSize: 13,
                       fontWeight: isActive ? 700 : 500,
                       letterSpacing: "0.1em",
-                      paddingBottom: 10,
                     }}
                     data-testid={`bolig-nav-${l.label}`}
                   >
