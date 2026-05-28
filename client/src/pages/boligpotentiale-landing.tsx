@@ -483,7 +483,12 @@ function HeroStage() {
                       textShadow: "0 2px 14px rgba(0,0,0,0.6), 0 0 2px rgba(0,0,0,0.5)",
                     }}
                   >
-                    {slide.title}
+                    {slide.title.includes(" & ") ? (
+                      (() => {
+                        const [a, b] = slide.title.split(" & ");
+                        return (<>{a} <span style={{ fontFamily: SANS, fontWeight: 400 }}>&amp;</span> {b}</>);
+                      })()
+                    ) : slide.title}
                   </h2>
                   <p
                     style={{
