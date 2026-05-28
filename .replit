@@ -57,3 +57,7 @@ VITE_FIREBASE_MEASUREMENT_ID = "G-P8Q5NL1WH9"
 ADMIN_PASSWORD = "Den$Glade!Delfin\"3"
 BREVO_API_KEY = "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"
 SOLID10_MODE = "false"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
