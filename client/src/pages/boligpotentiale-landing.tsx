@@ -458,37 +458,40 @@ function HeroStage() {
               <div className="absolute left-0 right-0" style={{ bottom: "clamp(20px, 3vh, 40px)", paddingLeft: "clamp(24px, 4vw, 56px)", paddingRight: "clamp(24px, 4vw, 56px)" }}>
                 <div className="max-w-2xl">
                   <div
-                    className="uppercase mb-2"
+                    className="uppercase mb-3"
                     style={{
-                      color: C.gold,
+                      color: "#E4CB94",
                       fontSize: 11,
-                      fontWeight: 600,
-                      letterSpacing: "0.16em",
+                      fontWeight: 700,
+                      letterSpacing: "0.18em",
                       fontFamily: SANS,
+                      textShadow: "0 1px 8px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.6)",
                     }}
                   >
                     {slide.meta}
                   </div>
                   <h2
-                    className="mb-2"
+                    className="mb-3"
                     style={{
                       fontFamily: SERIF,
-                      color: C.white,
-                      fontSize: "clamp(24px, 3.4vw, 38px)",
+                      color: "#FFFFFF",
+                      fontSize: "clamp(28px, 4vw, 42px)",
                       fontWeight: 500,
                       lineHeight: 1.2,
                       letterSpacing: "-0.01em",
+                      textShadow: "0 2px 14px rgba(0,0,0,0.6), 0 0 2px rgba(0,0,0,0.5)",
                     }}
                   >
                     {slide.title}
                   </h2>
                   <p
                     style={{
-                      color: "rgba(255,255,255,0.85)",
+                      color: "#FFFFFF",
                       fontSize: "clamp(14px, 1.4vw, 16px)",
                       lineHeight: 1.55,
                       maxWidth: 560,
                       fontFamily: SANS,
+                      textShadow: "0 1px 10px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.5)",
                     }}
                   >
                     {slide.caption}
