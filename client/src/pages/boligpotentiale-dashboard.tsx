@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "upload" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering";
+type Section = "dashboard" | "upload" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
@@ -1354,6 +1354,521 @@ function CaseDetailPanel({
 }
 
 // ── Standalone Upload Flow (for "Upload Billede" section) ─────────────────────
+// ── History (all generated visualizations across cases + standalone) ─────────
+interface ApiGeneration {
+  id: number;
+  caseId: number | null;
+  isQuickGeneration: boolean | null;
+  src: string;
+  beforeSrc: string | null;
+  room: string;
+  style: string;
+  tier: string | null;
+  promptUsed: string | null;
+  createdAt: string;
+  generationTimeMs: number | null;
+}
+
+function HistoryView({
+  cases,
+  onOpenCase,
+  showToast,
+}: {
+  cases: ApiCase[];
+  onOpenCase: (id: number) => void;
+  showToast: (msg: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<"all" | "case" | "quick">("all");
+  const [lightbox, setLightbox] = useState<ApiGeneration | null>(null);
+  const [regen, setRegen] = useState<ApiGeneration | null>(null);
+  const [regenStyle, setRegenStyle] = useState("scandinavian");
+  const [regenTier, setRegenTier] = useState("tier2");
+  const [regenSaveCaseId, setRegenSaveCaseId] = useState<number | null>(null);
+  const [regenBusy, setRegenBusy] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
+  const [regenResult, setRegenResult] = useState<{ url: string; id: number | null } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ApiGeneration | null>(null);
+
+  const { data: items = [], isLoading } = useQuery<ApiGeneration[]>({
+    queryKey: ["/api/generations/all"],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/generations/all", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Kunne ikke hente historik");
+      return res.json();
+    },
+  });
+
+  const caseById = useMemo(() => {
+    const m = new Map<number, ApiCase>();
+    cases.forEach((c) => m.set(c.id, c));
+    return m;
+  }, [cases]);
+
+  const filtered = useMemo(() => {
+    if (filter === "case") return items.filter((it) => it.caseId !== null);
+    if (filter === "quick") return items.filter((it) => it.caseId === null);
+    return items;
+  }, [items, filter]);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/generated-images/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Kunne ikke slette billede");
+    },
+    onSuccess: () => {
+      showToast("Billede slettet");
+      queryClient.invalidateQueries({ queryKey: ["/api/generations/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+    },
+  });
+
+  const openRegen = (item: ApiGeneration) => {
+    setRegen(item);
+    setRegenStyle(item.style && STYLES.find((s) => s.value === item.style) ? item.style : "scandinavian");
+    setRegenTier(item.tier && BUDGET_TIERS.find((b) => b.value === item.tier) ? item.tier : "tier2");
+    setRegenSaveCaseId(item.caseId ?? null);
+    setRegenError(null);
+    setRegenResult(null);
+  };
+
+  const runRegen = async () => {
+    if (!regen) return;
+    if (!regen.beforeSrc) {
+      setRegenError("Det oprindelige rumfoto findes ikke længere, så vi kan ikke regenerere.");
+      return;
+    }
+    setRegenBusy(true);
+    setRegenError(null);
+    try {
+      const origRes = await fetch(regen.beforeSrc);
+      if (!origRes.ok) throw new Error("Kunne ikke hente originalbilledet");
+      const blob = await origRes.blob();
+      const file = new File([blob], "original.jpg", { type: blob.type || "image/jpeg" });
+
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("image", file);
+      fd.append("style", regenStyle);
+      fd.append("room", regen.room);
+      fd.append("tier", regenTier);
+      if (regenSaveCaseId) {
+        fd.append("caseId", String(regenSaveCaseId));
+        fd.append("isQuick", "false");
+      } else {
+        fd.append("isQuick", "true");
+      }
+      const res = await fetch("/api/bolig/generate", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Regenerering mislykkedes");
+      setRegenResult({ url: data.image_url, id: data.generation_id ?? null });
+      queryClient.invalidateQueries({ queryKey: ["/api/generations/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      if (regenSaveCaseId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", regenSaveCaseId, "images"] });
+      }
+    } catch (err: any) {
+      setRegenError(err?.message || "Noget gik galt");
+    } finally {
+      setRegenBusy(false);
+    }
+  };
+
+  const closeRegen = () => {
+    setRegen(null);
+    setRegenResult(null);
+    setRegenError(null);
+    setRegenBusy(false);
+  };
+
+  const filterTabs: { id: typeof filter; label: string; count: number }[] = [
+    { id: "all", label: "Alle", count: items.length },
+    { id: "case", label: "Tilknyttet sag", count: items.filter((i) => i.caseId !== null).length },
+    { id: "quick", label: "Hurtig upload", count: items.filter((i) => i.caseId === null).length },
+  ];
+
+  const styleLabel = (v: string) => STYLES.find((s) => s.value === v)?.label || v;
+  const roomLabel = (v: string) => ROOM_TYPES.find((r) => r.value === v)?.label || v;
+  const tierLabel = (v: string | null) => BUDGET_TIERS.find((b) => b.value === v)?.label.replace(/^Tier \d — /, "") || v || "";
+
+  return (
+    <motion.div key="historik-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Historik</h1>
+        <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Alle dine AI-visualiseringer — både fra sager og hurtige uploads.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6" data-testid="bolig-history-filters">
+        {filterTabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setFilter(t.id)}
+            className="h-9 px-4 rounded-full text-xs font-semibold border-2 transition-all"
+            style={{
+              background: filter === t.id ? "#0F1D2F" : "#fff",
+              borderColor: filter === t.id ? "#0F1D2F" : "#D9D5CF",
+              color: filter === t.id ? "#fff" : "#1A1A1A",
+            }}
+            data-testid={`bolig-history-filter-${t.id}`}
+          >
+            {t.label} <span className="opacity-60 ml-1">({t.count})</span>
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl overflow-hidden border border-[#E8E4DE] animate-pulse bg-white">
+              <div className="h-40 bg-[#E8E4DE]" />
+              <div className="p-4 space-y-2">
+                <div className="h-3 bg-[#E8E4DE] rounded w-3/4" />
+                <div className="h-2.5 bg-[#E8E4DE] rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: "#F0EDE7" }}>
+            <Clock className="w-7 h-7" style={{ color: "#C8956C" }} />
+          </div>
+          <h2 className="text-lg font-bold mb-2" style={{ color: "#0F1D2F" }}>Ingen visualiseringer endnu</h2>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>Generér dit første billede for at se det her.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-testid="bolig-history-grid">
+          {filtered.map((it) => {
+            const c = it.caseId ? caseById.get(it.caseId) : null;
+            return (
+              <div
+                key={it.id}
+                className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-white group transition-all hover:-translate-y-0.5 hover:shadow-md"
+                data-testid={`bolig-history-card-${it.id}`}
+              >
+                <div
+                  className="relative aspect-[4/3] overflow-hidden cursor-pointer"
+                  onClick={() => setLightbox(it)}
+                >
+                  {isVideoUrl(it.src) ? (
+                    <video src={it.src} className="w-full h-full object-cover bg-black" muted playsInline preload="metadata" />
+                  ) : (
+                    <img src={it.src} alt={it.room} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  )}
+                  <span
+                    className="absolute top-2 left-2 text-[10px] font-semibold text-white px-2 py-0.5 rounded-full"
+                    style={{ background: it.caseId ? "rgba(45,106,79,0.85)" : "rgba(200,149,108,0.95)" }}
+                  >
+                    {it.caseId ? "Sag" : "Hurtig"}
+                  </span>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DownloadMenu
+                      url={it.src}
+                      beforeUrl={it.beforeSrc}
+                      address={c?.address ?? null}
+                      room={it.room}
+                      style={it.style}
+                      variant="icon-dark"
+                      testIdPrefix={`bolig-history-download-${it.id}`}
+                      stopPropagation
+                    />
+                  </div>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: "#0F1D2F" }}>{roomLabel(it.room)}</p>
+                    <span className="text-[10px]" style={{ color: "#9B9690" }}>{timeAgo(it.createdAt)}</span>
+                  </div>
+                  {c ? (
+                    <button
+                      onClick={() => onOpenCase(c.id)}
+                      className="text-[11px] truncate hover:underline block mb-2"
+                      style={{ color: "#6B6B6B" }}
+                      data-testid={`bolig-history-case-link-${it.id}`}
+                    >
+                      {c.address}
+                    </button>
+                  ) : (
+                    <p className="text-[11px] mb-2" style={{ color: "#9B9690" }}>Ikke tilknyttet en sag</p>
+                  )}
+                  <div className="flex gap-1.5 flex-wrap mb-3">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{styleLabel(it.style)}</span>
+                    {it.tier && it.tier !== "0" && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(it.tier)}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openRegen(it)}
+                      disabled={!it.beforeSrc}
+                      title={it.beforeSrc ? "Generer igen med en anden stil" : "Originalbillede ikke tilgængeligt"}
+                      className="flex-1 h-8 rounded-full text-[11px] font-semibold border-2 flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
+                      data-testid={`bolig-history-regen-${it.id}`}
+                    >
+                      <RotateCcw className="w-3 h-3" /> Anden stil
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(it)}
+                      className="h-8 w-8 rounded-full flex items-center justify-center transition-colors hover:bg-red-50"
+                      style={{ color: "#DC2626", border: "2px solid rgba(220,38,38,0.25)" }}
+                      data-testid={`bolig-history-delete-${it.id}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(15,29,47,0.85)" }}
+            onClick={() => setLightbox(null)}
+            data-testid="bolig-history-lightbox"
+          >
+            <div className="relative max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setLightbox(null)}
+                className="absolute -top-12 right-0 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                data-testid="bolig-history-lightbox-close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              {lightbox.beforeSrc && !isVideoUrl(lightbox.src) ? (
+                <BeforeAfterSlider beforeSrc={lightbox.beforeSrc} afterSrc={lightbox.src} />
+              ) : isVideoUrl(lightbox.src) ? (
+                <video src={lightbox.src} controls autoPlay className="w-full rounded-2xl" />
+              ) : (
+                <img src={lightbox.src} alt={lightbox.room} className="w-full rounded-2xl" />
+              )}
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <DownloadMenu
+                  url={lightbox.src}
+                  beforeUrl={lightbox.beforeSrc}
+                  address={lightbox.caseId ? caseById.get(lightbox.caseId)?.address ?? null : null}
+                  room={lightbox.room}
+                  style={lightbox.style}
+                  variant="pill-light"
+                  testIdPrefix={`bolig-history-lightbox-download-${lightbox.id}`}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Regenerate modal */}
+      <AnimatePresence>
+        {regen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(15,29,47,0.7)" }}
+            onClick={closeRegen}
+            data-testid="bolig-history-regen-modal"
+          >
+            <div
+              className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Generer igen</h3>
+                  <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Brug samme rum­foto med en ny stil eller budget.</p>
+                </div>
+                <button onClick={closeRegen} className="w-8 h-8 rounded-full hover:bg-[#F5F3EF] flex items-center justify-center" data-testid="bolig-history-regen-close">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {regenResult ? (
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-3" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
+                    <Check className="w-3 h-3" /> Ny visualisering klar
+                  </div>
+                  {regen.beforeSrc ? (
+                    <BeforeAfterSlider beforeSrc={regen.beforeSrc} afterSrc={regenResult.url} />
+                  ) : (
+                    <img src={regenResult.url} alt="Resultat" className="w-full rounded-xl" />
+                  )}
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <DownloadMenu
+                      url={regenResult.url}
+                      beforeUrl={regen.beforeSrc}
+                      room={regen.room}
+                      style={regenStyle}
+                      variant="pill-outline"
+                      testIdPrefix="bolig-history-regen-result-download"
+                    />
+                    <button
+                      onClick={closeRegen}
+                      className="h-11 px-5 rounded-full font-semibold text-sm text-white hover:opacity-90"
+                      style={{ background: "#0F1D2F" }}
+                      data-testid="bolig-history-regen-done"
+                    >
+                      Færdig
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-xl overflow-hidden border border-[#E8E4DE] mb-4">
+                    {regen.beforeSrc ? (
+                      <img src={regen.beforeSrc} alt="Original" className="w-full max-h-48 object-cover" />
+                    ) : (
+                      <div className="p-6 text-center text-sm" style={{ color: "#9B9690" }}>Originalbillede ikke tilgængeligt</div>
+                    )}
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>Ny designstil</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {STYLES.map((s) => (
+                        <button
+                          key={s.value}
+                          onClick={() => setRegenStyle(s.value)}
+                          className="h-10 px-3 rounded-xl text-sm font-medium border-2 transition-all text-left"
+                          style={{
+                            background: regenStyle === s.value ? "#C8956C" : "#fff",
+                            borderColor: regenStyle === s.value ? "#C8956C" : "#D9D5CF",
+                            color: regenStyle === s.value ? "#fff" : "#1A1A1A",
+                          }}
+                          data-testid={`bolig-history-regen-style-${s.value}`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>Budget</label>
+                    <div className="flex flex-col gap-2">
+                      {BUDGET_TIERS.map((t) => (
+                        <button
+                          key={t.value}
+                          onClick={() => setRegenTier(t.value)}
+                          className="flex items-center justify-between px-4 py-2 rounded-xl border-2 text-sm transition-all"
+                          style={{
+                            background: regenTier === t.value ? "#0F1D2F" : "#fff",
+                            borderColor: regenTier === t.value ? "#0F1D2F" : "#D9D5CF",
+                            color: regenTier === t.value ? "#fff" : "#1A1A1A",
+                          }}
+                          data-testid={`bolig-history-regen-tier-${t.value}`}
+                        >
+                          <span className="font-medium">{t.label}</span>
+                          <span className="text-xs opacity-60">{t.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {cases.filter((c) => c.status !== "sold").length > 0 && (
+                    <div className="mb-4">
+                      <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>Gem til sag (valgfrit)</label>
+                      <select
+                        value={regenSaveCaseId ?? ""}
+                        onChange={(e) => setRegenSaveCaseId(e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full h-10 px-3 rounded-xl border-2 text-sm"
+                        style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                        data-testid="bolig-history-regen-case-select"
+                      >
+                        <option value="">— Hurtig (ingen sag) —</option>
+                        {cases.filter((c) => c.status !== "sold").map((c) => (
+                          <option key={c.id} value={c.id}>{c.address}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {regenError && (
+                    <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50 mb-3" data-testid="bolig-history-regen-error">{regenError}</div>
+                  )}
+
+                  <button
+                    onClick={runRegen}
+                    disabled={regenBusy || !regen.beforeSrc}
+                    className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{ background: "#C8956C" }}
+                    data-testid="bolig-history-regen-submit"
+                  >
+                    {regenBusy ? (
+                      <><RotateCcw className="w-4 h-4 animate-spin" /> Genererer... (30-60 sek)</>
+                    ) : (
+                      <><Sparkles className="w-4 h-4" /> Generer ny visualisering</>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete confirm */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(15,29,47,0.7)" }}
+            onClick={() => setConfirmDelete(null)}
+          >
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold mb-2" style={{ color: "#0F1D2F" }}>Slet visualisering</h3>
+              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>Dette kan ikke fortrydes.</p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="h-9 px-4 rounded-full text-sm font-medium border border-[#D9D5CF]"
+                  style={{ color: "#1A1A1A" }}
+                  data-testid="bolig-history-delete-cancel"
+                >
+                  Annuller
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirmDelete) deleteMutation.mutate(confirmDelete.id);
+                    setConfirmDelete(null);
+                  }}
+                  className="h-9 px-4 rounded-full text-sm font-semibold text-white"
+                  style={{ background: "#DC2626" }}
+                  data-testid="bolig-history-delete-confirm"
+                >
+                  Slet
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 function UploadFlow({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const [stage, setStage] = useState<Stage>("upload");
@@ -5364,6 +5879,7 @@ export default function BoligpotentialeDashboard() {
     { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" /> },
     { id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> },
     { id: "upload" as Section, label: "Upload billede", icon: <Upload className="w-[18px] h-[18px]" /> },
+    { id: "historik" as Section, label: "Historik", icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
   ];
 
@@ -5892,6 +6408,14 @@ export default function BoligpotentialeDashboard() {
             <motion.div key="upload-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <UploadFlow onBack={() => setSection("dashboard")} />
             </motion.div>
+          )}
+
+          {section === "historik" && (
+            <HistoryView
+              cases={cases}
+              onOpenCase={(id) => openCase(id)}
+              showToast={showToast}
+            />
           )}
 
           {/* Alle Sager */}
