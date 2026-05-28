@@ -48,6 +48,7 @@ const NAV_LINKS = [
   { label: "EKSEMPLER", href: "#showcase" },
   { label: "3D PLANTEGNING", href: "#3d-plantegning" },
   { label: "AI AGENT", href: "#ai-design-agent" },
+  { label: "VIDEO", href: "#cinematisk-video" },
   { label: "PRISER", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -1018,6 +1019,61 @@ export default function BoligpotentialeLanding() {
                 Eksempel fra eget projekt · træk for at sammenligne
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CINEMATISK VIDEO ── */}
+      <section id="cinematisk-video" className="px-6" style={{ background: C.navy, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-video">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-12">
+            <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.16em", fontFamily: SANS }}>
+              Cinematisk Video
+            </div>
+            <H2 light>Få boligen til at leve.</H2>
+            <p className="mt-4 mx-auto" style={{ color: "rgba(255,255,255,0.75)", fontSize: 16, maxWidth: 640 }}>
+              Forvandl ét stillbillede til en cinematisk video, hvor før-tilstanden glider over i den AI-genererede efter-version. Perfekt til Facebook, Instagram og salgsopstillinger.
+            </p>
+          </div>
+
+          <div
+            className="relative w-full overflow-hidden mx-auto"
+            style={{ borderRadius: 12, boxShadow: "0 30px 80px rgba(0,0,0,0.45)", maxWidth: 960, aspectRatio: "16 / 9", background: "#000" }}
+          >
+            <video
+              src="/videos/transformation-kling-v16-pro.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              className="w-full h-full object-cover"
+              data-testid="bolig-video-player"
+            />
+          </div>
+          <p className="text-center mt-3" style={{ color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+            Genereret med Kling 1.6 Pro · ca. 5 sekunder, 1080p
+          </p>
+
+          <div className="text-center mt-12">
+            <Link href="/opret">
+              <button
+                className="inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--gold-h)]"
+                style={{
+                  ['--gold-h' as any]: C.goldHover,
+                  background: C.gold,
+                  color: C.navy,
+                  padding: "14px 28px",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+                data-testid="bolig-video-cta"
+              >
+                Lav din egen forvandlingsvideo
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
           </div>
         </div>
       </section>
