@@ -284,21 +284,18 @@ Final result: a fully realized, photorealistic interior environment with cinemat
 
 Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality`;
 
-// Luma Dream Machine understøtter native start- og slut-keyframes (frame0 +
-// frame1), hvilket Kling v1.6/pro ikke gør (det endpoint afviser
-// tail_image_url med 422 Unprocessable Entity). Dream Machine er ideelt til
-// "før → efter"-transformationer fordi modellen får hård evidens for begge
-// ender af animationen.
-const VIDEO_ENDPOINT = "fal-ai/luma-dream-machine";
+// Kling 2.0 (master/pro tier) understøtter tail_image_url for før→efter-
+// transitions. v1.6/pro afviste det med 422 Unprocessable Entity — den
+// parameter er først tilføjet i v2 master.
+const VIDEO_ENDPOINT = "fal-ai/kling-video/v2/master/image-to-video";
 
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string) {
   return {
     prompt: TRANSFORM_VIDEO_PROMPT,
+    image_url: beforeImageUrl,
+    tail_image_url: afterImageUrl,
+    duration: "5",
     aspect_ratio: "16:9",
-    keyframes: {
-      frame0: { type: "image", url: beforeImageUrl },
-      frame1: { type: "image", url: afterImageUrl },
-    },
   };
 }
 
