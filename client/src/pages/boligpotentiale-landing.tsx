@@ -321,13 +321,16 @@ function HeroStage() {
   return (
     <section
       className="relative"
-      style={{ background: C.warm, paddingTop: 32, paddingBottom: 56 }}
+      style={{ background: C.warm, paddingTop: 14, paddingBottom: 18 }}
       data-testid="bolig-hero-stage"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
       <div className="w-full px-2 sm:px-3 lg:px-4">
-        <div className="relative w-full flex items-stretch gap-3 sm:gap-4" style={{ aspectRatio: "21 / 9" }}>
+        <div
+          className="relative w-full flex items-stretch gap-3 sm:gap-4"
+          style={{ height: "min(72vh, calc((100vw - 32px) * 9 / 21))" }}
+        >
           {/* PREV peek */}
           <button
             onClick={() => go(prevIndex)}
@@ -435,18 +438,18 @@ function HeroStage() {
                 />
               )}
 
-              {/* Bottom gradient for caption readability */}
+              {/* Bottom gradient for caption readability — stronger at bottom */}
               <div
                 className="absolute left-0 right-0 bottom-0 pointer-events-none"
                 style={{
-                  height: "55%",
+                  height: "70%",
                   background:
-                    "linear-gradient(to top, rgba(15,25,35,0.78) 0%, rgba(15,25,35,0.35) 45%, rgba(15,25,35,0) 100%)",
+                    "linear-gradient(to top, rgba(15,25,35,0.92) 0%, rgba(15,25,35,0.55) 40%, rgba(15,25,35,0.2) 75%, rgba(15,25,35,0) 100%)",
                 }}
               />
 
-              {/* Caption — bottom left, DR1 style */}
-              <div className="absolute left-0 right-0 bottom-0 p-6 sm:p-10">
+              {/* Caption — sits 40px from bottom of hero, DR1 style */}
+              <div className="absolute left-0 right-0" style={{ bottom: 40, paddingLeft: "clamp(24px, 4vw, 56px)", paddingRight: "clamp(24px, 4vw, 56px)" }}>
                 <div className="max-w-2xl">
                   <div
                     className="uppercase mb-2"
@@ -535,8 +538,8 @@ function HeroStage() {
           </button>
         </div>
 
-        {/* Indicators */}
-        <div className="flex items-center justify-center gap-3 mt-6">
+        {/* Dot indicators — gold when active, grey otherwise */}
+        <div className="flex items-center justify-center gap-3" style={{ marginTop: 16 }}>
           {STAGE_SLIDES.map((s, i) => {
             const active = i === index;
             return (
@@ -545,15 +548,15 @@ function HeroStage() {
                 onClick={() => go(i)}
                 className="relative overflow-hidden transition-all"
                 style={{
-                  height: 4,
-                  width: active ? 64 : 28,
+                  height: 8,
+                  width: 8,
                   borderRadius: 999,
-                  background: active ? "rgba(15,25,35,0.18)" : C.border,
+                  background: active ? C.gold : "#D8D4CC",
                 }}
                 aria-label={s.title}
                 data-testid={`bolig-hero-indicator-${i}`}
               >
-                {active && (
+                {false && active && (
                   <div
                     className="absolute inset-y-0 left-0"
                     style={{
@@ -1145,14 +1148,14 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div id="top" style={{ paddingTop: 142 }} data-testid="bolig-hero">
+      <div id="top" style={{ paddingTop: 142, background: C.warm }} data-testid="bolig-hero">
         <HeroStage />
       </div>
 
-      {/* ── CATEGORY PILLS — DR1-style scrollable row of clickable section links ── */}
-      <section style={{ background: C.warm, paddingTop: 22, paddingBottom: 18 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
-        <div className="mx-auto" style={{ maxWidth: 1184 }}>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+      {/* ── CATEGORY TABS — minimal centered uppercase row, hover → gold ── */}
+      <section style={{ background: C.warm, paddingTop: 14, paddingBottom: 14 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
+        <div className="mx-auto" style={{ maxWidth: 1280 }}>
+          <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
               { label: "Før / Efter", href: "#how-it-works" },
               { label: "3D Plantegning", href: "#plantegning" },
@@ -1166,21 +1169,18 @@ export default function BoligpotentialeLanding() {
               <a
                 key={p.label}
                 href={p.href}
-                className="transition-colors whitespace-nowrap hover:bg-[color:var(--pill-h)]"
+                className="transition-colors whitespace-nowrap"
                 style={{
-                  ['--pill-h' as any]: C.navy,
-                  background: C.white,
-                  border: `1px solid ${C.border}`,
-                  color: C.navy,
-                  padding: "10px 18px",
-                  borderRadius: 6,
-                  fontSize: 12,
+                  color: C.muted,
+                  fontSize: "0.7rem",
                   fontWeight: 600,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "0.14em",
                   textTransform: "uppercase",
+                  paddingBottom: 4,
+                  borderBottom: "1px solid transparent",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.navy; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderBottomColor = C.gold; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderBottomColor = "transparent"; }}
                 data-testid={`bolig-pill-${p.label}`}
               >
                 {p.label}
