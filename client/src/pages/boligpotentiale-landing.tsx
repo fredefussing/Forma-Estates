@@ -33,6 +33,7 @@ const C = {
   goldBorder: "rgba(201, 169, 110, 0.30)",
   white: "#FFFFFF",
   warm: "#F8F6F3",
+  champagne: "#E8DFD0",
   text: "#1A1A1A",
   muted: "#6B6B6B",
   border: "#E8E8E8",
@@ -329,7 +330,7 @@ function HeroStage() {
   return (
     <section
       className="relative"
-      style={{ background: C.navy, paddingTop: 14, paddingBottom: 18 }}
+      style={{ background: C.champagne, paddingTop: 14, paddingBottom: 18 }}
       data-testid="bolig-hero-stage"
     >
       <div className="w-full px-2 sm:px-3 lg:px-4">
@@ -1036,13 +1037,13 @@ export default function BoligpotentialeLanding() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: C.white, color: C.text, fontFamily: SANS }}>
+    <div className="min-h-screen" style={{ background: C.champagne, color: C.text, fontFamily: SANS }}>
 
       {/* ── NAV ── */}
       <header
         className="fixed top-0 left-0 right-0 z-50 transition-all duration-200"
         style={{
-          background: scrolled ? "rgba(255,255,255,0.85)" : C.white,
+          background: scrolled ? "rgba(232,223,208,0.88)" : C.champagne,
           backdropFilter: scrolled ? "blur(12px)" : "none",
           borderBottom: scrolled ? `1px solid ${C.border}` : "1px solid transparent",
         }}
@@ -1181,7 +1182,7 @@ export default function BoligpotentialeLanding() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               className="md:hidden px-6 py-6 flex flex-col gap-5"
-              style={{ background: C.white, borderTop: `1px solid ${C.border}` }}
+              style={{ background: C.champagne, borderTop: `1px solid ${C.border}` }}
               data-testid="bolig-mobile-menu"
             >
               {NAV_LINKS.map((l) => (
