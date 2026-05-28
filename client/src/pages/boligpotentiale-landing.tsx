@@ -46,6 +46,8 @@ const SANS = "'Inter', system-ui, -apple-system, sans-serif";
 const NAV_LINKS = [
   { label: "SÅDAN VIRKER DET", href: "#how-it-works" },
   { label: "EKSEMPLER", href: "#showcase" },
+  { label: "3D PLANTEGNING", href: "#3d-plantegning" },
+  { label: "AI AGENT", href: "#ai-design-agent" },
   { label: "PRISER", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -459,6 +461,87 @@ function Overline({ children, light = false }: { children: React.ReactNode; ligh
   );
 }
 
+// ── Reusable manual swipe slider (for floorplan + AI agent sections) ─────────
+function ManualSwipeSlider({
+  before,
+  after,
+  beforeLabel = "Før",
+  afterLabel = "Efter",
+  initial = 0.5,
+  aspect = "aspect-[4/3]",
+  testId,
+}: {
+  before: string;
+  after: string;
+  beforeLabel?: string;
+  afterLabel?: string;
+  initial?: number;
+  aspect?: string;
+  testId?: string;
+}) {
+  const [pos, setPos] = useState(initial);
+  const [dragging, setDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const updatePos = (clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    setPos(pct);
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      updatePos(clientX);
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [dragging]);
+
+  const splitPct = pos * 100;
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative w-full ${aspect} overflow-hidden select-none cursor-col-resize`}
+      style={{ borderRadius: 12, boxShadow: C.shadowCard }}
+      onMouseDown={(e) => { setDragging(true); updatePos(e.clientX); }}
+      onTouchStart={(e) => { setDragging(true); updatePos(e.touches[0].clientX); }}
+      data-testid={testId}
+    >
+      <img src={after} alt={afterLabel} className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 overflow-hidden" style={{ width: `${splitPct}%` }}>
+        <img
+          src={before}
+          alt={beforeLabel}
+          className="absolute inset-0 h-full object-cover"
+          style={{ width: `${100 / ((splitPct / 100) || 0.001)}%` }}
+        />
+      </div>
+      <div className="absolute top-0 bottom-0 flex items-center" style={{ left: `${splitPct}%`, transform: "translateX(-50%)" }}>
+        <div className="w-[2px] h-full bg-white/85" />
+        <div className="absolute w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
+          <ChevronLeft className="w-3.5 h-3.5 -mr-0.5" style={{ color: C.navy }} />
+          <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
+        </div>
+      </div>
+      <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{beforeLabel}</div>
+      <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.gold, color: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{afterLabel}</div>
+    </div>
+  );
+}
+
 function H2({ children, light = false, style }: { children: React.ReactNode; light?: boolean; style?: React.CSSProperties }) {
   return (
     <h2
@@ -790,6 +873,151 @@ export default function BoligpotentialeLanding() {
               </button>
             </Link>
             <p className="mt-3" style={{ color: C.muted, fontSize: 13 }}>1 gratis visualisering ved oprettelse</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3D PLANTEGNING ── */}
+      <section id="3d-plantegning" className="px-6" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-floorplan">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-12">
+            <Overline>3D Plantegning</Overline>
+            <H2>Fra 2D plantegning til levende 3D-rum.</H2>
+            <p className="mt-4 mx-auto" style={{ color: C.muted, fontSize: 16, maxWidth: 640 }}>
+              Upload den flade plantegning fra salgsopstillingen — vi rejser den op i 3D, så køberen kan fornemme rummet, før de kommer til fremvisning.
+            </p>
+          </div>
+
+          <ManualSwipeSlider
+            before="/bolig-images/floorplan-2d.jpg"
+            after="/bolig-images/floorplan-3d.jpg"
+            beforeLabel="2D plantegning"
+            afterLabel="3D-render"
+            testId="bolig-floorplan-slider"
+          />
+          <p className="text-center mt-3" style={{ color: C.muted, fontSize: 13 }}>
+            Træk i håndtaget for at sammenligne · stand-in-eksempel — egne 3D-renders indsættes inden launch
+          </p>
+
+          <div className="text-center mt-12">
+            <Link href="/opret">
+              <button
+                className="inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--navy)] hover:text-white"
+                style={{
+                  ['--navy' as any]: C.navy,
+                  border: `1px solid ${C.navy}`,
+                  color: C.navy,
+                  background: "transparent",
+                  padding: "14px 28px",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+                data-testid="bolig-floorplan-cta"
+              >
+                Prøv 3D plantegning
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── AI DESIGN AGENT ── */}
+      <section id="ai-design-agent" className="px-6" style={{ background: C.white, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-agent">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <Overline>AI Design Agent</Overline>
+            <H2>Beskriv ændringen — AI'en gør resten.</H2>
+            <p className="mt-4 mx-auto" style={{ color: C.muted, fontSize: 16, maxWidth: 640 }}>
+              Frit tekstprompt-værktøj til præcise ændringer. Fjern møbler, skift gulv, tilføj planter — eller forvandl hele rummet til en ny stil.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
+            {/* Prompt-mockup */}
+            <div
+              className="flex flex-col"
+              style={{
+                background: C.warm,
+                borderRadius: 12,
+                padding: "32px 28px",
+                border: `1px solid ${C.border}`,
+                boxShadow: C.shadowCard,
+              }}
+            >
+              <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+                Din prompt
+              </div>
+              <div
+                className="mb-5"
+                style={{
+                  background: C.white,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "18px 18px",
+                  minHeight: 140,
+                  color: C.text,
+                  fontSize: 15,
+                  lineHeight: 1.6,
+                  fontFamily: SANS,
+                  whiteSpace: "pre-wrap",
+                }}
+                data-testid="bolig-agent-prompt-example"
+              >
+                "Skift den blå sofa ud med en lys, naturlig linnedsofa. Tilføj et lavt egetræsbord, en stor potteplante i hjørnet og et uldtæppe i sand. Behold væggene og lyset som det er."
+              </div>
+
+              <div className="uppercase mb-2" style={{ color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+                Eksempler du kan prøve
+              </div>
+              <ul className="space-y-2 mb-6">
+                {[
+                  "Fjern den røde sofa og indsæt en grå sektionssofa",
+                  "Skift gulvet til lyst egetræ og væggene til kalkmaling",
+                  "Lav hele rummet om til japandi-stil",
+                  "Tilføj plantekrukker, bøger og et stort kunstværk over sofaen",
+                ].map((ex, i) => (
+                  <li key={i} className="flex items-start gap-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                    <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
+                    <span>{ex}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link href="/opret">
+                <button
+                  className="w-full inline-flex items-center justify-center gap-2 transition-colors hover:bg-[color:var(--gold-h)]"
+                  style={{
+                    ['--gold-h' as any]: C.goldHover,
+                    background: C.gold,
+                    color: C.navy,
+                    padding: "14px 24px",
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                  data-testid="bolig-agent-cta"
+                >
+                  Prøv AI Design Agent
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+            </div>
+
+            {/* Resultat-eksempel med swipe */}
+            <div>
+              <ManualSwipeSlider
+                before="/bolig-images/ai-agent-before.jpg"
+                after="/bolig-images/ai-agent-after.jpg"
+                beforeLabel="Før prompt"
+                afterLabel="Efter AI"
+                testId="bolig-agent-slider"
+              />
+              <p className="text-center mt-3" style={{ color: C.muted, fontSize: 13 }}>
+                Eksempel fra eget projekt · træk for at sammenligne
+              </p>
+            </div>
           </div>
         </div>
       </section>
