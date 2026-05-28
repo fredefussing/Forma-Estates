@@ -448,8 +448,8 @@ function HeroStage() {
                 }}
               />
 
-              {/* Caption — sits 40px from bottom of hero, DR1 style */}
-              <div className="absolute left-0 right-0" style={{ bottom: 40, paddingLeft: "clamp(24px, 4vw, 56px)", paddingRight: "clamp(24px, 4vw, 56px)" }}>
+              {/* Caption — sits higher so it's clearly readable in full-bleed view */}
+              <div className="absolute left-0 right-0" style={{ bottom: "clamp(72px, 9vh, 120px)", paddingLeft: "clamp(24px, 4vw, 56px)", paddingRight: "clamp(24px, 4vw, 56px)" }}>
                 <div className="max-w-2xl">
                   <div
                     className="uppercase mb-2"
