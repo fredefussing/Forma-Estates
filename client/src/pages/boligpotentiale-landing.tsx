@@ -444,13 +444,13 @@ function HeroStage() {
                 />
               )}
 
-              {/* Bottom gradient for caption readability — stronger at bottom */}
+              {/* Bottom gradient for caption readability — subtle, only under the text */}
               <div
                 className="absolute left-0 right-0 bottom-0 pointer-events-none"
                 style={{
-                  height: "70%",
+                  height: "32%",
                   background:
-                    "linear-gradient(to top, rgba(15,25,35,0.92) 0%, rgba(15,25,35,0.55) 40%, rgba(15,25,35,0.2) 75%, rgba(15,25,35,0) 100%)",
+                    "linear-gradient(to top, rgba(15,25,35,0.55) 0%, rgba(15,25,35,0.25) 55%, rgba(15,25,35,0) 100%)",
                 }}
               />
 
