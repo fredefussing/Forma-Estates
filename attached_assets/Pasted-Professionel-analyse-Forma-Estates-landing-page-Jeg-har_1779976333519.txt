@@ -1,0 +1,107 @@
+Professionel analyse — Forma Estates landing page
+Jeg har gennemgået hele siden. Her er min ærlige vurdering som designer, delt op i hvad der fungerer, og hvad der skal justeres for at nå det niveau du ser hos DR.
+1. Hvad der allerede fungerer godt
+Table
+Element	Vurdering
+Farvepalet	Guld + mørk baggrund virker luksuriøst. God kontrast.
+Typografi	Serif i overskrifter + sans-serif i brødtekst. Professionelt.
+Hero slider	Før/efter med side-peek og swipe. Visuelt stærkt.
+Kategori-tabs	Rigtig godt — giver hurtigt overblik over alle features.
+"Sådan virker det"	3 trin med ikoner. Clean og forståelig.
+Pris-struktur	Månedlig/Årlig toggle + "Mest populær" badge. Godt.
+FAQ foldbare	Rene, nemme at læse.
+Footer CTA	"Klar til at vise boligens potentiale?" — stærk afslutning.
+2. Hvad der halter — og DR gør bedre
+A. Hero copy er for svag
+Nu:
+plain
+Copy
+"AI Design Agent"
+"Beskriv ændringen i ord — AI'en gør resten."
+Problem: "AI Design Agent" siger ikke HVAD det er. En mægler der lander på siden ved ikke om dette er til dem, en privatperson, eller en arkitekt.
+DR gør det bedre: Deres hero har ALTID en klar kontekst — "Ny sæson", "Dansk dramaserie", "Aktuel satire." Brugeren ved med det samme om det er relevant.
+Mit forslag:
+plain
+Copy
+FOR EJENDOMSMÆGLERE
+Skab professionel boligvisualisering på under ét minut
+Eller bedre — lad slideren selv fortælle historien:
+plain
+Copy
+Slide 1: "Før → Efter på 30 sekunder"
+Slide 2: "3D plantegninger der sælger"  
+Slide 3: "Cinematiske videoer til sociale medier"
+B. Hero CTA mangler
+Nu: Ingen CTA i hero. Brugeren skal scrolle for at finde "Kom i gang."
+Problem: Hvis slideren fanger dem, men de ikke ved hvad de skal gøre, forsvinder de.
+Løsning: Tilføj en CTA knap i bunden af hero — fx "Start gratis visualisering" eller se DRTV's "Se programmet."
+C. Cookie-banner blokkerer 30% af skærmen
+Nu: Banner fylder hele bunden, mørk baggrund, 3 knapper.
+Problem: Førstehåndsindtrykket af siden er et stort cookie-banner. Det dræber premium-følelsen.
+Løsning: Gør den til en lille bjælke i toppen i stedet, eller et simpelt "Accepter cookies" i hjørnet. Kig på DR — de har en lille, diskret bjælke.
+D. Feature-kortene mangler visuel vægt
+Nu: "AI-iscenesættelse", "Forstå flowet", "Cinematisk fortælling" — tekst på mørk baggrund, ingen billeder.
+Problem: Det er de MEST vigtige features, men de vises uden visuelt indhold. DR ville aldrig vise en kategori uden et billede.
+Løsning: Giv hvert feature-kort et thumbnail-billede (som DRTV's program-kort). Vis før/efter miniaturer i stedet for ren tekst.
+E. "Hvorfor visualisering" sektionen er for tynd
+Nu: Kun 3 kort med tekst. Ingen tal, ingen statistik, ingen social proof.
+Problem: "Vis potentialet. Ikke det tomme rum." — det er god copy, men der er ingen beviser. Mæglere vil se tal: "Boliger med visualisering sælger 40% hurtigere."
+Løsning: Tilføj:
+En statistik-bjælke: "40% hurtigere salg" / "3x flere fremvisninger" / "85% af købere foretrækker visualiserede boliger"
+Et kunde-citat med foto
+Et "Brugt af 200+ ejendomsmæglere i Danmark" badge
+F. "Funktioner" sektionen drukner
+Nu: 6 funktioner i en lang liste. God copy, men ingen visuel differentiering.
+Problem: "Realistisk AI-rendering", "8 designstile", "Klar på under 30 sek." — det ligner en feature-liste fra en software-side. Mæglere vil se RESULTATER, ikke specifikationer.
+Løsning: Lav det til et grid med ikoner + korte sætninger. Maks 4 items. Eller fjern sektionen helt og spred punkterne ud i de andre sektioner.
+G. AI Design Agent sektionen er for kompleks
+Nu: Lang prompt-eksempel + 4 "eksempler du kan prøve." Tekst-tungt.
+Problem: Det ser ud som en chatbot-demo, ikke et landing page element. Brugeren skal læse en HEL prompt for at forstå konceptet.
+Løsning: Vis et før/efter billede i stedet. "Skriv en sætning → få dette resultat." Visuelt, ikke tekst-tungt.
+H. Kontakt-info mangler troværdighed
+Nu: "hej@formaestates.dk" + "+45 00 00 00 00"
+Problem: "00 00 00 00" ser uprofessionelt ud. Enten sæt et rigtigt nummer eller fjern det.
+3. Konkrete copy-forbedringer
+Table
+Nu	Bedre
+"AI Design Agent"	"Visualiser boliger med AI"
+"Beskriv ændringen i ord"	"Tag et foto — se rummet transformere"
+"AI-iscenesættelse"	"Før & Efter billeder"
+"Forstå flowet"	"3D Plantegninger"
+"Cinematisk fortælling"	"Cinematiske videoer"
+"Tre trin. Under ét minut."	"Så nemt er det:"
+"Prøv selv gratis"	"Start gratis — 1 visualisering inkluderet"
+"Bygget af mæglere — for mæglere"	Behold — dette er stærkt
+4. Layout-justeringer (for at matche DR's niveau)
+Over hero — intet (nav er fin)
+I hero:
+[ ] Tilføj en CTA knap i bunden: "Start gratis" eller "Se hvordan det virker"
+[ ] Overvej at tilføje et lille "Scroll ned" hint (pil eller tekst)
+Under hero — behold rækkefølgen, men juster:
+[ ] Tabs: Behold — men tilføj et hover-state der viser et miniature-billede
+[ ] "Hvorfor visualisering": Tilføj statistik-bjælke + kunde-citat
+[ ] Feature-kort: Tilføj thumbnails til hvert kort
+[ ] "Sådan virker det": Behold — men tilføj et lille video- eller GIF-preview
+[ ] Eksempler: Behold — men tilføj flere (6 er godt) og gør dem større
+[ ] AI Design Agent: Simplificer — vis før/efter, ikke prompt-eksempel
+[ ] 3D Plantegning: Behold med before/after slider — det er stærkt
+[ ] Cinematisk Video: Tilføj en thumbnail med play-knap (ikke bare tekst)
+[ ] Funktioner: Fjern eller reducer til 4 punkter med ikoner
+[ ] Priser: Behold — men gør "Mest populær" mere prominent
+[ ] Om os: Behold — men tilføj et team-foto eller kontor-billede
+[ ] FAQ: Behold — god længde
+[ ] Footer CTA: Behold — stærk afslutning
+5. Den vigtigste ændring
+Cookie-bannet skal være meget mindre. Det er det første og sidste indtryk brugeren får, og det fylder 1/3 af skærmen med en mørk klump. Gør det til:
+En lille bjælke i toppen (40px høj)
+Eller et simpelt "Vi bruger cookies → Accepter" i hjørnet
+Kig på DR.dk — de har en minimal grå bjælke
+6. TL;DR — top 5 ændringer
+Table
+Prioritet	Ændring	Impact
+1	Mindre cookie-banner	Fjerner det uprofessionelle førsteindtryk
+2	Tilføj CTA i hero	Konverterer interesserede med det samme
+3	Feature-kort med thumbnails	Viser produktet i stedet for at beskrive det
+4	Statistik i "Hvorfor visualisering"	Bygger troværdighed med tal
+5	Forenklet AI Design Agent	Vis før/efter, ikke en hel prompt
+Samlet vurdering: Siden er meget tæt på. Grundstrukturen er solid, copy er god, og farvepaletten virker. Det der mangler er små justeringer — ikke en overhaul. DR's forside virker mere "clean" fordi de har mindre tekst, større billeder, og ingen cookie-banner der dominerer. Fix de 5 punkter ovenfor, og I er der.
