@@ -325,7 +325,7 @@ function HeroStage() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: 1480 }}>
+      <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: 1184 }}>
         <div className="relative w-full flex items-stretch gap-3 sm:gap-4" style={{ aspectRatio: "21 / 9" }}>
           {/* PREV peek */}
           <button
@@ -1000,28 +1000,36 @@ export default function BoligpotentialeLanding() {
           borderBottom: scrolled ? `1px solid ${C.border}` : "1px solid transparent",
         }}
       >
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-20">
+        {/* Top utility bar — clean centered wordmark (DR1-style) */}
+        <div
+          className="hidden md:flex items-center justify-center"
+          style={{ height: 34, borderBottom: `1px solid ${C.border}`, background: "rgba(255,255,255,0.6)" }}
+          data-testid="bolig-nav-wordmark-bar"
+        >
+          <span
+            className="uppercase"
+            style={{
+              fontFamily: SERIF,
+              color: C.navy,
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.42em",
+              lineHeight: 1,
+            }}
+          >
+            FORMA ESTATES
+          </span>
+        </div>
+
+        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-24">
           <Link href="/boligpotentiale">
-            <div className="flex items-center gap-3 cursor-pointer select-none" data-testid="bolig-nav-logo">
+            <div className="flex items-center cursor-pointer select-none" data-testid="bolig-nav-logo">
               <img
                 src={formaEstatesLogo}
                 alt="Forma Estates"
                 className="w-auto"
-                style={{ height: 42 }}
+                style={{ height: 84 }}
               />
-              <span
-                className="hidden md:block uppercase"
-                style={{
-                  fontFamily: SERIF,
-                  color: C.navy,
-                  fontSize: 20,
-                  fontWeight: 600,
-                  letterSpacing: "0.25em",
-                  lineHeight: 1,
-                }}
-              >
-                FORMA ESTATES
-              </span>
             </div>
           </Link>
 
@@ -1107,9 +1115,53 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div className="pt-20" data-testid="bolig-hero">
+      <div style={{ paddingTop: 130 }} data-testid="bolig-hero">
         <HeroStage />
       </div>
+
+      {/* ── HVORFOR VISUALISERING — quick value tiles under hero (DR1-style category row) ── */}
+      <section style={{ background: C.warm, paddingTop: 28, paddingBottom: 28 }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
+        <div className="mx-auto" style={{ maxWidth: 1184 }}>
+          <div className="text-center mb-6">
+            <span
+              className="uppercase"
+              style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}
+            >
+              Hvorfor visualisering
+            </span>
+            <h2
+              className="mt-2"
+              style={{ fontFamily: SERIF, color: C.navy, fontSize: 26, fontWeight: 500, lineHeight: 1.2 }}
+            >
+              Tre måder at vise boligens potentiale på
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { eyebrow: "Før / Efter", title: "AI-iscenesættelse", desc: "Vis det tomme rum forvandlet til et indbydende hjem på sekunder." },
+              { eyebrow: "3D Plantegning", title: "Forstå flowet", desc: "Lad køber se rummet i dybden med en interaktiv plantegning." },
+              { eyebrow: "Branchevideo", title: "Cinematisk fortælling", desc: "Skab en levende videogennemgang der vækker følelser." },
+            ].map((t) => (
+              <div
+                key={t.eyebrow}
+                className="transition-shadow hover:shadow-lg"
+                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 22px" }}
+                data-testid={`bolig-why-tile-${t.eyebrow}`}
+              >
+                <div className="uppercase mb-2" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.18em" }}>
+                  {t.eyebrow}
+                </div>
+                <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, lineHeight: 1.3, marginBottom: 6 }}>
+                  {t.title}
+                </div>
+                <div style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.55 }}>
+                  {t.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ── HOW IT WORKS ── */}
       <section id="how-it-works" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} className="px-6" data-testid="bolig-how-it-works">
