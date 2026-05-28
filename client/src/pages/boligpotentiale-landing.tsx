@@ -44,6 +44,7 @@ const SERIF = "'Playfair Display', Georgia, serif";
 const SANS = "'Inter', system-ui, -apple-system, sans-serif";
 
 const NAV_LINKS = [
+  { label: "FORSIDE", href: "#top" },
   { label: "SÅDAN VIRKER DET", href: "#how-it-works" },
   { label: "EKSEMPLER", href: "#showcase" },
   { label: "PRISER", href: "#pricing" },
@@ -972,6 +973,7 @@ function H2({ children, light = false, style }: { children: React.ReactNode; lig
 export default function BoligpotentialeLanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeNav, setActiveNav] = useState<string>("FORSIDE");
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
   useEffect(() => {
@@ -1000,32 +1002,79 @@ export default function BoligpotentialeLanding() {
           borderBottom: scrolled ? `1px solid ${C.border}` : "1px solid transparent",
         }}
       >
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-32">
-          <Link href="/boligpotentiale">
-            <div className="flex items-center cursor-pointer select-none" data-testid="bolig-nav-logo">
-              <img
-                src={formaEstatesLogo}
-                alt="Forma Estates"
-                className="w-auto"
-                style={{ height: 168 }}
-              />
-            </div>
-          </Link>
+        {/* Top utility bar — clean centered wordmark with thin underline (DR1-style) */}
+        <div
+          className="hidden md:flex items-center justify-center relative"
+          style={{ height: 30 }}
+          data-testid="bolig-nav-wordmark-bar"
+        >
+          <span
+            className="uppercase"
+            style={{
+              fontFamily: SERIF,
+              color: C.navy,
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.42em",
+              lineHeight: 1,
+              paddingLeft: "0.42em",
+            }}
+          >
+            FORMA ESTATES
+          </span>
+          <div
+            className="absolute left-1/2 -translate-x-1/2"
+            style={{ bottom: 0, width: 260, height: 1, background: C.border }}
+          />
+        </div>
 
-          <nav className="hidden md:flex items-center gap-9">
-            {NAV_LINKS.map((l) => (
-              <a
-                key={l.label}
-                href={l.href}
-                className="group relative transition-colors"
-                style={{ color: C.muted, fontSize: 12, fontWeight: 500, letterSpacing: "0.1em" }}
-                data-testid={`bolig-nav-${l.label}`}
-              >
-                <span className="group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy }}>{l.label}</span>
-                <span className="absolute -bottom-1.5 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-300" style={{ background: C.gold }} />
-              </a>
-            ))}
-          </nav>
+        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 h-28">
+          <div className="flex items-end gap-8">
+            <Link href="/boligpotentiale">
+              <div className="flex items-center cursor-pointer select-none" data-testid="bolig-nav-logo">
+                <img
+                  src={formaEstatesLogo}
+                  alt="Forma Estates"
+                  className="w-auto"
+                  style={{ height: 168 }}
+                />
+              </div>
+            </Link>
+
+            <nav className="hidden md:flex items-end gap-7 h-full pb-3">
+              {NAV_LINKS.map((l) => {
+                const isActive = activeNav === l.label;
+                return (
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    onClick={() => setActiveNav(l.label)}
+                    className="group relative transition-colors"
+                    style={{
+                      color: isActive ? C.navy : C.muted,
+                      fontSize: 13,
+                      fontWeight: isActive ? 700 : 500,
+                      letterSpacing: "0.1em",
+                      paddingBottom: 10,
+                    }}
+                    data-testid={`bolig-nav-${l.label}`}
+                  >
+                    <span className="group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy }}>
+                      {l.label}
+                    </span>
+                    <span
+                      className="absolute left-0 right-0 transition-all duration-200"
+                      style={{
+                        bottom: 0,
+                        height: isActive ? 4 : 0,
+                        background: C.navy,
+                      }}
+                    />
+                  </a>
+                );
+              })}
+            </nav>
+          </div>
 
           <div className="hidden md:flex items-center gap-3">
             <Link href="/login?redirect=/boligpotentiale/dashboard">
@@ -1094,7 +1143,7 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div style={{ paddingTop: 100 }} data-testid="bolig-hero">
+      <div id="top" style={{ paddingTop: 142 }} data-testid="bolig-hero">
         <HeroStage />
       </div>
 
@@ -1137,24 +1186,6 @@ export default function BoligpotentialeLanding() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* ── FORMA ESTATES wordmark — large centered heading below pills ── */}
-      <section style={{ background: C.warm, paddingTop: 32, paddingBottom: 20 }} className="px-4 sm:px-6 text-center" data-testid="bolig-wordmark-heading">
-        <h1
-          className="uppercase"
-          style={{
-            fontFamily: SERIF,
-            color: C.navy,
-            fontSize: 38,
-            fontWeight: 600,
-            letterSpacing: "0.38em",
-            lineHeight: 1.1,
-            paddingLeft: "0.38em",
-          }}
-        >
-          FORMA ESTATES
-        </h1>
       </section>
 
       {/* ── HVORFOR VISUALISERING — value tiles with descriptive headlines ── */}
