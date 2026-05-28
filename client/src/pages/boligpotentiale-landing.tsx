@@ -45,9 +45,9 @@ const SANS = "'Inter', system-ui, -apple-system, sans-serif";
 
 const NAV_LINKS = [
   { label: "FORSIDE", href: "#top" },
-  { label: "SÅDAN VIRKER DET", href: "#how-it-works" },
-  { label: "EKSEMPLER", href: "#showcase" },
   { label: "PRISER", href: "#pricing" },
+  { label: "EKSEMPLER", href: "#showcase" },
+  { label: "OM OS", href: "#om-os" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -1157,14 +1157,11 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
           <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
-              { label: "Før / Efter", href: "#how-it-works" },
-              { label: "3D Plantegning", href: "#plantegning" },
-              { label: "Branchevideo", href: "#video" },
-              { label: "AI Design Agent", href: "#ai-agent" },
-              { label: "Eksempler", href: "#eksempler" },
-              { label: "Priser", href: "#priser" },
-              { label: "Om os", href: "#om-os" },
-              { label: "FAQ", href: "#faq" },
+              { label: "Sådan virker det", href: "#how-it-works" },
+              { label: "Før / Efter", href: "#showcase" },
+              { label: "3D Plantegning", href: "#3d-plantegning" },
+              { label: "Branchevideo", href: "#cinematisk-video" },
+              { label: "AI Design Agent", href: "#ai-design-agent" },
             ].map((p) => (
               <a
                 key={p.label}
