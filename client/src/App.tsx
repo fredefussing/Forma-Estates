@@ -18,6 +18,7 @@ import SignupPage from "@/pages/signup";
 import AccountPage from "@/pages/account";
 import MyDesignsPage from "@/pages/my-designs";
 import AgentDesignDetailPage from "@/pages/agent-design-detail";
+import KontaktPage from "@/pages/kontakt";
 import DesignDetailPage from "@/pages/design-detail";
 import PaymentSuccessPage from "@/pages/payment-success";
 import BoligpotentialeLanding from "@/pages/boligpotentiale-landing";
@@ -88,6 +89,7 @@ function Router() {
       <Route path="/boligpotentiale/3d-plantegning" component={PlantegningPage} />
       <Route path="/boligpotentiale/branchevideo" component={BranchevideoPage} />
       <Route path="/boligpotentiale/ai-design-agent" component={AIDesignAgentSubpage} />
+      <Route path="/kontakt" component={KontaktPage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />
       <Route path="/" component={BoligpotentialeLanding} />
       <Route path="/nordic-homebuild" component={LandingPage} />

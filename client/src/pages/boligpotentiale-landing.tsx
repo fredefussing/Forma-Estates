@@ -1151,7 +1151,7 @@ export default function BoligpotentialeLanding() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <a href="mailto:kontakt@formaestates.dk">
+            <Link href="/kontakt">
               <button
                 className="transition-colors hover:bg-[color:var(--bg-warm)]"
                 style={{ ['--bg-warm' as any]: C.warm, padding: "10px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent", fontFamily: SANS }}
@@ -1159,7 +1159,7 @@ export default function BoligpotentialeLanding() {
               >
                 Kontakt os
               </button>
-            </a>
+            </Link>
             <Link href="/login?redirect=/boligpotentiale/dashboard">
               <button
                 className="transition-colors hover:bg-[color:var(--bg-warm)]"

@@ -11,7 +11,7 @@ import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail } from "./email";
+import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail, sendContactFormEmails } from "./email";
 import { analyzeDesignImage } from "./ai_analyzer";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
@@ -798,6 +798,40 @@ export async function registerRoutes(
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
       return res.json(quote);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, phone, company, role, teamSize, topic, message, consent } = req.body || {};
+      if (!name || typeof name !== "string" || name.trim().length < 2) {
+        return res.status(400).json({ message: "Navn mangler." });
+      }
+      if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: "Ugyldig e-mailadresse." });
+      }
+      if (!message || typeof message !== "string" || message.trim().length < 5) {
+        return res.status(400).json({ message: "Besked mangler." });
+      }
+      if (!consent) {
+        return res.status(400).json({ message: "Samtykke kræves." });
+      }
+
+      sendContactFormEmails({
+        name: String(name).trim(),
+        email: String(email).trim(),
+        phone: phone ? String(phone).trim() : undefined,
+        company: company ? String(company).trim() : undefined,
+        role: role ? String(role).trim() : undefined,
+        teamSize: teamSize ? String(teamSize).trim() : undefined,
+        topic: topic ? String(topic).trim() : undefined,
+        message: String(message).trim(),
+      });
+
+      log(`Contact form submitted by ${email}`);
+      return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

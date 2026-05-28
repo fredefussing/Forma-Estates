@@ -308,6 +308,96 @@ export async function sendOrderConfirmationEmail(data: {
   }
 }
 
+export async function sendContactFormEmails(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  role?: string;
+  teamSize?: string;
+  topic?: string;
+  message: string;
+}) {
+  const submittedAt = new Date().toLocaleString("da-DK", {
+    day: "numeric", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZone: "Europe/Copenhagen",
+  });
+
+  const row = (label: string, value?: string) =>
+    value && value.trim()
+      ? `<tr><td style="padding:8px 14px;color:#777;font-size:13px;width:160px;vertical-align:top;">${label}</td><td style="padding:8px 14px;color:#0F1923;font-size:14px;font-weight:500;">${value.replace(/\n/g, "<br/>")}</td></tr>`
+      : "";
+
+  try {
+    await sendBrevoEmail({
+      to: KONTAKT_EMAIL,
+      subject: `Ny kontaktforespørgsel — ${data.name}${data.company ? " · " + data.company : ""}`,
+      senderEmail: KONTAKT_EMAIL,
+      senderName: "Forma Estates",
+      replyTo: data.email,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:640px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Ny henvendelse</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">${data.name} vil i kontakt</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              ${row("Navn", data.name)}
+              ${row("E-mail", data.email)}
+              ${row("Telefon", data.phone)}
+              ${row("Firma", data.company)}
+              ${row("Rolle", data.role)}
+              ${row("Antal medarbejdere", data.teamSize)}
+              ${row("Henvendelse handler om", data.topic)}
+              ${row("Besked", data.message)}
+              ${row("Modtaget", submittedAt)}
+            </table>
+            <div style="padding:16px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">
+              Svar direkte på denne e-mail — den går til ${data.email}.
+            </div>
+          </div>
+        </div>
+      `,
+    });
+    log(`Contact form email sent to ${KONTAKT_EMAIL} (from ${data.email})`);
+  } catch (err: any) {
+    log(`Failed to send contact form admin email: ${err.message}`);
+  }
+
+  try {
+    await sendBrevoEmail({
+      to: data.email,
+      subject: "Tak for din henvendelse — Forma Estates",
+      senderEmail: KONTAKT_EMAIL,
+      senderName: "Forma Estates",
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
+            <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
+            <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">Tak — vi vender tilbage hurtigst muligt.</h1>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Hej ${data.name.split(" ")[0]},</p>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">
+              Vi har modtaget din besked og vender tilbage på <strong>${data.email}</strong> inden for én arbejdsdag.
+              I mellemtiden er du velkommen til at se vores eksempler eller læse om, hvordan vores AI-visualisering fungerer.
+            </p>
+            <div style="background:#FAF6EC;border-left:3px solid #C9A96E;padding:14px 18px;margin:20px 0;border-radius:4px;">
+              <div style="color:#777;font-size:12px;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Din besked</div>
+              <div style="color:#0F1923;font-size:14px;line-height:1.55;white-space:pre-wrap;">${data.message.replace(/</g, "&lt;")}</div>
+            </div>
+            <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">Venlig hilsen<br/><strong style="color:#0F1923;">Forma Estates</strong></p>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+        </div>
+      `,
+    });
+    log(`Contact form confirmation sent to ${data.email}`);
+  } catch (err: any) {
+    log(`Failed to send contact confirmation: ${err.message}`);
+  }
+}
+
 export async function sendSpecialRequestEmail(data: {
   customerEmail?: string | null;
   request: string;
