@@ -1000,35 +1000,14 @@ export default function BoligpotentialeLanding() {
           borderBottom: scrolled ? `1px solid ${C.border}` : "1px solid transparent",
         }}
       >
-        {/* Top utility bar — clean centered wordmark (DR1-style) */}
-        <div
-          className="hidden md:flex items-center justify-center"
-          style={{ height: 34, borderBottom: `1px solid ${C.border}`, background: "rgba(255,255,255,0.6)" }}
-          data-testid="bolig-nav-wordmark-bar"
-        >
-          <span
-            className="uppercase"
-            style={{
-              fontFamily: SERIF,
-              color: C.navy,
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: "0.42em",
-              lineHeight: 1,
-            }}
-          >
-            FORMA ESTATES
-          </span>
-        </div>
-
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-24">
+        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-32">
           <Link href="/boligpotentiale">
             <div className="flex items-center cursor-pointer select-none" data-testid="bolig-nav-logo">
               <img
                 src={formaEstatesLogo}
                 alt="Forma Estates"
                 className="w-auto"
-                style={{ height: 84 }}
+                style={{ height: 168 }}
               />
             </div>
           </Link>
@@ -1115,52 +1094,67 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div style={{ paddingTop: 130 }} data-testid="bolig-hero">
+      <div style={{ paddingTop: 128 }} data-testid="bolig-hero">
         <HeroStage />
       </div>
 
-      {/* ── HVORFOR VISUALISERING — quick value tiles under hero (DR1-style category row) ── */}
-      <section style={{ background: C.warm, paddingTop: 28, paddingBottom: 28 }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
+      {/* ── CATEGORY PILLS — DR1-style scrollable row of clickable section links ── */}
+      <section style={{ background: C.warm, paddingTop: 22, paddingBottom: 18 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1184 }}>
-          <div className="text-center mb-6">
-            <span
-              className="uppercase"
-              style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}
-            >
-              Hvorfor visualisering
-            </span>
-            <h2
-              className="mt-2"
-              style={{ fontFamily: SERIF, color: C.navy, fontSize: 26, fontWeight: 500, lineHeight: 1.2 }}
-            >
-              Tre måder at vise boligens potentiale på
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
             {[
-              { eyebrow: "Før / Efter", title: "AI-iscenesættelse", desc: "Vis det tomme rum forvandlet til et indbydende hjem på sekunder." },
-              { eyebrow: "3D Plantegning", title: "Forstå flowet", desc: "Lad køber se rummet i dybden med en interaktiv plantegning." },
-              { eyebrow: "Branchevideo", title: "Cinematisk fortælling", desc: "Skab en levende videogennemgang der vækker følelser." },
-            ].map((t) => (
-              <div
-                key={t.eyebrow}
-                className="transition-shadow hover:shadow-lg"
-                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 22px" }}
-                data-testid={`bolig-why-tile-${t.eyebrow}`}
+              { label: "Før / Efter", href: "#how-it-works" },
+              { label: "3D Plantegning", href: "#plantegning" },
+              { label: "Branchevideo", href: "#video" },
+              { label: "AI Design Agent", href: "#ai-agent" },
+              { label: "Eksempler", href: "#eksempler" },
+              { label: "Priser", href: "#priser" },
+              { label: "Om os", href: "#om-os" },
+              { label: "FAQ", href: "#faq" },
+            ].map((p) => (
+              <a
+                key={p.label}
+                href={p.href}
+                className="transition-colors whitespace-nowrap hover:bg-[color:var(--pill-h)]"
+                style={{
+                  ['--pill-h' as any]: C.navy,
+                  background: C.white,
+                  border: `1px solid ${C.border}`,
+                  color: C.navy,
+                  padding: "10px 18px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.navy; }}
+                data-testid={`bolig-pill-${p.label}`}
               >
-                <div className="uppercase mb-2" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.18em" }}>
-                  {t.eyebrow}
-                </div>
-                <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, lineHeight: 1.3, marginBottom: 6 }}>
-                  {t.title}
-                </div>
-                <div style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.55 }}>
-                  {t.desc}
-                </div>
-              </div>
+                {p.label}
+              </a>
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ── FORMA ESTATES wordmark — large centered heading below pills ── */}
+      <section style={{ background: C.warm, paddingTop: 32, paddingBottom: 20 }} className="px-4 sm:px-6 text-center" data-testid="bolig-wordmark-heading">
+        <h1
+          className="uppercase"
+          style={{
+            fontFamily: SERIF,
+            color: C.navy,
+            fontSize: 38,
+            fontWeight: 600,
+            letterSpacing: "0.38em",
+            lineHeight: 1.1,
+            paddingLeft: "0.38em",
+          }}
+        >
+          FORMA ESTATES
+        </h1>
       </section>
 
       {/* ── HOW IT WORKS ── */}
