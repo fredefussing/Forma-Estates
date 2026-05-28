@@ -1436,6 +1436,53 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
 
+      {/* ── SÆLG HURTIGERE — STATS ── */}
+      <section id="saelg-hurtigere" style={{ background: C.navy, paddingTop: 100, paddingBottom: 100 }} className="px-6" data-testid="bolig-stats">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-14">
+            <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.18em" }}>Sælg hurtigere</div>
+            <h2 className="mt-4" style={{ fontFamily: SERIF, color: C.white, fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}>
+              Tallene taler for sig selv.
+            </h2>
+            <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, lineHeight: 1.6 }}>
+              Boliger med professionel visualisering sælges hurtigere, til højere priser og tiltrækker flere visninger online.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+              { stat: "73%", label: "hurtigere salg", desc: "Iscenesatte boliger sælges i gennemsnit 73% hurtigere end ikke-iscenesatte." },
+              { stat: "+8%", label: "højere salgspris", desc: "Køberne byder typisk 1–8% mere for en bolig, der er visualiseret professionelt." },
+              { stat: "3×", label: "flere visninger online", desc: "Annoncer med staging-billeder får op til tre gange så mange klik på portalerne." },
+              { stat: "95%", label: "af køberne søger online", desc: "Førstehåndsindtrykket skabes på skærmen — ikke ved fremvisningen." },
+            ].map((s, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.6, delay: i * 0.12, ease: "easeOut" }}
+                className="text-center"
+                style={{ padding: "8px 4px" }}
+                data-testid={`bolig-stat-${i}`}
+              >
+                <div style={{ fontFamily: SERIF, color: C.gold, fontSize: "clamp(48px, 5.5vw, 64px)", fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                  {s.stat}
+                </div>
+                <div className="mt-3 uppercase" style={{ color: C.white, fontSize: 12, fontWeight: 600, letterSpacing: "0.14em" }}>
+                  {s.label}
+                </div>
+                <p className="mt-4 mx-auto" style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, lineHeight: 1.6, maxWidth: 240 }}>
+                  {s.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+          <div className="text-center mt-12" style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, letterSpacing: "0.04em" }}>
+            Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata
+          </div>
+        </div>
+      </section>
+
       {/* ── SHOWCASE ── */}
       <section id="showcase" className="px-6" style={{ background: C.champagne, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-showcase">
         <div className="mx-auto max-w-5xl">
