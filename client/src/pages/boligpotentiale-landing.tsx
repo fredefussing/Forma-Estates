@@ -32,7 +32,7 @@ const C = {
   goldTint: "rgba(201, 169, 110, 0.10)",
   goldBorder: "rgba(201, 169, 110, 0.30)",
   white: "#FFFFFF",
-  warm: "#F8F6F3",
+  warm: "#FAF6EC",
   champagne: "#E8DFD0",
   text: "#1A1A1A",
   muted: "#6B6B6B",
