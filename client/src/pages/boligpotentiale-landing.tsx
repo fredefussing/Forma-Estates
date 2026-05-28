@@ -1084,7 +1084,7 @@ export default function BoligpotentialeLanding() {
                   src={formaEstatesLogo}
                   alt="Forma Estates"
                   className="w-auto"
-                  style={{ height: 110 }}
+                  style={{ height: 150 }}
                 />
               </div>
             </Link>
