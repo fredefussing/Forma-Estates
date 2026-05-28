@@ -284,20 +284,30 @@ Final result: a fully realized, photorealistic interior environment with cinemat
 
 Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality`;
 
-const KLING_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
+// Luma Dream Machine understøtter native start- og slut-keyframes (frame0 +
+// frame1), hvilket Kling v1.6/pro ikke gør (det endpoint afviser
+// tail_image_url med 422 Unprocessable Entity). Dream Machine er ideelt til
+// "før → efter"-transformationer fordi modellen får hård evidens for begge
+// ender af animationen.
+const VIDEO_ENDPOINT = "fal-ai/luma-dream-machine";
+
+function buildVideoInput(beforeImageUrl: string, afterImageUrl: string) {
+  return {
+    prompt: TRANSFORM_VIDEO_PROMPT,
+    aspect_ratio: "16:9",
+    keyframes: {
+      frame0: { type: "image", url: beforeImageUrl },
+      frame1: { type: "image", url: afterImageUrl },
+    },
+  };
+}
 
 export async function generateAnimationVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
 ): Promise<{ videoUrl: string }> {
-  const result = await fal.subscribe(KLING_ENDPOINT, {
-    input: {
-      prompt: TRANSFORM_VIDEO_PROMPT,
-      image_url: beforeImageUrl,
-      tail_image_url: afterImageUrl,
-      duration: "5",
-      aspect_ratio: "16:9",
-    },
+  const result = await fal.subscribe(VIDEO_ENDPOINT, {
+    input: buildVideoInput(beforeImageUrl, afterImageUrl),
   });
 
   const videoUrl = (result.data as any).video?.url;
@@ -305,21 +315,16 @@ export async function generateAnimationVideo(
   return { videoUrl };
 }
 
-// Async (queued) variant: kling videos take 2-4 min which exceeds Replit's
-// proxy timeout (~2 min) on a single HTTP request. Submit returns immediately
-// with a request_id, then the client polls getAnimationVideoStatus.
+// Async (queued) variant: videoer tager 2-4 min hvilket overskrider Replits
+// proxy-timeout (~2 min) på et enkelt HTTP-request. Submit returnerer
+// straks med et request_id, og klienten poller derefter
+// getAnimationVideoStatus.
 export async function submitAnimationVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
 ): Promise<{ requestId: string }> {
-  const { request_id } = await fal.queue.submit(KLING_ENDPOINT, {
-    input: {
-      prompt: TRANSFORM_VIDEO_PROMPT,
-      image_url: beforeImageUrl,
-      tail_image_url: afterImageUrl,
-      duration: "5",
-      aspect_ratio: "16:9",
-    },
+  const { request_id } = await fal.queue.submit(VIDEO_ENDPOINT, {
+    input: buildVideoInput(beforeImageUrl, afterImageUrl),
   });
   return { requestId: request_id };
 }
@@ -328,9 +333,9 @@ export async function getAnimationVideoStatus(
   requestId: string,
 ): Promise<{ status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED"; videoUrl?: string; error?: string }> {
   try {
-    const s: any = await fal.queue.status(KLING_ENDPOINT, { requestId });
+    const s: any = await fal.queue.status(VIDEO_ENDPOINT, { requestId });
     if (s.status === "COMPLETED") {
-      const r: any = await fal.queue.result(KLING_ENDPOINT, { requestId });
+      const r: any = await fal.queue.result(VIDEO_ENDPOINT, { requestId });
       const videoUrl = r.data?.video?.url;
       if (!videoUrl) return { status: "FAILED", error: "No video in result" };
       return { status: "COMPLETED", videoUrl };
