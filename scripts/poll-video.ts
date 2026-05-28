@@ -1,22 +1,23 @@
-import { getAnimationVideoStatus, downloadToUploads } from "../server/fal";
-import path from "path";
+import { fal } from "@fal-ai/client";
 import fs from "fs";
+import path from "path";
 
-const requestId = "019e6da5-2854-7240-a8e4-caf552acc61d";
-const outDir = path.resolve("test-output");
-if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
+const ep = "fal-ai/kling-video/v1.6/pro/image-to-video";
+const requestId = "019e6db1-4abe-76e0-8bea-74cafcf84ee8";
 
 (async () => {
-  for (let i = 1; i <= 60; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
-    const s = await getAnimationVideoStatus(requestId);
-    console.log(`#${i}: ${s.status}${s.error ? " — " + s.error : ""}`);
-    if (s.status === "COMPLETED" && s.videoUrl) {
-      console.log("URL:", s.videoUrl);
-      const local = await downloadToUploads(s.videoUrl, outDir, ".mp4");
-      console.log("saved:", path.join(outDir, path.basename(local)));
-      return;
-    }
-    if (s.status === "FAILED") { console.error("FAILED:", s.error); process.exit(1); }
+  const s: any = await fal.queue.status(ep, { requestId });
+  console.log("status:", s.status);
+  if (s.status === "COMPLETED" || s.status === "IN_PROGRESS" || s.status === "IN_QUEUE") {
+    if (s.status !== "COMPLETED") { console.log("not done yet"); return; }
   }
+  const r: any = await fal.queue.result(ep, { requestId });
+  const url = r.data?.video?.url;
+  console.log("video URL:", url);
+  if (!url) return;
+  const resp = await fetch(url);
+  const buf = Buffer.from(await resp.arrayBuffer());
+  const out = path.resolve("test-output/kling-v16-pro.mp4");
+  fs.writeFileSync(out, buf);
+  console.log("saved:", out);
 })();

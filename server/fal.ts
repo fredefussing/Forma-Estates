@@ -306,20 +306,18 @@ Final result: a fully realized, photorealistic interior environment with cinemat
 
 Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality`;
 
-// Luma Dream Machine: native start- og slut-keyframes (frame0 + frame1).
-// Kling 2.0/v1.6 pro på fal.ai eksponerer ikke tail_image_url, så vi kan
-// ikke give modellen et "efter"-billede der. Luma er den nærmeste model
-// her som garanteret animerer fra før-billedet til efter-billedet.
-const VIDEO_ENDPOINT = "fal-ai/luma-dream-machine/ray-2/image-to-video";
+// Kling v1.6 pro: understøtter tail_image_url for før→efter-transitions.
+// Den oprindelige 422 fra dette endpoint var pga. billed-størrelse (>1920px)
+// — nu hvor uploadToFal resizer automatisk, virker tail_image_url fint.
+const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string) {
   return {
     prompt: TRANSFORM_VIDEO_PROMPT,
     image_url: beforeImageUrl,
-    end_image_url: afterImageUrl,
+    tail_image_url: afterImageUrl,
+    duration: "5",
     aspect_ratio: "16:9",
-    resolution: "720p",
-    duration: "5s",
   };
 }
 

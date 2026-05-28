@@ -12,3 +12,9 @@ id = "fW8BH7_x5BVZ1hRqZyMeB"
 uri = "file://test-output/1779956134062-31ayfzb417l.mp4"
 type = "video"
 title = "Transformeringsvideo (test)"
+
+[[outputs]]
+id = "dYHDa2aZxkMUbYYN_UKra"
+uri = "file://test-output/kling-v16-pro.mp4"
+type = "video"
+title = "Transformeringsvideo — Kling v1.6 pro"
