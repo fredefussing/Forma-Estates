@@ -73,19 +73,12 @@ function BoligGate({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Switch>
-      <Route path="/join/:code">
-        <BoligGate><BoligpotentialeJoinTeam /></BoligGate>
-      </Route>
-      <Route path="/boligpotentiale/join-team">
-        <BoligGate><BoligpotentialeJoinTeam /></BoligGate>
-      </Route>
-      <Route path="/boligpotentiale/dashboard">
-        <BoligGate><BoligpotentialeDashboard /></BoligGate>
-      </Route>
-      <Route path="/boligpotentiale">
-        <BoligGate><BoligpotentialeLanding /></BoligGate>
-      </Route>
-      <Route path="/" component={LandingPage} />
+      <Route path="/join/:code" component={BoligpotentialeJoinTeam} />
+      <Route path="/boligpotentiale/join-team" component={BoligpotentialeJoinTeam} />
+      <Route path="/boligpotentiale/dashboard" component={BoligpotentialeDashboard} />
+      <Route path="/boligpotentiale" component={BoligpotentialeLanding} />
+      <Route path="/" component={BoligpotentialeLanding} />
+      <Route path="/nordic-homebuild" component={LandingPage} />
       <Route path="/find-stil" component={FindStylePage} />
       <Route path="/trending" component={TrendingPage} />
       <Route path="/pris" component={PricingPage} />
