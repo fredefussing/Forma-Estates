@@ -493,6 +493,39 @@ function HeroStage() {
                   >
                     {slide.caption}
                   </p>
+                  <div className="mt-5">
+                    <Link href="/opret">
+                      <button
+                        className="group inline-flex items-center gap-2 text-white transition-all"
+                        style={{
+                          background: C.gold,
+                          padding: "13px 26px",
+                          borderRadius: 8,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          fontFamily: SANS,
+                          letterSpacing: "0.02em",
+                          boxShadow: "0 8px 24px rgba(201, 169, 110, 0.35)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = C.goldHover;
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                          e.currentTarget.style.boxShadow = "0 12px 28px rgba(201, 169, 110, 0.45)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = C.gold;
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "0 8px 24px rgba(201, 169, 110, 0.35)";
+                        }}
+                        data-testid="bolig-hero-cta"
+                      >
+                        Kom i gang
+                        <ChevronRight
+                          className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                        />
+                      </button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </motion.div>
