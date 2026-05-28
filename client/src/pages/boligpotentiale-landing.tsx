@@ -233,14 +233,12 @@ function HeroStage() {
   const slide = STAGE_SLIDES[index];
 
   // Slide timing (ms)
-  // Anim starts 1s after slide loads; auto-advance loader stays at 0 for 3s then fills.
+  // 1s lead-in (user sees "før"), smooth 2.5s wipe to "efter", then 5s rest before next slide.
   const SWIPE_BEFORE = 1000;
-  const SWIPE_IN = 2200;
-  const SWIPE_AFTER = 2500;
-  const SWIPE_OUT = 600;
-  const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER + SWIPE_OUT;
-  const VIDEO_DURATION = 7000;
-  const LOADER_DELAY = 3000;
+  const SWIPE_IN = 2500;
+  const SWIPE_AFTER = 5000;
+  const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER;
+  const VIDEO_DURATION = 8500;
 
   const advance = () => setIndex((i) => (i + 1) % STAGE_SLIDES.length);
   const go = (i: number) => {
@@ -271,13 +269,10 @@ function HeroStage() {
           setPos(1);
         } else if (elapsed < SWIPE_BEFORE + SWIPE_IN) {
           const t = (elapsed - SWIPE_BEFORE) / SWIPE_IN;
-          const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
           setPos(1 - eased);
-        } else if (elapsed < SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER) {
-          setPos(0);
         } else if (elapsed < SWIPE_TOTAL) {
-          const t = (elapsed - (SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER)) / SWIPE_OUT;
-          setPos(t);
+          setPos(0);
         } else {
           advance();
           return;
@@ -303,9 +298,7 @@ function HeroStage() {
     const loop = () => {
       const dur = slide.kind === "swipe" ? SWIPE_TOTAL : VIDEO_DURATION;
       const e = paused ? progress * dur : performance.now() - slideStartRef.current;
-      const loaderWindow = Math.max(1, dur - LOADER_DELAY);
-      const loaderElapsed = Math.max(0, e - LOADER_DELAY);
-      setProgress(Math.min(1, loaderElapsed / loaderWindow));
+      setProgress(Math.min(1, e / dur));
       id = requestAnimationFrame(loop);
     };
     id = requestAnimationFrame(loop);
