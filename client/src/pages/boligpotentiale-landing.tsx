@@ -1318,23 +1318,27 @@ export default function BoligpotentialeLanding() {
                 title: "AI-iscenesættelse",
                 desc: "Et tomt rum bliver til et hjem på sekunder.",
                 media: { kind: "image" as const, src: "/bolig-images/living-scandi-after.jpg" },
+                href: "/boligpotentiale/foer-efter",
               },
               {
                 eyebrow: "3D Plantegning",
                 title: "Forstå flowet",
                 desc: "Lad køber gå gennem rummet før første visning.",
                 media: { kind: "image" as const, src: "/bolig-images/floorplan-3d.jpg" },
+                href: "/boligpotentiale/3d-plantegning",
               },
               {
                 eyebrow: "Branchevideo",
                 title: "Cinematisk fortælling",
                 desc: "Vækk følelser med en levende videogennemgang.",
                 media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/kitchen-after.jpg" },
+                href: "/boligpotentiale/branchevideo",
               },
             ].map((t) => (
-              <div
+              <Link
                 key={t.eyebrow}
-                className="group cursor-pointer transition-all duration-500 hover:-translate-y-1"
+                href={t.href}
+                className="group cursor-pointer transition-all duration-500 hover:-translate-y-1 block"
                 style={{ background: C.white, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 40px rgba(15,25,35,0.06)" }}
                 data-testid={`bolig-why-tile-${t.eyebrow}`}
               >
@@ -1370,7 +1374,7 @@ export default function BoligpotentialeLanding() {
                     {t.desc}
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
