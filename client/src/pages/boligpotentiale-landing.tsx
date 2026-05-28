@@ -1097,10 +1097,12 @@ export default function BoligpotentialeLanding() {
                   <span className="relative inline-block group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy, paddingBottom: 6 }}>
                     {l.label}
                     <span
-                      className="absolute left-0 right-0 transition-all duration-200"
+                      className="absolute transition-all duration-200"
                       style={{
+                        left: "15%",
+                        right: "15%",
                         bottom: 0,
-                        height: isActive ? 4 : 0,
+                        height: isActive ? 2 : 0,
                         background: C.navy,
                       }}
                     />
