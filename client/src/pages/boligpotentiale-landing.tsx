@@ -1050,7 +1050,7 @@ export default function BoligpotentialeLanding() {
         {/* Top utility bar — clean centered wordmark with thin underline (DR1-style) */}
         <div
           className="hidden md:flex items-center justify-center relative"
-          style={{ height: 22 }}
+          style={{ height: 32, paddingTop: 10 }}
           data-testid="bolig-nav-wordmark-bar"
         >
           <span
