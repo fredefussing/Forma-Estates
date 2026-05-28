@@ -2131,8 +2131,9 @@ export async function registerRoutes(
           uploadToFal(afterPath, afterFile.mimetype),
         ]);
 
-        log(`[Video] submit before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
-        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl);
+        const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
+        log(`[Video] submit mode=${mode} before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
+        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode);
         log(`[Video] submitted request_id=${requestId}`);
 
         return res.json({

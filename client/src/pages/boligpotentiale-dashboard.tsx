@@ -2370,6 +2370,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [videoMode, setVideoMode] = useState<"cinematic" | "morph">("cinematic");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
 
@@ -2411,6 +2412,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       const fd = new FormData();
       fd.append("beforeImage", beforeFile);
       fd.append("afterImage", afterFile);
+      fd.append("mode", videoMode);
       const res = await fetch("/api/bolig/transform-video", {
         method: "POST",
         body: fd,
@@ -2568,6 +2570,46 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {renderDrop("before", beforePreview, "Før-billede")}
           {renderDrop("after", afterPreview, "Efter-billede")}
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#6B6B6B" }}>Videostil</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setVideoMode("cinematic")}
+              disabled={isGenerating}
+              className="text-left rounded-xl border p-3 transition-all disabled:opacity-50"
+              style={{
+                borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE",
+                background: videoMode === "cinematic" ? "#0F1D2F" : "white",
+                color: videoMode === "cinematic" ? "white" : "#0F1D2F",
+              }}
+              data-testid="button-video-mode-cinematic"
+            >
+              <div className="text-sm font-semibold">Cinematisk gennemgang</div>
+              <div className="text-xs mt-0.5" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>
+                Kameraet flyver gennem rummet — godt til socials og hero-video.
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVideoMode("morph")}
+              disabled={isGenerating}
+              className="text-left rounded-xl border p-3 transition-all disabled:opacity-50"
+              style={{
+                borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE",
+                background: videoMode === "morph" ? "#0F1D2F" : "white",
+                color: videoMode === "morph" ? "white" : "#0F1D2F",
+              }}
+              data-testid="button-video-mode-morph"
+            >
+              <div className="text-sm font-semibold">Forvandling</div>
+              <div className="text-xs mt-0.5" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>
+                Statisk kamera — rummet ombygger sig på stedet. Godt til præsentationer for boligejer.
+              </div>
+            </button>
+          </div>
         </div>
 
         <button

@@ -306,14 +306,35 @@ Final result: a fully realized, photorealistic interior environment with cinemat
 
 Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality`;
 
+// Alternativ "Forvandling": statisk kamera, ingen push-in. Rummet bygger
+// sig selv om på fladen: vægfarver flyder hen over fladerne, gulvet
+// fornyer sig plank for plank, gamle møbler opløses og nye møbler
+// folder/vokser frem til den endelige indretning. God til præsentationer
+// hvor mægleren vil bevise "før→efter" konkret.
+const TRANSFORM_VIDEO_MORPH_PROMPT = `Locked-off static camera. The camera does NOT move, pan, zoom, push, dolly, tilt, rotate, or shake at any point. Same fixed framing as the input image throughout the entire shot.
+
+The room transforms in place on a static frame: existing surfaces, materials, furniture, and decor smoothly morph and rebuild themselves into the new design, ending exactly on the after-image.
+
+Wall paint and wallpaper flow across the walls in a soft, continuous wash that replaces the old finish with the new one. Old flooring dissolves and new flooring rolls and tiles itself out across the floor plank by plank or tile by tile. Old furniture gently fades, breaks down, or shrinks away while new furniture grows, unfolds, and assembles itself in its final position with smooth physically realistic motion. Cabinetry doors, drawers, shelves, lamps, decor, plants, and textiles materialize and snap into place with elegant easing.
+
+Windows, doors, structural walls, ceiling, and the overall room geometry stay perfectly stable and act as anchors. No warping of the architecture, no perspective shift, no parallax — only the surfaces, fittings, and furnishings change.
+
+Lighting transitions softly from the before lighting to the after lighting as the new design settles in. Materials evolve from the old finishes to the new finishes (wood, stone, marble, fabric, glass, brass) with realistic reflections and PBR shading.
+
+The motion is smooth, elegant, and continuous, like a controlled architectural rebuild. The final frame matches the after-image precisely.
+
+Photorealistic, 8K, global illumination, soft shadows, high dynamic range, architectural visualization quality.`;
+
+export type VideoMode = "cinematic" | "morph";
+
 // Kling v1.6 pro: understøtter tail_image_url for før→efter-transitions.
 // Den oprindelige 422 fra dette endpoint var pga. billed-størrelse (>1920px)
 // — nu hvor uploadToFal resizer automatisk, virker tail_image_url fint.
 const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 
-function buildVideoInput(beforeImageUrl: string, afterImageUrl: string) {
+function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
   return {
-    prompt: TRANSFORM_VIDEO_PROMPT,
+    prompt: mode === "morph" ? TRANSFORM_VIDEO_MORPH_PROMPT : TRANSFORM_VIDEO_PROMPT,
     image_url: beforeImageUrl,
     tail_image_url: afterImageUrl,
     duration: "5",
@@ -324,9 +345,10 @@ function buildVideoInput(beforeImageUrl: string, afterImageUrl: string) {
 export async function generateAnimationVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
+  mode: VideoMode = "cinematic",
 ): Promise<{ videoUrl: string }> {
   const result = await fal.subscribe(VIDEO_ENDPOINT, {
-    input: buildVideoInput(beforeImageUrl, afterImageUrl),
+    input: buildVideoInput(beforeImageUrl, afterImageUrl, mode),
   });
 
   const videoUrl = (result.data as any).video?.url;
@@ -341,9 +363,10 @@ export async function generateAnimationVideo(
 export async function submitAnimationVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
+  mode: VideoMode = "cinematic",
 ): Promise<{ requestId: string }> {
   const { request_id } = await fal.queue.submit(VIDEO_ENDPOINT, {
-    input: buildVideoInput(beforeImageUrl, afterImageUrl),
+    input: buildVideoInput(beforeImageUrl, afterImageUrl, mode),
   });
   return { requestId: request_id };
 }
