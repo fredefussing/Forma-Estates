@@ -233,12 +233,12 @@ function HeroStage() {
   const slide = STAGE_SLIDES[index];
 
   // Slide timing (ms)
-  // 1s lead-in (user sees "før"), smooth 2.5s wipe to "efter", then 5s rest before next slide.
-  const SWIPE_BEFORE = 1000;
-  const SWIPE_IN = 2500;
-  const SWIPE_AFTER = 5000;
+  // 1.2s lead-in on "før", slow 3.8s wipe to "efter", then 4s rest before next slide.
+  const SWIPE_BEFORE = 1200;
+  const SWIPE_IN = 3800;
+  const SWIPE_AFTER = 4000;
   const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER;
-  const VIDEO_DURATION = 8500;
+  const VIDEO_DURATION = 9000;
 
   const advance = () => setIndex((i) => (i + 1) % STAGE_SLIDES.length);
   const go = (i: number) => {
@@ -269,7 +269,7 @@ function HeroStage() {
           setPos(1);
         } else if (elapsed < SWIPE_BEFORE + SWIPE_IN) {
           const t = (elapsed - SWIPE_BEFORE) / SWIPE_IN;
-          const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
           setPos(1 - eased);
         } else if (elapsed < SWIPE_TOTAL) {
           setPos(0);
@@ -362,7 +362,7 @@ function HeroStage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
               className="absolute inset-0"
             >
               {slide.kind === "swipe" ? (
