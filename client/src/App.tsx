@@ -23,6 +23,13 @@ import PaymentSuccessPage from "@/pages/payment-success";
 import BoligpotentialeLanding from "@/pages/boligpotentiale-landing";
 import BoligpotentialeDashboard from "@/pages/boligpotentiale-dashboard";
 import BoligpotentialeJoinTeam from "@/pages/boligpotentiale-join-team";
+import {
+  EksemplerPage,
+  ForEfterPage,
+  PlantegningPage,
+  BranchevideoPage,
+  AIDesignAgentPage as AIDesignAgentSubpage,
+} from "@/pages/boligpotentiale-subpages";
 
 // ─────────────────────────────────────────────────────────────────────
 // AI Boligfremvisning er midlertidigt sat på pause. Sektionen er kun
@@ -76,6 +83,11 @@ function Router() {
       <Route path="/join/:code" component={BoligpotentialeJoinTeam} />
       <Route path="/boligpotentiale/join-team" component={BoligpotentialeJoinTeam} />
       <Route path="/boligpotentiale/dashboard" component={BoligpotentialeDashboard} />
+      <Route path="/boligpotentiale/eksempler" component={EksemplerPage} />
+      <Route path="/boligpotentiale/foer-efter" component={ForEfterPage} />
+      <Route path="/boligpotentiale/3d-plantegning" component={PlantegningPage} />
+      <Route path="/boligpotentiale/branchevideo" component={BranchevideoPage} />
+      <Route path="/boligpotentiale/ai-design-agent" component={AIDesignAgentSubpage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />
       <Route path="/" component={BoligpotentialeLanding} />
       <Route path="/nordic-homebuild" component={LandingPage} />

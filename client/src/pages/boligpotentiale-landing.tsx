@@ -46,7 +46,7 @@ const SANS = "'Inter', system-ui, -apple-system, sans-serif";
 const NAV_LINKS = [
   { label: "FORSIDE", href: "#top" },
   { label: "PRISER", href: "#pricing" },
-  { label: "EKSEMPLER", href: "#showcase" },
+  { label: "EKSEMPLER", href: "/boligpotentiale/eksempler" },
   { label: "OM OS", href: "#om-os" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -1050,31 +1050,51 @@ export default function BoligpotentialeLanding() {
             <nav className="hidden md:flex items-stretch gap-7 self-stretch">
               {NAV_LINKS.map((l) => {
                 const isActive = activeNav === l.label;
+                const isInternalPage = l.href.startsWith("/");
+                const content = (
+                  <span className="relative inline-block group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy, paddingBottom: 6 }}>
+                    {l.label}
+                    <span
+                      className="absolute left-0 right-0 transition-all duration-200"
+                      style={{
+                        bottom: 0,
+                        height: isActive ? 4 : 0,
+                        background: C.navy,
+                      }}
+                    />
+                  </span>
+                );
+                const className = "group relative transition-colors flex items-center";
+                const style = {
+                  color: isActive ? C.navy : C.muted,
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 500,
+                  letterSpacing: "0.1em" as const,
+                };
+                if (isInternalPage) {
+                  return (
+                    <Link
+                      key={l.label}
+                      href={l.href}
+                      onClick={() => setActiveNav(l.label)}
+                      className={className}
+                      style={style}
+                      data-testid={`bolig-nav-${l.label}`}
+                    >
+                      {content}
+                    </Link>
+                  );
+                }
                 return (
                   <a
                     key={l.label}
                     href={l.href}
                     onClick={() => setActiveNav(l.label)}
-                    className="group relative transition-colors flex items-center"
-                    style={{
-                      color: isActive ? C.navy : C.muted,
-                      fontSize: 13,
-                      fontWeight: isActive ? 700 : 500,
-                      letterSpacing: "0.1em",
-                    }}
+                    className={className}
+                    style={style}
                     data-testid={`bolig-nav-${l.label}`}
                   >
-                    <span className="relative inline-block group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy, paddingBottom: 6 }}>
-                      {l.label}
-                      <span
-                        className="absolute left-0 right-0 transition-all duration-200"
-                        style={{
-                          bottom: 0,
-                          height: isActive ? 4 : 0,
-                          background: C.navy,
-                        }}
-                      />
-                    </span>
+                    {content}
                   </a>
                 );
               })}
@@ -1158,31 +1178,52 @@ export default function BoligpotentialeLanding() {
           <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
               { label: "Sådan virker det", href: "#how-it-works" },
-              { label: "Før / Efter", href: "#showcase" },
-              { label: "3D Plantegning", href: "#3d-plantegning" },
-              { label: "Branchevideo", href: "#cinematisk-video" },
-              { label: "AI Design Agent", href: "#ai-design-agent" },
-            ].map((p) => (
-              <a
-                key={p.label}
-                href={p.href}
-                className="transition-colors whitespace-nowrap"
-                style={{
-                  color: C.gold,
-                  fontSize: "0.7rem",
-                  fontWeight: 600,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  paddingBottom: 4,
-                  borderBottom: "1px solid transparent",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#E4CB94"; e.currentTarget.style.borderBottomColor = "#E4CB94"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderBottomColor = "transparent"; }}
-                data-testid={`bolig-pill-${p.label}`}
-              >
-                {p.label}
-              </a>
-            ))}
+              { label: "Før / Efter", href: "/boligpotentiale/foer-efter" },
+              { label: "3D Plantegning", href: "/boligpotentiale/3d-plantegning" },
+              { label: "Branchevideo", href: "/boligpotentiale/branchevideo" },
+              { label: "AI Design Agent", href: "/boligpotentiale/ai-design-agent" },
+            ].map((p) => {
+              const tabStyle = {
+                color: C.gold,
+                fontSize: "0.7rem",
+                fontWeight: 600,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase" as const,
+                paddingBottom: 4,
+                borderBottom: "1px solid transparent",
+              };
+              const tabClass = "transition-colors whitespace-nowrap";
+              const onEnter = (e: any) => { e.currentTarget.style.color = "#E4CB94"; e.currentTarget.style.borderBottomColor = "#E4CB94"; };
+              const onLeave = (e: any) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderBottomColor = "transparent"; };
+              if (p.href.startsWith("/")) {
+                return (
+                  <Link
+                    key={p.label}
+                    href={p.href}
+                    className={tabClass}
+                    style={tabStyle}
+                    onMouseEnter={onEnter}
+                    onMouseLeave={onLeave}
+                    data-testid={`bolig-pill-${p.label}`}
+                  >
+                    {p.label}
+                  </Link>
+                );
+              }
+              return (
+                <a
+                  key={p.label}
+                  href={p.href}
+                  className={tabClass}
+                  style={tabStyle}
+                  onMouseEnter={onEnter}
+                  onMouseLeave={onLeave}
+                  data-testid={`bolig-pill-${p.label}`}
+                >
+                  {p.label}
+                </a>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -1782,6 +1823,47 @@ export default function BoligpotentialeLanding() {
                 </motion.div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── OM OS ── */}
+      <section id="om-os" className="px-6" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-om-os">
+        <div className="mx-auto" style={{ maxWidth: 880 }}>
+          <div className="text-center mb-10">
+            <Overline>Om os</Overline>
+            <H2>Bygget af mæglere — for mæglere.</H2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-10 items-start">
+            <div>
+              <p style={{ color: C.muted, fontSize: 16, lineHeight: 1.7, marginBottom: 16 }}>
+                Forma Estates er skabt for at give danske ejendomsmæglere et professionelt visualiseringsværktøj — uden lang ventetid, dyre stagere eller komplicerede aftaler.
+              </p>
+              <p style={{ color: C.muted, fontSize: 16, lineHeight: 1.7 }}>
+                Vi kombinerer AI med håndholdt kvalitetskontrol, så hvert billede ser ud som om en stylist har stået i rummet — bare på minutter i stedet for dage.
+              </p>
+            </div>
+            <div
+              style={{
+                background: C.white,
+                border: `1px solid ${C.border}`,
+                borderRadius: 14,
+                padding: "28px 30px",
+              }}
+              data-testid="bolig-om-os-contact"
+            >
+              <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
+                Kontakt
+              </div>
+              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 22, fontWeight: 500, lineHeight: 1.3, marginBottom: 14 }}>
+                Vi svarer typisk samme dag.
+              </div>
+              <div style={{ color: C.navy, fontSize: 15, lineHeight: 1.8 }}>
+                <div>hej@formaestates.dk</div>
+                <div>+45 00 00 00 00</div>
+                <div style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>København, Danmark</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
