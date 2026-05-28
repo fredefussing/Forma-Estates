@@ -1478,7 +1478,7 @@ export default function BoligpotentialeLanding() {
             ))}
           </div>
           <div className="text-center mt-12" style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, letterSpacing: "0.04em" }}>
-            Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata
+            Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home
           </div>
         </div>
       </section>
