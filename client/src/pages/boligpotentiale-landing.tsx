@@ -330,7 +330,7 @@ function HeroStage() {
   return (
     <section
       className="relative"
-      style={{ background: C.champagne, paddingTop: 14, paddingBottom: 18 }}
+      style={{ background: C.navy, paddingTop: 14, paddingBottom: 18 }}
       data-testid="bolig-hero-stage"
     >
       <div className="w-full px-2 sm:px-3 lg:px-4">
