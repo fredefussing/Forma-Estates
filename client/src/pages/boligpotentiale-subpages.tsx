@@ -6,6 +6,7 @@ const C = {
   navy: "#0F1923",
   gold: "#C9A96E",
   warm: "#F8F6F3",
+  champagne: "#E8DFD0",
   white: "#FFFFFF",
   muted: "#6B7280",
   border: "#E5E1D8",
@@ -26,9 +27,9 @@ function SubpageLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ background: C.warm, minHeight: "100vh", fontFamily: SANS, color: C.navy }}>
+    <div style={{ background: C.champagne, minHeight: "100vh", fontFamily: SANS, color: C.navy }}>
       {/* Header — simple wordmark + back link */}
-      <header style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
+      <header style={{ background: C.champagne, borderBottom: `1px solid ${C.border}` }}>
         <div className="mx-auto max-w-7xl flex items-center justify-between px-6" style={{ height: 96 }}>
           <Link href="/boligpotentiale">
             <div className="flex items-center cursor-pointer select-none" data-testid="subpage-logo">

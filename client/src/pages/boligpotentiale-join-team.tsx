@@ -47,7 +47,7 @@ export default function BoligpotentialeJoinTeam() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#F5F3EF" }}>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#E8DFD0" }}>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         className="bg-white rounded-2xl border border-[#E8E4DE] shadow-lg p-8 w-full max-w-sm text-center">
 

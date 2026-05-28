@@ -1041,11 +1041,10 @@ export default function BoligpotentialeLanding() {
 
       {/* ── NAV ── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-200"
+        className="relative z-30"
         style={{
-          background: scrolled ? "rgba(232,223,208,0.88)" : C.champagne,
-          backdropFilter: scrolled ? "blur(12px)" : "none",
-          borderBottom: scrolled ? `1px solid ${C.border}` : "1px solid transparent",
+          background: C.champagne,
+          borderBottom: "1px solid transparent",
         }}
       >
         {/* Top utility bar — clean centered wordmark with thin underline (DR1-style) */}
@@ -1211,7 +1210,7 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
-      <div id="top" style={{ paddingTop: 142, background: C.navy }} data-testid="bolig-hero">
+      <div id="top" style={{ background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
       </div>
 
