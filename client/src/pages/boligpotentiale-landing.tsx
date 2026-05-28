@@ -1058,8 +1058,8 @@ export default function BoligpotentialeLanding() {
             style={{
               fontFamily: SERIF,
               color: C.navy,
-              fontSize: 12,
-              fontWeight: 600,
+              fontSize: 14,
+              fontWeight: 700,
               letterSpacing: "0.42em",
               lineHeight: 1,
               paddingLeft: "0.42em",
@@ -1069,7 +1069,7 @@ export default function BoligpotentialeLanding() {
           </span>
           <div
             className="absolute left-1/2 -translate-x-1/2"
-            style={{ bottom: 0, width: 260, height: 1, background: C.border }}
+            style={{ bottom: 0, width: 280, height: 1, background: "#9A8F7C" }}
           />
         </div>
 
