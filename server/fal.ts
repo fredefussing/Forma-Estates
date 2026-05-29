@@ -334,7 +334,7 @@ export async function generate360Panorama(
 // fornyer sig plank for plank, gamle møbler opløses og nye møbler
 // folder/vokser frem til den endelige indretning. God til præsentationer
 // hvor mægleren vil bevise "før→efter" konkret.
-const TRANSFORM_VIDEO_MORPH_PROMPT = `Every element begins at miniature scale on the floor and grows smoothly upward to full size in a clean scale-up motion. Furniture, cabinetry, and decor maintain their exact proportions while expanding naturally from ground level — no stretching, no warping, no deformation. Flooring and surfaces simply appear polished and reflective as elements settle. Windows, walls, doors, and room structure remain completely fixed as the anchor. Warm natural daylight floods the space gradually, soft ambient lighting glows within. Camera slowly pushes forward with subtle parallax, foreground moves slightly faster than background for depth. Smooth, slow, cinematic, no abrupt motion. Photorealistic, warm neutral tones, soft shadows, 1080p.`;
+const TRANSFORM_VIDEO_MORPH_PROMPT = `A smooth, gradual room renovation transformation. The old interior naturally morphs into the new interior. All architectural elements remain perfectly preserved — walls, windows, doors, flooring layout, room geometry. Only the interior styling, furniture, and materials change. Warm natural daylight, soft shadows, photorealistic, smooth slow motion, no abrupt changes, no warping, no deformation, no stretching.`;
 
 // "Cinematisk gennemgang": kameraet glider/svæver ind i det NYE rum. Vi giver
 // kun efter-billedet som startframe (ingen end_image), så modellen er fri til
