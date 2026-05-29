@@ -351,13 +351,15 @@ Photorealistic, 8K, global illumination, soft shadows, high dynamic range, archi
 // "Cinematisk gennemgang": kameraet glider/svæver ind i det NYE rum. Vi giver
 // kun efter-billedet som startframe (ingen end_image), så modellen er fri til
 // en ren kamerabevægelse i stedet for at være bundet til en før→efter-morph.
-const CINEMATIC_FLYTHROUGH_PROMPT = `A smooth cinematic camera slowly glides forward and moves deeper into the interior, like an elegant steadicam or drone push-in, with gentle parallax where foreground elements drift slightly faster than the background to create a strong sense of depth.
+const CINEMATIC_FLYTHROUGH_PROMPT = `A cinematic first-person real-estate walkthrough: the camera enters the room as if a person is stepping inside and looking around, like a smooth handheld steadicam tour. It moves gently forward into the space and slowly pans and tilts to reveal different parts of the room — sweeping across the furniture, walls, windows, and key features — as if a buyer is taking in the room from the inside.
+
+The motion combines a soft forward push with natural, gentle panning left and right and a subtle look up and down, giving a sense of exploring and surveying the space. Gentle parallax makes foreground elements drift slightly faster than the background to enhance depth.
 
 The room and everything in it stays exactly as shown — furniture, materials, colors, lighting, and layout do NOT change, morph, appear, or disappear. Nothing transforms. Only the camera moves.
 
-The motion is slow, steady, and continuous with no shake, no abrupt cuts, and no warping of the architecture. Walls, windows, doors, and furniture keep correct, stable perspective as the camera travels through the space.
+The movement is slow, smooth, and continuous with no harsh shake, no abrupt cuts, and no warping of the architecture. Walls, windows, doors, and furniture keep correct, stable perspective throughout the tour.
 
-Photorealistic, cinematic interior walkthrough, soft natural lighting, high detail, architectural visualization quality.`;
+Photorealistic, cinematic interior real-estate walkthrough, soft natural lighting, high detail, architectural visualization quality.`;
 
 export type VideoMode = "cinematic" | "morph";
 
