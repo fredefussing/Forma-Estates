@@ -334,19 +334,7 @@ export async function generate360Panorama(
 // fornyer sig plank for plank, gamle møbler opløses og nye møbler
 // folder/vokser frem til den endelige indretning. God til præsentationer
 // hvor mægleren vil bevise "før→efter" konkret.
-const TRANSFORM_VIDEO_MORPH_PROMPT = `Locked-off static camera. The camera does NOT move, pan, zoom, push, dolly, tilt, rotate, or shake at any point. Same fixed framing as the input image throughout the entire shot.
-
-The room transforms in place on a static frame: existing surfaces, materials, furniture, and decor smoothly morph and rebuild themselves into the new design, ending exactly on the after-image.
-
-Wall paint and wallpaper flow across the walls in a soft, continuous wash that replaces the old finish with the new one. Old flooring dissolves and new flooring rolls and tiles itself out across the floor plank by plank or tile by tile. Old furniture gently fades, breaks down, or shrinks away while new furniture grows, unfolds, and assembles itself in its final position with smooth physically realistic motion. Cabinetry doors, drawers, shelves, lamps, decor, plants, and textiles materialize and snap into place with elegant easing.
-
-Windows, doors, structural walls, ceiling, and the overall room geometry stay perfectly stable and act as anchors. No warping of the architecture, no perspective shift, no parallax — only the surfaces, fittings, and furnishings change.
-
-Lighting transitions softly from the before lighting to the after lighting as the new design settles in. Materials evolve from the old finishes to the new finishes (wood, stone, marble, fabric, glass, brass) with realistic reflections and PBR shading.
-
-The motion is smooth, elegant, and continuous, like a controlled architectural rebuild. The final frame matches the after-image precisely.
-
-Photorealistic, 8K, global illumination, soft shadows, high dynamic range, architectural visualization quality.`;
+const TRANSFORM_VIDEO_MORPH_PROMPT = `Every element in the room begins at miniature scale on the floor — tiny versions of all furniture, fixtures, and decor simultaneously grow upward from ground level, expanding smoothly to full size in a clean and elegant scale-up motion. The flooring material spreads outward seamlessly from the center as elements grow, becoming polished and reflective. Wall finishes and built-in features rise gently along the walls, forming a minimal, refined structure. All windows, doors, and the outdoor view remain completely constant as the anchor, while curtains and window treatments subtly fade and extend into place. Each architectural and interior element forms progressively — cabinetry expands into position, countertops and surfaces grow horizontally then thicken, seating and tables rise and settle softly. Warm natural daylight floods the space from the windows, gradually increasing in brightness and clarity. Soft ambient lighting appears within the room with a warm glow. Plants and greenery scale up organically with slight natural motion. Decorative objects, cushions, and textiles softly inflate into place with gentle easing. Each element reaches full size with a light, airy settle, maintaining a clean and weightless aesthetic. The camera slowly pushes forward into the space with subtle parallax — foreground elements like furniture shift slightly faster than background elements, enhancing depth and realism. Movement is smooth, slow, and cinematic with no abrupt motion. Wide-angle architectural lens, soft shadows, warm neutral tones, ultra-clean interior design, photorealistic, high detail, global illumination, soft exposure adaptation, 1080p, smooth cinematic motion.`;
 
 // "Cinematisk gennemgang": kameraet glider/svæver ind i det NYE rum. Vi giver
 // kun efter-billedet som startframe (ingen end_image), så modellen er fri til
