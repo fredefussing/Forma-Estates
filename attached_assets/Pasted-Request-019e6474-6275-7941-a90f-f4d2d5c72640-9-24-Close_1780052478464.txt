@@ -1,0 +1,142 @@
+Request
+
+019e6474-6275-7941-a90f-f4d2d5c72640
+
+
+9/24
+
+Close
+
+Details
+Transform the scene from an empty or existing interior into a fully furnished, fully designed modern space through a smooth architectural growth anima...see all
+
+0.000s
+Submitted
+0.113s
+0.113s
+Warm
+Start
+0.127s
+0.240s
+Execution
+Started
+160.600s
+160.840s
+Execution
+Finished
+aspect_ratio
+16:9
+Endpoint
+fal-ai/kling-video/v3/pro/image-to-video
+Request ID
+
+019e6474-6275-7941-a90f-f4d2d5c72640
+Status
+200
+Duration
+
+160.60s
+Created
+
+3 days ago
+Cost
+
+$1.344
+Runner ID
+34bd3b47
+Auth Method
+
+3Dfloorplan x animatet Videos
+
+Timing
+Submitted
+0.000s
+Request was submitted to the system, it's queued for processing.
+May 26th, 2026 at 3:23:29 PM GMT+2
+Warm Start
+0.113s
+Server instance was already running, no boot delay.
+May 26th, 2026 at 3:23:29 PM GMT+2
+0.127s
+Execution Started
+0.240s
+Application execution has begun.
+May 26th, 2026 at 3:23:29 PM GMT+2
+160.600s
+First Byte
+160.840s
+First response byte received from the model. This might be close to the time the execution finished unless it uses streaming or real-time requests.
+May 26th, 2026 at 3:26:10 PM GMT+2
+Execution Finished
+160.840s
+Application execution completed and response was sent to the client.
+May 26th, 2026 at 3:26:10 PM GMT+2
+
+Input
+
+{
+  "prompt": "Transform the scene from an empty or existing interior into a fully furnished, fully designed modern space through a smooth architectural growth animation.\n\nAll furniture, architectural elements, and decor begin at minimal or reduced scale within the room and gradually scale up into their final full-size positions. Objects emerge naturally from the floor, walls, and structural surfaces with smooth, physically realistic motion.\n\nThe entire room structure refines progressively: flooring extends and completes itself, wall materials finish and refine, built-in elements grow into place, and architectural details resolve from simple forms into fully detailed surfaces.\n\nAll furniture appears in correct spatial positions according to a realistic interior layout, including seating areas, tables, storage units, lighting fixtures, and decorative elements appropriate to the room type. Each element expands smoothly with natural easing and settles gently into its final position.\n\nWindows, doors, and fixed architectural boundaries remain constant throughout the animation and act as stable anchors for the transformation.\n\nLighting transitions gradually from neutral base lighting to a fully realized atmospheric lighting setup, with warm ambient illumination and soft natural daylight blending seamlessly. Interior lights fade in naturally as furniture and materials finalize.\n\nMaterials evolve from basic surfaces into fully detailed, high-quality finishes such as wood, stone, fabric, glass, and metal, with realistic reflections and physically based rendering.\n\nA slow cinematic camera movement pushes gently through the space, maintaining a wide-angle architectural perspective with subtle parallax to enhance depth. Foreground and background elements shift naturally to reinforce realism.\n\nThe motion is smooth, elegant, and continuous with no abrupt transitions. The entire transformation feels like a real-time architectural build-up of the space.\n\nFinal result: a fully realized, photorealistic interior environment with cinematic lighting, high detail, and cohesive design.\n\nResolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality",
+  "image_url": "https://v3b.fal.media/files/b/0a9bc314/MgrCfGziji-mUjRYHlVJ-_1779801807541-yt4wogx2del.jpg",
+  "end_image_url": "https://v3b.fal.media/files/b/0a9bc314/oPFDY8ZUTFLntcglQ_yTR_1779801808326-lowletkfm5.jpg",
+  "duration": 8,
+  "aspect_ratio": "16:9"
+}
+
+Output
+
+{
+  "video": {
+    "url": "https://v3b.fal.media/files/b/0a9bc324/JhKoCRe64FNkk5smQfOB8_output.mp4",
+    "content_type": "video/mp4",
+    "file_name": "output.mp4",
+    "file_size": 12406620
+  }
+}
+
+Logs
+
+No logs available
+
+Code
+
+JavaScript / Node.js
+
+import { fal } from "@fal-ai/client";
+
+const result = await fal.subscribe("fal-ai/kling-video/v3/pro/image-to-video", {
+  input: {
+    prompt: "Transform the scene from an empty or existing interior into a fully furnished, fully designed modern space through a smooth architectural growth animation.
+
+  All furniture, architectural elements, and decor begin at minimal or reduced scale within the room and gradually scale up into their final full-size positions. Objects emerge naturally from the floor, walls, and structural surfaces with smooth, physically realistic motion.
+
+  The entire room structure refines progressively: flooring extends and completes itself, wall materials finish and refine, built-in elements grow into place, and architectural details resolve from simple forms into fully detailed surfaces.
+
+  All furniture appears in correct spatial positions according to a realistic interior layout, including seating areas, tables, storage units, lighting fixtures, and decorative elements appropriate to the room type. Each element expands smoothly with natural easing and settles gently into its final position.
+
+  Windows, doors, and fixed architectural boundaries remain constant throughout the animation and act as stable anchors for the transformation.
+
+  Lighting transitions gradually from neutral base lighting to a fully realized atmospheric lighting setup, with warm ambient illumination and soft natural daylight blending seamlessly. Interior lights fade in naturally as furniture and materials finalize.
+
+  Materials evolve from basic surfaces into fully detailed, high-quality finishes such as wood, stone, fabric, glass, and metal, with realistic reflections and physically based rendering.
+
+  A slow cinematic camera movement pushes gently through the space, maintaining a wide-angle architectural perspective with subtle parallax to enhance depth. Foreground and background elements shift naturally to reinforce realism.
+
+  The motion is smooth, elegant, and continuous with no abrupt transitions. The entire transformation feels like a real-time architectural build-up of the space.
+
+  Final result: a fully realized, photorealistic interior environment with cinematic lighting, high detail, and cohesive design.
+
+  Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality",
+    image_url: "https://v3b.fal.media/files/b/0a9bc314/MgrCfGziji-mUjRYHlVJ-_1779801807541-yt4wogx2del.jpg",
+    end_image_url: "https://v3b.fal.media/files/b/0a9bc314/oPFDY8ZUTFLntcglQ_yTR_1779801808326-lowletkfm5.jpg",
+    duration: 8,
+    aspect_ratio: "16:9"
+  },
+  logs: true,
+  onQueueUpdate: (update) => {
+    if (update.status === "IN_PROGRESS") {
+      update.logs.map((log) => log.message).forEach(console.log);
+    }
+  },
+});
+console.log(result.data);
+console.log(result.requestId);

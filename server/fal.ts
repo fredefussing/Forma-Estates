@@ -327,20 +327,16 @@ Photorealistic, 8K, global illumination, soft shadows, high dynamic range, archi
 
 export type VideoMode = "cinematic" | "morph";
 
-// Kling v1.6 pro: understøtter tail_image_url for før→efter-transitions.
-// Den oprindelige 422 fra dette endpoint var pga. billed-størrelse (>1920px)
-// — nu hvor uploadToFal resizer automatisk, virker tail_image_url fint.
-const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
+// Kling v3 pro: før→efter via start_image_url + end_image_url. Dette er de
+// settings der gav den rene, glidende forvandling på ~3 min (8s video).
+const VIDEO_ENDPOINT = "fal-ai/kling-video/v3/pro/image-to-video";
 
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
   return {
     prompt: mode === "morph" ? TRANSFORM_VIDEO_MORPH_PROMPT : TRANSFORM_VIDEO_PROMPT,
-    image_url: beforeImageUrl,
-    tail_image_url: afterImageUrl,
-    // Morph ("Forvandling") needs the longer 10s window so the room rebuilds
-    // itself gradually and smoothly instead of snapping between før/efter.
-    duration: (mode === "morph" ? "10" : "5") as "5" | "10",
-    aspect_ratio: "16:9" as const,
+    start_image_url: beforeImageUrl,
+    end_image_url: afterImageUrl,
+    duration: "8" as const,
   };
 }
 
