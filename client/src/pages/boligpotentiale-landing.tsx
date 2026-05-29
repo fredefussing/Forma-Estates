@@ -1387,6 +1387,13 @@ export default function BoligpotentialeLanding() {
                   <div style={{ color: C.muted, fontSize: 15, lineHeight: 1.6 }}>
                     {t.desc}
                   </div>
+                  <span
+                    className="inline-flex items-center gap-1.5 mt-5 transition-all group-hover:gap-2.5"
+                    style={{ color: C.navy, fontSize: 13, fontWeight: 600, letterSpacing: "0.04em" }}
+                  >
+                    Se mere
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" style={{ color: C.gold }} />
+                  </span>
                 </div>
               </Link>
             ))}
