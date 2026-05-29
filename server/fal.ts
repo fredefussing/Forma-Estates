@@ -337,8 +337,10 @@ function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: Vi
     prompt: mode === "morph" ? TRANSFORM_VIDEO_MORPH_PROMPT : TRANSFORM_VIDEO_PROMPT,
     image_url: beforeImageUrl,
     tail_image_url: afterImageUrl,
-    duration: "5",
-    aspect_ratio: "16:9",
+    // Morph ("Forvandling") needs the longer 10s window so the room rebuilds
+    // itself gradually and smoothly instead of snapping between før/efter.
+    duration: (mode === "morph" ? "10" : "5") as "5" | "10",
+    aspect_ratio: "16:9" as const,
   };
 }
 
