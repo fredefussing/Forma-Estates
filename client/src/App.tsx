@@ -30,6 +30,7 @@ import {
   PlantegningPage,
   BranchevideoPage,
   AIDesignAgentPage as AIDesignAgentSubpage,
+  OmOsPage,
 } from "@/pages/boligpotentiale-subpages";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/boligpotentiale/3d-plantegning" component={PlantegningPage} />
       <Route path="/boligpotentiale/branchevideo" component={BranchevideoPage} />
       <Route path="/boligpotentiale/ai-design-agent" component={AIDesignAgentSubpage} />
+      <Route path="/boligpotentiale/om-os" component={OmOsPage} />
       <Route path="/kontakt" component={KontaktPage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />
       <Route path="/" component={BoligpotentialeLanding} />

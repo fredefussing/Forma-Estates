@@ -51,7 +51,7 @@ const NAV_LINKS = [
   { label: "FORSIDE", href: "#top" },
   { label: "PRISER", href: "#pricing" },
   { label: "EKSEMPLER", href: "/boligpotentiale/eksempler" },
-  { label: "OM OS", href: "#om-os" },
+  { label: "OM OS", href: "/boligpotentiale/om-os" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -1778,48 +1778,6 @@ export default function BoligpotentialeLanding() {
           </div>
         </div>
       </section>
-
-      {/* ── OM OS ── */}
-      <section id="om-os" className="px-6" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-om-os">
-        <div className="mx-auto" style={{ maxWidth: 880 }}>
-          <div className="text-center mb-10">
-            <Overline>Om os</Overline>
-            <H2>Bygget af mæglere — for mæglere.</H2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-10 items-start">
-            <div>
-              <p style={{ color: C.muted, fontSize: 16, lineHeight: 1.7, marginBottom: 16 }}>
-                Forma Estates er skabt for at give danske ejendomsmæglere et professionelt visualiseringsværktøj — uden lang ventetid, dyre stagere eller komplicerede aftaler.
-              </p>
-              <p style={{ color: C.muted, fontSize: 16, lineHeight: 1.7 }}>
-                Vi kombinerer AI med håndholdt kvalitetskontrol, så hvert billede ser ud som om en stylist har stået i rummet — bare på minutter i stedet for dage.
-              </p>
-            </div>
-            <div
-              style={{
-                background: C.white,
-                border: `1px solid ${C.border}`,
-                borderRadius: 14,
-                padding: "28px 30px",
-              }}
-              data-testid="bolig-om-os-contact"
-            >
-              <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
-                Kontakt
-              </div>
-              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 22, fontWeight: 500, lineHeight: 1.3, marginBottom: 14 }}>
-                Vi svarer typisk samme dag.
-              </div>
-              <div style={{ color: C.navy, fontSize: 15, lineHeight: 1.8 }}>
-                <div>hej@formaestates.dk</div>
-                <div>+45 00 00 00 00</div>
-                <div style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>København, Danmark</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── FAQ ── */}
       <section id="faq" className="px-6" style={{ background: C.champagne, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-faq">
         <div className="mx-auto max-w-6xl">

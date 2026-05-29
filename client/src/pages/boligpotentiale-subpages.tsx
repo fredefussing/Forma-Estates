@@ -356,6 +356,154 @@ export function BranchevideoPage() {
   );
 }
 
+export function OmOsPage() {
+  const values = [
+    {
+      title: "Lokal forandring",
+      desc: "Vi er danske, vi kender det danske marked, og vi udvikler specifikt til danske ejendomsmæglere — fra Københavns ejerlejligheder til provinsbyerne og landet.",
+    },
+    {
+      title: "Innovation med mening",
+      desc: "Vi tager den nyeste teknologi til os — men kun hvor den skaber reel værdi. Hvert produkt skal løse et konkret problem. Teknologi for teknologiens skyld er ikke vores vej.",
+    },
+    {
+      title: "Tilgængelighed",
+      desc: "Avanceret teknologi skal ikke være forbeholdt store kæder med dyre budgetter. Vores priser er designet til alle mæglere — fra den selvstændige til de store kæder.",
+    },
+    {
+      title: "Kvalitet først",
+      desc: "Hvert billede, hver video og hver 3D-model skal leve op til professionelle standarder. Vi går aldrig på kompromis med kvaliteten — for jeres omdømme er også vores.",
+    },
+    {
+      title: "Mægleren i centrum",
+      desc: "Vores teknologi forstærker mæglerens rolle — den erstatter den aldrig. Den personlige, lokale mægler er uundværlig. Teknologien er værktøjet, mægleren er håndværkeren.",
+    },
+  ];
+
+  return (
+    <SubpageLayout
+      eyebrow="Om os"
+      title="Hvem er vi?"
+      intro="Forma Estates er et dansk teknologiselskab grundlagt i København med ét klart mål: at hjælpe lokale ejendomsmæglere med at sælge boliger hurtigere — uden at gå på kompromis med kvaliteten."
+    >
+      {/* Intro story */}
+      <div className="mx-auto" style={{ maxWidth: 760 }}>
+        <div className="space-y-5" data-testid="omos-intro">
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Forma Estates er et dansk teknologiselskab grundlagt i København med et klart mål: at
+            revolutionere den danske ejendomsbranche gennem kunstig intelligens. Vi udvikler
+            skræddersyede værktøjer, der hjælper lokale ejendomsmæglere med at spare tid, reducere
+            omkostninger og sælge boliger hurtigere — uden at gå på kompromis med kvaliteten.
+          </p>
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Vi tror på, at teknologi skal tjene mennesker — ikke erstatte dem. Vores produkter er
+            designet til at forstærke mæglerens ekspertise, ikke erstatte den personlige rådgivning,
+            der er kernen i ethvert vellykket boligsalg. Teknologien håndterer det visuelle og
+            tidskrævende, så mægleren kan fokusere på det, de gør bedst: at rådgive og skabe
+            relationer.
+          </p>
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Forma Estates er ikke en mæglerkæde — vi er jeres teknologipartner. Vi arbejder tæt sammen
+            med ejendomsmæglere på tværs af Danmark for at forstå deres udfordringer og udvikle
+            løsninger, der virker i praksis, ikke kun på papiret.
+          </p>
+        </div>
+      </div>
+
+      {/* Vision & Mission */}
+      <div className="grid md:grid-cols-2 gap-6 mt-16" data-testid="omos-vision-mission">
+        <div style={{ background: C.navy, borderRadius: 16, padding: "34px 32px", color: C.white }}>
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
+            Vision
+          </div>
+          <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 15.5, lineHeight: 1.7 }}>
+            At blive Danmarks største og mest betroede AI-platform for ejendomsmæglere — lokalt
+            udviklet, globalt inspireret. Vi vil sætte standarden for, hvordan teknologi transformerer
+            boligsalg i Norden, og gøre avanceret visualisering tilgængelig for enhver mægler, uanset
+            størrelse eller budget.
+          </p>
+        </div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: "34px 32px" }}>
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
+            Mission
+          </div>
+          <p style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.7 }}>
+            At udvikle innovative produkter, der hjælper den lokale ejendomsmægler med at spare tid,
+            sælge hurtigere og levere en overlegen købsoplevelse. Vi skaber værktøjer, der er
+            intuitive, prisvenlige og designet specifikt til det danske boligmarked — så mæglere kan
+            fokusere på det, de gør bedst.
+          </p>
+        </div>
+      </div>
+
+      {/* Values */}
+      <div className="text-center mt-20 mb-2">
+        <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
+          Vores værdier
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8" data-testid="omos-values">
+        {values.map((v) => (
+          <div
+            key={v.title}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "26px 26px" }}
+            data-testid={`omos-value-${v.title}`}
+          >
+            <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{v.title}</div>
+            <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.6 }}>{v.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Journey */}
+      <div className="mx-auto mt-20" style={{ maxWidth: 760 }} data-testid="omos-journey">
+        <div className="text-center mb-8">
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
+            Vores rejse
+          </div>
+          <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 500, lineHeight: 1.15 }}>
+            Fra ét produkt til en hel platform.
+          </h2>
+        </div>
+        <div className="space-y-5">
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Forma Estates blev grundlagt i 2025 i København — midt i et boomende boligmarked og en
+            teknologisk revolution. Vi så et hul i markedet: mens globale værktøjer til ejendom
+            eksisterede, var ingen af dem skræddersyet til danske forhold — hverken sprogligt,
+            æstetisk eller prismæssigt.
+          </p>
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Vi startede med ét produkt: AI Boligvisualisering. Responsen fra mæglere var
+            overvældende. Behovet var tydeligt — hurtig, professionel og prisvenlig visualisering
+            uden den logistiske hovedpine ved fysisk møblering.
+          </p>
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Siden da har vi udvidet med tre produkter: Design Agent til præcise justeringer, 3D
+            plantegning til plantegningsvisualisering, og før/efter-transformationsvideo til sociale
+            medier. Hvert produkt er udviklet i tæt samarbejde med aktive ejendomsmæglere.
+          </p>
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            I dag arbejder vi mod at dække hele Danmark — fra Skagen til Sønderborg — og drømmer om
+            at gøre Forma Estates til synonymet med AI-drevet ejendomsmarkedsføring i Norden.
+          </p>
+        </div>
+        <div className="text-center mt-10">
+          <Link href="/kontakt">
+            <button
+              className="inline-flex items-center justify-center gap-2 transition-colors"
+              style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600 }}
+              data-testid="omos-cta"
+            >
+              Kontakt os
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
+        </div>
+      </div>
+    </SubpageLayout>
+  );
+}
+
 export function AIDesignAgentPage() {
   return (
     <SubpageLayout
