@@ -2100,7 +2100,7 @@ export async function registerRoutes(
         }
       }
 
-      return res.json({ success: true, image_url: collovImageUrl, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
+      return res.json({ success: true, image_url: collovImageUrl, original_url: `/uploads/${req.file!.filename}`, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
     } catch (err: any) {
       log(`[BoligPotentiale] generate error: ${err.message}`);
       return res.status(500).json({ success: false, message: err.message });

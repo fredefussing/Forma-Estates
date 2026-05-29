@@ -2090,6 +2090,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const { user } = useAuth();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2124,6 +2125,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
     }
     setImageFile(file);
     setResultUrl(null);
+    setOriginalUrl(null);
     setError(null);
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target?.result as string);
@@ -2147,6 +2149,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes");
       setResultUrl(data.image_url);
+      setOriginalUrl(data.source_url ?? null);
     } catch (err: any) {
       setError(err.message || "Noget gik galt");
     } finally {
@@ -2283,7 +2286,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                                 },
                                 body: JSON.stringify({
                                   imageUrl: resultUrl,
-                                  originalImageUrl: null,
+                                  originalImageUrl: originalUrl,
                                   roomType: "floorplan",
                                   style: "3d-floorplan",
                                   budgetTier: "tier2",
@@ -4485,6 +4488,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   const [isDragging, setIsDragging] = useState(false);
   const [stage, setStage] = useState<"idle" | "loading" | "result">("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
@@ -4497,6 +4501,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
     setImagePreview(URL.createObjectURL(file));
     setError(null);
     setResultUrl(null);
+    setOriginalUrl(null);
     setStage("idle");
   };
 
@@ -4520,6 +4525,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
       setResultUrl(data.image_url);
+      setOriginalUrl(data.original_url ?? null);
       setStage("result");
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
@@ -4712,7 +4718,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                                 },
                                 body: JSON.stringify({
                                   imageUrl: resultUrl,
-                                  originalImageUrl: null,
+                                  originalImageUrl: originalUrl,
                                   roomType: "other",
                                   style: "ai-agent",
                                   budgetTier: "tier2",
