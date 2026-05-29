@@ -93,7 +93,6 @@ const FEATURES = [
     Icon: Palette,
     title: "8 designstile",
     desc: "Skandinavisk, moderne, industrielt, boho, klassisk og mere.",
-    more: "Vælg den stil, der passer til boligen og målgruppen. Hver stil har sit eget udtryk i møbler, farver og materialer.",
   },
   {
     Icon: Box,
@@ -117,25 +116,21 @@ const FEATURES = [
     Icon: Zap,
     title: "Klar på under 30 sek.",
     desc: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet.",
-    more: "Du kan nå at lave flere versioner under en enkelt fremvisning — hurtigere end at tage en kop kaffe.",
   },
   {
     Icon: Monitor,
     title: "Direkte i browseren",
     desc: "Ingen software eller installation. Alt foregår online.",
-    more: "Det virker på computer, tablet og mobil. Log ind, upload et foto, og du er i gang.",
   },
   {
     Icon: Download,
     title: "Download i høj opløsning",
     desc: "Klar til brug på boligportaler, sociale medier og tryksager.",
-    more: "Billederne leveres i en opløsning, der ser skarp ud både online og på print.",
   },
   {
     Icon: MessageCircle,
     title: "Dansk support",
     desc: "Vi sidder i Danmark og besvarer dine spørgsmål på hverdage.",
-    more: "Har du brug for hjælp, er vi lige ved hånden — på dansk, uden teknisk snak.",
   },
 ];
 
@@ -1579,25 +1574,27 @@ export default function BoligpotentialeLanding() {
                   <h3 style={{ color: C.navy, fontSize: 16, fontWeight: 600 }}>{f.title}</h3>
                   <p className="mt-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>{f.desc}</p>
 
-                  <button
-                    type="button"
-                    onClick={() => setOpenFeature(isOpen ? null : i)}
-                    aria-expanded={isOpen}
-                    className="flex items-center gap-1.5 mt-4 transition-colors"
-                    style={{ color: C.gold, fontSize: 13, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = C.goldHover)}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = C.gold)}
-                    data-testid={`bolig-feature-toggle-${i}`}
-                  >
-                    {isOpen ? "Vis mindre" : "Læs mere"}
-                    <ChevronDown
-                      className="w-4 h-4 transition-transform duration-300"
-                      style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-                    />
-                  </button>
+                  {f.more && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenFeature(isOpen ? null : i)}
+                      aria-expanded={isOpen}
+                      className="flex items-center gap-1.5 mt-4 transition-colors"
+                      style={{ color: C.gold, fontSize: 13, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = C.goldHover)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = C.gold)}
+                      data-testid={`bolig-feature-toggle-${i}`}
+                    >
+                      {isOpen ? "Vis mindre" : "Læs mere"}
+                      <ChevronDown
+                        className="w-4 h-4 transition-transform duration-300"
+                        style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                      />
+                    </button>
+                  )}
 
                   <AnimatePresence initial={false}>
-                    {isOpen && (
+                    {isOpen && f.more && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
