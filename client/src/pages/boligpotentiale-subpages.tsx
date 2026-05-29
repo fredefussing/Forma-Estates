@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "wouter";
 import { ArrowLeft, Check, ArrowRight } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -505,201 +504,49 @@ export function OmOsPage() {
   );
 }
 
-type PromptItem = { title: string; text: string };
-type PromptCategory = { id: string; label: string; blurb: string; items: PromptItem[] };
-
-const PROMPT_CATEGORIES: PromptCategory[] = [
-  {
-    id: "tid",
-    label: "Tidspunkt på døgnet",
-    blurb: "Skift lyset og stemningen alt efter tid på dagen — kun belysningen ændres.",
-    items: [
-      { title: "Morgen", text: "Change the time of day to early morning. Soft golden morning light through the windows. Fresh and bright. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Middag", text: "Change the time of day to bright midday. Strong natural daylight filling the room. Clear and energetic atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Eftermiddag", text: "Change the time of day to warm afternoon. Soft warm daylight at a lower angle. Relaxed atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Aften", text: "Change the time of day to evening. Warm ambient lighting from existing lamps. Soft glow from windows showing dusk. Cozy atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Solnedgang", text: "Change the time of day to golden hour sunset. Warm orange and pink light flooding through the windows. Magical atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Nat", text: "Change the time of day to night. Dark outside the windows with subtle city lights or stars. Interior warmly lit with lamps and candles. Cozy nighttime atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Skumring", text: "Change the time of day to dusk — the blue hour. Deep blue-purple light outside, warm interior lights glowing. Serene atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "aarstid",
-    label: "Årstid",
-    blurb: "Vis boligen i forskellige årstider — farvetemperatur og lys tilpasses.",
-    items: [
-      { title: "Forår", text: "Change the season to spring. Fresh, mild daylight with a slightly green tint. Renewing and bright atmosphere. Warmer color temperature. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Sommer", text: "Change the season to summer. Bright, warm daylight — stronger and more golden. Warm and vibrant atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Sensommer", text: "Change the season to late summer. Warm golden light with a softer, fading quality. Relaxed end-of-summer feeling. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Efterår", text: "Change the season to autumn. Warm golden-orange light with lower angle. Richer, warmer color tones. Cozy atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Vinter", text: "Change the season to winter. Cooler, softer daylight with a slightly blue-grey quality. Crisp and clean atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Vinter med sne", text: "Change the season to winter with snow. Bright, white, diffused light reflecting into the room. Cool white daylight. Crisp winter atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "aendringer",
-    label: "Stemning & ændringer",
-    blurb: "Små styling-greb der løfter rummet — belysning, planter, hygge og farver.",
-    items: [
-      { title: "Tøm lokalet", text: "Remove all freestanding furniture and decor. Show the empty room with original floors, walls, windows, and doors only. Do not add anything new. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Tilføj ild i pejs", text: "If there is a fireplace in this room, add a warm glowing fire in it. Warm flickering firelight creating a cozy atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Opgrader belysning", text: "Add modern table lamps and a floor lamp. Warm layered lighting. Keep all furniture in the same positions. Only change lighting. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Tilføj planter", text: "Add 2-3 potted plants: one floor plant in a corner, one on a table, one small trailing plant. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Gør hyggelig", text: "Add soft throws on the sofa, lit candles on the table, warm cushions. Cozy hygge atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Lyst og luftigt", text: "Maximize natural light, sheer curtains, clean surfaces, fresh neutral palette. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Mørkere væg", text: "Paint one wall deep forest green or charcoal grey as an accent wall. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Skift vægfarve", text: "Change wall color to warm off-white. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Nyt gulv", text: "Replace flooring with wide plank light oak hardwood. Keep all furniture and walls unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Ryd op", text: "Clean and tidy: remove clutter, make beds, fluff pillows, organize items. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Tilføj dekoration", text: "Add tasteful decor: a plant, books, a candle, a throw blanket, and art on the wall. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Fjern møbler", text: "Remove all freestanding furniture. Keep decor, plants, and styling elements. Show as intentionally styled empty space. Keep walls and floors unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "udsigter",
-    label: "Udsigter",
-    blurb: "Vis en attraktiv udsigt uden for vinduet — interiøret forbliver det samme.",
-    items: [
-      { title: "Sommerhave", text: "Show a beautiful green summer garden outside the window. Lush trees, manicured lawn. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Byudsigt", text: "Show a city skyline outside the window. Urban landscape with architecture. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Søudsigt", text: "Show a calm lake or sea view outside the window. Blue water, serene atmosphere. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Skovudsigt", text: "Show a dense green forest outside the window. Tall trees, peaceful atmosphere. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Gårdhave", text: "Show a charming Copenhagen-style courtyard outside the window. Cobblestones, green plants, classic Danish architecture. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "kombinationer",
-    label: "Stemningsfulde kombinationer",
-    blurb: "Færdige kombinationer af tid, årstid og lys til den helt rigtige stemning.",
-    items: [
-      { title: "Sensommeraften", text: "Late summer evening around 8 PM. Warm golden light slowly fading. Soft orange-pink glow through the windows. Warm interior lights on, cozy contrast with the fading daylight. Relaxed end-of-summer atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Tidlig vinteraften", text: "Early winter evening around 5 PM. Dark blue sky outside, first evening stars visible. Interior warmly lit with existing lamps and candles. Nordic hygge atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Forårsmorgen", text: "Fresh spring morning around 7 AM. Soft fresh light with a green-gold quality. Bright and renewing atmosphere. Gentle natural light. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Efterårssolnedgang", text: "Autumn sunset around 6 PM. Deep orange, red and golden light flooding through the windows. Rich warm color tones. Warm and atmospheric. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Vintermorgen med sne", text: "Winter morning around 9 AM. Bright white diffused daylight. Cool crisp atmosphere. Warm cozy interior lighting. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Sommernat", text: "Summer night around 11 PM. Deep blue twilight sky still holding light. Warm air feeling. Interior softly lit with warm ambient lighting. Peaceful summer night. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Regnvejrsdag", text: "Cozy rainy day. Soft grey diffused light. Muted and calm atmosphere. Warm interior lighting creating a sheltered, comfortable feeling. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Diset eftermiddag", text: "Misty afternoon. Soft diffused light with a grey-blue quality. Muted colors. Dreamy and serene atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "have",
-    label: "Haveforvandling",
-    blurb: "Vis hvordan en tom eller vild have kan blive et præsentabelt uderum.",
-    items: [
-      { title: "Anlagt græsplæne", text: "Transform this outdoor space into a well-maintained garden with a manicured green lawn, simple border plants, and a clean gravel or stone path. Neat and presentable family garden. Scandinavian simplicity. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Terrasse med fliser", text: "Add a simple stone or wooden patio area with outdoor furniture. Clean modern terrace with potted plants and soft outdoor lighting. Functional and inviting. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Nem vedligeholdt have", text: "Transform this garden into a low-maintenance outdoor space with decorative gravel, drought-resistant plants, wooden decking area, and clean lines. Modern and practical. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Børnevenlig have", text: "Transform this garden into a family-friendly outdoor space with a flat lawn area, simple play zone, raised garden beds, and a small patio with outdoor furniture. Safe and welcoming. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Aftenhave med belysning", text: "Transform this garden into an evening setting. Soft outdoor lighting along paths, warm light from the house windows, cozy atmosphere. Well-maintained garden visible in the warm glow. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "altan",
-    label: "Altan & terrasse",
-    blurb: "Forvandl tomme altaner og terrasser til indbydende uderum.",
-    items: [
-      { title: "Møbleret altan", text: "Transform this empty balcony into a furnished outdoor space. Small bistro table with two chairs, potted plants, outdoor rug, string lights. Cozy and inviting city balcony. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Stor terrasse med lounge", text: "Transform this terrace into a modern outdoor lounge area. Quality outdoor sofa, coffee table, large planters, ambient lighting. Comfortable and stylish entertaining space. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Altan med planter", text: "Transform this balcony into a green oasis. Multiple potted plants of varying sizes, small seating area with cushions, herb boxes on the railing. Fresh and alive. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Morgenterrasse", text: "Transform this terrace into a morning breakfast setting. Table set for breakfast, morning light, potted plants, comfortable outdoor chairs. Fresh and inviting start to the day. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Aftenterrasse", text: "Transform this terrace into an evening entertaining space. Warm ambient lighting, candles, comfortable seating, cozy blankets. Atmospheric and inviting. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "facade",
-    label: "Facade & indkørsel",
-    blurb: "Løft førstehåndsindtrykket — facade, indkørsel og indgangsparti.",
-    items: [
-      { title: "Velholdt facade", text: "Transform this exterior into a well-maintained, freshly painted facade. Clean lines, modern front door, house numbers, mailbox, and welcoming entrance. Fresh and attractive curb appeal. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Indkørsel med parkering", text: "Transform this driveway into a clean, organized parking area. Fresh gravel or paving stones, clear parking space, trimmed edges. Practical and presentable. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Indgangsparti med lys", text: "Transform this entrance into a welcoming entryway. Modern outdoor lighting, clean path to the door, potted plants by the entrance, clean door hardware. Warm and inviting. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Eftermiddagsfacade", text: "Transform this exterior view to a warm afternoon setting. Golden light on the facade, well-maintained garden visible, welcoming entrance. Attractive and homey. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Aftenfacade med belysning", text: "Transform this exterior into an evening scene. Warm outdoor lighting illuminating the facade and entrance, soft glow from windows, welcoming atmosphere. Safe and attractive. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-  {
-    id: "udvidelser",
-    label: "Udvidelser & tilbygninger",
-    blurb: "Vis mulige udvidelser — udestue, carport, overdækning og opbevaring.",
-    items: [
-      { title: "Udestue / orangeri", text: "Transform this exterior area to include a glass conservatory or orangery attached to the house. Light-filled space with plants and seating. Year-round usable. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Overdækket terrasse", text: "Transform this terrace area into a covered patio with a roof structure. Protected outdoor seating area, usable in light rain. Practical and comfortable. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Carport", text: "Transform this parking area into a modern carport with a clean roof structure. Practical vehicle shelter that complements the house design. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Cykelparkering", text: "Transform this exterior area to include a practical bicycle parking area. Covered bike storage, clean design, functional. Danish lifestyle essential. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-      { title: "Skur / redskabsrum", text: "Transform this exterior area to include a small garden shed or storage unit. Clean modern design, practical storage. Organized and tidy garden. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint." },
-    ],
-  },
-];
 
 export function AIDesignAgentPage() {
-  const [prompt, setPrompt] = useState("");
-  const [activeCat, setActiveCat] = useState(PROMPT_CATEGORIES[0].id);
-  const [justAdded, setJustAdded] = useState<string | null>(null);
-
-  const category = PROMPT_CATEGORIES.find((c) => c.id === activeCat) ?? PROMPT_CATEGORIES[0];
-  const wordCount = prompt.trim() ? prompt.trim().split(/\s+/).length : 0;
-
-  const handlePick = (item: PromptItem) => {
-    setPrompt((prev) => (prev.trim() ? `${prev.trim()} ${item.text}` : item.text));
-    setJustAdded(item.title);
-    window.setTimeout(() => setJustAdded((t) => (t === item.title ? null : t)), 1600);
-  };
-
   return (
     <SubpageLayout
       eyebrow="AI Design Agent"
       title="Beskriv ændringen — vi laver den"
-      intro="Skriv hvad du vil ændre i et rum, eller vælg en færdig idé fra biblioteket nedenfor. Skift tid på døgnet, årstid, lys, have og meget mere — direkte fra ét billede."
+      intro="Skriv hvad du vil ændre i et rum, så genererer agenten det. Skift gulv, farve, møbler eller stemning med en sætning."
     >
-      <div className="grid lg:grid-cols-2 gap-7 items-stretch">
-        {/* Prompt text field */}
+      <div className="grid lg:grid-cols-2 gap-7 items-center">
         <div
           className="flex flex-col"
           style={{ background: C.white, borderRadius: 16, padding: "32px 28px", border: `1px solid ${C.border}`, boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
           data-testid="agent-prompt-card"
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="uppercase" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
-              Din prompt
-            </div>
-            {prompt && (
-              <button
-                type="button"
-                onClick={() => setPrompt("")}
-                style={{ color: C.muted, fontSize: 12, fontWeight: 500, background: "none", border: "none", cursor: "pointer" }}
-                data-testid="agent-prompt-clear"
-              >
-                Ryd
-              </button>
-            )}
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Din prompt
           </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Skriv din egen beskrivelse her — eller klik på en idé fra biblioteket, så lægger den sig automatisk ind i feltet."
-            className="flex-1 w-full resize-y"
-            style={{
-              background: C.warm,
-              border: `1px solid ${C.border}`,
-              borderRadius: 8,
-              padding: "16px 18px",
-              minHeight: 240,
-              color: C.navy,
-              fontSize: 15,
-              lineHeight: 1.65,
-              fontFamily: SANS,
-            }}
-            aria-label="Din prompt"
-            data-testid="agent-prompt-input"
-          />
-          <div className="flex items-center justify-between mt-2" style={{ fontSize: 12, color: C.muted }}>
-            <span data-testid="agent-word-count">{wordCount} ord</span>
-            <span>Plads til 500–1000 ord</span>
+          <div
+            className="mb-5"
+            style={{ background: C.warm, border: `1px solid ${C.border}`, borderRadius: 8, padding: "18px", minHeight: 130, color: C.navy, fontSize: 15, lineHeight: 1.6, fontFamily: SANS }}
+            data-testid="agent-prompt-example"
+          >
+            "Skift den blå sofa ud med en lys, naturlig linnedsofa. Tilføj et lavt egetræsbord, en stor potteplante i hjørnet og et uldtæppe i sand. Behold væggene og lyset som det er."
           </div>
+          <div className="uppercase mb-2" style={{ color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Eksempler du kan prøve
+          </div>
+          <ul className="space-y-2 mb-6">
+            {[
+              "Fjern den røde sofa og indsæt en grå sektionssofa",
+              "Skift gulvet til lyst egetræ og væggene til kalkmaling",
+              "Lav hele rummet om til japandi-stil",
+              "Tilføj plantekrukker, bøger og et stort kunstværk over sofaen",
+            ].map((ex, i) => (
+              <li key={i} className="flex items-start gap-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
+                <span>{ex}</span>
+              </li>
+            ))}
+          </ul>
           <Link href="/opret">
             <button
-              className="w-full inline-flex items-center justify-center gap-2 transition-colors mt-5"
+              className="w-full inline-flex items-center justify-center gap-2 transition-colors"
               style={{ background: C.gold, color: C.navy, padding: "14px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600 }}
               data-testid="agent-prompt-cta"
             >
@@ -708,7 +555,6 @@ export function AIDesignAgentPage() {
             </button>
           </Link>
         </div>
-
         <BeforeAfterPair
           before="/bolig-images/ai-agent-before.jpg"
           after="/bolig-images/ai-agent-after.jpg"
@@ -717,91 +563,6 @@ export function AIDesignAgentPage() {
           testId="agent-pair-0"
         />
       </div>
-
-      {/* ── Prompt library ── */}
-      <div className="mt-20" data-testid="agent-prompt-library">
-        <div className="text-center mb-8">
-          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
-            Promptbibliotek
-          </div>
-          <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(26px, 4vw, 38px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 12 }}>
-            Færdige idéer — klar til ét klik.
-          </h2>
-          <p className="mx-auto" style={{ maxWidth: 620, color: C.muted, fontSize: 16, lineHeight: 1.6 }}>
-            Vælg en kategori, og klik på en idé. Den lægger sig automatisk ind i tekstfeltet ovenfor, så du nemt kan tilpasse den bagefter.
-          </p>
-        </div>
-
-        {/* Category tabs */}
-        <div className="flex flex-wrap justify-center gap-2.5 mb-9" data-testid="agent-category-tabs">
-          {PROMPT_CATEGORIES.map((c) => {
-            const isActive = c.id === activeCat;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setActiveCat(c.id)}
-                className="transition-colors"
-                style={{
-                  background: isActive ? C.navy : C.white,
-                  color: isActive ? C.white : C.navy,
-                  border: `1px solid ${isActive ? C.navy : C.border}`,
-                  borderRadius: 999,
-                  padding: "9px 18px",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                data-testid={`agent-category-${c.id}`}
-              >
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Active category blurb */}
-        <p className="text-center mx-auto mb-7" style={{ maxWidth: 560, color: C.muted, fontSize: 15, lineHeight: 1.55 }} data-testid="agent-category-blurb">
-          {category.blurb}
-        </p>
-
-        {/* Prompt cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {category.items.map((item) => {
-            const added = justAdded === item.title;
-            return (
-              <button
-                key={item.title}
-                type="button"
-                onClick={() => handlePick(item)}
-                className="text-left transition-all duration-200 hover:-translate-y-0.5"
-                style={{
-                  background: C.white,
-                  border: `1px solid ${added ? C.gold : C.border}`,
-                  borderRadius: 14,
-                  padding: "20px 22px",
-                  cursor: "pointer",
-                  boxShadow: added ? "0 6px 24px rgba(201,169,110,0.22)" : "0 2px 12px rgba(15,25,35,0.04)",
-                }}
-                data-testid={`agent-prompt-${item.title}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 17, fontWeight: 600 }}>{item.title}</div>
-                  {added ? (
-                    <span className="inline-flex items-center gap-1" style={{ color: C.gold, fontSize: 12, fontWeight: 600 }}>
-                      <Check className="w-3.5 h-3.5" /> Tilføjet
-                    </span>
-                  ) : (
-                    <ArrowRight className="w-4 h-4" style={{ color: C.gold }} />
-                  )}
-                </div>
-                <p style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.5 }}>{item.text}</p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <BenefitRow
         items={[
           { title: "Frit sprog", desc: "Beskriv ændringen som du ville beskrive den til en designer." },

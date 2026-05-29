@@ -4347,12 +4347,141 @@ function ParallaxKenBurnsViewer({
   );
 }
 
+type AgentPromptItem = { title: string; text: string };
+type AgentPromptCategory = { id: string; label: string; blurb: string; items: AgentPromptItem[] };
+
+const AGENT_PROMPT_CATEGORIES: AgentPromptCategory[] = [
+  {
+    id: "tid",
+    label: "Tidspunkt på døgnet",
+    blurb: "Skift lyset og stemningen alt efter tid på dagen — kun belysningen ændres.",
+    items: [
+      { title: "Morgen", text: "Skift tidspunktet til tidlig morgen. Blødt gyldent morgenlys gennem vinduerne. Friskt og lyst. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Middag", text: "Skift tidspunktet til lys middag. Stærkt naturligt dagslys fylder rummet. Klar og energisk stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Eftermiddag", text: "Skift tidspunktet til varm eftermiddag. Blødt varmt dagslys i en lavere vinkel. Afslappet stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aften", text: "Skift tidspunktet til aften. Varmt, stemningsfuldt lys fra de eksisterende lamper. Blødt skær fra vinduerne der viser tusmørke. Hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Solnedgang", text: "Skift tidspunktet til gylden time ved solnedgang. Varmt orange og lyserødt lys strømmer gennem vinduerne. Magisk stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Nat", text: "Skift tidspunktet til nat. Mørkt udenfor vinduerne med svage bylys eller stjerner. Interiøret varmt oplyst med lamper og stearinlys. Hyggelig natstemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skumring", text: "Skift tidspunktet til skumring — den blå time. Dybt blåviolet lys udenfor, varme indendørs lys der gløder. Rolig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "aarstid",
+    label: "Årstid",
+    blurb: "Vis boligen i forskellige årstider — farvetemperatur og lys tilpasses.",
+    items: [
+      { title: "Forår", text: "Skift årstiden til forår. Friskt, mildt dagslys med et let grønligt skær. Fornyende og lys stemning. Varmere farvetemperatur. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sommer", text: "Skift årstiden til sommer. Lyst, varmt dagslys — stærkere og mere gyldent. Varm og levende stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sensommer", text: "Skift årstiden til sensommer. Varmt gyldent lys med en blødere, falmende kvalitet. Afslappet sensommerfølelse. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Efterår", text: "Skift årstiden til efterår. Varmt gyldenorange lys i en lavere vinkel. Rigere, varmere farvetoner. Hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Vinter", text: "Skift årstiden til vinter. Køligere, blødere dagslys med et let blågråt skær. Sprød og ren stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Vinter med sne", text: "Skift årstiden til vinter med sne. Lyst, hvidt, diffust lys der reflekteres ind i rummet. Køligt hvidt dagslys. Sprød vinterstemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "aendringer",
+    label: "Stemning & ændringer",
+    blurb: "Små styling-greb der løfter rummet — belysning, planter, hygge og farver.",
+    items: [
+      { title: "Tøm lokalet", text: "Fjern alle fritstående møbler og indretning. Vis det tomme rum med kun de oprindelige gulve, vægge, vinduer og døre. Tilføj ikke noget nyt. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tilføj ild i pejs", text: "Hvis der er en pejs i rummet, så tilføj en varm glødende ild i den. Varmt flakkende pejselys der skaber en hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Opgrader belysning", text: "Tilføj moderne bordlamper og en gulvlampe. Varmt, lagdelt lys. Behold alle møbler på de samme positioner. Skift kun belysningen. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tilføj planter", text: "Tilføj 2-3 potteplanter: én gulvplante i et hjørne, én på et bord og én lille hængeplante. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Gør hyggelig", text: "Tilføj bløde plaider på sofaen, tændte stearinlys på bordet og varme puder. Hyggelig stemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Lyst og luftigt", text: "Maksimer det naturlige lys, tilføj transparente gardiner, rene overflader og en frisk neutral farvepalet. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Mørkere væg", text: "Mal én væg i dyb skovgrøn eller koksgrå som accentvæg. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skift vægfarve", text: "Skift vægfarven til en varm råhvid. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Nyt gulv", text: "Udskift gulvet med brede planker i lyst egetræ. Behold alle møbler og vægge uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Ryd op", text: "Gør rent og ryd op: fjern rod, red sengene, ryst puderne og organiser tingene. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tilføj dekoration", text: "Tilføj smagfuld dekoration: en plante, bøger, et stearinlys, en plaid og kunst på væggen. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Fjern møbler", text: "Fjern alle fritstående møbler. Behold dekoration, planter og stylingelementer. Vis det som et bevidst stylet, tomt rum. Behold vægge og gulve uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "udsigter",
+    label: "Udsigter",
+    blurb: "Vis en attraktiv udsigt uden for vinduet — interiøret forbliver det samme.",
+    items: [
+      { title: "Sommerhave", text: "Vis en smuk grøn sommerhave udenfor vinduet. Frodige træer, velplejet græsplæne. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Byudsigt", text: "Vis en bysilhuet udenfor vinduet. Urbant landskab med arkitektur. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Søudsigt", text: "Vis en rolig sø- eller havudsigt udenfor vinduet. Blåt vand, rolig stemning. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skovudsigt", text: "Vis en tæt grøn skov udenfor vinduet. Høje træer, fredfyldt stemning. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Gårdhave", text: "Vis en charmerende københavnsk gårdhave udenfor vinduet. Brosten, grønne planter, klassisk dansk arkitektur. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "kombinationer",
+    label: "Stemningsfulde kombinationer",
+    blurb: "Færdige kombinationer af tid, årstid og lys til den helt rigtige stemning.",
+    items: [
+      { title: "Sensommeraften", text: "Sensommeraften omkring kl. 20. Varmt gyldent lys der langsomt falmer. Blødt orange-lyserødt skær gennem vinduerne. Varme indendørs lys er tændt, hyggelig kontrast til det falmende dagslys. Afslappet sensommerstemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tidlig vinteraften", text: "Tidlig vinteraften omkring kl. 17. Mørkeblå himmel udenfor, de første aftenstjerner synlige. Interiøret varmt oplyst med eksisterende lamper og stearinlys. Nordisk hyggestemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Forårsmorgen", text: "Frisk forårsmorgen omkring kl. 7. Blødt friskt lys med en grøn-gylden kvalitet. Lys og fornyende stemning. Mildt naturligt lys. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Efterårssolnedgang", text: "Efterårssolnedgang omkring kl. 18. Dybt orange, rødt og gyldent lys strømmer gennem vinduerne. Rige varme farvetoner. Varm og stemningsfuld. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Vintermorgen med sne", text: "Vintermorgen omkring kl. 9. Lyst hvidt diffust dagslys. Køligt og sprødt. Varm hyggelig indendørs belysning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sommernat", text: "Sommernat omkring kl. 23. Dyb blå tusmørkehimmel der stadig holder på lyset. Lun luftfornemmelse. Interiøret blødt oplyst med varmt stemningslys. Fredfyldt sommernat. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Regnvejrsdag", text: "Hyggelig regnvejrsdag. Blødt gråt diffust lys. Dæmpet og rolig stemning. Varm indendørs belysning der skaber en lun, beskyttet følelse. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Diset eftermiddag", text: "Diset eftermiddag. Blødt diffust lys med en grå-blå kvalitet. Dæmpede farver. Drømmende og rolig stemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "have",
+    label: "Haveforvandling",
+    blurb: "Vis hvordan en tom eller vild have kan blive et præsentabelt uderum.",
+    items: [
+      { title: "Anlagt græsplæne", text: "Forvandl dette udeareal til en velplejet have med en velholdt grøn græsplæne, enkle bedplanter og en ren grus- eller stensti. Pæn og præsentabel familiehave. Skandinavisk enkelhed. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Terrasse med fliser", text: "Tilføj et enkelt sten- eller træterrasseområde med havemøbler. Ren, moderne terrasse med potteplanter og blød udendørsbelysning. Funktionel og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Nem vedligeholdt have", text: "Forvandl denne have til et udeareal med lav vedligeholdelse med dekorativ grus, tørketålende planter, et trædæk og rene linjer. Moderne og praktisk. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Børnevenlig have", text: "Forvandl denne have til et familievenligt udeareal med en flad græsplæne, en enkel legezone, højbede og en lille terrasse med havemøbler. Sikker og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aftenhave med belysning", text: "Forvandl denne have til en aftenstemning. Blød udendørsbelysning langs stierne, varmt lys fra husets vinduer, hyggelig stemning. Velplejet have synlig i det varme skær. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "altan",
+    label: "Altan & terrasse",
+    blurb: "Forvandl tomme altaner og terrasser til indbydende uderum.",
+    items: [
+      { title: "Møbleret altan", text: "Forvandl denne tomme altan til et møbleret udeareal. Lille bistrobord med to stole, potteplanter, udendørstæppe og lyskæder. Hyggelig og indbydende byaltan. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Stor terrasse med lounge", text: "Forvandl denne terrasse til et moderne udendørs loungeområde. Kvalitetsudendørssofa, sofabord, store plantekasser og stemningsbelysning. Komfortabelt og stilfuldt opholdsområde. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Altan med planter", text: "Forvandl denne altan til en grøn oase. Flere potteplanter i forskellige størrelser, en lille siddeplads med puder, urtekasser på rækværket. Frisk og levende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Morgenterrasse", text: "Forvandl denne terrasse til en morgenmadssituation. Bord dækket til morgenmad, morgenlys, potteplanter og komfortable udendørsstole. Frisk og indbydende start på dagen. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aftenterrasse", text: "Forvandl denne terrasse til et aftenopholdsområde. Varm stemningsbelysning, stearinlys, komfortable siddepladser og hyggelige tæpper. Stemningsfuld og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "facade",
+    label: "Facade & indkørsel",
+    blurb: "Løft førstehåndsindtrykket — facade, indkørsel og indgangsparti.",
+    items: [
+      { title: "Velholdt facade", text: "Forvandl denne facade til en velholdt, nymalet facade. Rene linjer, en moderne hoveddør, husnummer, postkasse og en indbydende indgang. Frisk og attraktivt førstehåndsindtryk. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Indkørsel med parkering", text: "Forvandl denne indkørsel til et rent, organiseret parkeringsområde. Frisk grus eller belægningssten, tydelig parkeringsplads, trimmede kanter. Praktisk og præsentabel. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Indgangsparti med lys", text: "Forvandl denne indgang til et indbydende indgangsparti. Moderne udendørsbelysning, en ren sti til døren, potteplanter ved indgangen og rent dørbeslag. Varm og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Eftermiddagsfacade", text: "Forvandl denne facadeudsigt til en varm eftermiddagsstemning. Gyldent lys på facaden, velplejet have synlig, indbydende indgang. Attraktiv og hjemlig. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aftenfacade med belysning", text: "Forvandl denne facade til en aftenscene. Varm udendørsbelysning der oplyser facaden og indgangen, blødt skær fra vinduerne, indbydende stemning. Tryg og attraktiv. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+  {
+    id: "udvidelser",
+    label: "Udvidelser & tilbygninger",
+    blurb: "Vis mulige udvidelser — udestue, carport, overdækning og opbevaring.",
+    items: [
+      { title: "Udestue / orangeri", text: "Forvandl dette udeareal til at inkludere en udestue eller et orangeri i glas bygget til huset. Lyst rum med planter og siddepladser. Anvendeligt året rundt. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Overdækket terrasse", text: "Forvandl dette terrasseområde til en overdækket terrasse med en tagkonstruktion. Beskyttet udendørs siddeplads, anvendelig i let regn. Praktisk og komfortabel. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Carport", text: "Forvandl dette parkeringsområde til en moderne carport med en ren tagkonstruktion. Praktisk ly til bilen der komplementerer husets design. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Cykelparkering", text: "Forvandl dette udeareal til at inkludere en praktisk cykelparkering. Overdækket cykelopbevaring, rent design, funktionelt. En dansk livsstilsnødvendighed. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skur / redskabsrum", text: "Forvandl dette udeareal til at inkludere et lille haveskur eller redskabsrum. Rent moderne design, praktisk opbevaring. Organiseret og ryddelig have. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+    ],
+  },
+];
+
 function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [promptText, setPromptText] = useState("");
+  const [activeCat, setActiveCat] = useState(AGENT_PROMPT_CATEGORIES[0].id);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [stage, setStage] = useState<"idle" | "loading" | "result">("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -4414,6 +4543,16 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   };
 
   const handleBack = () => { if (confirmDiscard()) onBack(); };
+
+  const activeCategory = AGENT_PROMPT_CATEGORIES.find((c) => c.id === activeCat) ?? AGENT_PROMPT_CATEGORIES[0];
+  const handlePickPrompt = (item: AgentPromptItem) => {
+    setPromptText((prev) => {
+      const next = prev.trim() ? `${prev.trim()}\n\n${item.text}` : item.text;
+      return next.slice(0, 6000);
+    });
+    setJustAdded(item.title);
+    window.setTimeout(() => setJustAdded((t) => (t === item.title ? null : t)), 1600);
+  };
 
   return (
     <div>
@@ -4487,7 +4626,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Dine instruktioner</p>
           <textarea
             value={promptText}
-            onChange={(e) => setPromptText(e.target.value.slice(0, 500))}
+            onChange={(e) => setPromptText(e.target.value.slice(0, 6000))}
             placeholder={"Beskriv præcis hvad du vil ændre...\n\nEksempler:\n\"Fjern den røde sofa og tilføj en grå\"\n\"Skift gulvet til mørkt træ\"\n\"Tilføj en stor plante i hjørnet\"\n\"Lav hele rummet om til japansk stil\""}
             rows={7}
             className="w-full px-4 py-3 rounded-2xl border text-sm resize-none outline-none transition-all"
@@ -4496,7 +4635,61 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             onBlur={(e) => (e.target.style.borderColor = "#D9D5CF")}
             data-testid="bolig-agent-prompt"
           />
-          <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/500 tegn</p>
+          <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/6000 tegn</p>
+
+          {/* Prompt library */}
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
+              <p className="text-xs font-bold tracking-[0.08em] uppercase" style={{ color: "#9B9690" }}>Promptbibliotek</p>
+            </div>
+            <p className="text-xs mb-3" style={{ color: "#6B6B6B" }}>Vælg en kategori, og klik på en prompt for at indsætte den i feltet ovenfor.</p>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              {AGENT_PROMPT_CATEGORIES.map((cat) => {
+                const active = cat.id === activeCat;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCat(cat.id)}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all"
+                    style={active
+                      ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F" }
+                      : { background: "#fff", color: "#6B6B6B", borderColor: "#E5E1D8" }}
+                    data-testid={`bolig-agent-cat-${cat.id}`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-xs mb-3" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
+
+            <div className="grid sm:grid-cols-2 gap-2.5">
+              {activeCategory.items.map((item) => (
+                <button
+                  key={item.title}
+                  onClick={() => handlePickPrompt(item)}
+                  className="text-left p-3.5 rounded-xl border transition-all hover:shadow-sm"
+                  style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
+                  data-testid={`bolig-agent-prompt-${item.title}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
+                    {justAdded === item.title ? (
+                      <span className="flex items-center gap-1 text-[11px] font-medium" style={{ color: "#C8956C" }}>
+                        <Check className="w-3.5 h-3.5" /> Tilføjet
+                      </span>
+                    ) : (
+                      <Plus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C8956C" }} />
+                    )}
+                  </div>
+                  <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "#6B6B6B" }}>{item.text}</p>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Generate button */}
