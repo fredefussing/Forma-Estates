@@ -812,11 +812,6 @@ function CookieBanner() {
   return (
     <>
       <div
-        className="fixed inset-0 z-[60]"
-        style={{ background: "rgba(15,25,35,0.4)" }}
-        data-testid="bolig-cookie-overlay"
-      />
-      <div
         className="fixed bottom-0 left-0 right-0 z-[61] px-6 py-7"
         style={{ background: "#0F1923", borderTop: `1px solid ${C.goldBorder}`, fontFamily: SANS }}
         data-testid="bolig-cookie-banner"
