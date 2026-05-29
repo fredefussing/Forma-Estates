@@ -4585,7 +4585,9 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         </div>
       </div>
 
-      <div className="grid gap-6 max-w-2xl">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-8 items-start max-w-6xl">
+        {/* Left column: form + result */}
+        <div className="grid gap-6 min-w-0">
         {/* Upload zone */}
         <div>
           <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Upload billede</p>
@@ -4636,60 +4638,6 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             data-testid="bolig-agent-prompt"
           />
           <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/6000 tegn</p>
-
-          {/* Prompt library */}
-          <div className="mt-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
-              <p className="text-xs font-bold tracking-[0.08em] uppercase" style={{ color: "#9B9690" }}>Promptbibliotek</p>
-            </div>
-            <p className="text-xs mb-3" style={{ color: "#6B6B6B" }}>Vælg en kategori, og klik på en prompt for at indsætte den i feltet ovenfor.</p>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              {AGENT_PROMPT_CATEGORIES.map((cat) => {
-                const active = cat.id === activeCat;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCat(cat.id)}
-                    className="px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all"
-                    style={active
-                      ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F" }
-                      : { background: "#fff", color: "#6B6B6B", borderColor: "#E5E1D8" }}
-                    data-testid={`bolig-agent-cat-${cat.id}`}
-                  >
-                    {cat.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <p className="text-xs mb-3" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
-
-            <div className="grid sm:grid-cols-2 gap-2.5">
-              {activeCategory.items.map((item) => (
-                <button
-                  key={item.title}
-                  onClick={() => handlePickPrompt(item)}
-                  className="text-left p-3.5 rounded-xl border transition-all hover:shadow-sm"
-                  style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
-                  data-testid={`bolig-agent-prompt-${item.title}`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
-                    {justAdded === item.title ? (
-                      <span className="flex items-center gap-1 text-[11px] font-medium" style={{ color: "#C8956C" }}>
-                        <Check className="w-3.5 h-3.5" /> Tilføjet
-                      </span>
-                    ) : (
-                      <Plus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C8956C" }} />
-                    )}
-                  </div>
-                  <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "#6B6B6B" }}>{item.text}</p>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Generate button */}
@@ -4811,6 +4759,66 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             </div>
           </motion.div>
         )}
+        </div>
+
+        {/* Right column: prompt library */}
+        <div className="lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-[#E8E4DE] overflow-hidden" style={{ background: "#fff" }}>
+            <div className="px-4 py-3.5 border-b border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
+              <div className="flex items-center gap-2 mb-0.5">
+                <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
+                <p className="text-xs font-bold tracking-[0.08em] uppercase" style={{ color: "#9B9690" }}>Promptbibliotek</p>
+              </div>
+              <p className="text-xs" style={{ color: "#6B6B6B" }}>Klik på en prompt for at indsætte den i feltet.</p>
+            </div>
+
+            <div className="px-4 pt-3.5">
+              <div className="flex flex-wrap gap-1.5">
+                {AGENT_PROMPT_CATEGORIES.map((cat) => {
+                  const active = cat.id === activeCat;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCat(cat.id)}
+                      className="px-3 py-1 rounded-full text-[11px] font-medium border transition-all"
+                      style={active
+                        ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F" }
+                        : { background: "#fff", color: "#6B6B6B", borderColor: "#E5E1D8" }}
+                      data-testid={`bolig-agent-cat-${cat.id}`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] mt-3 mb-1" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
+            </div>
+
+            <div className="px-4 pb-4 pt-1 space-y-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+              {activeCategory.items.map((item) => (
+                <button
+                  key={item.title}
+                  onClick={() => handlePickPrompt(item)}
+                  className="w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm"
+                  style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
+                  data-testid={`bolig-agent-prompt-${item.title}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
+                    {justAdded === item.title ? (
+                      <span className="flex items-center gap-1 text-[11px] font-medium flex-shrink-0" style={{ color: "#C8956C" }}>
+                        <Check className="w-3.5 h-3.5" /> Tilføjet
+                      </span>
+                    ) : (
+                      <Plus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C8956C" }} />
+                    )}
+                  </div>
+                  <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "#6B6B6B" }}>{item.text}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
