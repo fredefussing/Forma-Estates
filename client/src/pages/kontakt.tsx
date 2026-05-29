@@ -287,7 +287,7 @@ export default function KontaktPage() {
                   <Clock className="w-4 h-4 mt-1" style={{ color: C.gold }} />
                   <div>
                     <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>Åbningstid</div>
-                    <div>Man–fre · 9:00–17:00</div>
+                    <div>Man–fre · 8:00–19:00</div>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
