@@ -1,0 +1,96 @@
+AI DESIGN AGENT — KORTE PROMPTS v2
+Rettet version | Ændrer KUN lys, årstid og møbler | Ingen baggrundsændringer
+
+REGLER: Alle prompts ændrer KUN belysning, tid på døgn, årstidens farvetemperatur, eller møbler.
+Ingen prompts tilføjer træer, sne, åbne vinduer, eller ændrer baggrund/udsigt medmindre det står i kategorien "Udsigter".
+
+
+TIDSPUNKT PÅ DØGN
+Morgen  Change the time of day to early morning. Soft golden morning light through the windows. Fresh and bright. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Middag  Change the time of day to bright midday. Strong natural daylight filling the room. Clear and energetic atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Eftermiddag  Change the time of day to warm afternoon. Soft warm daylight at a lower angle. Relaxed atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Aften  Change the time of day to evening. Warm ambient lighting from existing lamps. Soft glow from windows showing dusk. Cozy atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Sen Aften / Solnedgang  Change the time of day to golden hour sunset. Warm orange and pink light flooding through the windows. Magical atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Nat  Change the time of day to night. Dark outside the windows with subtle city lights or stars. Interior warmly lit with lamps and candles. Cozy nighttime atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Skumring  Change the time of day to dusk — the blue hour. Deep blue-purple light outside, warm interior lights glowing. Serene atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+ÅRSTID
+Forår  Change the season to spring. Fresh, mild daylight with a slightly green tint. Renewing and bright atmosphere. Warmer color temperature. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Sommer  Change the season to summer. Bright, warm daylight — stronger and more golden. Warm and vibrant atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Sensommer  Change the season to late summer. Warm golden light with a softer, fading quality. Relaxed end-of-summer feeling. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Efterår  Change the season to autumn. Warm golden-orange light with lower angle. Richer, warmer color tones. Cozy atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Vinter  Change the season to winter. Cooler, softer daylight with a slightly blue-grey quality. Crisp and clean atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Vinter med sne  Change the season to winter with snow. Bright, white, diffused light reflecting into the room. Cool white daylight. Crisp winter atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+ÆNDRINGER
+Tøm lokalet  Remove all freestanding furniture and decor. Show the empty room with original floors, walls, windows, and doors only. Do not add anything new. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Tilføj ild i pejs  If there is a fireplace in this room, add a warm glowing fire in it. Warm flickering firelight creating a cozy atmosphere. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Opgrader belysning  Add modern table lamps and a floor lamp. Warm layered lighting. Keep all furniture in the same positions. Only change lighting. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Tilføj planter  Add 2-3 potted plants: one floor plant in a corner, one on a table, one small trailing plant. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Gør hyggelig  Add soft throws on the sofa, lit candles on the table, warm cushions. Cozy hygge atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Gør lyst og luftigt  Maximize natural light, sheer curtains, clean surfaces, fresh neutral palette. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Mørkere væg  Paint one wall deep forest green or charcoal grey as an accent wall. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Skift farve  Change wall color to warm off-white. Keep all furniture and decor unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Nyt gulv  Replace flooring with wide plank light oak hardwood. Keep all furniture and walls unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Ryd op  Clean and tidy: remove clutter, make beds, fluff pillows, organize items. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Tilføj dekoration  Add tasteful decor: a plant, books, a candle, a throw blanket, and art on the wall. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Fjern møbler  Remove all freestanding furniture. Keep decor, plants, and styling elements. Show as intentionally styled empty space. Keep walls and floors unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+UDSIGTER
+Sommerhave  Show a beautiful green summer garden outside the window. Lush trees, manicured lawn. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Byudsigt  Show a city skyline outside the window. Urban landscape with architecture. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Søudsigt  Show a calm lake or sea view outside the window. Blue water, serene atmosphere. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Skovudsigt  Show a dense green forest outside the window. Tall trees, peaceful atmosphere. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Gårdhave  Show a charming Copenhagen-style courtyard outside the window. Cobblestones, green plants, classic Danish architecture. Keep all interior elements unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+SPECIFIKKE KOMBINATIONER
+Sensommeraften  Late summer evening around 8 PM. Warm golden light slowly fading. Soft orange-pink glow through the windows. Warm interior lights on, cozy contrast with the fading daylight. Relaxed end-of-summer atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Tidlig vinteraften  Early winter evening around 5 PM. Dark blue sky outside, first evening stars visible. Interior warmly lit with existing lamps and candles. Nordic hygge atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Forårsmorgen  Fresh spring morning around 7 AM. Soft fresh light with a green-gold quality. Bright and renewing atmosphere. Gentle natural light. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Efterårssolnedgang  Autumn sunset around 6 PM. Deep orange, red and golden light flooding through the windows. Rich warm color tones. Warm and atmospheric. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Vintermorgen med sne  Winter morning around 9 AM. Bright white diffused daylight. Cool crisp atmosphere. Warm cozy interior lighting. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Sommernat  Summer night around 11 PM. Deep blue twilight sky still holding light. Warm air feeling. Interior softly lit with warm ambient lighting. Peaceful summer night. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Regnvejrsdag  Cozy rainy day. Soft grey diffused light. Muted and calm atmosphere. Warm interior lighting creating a sheltered, comfortable feeling. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Diset eftermiddag  Misty afternoon. Soft diffused light with a grey-blue quality. Muted colors. Dreamy and serene atmosphere. Keep all furniture unchanged. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+
+─  Forma Estates | AI Design Agent — Korte Prompts v2 | Maj 2026  ─
+AI DESIGN AGENT — VISUALISERING AF POTENTIALE
+Mulig fremtid for ejendommen | Realistiske visualiseringer til mæglerhjemmesider
+
+Disse prompts viser ejendommens potentiale — realistiske fremtidsvisualiseringer der hjælper købere med at se mulighederne. Alle prompts er godkendt til brug på professionelle ejendomsmæglerhjemmesider med "Visualisering" label.
+
+1. HAVEFORVANDLING / GARDEN TRANSFORMATION
+Visualiser hvordan en tom, vild eller ubenyttet have kan transformeres til et præsentabelt udendørsrum.
+Anlagt græsplæne  Transform this outdoor space into a well-maintained garden with a manicured green lawn, simple border plants, and a clean gravel or stone path. Neat and presentable family garden. Scandinavian simplicity. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Terrasse med fliser  Add a simple stone or wooden patio area with outdoor furniture. Clean modern terrace with potted plants and soft outdoor lighting. Functional and inviting. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Nem vedligeholdt have  Transform this garden into a low-maintenance outdoor space with decorative gravel, drought-resistant plants, wooden decking area, and clean lines. Modern and practical. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Børnevenlig have  Transform this garden into a family-friendly outdoor space with a flat lawn area, simple play zone, raised garden beds, and a small patio with outdoor furniture. Safe and welcoming. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Aftenhave med belysning  Transform this garden into an evening setting. Soft outdoor lighting along paths, warm light from the house windows, cozy atmosphere. Well-maintained garden visible in the warm glow. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+2. ALTAN & TERRASSE / OUTDOOR LIVING
+Visualiser potentialet i altaner, terrasser og udendørs arealer — fra tomme pladser til indbydende uderum.
+Møbleret altan  Transform this empty balcony into a furnished outdoor space. Small bistro table with two chairs, potted plants, outdoor rug, string lights. Cozy and inviting city balcony. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Stor terrasse med lounge  Transform this terrace into a modern outdoor lounge area. Quality outdoor sofa, coffee table, large planters, ambient lighting. Comfortable and stylish entertaining space. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Altan med planter  Transform this balcony into a green oasis. Multiple potted plants of varying sizes, small seating area with cushions, herb boxes on the railing. Fresh and alive. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Morgenterasse  Transform this terrace into a morning breakfast setting. Table set for breakfast, morning light, potted plants, comfortable outdoor chairs. Fresh and inviting start to the day. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Aftenterrasse  Transform this terrace into an evening entertaining space. Warm ambient lighting, candles, comfortable seating, cozy blankets. Atmospheric and inviting. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+3. FACADE & INDKØRSEL / EXTERIOR & ENTRANCE
+Visualiser førstehåndsindtrykket — facader, indkørsler og indgangspartier med potentiale.
+Velholdt facade  Transform this exterior into a well-maintained, freshly painted facade. Clean lines, modern front door, house numbers, mailbox, and welcoming entrance. Fresh and attractive curb appeal. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Indkørsel med parkering  Transform this driveway into a clean, organized parking area. Fresh gravel or paving stones, clear parking space, trimmed edges. Practical and presentable. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Indgangsparti med lys  Transform this entrance into a welcoming entryway. Modern outdoor lighting, clean path to the door, potted plants by the entrance, clean door hardware. Warm and inviting. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Eftermiddags facade  Transform this exterior view to a warm afternoon setting. Golden light on the facade, well-maintained garden visible, welcoming entrance. Attractive and homey. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Aften facade med belysning  Transform this exterior into an evening scene. Warm outdoor lighting illuminating the facade and entrance, soft glow from windows, welcoming atmosphere. Safe and attractive. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+9. UDVIDELSER & TILBYGNINGER / EXTENSIONS & ADDITIONS
+Visualiser mulige udvidelser — udestue, carport, ekstra rum.
+Udestue / Orangeri  Transform this exterior area to include a glass conservatory or orangery attached to the house. Light-filled space with plants and seating. Year-round usable. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Overdækket terrasse  Transform this terrace area into a covered patio with a roof structure. Protected outdoor seating area, usable in light rain. Practical and comfortable. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Carport  Transform this parking area into a modern carport with a clean roof structure. Practical vehicle shelter that complements the house design. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Cykelparkering  Transform this exterior area to include a practical bicycle parking area. Covered bike storage, clean design, functional. Danish lifestyle essential. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+Skur / Redskabsrum  Transform this exterior area to include a small garden shed or storage unit. Clean modern design, practical storage. Organized and tidy garden. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.
+
+
+─  Forma Estates | Visualisering af Potentiale | Maj 2026  ─
