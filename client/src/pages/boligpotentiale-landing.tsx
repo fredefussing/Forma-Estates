@@ -1396,7 +1396,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} className="px-6" data-testid="bolig-how-it-works">
+      <section id="how-it-works" style={{ background: C.warm, paddingTop: 48, paddingBottom: 100 }} className="px-6" data-testid="bolig-how-it-works">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>Sådan virker det</Overline>
