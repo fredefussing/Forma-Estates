@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, ArrowRight } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -363,13 +363,57 @@ export function AIDesignAgentPage() {
       title="Beskriv ændringen — vi laver den"
       intro="Skriv hvad du vil ændre i et rum, så genererer agenten det. Skift gulv, farve, møbler eller stemning med en sætning."
     >
-      <BeforeAfterPair
-        before="/bolig-images/ai-agent-before.jpg"
-        after="/bolig-images/ai-agent-after.jpg"
-        title="“Tilføj varmere belysning og lyse træmøbler”"
-        desc="Et eksempel på hvad agenten kan, fra ét enkelt promptkrav."
-        testId="agent-pair-0"
-      />
+      <div className="grid lg:grid-cols-2 gap-7 items-center">
+        <div
+          className="flex flex-col"
+          style={{ background: C.white, borderRadius: 16, padding: "32px 28px", border: `1px solid ${C.border}`, boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+          data-testid="agent-prompt-card"
+        >
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Din prompt
+          </div>
+          <div
+            className="mb-5"
+            style={{ background: C.warm, border: `1px solid ${C.border}`, borderRadius: 8, padding: "18px", minHeight: 130, color: C.navy, fontSize: 15, lineHeight: 1.6, fontFamily: SANS }}
+            data-testid="agent-prompt-example"
+          >
+            "Skift den blå sofa ud med en lys, naturlig linnedsofa. Tilføj et lavt egetræsbord, en stor potteplante i hjørnet og et uldtæppe i sand. Behold væggene og lyset som det er."
+          </div>
+          <div className="uppercase mb-2" style={{ color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Eksempler du kan prøve
+          </div>
+          <ul className="space-y-2 mb-6">
+            {[
+              "Fjern den røde sofa og indsæt en grå sektionssofa",
+              "Skift gulvet til lyst egetræ og væggene til kalkmaling",
+              "Lav hele rummet om til japandi-stil",
+              "Tilføj plantekrukker, bøger og et stort kunstværk over sofaen",
+            ].map((ex, i) => (
+              <li key={i} className="flex items-start gap-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
+                <span>{ex}</span>
+              </li>
+            ))}
+          </ul>
+          <Link href="/opret">
+            <button
+              className="w-full inline-flex items-center justify-center gap-2 transition-colors"
+              style={{ background: C.gold, color: C.navy, padding: "14px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600 }}
+              data-testid="agent-prompt-cta"
+            >
+              Prøv AI Design Agent
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
+        </div>
+        <BeforeAfterPair
+          before="/bolig-images/ai-agent-before.jpg"
+          after="/bolig-images/ai-agent-after.jpg"
+          title="“Tilføj varmere belysning og lyse træmøbler”"
+          desc="Et eksempel på hvad agenten kan, fra ét enkelt promptkrav."
+          testId="agent-pair-0"
+        />
+      </div>
       <BenefitRow
         items={[
           { title: "Frit sprog", desc: "Beskriv ændringen som du ville beskrive den til en designer." },
