@@ -17,6 +17,9 @@ import {
   Zap,
   Monitor,
   MessageCircle,
+  Box,
+  Video,
+  Wand2,
   Facebook,
   Instagram,
   Linkedin,
@@ -80,12 +83,60 @@ const HOW_IT_WORKS = [
 ];
 
 const FEATURES = [
-  { Icon: Home, title: "Realistisk AI-rendering", desc: "Bevarer rummets vægge, vinduer og lysindfald — kun indretningen ændres." },
-  { Icon: Palette, title: "8 designstile", desc: "Skandinavisk, moderne, industrielt, boho, klassisk og mere." },
-  { Icon: Zap, title: "Klar på under 30 sek.", desc: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet — hurtigere end at tage en kop kaffe." },
-  { Icon: Monitor, title: "Direkte i browseren", desc: "Ingen software eller installation. Alt foregår online." },
-  { Icon: Download, title: "Download i høj opløsning", desc: "Klar til brug på boligportaler, sociale medier og tryksager." },
-  { Icon: MessageCircle, title: "Dansk support", desc: "Vi sidder i Danmark og besvarer dine spørgsmål på hverdage." },
+  {
+    Icon: Home,
+    title: "Naturtro visualisering",
+    desc: "Bevarer rummets vægge, vinduer og lysindfald — kun indretningen ændres.",
+    more: "Resultatet ligner et rigtigt foto af boligen. Proportioner, perspektiv og dagslys bevares, så køberen kan se det færdige hjem for sig.",
+  },
+  {
+    Icon: Palette,
+    title: "8 designstile",
+    desc: "Skandinavisk, moderne, industrielt, boho, klassisk og mere.",
+    more: "Vælg den stil, der passer til boligen og målgruppen. Hver stil har sit eget udtryk i møbler, farver og materialer.",
+  },
+  {
+    Icon: Box,
+    title: "3D plantegning",
+    desc: "Få en overskuelig 3D-plantegning, der viser rummenes indretning og flow.",
+    more: "Plantegningen hjælper køberen med at forstå boligens layout og størrelsesforhold — en tydelig fordel i annoncen.",
+  },
+  {
+    Icon: Video,
+    title: "Transformationsvideo",
+    desc: "En kort video, der viser rummet gå fra før til efter.",
+    more: "Den lille før-/efter-video fanger opmærksomheden på boligportaler og sociale medier og gør annoncen mere levende.",
+  },
+  {
+    Icon: Wand2,
+    title: "Design Agent",
+    desc: "Skriv med almindelige ord, hvad du vil ændre — så klarer vi resten.",
+    more: 'Fx "skift sofaen ud med en lys linnedsofa og tilføj en stor potteplante". Du behøver ikke kende til design eller teknik.',
+  },
+  {
+    Icon: Zap,
+    title: "Klar på under 30 sek.",
+    desc: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet.",
+    more: "Du kan nå at lave flere versioner under en enkelt fremvisning — hurtigere end at tage en kop kaffe.",
+  },
+  {
+    Icon: Monitor,
+    title: "Direkte i browseren",
+    desc: "Ingen software eller installation. Alt foregår online.",
+    more: "Det virker på computer, tablet og mobil. Log ind, upload et foto, og du er i gang.",
+  },
+  {
+    Icon: Download,
+    title: "Download i høj opløsning",
+    desc: "Klar til brug på boligportaler, sociale medier og tryksager.",
+    more: "Billederne leveres i en opløsning, der ser skarp ud både online og på print.",
+  },
+  {
+    Icon: MessageCircle,
+    title: "Dansk support",
+    desc: "Vi sidder i Danmark og besvarer dine spørgsmål på hverdage.",
+    more: "Har du brug for hjælp, er vi lige ved hånden — på dansk, uden teknisk snak.",
+  },
 ];
 
 type Plan = {
@@ -1020,6 +1071,7 @@ export default function BoligpotentialeLanding() {
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("FORSIDE");
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const [openFeature, setOpenFeature] = useState<number | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -1499,6 +1551,7 @@ export default function BoligpotentialeLanding() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => {
               const Icon = f.Icon;
+              const isOpen = openFeature === i;
               return (
                 <motion.div
                   key={i}
@@ -1506,7 +1559,7 @@ export default function BoligpotentialeLanding() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-50px" }}
                   transition={{ duration: 0.5, delay: (i % 3) * 0.1, ease: "easeOut" }}
-                  className="transition-all duration-300 hover:-translate-y-1"
+                  className="transition-all duration-300 hover:-translate-y-1 flex flex-col"
                   style={{
                     background: C.white,
                     borderRadius: 8,
@@ -1525,6 +1578,43 @@ export default function BoligpotentialeLanding() {
                   </div>
                   <h3 style={{ color: C.navy, fontSize: 16, fontWeight: 600 }}>{f.title}</h3>
                   <p className="mt-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>{f.desc}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => setOpenFeature(isOpen ? null : i)}
+                    aria-expanded={isOpen}
+                    className="flex items-center gap-1.5 mt-4 transition-colors"
+                    style={{ color: C.gold, fontSize: 13, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = C.goldHover)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = C.gold)}
+                    data-testid={`bolig-feature-toggle-${i}`}
+                  >
+                    {isOpen ? "Vis mindre" : "Læs mere"}
+                    <ChevronDown
+                      className="w-4 h-4 transition-transform duration-300"
+                      style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                    />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        style={{ overflow: "hidden" }}
+                      >
+                        <p
+                          className="mt-3 pt-3"
+                          style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6, borderTop: `1px solid ${C.goldBorder}` }}
+                          data-testid={`bolig-feature-more-${i}`}
+                        >
+                          {f.more}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               );
             })}
