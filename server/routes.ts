@@ -15,7 +15,7 @@ import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEm
 import { analyzeDesignImage } from "./ai_analyzer";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
-import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, downloadToUploads } from "./fal";
+import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -2160,10 +2160,10 @@ export async function registerRoutes(
         const beforePath = path.join(uploadDir, beforeFile.filename);
         const afterPath = path.join(uploadDir, afterFile.filename);
         log(`[Video] uploading before+after to fal.storage…`);
-        const [beforeFalUrl, afterFalUrl] = await Promise.all([
-          uploadToFal(beforePath, beforeFile.mimetype),
-          uploadToFal(afterPath, afterFile.mimetype),
-        ]);
+        // Normaliser begge til identiske dimensioner — Kling v3 afviser ellers
+        // med 422, når før/efter har forskellig størrelse.
+        const { beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
+          await uploadVideoPairToFal(beforePath, afterPath);
 
         const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
         log(`[Video] submit mode=${mode} before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);

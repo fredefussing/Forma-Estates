@@ -45,6 +45,53 @@ export async function uploadToFal(localFilePath: string, mimeType?: string): Pro
   return await fal.storage.upload(file);
 }
 
+// Kling v3 (start_image_url + end_image_url) afviser med 422, hvis før- og
+// efter-billedet ikke har præcis samme dimensioner. Mæglerens manuelle
+// uploads har næsten altid forskellig størrelse, så vi normaliserer begge
+// til identiske mål (center-cover-crop ift. før-billedets aspekt, maks 1920px,
+// lige tal) før upload.
+export async function uploadVideoPairToFal(
+  beforePath: string,
+  afterPath: string,
+): Promise<{ beforeUrl: string; afterUrl: string }> {
+  const before = await Jimp.read(beforePath);
+  let w = before.bitmap.width;
+  let h = before.bitmap.height;
+  const MAX = 1920;
+  if (Math.max(w, h) > MAX) {
+    if (w >= h) {
+      h = Math.round((h * MAX) / w);
+      w = MAX;
+    } else {
+      w = Math.round((w * MAX) / h);
+      h = MAX;
+    }
+  }
+  // Lige dimensioner — flere video-encodere kræver det.
+  w -= w % 2;
+  h -= h % 2;
+
+  before.cover({ w, h });
+  const after = await Jimp.read(afterPath);
+  after.cover({ w, h });
+
+  const [beforeBuf, afterBuf] = await Promise.all([
+    before.getBuffer(JimpMime.jpeg),
+    after.getBuffer(JimpMime.jpeg),
+  ]);
+
+  const upload = async (buf: Buffer, name: string) => {
+    const file = new File([Buffer.from(buf)], name, { type: "image/jpeg" });
+    return await fal.storage.upload(file);
+  };
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const [beforeUrl, afterUrl] = await Promise.all([
+    upload(Buffer.from(beforeBuf), `before-${stamp}.jpg`),
+    upload(Buffer.from(afterBuf), `after-${stamp}.jpg`),
+  ]);
+  return { beforeUrl, afterUrl };
+}
+
 // ===== 1. 3D PLANTEGNING (2D floor plan image → 3D dollhouse render) =====
 // Stricter prompt der eksplicit forbyder interior/eye-level views.
 // Korte direkte forbud > lange beskrivende ønsker for arkitektonisk troskab.
