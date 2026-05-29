@@ -329,31 +329,7 @@ export async function generate360Panorama(
 }
 
 // ===== 2. TRANSFORMERINGSVIDEO (FØR → EFTER) =====
-const TRANSFORM_VIDEO_PROMPT = `Cinematic renovation of the room. The camera slowly pushes forward into the space throughout the entire transformation, with subtle parallax where foreground elements move slightly faster than background elements to enhance depth. The space magically transforms — walls change color, flooring spreads seamlessly across the floor, furniture materializes in place, and warm lighting gradually illuminates the room. The motion is smooth, elegant, and continuous with no abrupt cuts. Photorealistic, 8K.
-
-Transform the scene from an empty or existing interior into a fully furnished, fully designed modern space through a smooth architectural growth animation.
-
-All furniture, architectural elements, and decor begin at minimal or reduced scale within the room and gradually scale up into their final full-size positions. Objects emerge naturally from the floor, walls, and structural surfaces with smooth, physically realistic motion.
-
-The entire room structure refines progressively: flooring extends and completes itself, wall materials finish and refine, built-in elements grow into place, and architectural details resolve from simple forms into fully detailed surfaces.
-
-All furniture appears in correct spatial positions according to a realistic interior layout, including seating areas, tables, storage units, lighting fixtures, and decorative elements appropriate to the room type. Each element expands smoothly with natural easing and settles gently into its final position.
-
-Windows, doors, and fixed architectural boundaries remain constant throughout the animation and act as stable anchors for the transformation.
-
-Lighting transitions gradually from neutral base lighting to a fully realized atmospheric lighting setup, with warm ambient illumination and soft natural daylight blending seamlessly. Interior lights fade in naturally as furniture and materials finalize.
-
-Materials evolve from basic surfaces into fully detailed, high-quality finishes such as wood, stone, fabric, glass, and metal, with realistic reflections and physically based rendering.
-
-A slow cinematic camera movement pushes gently through the space, maintaining a wide-angle architectural perspective with subtle parallax to enhance depth. Foreground and background elements shift naturally to reinforce realism.
-
-The motion is smooth, elegant, and continuous with no abrupt transitions. The entire transformation feels like a real-time architectural build-up of the space.
-
-Final result: a fully realized, photorealistic interior environment with cinematic lighting, high detail, and cohesive design.
-
-Resolution: ultra-realistic, 8K detail, global illumination, soft shadows, high dynamic range, architectural visualization quality`;
-
-// Alternativ "Forvandling": statisk kamera, ingen push-in. Rummet bygger
+// "Forvandling": statisk kamera, ingen push-in. Rummet bygger
 // sig selv om på fladen: vægfarver flyder hen over fladerne, gulvet
 // fornyer sig plank for plank, gamle møbler opløses og nye møbler
 // folder/vokser frem til den endelige indretning. God til præsentationer
@@ -372,15 +348,36 @@ The motion is smooth, elegant, and continuous, like a controlled architectural r
 
 Photorealistic, 8K, global illumination, soft shadows, high dynamic range, architectural visualization quality.`;
 
+// "Cinematisk gennemgang": kameraet glider/svæver ind i det NYE rum. Vi giver
+// kun efter-billedet som startframe (ingen end_image), så modellen er fri til
+// en ren kamerabevægelse i stedet for at være bundet til en før→efter-morph.
+const CINEMATIC_FLYTHROUGH_PROMPT = `A smooth cinematic camera slowly glides forward and moves deeper into the interior, like an elegant steadicam or drone push-in, with gentle parallax where foreground elements drift slightly faster than the background to create a strong sense of depth.
+
+The room and everything in it stays exactly as shown — furniture, materials, colors, lighting, and layout do NOT change, morph, appear, or disappear. Nothing transforms. Only the camera moves.
+
+The motion is slow, steady, and continuous with no shake, no abrupt cuts, and no warping of the architecture. Walls, windows, doors, and furniture keep correct, stable perspective as the camera travels through the space.
+
+Photorealistic, cinematic interior walkthrough, soft natural lighting, high detail, architectural visualization quality.`;
+
 export type VideoMode = "cinematic" | "morph";
 
-// Kling v3 pro: før→efter via start_image_url + end_image_url. Dette er de
-// settings der gav den rene, glidende forvandling på ~3 min (8s video).
 const VIDEO_ENDPOINT = "fal-ai/kling-video/v3/pro/image-to-video";
 
+// To forskellige opførsler:
+//  • morph ("Forvandling"): start=før, end=efter, fast kamera → rummet
+//    forvandler sig på stedet.
+//  • cinematic ("Cinematisk gennemgang"): start=efter, intet end-billede →
+//    kameraet glider ind i det nye rum uden at noget forvandler sig.
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
+  if (mode === "cinematic") {
+    return {
+      prompt: CINEMATIC_FLYTHROUGH_PROMPT,
+      start_image_url: afterImageUrl,
+      duration: "5" as const,
+    };
+  }
   return {
-    prompt: mode === "morph" ? TRANSFORM_VIDEO_MORPH_PROMPT : TRANSFORM_VIDEO_PROMPT,
+    prompt: TRANSFORM_VIDEO_MORPH_PROMPT,
     start_image_url: beforeImageUrl,
     end_image_url: afterImageUrl,
     duration: "8" as const,
