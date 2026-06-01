@@ -2722,9 +2722,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
   const [address, setAddress] = useState("");
-  // Per-image duration is locked to each track's pulse on the server (cuts land
-  // on the beat). These mirror that for a live length estimate only.
-  const DUR_PER_IMAGE: Record<string, number> = { calm: 3.77, uplifting: 3.74, modern: 4.07, none: 3.0 };
+  // The server cuts on the beat (hard cuts) and cycles the photos to fill a
+  // punchy ~16s reel. These mirror the per-slide hold (seconds) for a live length
+  // estimate only.
+  const SLIDE_DUR: Record<string, number> = { calm: 0.66, uplifting: 0.49, modern: 0.545, none: 0.7 };
+  const TARGET_TOTAL = 16;
+  const MAX_SLIDES = 48;
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2749,7 +2752,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [showCaseDropdown]);
 
   const totalSeconds = images.length > 0
-    ? Math.max(0, images.length * (DUR_PER_IMAGE[music] ?? 3.0) - (images.length - 1) * 0.8)
+    ? (() => {
+        const sd = SLIDE_DUR[music] ?? 0.7;
+        const slides = Math.max(images.length, Math.min(MAX_SLIDES, Math.round(TARGET_TOTAL / sd)));
+        return slides * sd;
+      })()
     : 0;
 
   const addFiles = (files: FileList | File[]) => {

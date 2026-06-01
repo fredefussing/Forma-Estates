@@ -5,10 +5,11 @@ import { randomUUID } from "crypto";
 
 // ===== BOLIG SHOWCASE VIDEO =====
 // Render.ai-style vertical (9:16) property reel built 100% locally with FFmpeg.
-// No AI, no external service, no audio. Each uploaded photo gets a smooth
-// Ken Burns motion (alternating slow zoom-in / zoom-out) and clips are stitched
-// together with soft crossfades. The render runs async in-memory because a
-// 30-60s 1080x1920 encode can exceed Replit's ~2 min HTTP proxy timeout.
+// No AI, no external service. Each photo gets a subtle Ken Burns motion and the
+// clips are joined with HARD CUTS locked to the music's beat — the punchy,
+// fast-montage look. The photos are cycled to fill a snappy reel so even a small
+// upload produces a full-length video. The render runs async in-memory because a
+// 1080x1920 encode can exceed Replit's ~2 min HTTP proxy timeout.
 
 type ShowcaseStatus = "processing" | "completed" | "failed";
 
@@ -63,13 +64,6 @@ function releaseSlot() {
 const FPS = 30;
 const W = 1080;
 const H = 1920;
-// zoompan jitters because it truncates the crop offset to whole pixels each
-// frame. We beat this two ways: (1) crop-fill the source to 2x the final size
-// and run zoompan at that 2x resolution, then (2) scale the result back down to
-// 1080x1920. The downscale supersamples away the integer-pixel stepping, so the
-// Ken Burns zoom is buttery smooth instead of juddering.
-const SS_W = W * 2; // 2160 — supersample (working) width
-const SS_H = H * 2; // 3840 — supersample (working) height
 
 function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -85,15 +79,6 @@ function runFfmpeg(args: string[]): Promise<void> {
       else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
     });
   });
-}
-
-// "Mix" style: mostly a soft crossfade (the calm, elegant Render.ai feel) with a
-// gentle directional smooth every 3rd switch for a little variation — never a
-// hard cut or a flashy wipe. j is the 1-based junction index.
-const SOFT_VARIATIONS = ["smoothleft", "smoothright", "smoothup"];
-function pickTransition(j: number): string {
-  if (j % 3 === 0) return SOFT_VARIATIONS[(Math.floor(j / 3) - 1) % SOFT_VARIATIONS.length];
-  return "fade";
 }
 
 // Background music: a few pre-generated, royalty-free instrumental beds that ship
@@ -123,42 +108,54 @@ const BEAT_GRID: Record<string, { period: number; phase: number }> = {
   uplifting: { period: 0.49, phase: 0.04 },
   modern: { period: 0.545, phase: 0.31 },
 };
-// Roughly how long each photo should linger; snapped to the nearest whole beat.
-const TARGET_SEC = 3.0;
-// No music => nothing to sync to, so fall back to this pleasant fixed pace.
-const SILENT_DUR = 3.0;
+// Aim for a punchy ~16s reel; the fast beat cuts fill it by cycling the photos.
+const TARGET_TOTAL_SEC = 16;
+// No music => no beat to follow, so cut at this snappy fixed pace.
+const SILENT_SLIDE_SEC = 0.7;
+// Hard cap on clip count so a huge upload can't blow up encode time.
+const MAX_SLIDES = 48;
+// Roughly how long a photo should hold; snapped to a whole number of beats so a
+// fast track (short period) cuts every beat and a slow one every 2 beats.
+const TARGET_SLIDE_SEC = 0.55;
 
-// Work out the per-image duration and a small audio pre-roll so a beat coincides
-// with each crossfade centre (the perceived switch sits crossfade/2 after the
-// xfade offset). Returns a uniform duration because a whole number of equal
-// beats already keeps every cut on the pulse.
+// Work out how long each photo holds (a whole number of beats so every hard cut
+// lands on the pulse), how many slides to render (photos are cycled to fill the
+// reel), and a small audio pre-roll so a beat sits at t=0 and every cut is on it.
 function beatPlan(
   musicKey: string | undefined,
-  crossfade: number,
-): { durPerImage: number; musicSeek: number } {
+  n: number,
+): { slideDur: number; musicSeek: number; slideCount: number } {
   const key = !musicKey || musicKey === "none" ? null : musicKey;
   const grid = key ? BEAT_GRID[key] : undefined;
-  if (!grid) return { durPerImage: SILENT_DUR, musicSeek: 0 };
-  const m = Math.max(3, Math.min(16, Math.round(TARGET_SEC / grid.period)));
-  const switchInterval = m * grid.period;
-  // d - crossfade == switchInterval keeps each switch exactly `m` beats apart.
-  const durPerImage = switchInterval + crossfade;
-  let seek = (grid.phase - crossfade / 2) % grid.period;
+  if (!grid) {
+    const slideDur = SILENT_SLIDE_SEC;
+    const fill = Math.min(MAX_SLIDES, Math.round(TARGET_TOTAL_SEC / slideDur));
+    return { slideDur, musicSeek: 0, slideCount: Math.max(n, fill) };
+  }
+  const beats = Math.max(1, Math.round(TARGET_SLIDE_SEC / grid.period));
+  const slideDur = +(beats * grid.period).toFixed(4);
+  const fill = Math.min(MAX_SLIDES, Math.round(TARGET_TOTAL_SEC / slideDur));
+  const slideCount = Math.max(n, fill);
+  // Seek the bed so a beat sits at t=0; every slide boundary is a whole number of
+  // beats, so each hard cut then coincides with a beat.
+  let seek = grid.phase % grid.period;
   if (seek < 0) seek += grid.period;
-  return { durPerImage, musicSeek: +seek.toFixed(3) };
+  return { slideDur, musicSeek: +seek.toFixed(3), slideCount };
 }
 
-// Build the filter_complex graph: per-image zoom then a varied transition chain.
-function buildFilter(n: number, durPerImage: number, crossfade: number): string {
-  const frames = Math.max(2, Math.round(durPerImage * FPS));
-  // Cinematic Ken Burns, clearly visible (not a static slide): a 1.06 → 1.20 move
-  // that alternates zoom-IN / zoom-OUT per image, combined with a directional pan
+// Build the filter_complex graph: a subtle Ken Burns per slide, then a plain
+// concat that joins them with hard cuts (no crossfade) so every switch is instant
+// and lands on the beat. `n` is the slide count (photos are already cycled).
+function buildFilter(n: number, slideDur: number): string {
+  const frames = Math.max(2, Math.round(slideDur * FPS));
+  // Subtle Ken Burns: clips are short and the cut does the work, so keep the move
+  // gentle (1.04 → 1.12) — alternating zoom-IN / zoom-OUT per slide with a pan
   // that cycles right → left → up → down so consecutive photos never drift the
   // same way. Every offset is a fraction of the *live* crop margin (iw-iw/zoom),
-  // so the crop can never leave the frame (no black edges, no clamp judder).
+  // so the crop can never leave the frame (no black edges).
   const fm1 = Math.max(1, frames - 1);
-  const Z_LO = 1.06;
-  const Z_HI = 1.2;
+  const Z_LO = 1.04;
+  const Z_HI = 1.12;
   const zinc = ((Z_HI - Z_LO) / frames).toFixed(6);
   const SPAN = 0.85; // fraction of the available crop margin the pan travels across
   const parts: string[] = [];
@@ -188,16 +185,14 @@ function buildFilter(n: number, durPerImage: number, crossfade: number): string 
         panY = `${cy}+${driftY}`; // pan down
         break;
     }
-    // Crop-fill to the 2x supersample canvas (biased DOWN so we favour the lower
-    // ~60% where the furniture lives and trim excess ceiling), run zoom+pan at 2x,
-    // then scale back to 1080x1920 so the integer-pixel stepping is antialiased
-    // away (no judder) and the frame is full-bleed (no black bars).
+    // Crop-fill to the 1080x1920 frame (biased DOWN so we favour the lower ~60%
+    // where the furniture lives and trim excess ceiling), then run zoom+pan.
     parts.push(
-      `[${i}:v]scale=${SS_W}:${SS_H}:force_original_aspect_ratio=increase,` +
-        `crop=${SS_W}:${SS_H}:(in_w-${SS_W})/2:(in_h-${SS_H})*0.62,` +
+      `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,` +
+        `crop=${W}:${H}:(in_w-${W})/2:(in_h-${H})*0.62,` +
         `zoompan=z='${z}':d=${frames}:` +
-        `x='${panX}':y='${panY}':s=${SS_W}x${SS_H}:fps=${FPS},` +
-        `scale=${W}:${H}:flags=bicubic,setsar=1,format=yuv420p[v${i}]`,
+        `x='${panX}':y='${panY}':s=${W}x${H}:fps=${FPS},` +
+        `setsar=1,format=yuv420p[v${i}]`,
     );
   }
 
@@ -207,16 +202,9 @@ function buildFilter(n: number, durPerImage: number, crossfade: number): string 
     return parts.join(";");
   }
 
-  let last = `[v0]`;
-  for (let j = 1; j < n; j++) {
-    const offset = (j * (durPerImage - crossfade)).toFixed(3);
-    const out = j === n - 1 ? `[vbase]` : `[x${j}]`;
-    const transition = pickTransition(j);
-    parts.push(
-      `${last}[v${j}]xfade=transition=${transition}:duration=${crossfade}:offset=${offset}${out}`,
-    );
-    last = `[x${j}]`;
-  }
+  // Hard cuts: concatenate the slides with no transition.
+  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
+  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
   return parts.join(";");
 }
 
@@ -265,23 +253,23 @@ async function render(
   musicKey?: string,
   address?: string,
 ): Promise<void> {
-  // "Mix" pacing: a soft 0.8s crossfade so most switches melt into the next image
-  // (the calm, elegant feel) while the per-junction variation stays gentle.
-  const crossfade = 0.8;
-  // Lock the per-image duration to the chosen track's pulse so cuts land on the
-  // beat. Silent videos use a fixed pleasant pace.
-  const { durPerImage, musicSeek } = beatPlan(musicKey, crossfade);
   const n = imagePaths.length;
-  const filter = buildFilter(n, durPerImage, crossfade);
+  // Beat-locked hard cuts: each slide holds a whole number of beats, and the
+  // photos are cycled to fill a punchy ~16s reel. Silent videos use a snappy
+  // fixed pace.
+  const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
+  const slidePaths: string[] = [];
+  for (let k = 0; k < slideCount; k++) slidePaths.push(imagePaths[k % n]);
+  const filter = buildFilter(slideCount, slideDur);
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
   const outPath = path.join(outDir, filename);
 
-  // Total video length after the chained crossfades overlap each junction.
-  const videoTotal = n * durPerImage - (n - 1) * crossfade;
+  // Hard cuts don't overlap, so the reel is exactly the sum of the slides.
+  const videoTotal = +(slideCount * slideDur).toFixed(3);
   const musicPath = resolveMusic(musicKey);
 
   const args: string[] = ["-y"];
-  for (const p of imagePaths) {
+  for (const p of slidePaths) {
     args.push("-i", p);
   }
 
@@ -329,7 +317,7 @@ async function render(
     args.push("-i", musicPath);
     const fadeOutStart = Math.max(0.1, videoTotal - 3).toFixed(2);
     const audioChain =
-      `[${n}:a]volume=0.32,afade=t=in:st=0:d=2,` +
+      `[${slideCount}:a]volume=0.32,afade=t=in:st=0:d=2,` +
       `afade=t=out:st=${fadeOutStart}:d=3[aout]`;
     finalFilter = `${finalFilter};${audioChain}`;
   }

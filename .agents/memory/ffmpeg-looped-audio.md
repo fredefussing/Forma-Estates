@@ -32,16 +32,31 @@ ONCE offline (decode mp3 → mono f32 PCM via ffmpeg, run the `music-tempo` npm 
 to get period = sec/beat and phase = first-beat time), then hardcode {period,
 phase} per track. No per-render analysis cost; `music-tempo` can be uninstalled.
 
-The crossfade eats time, so cuts drift unless you account for it. With a chained
-`xfade`, the switch-to-switch interval equals `durPerImage - crossfade`, NOT
-`durPerImage`. So to put switches `m` beats apart set
-`durPerImage = m*period + crossfade`. The perceived switch (xfade centre) sits
-`crossfade/2` after the xfade offset, so align phase by pre-rolling the audio with
-input `-ss ((phase - crossfade/2) mod period)` — then a beat coincides with each
-cut. `-ss` before `-i` works fine alongside `-stream_loop -1` and the `-t` cap.
+**Hard cuts (the current model):** join slides with `concat=n=K:v=1:a=0` (no
+xfade). Hold each slide a whole number of beats (`slideDur = beats*period`) so
+every slide boundary (`k*slideDur`) lands on the beat grid. Align by pre-rolling
+the audio so a beat sits at video t=0: `-ss (phase mod period)`. Then cut at t=0
+and every boundary is on a beat. `videoTotal = K*slideDur` (no overlap). To keep a
+small upload from making a 2s reel, CYCLE the photos to a target length:
+`slidePaths[k] = imagePaths[k % n]`, `K = max(n, min(MAX, round(target/slideDur)))`.
 
-**Why:** user wanted AI-style cuts on the beat (vs a fixed per-image slider).
-**How to apply:** Bolig Showcase Video — `beatPlan()` in `server/showcase.ts`.
+**Crossfade variant (older, if you ever bring xfade back):** the xfade eats time,
+so switch-to-switch interval = `durPerImage - crossfade`; put switches `m` beats
+apart with `durPerImage = m*period + crossfade`, and the perceived switch (xfade
+centre) sits `crossfade/2` after the offset, so seek `-ss ((phase - crossfade/2)
+mod period)`.
+
+**Why hard cuts:** user explicitly wanted fast, instant switches on the beat (a
+modern montage), not the calm melt of a crossfade. Fast track (short period) =
+fast cuts automatically.
+
+**Encode note:** with many short slides, drop the 2x supersample and render
+zoompan straight at output res — far cheaper, and short clips + a gentle zoom
+(≈1.04→1.12) hide the integer-pixel judder the supersample was there to fix. The
+supersample is only worth it for slow, long, single-image Ken Burns moves.
+
+**How to apply:** Bolig Showcase Video — `beatPlan()` + `buildFilter()` in
+`server/showcase.ts`.
 
 ## Burned-in text captions (drawtext) inside a filter_complex
 
