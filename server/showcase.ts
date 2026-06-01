@@ -169,29 +169,81 @@ const AI_TARGET_TOTAL_SEC = 15;
 const AI_MIN_SLIDE_SEC = 1.6;
 const AI_MAX_SLIDE_SEC = 4.6;
 
-// Beat plan for the AI path: one slide per clip (no cycling), each slide a whole
-// number of beats so cuts still land on the pulse, but long enough that the AI
-// camera move actually reads. slideCount is fixed to the number of clips.
-function beatPlanAI(
+// Energy-aware beat plan for the AI path. Instead of one uniform duration,
+// each clip gets its own beat count driven by where it falls in the reel and
+// what the music type is doing emotionally at that point.
+//
+// Beat counts (per music type) that keep every duration inside [AI_MIN, AI_MAX]:
+//   calm   (period 0.33s): short=5→1.65s  medium=8→2.64s  long=11→3.63s
+//   uplifting (0.49s):     short=4→1.96s  medium=6→2.94s  long= 8→3.92s
+//   modern    (0.545s):    short=3→1.64s  medium=5→2.73s  long= 7→3.82s
+type EnergyLevel = "short" | "medium" | "long";
+
+const ENERGY_BEATS: Record<string, Record<EnergyLevel, number>> = {
+  calm:      { short: 5,  medium: 8,  long: 11 },
+  uplifting: { short: 4,  medium: 6,  long: 8  },
+  modern:    { short: 3,  medium: 5,  long: 7  },
+};
+
+// Map normalised reel position (0=first clip, 1=last) to an energy level.
+const ENERGY_SEQUENCE: Record<string, (pos: number) => EnergyLevel> = {
+  // Calm: slow, contemplative — mostly long, gentle dip in the middle.
+  calm: (pos) => {
+    if (pos < 0.15) return "long";
+    if (pos < 0.42) return "medium";
+    if (pos < 0.62) return "long";
+    if (pos < 0.82) return "medium";
+    return "long";
+  },
+  // Uplifting: breath → build → peak → settle → close.
+  uplifting: (pos) => {
+    if (pos < 0.12) return "long";
+    if (pos < 0.32) return "medium";
+    if (pos < 0.58) return "short";
+    if (pos < 0.78) return "medium";
+    return "long";
+  },
+  // Modern: punchy editorial — hook/chorus hits hard, verses breathe.
+  modern: (pos) => {
+    if (pos < 0.10) return "medium";
+    if (pos < 0.32) return "short";
+    if (pos < 0.52) return "medium";
+    if (pos < 0.72) return "short";
+    return "medium";
+  },
+};
+
+function energyPlanAI(
   musicKey: string | undefined,
   n: number,
-): { slideDur: number; musicSeek: number; slideCount: number } {
-  const target = Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n));
+): { durations: number[]; musicSeek: number } {
   const key = !musicKey || musicKey === "none" ? null : musicKey;
   const grid = key ? BEAT_GRID[key] : undefined;
-  if (!grid) {
-    return { slideDur: +target.toFixed(3), musicSeek: 0, slideCount: n };
+  const beatMap = key ? ENERGY_BEATS[key] : undefined;
+  const seq = key ? ENERGY_SEQUENCE[key] : undefined;
+
+  if (!grid || !beatMap || !seq) {
+    const dur = +(Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n)).toFixed(3));
+    return { durations: Array(n).fill(dur), musicSeek: 0 };
   }
-  let beats = Math.max(1, Math.round(target / grid.period));
-  let slideDur = beats * grid.period;
-  // Never exceed the source clip length — drop a beat until it fits.
-  while (slideDur > AI_MAX_SLIDE_SEC && beats > 1) {
-    beats--;
-    slideDur = beats * grid.period;
-  }
+
+  const durations = Array.from({ length: n }, (_, i) => {
+    const pos = n > 1 ? i / (n - 1) : 0.5;
+    const level = seq(pos);
+    let beats = beatMap[level];
+    let dur = beats * grid.period;
+    while (dur > AI_MAX_SLIDE_SEC && beats > 1) { beats--; dur = beats * grid.period; }
+    while (dur < AI_MIN_SLIDE_SEC) { beats++; dur = beats * grid.period; }
+    return +dur.toFixed(4);
+  });
+
   let seek = grid.phase % grid.period;
   if (seek < 0) seek += grid.period;
-  return { slideDur: +slideDur.toFixed(4), musicSeek: +seek.toFixed(3), slideCount: n };
+
+  const total = durations.reduce((a, b) => a + b, 0);
+  console.log(`[showcase] energy plan (${key}, ${n} clips): [${durations.join(", ")}]s = ${total.toFixed(2)}s total`);
+
+  return { durations, musicSeek: +seek.toFixed(3) };
 }
 
 // Work out how long each photo holds (a whole number of beats so every hard cut
@@ -353,9 +405,9 @@ function buildSlideVideo(i: number, dims: { w: number; h: number }, slideDur: nu
 // Filter graph for the AI path: one trimmed clip per slide, joined with HARD CUTS
 // on the beat. `n` is the clip/slide count (never cycled); `sizes[i]` is clip i's
 // pixel size.
-function buildFilterVideo(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
+function buildFilterVideo(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
   const parts: string[] = [];
-  for (let i = 0; i < n; i++) parts.push(buildSlideVideo(i, sizes[i], slideDur));
+  for (let i = 0; i < n; i++) parts.push(buildSlideVideo(i, sizes[i], durations[i]));
 
   if (n === 1) {
     parts.push(`[v0]null[vbase]`);
@@ -410,7 +462,8 @@ function drawCaption(
 interface RenderInputs {
   inputPaths: string[];
   slideCount: number;
-  slideDur: number;
+  slideDur: number;           // uniform value (local path) or per-clip average
+  durations?: number[];       // per-clip durations for energy-aware AI path
   musicSeek: number;
   filter: string;
   tmpClips: string[];
@@ -497,11 +550,12 @@ async function buildAIInputs(
   // From here a throw (e.g. ffprobe) must not leak the already-downloaded clips.
   try {
     const n = clipPaths.length;
-    const { slideDur, musicSeek, slideCount } = beatPlanAI(musicKey, n);
+    const { durations, musicSeek } = energyPlanAI(musicKey, n);
     const sizes: Array<{ w: number; h: number }> = [];
     for (const c of clipPaths) sizes.push(await ffprobeSize(c));
-    const filter = buildFilterVideo(slideCount, slideDur, sizes);
-    return { inputPaths: clipPaths, slideCount, slideDur, musicSeek, filter, tmpClips: clipPaths };
+    const filter = buildFilterVideo(n, durations, sizes);
+    const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
+    return { inputPaths: clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clipPaths };
   } catch (e) {
     for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
     throw e;
@@ -542,7 +596,9 @@ async function render(
   const outPath = path.join(outDir, filename);
 
   // Hard cuts don't overlap, so the reel is exactly the sum of the slides.
-  const videoTotal = +(slideCount * slideDur).toFixed(3);
+  const videoTotal = inputs.durations
+    ? +inputs.durations.reduce((a, b) => a + b, 0).toFixed(3)
+    : +(slideCount * slideDur).toFixed(3);
   const musicPath = resolveMusic(musicKey);
 
   const args: string[] = ["-y"];
