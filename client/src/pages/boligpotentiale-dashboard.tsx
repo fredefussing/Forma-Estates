@@ -3012,10 +3012,21 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         {videoUrl && (
           <>
             <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
-              <video src={videoUrl} controls autoPlay loop muted playsInline className="w-full block bg-black max-h-[70vh] mx-auto" data-testid="video-showcase-result" />
+              <div className="bg-[#0F1D2F] flex justify-center py-4">
+                <video
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-[70vh] max-h-[640px] w-auto aspect-[9/16] object-cover rounded-2xl shadow-2xl bg-black"
+                  data-testid="video-showcase-result"
+                />
+              </div>
               <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
                 <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
-                Bolig showcase video (9:16)
+                Bolig showcase video (9:16) — fuldt format, klar til Reels / TikTok / Shorts
               </div>
             </div>
 

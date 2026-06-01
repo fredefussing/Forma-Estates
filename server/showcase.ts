@@ -63,10 +63,13 @@ function releaseSlot() {
 const FPS = 30;
 const W = 1080;
 const H = 1920;
-// Pre-upscale source before zoompan to avoid the well-known zoompan
-// integer-pixel jitter — the zoom then samples from a higher-res frame.
-const SRC_W = 1620;
-const SRC_H = 2880;
+// zoompan jitters because it truncates the crop offset to whole pixels each
+// frame. We beat this two ways: (1) crop-fill the source to 2x the final size
+// and run zoompan at that 2x resolution, then (2) scale the result back down to
+// 1080x1920. The downscale supersamples away the integer-pixel stepping, so the
+// Ken Burns zoom is buttery smooth instead of juddering.
+const SS_W = W * 2; // 2160 — supersample (working) width
+const SS_H = H * 2; // 3840 — supersample (working) height
 
 function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -87,21 +90,25 @@ function runFfmpeg(args: string[]): Promise<void> {
 // Build the filter_complex graph: per-image Ken Burns then a crossfade chain.
 function buildFilter(n: number, durPerImage: number, crossfade: number): string {
   const frames = Math.max(2, Math.round(durPerImage * FPS));
-  const zinc = (0.12 / frames).toFixed(6);
+  // Gentle 10% zoom over the clip — a slow, elegant drift like the references.
+  const zinc = (0.10 / frames).toFixed(6);
   const parts: string[] = [];
 
   for (let i = 0; i < n; i++) {
     // Alternate motion for rhythm: even = slow zoom-in, odd = slow zoom-out.
     const z =
       i % 2 === 0
-        ? `min(1.0+${zinc}*on,1.12)`
-        : `max(1.12-${zinc}*on,1.0)`;
+        ? `min(1.0+${zinc}*on,1.10)`
+        : `max(1.10-${zinc}*on,1.0)`;
+    // Crop-fill to the 2x supersample canvas, run the Ken Burns motion at 2x,
+    // then scale back to 1080x1920 so the integer-pixel zoom stepping is
+    // antialiased away (no judder) and the frame is full-bleed (no black bars).
     parts.push(
-      `[${i}:v]scale=${SRC_W}:${SRC_H}:force_original_aspect_ratio=increase,` +
-        `crop=${SRC_W}:${SRC_H},` +
+      `[${i}:v]scale=${SS_W}:${SS_H}:force_original_aspect_ratio=increase,` +
+        `crop=${SS_W}:${SS_H},` +
         `zoompan=z='${z}':d=${frames}:` +
-        `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},` +
-        `setsar=1,format=yuv420p[v${i}]`,
+        `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${SS_W}x${SS_H}:fps=${FPS},` +
+        `scale=${W}:${H}:flags=bicubic,setsar=1,format=yuv420p[v${i}]`,
     );
   }
 
