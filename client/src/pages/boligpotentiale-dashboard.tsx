@@ -2721,6 +2721,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
+  const [address, setAddress] = useState("");
   // Per-image duration is locked to each track's pulse on the server (cuts land
   // on the beat). These mirror that for a live length estimate only.
   const DUR_PER_IMAGE: Record<string, number> = { calm: 3.77, uplifting: 3.74, modern: 4.07, none: 3.0 };
@@ -2794,6 +2795,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
       fd.append("music", music);
+      if (address.trim()) fd.append("address", address.trim());
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
         body: fd,
@@ -2964,6 +2966,22 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             </div>
           </div>
         )}
+
+        {/* Optional address — shown as a text overlay at the start of the video */}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Boligadresse <span style={{ color: "#9B9690", textTransform: "none", fontWeight: 500 }}>(valgfri – vises i starten)</span></span>
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => { setAddress(e.target.value); setVideoUrl(null); setSaveCaseId(null); }}
+            disabled={isGenerating}
+            placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
+            maxLength={80}
+            className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
+            style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
+            data-testid="input-showcase-address"
+          />
+        </div>
 
         {/* Music picker — image cuts are synced to the chosen track's beat */}
         <div>

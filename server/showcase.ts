@@ -203,14 +203,14 @@ function buildFilter(n: number, durPerImage: number, crossfade: number): string 
 
   if (n === 1) {
     // Single image: just expose it as the output label.
-    parts.push(`[v0]null[vout]`);
+    parts.push(`[v0]null[vbase]`);
     return parts.join(";");
   }
 
   let last = `[v0]`;
   for (let j = 1; j < n; j++) {
     const offset = (j * (durPerImage - crossfade)).toFixed(3);
-    const out = j === n - 1 ? `[vout]` : `[x${j}]`;
+    const out = j === n - 1 ? `[vbase]` : `[x${j}]`;
     const transition = pickTransition(j);
     parts.push(
       `${last}[v${j}]xfade=transition=${transition}:duration=${crossfade}:offset=${offset}${out}`,
@@ -220,11 +220,50 @@ function buildFilter(n: number, durPerImage: number, crossfade: number): string 
   return parts.join(";");
 }
 
+// Text overlay: a bundled bold sans-serif, plus a FIXED contact line that is the
+// same on every video (the agency's details). The per-video address is optional
+// and supplied by the user. Rendered with drawtext (burned in) so the clip is
+// self-contained — no external player or caption track needed.
+const FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+const CONTACT_TEXT =
+  "Kontakt os for fremvisning\n+45 70 70 70 70\nkontakt@formaestates.dk";
+
+// A drawtext alpha expression that fades a caption in over `f`s, holds it, then
+// fades it out over `f`s within the window [s, e]. Wrapped in single quotes by the
+// caller, so internal commas/colons are safe from the filtergraph parser.
+function fadeAlpha(s: number, e: number, f: number): string {
+  const a = s.toFixed(2);
+  const b = (s + f).toFixed(2);
+  const c = (e - f).toFixed(2);
+  const d = e.toFixed(2);
+  return `if(lt(t,${a}),0,if(lt(t,${b}),(t-${a})/${f},if(lt(t,${c}),1,if(lt(t,${d}),(${d}-t)/${f},0))))`;
+}
+
+// One white-on-shadow, semi-transparent-box, centred caption.
+function drawCaption(
+  file: string,
+  size: number,
+  y: string,
+  alpha: string,
+  enable: string,
+  lineSpacing = 0,
+): string {
+  const ls = lineSpacing > 0 ? `:line_spacing=${lineSpacing}` : "";
+  return (
+    `drawtext=fontfile=${FONT}:textfile=${file}:expansion=none:` +
+    `fontcolor=white:fontsize=${size}${ls}:` +
+    `box=1:boxcolor=black@0.40:boxborderw=22:` +
+    `shadowcolor=black@0.55:shadowx=2:shadowy=2:` +
+    `x=(w-text_w)/2:y=${y}:alpha='${alpha}':enable='${enable}'`
+  );
+}
+
 async function render(
   jobId: string,
   imagePaths: string[],
   outDir: string,
   musicKey?: string,
+  address?: string,
 ): Promise<void> {
   // "Mix" pacing: a soft 0.8s crossfade so most switches melt into the next image
   // (the calm, elegant feel) while the per-junction variation stays gentle.
@@ -246,7 +285,40 @@ async function render(
     args.push("-i", p);
   }
 
-  let finalFilter = filter;
+  // Burn in the captions: the fixed contact line (every video) low on the frame
+  // for the last ~5s, and the optional per-video address high on the frame for the
+  // first ~5s. drawtext reads each string from a temp file (textfile=) so user
+  // text needs no fragile filtergraph escaping. Falls back to a passthrough if the
+  // bundled font is somehow missing.
+  const tmpFiles: string[] = [];
+  let overlayChain = `;[vbase]null[vout]`;
+  if (fs.existsSync(FONT)) {
+    const baseName = filename.replace(/\.mp4$/, "");
+    const draws: string[] = [];
+    const contactFile = path.join(outDir, `${baseName}-contact.txt`);
+    fs.writeFileSync(contactFile, CONTACT_TEXT, "utf8");
+    tmpFiles.push(contactFile);
+    const cs = Math.max(0, videoTotal - 5);
+    draws.push(
+      drawCaption(contactFile, 46, "h-text_h-200", fadeAlpha(cs, videoTotal, 1), `between(t,${cs.toFixed(2)},${videoTotal.toFixed(2)})`, 16),
+    );
+    const addr = (address || "").trim();
+    if (addr) {
+      const addrFile = path.join(outDir, `${baseName}-addr.txt`);
+      fs.writeFileSync(addrFile, addr, "utf8");
+      tmpFiles.push(addrFile);
+      const ae = Math.min(5, videoTotal);
+      // drawtext can't auto-wrap, so size the font to fit the address on one line
+      // inside the ~1000px usable width (DejaVu Bold ≈ 0.6·fontsize per glyph).
+      const addrSize = Math.max(28, Math.min(56, Math.floor(1000 / (addr.length * 0.6))));
+      draws.unshift(
+        drawCaption(addrFile, addrSize, "300", fadeAlpha(0, ae, 1), `between(t,0,${ae.toFixed(2)})`),
+      );
+    }
+    overlayChain = `;[vbase]${draws.join(",")}[vout]`;
+  }
+
+  let finalFilter = filter + overlayChain;
   if (musicPath) {
     // Loop the bed to cover the whole video, drop it to a tasteful background
     // level, and fade in/out so it never starts or ends abruptly. The `-ss`
@@ -259,7 +331,7 @@ async function render(
     const audioChain =
       `[${n}:a]volume=0.32,afade=t=in:st=0:d=2,` +
       `afade=t=out:st=${fadeOutStart}:d=3[aout]`;
-    finalFilter = `${filter};${audioChain}`;
+    finalFilter = `${finalFilter};${audioChain}`;
   }
 
   args.push("-filter_complex", finalFilter, "-map", "[vout]");
@@ -309,6 +381,7 @@ async function render(
     await runFfmpeg(args);
   } finally {
     releaseSlot();
+    for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
   }
   jobs.set(jobId, { status: "completed", videoUrl: `/uploads/${filename}`, createdAt: Date.now() });
 }
@@ -318,6 +391,7 @@ export function startShowcaseVideo(
   imagePaths: string[],
   outDir: string,
   musicKey?: string,
+  address?: string,
 ): string | null {
   pruneJobs();
   // Backpressure: refuse new work when the box is already saturated so we fail
@@ -328,7 +402,7 @@ export function startShowcaseVideo(
   const jobId = randomUUID();
   jobs.set(jobId, { status: "processing", createdAt: Date.now() });
 
-  render(jobId, imagePaths, outDir, musicKey)
+  render(jobId, imagePaths, outDir, musicKey, address)
     .catch((err: any) => {
       jobs.set(jobId, {
         status: "failed",

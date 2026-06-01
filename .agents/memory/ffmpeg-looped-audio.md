@@ -42,3 +42,21 @@ cut. `-ss` before `-i` works fine alongside `-stream_loop -1` and the `-t` cap.
 
 **Why:** user wanted AI-style cuts on the beat (vs a fixed per-image slider).
 **How to apply:** Bolig Showcase Video — `beatPlan()` in `server/showcase.ts`.
+
+## Burned-in text captions (drawtext) inside a filter_complex
+
+- Read caption text from a temp file with `textfile=` + `expansion=none`, never
+  inline `text=`. This sidesteps all filtergraph escaping for user input and stops
+  `%{...}`/`\` from being interpreted. Clean up the temp files in a `finally`.
+- Wrap any `alpha=`/`enable=` *expression* value in single quotes. Inside the
+  quotes the filtergraph parser leaves `,` and `:` alone, so `if(lt(t,a),..)` and
+  `between(t,a,b)` survive without escaping every comma.
+- drawtext does NOT auto-wrap. For variable-length user text, size the font to the
+  frame: `fontsize = clamp(28..56, floor(usableWidthPx / (len*0.6)))` (DejaVu Bold
+  ≈ 0.6·fontsize per glyph) or split into fixed short lines. Bundled font lives at
+  `/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf`.
+
+**Gotcha:** when a graph has BOTH a video overlay chain and a looped-audio branch,
+build the video to a named label (e.g. `[vbase]→drawtext→[vout]`) and *append* the
+audio branch with `finalFilter = \`${finalFilter};${audioChain}\``. Rebuilding from
+the original `filter` string silently drops the overlay.
