@@ -2233,9 +2233,8 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Upload mindst 3 billeder" });
       }
       const paths = files.map((f) => path.join(uploadDir, f.filename));
-      const music = typeof req.body?.music === "string" ? req.body.music : undefined;
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, music, address);
+      const jobId = startShowcaseVideo(paths, uploadDir, address);
       if (!jobId) {
         // Server is saturated — clean up the just-uploaded files and back off.
         for (const p of paths) fs.promises.unlink(p).catch(() => {});
@@ -2289,8 +2288,8 @@ export async function registerRoutes(
     if (!job) {
       return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
     }
-    if (job.status === "completed" && job.videoUrl) {
-      return res.json({ success: true, status: "COMPLETED", video_url: job.videoUrl });
+    if (job.status === "completed" && job.videoUrls) {
+      return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls });
     }
     if (job.status === "failed") {
       return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });

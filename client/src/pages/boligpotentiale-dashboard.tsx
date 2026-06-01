@@ -2720,17 +2720,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
-  const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "tension" | "none">("calm");
   const [address, setAddress] = useState("");
-  // The server turns each photo into ONE real AI camera-motion clip (no cycling,
-  // capped) and hard-cuts them on the beat. These mirror the server's AI beat plan
-  // for a live length estimate only. Periods measured June 2026.
-  const BEAT_PERIOD: Record<string, number> = { calm: 0.75, uplifting: 0.625, modern: 0.4724, tension: 0.8696 };
-  const MAX_AI_CLIPS = 12;
-  const AI_TARGET_TOTAL = 15;
-  const AI_MIN_SLIDE = 1.6;
-  const AI_MAX_SLIDE = 4.6;
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const MOOD_LABELS: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
+  const ALL_MOODS = ["calm", "uplifting", "modern", "tension"] as const;
+  const [videoUrls, setVideoUrls] = useState<Record<string, string> | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressMsg, setProgressMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -2743,7 +2736,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const esRef = useRef<EventSource | null>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
 
-  const hasUnsaved = !!videoUrl && saveCaseId === null;
+  const hasUnsaved = videoUrls !== null && Object.keys(videoUrls).length > 0 && saveCaseId === null;
   useUnsavedExitGuard(hasUnsaved);
 
   useEffect(() => {
@@ -2755,26 +2748,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [showCaseDropdown]);
 
-  const totalSeconds = images.length > 0
-    ? (() => {
-        const clips = Math.min(images.length, MAX_AI_CLIPS);
-        const target = Math.min(AI_MAX_SLIDE, Math.max(AI_MIN_SLIDE, AI_TARGET_TOTAL / clips));
-        const period = BEAT_PERIOD[music];
-        let slideDur = target;
-        if (period) {
-          let beats = Math.max(1, Math.round(target / period));
-          slideDur = beats * period;
-          while (slideDur > AI_MAX_SLIDE && beats > 1) { beats--; slideDur = beats * period; }
-        }
-        return clips * slideDur;
-      })()
-    : 0;
-
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (arr.length === 0) { setError("Vælg venligst billedfiler"); return; }
     setError(null);
-    setVideoUrl(null);
+    setVideoUrls(null);
     setSaveCaseId(null);
     const next = arr.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -2786,7 +2764,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((i) => i.id !== id));
-    setVideoUrl(null);
+    setVideoUrls(null);
     setSaveCaseId(null);
   };
 
@@ -2798,7 +2776,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       copy.splice(to, 0, moved);
       return copy;
     });
-    setVideoUrl(null);
+    setVideoUrls(null);
     setSaveCaseId(null);
   };
 
@@ -2806,7 +2784,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
     setIsGenerating(true);
     setError(null);
-    setVideoUrl(null);
+    setVideoUrls(null);
     setSaveCaseId(null);
     setProgressMsg("Forbereder…");
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
@@ -2814,7 +2792,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
-      fd.append("music", music);
       if (address.trim()) fd.append("address", address.trim());
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
@@ -2828,7 +2805,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
       const jobId = data.job_id as string;
 
-      // Stream progress via SSE; 12-min safety timeout in case the connection drops
       await new Promise<void>((resolve, reject) => {
         const deadline = setTimeout(() => {
           esRef.current?.close();
@@ -2841,13 +2817,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
         es.onmessage = (e) => {
           try {
-            const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrl?: string };
+            const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrls?: Record<string, string> };
             if (p.message) setProgressMsg(p.message);
-            if (p.stage === "complete" && p.videoUrl) {
+            if (p.stage === "complete" && p.videoUrls) {
               clearTimeout(deadline);
               es.close();
               esRef.current = null;
-              setVideoUrl(p.videoUrl);
+              setVideoUrls(p.videoUrls);
               resolve();
             } else if (p.stage === "failed") {
               clearTimeout(deadline);
@@ -2874,15 +2850,17 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   const handleReset = () => {
-    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
+    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme videoerne?")) return;
     setImages([]);
-    setVideoUrl(null);
+    setVideoUrls(null);
     setSaveCaseId(null);
     setError(null);
   };
 
   const saveToCase = async (c: ApiCase) => {
-    if (!videoUrl) return;
+    if (!videoUrls) return;
+    const saveUrl = videoUrls.modern ?? videoUrls.calm ?? Object.values(videoUrls)[0];
+    if (!saveUrl) return;
     setShowCaseDropdown(false);
     setSaveCaseId(c.id);
     try {
@@ -2894,7 +2872,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          imageUrl: videoUrl,
+          imageUrl: saveUrl,
           originalImageUrl: null,
           roomType: "showcase-video",
           style: "showcase-video",
@@ -2919,12 +2897,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     }
   };
 
-  const handleDownload = async () => {
-    if (!videoUrl || downloading) return;
+  const handleDownloadMood = async (url: string, mood: string) => {
     setDownloading(true);
     try {
       const ts = new Date().toISOString().slice(0, 10);
-      await downloadFromUrl(videoUrl, `bolig-showcase-${ts}.mp4`);
+      await downloadFromUrl(url, `bolig-showcase-${mood}-${ts}.mp4`);
     } finally {
       setDownloading(false);
     }
@@ -3029,39 +3006,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           />
         </div>
 
-        {/* Music picker — image cuts are synced to the chosen track's beat */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>Baggrundsmusik</span>
-            {totalSeconds > 0 && (
-              <span className="text-xs font-semibold" style={{ color: "#9B9690" }} data-testid="text-showcase-length">video ≈ {Math.round(totalSeconds)}s</span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {([
-              { key: "calm", label: "Rolig" },
-              { key: "uplifting", label: "Opløftende" },
-              { key: "modern", label: "Moderne" },
-              { key: "tension", label: "Spændt" },
-              { key: "none", label: "Ingen" },
-            ] as const).map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => { setMusic(opt.key); setVideoUrl(null); setSaveCaseId(null); }}
-                disabled={isGenerating}
-                className="h-10 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50"
-                style={music === opt.key
-                  ? { borderColor: "#C8956C", background: "rgba(200,149,108,0.10)", color: "#0F1D2F" }
-                  : { borderColor: "#E8E4DE", background: "#fff", color: "#6B6B6B" }}
-                data-testid={`button-music-${opt.key}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <button
           onClick={handleGenerate}
           disabled={images.length < 3 || isGenerating}
@@ -3077,7 +3021,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           ) : (
             <>
               <Film className="w-4 h-4" />
-              Generér showcase-video
+              Generér alle 4 stemninger
             </>
           )}
         </button>
@@ -3088,38 +3032,47 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         )}
 
-        {videoUrl && (
+        {videoUrls && Object.keys(videoUrls).length > 0 && (
           <>
-            <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
-              <div className="bg-[#0F1D2F] flex justify-center py-4">
-                <video
-                  src={videoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="h-[70vh] max-h-[640px] w-auto aspect-[9/16] object-cover rounded-2xl shadow-2xl bg-black"
-                  data-testid="video-showcase-result"
-                />
-              </div>
-              <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
-                <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
-                Bolig showcase video (9:16) — fuldt format, klar til Reels / TikTok / Shorts
-              </div>
+            <div className="space-y-4">
+              {ALL_MOODS.filter((mood) => videoUrls[mood]).map((mood) => (
+                <div key={mood} className="rounded-xl overflow-hidden border border-[#E8E4DE]" data-testid={`card-showcase-${mood}`}>
+                  <div className="bg-[#0F1D2F] px-4 py-2 flex items-center justify-between">
+                    <span className="text-white text-xs font-semibold tracking-wide uppercase">{MOOD_LABELS[mood]}</span>
+                    <span className="text-[#9B9690] text-xs">9:16 · Reels / TikTok / Shorts</span>
+                  </div>
+                  <div className="bg-[#0F1D2F] flex justify-center py-4">
+                    <video
+                      src={videoUrls[mood]}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="h-[60vh] max-h-[560px] w-auto aspect-[9/16] object-cover rounded-2xl shadow-2xl bg-black"
+                      data-testid={`video-showcase-${mood}`}
+                    />
+                  </div>
+                  <div className="p-3 bg-[#F8F6F3] flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
+                      <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
+                      {MOOD_LABELS[mood]} stemning — klar til download
+                    </div>
+                    <button
+                      onClick={() => handleDownloadMood(videoUrls[mood], mood)}
+                      disabled={downloading}
+                      className="h-8 px-4 rounded-full font-semibold text-xs text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+                      style={{ background: "#0F1D2F" }}
+                      data-testid={`button-download-showcase-${mood}`}
+                    >
+                      <Download className="w-3 h-3" /> {downloading ? "Henter…" : "Download"}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-50"
-                style={{ background: "#0F1D2F" }}
-                data-testid="button-download-showcase"
-              >
-                <Download className="w-4 h-4" /> {downloading ? "Henter…" : "Download MP4"}
-              </button>
-
               {activeCases.length > 0 && (
                 <div className="relative" ref={dropdownRef}>
                   <button

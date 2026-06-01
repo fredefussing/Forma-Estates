@@ -23,12 +23,12 @@ export interface ShowcaseProgress {
   currentClip: number;
   totalClips: number;
   message: string;
-  videoUrl?: string;
+  videoUrls?: Record<string, string>;
 }
 
 interface ShowcaseJob {
   status: ShowcaseStatus;
-  videoUrl?: string;
+  videoUrls?: Record<string, string>;
   error?: string;
   createdAt: number;
   progress: ShowcaseProgress;
@@ -514,22 +514,28 @@ async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promis
   return { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips: [] };
 }
 
+// Thin struct holding the downloaded AI clips and their pixel sizes — the
+// mood-independent part of a paid Kling generation pass. The energy plan (clip
+// durations) is computed per mood in makeRenderInputsAI so the same clips are
+// assembled into every mood variant without a second Kling API call.
+interface AIClipData {
+  clipPaths: string[];
+  sizes: Array<{ w: number; h: number }>;
+}
+
 // PRIMARY (paid AI): turn each photo (capped) into one real Kling 2.1 i2v clip
 // with a genuine camera move, generated in PARALLEL. Returns null if EVERY clip
-// failed so the caller can fall back to the free local engine. Clips that
-// individually fail are simply dropped — the reel still renders from the rest.
-async function buildAIInputs(
+// failed so the caller can fall back to the free local engine.
+async function buildAIClips(
   imagePaths: string[],
   outDir: string,
-  musicKey?: string,
   onProgress?: (p: ShowcaseProgress) => void,
-): Promise<RenderInputs | null> {
+): Promise<AIClipData | null> {
   const photos = imagePaths.slice(0, MAX_AI_CLIPS);
   const total = photos.length;
 
   onProgress?.({ stage: "uploading", currentClip: 0, totalClips: total, message: `Uploader ${total} billeder…` });
 
-  // Upload each photo to fal storage (Kling can't read our localhost paths).
   const uploads = await Promise.all(
     photos.map((p) =>
       uploadToFal(p)
@@ -544,8 +550,6 @@ async function buildAIInputs(
   let done = 0;
   onProgress?.({ stage: "generating", currentClip: 0, totalClips: total, message: `Laver AI-klip 0/${total}…` });
 
-  // Generate the clips with bounded concurrency (each is a paid call); download
-  // each to a temp mp4 in outDir. Failed clips are dropped.
   const clips = await mapLimit(uploads, AI_CLIP_CONCURRENCY, async (url, i) => {
     if (!url) return null;
     try {
@@ -569,78 +573,57 @@ async function buildAIInputs(
   const clipPaths = clips.filter((c): c is string => !!c);
   if (clipPaths.length === 0) return null;
 
-  // From here a throw (e.g. ffprobe) must not leak the already-downloaded clips.
   try {
-    const n = clipPaths.length;
-    const { durations, musicSeek } = energyPlanAI(musicKey, n);
     const sizes: Array<{ w: number; h: number }> = [];
     for (const c of clipPaths) sizes.push(await ffprobeSize(c));
-    const filter = buildFilterVideo(n, durations, sizes);
-    const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
-    return { inputPaths: clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clipPaths };
+    return { clipPaths, sizes };
   } catch (e) {
     for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
     throw e;
   }
 }
 
-async function render(
-  jobId: string,
-  imagePaths: string[],
+// Build mood-specific RenderInputs from raw AI clips. Energy plan (timing)
+// varies per mood so every assembled video has different cut rhythm.
+function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
+  const n = clips.clipPaths.length;
+  const { durations, musicSeek } = energyPlanAI(musicKey, n);
+  const filter = buildFilterVideo(n, durations, clips.sizes);
+  const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
+  return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clips.clipPaths };
+}
+
+// Assemble one MP4 from pre-built render inputs. Returns the public /uploads/
+// URL of the finished file. Does NOT delete tmpClips — the caller does that
+// after all mood variants are done. Cleans up only its own text overlay files.
+async function assembleVideo(
+  inputs: RenderInputs,
   outDir: string,
-  musicKey?: string,
-  address?: string,
-): Promise<void> {
-  // Acquire the queue slot BEFORE any work — crucially before the PAID AI
-  // generation — so MAX_BACKLOG actually caps concurrent paid calls and CPU.
-  await acquireSlot();
-  try {
-  const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
-
-  // Prefer real AI clips; fall back to the free local engine when fal isn't
-  // configured or every clip generation failed.
-  let inputs: RenderInputs | null = null;
-  if (isFalConfigured()) {
-    try {
-      inputs = await buildAIInputs(imagePaths, outDir, musicKey, emit);
-    } catch (e: any) {
-      console.warn("[showcase] AI path failed, falling back to local:", e?.message || e);
-      inputs = null;
-    }
-  }
-  if (!inputs) {
-    emit({ stage: "compositing", currentClip: 0, totalClips: imagePaths.length, message: "Bruger lokal motor (ingen AI)…" });
-    inputs = await buildLocalInputs(imagePaths, musicKey);
-  }
-
-  const { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips } = inputs;
-  const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
+  address: string | undefined,
+  moodKey: string,
+): Promise<string> {
+  const { inputPaths, slideCount, slideDur, musicSeek, filter } = inputs;
+  const ts = Date.now();
+  const rand = Math.random().toString(36).slice(2, 8);
+  const filename = `showcase-${ts}-${rand}-${moodKey}.mp4`;
   const outPath = path.join(outDir, filename);
 
-  // Hard cuts don't overlap, so the reel is exactly the sum of the slides.
   const videoTotal = inputs.durations
     ? +inputs.durations.reduce((a, b) => a + b, 0).toFixed(3)
     : +(slideCount * slideDur).toFixed(3);
-  const musicPath = resolveMusic(musicKey);
+  const musicPath = resolveMusic(moodKey);
 
   const args: string[] = ["-y"];
   for (const p of inputPaths) {
     args.push("-i", p);
   }
 
-  // Burn in the captions: the fixed contact line (every video) low on the frame
-  // for the last ~5s, and the optional per-video address high on the frame for the
-  // first ~5s. drawtext reads each string from a temp file (textfile=) so user
-  // text needs no fragile filtergraph escaping. Falls back to a passthrough if the
-  // bundled font is somehow missing.
   const tmpFiles: string[] = [];
   let overlayChain = `;[vbase]null[vout]`;
   if (fs.existsSync(FONT_BOLD)) {
     const baseName = filename.replace(/\.mp4$/, "");
     const draws: string[] = [];
 
-    // Contact text (bottom) — fades in at 70% of video duration, stays to the end.
-    // Single line, Inter Regular 26px so it stays elegant and unobtrusive.
     const contactFile = path.join(outDir, `${baseName}-contact.txt`);
     fs.writeFileSync(contactFile, CONTACT_TEXT, "utf8");
     tmpFiles.push(contactFile);
@@ -652,8 +635,6 @@ async function render(
       drawCaption(contactFile, 26, "h-text_h-50", contactAlpha, `between(t,${cStart.toFixed(2)},${videoTotal.toFixed(2)})`, FONT_REG),
     );
 
-    // Address text (top) — precise timing: fade in 0→0.8s, hold to 3.5s, fade out 3.5→4.5s.
-    // Position: top-center, 60px from the top of frame.
     const addr = (address || "").trim();
     if (addr && videoTotal >= 2.0) {
       const addrFile = path.join(outDir, `${baseName}-addr.txt`);
@@ -671,7 +652,6 @@ async function render(
     overlayChain = `;[vbase]${draws.join(",")}[vout]`;
   }
 
-  // Intro/outro black fade: 0.5s fade-in from black, 1.0s fade-to-black at end.
   const videoFadeOut = Math.max(0, videoTotal - 1.0).toFixed(2);
   const videoFadeChain =
     `;[vout]fade=t=in:st=0:d=0.5:color=black,` +
@@ -679,10 +659,6 @@ async function render(
 
   let finalFilter = filter + overlayChain + videoFadeChain;
   if (musicPath) {
-    // Loop the bed to cover the whole video, drop it to a tasteful background
-    // level, and fade in/out so it never starts or ends abruptly. The `-ss`
-    // pre-roll aligns the track's pulse with the crossfade centres so the cuts
-    // fall on the beat.
     args.push("-stream_loop", "-1");
     if (musicSeek > 0) args.push("-ss", String(musicSeek));
     args.push("-i", musicPath);
@@ -698,54 +674,92 @@ async function render(
     args.push("-map", "[aout]");
   }
   args.push(
-    "-r",
-    String(FPS),
-    // Constant frame rate is the key to smooth fullscreen playback on phones —
-    // any variable-frame-rate output stutters in mobile players. Pair it with a
-    // high-quality, bitrate-capped x264 encode so motion stays clean without
-    // runaway file sizes, and faststart so it streams instantly on the web.
-    "-fps_mode",
-    "cfr",
-    "-c:v",
-    "libx264",
-    "-preset",
-    "medium",
-    "-crf",
-    "18",
-    "-pix_fmt",
-    "yuv420p",
-    "-profile:v",
-    "high",
-    "-level",
-    "4.1",
-    "-maxrate",
-    "12M",
-    "-bufsize",
-    "24M",
-    "-movflags",
-    "+faststart",
+    "-r", String(FPS),
+    "-fps_mode", "cfr",
+    "-c:v", "libx264",
+    "-preset", "medium",
+    "-crf", "18",
+    "-pix_fmt", "yuv420p",
+    "-profile:v", "high",
+    "-level", "4.1",
+    "-maxrate", "12M",
+    "-bufsize", "24M",
+    "-movflags", "+faststart",
   );
   if (musicPath) {
-    // The music bed is looped infinitely, so cap the output at the exact video
-    // length. `-shortest` deadlocks/fails with an endlessly looped audio input,
-    // whereas an explicit `-t` ends cleanly.
     args.push("-c:a", "aac", "-b:a", "160k", "-t", videoTotal.toFixed(2));
   } else {
     args.push("-an");
   }
   args.push(outPath);
 
-  emit({ stage: "compositing", currentClip: inputs.slideCount, totalClips: inputs.slideCount, message: "Sammensætter video med musik…" });
   try {
     await runFfmpeg(args);
   } finally {
     for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
-    // Delete the downloaded AI clips — they were only needed as FFmpeg inputs.
-    for (const c of tmpClips) fs.promises.unlink(c).catch(() => {});
   }
-  const videoUrl = `/uploads/${filename}`;
-  emit({ stage: "complete", currentClip: inputs.slideCount, totalClips: inputs.slideCount, message: "Video klar!", videoUrl });
-  jobs.set(jobId, { status: "completed", videoUrl, createdAt: Date.now(), progress: { stage: "complete", currentClip: inputs.slideCount, totalClips: inputs.slideCount, message: "Video klar!", videoUrl } });
+
+  return `/uploads/${filename}`;
+}
+
+// Four music moods rendered for every job — the AI clips are generated ONCE,
+// then FFmpeg assembles a separate video per mood at zero extra AI cost.
+const ALL_MOODS = ["calm", "uplifting", "modern", "tension"] as const;
+const MOOD_LABELS: Record<string, string> = {
+  calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt",
+};
+
+async function render(
+  jobId: string,
+  imagePaths: string[],
+  outDir: string,
+  address?: string,
+): Promise<void> {
+  await acquireSlot();
+  try {
+    const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
+
+    let clipData: AIClipData | null = null;
+    if (isFalConfigured()) {
+      try {
+        clipData = await buildAIClips(imagePaths, outDir, emit);
+      } catch (e: any) {
+        console.warn("[showcase] AI path failed, falling back to local:", e?.message || e);
+        clipData = null;
+      }
+    }
+    if (!clipData) {
+      emit({ stage: "compositing", currentClip: 0, totalClips: imagePaths.length, message: "Bruger lokal motor (ingen AI)…" });
+    }
+
+    const n = clipData ? clipData.clipPaths.length : Math.min(imagePaths.length, MAX_AI_CLIPS);
+    const videoUrls: Record<string, string> = {};
+
+    // Assemble 4 mood variants sequentially — FFmpeg is CPU-bound so sequential
+    // avoids overloading the box; each assembly is fast (~5-20s, pure compositing).
+    for (const mood of ALL_MOODS) {
+      emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[mood]}…` });
+      let inputs: RenderInputs;
+      if (clipData) {
+        inputs = makeRenderInputsAI(clipData, mood);
+      } else {
+        inputs = await buildLocalInputs(imagePaths, mood);
+      }
+      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood);
+    }
+
+    // Clean up downloaded AI clips — every mood variant is now done.
+    if (clipData) {
+      for (const c of clipData.clipPaths) fs.promises.unlink(c).catch(() => {});
+    }
+
+    emit({ stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls });
+    jobs.set(jobId, {
+      status: "completed",
+      videoUrls,
+      createdAt: Date.now(),
+      progress: { stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls },
+    });
   } finally {
     releaseSlot();
   }
@@ -755,12 +769,9 @@ async function render(
 export function startShowcaseVideo(
   imagePaths: string[],
   outDir: string,
-  musicKey?: string,
   address?: string,
 ): string | null {
   pruneJobs();
-  // Backpressure: refuse new work when the box is already saturated so we fail
-  // fast with a clear message instead of piling up FFmpeg processes.
   if (activeRenders + waiters.length >= MAX_BACKLOG) {
     return null;
   }
@@ -772,7 +783,7 @@ export function startShowcaseVideo(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  render(jobId, imagePaths, outDir, musicKey, address)
+  render(jobId, imagePaths, outDir, address)
     .catch((err: any) => {
       const cur = jobs.get(jobId);
       jobs.set(jobId, {
@@ -788,7 +799,6 @@ export function startShowcaseVideo(
       });
     })
     .finally(() => {
-      // Clean up the temporary source images regardless of outcome.
       for (const p of imagePaths) {
         fs.promises.unlink(p).catch(() => {});
       }
