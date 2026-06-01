@@ -454,6 +454,14 @@ const BUDGET_TIERS = [
 
 const DEFAULT_THUMB = "/bolig-images/living-scandi-before.jpg";
 
+function CaseThumb({ src, alt, className }: { src: string | null; alt?: string; className?: string }) {
+  const url = src ?? DEFAULT_THUMB;
+  if (url.endsWith(".mp4") || url.includes(".mp4?")) {
+    return <video src={url} className={className} muted playsInline autoPlay loop style={{ objectFit: "cover" }} />;
+  }
+  return <img src={url} alt={alt ?? ""} className={className} />;
+}
+
 function timeAgo(dateStr: string | Date): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return "lige nu";
@@ -5643,7 +5651,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
             <div className="space-y-2">
               {activeCases.slice(0, 5).map((c) => (
                 <div key={c.id} className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0"><img src={c.latestImageUrl ?? DEFAULT_THUMB} className="w-full h-full object-cover" /></div>
+                  <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0"><CaseThumb src={c.latestImageUrl} className="w-full h-full object-cover" /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{c.address}</p>
                     <p className="text-xs" style={{ color: "#9B9690" }}>{c.ownerName}</p>
@@ -5749,7 +5757,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               <button key={c.id} onClick={() => setTeamCaseModal({ id: c.id, address: c.address, ownerName: c.ownerName, status: c.status })}
                 className="rounded-xl overflow-hidden border border-[#E8E4DE] text-left w-full transition-all hover:shadow-md hover:border-[#C8956C]/40 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
                 data-testid={`team-case-card-${c.id}`}>
-                <div className="h-24 overflow-hidden"><img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" /></div>
+                <div className="h-24 overflow-hidden"><CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" /></div>
                 <div className="p-2.5">
                   <p className="text-xs font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</p>
                   <p className="text-[11px]" style={{ color: "#9B9690" }}>{c.ownerName}</p>
@@ -5774,7 +5782,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 className="rounded-xl overflow-hidden border border-[#E8E4DE] text-left w-full transition-all hover:shadow-md hover:border-[#2D6A4F]/40 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/40"
                 data-testid={`team-sold-card-${c.id}`}>
                 <div className="h-24 overflow-hidden relative">
-                  <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" />
+                  <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
                   <span className="absolute top-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(45,106,79,0.9)", color: "#fff" }}>SOLGT</span>
                 </div>
                 <div className="p-2.5">
@@ -6826,7 +6834,7 @@ export default function BoligpotentialeDashboard() {
                       return (
                         <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ background: "#F5F3EF" }} data-testid={`bolig-case-card-${c.id}`}>
                           <div className="relative h-36">
-                            <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" />
+                            <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
                             <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
                           </div>
                           <div className="p-3">
@@ -6861,7 +6869,7 @@ export default function BoligpotentialeDashboard() {
                     {cases.filter((c) => c.status === "sold").slice(0, 3).map((c) => (
                       <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md opacity-85 hover:opacity-100" style={{ background: "#F5F3EF" }} data-testid={`bolig-sold-card-${c.id}`}>
                         <div className="relative h-36">
-                          <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover grayscale-[20%]" />
+                          <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover grayscale-[20%]" />
                           <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.75)" }}>Solgt</span>
                         </div>
                         <div className="p-3">
@@ -7130,7 +7138,7 @@ export default function BoligpotentialeDashboard() {
                         return (
                           <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white" data-testid={`bolig-case-card-${c.id}`}>
                             <div className="relative h-40">
-                              <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover" />
+                              <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
                               <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
                             </div>
                             <div className="p-4">
@@ -7158,7 +7166,7 @@ export default function BoligpotentialeDashboard() {
                         {filteredCases.filter((c) => c.status === "sold").map((c) => (
                           <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white opacity-80 hover:opacity-100" data-testid={`bolig-sold-card-${c.id}`}>
                             <div className="relative h-40">
-                              <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover grayscale-[25%]" />
+                              <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover grayscale-[25%]" />
                               <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.75)" }}>Solgt</span>
                             </div>
                             <div className="p-4">
@@ -7240,7 +7248,7 @@ export default function BoligpotentialeDashboard() {
                   {cases.filter((c) => c.status === "sold").map((c) => (
                     <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white" data-testid={`bolig-solgt-card-${c.id}`}>
                       <div className="relative h-40">
-                        <img src={c.latestImageUrl ?? DEFAULT_THUMB} alt={c.address} className="w-full h-full object-cover grayscale-[20%]" />
+                        <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover grayscale-[20%]" />
                         <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.75)" }}>Solgt</span>
                       </div>
                       <div className="p-4">
