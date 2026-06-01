@@ -16,6 +16,7 @@ import { analyzeDesignImage } from "./ai_analyzer";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
+import { startShowcaseVideo, getShowcaseJob } from "./showcase";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -2219,6 +2220,47 @@ export async function registerRoutes(
       log(`[Video] status error: ${err.message}`);
       return res.status(500).json({ success: false, message: err.message || "Status mislykkedes" });
     }
+  });
+
+  // ── Bolig Showcase Video (FFmpeg Ken Burns reel — no AI, no audio) ────────
+  // Accepts up to 30 photos and renders a vertical 9:16 slideshow with smooth
+  // Ken Burns motion + crossfades. Runs async (own in-memory job registry) and
+  // the client polls the status endpoint.
+  app.post("/api/bolig/showcase-video", upload.array("images", 30), async (req, res) => {
+    try {
+      const files = (req.files as Express.Multer.File[] | undefined) || [];
+      if (files.length < 3) {
+        return res.status(400).json({ success: false, message: "Upload mindst 3 billeder" });
+      }
+      const paths = files.map((f) => path.join(uploadDir, f.filename));
+      const raw = parseFloat(String(req.body?.durationPerImage ?? "3.5"));
+      const durPerImage = Number.isFinite(raw) ? raw : 3.5;
+      const jobId = startShowcaseVideo(paths, uploadDir, durPerImage);
+      if (!jobId) {
+        // Server is saturated — clean up the just-uploaded files and back off.
+        for (const p of paths) fs.promises.unlink(p).catch(() => {});
+        return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
+      }
+      log(`[Showcase] started job=${jobId} images=${files.length} dur=${durPerImage}`);
+      return res.json({ success: true, job_id: jobId });
+    } catch (err: any) {
+      log(`[Showcase] submit error: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
+    }
+  });
+
+  app.get("/api/bolig/showcase-video/status/:jobId", async (req, res) => {
+    const job = getShowcaseJob(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
+    }
+    if (job.status === "completed" && job.videoUrl) {
+      return res.json({ success: true, status: "COMPLETED", video_url: job.videoUrl });
+    }
+    if (job.status === "failed") {
+      return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
+    }
+    return res.json({ success: true, status: "IN_PROGRESS" });
   });
 
   // ── AI Boligfremvisning (property tours) ──────────────────────────────────

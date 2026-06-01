@@ -16,11 +16,11 @@ import {
   PenTool, Sparkles, RotateCcw, ChevronDown, Mail, Copy, CheckCheck,
   Shield, UserPlus, Crown, Clock, Building2, Coins,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
-  FileText, FileImage, Box, Video, ArrowLeft,
+  FileText, FileImage, Box, Video, ArrowLeft, Film, GripVertical,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "upload" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering";
+type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
@@ -2698,6 +2698,374 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
                 style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
                 data-testid="button-video-reset"
+              >
+                <RotateCcw className="w-4 h-4" /> Prøv igen
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Bolig Showcase Video Flow (FFmpeg Ken Burns reel — no AI, no audio) ──────
+interface ShowcaseImg {
+  id: string;
+  file: File;
+  url: string;
+}
+
+function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [images, setImages] = useState<ShowcaseImg[]>([]);
+  const [duration, setDuration] = useState(3.5);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
+  const [showCaseDropdown, setShowCaseDropdown] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeCases = cases.filter((c) => c.status !== "sold");
+
+  const hasUnsaved = !!videoUrl && saveCaseId === null;
+  useUnsavedExitGuard(hasUnsaved);
+
+  useEffect(() => {
+    if (!showCaseDropdown) return;
+    const onDown = (e: globalThis.MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowCaseDropdown(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showCaseDropdown]);
+
+  const totalSeconds = images.length > 0
+    ? Math.max(0, images.length * duration - (images.length - 1) * 0.7)
+    : 0;
+
+  const addFiles = (files: FileList | File[]) => {
+    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (arr.length === 0) { setError("Vælg venligst billedfiler"); return; }
+    setError(null);
+    setVideoUrl(null);
+    setSaveCaseId(null);
+    const next = arr.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      url: URL.createObjectURL(file),
+    }));
+    setImages((prev) => [...prev, ...next].slice(0, 30));
+  };
+
+  const removeImage = (id: string) => {
+    setImages((prev) => prev.filter((i) => i.id !== id));
+    setVideoUrl(null);
+    setSaveCaseId(null);
+  };
+
+  const moveImage = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= images.length) return;
+    setImages((prev) => {
+      const copy = [...prev];
+      const [moved] = copy.splice(from, 1);
+      copy.splice(to, 0, moved);
+      return copy;
+    });
+    setVideoUrl(null);
+    setSaveCaseId(null);
+  };
+
+  const handleGenerate = async () => {
+    if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
+    setIsGenerating(true);
+    setError(null);
+    setVideoUrl(null);
+    setSaveCaseId(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      images.forEach((img) => fd.append("images", img.file));
+      fd.append("durationPerImage", String(duration));
+      const res = await fetch("/api/bolig/showcase-video", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const ctype = res.headers.get("content-type") || "";
+      if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || "Indsendelse mislykkedes");
+
+      const jobId = data.job_id as string;
+      const maxAttempts = 150; // 150 × 4s ≈ 10 min
+      let finalUrl: string | null = null;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const sres = await fetch(`/api/bolig/showcase-video/status/${jobId}`);
+        const sctype = sres.headers.get("content-type") || "";
+        if (!sctype.includes("application/json")) continue;
+        const sdata = await sres.json();
+        if (sdata.status === "COMPLETED" && sdata.video_url) { finalUrl = sdata.video_url; break; }
+        if (sdata.status === "FAILED") throw new Error(sdata.message || "Generering mislykkedes");
+      }
+      if (!finalUrl) throw new Error("Generering tog for lang tid. Prøv igen.");
+      setVideoUrl(finalUrl);
+    } catch (err: any) {
+      setError(err.message || "Noget gik galt");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
+    setImages([]);
+    setVideoUrl(null);
+    setSaveCaseId(null);
+    setError(null);
+  };
+
+  const saveToCase = async (c: ApiCase) => {
+    if (!videoUrl) return;
+    setShowCaseDropdown(false);
+    setSaveCaseId(c.id);
+    try {
+      const token = await user?.getIdToken();
+      const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          imageUrl: videoUrl,
+          originalImageUrl: null,
+          roomType: "showcase-video",
+          style: "showcase-video",
+          budgetTier: "tier2",
+          promptText: "Bolig showcase video",
+          isDesignAgent: true,
+        }),
+      });
+      if (!r.ok) {
+        setSaveCaseId(null);
+        const msg = await r.text().catch(() => "");
+        alert(`Kunne ikke gemme til mappen. ${msg}`);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+    } catch {
+      setSaveCaseId(null);
+      alert("Kunne ikke gemme til mappen. Prøv igen.");
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!videoUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const ts = new Date().toISOString().slice(0, 10);
+      await downloadFromUrl(videoUrl, `bolig-showcase-${ts}.mp4`);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig showcase</h1>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med blød bevægelse og overgange — perfekt til socials og reels.</p>
+      </div>
+
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
+        {/* Upload zone */}
+        <label
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+          }}
+          className="block cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors"
+          style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
+          data-testid="dropzone-showcase"
+        >
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
+            data-testid="input-showcase-images"
+          />
+          <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
+          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
+          <p className="text-xs" style={{ color: "#6B6B6B" }}>Anbefalet 15–25 billeder · JPG, PNG · maks 30</p>
+        </label>
+
+        {/* Thumbnails + reorder */}
+        {images.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>
+                {images.length} billede{images.length === 1 ? "" : "r"} · træk for at omarrangere
+              </span>
+              <button
+                onClick={() => setImages([])}
+                className="text-xs font-medium hover:opacity-70"
+                style={{ color: "#B91C1C" }}
+                data-testid="button-showcase-clear-all"
+              >
+                Ryd alle
+              </button>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {images.map((img, idx) => (
+                <div
+                  key={img.id}
+                  draggable
+                  onDragStart={() => setDragIndex(idx)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
+                  onDragEnd={() => setDragIndex(null)}
+                  className="relative rounded-lg overflow-hidden border group cursor-move"
+                  style={{ borderColor: dragIndex === idx ? "#C8956C" : "#E8E4DE", aspectRatio: "9/16" }}
+                  data-testid={`thumb-showcase-${idx}`}
+                >
+                  <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
+                    {idx + 1}
+                  </div>
+                  <button
+                    onClick={() => removeImage(img.id)}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                    data-testid={`button-showcase-remove-${idx}`}
+                  >
+                    <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
+                  </button>
+                  <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <GripVertical className="w-4 h-4 text-white drop-shadow" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Duration slider */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>Tid pr. billede</span>
+            <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>
+              {duration.toFixed(1)}s {totalSeconds > 0 && <span style={{ color: "#9B9690" }}>· video ≈ {Math.round(totalSeconds)}s</span>}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={2}
+            max={6}
+            step={0.5}
+            value={duration}
+            onChange={(e) => { setDuration(parseFloat(e.target.value)); setVideoUrl(null); setSaveCaseId(null); }}
+            disabled={isGenerating}
+            className="w-full accent-[#C8956C]"
+            data-testid="slider-showcase-duration"
+          />
+        </div>
+
+        <button
+          onClick={handleGenerate}
+          disabled={images.length < 3 || isGenerating}
+          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+          style={{ background: "#C8956C" }}
+          data-testid="button-generate-showcase"
+        >
+          {isGenerating ? (
+            <>
+              <RotateCcw className="w-4 h-4 animate-spin" />
+              Genererer video… (kan tage et par minutter)
+            </>
+          ) : (
+            <>
+              <Film className="w-4 h-4" />
+              Generér showcase-video
+            </>
+          )}
+        </button>
+
+        {error && (
+          <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-showcase-error">
+            {error}
+          </div>
+        )}
+
+        {videoUrl && (
+          <>
+            <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
+              <video src={videoUrl} controls autoPlay loop muted playsInline className="w-full block bg-black max-h-[70vh] mx-auto" data-testid="video-showcase-result" />
+              <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
+                <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
+                Bolig showcase video (9:16)
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-50"
+                style={{ background: "#0F1D2F" }}
+                data-testid="button-download-showcase"
+              >
+                <Download className="w-4 h-4" /> {downloading ? "Henter…" : "Download MP4"}
+              </button>
+
+              {activeCases.length > 0 && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowCaseDropdown((v) => !v)}
+                    className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                    data-testid="button-showcase-save-case"
+                  >
+                    <Film className="w-4 h-4" />
+                    {saveCaseId ? "Gemt til mappe" : "Gem til mappe"}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {showCaseDropdown && (
+                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
+                      {activeCases.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => saveToCase(c)}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
+                          style={{ color: "#1A1A1A" }}
+                          data-testid={`button-showcase-save-case-${c.id}`}
+                        >
+                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
+                          <span className="truncate">{c.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={handleReset}
+                className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                data-testid="button-showcase-reset"
               >
                 <RotateCcw className="w-4 h-4" /> Prøv igen
               </button>
@@ -6127,7 +6495,7 @@ export default function BoligpotentialeDashboard() {
     { id: "3d-plantegning" as Section, label: "3D plantegning", icon: <Box className="w-[18px] h-[18px]" /> },
     { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" /> },
     { id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> },
-    { id: "upload" as Section, label: "Upload billede", icon: <Upload className="w-[18px] h-[18px]" /> },
+    { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" /> },
     { id: "historik" as Section, label: "Historik", icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
   ];
@@ -6663,6 +7031,13 @@ export default function BoligpotentialeDashboard() {
           {section === "upload" && (
             <motion.div key="upload-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <UploadFlow onBack={() => setSection("dashboard")} />
+            </motion.div>
+          )}
+
+          {/* Bolig showcase video section */}
+          {section === "showcase-video" && (
+            <motion.div key="showcase-video-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <ShowcaseVideoFlow cases={cases} />
             </motion.div>
           )}
 
