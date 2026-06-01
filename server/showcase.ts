@@ -332,32 +332,40 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number): 
     `boxblur=26:2,eq=brightness=-0.05,setsar=1,` +
     `zoompan=z='${z}':d=${frames}:x='${x}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},setsar=1[bg${i}];`;
 
+  // Ease-in-out via cosine: smooth = (1 - cos(PI * on/fm1)) / 2
+  // This gives 0 at start, 1 at end, with gentle acceleration + deceleration.
+  const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
+
   const move = i % 4;
   if (move === 0 || move === 2) {
     // Dolly in (push toward the room) / dolly out (pull back). The sharp photo
-    // scales one way while the blur scales the other → depth.
-    const fgInc = (0.07 / fm1).toFixed(6);
-    const bgInc = (0.04 / fm1).toFixed(6);
-    const fgZ = move === 0 ? `min(1.0+${fgInc}*on,1.07)` : `max(1.07-${fgInc}*on,1.0)`;
-    const bgZ = move === 0 ? `max(1.10-${bgInc}*on,1.06)` : `min(1.06+${bgInc}*on,1.10)`;
+    // scales one way while the blur scales the other → depth. Zoom range
+    // increased to 1.0→1.15 (was 1.07) so movement reads clearly on mobile.
+    const fgZ = move === 0
+      ? `min(1.15,1.0+0.15*(${easeExpr}))`
+      : `max(1.0,1.15-0.15*(${easeExpr}))`;
+    const bgZ = move === 0
+      ? `max(1.10,1.14-0.04*(${easeExpr}))`
+      : `min(1.14,1.10+0.04*(${easeExpr}))`;
     return (
       bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
-      `[b${i}]scale=${fw}:${fh},setsar=1,` +
+      `[b${i}]scale=${fw}:${fh},eq=brightness=0.03:contrast=1.05:saturation=1.02,setsar=1,` +
       `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
       `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
     );
   }
   // Crab right (1) / crab left (3): the sharp photo slides sideways while the blur
-  // drifts the opposite way a little → parallax.
+  // drifts the opposite way a little → parallax. Pan amount increased to 6%.
   const sign = move === 1 ? "+" : "-";
   const bgSign = move === 1 ? "-" : "+";
-  // Clamp travel inside [0, W-fw9] so the photo can never slide off the frame
-  // (rounding from even() could otherwise overshoot by a pixel or two).
-  const ovx = `min(max(${cx9}${sign}${amp}*((t/${D})-0.5)*2,0),${W - fw9})`;
-  const bgx = `iw/2-(iw/zoom/2)${bgSign}18*((on/${fm1})-0.5)*2`;
+  // Use ease-in-out on the pan as well: map easeExpr (0→1) to (-1→+1) range.
+  const easeLinear = `(${easeExpr}*2-1)`;
+  const panAmt = Math.round(amp * 1.4);
+  const ovx = `min(max(${cx9}${sign}${panAmt}*${easeLinear},0),${W - fw9})`;
+  const bgx = `iw/2-(iw/zoom/2)${bgSign}24*${easeLinear}`;
   return (
     bgLayer(`1.06`, bgx) +
-    `[b${i}]scale=${fw9}:${fh9},setsar=1[fg${i}];` +
+    `[b${i}]scale=${fw9}:${fh9},eq=brightness=0.03:contrast=1.05:saturation=1.02,setsar=1[fg${i}];` +
     `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
   );
 }
@@ -397,7 +405,7 @@ function buildSlideVideo(i: number, dims: { w: number; h: number }, slideDur: nu
     `[${i}:v]trim=0:${dur},setpts=PTS-STARTPTS,fps=${FPS},split=2[a${i}][b${i}];` +
     `[a${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
     `boxblur=26:2,eq=brightness=-0.05,setsar=1[bg${i}];` +
-    `[b${i}]scale=${fw}:${fh},setsar=1[fg${i}];` +
+    `[b${i}]scale=${fw}:${fh},eq=brightness=0.03:contrast=1.05:saturation=1.02,setsar=1[fg${i}];` +
     `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
   );
 }
@@ -422,35 +430,35 @@ function buildFilterVideo(n: number, durations: number[], sizes: Array<{ w: numb
 // same on every video (the agency's details). The per-video address is optional
 // and supplied by the user. Rendered with drawtext (burned in) so the clip is
 // self-contained — no external player or caption track needed.
-const FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+// Prefer Inter (downloaded to public/fonts/) — clean, modern real-estate look.
+// Fall back to system DejaVu so the server never crashes when the font is missing.
+const _INTER_BOLD = `${process.cwd()}/public/fonts/Inter-Bold.otf`;
+const _INTER_REG  = `${process.cwd()}/public/fonts/Inter-Regular.otf`;
+const _DEJAVU_B   = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+const _DEJAVU_R   = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+const FONT_BOLD = fs.existsSync(_INTER_BOLD) ? _INTER_BOLD : _DEJAVU_B;
+const FONT_REG  = fs.existsSync(_INTER_REG)  ? _INTER_REG  : _DEJAVU_R;
+const FONT      = FONT_BOLD; // legacy alias
+
 const CONTACT_TEXT =
-  "Kontakt os for fremvisning\n+45 70 70 70 70\nkontakt@formaestates.dk";
+  "Forma Estates  |  +45 70 70 70 70  |  kontakt@formaestates.dk";
 
-// A drawtext alpha expression that fades a caption in over `f`s, holds it, then
-// fades it out over `f`s within the window [s, e]. Wrapped in single quotes by the
-// caller, so internal commas/colons are safe from the filtergraph parser.
-function fadeAlpha(s: number, e: number, f: number): string {
-  const a = s.toFixed(2);
-  const b = (s + f).toFixed(2);
-  const c = (e - f).toFixed(2);
-  const d = e.toFixed(2);
-  return `if(lt(t,${a}),0,if(lt(t,${b}),(t-${a})/${f},if(lt(t,${c}),1,if(lt(t,${d}),(${d}-t)/${f},0))))`;
-}
-
-// One white-on-shadow, semi-transparent-box, centred caption.
+// One white-on-shadow centred caption. No box background — just a 3px black
+// border outline + drop-shadow so text is legible on any background.
 function drawCaption(
   file: string,
   size: number,
   y: string,
   alpha: string,
   enable: string,
+  fontfile: string = FONT_BOLD,
   lineSpacing = 0,
 ): string {
   const ls = lineSpacing > 0 ? `:line_spacing=${lineSpacing}` : "";
   return (
-    `drawtext=fontfile=${FONT}:textfile=${file}:expansion=none:` +
+    `drawtext=fontfile=${fontfile}:textfile=${file}:expansion=none:` +
     `fontcolor=white:fontsize=${size}${ls}:` +
-    `box=1:boxcolor=black@0.40:boxborderw=22:` +
+    `borderw=3:bordercolor=black@0.45:` +
     `shadowcolor=black@0.55:shadowx=2:shadowy=2:` +
     `x=(w-text_w)/2:y=${y}:alpha='${alpha}':enable='${enable}'`
   );
@@ -613,33 +621,49 @@ async function render(
   // bundled font is somehow missing.
   const tmpFiles: string[] = [];
   let overlayChain = `;[vbase]null[vout]`;
-  if (fs.existsSync(FONT)) {
+  if (fs.existsSync(FONT_BOLD)) {
     const baseName = filename.replace(/\.mp4$/, "");
     const draws: string[] = [];
+
+    // Contact text (bottom) — fades in at 70% of video duration, stays to the end.
+    // Single line, Inter Regular 26px so it stays elegant and unobtrusive.
     const contactFile = path.join(outDir, `${baseName}-contact.txt`);
     fs.writeFileSync(contactFile, CONTACT_TEXT, "utf8");
     tmpFiles.push(contactFile);
-    const cs = Math.max(0, videoTotal - 5);
+    const cStart  = +(videoTotal * 0.70).toFixed(3);
+    const cFadeEnd = +(videoTotal * 0.73).toFixed(3);
+    const cFadeDur = Math.max(0.01, cFadeEnd - cStart).toFixed(3);
+    const contactAlpha = `if(lt(t,${cStart.toFixed(2)}),0,if(lt(t,${cFadeEnd.toFixed(2)}),(t-${cStart.toFixed(2)})/${cFadeDur},1))`;
     draws.push(
-      drawCaption(contactFile, 46, "h-text_h-200", fadeAlpha(cs, videoTotal, 1), `between(t,${cs.toFixed(2)},${videoTotal.toFixed(2)})`, 16),
+      drawCaption(contactFile, 26, "h-text_h-50", contactAlpha, `between(t,${cStart.toFixed(2)},${videoTotal.toFixed(2)})`, FONT_REG),
     );
+
+    // Address text (top) — precise timing: fade in 0→0.8s, hold to 3.5s, fade out 3.5→4.5s.
+    // Position: top-center, 60px from the top of frame.
     const addr = (address || "").trim();
-    if (addr) {
+    if (addr && videoTotal >= 2.0) {
       const addrFile = path.join(outDir, `${baseName}-addr.txt`);
       fs.writeFileSync(addrFile, addr, "utf8");
       tmpFiles.push(addrFile);
-      const ae = Math.min(5, videoTotal);
-      // drawtext can't auto-wrap, so size the font to fit the address on one line
-      // inside the ~1000px usable width (DejaVu Bold ≈ 0.6·fontsize per glyph).
-      const addrSize = Math.max(28, Math.min(56, Math.floor(1000 / (addr.length * 0.6))));
+      const addrEnd = Math.min(4.5, videoTotal);
+      const addrHold = Math.min(3.5, videoTotal * 0.6);
+      const addrSize = Math.max(26, Math.min(42, Math.floor(950 / (addr.length * 0.55))));
+      const addrAlpha =
+        `if(lt(t,0.8),t/0.8,if(lt(t,${addrHold.toFixed(2)}),1,if(lt(t,${addrEnd.toFixed(2)}),(${addrEnd.toFixed(2)}-t)/${(addrEnd - addrHold).toFixed(2)},0)))`;
       draws.unshift(
-        drawCaption(addrFile, addrSize, "300", fadeAlpha(0, ae, 1), `between(t,0,${ae.toFixed(2)})`),
+        drawCaption(addrFile, addrSize, "60", addrAlpha, `between(t,0,${addrEnd.toFixed(2)})`, FONT_BOLD),
       );
     }
     overlayChain = `;[vbase]${draws.join(",")}[vout]`;
   }
 
-  let finalFilter = filter + overlayChain;
+  // Intro/outro black fade: 0.5s fade-in from black, 1.0s fade-to-black at end.
+  const videoFadeOut = Math.max(0, videoTotal - 1.0).toFixed(2);
+  const videoFadeChain =
+    `;[vout]fade=t=in:st=0:d=0.5:color=black,` +
+    `fade=t=out:st=${videoFadeOut}:d=1.0:color=black[vfinal]`;
+
+  let finalFilter = filter + overlayChain + videoFadeChain;
   if (musicPath) {
     // Loop the bed to cover the whole video, drop it to a tasteful background
     // level, and fade in/out so it never starts or ends abruptly. The `-ss`
@@ -655,7 +679,7 @@ async function render(
     finalFilter = `${finalFilter};${audioChain}`;
   }
 
-  args.push("-filter_complex", finalFilter, "-map", "[vout]");
+  args.push("-filter_complex", finalFilter, "-map", "[vfinal]");
   if (musicPath) {
     args.push("-map", "[aout]");
   }

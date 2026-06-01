@@ -1,0 +1,203 @@
+====================================================================
+FORM ESTATES — BOLIG SHOWCASE VIDEO: KOMPLET FINPUDSNING
+====================================================================
+
+Nuværende status: Videoerne fungerer, men mangler finjustering for at 
+nå professionelt niveau. Implementér ALLE punkter nedenfor.
+
+--------------------------------------------------------------------
+DEL 1: TEKST OVERLAY TIMING (Kritisk — største visuelle problem)
+--------------------------------------------------------------------
+
+PROBLEM: Adresse-teksten ("Hellerup strand 1") bliver synlig i 7-8 
+sekunder. Det er for længe — den dækker billedet og stjæler fokus.
+
+LØSNING: 
+
+1. ADRESSE-TEKST (øverst i videoen):
+   - Fade IN: 0.0s → 0.8s (opacity 0→1)
+   - Hold fuldt synlig: 0.8s → 3.5s
+   - Fade UD: 3.5s → 4.5s (opacity 1→0)
+   - Efter 4.5s: Teksten er helt væk
+   - Font: Inter Bold (36-42px)
+   - Farve: Hvid (#FFFFFF) med text-shadow: 0 2px 8px rgba(0,0,0,0.5)
+   - Position: Top-center, 60px fra toppen
+
+2. KONTAKT-TEKST (nederst i videoen):
+   - Fade IN: 70% af total varighed → 73% (3% af video = ~0.5-0.8s fade)
+   - Hold synlig: 73% → 100% (slutning)
+   - Font: Inter Regular (24-28px)
+   - Farve: Hvid med text-shadow
+   - Position: Bottom-center, 50px fra bunden
+   - Indhold: "{firma} | {tlf} | {email}" (hentet fra settings)
+
+3. BEGGE TEKSTER SAMMEN:
+   - De skal ALDRIG overlappe i tid — adresse forsvinder før kontakt kommer
+   - Minimum 2 sekunders "ren video" mellem adresse-fade-ud og kontakt-fade-ind
+
+FFmpeg drawtext filter (opdateret):
+adresstext=enable='between(t\\,0\\,4.5)':alpha='if(lt(t\\,0.8)\\,t/0.8\\,if(lt(t\\,3.5)\\,1\\,(4.5-t)/1))'
+contacttext=enable='between(t\\,{dur*0.7}\\,{dur})':alpha='if(lt(t\\,{dur*0.73})\\,(t-{dur*0.7})/{dur*0.03}\\,1)'
+
+--------------------------------------------------------------------
+DEL 2: KEN BURNS BEVÆGELSE (Kritisk — gør billederne "levende")
+--------------------------------------------------------------------
+
+PROBLEM: Nuværende zoom er for subtil (1.0 → ~1.03). På mobil ser det 
+nærmest ud som et statisk billede. Det skal være Tydeligt at der er 
+bevægelse, men stadig elegant.
+
+LØSNING:
+
+Ændr zoompan parametre til:
+
+zoom_start = 1.0
+zoom_end   = 1.15    (ÆNDRET fra 1.03 — 15% zoom i stedet for 3%)
+pan_max    = 0.04    (ÆNDRET fra ~0.01 — 4% pan)
+
+Per-klip retning (varier for dynamik):
+- Billede 0 (intro):     zoom IN,  subtil pan right
+- Billede 1:             zoom OUT, subtil pan left  
+- Billede 2:             zoom IN,  subtil pan up
+- Billede 3:             zoom OUT, subtil pan down
+- Billede 4:             zoom IN,  subtil pan left
+- Billede 5:             zoom OUT, subtil pan right
+- Billede 6:             zoom IN,  subtil pan up
+- Billede 7:             zoom OUT, subtil pan down
+- Billede 8 (outro):     zoom IN,  subtil pan right
+
+VIGTIGT: Bevægelsen skal være SILKESMUK — brug ease-in-out på zoom/pan
+kurven, ikke lineær. Det gør at bevægelsen starter langsomt, 
+accelererer midtvejs, og bremser blødt op.
+
+--------------------------------------------------------------------
+DEL 3: MODERNE MUSIK BPM (Kritisk — musik matcher ikke label)
+--------------------------------------------------------------------
+
+PROBLEM: "Moderne" musik er ~110 BPM, men burde være 120-130 BPM for at 
+føles moderne og energisk. Nuværende musik passer bedre til "Rolig".
+
+LØSNING:
+
+Generér 4 nye musik-tracks med KORREKTE BPM:
+
+ROLIG (calm.mp3):
+  - 82-88 BPM
+  - Genre: Ambient/chill-out
+  - Karakter: Afslappende, minimal percussion, varm synth
+  - Varighed: 25-30 sekunder
+
+MODERNE (modern.mp3):  
+  - 124-130 BPM  (ÆNDRET — dette er det vigtigste)
+  - Genre: Future house / Deep house
+  - Karakter: Punchy kick, energisk, clean, trendy
+  - Varighed: 20-25 sekunder
+  - TJEK: BPM skal være >120 efter generation, ellers generér igen
+
+OPLØFTENDE (uplifting.mp3):
+  - 100 → 132 BPM (accelererende)
+  - Genre: Progressive house / Cinematic build-up
+  - Karakter: Starter roligt med strygere, bygger op til euphorisk drop
+  - Varighed: 25-30 sekunder
+  - TJEK: Skal detektere tempo-stigning via beat analysis
+
+SPÆNDT (tension.mp3):
+  - 100-108 BPM
+  - Genre: Dark cinematic / Nordic noir
+  - Karakter: Pulserende bass, mørk, dramatisk, intens
+  - Varighed: 22-28 sekunder
+
+VERIFICÉR BPM med aubio/librosa efter hver generation:
+  bpm = aubio.tempo(audio_file)
+  if music_type == "modern" and bpm < 120:
+      raise Error("Modern music must be >120 BPM, got {bpm}")
+      regenerate()
+
+--------------------------------------------------------------------
+DEL 4: INTRO/OUTRO FADE (Medium vigtighed)
+--------------------------------------------------------------------
+
+PROBLEM: Video starter pludseligt og slutter brat. Professionelle reels 
+har altid fade fra/til sort.
+
+LØSNING:
+
+1. INTRO: Fade fra sort (0.5 sekunder)
+   ffmpeg ... -vf "fade=t=in:st=0:d=0.5:color=black"
+
+2. OUTRO: Fade til sort (1.0 sekund) 
+   ffmpeg ... -vf "fade=t=out:st={duration-1}:d=1.0:color=black"
+
+3. Musik fade skal synkroniseres med video fade:
+   - Musik fade-in: 2 sekunder (eksisterende, behold)
+   - Musik fade-ud: 3 sekunder (eksisterende, behold)
+   - Outro musik-fade skal starte SAMTIDIG med video fade-til-sort
+
+--------------------------------------------------------------------
+DEL 5: FONT OG VISUELT DESIGN (Medium vigtighed)
+--------------------------------------------------------------------
+
+PROBLEM: Nuværende font er system-standard (DejaVu eller lignende). 
+Det ser ikke moderne ud.
+
+LØSNING:
+
+1. Download Inter font fra Google Fonts:
+   - Inter-Bold.ttf (til adresse)
+   - Inter-Regular.ttf (til kontakt)
+   - Gem i /assets/fonts/ eller /public/fonts/
+
+2. FFmpeg drawtext skal bruge:
+   fontfile=/path/to/Inter-Bold.ttf (adresse)
+   fontfile=/path/to/Inter-Regular.ttf (kontakt)
+
+3. Tekst styling:
+   - Adresse: 38px, Inter Bold, white, shadow
+   - Kontakt: 26px, Inter Regular, white, shadow
+   - Shadow: borderw=3, bordercolor=black@0.45
+
+Hvis Inter ikke kan loades, fallback til system sans-serif.
+
+--------------------------------------------------------------------
+DEL 6: FARVE-GRADING (Nice-to-have, +0.5 point)
+--------------------------------------------------------------------
+
+PROBLEM: Billeder har forskellige farvetemperaturer. Nogle er varme, 
+nogle er kolde. Det bryder visuel kontinuitet.
+
+LØSNING (valgfrit — lav hvis nemt):
+
+Tilføj subtil farvejustering på hvert billede før Ken Burns:
+
+brightness = 1.03   (+3%)
+contrast   = 1.05   (+5%)
+saturation = 1.02   (+2%)
+
+FFmpeg: eq=brightness=0.03:contrast=1.05:saturation=1.02
+
+Dette skaber en let "varm, luksuriøs" følelse på tværs af alle clips,
+lige som professionelle boligvideoer har.
+
+--------------------------------------------------------------------
+DEL 7: ACCEPTKRITERIER — TJEKLISTE FØR MERGE
+--------------------------------------------------------------------
+
+[] Adresse-tekst forsvinder efter max 4.5 sekunder
+[] Kontakt-tekst vises fra 70% af varighed og bliver til slut
+[] Ken Burns zoom: 1.0 → 1.15 (tydelig bevægelse)
+[] Moderne musik: BPM mellem 120-130 (verificeret)
+[] Alle 4 musiktyper har forskellig BPM der matcher deres label
+[] Fade fra sort (0.5s) i intro
+[] Fade til sort (1.0s) i outro
+[] Inter font loaded og brugt til tekst
+[] ffprobe bekræfter: 1080x1920, 30fps, yuv420p, aac audio
+[] 5 test-videoer genereret succesfuldt uden fejl
+
+--------------------------------------------------------------------
+PRIORITERING:
+  P0 (Kritisk): Del 1 (tekst timing), Del 2 (Ken Burns), Del 3 (BPM)
+  P1 (Medium):  Del 4 (fade), Del 5 (font)
+  P2 (Valgfri): Del 6 (farve-grading)
+
+Start med P0 først — de giver mest visuel impact.
+====================================================================
