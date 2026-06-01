@@ -2819,41 +2819,68 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const jobId = data.job_id as string;
 
       await new Promise<void>((resolve, reject) => {
-        const deadline = setTimeout(() => {
-          esRef.current?.close();
-          esRef.current = null;
-          reject(new Error("Generering tog for lang tid. Prøv igen."));
-        }, 12 * 60 * 1000);
+        const TIMEOUT_MS = 12 * 60 * 1000;
+        const MAX_RETRIES = 8;
+        let retries = 0;
+        let settled = false;
+        let deadlineTimer: ReturnType<typeof setTimeout>;
 
-        const es = new EventSource(`/api/bolig/showcase-video/progress/${jobId}`);
-        esRef.current = es;
+        const resetDeadline = () => {
+          clearTimeout(deadlineTimer);
+          deadlineTimer = setTimeout(() => {
+            esRef.current?.close();
+            esRef.current = null;
+            if (!settled) { settled = true; reject(new Error("Generering tog for lang tid. Prøv igen.")); }
+          }, TIMEOUT_MS);
+        };
 
-        es.onmessage = (e) => {
-          try {
-            const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrls?: Record<string, string>; cleanVideoUrls?: Record<string, string> };
-            if (p.message) setProgressMsg(p.message);
-            if (p.stage === "complete" && p.videoUrls) {
-              clearTimeout(deadline);
-              es.close();
-              esRef.current = null;
-              setVideoUrls(p.videoUrls);
-              if (p.cleanVideoUrls) setCleanVideoUrls(p.cleanVideoUrls);
-              resolve();
-            } else if (p.stage === "failed") {
-              clearTimeout(deadline);
-              es.close();
-              esRef.current = null;
-              reject(new Error(p.message || "Generering mislykkedes"));
+        const connect = () => {
+          const es = new EventSource(`/api/bolig/showcase-video/progress/${jobId}`);
+          esRef.current = es;
+
+          es.onmessage = (e) => {
+            retries = 0;
+            try {
+              const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrls?: Record<string, string>; cleanVideoUrls?: Record<string, string> };
+              if (p.message) setProgressMsg(p.message);
+              if (p.stage === "complete" && p.videoUrls) {
+                clearTimeout(deadlineTimer);
+                es.close();
+                esRef.current = null;
+                if (!settled) {
+                  settled = true;
+                  setVideoUrls(p.videoUrls);
+                  if (p.cleanVideoUrls) setCleanVideoUrls(p.cleanVideoUrls);
+                  resolve();
+                }
+              } else if (p.stage === "failed") {
+                clearTimeout(deadlineTimer);
+                es.close();
+                esRef.current = null;
+                if (!settled) { settled = true; reject(new Error(p.message || "Generering mislykkedes")); }
+              }
+            } catch {}
+          };
+
+          es.onerror = () => {
+            es.close();
+            esRef.current = null;
+            if (settled) return;
+            if (retries >= MAX_RETRIES) {
+              clearTimeout(deadlineTimer);
+              settled = true;
+              reject(new Error("Forbindelsesfejl efter flere forsøg. Prøv igen."));
+              return;
             }
-          } catch {}
+            retries++;
+            const delay = Math.min(2000 * retries, 10000);
+            setProgressMsg(`Genforbinder… (forsøg ${retries}/${MAX_RETRIES})`);
+            setTimeout(connect, delay);
+          };
         };
 
-        es.onerror = () => {
-          clearTimeout(deadline);
-          es.close();
-          esRef.current = null;
-          reject(new Error("Forbindelsesfejl. Prøv igen."));
-        };
+        resetDeadline();
+        connect();
       });
     } catch (err: any) {
       setError(err.message || "Noget gik galt");
@@ -2874,33 +2901,36 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const saveToCase = async (c: ApiCase) => {
     if (!videoUrls) return;
-    const saveUrl = videoUrls.modern ?? videoUrls.calm ?? Object.values(videoUrls)[0];
-    if (!saveUrl) return;
     setShowCaseDropdown(false);
     setSaveCaseId(c.id);
     try {
       const token = await user?.getIdToken();
-      const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          imageUrl: saveUrl,
-          originalImageUrl: null,
-          roomType: "showcase-video",
-          style: "showcase-video",
-          budgetTier: "tier2",
-          promptText: "Bolig showcase video",
-          isDesignAgent: true,
-        }),
-      });
-      if (!r.ok) {
-        setSaveCaseId(null);
-        const msg = await r.text().catch(() => "");
-        alert(`Kunne ikke gemme til mappen. ${msg}`);
-        return;
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const MOOD_LABEL_MAP: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
+      const moods = (["calm", "uplifting", "modern", "tension"] as const).filter((m) => videoUrls[m]);
+      for (const mood of moods) {
+        const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            imageUrl: videoUrls[mood],
+            originalImageUrl: null,
+            roomType: "showcase-video",
+            style: `showcase-video-${mood}`,
+            budgetTier: "tier2",
+            promptText: `Bolig showcase video — ${MOOD_LABEL_MAP[mood]} stemning`,
+            isDesignAgent: true,
+          }),
+        });
+        if (!r.ok) {
+          setSaveCaseId(null);
+          const msg = await r.text().catch(() => "");
+          alert(`Kunne ikke gemme ${MOOD_LABEL_MAP[mood]}-video til mappen. ${msg}`);
+          return;
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
