@@ -75,3 +75,27 @@ supersample is only worth it for slow, long, single-image Ken Burns moves.
 build the video to a named label (e.g. `[vbase]→drawtext→[vout]`) and *append* the
 audio branch with `finalFilter = \`${finalFilter};${audioChain}\``. Rebuilding from
 the original `filter` string silently drops the overlay.
+
+## Full-photo (no-crop) framing + gimbal moves
+
+User did NOT want photos cropped/halved to fill 9:16. Show the WHOLE photo:
+fit it (contain, `scale=W:H:force_original_aspect_ratio=decrease`) and place it,
+centered, over a blurred fill of ITSELF (`scale ...:increase,crop=W:H,boxblur` +
+slight `eq=brightness=-0.05`). Landscape photos get blurred bands top/bottom that
+blend with the room's ceiling/floor, so it reads as full-frame, social-ready.
+
+**Gimbal/parallax look:** move the sharp foreground and the blurred background by
+DIFFERENT amounts. Cycle moves per slide (`i%4`): dolly-in, crab-right, dolly-out,
+crab-left. Dolly = fg `zoompan` zoom one way + bg `zoompan` the other. Crab = inset
+fg to ~90% (margin to slide in), overlay it with a time-animated `x` (uses `t`)
+over a slightly counter-panning bg `zoompan`; clamp x to `[0, W-fw]` so it never
+slides off.
+
+**Critical zoompan gotcha:** `zoompan=d=N` generates N output frames PER INPUT
+frame. Feed it a SINGLE still (`-i image`, NO `-loop`) → N frames. If you `-loop`
+the input you get N×(loopframes) and a huge/wrong clip. For crab, the fg is 1 still
+frame overlaid over the bg's N frames (`overlay=...:eof_action=repeat:repeatlast=1`).
+
+**Per-image sizing:** to compute the fit box you need source dims — `ffprobe
+-show_entries stream=width,height -of csv=s=x:p=0`, cached per unique path. Evenize
+all dims/offsets (`round(v/2)*2`) for yuv420p.

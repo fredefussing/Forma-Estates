@@ -5,11 +5,14 @@ import { randomUUID } from "crypto";
 
 // ===== BOLIG SHOWCASE VIDEO =====
 // Render.ai-style vertical (9:16) property reel built 100% locally with FFmpeg.
-// No AI, no external service. Each photo gets a subtle Ken Burns motion and the
-// clips are joined with HARD CUTS locked to the music's beat — the punchy,
-// fast-montage look. The photos are cycled to fill a snappy reel so even a small
-// upload produces a full-length video. The render runs async in-memory because a
-// 1080x1920 encode can exceed Replit's ~2 min HTTP proxy timeout.
+// No AI, no external service. Each photo is shown WHOLE (never cropped) on a
+// blurred fill of itself and given a gimbal-style camera move (dolly in/out, crab
+// left/right) where the sharp photo and the blur move by different amounts for a
+// real sense of depth. Clips are joined with HARD CUTS locked to the music's beat
+// — the punchy, fast-montage look — and the photos are cycled to fill a snappy
+// reel so even a small upload produces a full-length, social-ready 9:16 video. The
+// render runs async in-memory because a 1080x1920 encode can exceed Replit's ~2
+// min HTTP proxy timeout.
 
 type ShowcaseStatus = "processing" | "completed" | "failed";
 
@@ -81,6 +84,27 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
+// Read a photo's pixel size so we can fit it whole (no crop) and size the blurred
+// fill around it. Cheap one-shot ffprobe per unique source image.
+function ffprobeSize(p: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("ffprobe", [
+      "-v", "error", "-select_streams", "v:0",
+      "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", p,
+    ]);
+    let out = "";
+    proc.stdout.on("data", (d) => (out += d.toString()));
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      const m = out.trim().match(/(\d+)x(\d+)/);
+      const w = m ? +m[1] : 0;
+      const h = m ? +m[2] : 0;
+      if (code === 0 && w > 0 && h > 0) resolve({ w, h });
+      else reject(new Error(`ffprobe size failed for ${p}`));
+    });
+  });
+}
+
 // Background music: a few pre-generated, royalty-free instrumental beds that ship
 // with the app. Rendering stays $0 per video because we reuse these local files
 // (no per-render AI/audio cost). Key "none" / undefined = silent.
@@ -143,58 +167,78 @@ function beatPlan(
   return { slideDur, musicSeek: +seek.toFixed(3), slideCount };
 }
 
-// Build the filter_complex graph: a subtle Ken Burns per slide, then a plain
-// concat that joins them with hard cuts (no crossfade) so every switch is instant
-// and lands on the beat. `n` is the slide count (photos are already cycled).
-function buildFilter(n: number, slideDur: number): string {
-  const frames = Math.max(2, Math.round(slideDur * FPS));
-  // Subtle Ken Burns: clips are short and the cut does the work, so keep the move
-  // gentle (1.04 → 1.12) — alternating zoom-IN / zoom-OUT per slide with a pan
-  // that cycles right → left → up → down so consecutive photos never drift the
-  // same way. Every offset is a fraction of the *live* crop margin (iw-iw/zoom),
-  // so the crop can never leave the frame (no black edges).
-  const fm1 = Math.max(1, frames - 1);
-  const Z_LO = 1.04;
-  const Z_HI = 1.12;
-  const zinc = ((Z_HI - Z_LO) / frames).toFixed(6);
-  const SPAN = 0.85; // fraction of the available crop margin the pan travels across
-  const parts: string[] = [];
+// Even-rounded value — x264/yuv420p needs even pixel dimensions and offsets.
+const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
 
-  for (let i = 0; i < n; i++) {
-    const zoomIn = i % 2 === 0;
-    const z = zoomIn
-      ? `min(${Z_LO}+${zinc}*on,${Z_HI})`
-      : `max(${Z_HI}-${zinc}*on,${Z_LO})`;
-    const cx = `iw/2-(iw/zoom/2)`;
-    const cy = `ih/2-(ih/zoom/2)`;
-    const driftX = `(on/${fm1}-0.5)*${SPAN}*(iw-iw/zoom)`;
-    const driftY = `(on/${fm1}-0.5)*${SPAN}*(ih-ih/zoom)`;
-    let panX = cx;
-    let panY = cy;
-    switch (i % 4) {
-      case 0:
-        panX = `${cx}+${driftX}`; // pan right
-        break;
-      case 1:
-        panX = `${cx}-(${driftX})`; // pan left
-        break;
-      case 2:
-        panY = `${cy}-(${driftY})`; // pan up
-        break;
-      case 3:
-        panY = `${cy}+${driftY}`; // pan down
-        break;
-    }
-    // Crop-fill to the 1080x1920 frame (biased DOWN so we favour the lower ~60%
-    // where the furniture lives and trim excess ceiling), then run zoom+pan.
-    parts.push(
-      `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,` +
-        `crop=${W}:${H}:(in_w-${W})/2:(in_h-${H})*0.62,` +
-        `zoompan=z='${z}':d=${frames}:` +
-        `x='${panX}':y='${panY}':s=${W}x${H}:fps=${FPS},` +
-        `setsar=1,format=yuv420p[v${i}]`,
+// Build ONE slide: the full (uncropped) photo on a blurred fill of itself, plus a
+// gimbal-style camera move. We never crop the photo to fill the 9:16 frame — the
+// whole image is always on screen, letterboxed by a blurred, slightly darkened
+// copy of itself so the clip is social-ready. The sharp foreground and the blurred
+// background move by DIFFERENT amounts, which reads as real depth/parallax — the
+// "shot on a gimbal" look. Moves cycle per slide: dolly-in, crab-right, dolly-out,
+// crab-left.
+function buildSlide(i: number, dims: { w: number; h: number }, frames: number): string {
+  const fm1 = Math.max(1, frames - 1);
+  const D = ((frames - 1) / FPS).toFixed(4); // clip length in seconds (for overlay `t`)
+  const f = Math.min(W / dims.w, H / dims.h); // fit-whole factor
+  const fw = even(dims.w * f);
+  const fh = even(dims.h * f);
+  const cx = even((W - fw) / 2);
+  const cy = even((H - fh) / 2);
+  // Crab moves inset the photo to 90% so it can slide sideways and still stay fully
+  // on screen (the freed margin reveals the blurred fill).
+  const f9 = f * 0.9;
+  const fw9 = even(dims.w * f9);
+  const fh9 = even(dims.h * f9);
+  const cx9 = even((W - fw9) / 2);
+  const cy9 = even((H - fh9) / 2);
+  const amp = Math.max(2, cx9); // horizontal travel kept inside the margin
+
+  // Blurred-fill background: scale to COVER the frame, blur + darken, then a gentle
+  // move of its own.
+  const bgLayer = (z: string, x: string) =>
+    `[${i}:v]split=2[a${i}][b${i}];` +
+    `[a${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
+    `boxblur=26:2,eq=brightness=-0.05,setsar=1,` +
+    `zoompan=z='${z}':d=${frames}:x='${x}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},setsar=1[bg${i}];`;
+
+  const move = i % 4;
+  if (move === 0 || move === 2) {
+    // Dolly in (push toward the room) / dolly out (pull back). The sharp photo
+    // scales one way while the blur scales the other → depth.
+    const fgInc = (0.07 / fm1).toFixed(6);
+    const bgInc = (0.04 / fm1).toFixed(6);
+    const fgZ = move === 0 ? `min(1.0+${fgInc}*on,1.07)` : `max(1.07-${fgInc}*on,1.0)`;
+    const bgZ = move === 0 ? `max(1.10-${bgInc}*on,1.06)` : `min(1.06+${bgInc}*on,1.10)`;
+    return (
+      bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
+      `[b${i}]scale=${fw}:${fh},setsar=1,` +
+      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
     );
   }
+  // Crab right (1) / crab left (3): the sharp photo slides sideways while the blur
+  // drifts the opposite way a little → parallax.
+  const sign = move === 1 ? "+" : "-";
+  const bgSign = move === 1 ? "-" : "+";
+  // Clamp travel inside [0, W-fw9] so the photo can never slide off the frame
+  // (rounding from even() could otherwise overshoot by a pixel or two).
+  const ovx = `min(max(${cx9}${sign}${amp}*((t/${D})-0.5)*2,0),${W - fw9})`;
+  const bgx = `iw/2-(iw/zoom/2)${bgSign}18*((on/${fm1})-0.5)*2`;
+  return (
+    bgLayer(`1.06`, bgx) +
+    `[b${i}]scale=${fw9}:${fh9},setsar=1[fg${i}];` +
+    `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+  );
+}
+
+// Build the filter_complex graph: one gimbal slide per photo, joined with HARD CUTS
+// (concat, no crossfade) so every switch is instant and lands on the beat. `n` is
+// the slide count (photos already cycled); `sizes[i]` is the source photo's pixels.
+function buildFilter(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
+  const frames = Math.max(2, Math.round(slideDur * FPS));
+  const parts: string[] = [];
+  for (let i = 0; i < n; i++) parts.push(buildSlide(i, sizes[i], frames));
 
   if (n === 1) {
     // Single image: just expose it as the output label.
@@ -260,7 +304,19 @@ async function render(
   const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
   const slidePaths: string[] = [];
   for (let k = 0; k < slideCount; k++) slidePaths.push(imagePaths[k % n]);
-  const filter = buildFilter(slideCount, slideDur);
+  // Each slide fits its photo WHOLE (no crop), so we need the source pixel size.
+  // Probe once per unique photo and reuse across cycled slides.
+  const sizeCache = new Map<string, { w: number; h: number }>();
+  const sizes: Array<{ w: number; h: number }> = [];
+  for (const p of slidePaths) {
+    let s = sizeCache.get(p);
+    if (!s) {
+      s = await ffprobeSize(p);
+      sizeCache.set(p, s);
+    }
+    sizes.push(s);
+  }
+  const filter = buildFilter(slideCount, slideDur, sizes);
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
   const outPath = path.join(outDir, filename);
 
