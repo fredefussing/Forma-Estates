@@ -2249,6 +2249,41 @@ export async function registerRoutes(
     }
   });
 
+  // SSE progress stream — replaces the old blind 4s poll loop. Client opens an
+  // EventSource here and receives progress events every 1.5s until complete/failed.
+  app.get("/api/bolig/showcase-video/progress/:jobId", (req, res) => {
+    const { jobId } = req.params;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    const send = (data: object) => {
+      try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
+    };
+
+    const job = getShowcaseJob(jobId);
+    if (!job) {
+      send({ stage: "failed", currentClip: 0, totalClips: 0, message: "Job ikke fundet" });
+      res.end();
+      return;
+    }
+    send(job.progress);
+    if (job.status !== "processing") { res.end(); return; }
+
+    const iv = setInterval(() => {
+      const j = getShowcaseJob(jobId);
+      if (!j) { clearInterval(iv); try { res.end(); } catch {} return; }
+      send(j.progress);
+      if (j.status === "completed" || j.status === "failed") {
+        clearInterval(iv);
+        try { res.end(); } catch {}
+      }
+    }, 1500);
+
+    req.on("close", () => clearInterval(iv));
+  });
+
   app.get("/api/bolig/showcase-video/status/:jobId", async (req, res) => {
     const job = getShowcaseJob(req.params.jobId);
     if (!job) {

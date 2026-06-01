@@ -18,17 +18,31 @@ import { isFalConfigured, uploadToFal, generateShowcaseClip, downloadToFile } fr
 
 type ShowcaseStatus = "processing" | "completed" | "failed";
 
+export interface ShowcaseProgress {
+  stage: "uploading" | "generating" | "compositing" | "complete" | "failed";
+  currentClip: number;
+  totalClips: number;
+  message: string;
+  videoUrl?: string;
+}
+
 interface ShowcaseJob {
   status: ShowcaseStatus;
   videoUrl?: string;
   error?: string;
   createdAt: number;
+  progress: ShowcaseProgress;
 }
 
 const jobs = new Map<string, ShowcaseJob>();
 
 export function getShowcaseJob(id: string): ShowcaseJob | undefined {
   return jobs.get(id);
+}
+
+function setProgress(jobId: string, p: ShowcaseProgress) {
+  const job = jobs.get(jobId);
+  if (job) jobs.set(jobId, { ...job, progress: p });
 }
 
 // Drop jobs older than 1h so the map doesn't grow unbounded.
@@ -433,8 +447,12 @@ async function buildAIInputs(
   imagePaths: string[],
   outDir: string,
   musicKey?: string,
+  onProgress?: (p: ShowcaseProgress) => void,
 ): Promise<RenderInputs | null> {
   const photos = imagePaths.slice(0, MAX_AI_CLIPS);
+  const total = photos.length;
+
+  onProgress?.({ stage: "uploading", currentClip: 0, totalClips: total, message: `Uploader ${total} billeder…` });
 
   // Upload each photo to fal storage (Kling can't read our localhost paths).
   const uploads = await Promise.all(
@@ -448,6 +466,9 @@ async function buildAIInputs(
     ),
   );
 
+  let done = 0;
+  onProgress?.({ stage: "generating", currentClip: 0, totalClips: total, message: `Laver AI-klip 0/${total}…` });
+
   // Generate the clips with bounded concurrency (each is a paid call); download
   // each to a temp mp4 in outDir. Failed clips are dropped.
   const clips = await mapLimit(uploads, AI_CLIP_CONCURRENCY, async (url, i) => {
@@ -459,9 +480,13 @@ async function buildAIInputs(
         `clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`,
       );
       await downloadToFile(videoUrl, dest);
+      done++;
+      onProgress?.({ stage: "generating", currentClip: done, totalClips: total, message: `Laver AI-klip ${done}/${total}…` });
       return dest;
     } catch (e: any) {
       console.warn(`[showcase] clip ${i} failed:`, e?.message || e);
+      done++;
+      onProgress?.({ stage: "generating", currentClip: done, totalClips: total, message: `Laver AI-klip ${done}/${total}… (et klip fejlede)` });
       return null;
     }
   });
@@ -494,18 +519,23 @@ async function render(
   // generation — so MAX_BACKLOG actually caps concurrent paid calls and CPU.
   await acquireSlot();
   try {
+  const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
+
   // Prefer real AI clips; fall back to the free local engine when fal isn't
   // configured or every clip generation failed.
   let inputs: RenderInputs | null = null;
   if (isFalConfigured()) {
     try {
-      inputs = await buildAIInputs(imagePaths, outDir, musicKey);
+      inputs = await buildAIInputs(imagePaths, outDir, musicKey, emit);
     } catch (e: any) {
       console.warn("[showcase] AI path failed, falling back to local:", e?.message || e);
       inputs = null;
     }
   }
-  if (!inputs) inputs = await buildLocalInputs(imagePaths, musicKey);
+  if (!inputs) {
+    emit({ stage: "compositing", currentClip: 0, totalClips: imagePaths.length, message: "Bruger lokal motor (ingen AI)…" });
+    inputs = await buildLocalInputs(imagePaths, musicKey);
+  }
 
   const { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips } = inputs;
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
@@ -611,6 +641,7 @@ async function render(
   }
   args.push(outPath);
 
+  emit({ stage: "compositing", currentClip: inputs.slideCount, totalClips: inputs.slideCount, message: "Sammensætter video med musik…" });
   try {
     await runFfmpeg(args);
   } finally {
@@ -618,7 +649,9 @@ async function render(
     // Delete the downloaded AI clips — they were only needed as FFmpeg inputs.
     for (const c of tmpClips) fs.promises.unlink(c).catch(() => {});
   }
-  jobs.set(jobId, { status: "completed", videoUrl: `/uploads/${filename}`, createdAt: Date.now() });
+  const videoUrl = `/uploads/${filename}`;
+  emit({ stage: "complete", currentClip: inputs.slideCount, totalClips: inputs.slideCount, message: "Video klar!", videoUrl });
+  jobs.set(jobId, { status: "completed", videoUrl, createdAt: Date.now(), progress: { stage: "complete", currentClip: inputs.slideCount, totalClips: inputs.slideCount, message: "Video klar!", videoUrl } });
   } finally {
     releaseSlot();
   }
@@ -638,14 +671,26 @@ export function startShowcaseVideo(
     return null;
   }
   const jobId = randomUUID();
-  jobs.set(jobId, { status: "processing", createdAt: Date.now() });
+  const totalClips = Math.min(imagePaths.length, MAX_AI_CLIPS);
+  jobs.set(jobId, {
+    status: "processing",
+    createdAt: Date.now(),
+    progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
+  });
 
   render(jobId, imagePaths, outDir, musicKey, address)
     .catch((err: any) => {
+      const cur = jobs.get(jobId);
       jobs.set(jobId, {
         status: "failed",
         error: err?.message || "Render mislykkedes",
         createdAt: Date.now(),
+        progress: {
+          stage: "failed",
+          currentClip: cur?.progress?.currentClip ?? 0,
+          totalClips: cur?.progress?.totalClips ?? totalClips,
+          message: err?.message || "Generering mislykkedes",
+        },
       });
     })
     .finally(() => {

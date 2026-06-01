@@ -1,0 +1,138 @@
+FINPUDS VORES SHOWCASE VIDEO GENERATOR — DISSE 5 PUNKTER SKAL IMPLEMENTERES:
+
+=== 1. BEAT DETECTION + HARD-CUT TIL MUSIKKENS TAKT ===
+
+Når 9 AI-klip er genereret fra fal/Kling, skal de IKKE vises som 5-sekunders klip. 
+De skal skæres snappy og sættes sammen med HARD-CUT præcis på beat'et.
+
+Implementering:
+a) Analyser MP3 med aubio:
+   import aubio
+   samplerate = 44100
+   win_s = 1024  
+   hop_s = 512
+   s = aubio.source(musicPath, samplerate, hop_s)
+   o = aubio.tempo("default", win_s, hop_s, samplerate)
+   beats = []
+   while True:
+       samples, read = s()
+       if o(samples):
+           beats.append(o.get_last_s())
+       if read < hop_s: break
+
+b) Beregn BPM:
+   if len(beats) >= 2:
+       avg_beat_interval = sum(beats[i+1] - beats[i] for i in range(len(beats)-1)) / (len(beats)-1)
+       bpm = 60.0 / avg_beat_interval
+   else:
+       fallback bpm = 110
+
+c) Beregn clip-duration per billede:
+   if bpm >= 120:   beats_per_clip = 2,  clip_duration = (2 * 60.0) / bpm
+   elif bpm >= 90:  beats_per_clip = 1,  clip_duration = 60.0 / bpm
+   else:            beats_per_clip = 1,  clip_duration = (2 * 60.0) / bpm
+   
+   clip_duration = clamp(clip_duration, 1.5, 3.5) sekunder
+
+d) Trim hvert AI-klip til clip_duration:
+   ffmpeg -i clip_N.mp4 -ss 0 -t {clip_duration} -c copy -avoid_negative_ts make_zero clip_N_trimmed.mp4
+   
+   VIKTIG: -ss 0 = tag fra starten af klippet, IKKE midten. 
+   Starten af Kling-klippene har den flotteste gimbal-startbevægelse.
+
+e) Concat alle trimmed clips med HARD-CUT (ingen filter, ingen transition):
+   Lav en clips.txt fil:
+   file 'clip_0_trimmed.mp4'
+   file 'clip_1_trimmed.mp4'
+   ...
+   
+   ffmpeg -f concat -safe 0 -i clips.txt -c copy raw_video.mp4
+
+=== 2. MUSIK OVERLAY MED FADE ===
+
+ffmpeg -i raw_video.mp4 -i music.mp3 -filter_complex \
+"[1:a]afade=t=in:ss=0:d=2,afade=t=out:st={duration-3}:d=3,volume=0.35[a]" \
+-map 0:v -map "[a]" -c:v copy -c:a aac -b:a 128k -shortest final_video.mp4
+
+VIGTIG: -shortest sikrer at video stopper når musikken slutter.
+
+=== 3. FAL.SUBSCRIBE TIMEOUT (mest kritiske fix) ===
+
+fal.subscribe() hænger i det uendelige. Fix:
+
+const result = await Promise.race([
+  fal.subscribe("fal-ai/kling-video/v2.1/standard/image-to-video", {
+    input: { ... },
+    logs: true,
+  }),
+  new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Clip generation timeout')), 180000)
+  )
+]);
+
+180.000 ms = 3 minutter max per klip.
+
+Hvis timeout:
+- Log fejlen
+- Gem partial progress (hvilke klip der lykkedes)
+- Spring det specifikke klip over
+- Fortsæt med resten — lav video med færre klip hvis nødvendigt
+- Returner { status: "partial", completedClips: N, totalClips: 9, url: "..." }
+
+=== 4. PROGRESS STREAMING TIL FRONTEND ===
+
+I stedet for blind polling hver 4 sekund:
+
+Backend: Brug Server-Sent Events (SSE):
+res.writeHead(200, {
+  'Content-Type': 'text/event-stream',
+  'Cache-Control': 'no-cache',
+  'Connection': 'keep-alive'
+});
+
+sendEvent({ stage: "generating", currentClip: 3, totalClips: 9, message: "Generating clip 3/9..." });
+sendEvent({ stage: "trimming", message: "Cutting clips to beat..." });
+sendEvent({ stage: "composing", message: "Adding music and finalizing..." });
+sendEvent({ stage: "complete", url: "/download/..." });
+
+Frontend: Erstat poll-loop med EventSource:
+const source = new EventSource(`/api/videos/${videoId}/progress`);
+source.onmessage = (e) => {
+  const data = JSON.parse(e.data);
+  if (data.stage === "complete") { source.close(); showVideo(data.url); }
+  else { updateProgressBar(data.currentClip, data.totalClips, data.message); }
+};
+
+=== 5. TEKST OVERLAY (adresse + kontakt) ===
+
+Efter musik-overlay, tilføj tekst med FFmpeg drawtext:
+
+ADRESSE (vises første 4 sekunder):
+ffmpeg -i with_music.mp4 -vf \
+"drawtext=text='{address}':fontsize=42:fontcolor=white:fontfile=/path/to/Inter-Bold.ttf:
+x=(w-text_w)/2:y=h-text_h-60:box=0:borderw=3:bordercolor=black@0.5:
+enable='between(t,0,4)'" -c:a copy with_address.mp4
+
+KONTAKTINFO (vises sidste 4 sekunder):
+ffmpeg -i with_address.mp4 -vf \
+"drawtext=text='Kontakt os på {phone} | {email}':fontsize=28:fontcolor=white:
+fontfile=/path/to/Inter-Regular.ttf:x=(w-text_w)/2:y=h-text_h-60:
+box=0:borderw=2:bordercolor=black@0.5:enable='between(t,{duration-4},{duration})'" \
+-c:a copy final.mp4
+
+Tekst-specs:
+- Font: Inter (download fra Google Fonts, gem i /assets/fonts/)
+- Adresse: 42px, bold, hvid med sort skygge (borderw=3)
+- Kontakt: 28px, regular, samme stil
+- Position: bund-center, 60px fra bunden
+- Ingen baggrundsboks (box=0) — kun skygge for læsbarhed
+
+=== ACCEPTKRITERIER ===
+
+1. Hvert billede vises i 1.5-3.5 sekunder afhængig af BPM
+2. Cuts er præcis på beat (indenfor ±0.05 sekund)
+3. Ingen crossfade — kun hard-cut
+4. fal.subscribe timeout efter 3 minutter
+5. Progress vises i UI: "Clip 5/9", "Cutting to beat", etc.
+6. Tekst-overlay: adresse første 4 sek, kontakt sidste 4 sek
+7. ffprobe tjekker: 30fps, 1080x1920, lyd spor til stede

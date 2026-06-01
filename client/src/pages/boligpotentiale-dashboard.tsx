@@ -2732,6 +2732,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const AI_MAX_SLIDE = 4.6;
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progressMsg, setProgressMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -2739,6 +2740,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const esRef = useRef<EventSource | null>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
 
   const hasUnsaved = !!videoUrl && saveCaseId === null;
@@ -2806,6 +2808,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setError(null);
     setVideoUrl(null);
     setSaveCaseId(null);
+    setProgressMsg("Forbereder…");
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
@@ -2823,23 +2827,49 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || "Indsendelse mislykkedes");
 
       const jobId = data.job_id as string;
-      const maxAttempts = 150; // 150 × 4s ≈ 10 min
-      let finalUrl: string | null = null;
-      for (let i = 0; i < maxAttempts; i++) {
-        await new Promise((r) => setTimeout(r, 4000));
-        const sres = await fetch(`/api/bolig/showcase-video/status/${jobId}`);
-        const sctype = sres.headers.get("content-type") || "";
-        if (!sctype.includes("application/json")) continue;
-        const sdata = await sres.json();
-        if (sdata.status === "COMPLETED" && sdata.video_url) { finalUrl = sdata.video_url; break; }
-        if (sdata.status === "FAILED") throw new Error(sdata.message || "Generering mislykkedes");
-      }
-      if (!finalUrl) throw new Error("Generering tog for lang tid. Prøv igen.");
-      setVideoUrl(finalUrl);
+
+      // Stream progress via SSE; 12-min safety timeout in case the connection drops
+      await new Promise<void>((resolve, reject) => {
+        const deadline = setTimeout(() => {
+          esRef.current?.close();
+          esRef.current = null;
+          reject(new Error("Generering tog for lang tid. Prøv igen."));
+        }, 12 * 60 * 1000);
+
+        const es = new EventSource(`/api/bolig/showcase-video/progress/${jobId}`);
+        esRef.current = es;
+
+        es.onmessage = (e) => {
+          try {
+            const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrl?: string };
+            if (p.message) setProgressMsg(p.message);
+            if (p.stage === "complete" && p.videoUrl) {
+              clearTimeout(deadline);
+              es.close();
+              esRef.current = null;
+              setVideoUrl(p.videoUrl);
+              resolve();
+            } else if (p.stage === "failed") {
+              clearTimeout(deadline);
+              es.close();
+              esRef.current = null;
+              reject(new Error(p.message || "Generering mislykkedes"));
+            }
+          } catch {}
+        };
+
+        es.onerror = () => {
+          clearTimeout(deadline);
+          es.close();
+          esRef.current = null;
+          reject(new Error("Forbindelsesfejl. Prøv igen."));
+        };
+      });
     } catch (err: any) {
       setError(err.message || "Noget gik galt");
     } finally {
       setIsGenerating(false);
+      setProgressMsg("");
     }
   };
 
@@ -3041,7 +3071,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           {isGenerating ? (
             <>
               <RotateCcw className="w-4 h-4 animate-spin" />
-              Laver AI-kameraklip… (kan tage 2–4 min)
+              {progressMsg || "Laver AI-kameraklip…"}
             </>
           ) : (
             <>

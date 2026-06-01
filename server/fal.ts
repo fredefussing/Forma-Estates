@@ -454,14 +454,19 @@ export async function generateShowcaseClip(
   imageUrl: string,
   moveIndex: number,
 ): Promise<{ videoUrl: string }> {
-  const result = await fal.subscribe(SHOWCASE_ENDPOINT, {
-    input: {
-      prompt: showcaseMovePrompt(moveIndex),
-      image_url: imageUrl,
-      duration: "5" as const,
-      negative_prompt: SHOWCASE_NEGATIVE_PROMPT,
-    },
-  });
+  const result = await Promise.race([
+    fal.subscribe(SHOWCASE_ENDPOINT, {
+      input: {
+        prompt: showcaseMovePrompt(moveIndex),
+        image_url: imageUrl,
+        duration: "5" as const,
+        negative_prompt: SHOWCASE_NEGATIVE_PROMPT,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Clip generation timeout (3 min)")), 180_000),
+    ),
+  ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No showcase clip generated");
   console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
