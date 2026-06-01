@@ -1,0 +1,137 @@
+PRÆCIS PROMPT TIL REPLIT — FIX DISSE SPECIFIKKE FEJL
+plain
+Copy
+FIX DE FØLGENDE KRITISKE FEJL I VORES SHOWCASE VIDEO GENERATOR:
+
+=== FEJL 1: BILLEDERNE HOLDER IKKE ORIGINAL FRAMING ===
+
+PROBLEM: Billeder ser forkerte ud i 9:16 — for meget loft, for tæt crop, 
+eller fladt perspektiv. De ligner bare landskabsbilleder smidt i en kasse.
+
+LØSNING: Implementer "Hero Crop" algoritme FØR video generering:
+
+1. Analysér hvert billede med OpenCV:
+   - Detect horisontale linjer (bordkanter, gulv/loft linjer)
+   - Find "aktivt område" (hvor møblerne er — typisk nederste 60%)
+   
+2. Beregn crop region:
+   - Mål: 1080x1920 (9:16)
+   - Center crop baseret på aktivt område, IKKE billedcenter
+   - Loft må max fylde 15% af toppen
+   - Hvis original er landskab (f.eks. 1920x1080):
+     * Beregn scale factor: max(1080/width, 1920/height) = max(0.56, 1.77) = 1.77
+     * Scale op så korteste side matcher: 1920*1.77 = 3398, 1080*1.77 = 1911
+     * Crop fra center men offset Y med +10% (nedad) for at fange møbler
+   - Hvis original er portræt: center crop med 5% Y-offset nedad
+
+3. Output: Hvert billede er præcis 1080x1920 med korrekt framing.
+
+=== FEJL 2: BEAT SYNC TIL MUSIK ===
+
+PROBLEM: Billeder skifter hvert 4. sekund. Uanset hvad musikken gør. 
+Det føles mekanisk og amatøragtigt.
+
+LØSNING: Sync billede-skift til musikkens beats:
+
+1. Brug aubio (Python) til beat detection:
+   pip install aubio
+   
+   import aubio
+   samplerate = 44100
+   win_s = 1024
+   hop_s = 512
+   s = aubio.source("music.mp3", samplerate, hop_s)
+   o = aubio.tempo("default", win_s, hop_s, samplerate)
+   
+   beats = []
+   while True:
+       samples, read = s()
+       if o(samples):
+           beats.append(o.get_last_s())
+       if read < hop_s: break
+
+2. Beregn billede-varigheder:
+   - Hvert billede vises indtil næste beat efter minimum 3 sekunder
+   - Eksempel: beats på [0.0, 0.8, 1.6, 2.4, 3.2, 4.0, 4.8...]
+   - Med 6 billeder og 30-sekunders mål: fordel billeder på beat-markører
+   - Sidste billede stopper når musikken slutter
+
+3. FFmpeg xfade skal bruge de præcise tidsstempler fra beat detection:
+   [0][1]xfade=transition=fade:duration=0.8:offset=3.2[out1];
+   [out1][2]xfade=transition=fade:duration=0.8:offset=7.1[out2];...
+
+=== FEJL 3: KEN BURNS FOR SUBTIL ===
+
+PROBLEM: Zoom/pan er næsten usynlig. Det ligner stadig et diasshow.
+
+LØSNING: Øg parametrene MEN behold elegance:
+
+zoom=z='min(zoom+0.0008,1.15)':    # Fra 0.0003 til 0.0008 — dobbelt så hurtig
+x='iw/2-(iw/zoom/2)+sin(t*0.4)*iw*0.05':  # Fra 0.03 til 0.05 — mere pan
+y='ih/2-(ih/zoom/2)+cos(t*0.25)*ih*0.03': # Fra 0.02 til 0.03 — mere vertikal pan
+d={duration}                           # Antal frames baseret på beat-varighed
+s=1080x1920
+fps=30
+
+VIGTIG: Pan-retning skal skifte per billede for variation:
+- Billede 1: Pan mod højre
+- Billede 2: Pan mod venstre  
+- Billede 3: Pan opad + zoom ind
+- Billede 4: Pan nedad + zoom ud
+- etc.
+
+=== FEJL 4: FULD SKÆRM HAKKER / SER SJOV UD ===
+
+PROBLEM: Video hakker og ser forkert ud i fuldskærm.
+
+LØSNING: Fix encoding-indstillinger:
+
+1. FFmpeg output skal bruge DISSE præcise parametre:
+   -c:v libx264
+   -preset slow           # Bedre kvalitet, langsommere encoding
+   -crf 18               # Høj kvalitet (lavere = bedre)
+   -r 30                 # 30 fps CONSTAN T
+   -vsync cfr            # Constant frame rate — ingen VFR
+   -pix_fmt yuv420p      # Standard pixel format
+   -profile:v high       # High profile for bedre kompression
+   -level 4.1            # Kompatibilitet
+   -maxrate 12M          # Max bitrate
+   -bufsize 24M          # Buffer
+   -movflags +faststart  # Web-optimeret
+
+2. Tjek output med ffprobe:
+   ffprobe -v error -select_streams v:0 \
+     -show_entries stream=width,height,r_frame_rate,pix_fmt \
+     -of json output.mp4
+   
+   Skal returnere: width=1080, height=1920, r_frame_rate=30/1, pix_fmt=yuv420p
+
+=== FEJL 5: TRANSITIONS ===
+
+PROBLEM: Crossfade varighed og timing er lidt off.
+
+LØSNING: 
+- Transition varighed: 0.8 sekunder (ikke 0.5)
+- Brug 'fade' (crossfade), IKKE 'wipe' eller andre
+- Start transition 0.8 sekunder FØR næste beat
+- Sørg for at xfade overlapper korrekt — ingen "ghosting" i mere end 0.8 sek
+
+=== KOMPLET TEKST OVERLAY (Tilføj til sidst) ===
+
+Tilføj et subtilt tekst overlay i starten og slutningen:
+- Start: Boligadresse (fade ind 1 sek, vis 3 sek, fade ud 1 sek)
+- Slut: "Kontakt os for fremvisning" + telefon/email
+- Font: Clean sans-serif (Inter, Montserrat eller lignende)
+- Størrelse: 48px
+- Farve: Hvid med sort skygge for læsbarhed
+- Position: Nederst i billedet, centreret
+
+=== ACCEPTKRITERIER ===
+
+Videoen er IKKE færdig før ALLE disse tjek passer:
+1. ffprobe viser præcis 1080x1920, 30fps, yuv420p
+2. Hvert billede har synlig Ken Burns (zoom + pan)
+3. Billedskift falder på musik-beats (indenfor ±0.1 sekund)
+4. Ingen "squash" eller "stretch" af billeder — kun crop
+5. Video afspilles flydende uden hak i fuldskærm på mobil
+6. Samlet varighed matcher musikkens længde (±0.5 sek)

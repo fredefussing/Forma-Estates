@@ -2723,7 +2723,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
   // Per-image duration is locked to each track's pulse on the server (cuts land
   // on the beat). These mirror that for a live length estimate only.
-  const DUR_PER_IMAGE: Record<string, number> = { calm: 3.67, uplifting: 3.64, modern: 3.97, none: 3.0 };
+  const DUR_PER_IMAGE: Record<string, number> = { calm: 3.77, uplifting: 3.74, modern: 4.07, none: 3.0 };
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2748,7 +2748,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [showCaseDropdown]);
 
   const totalSeconds = images.length > 0
-    ? Math.max(0, images.length * (DUR_PER_IMAGE[music] ?? 3.0) - (images.length - 1) * 0.7)
+    ? Math.max(0, images.length * (DUR_PER_IMAGE[music] ?? 3.0) - (images.length - 1) * 0.8)
     : 0;
 
   const addFiles = (files: FileList | File[]) => {

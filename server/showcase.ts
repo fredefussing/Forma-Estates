@@ -151,37 +151,50 @@ function beatPlan(
 // Build the filter_complex graph: per-image zoom then a varied transition chain.
 function buildFilter(n: number, durPerImage: number, crossfade: number): string {
   const frames = Math.max(2, Math.round(durPerImage * FPS));
-  // Cinematic Ken Burns: a gentle zoom-in (1.05 → 1.15) PLUS a slow pan so each
-  // still photo feels alive, like a breath — not a static slide. We start a touch
-  // zoomed (1.05) so there is always crop margin for the pan, keeping it perfectly
-  // in-bounds (no black edges, no clamp judder).
+  // Cinematic Ken Burns, clearly visible (not a static slide): a 1.06 → 1.20 move
+  // that alternates zoom-IN / zoom-OUT per image, combined with a directional pan
+  // that cycles right → left → up → down so consecutive photos never drift the
+  // same way. Every offset is a fraction of the *live* crop margin (iw-iw/zoom),
+  // so the crop can never leave the frame (no black edges, no clamp judder).
   const fm1 = Math.max(1, frames - 1);
-  const zinc = (0.1 / frames).toFixed(6);
-  const SPAN = 0.7; // fraction of the available crop margin the pan travels across
+  const Z_LO = 1.06;
+  const Z_HI = 1.2;
+  const zinc = ((Z_HI - Z_LO) / frames).toFixed(6);
+  const SPAN = 0.85; // fraction of the available crop margin the pan travels across
   const parts: string[] = [];
 
   for (let i = 0; i < n; i++) {
-    const z = `min(1.05+${zinc}*on,1.15)`;
-    const dir = i % 2 === 0 ? 1 : -1;
-    // Alternate axis per image (even = horizontal drift, odd = vertical drift) for
-    // subtle variety. The offset is proportional to the *current* crop margin
-    // (iw-iw/zoom), so it can never push the crop outside the frame.
+    const zoomIn = i % 2 === 0;
+    const z = zoomIn
+      ? `min(${Z_LO}+${zinc}*on,${Z_HI})`
+      : `max(${Z_HI}-${zinc}*on,${Z_LO})`;
     const cx = `iw/2-(iw/zoom/2)`;
     const cy = `ih/2-(ih/zoom/2)`;
-    const panX =
-      i % 2 === 0
-        ? `${cx}+(${dir})*(on/${fm1}-0.5)*${SPAN}*(iw-iw/zoom)`
-        : cx;
-    const panY =
-      i % 2 === 0
-        ? cy
-        : `${cy}+(${dir})*(on/${fm1}-0.5)*${SPAN}*(ih-ih/zoom)`;
-    // Crop-fill to the 2x supersample canvas, run zoom+pan at 2x, then scale back
-    // to 1080x1920 so the integer-pixel stepping is antialiased away (no judder)
-    // and the frame is full-bleed (no black bars).
+    const driftX = `(on/${fm1}-0.5)*${SPAN}*(iw-iw/zoom)`;
+    const driftY = `(on/${fm1}-0.5)*${SPAN}*(ih-ih/zoom)`;
+    let panX = cx;
+    let panY = cy;
+    switch (i % 4) {
+      case 0:
+        panX = `${cx}+${driftX}`; // pan right
+        break;
+      case 1:
+        panX = `${cx}-(${driftX})`; // pan left
+        break;
+      case 2:
+        panY = `${cy}-(${driftY})`; // pan up
+        break;
+      case 3:
+        panY = `${cy}+${driftY}`; // pan down
+        break;
+    }
+    // Crop-fill to the 2x supersample canvas (biased DOWN so we favour the lower
+    // ~60% where the furniture lives and trim excess ceiling), run zoom+pan at 2x,
+    // then scale back to 1080x1920 so the integer-pixel stepping is antialiased
+    // away (no judder) and the frame is full-bleed (no black bars).
     parts.push(
       `[${i}:v]scale=${SS_W}:${SS_H}:force_original_aspect_ratio=increase,` +
-        `crop=${SS_W}:${SS_H},` +
+        `crop=${SS_W}:${SS_H}:(in_w-${SS_W})/2:(in_h-${SS_H})*0.62,` +
         `zoompan=z='${z}':d=${frames}:` +
         `x='${panX}':y='${panY}':s=${SS_W}x${SS_H}:fps=${FPS},` +
         `scale=${W}:${H}:flags=bicubic,setsar=1,format=yuv420p[v${i}]`,
@@ -213,9 +226,9 @@ async function render(
   outDir: string,
   musicKey?: string,
 ): Promise<void> {
-  // "Mix" pacing: a soft 0.7s crossfade so most switches melt into the next image
+  // "Mix" pacing: a soft 0.8s crossfade so most switches melt into the next image
   // (the calm, elegant feel) while the per-junction variation stays gentle.
-  const crossfade = 0.7;
+  const crossfade = 0.8;
   // Lock the per-image duration to the chosen track's pulse so cuts land on the
   // beat. Silent videos use a fixed pleasant pace.
   const { durPerImage, musicSeek } = beatPlan(musicKey, crossfade);
@@ -256,14 +269,28 @@ async function render(
   args.push(
     "-r",
     String(FPS),
+    // Constant frame rate is the key to smooth fullscreen playback on phones —
+    // any variable-frame-rate output stutters in mobile players. Pair it with a
+    // high-quality, bitrate-capped x264 encode so motion stays clean without
+    // runaway file sizes, and faststart so it streams instantly on the web.
+    "-fps_mode",
+    "cfr",
     "-c:v",
     "libx264",
     "-preset",
-    "veryfast",
+    "medium",
     "-crf",
-    "20",
+    "18",
     "-pix_fmt",
     "yuv420p",
+    "-profile:v",
+    "high",
+    "-level",
+    "4.1",
+    "-maxrate",
+    "12M",
+    "-bufsize",
+    "24M",
     "-movflags",
     "+faststart",
   );
