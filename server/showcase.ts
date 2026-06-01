@@ -2,17 +2,19 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { isFalConfigured, uploadToFal, generateShowcaseClip, downloadToFile } from "./fal";
 
 // ===== BOLIG SHOWCASE VIDEO =====
-// Render.ai-style vertical (9:16) property reel built 100% locally with FFmpeg.
-// No AI, no external service. Each photo is shown WHOLE (never cropped) on a
-// blurred fill of itself and given a gimbal-style camera move (dolly in/out, crab
-// left/right) where the sharp photo and the blur move by different amounts for a
-// real sense of depth. Clips are joined with HARD CUTS locked to the music's beat
-// — the punchy, fast-montage look — and the photos are cycled to fill a snappy
-// reel so even a small upload produces a full-length, social-ready 9:16 video. The
-// render runs async in-memory because a 1080x1920 encode can exceed Replit's ~2
-// min HTTP proxy timeout.
+// Vertical (9:16) property reel. PRIMARY path: each photo becomes one real AI
+// image-to-video clip (Kling 2.1) with a single genuine gimbal camera move —
+// dolly in/out, truck left/right — then the clips are cut to the music's beat,
+// each fitted WHOLE (never cropped) onto a blurred fill of itself, and muxed with
+// a music bed + burned-in captions. This is the look the reference videos have;
+// FFmpeg-faked pan/zoom never matched it. FALLBACK path (no FAL_KEY, or every AI
+// clip failed): the original 100%-local FFmpeg engine that fakes the gimbal move
+// with split-layer zoompan on a still — $0 but less convincing. Either way the
+// render runs async in-memory because the work (AI generation or a 1080x1920
+// encode) far exceeds Replit's ~2 min HTTP proxy timeout.
 
 type ShowcaseStatus = "processing" | "completed" | "failed";
 
@@ -142,6 +144,42 @@ const MAX_SLIDES = 48;
 // fast track (short period) cuts every beat and a slow one every 2 beats.
 const TARGET_SLIDE_SEC = 0.55;
 
+// ── AI path tuning ────────────────────────────────────────────────────────────
+// Each AI clip is a PAID asset, so we never cycle them — one clip per photo. Cap
+// the count so a giant upload can't run up a huge bill / render time.
+const MAX_AI_CLIPS = 12;
+// AI clips carry their OWN visible camera move, so slides hold longer than the
+// fast local cuts (a 0.5s window would hide the dolly). Aim for ~this total and
+// keep each slide between MIN/MAX (MAX must stay under the 5s source clip).
+const AI_TARGET_TOTAL_SEC = 15;
+const AI_MIN_SLIDE_SEC = 1.6;
+const AI_MAX_SLIDE_SEC = 4.6;
+
+// Beat plan for the AI path: one slide per clip (no cycling), each slide a whole
+// number of beats so cuts still land on the pulse, but long enough that the AI
+// camera move actually reads. slideCount is fixed to the number of clips.
+function beatPlanAI(
+  musicKey: string | undefined,
+  n: number,
+): { slideDur: number; musicSeek: number; slideCount: number } {
+  const target = Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n));
+  const key = !musicKey || musicKey === "none" ? null : musicKey;
+  const grid = key ? BEAT_GRID[key] : undefined;
+  if (!grid) {
+    return { slideDur: +target.toFixed(3), musicSeek: 0, slideCount: n };
+  }
+  let beats = Math.max(1, Math.round(target / grid.period));
+  let slideDur = beats * grid.period;
+  // Never exceed the source clip length — drop a beat until it fits.
+  while (slideDur > AI_MAX_SLIDE_SEC && beats > 1) {
+    beats--;
+    slideDur = beats * grid.period;
+  }
+  let seek = grid.phase % grid.period;
+  if (seek < 0) seek += grid.period;
+  return { slideDur: +slideDur.toFixed(4), musicSeek: +seek.toFixed(3), slideCount: n };
+}
+
 // Work out how long each photo holds (a whole number of beats so every hard cut
 // lands on the pulse), how many slides to render (photos are cycled to fill the
 // reel), and a small audio pre-roll so a beat sits at t=0 and every cut is on it.
@@ -166,6 +204,32 @@ function beatPlan(
   if (seek < 0) seek += grid.period;
   return { slideDur, musicSeek: +seek.toFixed(3), slideCount };
 }
+
+// Run async tasks with a bounded number in flight at once. Used to cap how many
+// PAID Kling generations a single job fires in parallel so one big upload can't
+// open 12 concurrent paid calls (cost + external-API pressure). Order of results
+// matches the input order.
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) break;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+// Most Kling generations a single job runs concurrently. Each is a paid call, so
+// we trickle them rather than firing all MAX_AI_CLIPS at once.
+const AI_CLIP_CONCURRENCY = 3;
 
 // Even-rounded value — x264/yuv420p needs even pixel dimensions and offsets.
 const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
@@ -252,6 +316,42 @@ function buildFilter(n: number, slideDur: number, sizes: Array<{ w: number; h: n
   return parts.join(";");
 }
 
+// Build ONE slide from an AI VIDEO clip (input `i`). The real camera move already
+// lives in the footage, so we add NO zoompan here — we only trim the clip to the
+// beat length and fit it WHOLE (no crop) onto a blurred fill of itself so the 9:16
+// frame is full-bleed. `dims` is the clip's pixel size from ffprobe.
+function buildSlideVideo(i: number, dims: { w: number; h: number }, slideDur: number): string {
+  const f = Math.min(W / dims.w, H / dims.h); // fit-whole factor
+  const fw = even(dims.w * f);
+  const fh = even(dims.h * f);
+  const cx = even((W - fw) / 2);
+  const cy = even((H - fh) / 2);
+  const dur = slideDur.toFixed(4);
+  return (
+    `[${i}:v]trim=0:${dur},setpts=PTS-STARTPTS,fps=${FPS},split=2[a${i}][b${i}];` +
+    `[a${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
+    `boxblur=26:2,eq=brightness=-0.05,setsar=1[bg${i}];` +
+    `[b${i}]scale=${fw}:${fh},setsar=1[fg${i}];` +
+    `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
+  );
+}
+
+// Filter graph for the AI path: one trimmed clip per slide, joined with HARD CUTS
+// on the beat. `n` is the clip/slide count (never cycled); `sizes[i]` is clip i's
+// pixel size.
+function buildFilterVideo(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
+  const parts: string[] = [];
+  for (let i = 0; i < n; i++) parts.push(buildSlideVideo(i, sizes[i], slideDur));
+
+  if (n === 1) {
+    parts.push(`[v0]null[vbase]`);
+    return parts.join(";");
+  }
+  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
+  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  return parts.join(";");
+}
+
 // Text overlay: a bundled bold sans-serif, plus a FIXED contact line that is the
 // same on every video (the agency's details). The per-video address is optional
 // and supplied by the user. Rendered with drawtext (burned in) so the clip is
@@ -290,25 +390,30 @@ function drawCaption(
   );
 }
 
-async function render(
-  jobId: string,
-  imagePaths: string[],
-  outDir: string,
-  musicKey?: string,
-  address?: string,
-): Promise<void> {
+// Inputs for one render: the per-slide FFmpeg input files (images or clips), the
+// beat plan, and the video filter graph. `tmpClips` are downloaded AI clips the
+// caller must delete after the encode.
+interface RenderInputs {
+  inputPaths: string[];
+  slideCount: number;
+  slideDur: number;
+  musicSeek: number;
+  filter: string;
+  tmpClips: string[];
+}
+
+// FALLBACK (free, local): cycle the photos to fill a punchy reel and fake the
+// gimbal move with split-layer zoompan on each still.
+async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
   const n = imagePaths.length;
-  // Beat-locked hard cuts: each slide holds a whole number of beats, and the
-  // photos are cycled to fill a punchy ~16s reel. Silent videos use a snappy
-  // fixed pace.
   const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
-  const slidePaths: string[] = [];
-  for (let k = 0; k < slideCount; k++) slidePaths.push(imagePaths[k % n]);
+  const inputPaths: string[] = [];
+  for (let k = 0; k < slideCount; k++) inputPaths.push(imagePaths[k % n]);
   // Each slide fits its photo WHOLE (no crop), so we need the source pixel size.
   // Probe once per unique photo and reuse across cycled slides.
   const sizeCache = new Map<string, { w: number; h: number }>();
   const sizes: Array<{ w: number; h: number }> = [];
-  for (const p of slidePaths) {
+  for (const p of inputPaths) {
     let s = sizeCache.get(p);
     if (!s) {
       s = await ffprobeSize(p);
@@ -317,6 +422,92 @@ async function render(
     sizes.push(s);
   }
   const filter = buildFilter(slideCount, slideDur, sizes);
+  return { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips: [] };
+}
+
+// PRIMARY (paid AI): turn each photo (capped) into one real Kling 2.1 i2v clip
+// with a genuine camera move, generated in PARALLEL. Returns null if EVERY clip
+// failed so the caller can fall back to the free local engine. Clips that
+// individually fail are simply dropped — the reel still renders from the rest.
+async function buildAIInputs(
+  imagePaths: string[],
+  outDir: string,
+  musicKey?: string,
+): Promise<RenderInputs | null> {
+  const photos = imagePaths.slice(0, MAX_AI_CLIPS);
+
+  // Upload each photo to fal storage (Kling can't read our localhost paths).
+  const uploads = await Promise.all(
+    photos.map((p) =>
+      uploadToFal(p)
+        .then((url) => url)
+        .catch((e) => {
+          console.warn("[showcase] upload failed:", e?.message || e);
+          return null;
+        }),
+    ),
+  );
+
+  // Generate the clips with bounded concurrency (each is a paid call); download
+  // each to a temp mp4 in outDir. Failed clips are dropped.
+  const clips = await mapLimit(uploads, AI_CLIP_CONCURRENCY, async (url, i) => {
+    if (!url) return null;
+    try {
+      const { videoUrl } = await generateShowcaseClip(url, i);
+      const dest = path.join(
+        outDir,
+        `clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`,
+      );
+      await downloadToFile(videoUrl, dest);
+      return dest;
+    } catch (e: any) {
+      console.warn(`[showcase] clip ${i} failed:`, e?.message || e);
+      return null;
+    }
+  });
+
+  const clipPaths = clips.filter((c): c is string => !!c);
+  if (clipPaths.length === 0) return null;
+
+  // From here a throw (e.g. ffprobe) must not leak the already-downloaded clips.
+  try {
+    const n = clipPaths.length;
+    const { slideDur, musicSeek, slideCount } = beatPlanAI(musicKey, n);
+    const sizes: Array<{ w: number; h: number }> = [];
+    for (const c of clipPaths) sizes.push(await ffprobeSize(c));
+    const filter = buildFilterVideo(slideCount, slideDur, sizes);
+    return { inputPaths: clipPaths, slideCount, slideDur, musicSeek, filter, tmpClips: clipPaths };
+  } catch (e) {
+    for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
+    throw e;
+  }
+}
+
+async function render(
+  jobId: string,
+  imagePaths: string[],
+  outDir: string,
+  musicKey?: string,
+  address?: string,
+): Promise<void> {
+  // Acquire the queue slot BEFORE any work — crucially before the PAID AI
+  // generation — so MAX_BACKLOG actually caps concurrent paid calls and CPU.
+  await acquireSlot();
+  try {
+  // Prefer real AI clips; fall back to the free local engine when fal isn't
+  // configured or every clip generation failed.
+  let inputs: RenderInputs | null = null;
+  if (isFalConfigured()) {
+    try {
+      inputs = await buildAIInputs(imagePaths, outDir, musicKey);
+    } catch (e: any) {
+      console.warn("[showcase] AI path failed, falling back to local:", e?.message || e);
+      inputs = null;
+    }
+  }
+  if (!inputs) inputs = await buildLocalInputs(imagePaths, musicKey);
+
+  const { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips } = inputs;
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
   const outPath = path.join(outDir, filename);
 
@@ -325,7 +516,7 @@ async function render(
   const musicPath = resolveMusic(musicKey);
 
   const args: string[] = ["-y"];
-  for (const p of slidePaths) {
+  for (const p of inputPaths) {
     args.push("-i", p);
   }
 
@@ -420,14 +611,17 @@ async function render(
   }
   args.push(outPath);
 
-  await acquireSlot();
   try {
     await runFfmpeg(args);
   } finally {
-    releaseSlot();
     for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
+    // Delete the downloaded AI clips — they were only needed as FFmpeg inputs.
+    for (const c of tmpClips) fs.promises.unlink(c).catch(() => {});
   }
   jobs.set(jobId, { status: "completed", videoUrl: `/uploads/${filename}`, createdAt: Date.now() });
+  } finally {
+    releaseSlot();
+  }
 }
 
 // Kick off an async render. Returns immediately with a jobId the client polls.

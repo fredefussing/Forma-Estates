@@ -2722,12 +2722,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
   const [address, setAddress] = useState("");
-  // The server cuts on the beat (hard cuts) and cycles the photos to fill a
-  // punchy ~16s reel. These mirror the per-slide hold (seconds) for a live length
-  // estimate only.
-  const SLIDE_DUR: Record<string, number> = { calm: 0.66, uplifting: 0.49, modern: 0.545, none: 0.7 };
-  const TARGET_TOTAL = 16;
-  const MAX_SLIDES = 48;
+  // The server turns each photo into ONE real AI camera-motion clip (no cycling,
+  // capped) and hard-cuts them on the beat. These mirror the server's AI beat plan
+  // for a live length estimate only.
+  const BEAT_PERIOD: Record<string, number> = { calm: 0.33, uplifting: 0.49, modern: 0.545 };
+  const MAX_AI_CLIPS = 12;
+  const AI_TARGET_TOTAL = 15;
+  const AI_MIN_SLIDE = 1.6;
+  const AI_MAX_SLIDE = 4.6;
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2753,9 +2755,16 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const totalSeconds = images.length > 0
     ? (() => {
-        const sd = SLIDE_DUR[music] ?? 0.7;
-        const slides = Math.max(images.length, Math.min(MAX_SLIDES, Math.round(TARGET_TOTAL / sd)));
-        return slides * sd;
+        const clips = Math.min(images.length, MAX_AI_CLIPS);
+        const target = Math.min(AI_MAX_SLIDE, Math.max(AI_MIN_SLIDE, AI_TARGET_TOTAL / clips));
+        const period = BEAT_PERIOD[music];
+        let slideDur = target;
+        if (period) {
+          let beats = Math.max(1, Math.round(target / period));
+          slideDur = beats * period;
+          while (slideDur > AI_MAX_SLIDE && beats > 1) { beats--; slideDur = beats * period; }
+        }
+        return clips * slideDur;
       })()
     : 0;
 
@@ -2895,7 +2904,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     <div className="max-w-3xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig showcase</h1>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med blød bevægelse og overgange — perfekt til socials og reels.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med ægte AI-kamerabevægelse (dolly ind/ud, truck) klippet til musikkens beat — perfekt til socials og reels.</p>
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
@@ -3032,7 +3041,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           {isGenerating ? (
             <>
               <RotateCcw className="w-4 h-4 animate-spin" />
-              Genererer video… (kan tage et par minutter)
+              Laver AI-kameraklip… (kan tage 2–4 min)
             </>
           ) : (
             <>

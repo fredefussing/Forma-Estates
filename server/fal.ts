@@ -423,6 +423,58 @@ export async function getAnimationVideoStatus(
   }
 }
 
+// ===== 3. BOLIG SHOWCASE-KLIP (Kling 2.1 image-to-video) =====
+// Hver ejendomsfoto bliver til ét rent AI-klip med ÉN ægte, jævn kamera-
+// bevægelse (dolly ind/ud, truck venstre/højre) — det "gimbal/steadicam"-look
+// referencevideoerne har, som FFmpeg-fake-parallax aldrig kan ramme. Selve
+// rummet må ALDRIG forandre sig; kun kameraet bevæger sig. Klippene klippes
+// bagefter til musikkens beat i showcase.ts.
+const SHOWCASE_ENDPOINT = "fal-ai/kling-video/v2.1/pro/image-to-video";
+
+// Cykles pr. klip (i % 4): dolly-in → truck-right → dolly-out → truck-left.
+const SHOWCASE_MOVE_PROMPTS = [
+  "slow smooth cinematic dolly-in: the camera glides gently and steadily forward, deeper into the room",
+  "slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail",
+  "slow smooth cinematic dolly-out: the camera glides gently and steadily backward, slowly revealing more of the room",
+  "slow smooth cinematic truck left: the camera slides steadily to the left, like on a gimbal dolly rail",
+];
+const SHOWCASE_PROMPT_SUFFIX =
+  " The room and everything in it — furniture, walls, windows, floor, materials, colors and lighting — stays EXACTLY as shown and never changes, morphs, appears or disappears. Only the camera moves. No warping, no distortion, no deformation; the architecture keeps a stable, correct perspective throughout. Photorealistic real-estate interior, soft natural lighting, ultra-smooth steady continuous motion, cinematic.";
+const SHOWCASE_NEGATIVE_PROMPT =
+  "warping, distortion, morphing, deformation, changing furniture, moving walls, melting, flicker, blur, low quality, text, watermark";
+
+export function showcaseMovePrompt(i: number): string {
+  return SHOWCASE_MOVE_PROMPTS[i % SHOWCASE_MOVE_PROMPTS.length] + SHOWCASE_PROMPT_SUFFIX;
+}
+
+// Generér ét showcase-klip fra ét billede. fal.subscribe poller selv til klippet
+// er færdigt (~1-3 min); kald flere parallelt via Promise.all for fart.
+export async function generateShowcaseClip(
+  imageUrl: string,
+  moveIndex: number,
+): Promise<{ videoUrl: string }> {
+  const result = await fal.subscribe(SHOWCASE_ENDPOINT, {
+    input: {
+      prompt: showcaseMovePrompt(moveIndex),
+      image_url: imageUrl,
+      duration: "5" as const,
+      negative_prompt: SHOWCASE_NEGATIVE_PROMPT,
+    },
+  });
+  const videoUrl = (result.data as any).video?.url;
+  if (!videoUrl) throw new Error("No showcase clip generated");
+  return { videoUrl };
+}
+
+// Download a remote URL to an explicit local path (used for fal-hosted clips that
+// we then feed into FFmpeg). Throws on a non-2xx response.
+export async function downloadToFile(remoteUrl: string, destPath: string): Promise<void> {
+  const resp = await fetch(remoteUrl);
+  if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
+  const buf = Buffer.from(await resp.arrayBuffer());
+  fs.writeFileSync(destPath, buf);
+}
+
 // Download a remote URL (e.g. fal-hosted mp4) to local /uploads and return /uploads/<file>.
 export async function downloadToUploads(
   remoteUrl: string,
