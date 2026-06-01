@@ -2720,12 +2720,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
-  const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
+  const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "tension" | "none">("calm");
   const [address, setAddress] = useState("");
   // The server turns each photo into ONE real AI camera-motion clip (no cycling,
   // capped) and hard-cuts them on the beat. These mirror the server's AI beat plan
-  // for a live length estimate only.
-  const BEAT_PERIOD: Record<string, number> = { calm: 0.33, uplifting: 0.49, modern: 0.545 };
+  // for a live length estimate only. Periods measured June 2026.
+  const BEAT_PERIOD: Record<string, number> = { calm: 0.75, uplifting: 0.625, modern: 0.4724, tension: 0.8696 };
   const MAX_AI_CLIPS = 12;
   const AI_TARGET_TOTAL = 15;
   const AI_MIN_SLIDE = 1.6;
@@ -3037,11 +3037,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <span className="text-xs font-semibold" style={{ color: "#9B9690" }} data-testid="text-showcase-length">video ≈ {Math.round(totalSeconds)}s</span>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {([
               { key: "calm", label: "Rolig" },
               { key: "uplifting", label: "Opløftende" },
               { key: "modern", label: "Moderne" },
+              { key: "tension", label: "Spændt" },
               { key: "none", label: "Ingen" },
             ] as const).map((opt) => (
               <button

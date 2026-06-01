@@ -129,6 +129,7 @@ const MUSIC_TRACKS: Record<string, string> = {
   calm: "calm.mp3",
   uplifting: "uplifting.mp3",
   modern: "modern.mp3",
+  tension: "tension.mp3",
 };
 function resolveMusic(key?: string): string | null {
   if (!key || key === "none") return null;
@@ -138,15 +139,21 @@ function resolveMusic(key?: string): string | null {
   return fs.existsSync(p) ? p : null;
 }
 
-// Beat-synced cuts: each music bed has a steady pulse that we measured once,
-// offline, with music-tempo (period = seconds per beat, phase = time of the
-// first beat). At render time we lock every image switch to a whole number of
-// beats so the cuts land *on* the rhythm — the AI-feeling "edited to the music"
-// look — instead of a fixed, arbitrary interval. No per-render analysis cost.
+// Beat-synced cuts: each music bed has a steady pulse measured via ffmpeg+
+// autocorrelation (period = seconds per beat, phase = time of first strong onset).
+// At render time we lock every image switch to a whole number of beats so the
+// cuts land on the rhythm. Seek = phase % period aligns the track's pulse with t=0.
+//
+// Measured BPM (new tracks, June 2026):
+//   calm:      80 BPM  → period=0.7500s  phase=10.728s
+//   modern:   127 BPM  → period=0.4724s  phase=0.650s
+//   uplifting: 96 BPM  → period=0.6250s  phase=1.602s  (detected 192; halved)
+//   tension:   69 BPM  → period=0.8696s  phase=0.000s
 const BEAT_GRID: Record<string, { period: number; phase: number }> = {
-  calm: { period: 0.33, phase: 0.58 },
-  uplifting: { period: 0.49, phase: 0.04 },
-  modern: { period: 0.545, phase: 0.31 },
+  calm:      { period: 0.7500, phase: 10.728 },
+  modern:    { period: 0.4724, phase: 0.650  },
+  uplifting: { period: 0.6250, phase: 1.602  },
+  tension:   { period: 0.8696, phase: 0.000  },
 };
 // Aim for a punchy ~16s reel; the fast beat cuts fill it by cycling the photos.
 const TARGET_TOTAL_SEC = 16;
@@ -169,38 +176,29 @@ const AI_TARGET_TOTAL_SEC = 15;
 const AI_MIN_SLIDE_SEC = 1.6;
 const AI_MAX_SLIDE_SEC = 4.6;
 
-// Energy-aware beat plan for the AI path. Instead of one uniform duration,
-// each clip gets its own beat count driven by where it falls in the reel and
-// what the music type is doing emotionally at that point.
-//
-// Beat counts (per music type) that keep every duration inside [AI_MIN, AI_MAX]:
-//   calm   (period 0.33s): short=5→1.65s  medium=8→2.64s  long=11→3.63s
-//   uplifting (0.49s):     short=4→1.96s  medium=6→2.94s  long= 8→3.92s
-//   modern    (0.545s):    short=3→1.64s  medium=5→2.73s  long= 7→3.82s
+// Energy-aware beat plan for the AI path. Beat counts chosen so every duration
+// stays inside [AI_MIN=1.6s, AI_MAX=4.6s] with the new measured periods:
+//   calm      (0.75s):  short=3→2.25s  medium=4→3.00s  long=5→3.75s
+//   modern    (0.4724s):short=4→1.89s  medium=6→2.83s  long=9→4.25s
+//   uplifting (0.625s): short=3→1.88s  medium=5→3.13s  long=7→4.38s
+//   tension   (0.8696s):short=2→1.74s  medium=3→2.61s  long=5→4.35s
 type EnergyLevel = "short" | "medium" | "long";
 
 const ENERGY_BEATS: Record<string, Record<EnergyLevel, number>> = {
-  calm:      { short: 5,  medium: 8,  long: 11 },
-  uplifting: { short: 4,  medium: 6,  long: 8  },
-  modern:    { short: 3,  medium: 5,  long: 7  },
+  calm:      { short: 3, medium: 4, long: 5 },
+  modern:    { short: 4, medium: 6, long: 9 },
+  uplifting: { short: 3, medium: 5, long: 7 },
+  tension:   { short: 2, medium: 3, long: 5 },
 };
 
 // Map normalised reel position (0=first clip, 1=last) to an energy level.
 const ENERGY_SEQUENCE: Record<string, (pos: number) => EnergyLevel> = {
-  // Calm: slow, contemplative — mostly long, gentle dip in the middle.
+  // Calm: slow, contemplative — long breathes throughout, gentle dip mid-reel.
   calm: (pos) => {
     if (pos < 0.15) return "long";
     if (pos < 0.42) return "medium";
     if (pos < 0.62) return "long";
     if (pos < 0.82) return "medium";
-    return "long";
-  },
-  // Uplifting: breath → build → peak → settle → close.
-  uplifting: (pos) => {
-    if (pos < 0.12) return "long";
-    if (pos < 0.32) return "medium";
-    if (pos < 0.58) return "short";
-    if (pos < 0.78) return "medium";
     return "long";
   },
   // Modern: punchy editorial — hook/chorus hits hard, verses breathe.
@@ -210,6 +208,22 @@ const ENERGY_SEQUENCE: Record<string, (pos: number) => EnergyLevel> = {
     if (pos < 0.52) return "medium";
     if (pos < 0.72) return "short";
     return "medium";
+  },
+  // Uplifting: breath → build → peak → settle → close.
+  uplifting: (pos) => {
+    if (pos < 0.12) return "long";
+    if (pos < 0.32) return "medium";
+    if (pos < 0.58) return "short";
+    if (pos < 0.78) return "medium";
+    return "long";
+  },
+  // Tension: dark Nordic noir — opens heavy, builds in middle, closes heavy.
+  tension: (pos) => {
+    if (pos < 0.20) return "long";
+    if (pos < 0.45) return "medium";
+    if (pos < 0.65) return "short";
+    if (pos < 0.82) return "medium";
+    return "long";
   },
 };
 
