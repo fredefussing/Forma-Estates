@@ -2240,7 +2240,7 @@ export async function registerRoutes(
         for (const p of paths) fs.promises.unlink(p).catch(() => {});
         return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
-      log(`[Showcase] started job=${jobId} images=${files.length} music=${music || "none"}`);
+      log(`[Showcase] started job=${jobId} images=${files.length}`);
       return res.json({ success: true, job_id: jobId });
     } catch (err: any) {
       log(`[Showcase] submit error: ${err.message}`);
