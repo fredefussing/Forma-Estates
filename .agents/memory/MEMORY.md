@@ -1,1 +1,2 @@
 - [Drizzle-kit push interactive prompt](drizzle-push-prompt.md) — `npm run db:push` blocks on a "rename or create" prompt that doesn't accept piped input; fall back to direct `psql` DDL.
+- [FFmpeg looped audio bed](ffmpeg-looped-audio.md) — never `-shortest` with `-stream_loop -1` audio (it deadlocks/fails); cap with `-t videoTotal`. Also: `tsx` dev server needs a workflow restart for server edits.

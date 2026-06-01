@@ -2235,7 +2235,8 @@ export async function registerRoutes(
       const paths = files.map((f) => path.join(uploadDir, f.filename));
       const raw = parseFloat(String(req.body?.durationPerImage ?? "3.5"));
       const durPerImage = Number.isFinite(raw) ? raw : 3.5;
-      const jobId = startShowcaseVideo(paths, uploadDir, durPerImage);
+      const music = typeof req.body?.music === "string" ? req.body.music : undefined;
+      const jobId = startShowcaseVideo(paths, uploadDir, durPerImage, music);
       if (!jobId) {
         // Server is saturated — clean up the just-uploaded files and back off.
         for (const p of paths) fs.promises.unlink(p).catch(() => {});

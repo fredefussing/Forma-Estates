@@ -87,41 +87,68 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-// A curated rotation of fast, premium-looking xfade transitions. We cycle
-// through these so consecutive image switches always differ (the user asked for
-// a different transition on every image) while keeping the snappy "quick cut to
-// the next" energy of the reference reels.
-const TRANSITIONS = [
-  "smoothleft",
-  "fade",
-  "smoothup",
-  "circleopen",
-  "smoothright",
-  "slideup",
-  "fadeblack",
-  "smoothdown",
-  "wiperight",
-  "diagtl",
-];
+// "Mix" style: mostly a soft crossfade (the calm, elegant Render.ai feel) with a
+// gentle directional smooth every 3rd switch for a little variation — never a
+// hard cut or a flashy wipe. j is the 1-based junction index.
+const SOFT_VARIATIONS = ["smoothleft", "smoothright", "smoothup"];
+function pickTransition(j: number): string {
+  if (j % 3 === 0) return SOFT_VARIATIONS[(Math.floor(j / 3) - 1) % SOFT_VARIATIONS.length];
+  return "fade";
+}
+
+// Background music: a few pre-generated, royalty-free instrumental beds that ship
+// with the app. Rendering stays $0 per video because we reuse these local files
+// (no per-render AI/audio cost). Key "none" / undefined = silent.
+const MUSIC_DIR = path.join(process.cwd(), "server", "music");
+const MUSIC_TRACKS: Record<string, string> = {
+  calm: "calm.mp3",
+  uplifting: "uplifting.mp3",
+  modern: "modern.mp3",
+};
+function resolveMusic(key?: string): string | null {
+  if (!key || key === "none") return null;
+  const file = MUSIC_TRACKS[key];
+  if (!file) return null;
+  const p = path.join(MUSIC_DIR, file);
+  return fs.existsSync(p) ? p : null;
+}
 
 // Build the filter_complex graph: per-image zoom then a varied transition chain.
 function buildFilter(n: number, durPerImage: number, crossfade: number): string {
   const frames = Math.max(2, Math.round(durPerImage * FPS));
-  // Forward-pushing zoom-in on every clip (≈12% over the clip) for the energetic
-  // "zoom a bit, then snap to the next" feel of the references.
-  const zinc = (0.12 / frames).toFixed(6);
+  // Cinematic Ken Burns: a gentle zoom-in (1.05 → 1.15) PLUS a slow pan so each
+  // still photo feels alive, like a breath — not a static slide. We start a touch
+  // zoomed (1.05) so there is always crop margin for the pan, keeping it perfectly
+  // in-bounds (no black edges, no clamp judder).
+  const fm1 = Math.max(1, frames - 1);
+  const zinc = (0.1 / frames).toFixed(6);
+  const SPAN = 0.7; // fraction of the available crop margin the pan travels across
   const parts: string[] = [];
 
   for (let i = 0; i < n; i++) {
-    const z = `min(1.0+${zinc}*on,1.12)`;
-    // Crop-fill to the 2x supersample canvas, run the zoom at 2x, then scale
-    // back to 1080x1920 so the integer-pixel zoom stepping is antialiased away
-    // (no judder) and the frame is full-bleed (no black bars).
+    const z = `min(1.05+${zinc}*on,1.15)`;
+    const dir = i % 2 === 0 ? 1 : -1;
+    // Alternate axis per image (even = horizontal drift, odd = vertical drift) for
+    // subtle variety. The offset is proportional to the *current* crop margin
+    // (iw-iw/zoom), so it can never push the crop outside the frame.
+    const cx = `iw/2-(iw/zoom/2)`;
+    const cy = `ih/2-(ih/zoom/2)`;
+    const panX =
+      i % 2 === 0
+        ? `${cx}+(${dir})*(on/${fm1}-0.5)*${SPAN}*(iw-iw/zoom)`
+        : cx;
+    const panY =
+      i % 2 === 0
+        ? cy
+        : `${cy}+(${dir})*(on/${fm1}-0.5)*${SPAN}*(ih-ih/zoom)`;
+    // Crop-fill to the 2x supersample canvas, run zoom+pan at 2x, then scale back
+    // to 1080x1920 so the integer-pixel stepping is antialiased away (no judder)
+    // and the frame is full-bleed (no black bars).
     parts.push(
       `[${i}:v]scale=${SS_W}:${SS_H}:force_original_aspect_ratio=increase,` +
         `crop=${SS_W}:${SS_H},` +
         `zoompan=z='${z}':d=${frames}:` +
-        `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${SS_W}x${SS_H}:fps=${FPS},` +
+        `x='${panX}':y='${panY}':s=${SS_W}x${SS_H}:fps=${FPS},` +
         `scale=${W}:${H}:flags=bicubic,setsar=1,format=yuv420p[v${i}]`,
     );
   }
@@ -136,7 +163,7 @@ function buildFilter(n: number, durPerImage: number, crossfade: number): string 
   for (let j = 1; j < n; j++) {
     const offset = (j * (durPerImage - crossfade)).toFixed(3);
     const out = j === n - 1 ? `[vout]` : `[x${j}]`;
-    const transition = TRANSITIONS[(j - 1) % TRANSITIONS.length];
+    const transition = pickTransition(j);
     parts.push(
       `${last}[v${j}]xfade=transition=${transition}:duration=${crossfade}:offset=${offset}${out}`,
     );
@@ -150,22 +177,42 @@ async function render(
   imagePaths: string[],
   outDir: string,
   durPerImage: number,
+  musicKey?: string,
 ): Promise<void> {
-  // Fast transition so each switch snaps quickly into the next image.
-  const crossfade = 0.4;
-  const filter = buildFilter(imagePaths.length, durPerImage, crossfade);
+  // "Mix" pacing: a soft 0.7s crossfade so most switches melt into the next image
+  // (the calm, elegant feel) while the per-junction variation stays gentle.
+  const crossfade = 0.7;
+  const n = imagePaths.length;
+  const filter = buildFilter(n, durPerImage, crossfade);
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
   const outPath = path.join(outDir, filename);
+
+  // Total video length after the chained crossfades overlap each junction.
+  const videoTotal = n * durPerImage - (n - 1) * crossfade;
+  const musicPath = resolveMusic(musicKey);
 
   const args: string[] = ["-y"];
   for (const p of imagePaths) {
     args.push("-i", p);
   }
+
+  let finalFilter = filter;
+  if (musicPath) {
+    // Loop the bed to cover the whole video, drop it to a tasteful background
+    // level, and fade in/out so it never starts or ends abruptly.
+    args.push("-stream_loop", "-1", "-i", musicPath);
+    const fadeOutStart = Math.max(0.1, videoTotal - 3).toFixed(2);
+    const audioChain =
+      `[${n}:a]volume=0.32,afade=t=in:st=0:d=2,` +
+      `afade=t=out:st=${fadeOutStart}:d=3[aout]`;
+    finalFilter = `${filter};${audioChain}`;
+  }
+
+  args.push("-filter_complex", finalFilter, "-map", "[vout]");
+  if (musicPath) {
+    args.push("-map", "[aout]");
+  }
   args.push(
-    "-filter_complex",
-    filter,
-    "-map",
-    "[vout]",
     "-r",
     String(FPS),
     "-c:v",
@@ -173,14 +220,21 @@ async function render(
     "-preset",
     "veryfast",
     "-crf",
-    "23",
+    "20",
     "-pix_fmt",
     "yuv420p",
     "-movflags",
     "+faststart",
-    "-an",
-    outPath,
   );
+  if (musicPath) {
+    // The music bed is looped infinitely, so cap the output at the exact video
+    // length. `-shortest` deadlocks/fails with an endlessly looped audio input,
+    // whereas an explicit `-t` ends cleanly.
+    args.push("-c:a", "aac", "-b:a", "160k", "-t", videoTotal.toFixed(2));
+  } else {
+    args.push("-an");
+  }
+  args.push(outPath);
 
   await acquireSlot();
   try {
@@ -196,6 +250,7 @@ export function startShowcaseVideo(
   imagePaths: string[],
   outDir: string,
   durPerImage = 3.5,
+  musicKey?: string,
 ): string | null {
   pruneJobs();
   // Backpressure: refuse new work when the box is already saturated so we fail
@@ -210,7 +265,7 @@ export function startShowcaseVideo(
   // low as 1.5s for snappy, reference-style fast pacing.
   const dur = Math.min(8, Math.max(1.5, durPerImage));
 
-  render(jobId, imagePaths, outDir, dur)
+  render(jobId, imagePaths, outDir, dur, musicKey)
     .catch((err: any) => {
       jobs.set(jobId, {
         status: "failed",

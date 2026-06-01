@@ -2720,7 +2720,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
-  const [duration, setDuration] = useState(2.5);
+  const [duration, setDuration] = useState(3.5);
+  const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2745,7 +2746,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [showCaseDropdown]);
 
   const totalSeconds = images.length > 0
-    ? Math.max(0, images.length * duration - (images.length - 1) * 0.4)
+    ? Math.max(0, images.length * duration - (images.length - 1) * 0.7)
     : 0;
 
   const addFiles = (files: FileList | File[]) => {
@@ -2791,6 +2792,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
       fd.append("durationPerImage", String(duration));
+      fd.append("music", music);
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
         body: fd,
@@ -2981,6 +2983,33 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             className="w-full accent-[#C8956C]"
             data-testid="slider-showcase-duration"
           />
+        </div>
+
+        {/* Music picker */}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Baggrundsmusik</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {([
+              { key: "calm", label: "Rolig" },
+              { key: "uplifting", label: "Opløftende" },
+              { key: "modern", label: "Moderne" },
+              { key: "none", label: "Ingen" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => { setMusic(opt.key); setVideoUrl(null); setSaveCaseId(null); }}
+                disabled={isGenerating}
+                className="h-10 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50"
+                style={music === opt.key
+                  ? { borderColor: "#C8956C", background: "rgba(200,149,108,0.10)", color: "#0F1D2F" }
+                  : { borderColor: "#E8E4DE", background: "#fff", color: "#6B6B6B" }}
+                data-testid={`button-music-${opt.key}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button

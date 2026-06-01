@@ -24,3 +24,21 @@ id = "yclBmfcsGmaBNJdhGTY1B"
 uri = "file://uploads/showcase-1780303016259-0szp6y.mp4"
 type = "video"
 title = "Test-reel: 8 billeder, 2,5s, varierede overgange"
+
+[[outputs]]
+id = "-zooVH4xaF76Em0_NNkBh"
+uri = "file://server/music/calm.mp3"
+type = "audio"
+title = "calm elegant piano bed"
+
+[[outputs]]
+id = "JvI4LH9UoDPbgVM-iqdIq"
+uri = "file://server/music/uplifting.mp3"
+type = "audio"
+title = "uplifting acoustic bed"
+
+[[outputs]]
+id = "t6fyeaPKAcojuFH-wIVu8"
+uri = "file://server/music/modern.mp3"
+type = "audio"
+title = "modern lofi house bed"
