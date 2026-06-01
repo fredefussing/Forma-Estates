@@ -773,6 +773,32 @@ function CaseDetailPanel({
                           </span>
                         </div>
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {img.style?.startsWith("showcase-video-") ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(img.src, `postklar-${img.style}-${ts}.mp4`); }}
+                                title="Download postklar (9:16)"
+                                data-testid={`bolig-gallery-download-${img.id}-postklar`}
+                                className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold text-white"
+                                style={{ background: "rgba(15,29,47,0.85)" }}
+                              >
+                                <Download className="w-3 h-3" /> Postklar
+                              </button>
+                              {img.beforeSrc && isVideoUrl(img.beforeSrc) && (
+                                <button
+                                  type="button"
+                                  onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(img.beforeSrc!, `original-${img.style}-${ts}.mp4`); }}
+                                  title="Download original (16:9)"
+                                  data-testid={`bolig-gallery-download-${img.id}-original`}
+                                  className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold"
+                                  style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
+                                >
+                                  <Download className="w-3 h-3" /> Original
+                                </button>
+                              )}
+                            </>
+                          ) : (
                           <DownloadMenu
                             url={img.src}
                             beforeUrl={img.beforeSrc}
@@ -783,6 +809,7 @@ function CaseDetailPanel({
                             testIdPrefix={`bolig-gallery-download-${img.id}`}
                             stopPropagation
                           />
+                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirmDialog({ title: "Slet billede", desc: "Vil du slette dette billede? Det kan ikke fortrydes.", confirmLabel: "Slet billede", onConfirm: () => deleteImageMutation.mutate(img.id) }); }}
                             className="w-7 h-7 rounded-full flex items-center justify-center"
@@ -1247,23 +1274,48 @@ function CaseDetailPanel({
                 <img src={lightboxImg.src} alt={lightboxImg.room} className="w-full h-auto" style={{ maxHeight: "70vh", objectFit: "contain" }} />
               )}
               <div className="flex items-center justify-between px-5 py-3" style={{ background: "#0F1D2F" }}>
-                <div className="flex gap-2">
-                  <span className="text-[11px] font-semibold text-white">{lightboxImg.room}</span>
+                <div className="flex gap-2 min-w-0">
+                  <span className="text-[11px] font-semibold text-white truncate">{lightboxImg.room}</span>
                   <span className="text-[11px] text-white/60">·</span>
-                  <span className="text-[11px] text-white/70">{lightboxImg.style}</span>
+                  <span className="text-[11px] text-white/70 truncate">{lightboxImg.style}</span>
                   {lightboxImg.tier && <><span className="text-[11px] text-white/60">·</span><span className="text-[11px] text-white/70">{tierLabel(lightboxImg.tier)}</span></>}
                 </div>
-                <div className="flex items-center gap-3">
-                  <DownloadMenu
-                    url={lightboxImg.src}
-                    beforeUrl={lightboxImg.beforeSrc}
-                    address={caseData.address}
-                    room={lightboxImg.room}
-                    style={lightboxImg.style}
-                    variant="pill-light"
-                    testIdPrefix="bolig-lightbox-download"
-                    stopPropagation
-                  />
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {lightboxImg.style?.startsWith("showcase-video-") ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={async () => { const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(lightboxImg.src, `postklar-${lightboxImg.style}-${ts}.mp4`); }}
+                        className="h-8 px-3 rounded-full font-semibold text-xs text-white flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                        style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
+                        data-testid="bolig-lightbox-download-postklar"
+                      >
+                        <Download className="w-3 h-3" /> Postklar ↓
+                      </button>
+                      {lightboxImg.beforeSrc && isVideoUrl(lightboxImg.beforeSrc) && (
+                        <button
+                          type="button"
+                          onClick={async () => { const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(lightboxImg.beforeSrc!, `original-${lightboxImg.style}-${ts}.mp4`); }}
+                          className="h-8 px-3 rounded-full font-semibold text-xs flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                          style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
+                          data-testid="bolig-lightbox-download-original"
+                        >
+                          <Download className="w-3 h-3" /> Original ↓
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <DownloadMenu
+                      url={lightboxImg.src}
+                      beforeUrl={lightboxImg.beforeSrc}
+                      address={caseData.address}
+                      room={lightboxImg.room}
+                      style={lightboxImg.style}
+                      variant="pill-light"
+                      testIdPrefix="bolig-lightbox-download"
+                      stopPropagation
+                    />
+                  )}
                   <button onClick={() => setLightboxImg(null)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: "#fff" }} data-testid="bolig-lightbox-close">
                     <X className="w-4 h-4" />
                   </button>
@@ -2917,7 +2969,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           headers,
           body: JSON.stringify({
             imageUrl: videoUrls[mood],
-            originalImageUrl: null,
+            originalImageUrl: cleanVideoUrls?.[mood] ?? null,
             roomType: "showcase-video",
             style: `showcase-video-${mood}`,
             budgetTier: "tier2",
