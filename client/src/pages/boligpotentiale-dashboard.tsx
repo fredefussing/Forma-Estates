@@ -2960,10 +2960,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
                   onDragEnd={() => setDragIndex(null)}
                   className="relative rounded-lg overflow-hidden border group cursor-move"
-                  style={{ borderColor: dragIndex === idx ? "#C8956C" : "#E8E4DE", aspectRatio: "9/16" }}
+                  style={{ borderColor: dragIndex === idx ? "#C8956C" : "#E8E4DE" }}
                   data-testid={`thumb-showcase-${idx}`}
                 >
-                  <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-auto block" />
                   <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
                     {idx + 1}
                   </div>
