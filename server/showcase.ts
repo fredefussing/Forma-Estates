@@ -24,11 +24,13 @@ export interface ShowcaseProgress {
   totalClips: number;
   message: string;
   videoUrls?: Record<string, string>;
+  cleanVideoUrls?: Record<string, string>;
 }
 
 interface ShowcaseJob {
   status: ShowcaseStatus;
   videoUrls?: Record<string, string>;
+  cleanVideoUrls?: Record<string, string>;
   error?: string;
   createdAt: number;
   progress: ShowcaseProgress;
@@ -440,6 +442,65 @@ function buildFilterVideo(n: number, durations: number[], sizes: Array<{ w: numb
   return parts.join(";");
 }
 
+// "Clean" (no blurred fill) slide for an AI VIDEO clip — the real camera move
+// already lives in the footage; we just trim and crop-to-fill the 9:16 frame.
+function buildSlideVideoClean(i: number, dims: { w: number; h: number }, slideDur: number): string {
+  const dur = slideDur.toFixed(4);
+  return (
+    `[${i}:v]trim=0:${dur},setpts=PTS-STARTPTS,fps=${FPS},` +
+    `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
+    `eq=brightness=0.02:contrast=1.03:saturation=1.02,format=yuv420p,setsar=1[v${i}]`
+  );
+}
+
+function buildFilterVideoClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+  const parts: string[] = [];
+  for (let i = 0; i < n; i++) parts.push(buildSlideVideoClean(i, sizes[i], durations[i]));
+  if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
+  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
+  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  return parts.join(";");
+}
+
+// "Clean" slide for a LOCAL PHOTO — crop-to-fill 9:16 with a gentle dolly/crab
+// move. Scale to 115% of target so zoompan has room to zoom without border bleed.
+function buildSlideClean(i: number, dims: { w: number; h: number }, frames: number): string {
+  const fm1 = Math.max(1, frames - 1);
+  const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
+  const move = i % 4;
+  // Scale to 1.15× fill — gives zoompan up to z=1.10 before bleed
+  const bigW = even(Math.ceil(W * 1.15));
+  const bigH = even(Math.ceil(H * 1.15));
+  let z: string, panX: string;
+  if (move === 0) {
+    z = `min(1.10,1.0+0.10*(${easeExpr}))`;
+    panX = `iw/2-(iw/zoom/2)`;
+  } else if (move === 2) {
+    z = `max(1.0,1.10-0.10*(${easeExpr}))`;
+    panX = `iw/2-(iw/zoom/2)`;
+  } else {
+    z = `1.06`;
+    const sign = move === 1 ? `+` : `-`;
+    panX = `iw/2-(iw/zoom/2)${sign}28*(${easeExpr}*2-1)`;
+  }
+  return (
+    `[${i}:v]scale=${bigW}:${bigH}:force_original_aspect_ratio=increase,setsar=1,` +
+    `eq=brightness=0.03:contrast=1.05:saturation=1.02,` +
+    `zoompan=z='${z}':d=${frames}:x='${panX}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},` +
+    `format=yuv420p,setsar=1[v${i}]`
+  );
+}
+
+function buildFilterClean(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
+  const frames = Math.max(2, Math.round(slideDur * FPS));
+  const parts: string[] = [];
+  for (let i = 0; i < n; i++) parts.push(buildSlideClean(i, sizes[i], frames));
+  if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
+  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
+  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  return parts.join(";");
+}
+
 // Text overlay: a bundled bold sans-serif, plus a FIXED contact line that is the
 // same on every video (the agency's details). The per-video address is optional
 // and supplied by the user. Rendered with drawtext (burned in) so the clip is
@@ -593,6 +654,32 @@ function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clips.clipPaths };
 }
 
+// Same as above but uses the "clean" (crop-to-fill, no blurred bg) filter.
+function makeRenderInputsAIClean(clips: AIClipData, musicKey: string): RenderInputs {
+  const n = clips.clipPaths.length;
+  const { durations, musicSeek } = energyPlanAI(musicKey, n);
+  const filter = buildFilterVideoClean(n, durations, clips.sizes);
+  const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
+  return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
+}
+
+// FALLBACK clean version: same as buildLocalInputs but uses crop-to-fill slides.
+async function buildLocalInputsClean(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
+  const n = imagePaths.length;
+  const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
+  const inputPaths: string[] = [];
+  for (let k = 0; k < slideCount; k++) inputPaths.push(imagePaths[k % n]);
+  const sizeCache = new Map<string, { w: number; h: number }>();
+  const sizes: Array<{ w: number; h: number }> = [];
+  for (const p of inputPaths) {
+    let s = sizeCache.get(p);
+    if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
+    sizes.push(s);
+  }
+  const filter = buildFilterClean(slideCount, slideDur, sizes);
+  return { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips: [] };
+}
+
 // Assemble one MP4 from pre-built render inputs. Returns the public /uploads/
 // URL of the finished file. Does NOT delete tmpClips — the caller does that
 // after all mood variants are done. Cleans up only its own text overlay files.
@@ -734,9 +821,10 @@ async function render(
 
     const n = clipData ? clipData.clipPaths.length : Math.min(imagePaths.length, MAX_AI_CLIPS);
     const videoUrls: Record<string, string> = {};
+    const cleanVideoUrls: Record<string, string> = {};
 
-    // Assemble 4 mood variants sequentially — FFmpeg is CPU-bound so sequential
-    // avoids overloading the box; each assembly is fast (~5-20s, pure compositing).
+    // Assemble 4 mood variants sequentially, each in two passes (postklar + original).
+    // FFmpeg is CPU-bound so sequential avoids overloading the box; each pass is ~5-20s.
     for (const mood of ALL_MOODS) {
       emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[mood]}…` });
       let inputs: RenderInputs;
@@ -746,19 +834,29 @@ async function render(
         inputs = await buildLocalInputs(imagePaths, mood);
       }
       videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood);
+
+      // Clean (no blurred fill) variant — same music/text, crop-to-fill visuals.
+      let cleanInputs: RenderInputs;
+      if (clipData) {
+        cleanInputs = makeRenderInputsAIClean(clipData, mood);
+      } else {
+        cleanInputs = await buildLocalInputsClean(imagePaths, mood);
+      }
+      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`);
     }
 
-    // Clean up downloaded AI clips — every mood variant is now done.
+    // Clean up downloaded AI clips — every mood + clean variant is now done.
     if (clipData) {
       for (const c of clipData.clipPaths) fs.promises.unlink(c).catch(() => {});
     }
 
-    emit({ stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls });
+    emit({ stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls, cleanVideoUrls });
     jobs.set(jobId, {
       status: "completed",
       videoUrls,
+      cleanVideoUrls,
       createdAt: Date.now(),
-      progress: { stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls },
+      progress: { stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls, cleanVideoUrls },
     });
   } finally {
     releaseSlot();

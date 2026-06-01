@@ -2732,6 +2732,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const MOOD_LABELS: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
   const ALL_MOODS = ["calm", "uplifting", "modern", "tension"] as const;
   const [videoUrls, setVideoUrls] = useState<Record<string, string> | null>(null);
+  const [cleanVideoUrls, setCleanVideoUrls] = useState<Record<string, string> | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressMsg, setProgressMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -2761,6 +2762,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     if (arr.length === 0) { setError("Vælg venligst billedfiler"); return; }
     setError(null);
     setVideoUrls(null);
+    setCleanVideoUrls(null);
     setSaveCaseId(null);
     const next = arr.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -2773,6 +2775,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((i) => i.id !== id));
     setVideoUrls(null);
+    setCleanVideoUrls(null);
     setSaveCaseId(null);
   };
 
@@ -2785,6 +2788,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       return copy;
     });
     setVideoUrls(null);
+    setCleanVideoUrls(null);
     setSaveCaseId(null);
   };
 
@@ -2793,6 +2797,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setIsGenerating(true);
     setError(null);
     setVideoUrls(null);
+    setCleanVideoUrls(null);
     setSaveCaseId(null);
     setProgressMsg("Forbereder…");
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
@@ -2825,13 +2830,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
         es.onmessage = (e) => {
           try {
-            const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrls?: Record<string, string> };
+            const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrls?: Record<string, string>; cleanVideoUrls?: Record<string, string> };
             if (p.message) setProgressMsg(p.message);
             if (p.stage === "complete" && p.videoUrls) {
               clearTimeout(deadline);
               es.close();
               esRef.current = null;
               setVideoUrls(p.videoUrls);
+              if (p.cleanVideoUrls) setCleanVideoUrls(p.cleanVideoUrls);
               resolve();
             } else if (p.stage === "failed") {
               clearTimeout(deadline);
@@ -2861,6 +2867,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme videoerne?")) return;
     setImages([]);
     setVideoUrls(null);
+    setCleanVideoUrls(null);
     setSaveCaseId(null);
     setError(null);
   };
@@ -3061,20 +3068,35 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       data-testid={`video-showcase-${mood}`}
                     />
                   </div>
-                  <div className="p-3 bg-[#F8F6F3] flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
+                  <div className="p-3 bg-[#F8F6F3]">
+                    <div className="flex items-center gap-2 text-xs mb-2.5" style={{ color: "#6B6B6B" }}>
                       <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
                       {MOOD_LABELS[mood]} stemning — klar til download
                     </div>
-                    <button
-                      onClick={() => handleDownloadMood(videoUrls[mood], mood)}
-                      disabled={downloading}
-                      className="h-8 px-4 rounded-full font-semibold text-xs text-white inline-flex items-center gap-1.5 disabled:opacity-50"
-                      style={{ background: "#0F1D2F" }}
-                      data-testid={`button-download-showcase-${mood}`}
-                    >
-                      <Download className="w-3 h-3" /> {downloading ? "Henter…" : "Download"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDownloadMood(videoUrls[mood], mood)}
+                        disabled={downloading}
+                        className="flex-1 h-8 px-3 rounded-full font-semibold text-xs text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        style={{ background: "#0F1D2F" }}
+                        data-testid={`button-download-showcase-${mood}`}
+                        title="Postklar med sløret baggrund — anbefalet til sociale medier"
+                      >
+                        <Download className="w-3 h-3" /> {downloading ? "Henter…" : "Postklar ↓"}
+                      </button>
+                      {cleanVideoUrls?.[mood] && (
+                        <button
+                          onClick={() => handleDownloadMood(cleanVideoUrls[mood], `${mood}-original`)}
+                          disabled={downloading}
+                          className="flex-1 h-8 px-3 rounded-full font-semibold text-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-50 border"
+                          style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                          data-testid={`button-download-showcase-${mood}-clean`}
+                          title="Original billedformat uden sløret baggrund"
+                        >
+                          <Download className="w-3 h-3" /> Original ↓
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

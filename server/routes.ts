@@ -2289,7 +2289,7 @@ export async function registerRoutes(
       return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
     }
     if (job.status === "completed" && job.videoUrls) {
-      return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls });
+      return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls, clean_video_urls: job.cleanVideoUrls });
     }
     if (job.status === "failed") {
       return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
