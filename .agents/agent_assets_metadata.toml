@@ -18,3 +18,9 @@ id = "dYHDa2aZxkMUbYYN_UKra"
 uri = "file://test-output/kling-v16-pro.mp4"
 type = "video"
 title = "Transformeringsvideo — Kling v1.6 pro"
+
+[[outputs]]
+id = "yclBmfcsGmaBNJdhGTY1B"
+uri = "file://uploads/showcase-1780303016259-0szp6y.mp4"
+type = "video"
+title = "Test-reel: 8 billeder, 2,5s, varierede overgange"
