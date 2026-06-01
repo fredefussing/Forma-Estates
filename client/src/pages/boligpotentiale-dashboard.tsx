@@ -2996,7 +2996,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <input
             type="text"
             value={address}
-            onChange={(e) => { setAddress(e.target.value); setVideoUrl(null); setSaveCaseId(null); }}
+            onChange={(e) => { setAddress(e.target.value); setVideoUrls(null); setSaveCaseId(null); }}
             disabled={isGenerating}
             placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
             maxLength={80}
