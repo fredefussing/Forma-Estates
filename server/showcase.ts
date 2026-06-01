@@ -87,22 +87,36 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-// Build the filter_complex graph: per-image Ken Burns then a crossfade chain.
+// A curated rotation of fast, premium-looking xfade transitions. We cycle
+// through these so consecutive image switches always differ (the user asked for
+// a different transition on every image) while keeping the snappy "quick cut to
+// the next" energy of the reference reels.
+const TRANSITIONS = [
+  "smoothleft",
+  "fade",
+  "smoothup",
+  "circleopen",
+  "smoothright",
+  "slideup",
+  "fadeblack",
+  "smoothdown",
+  "wiperight",
+  "diagtl",
+];
+
+// Build the filter_complex graph: per-image zoom then a varied transition chain.
 function buildFilter(n: number, durPerImage: number, crossfade: number): string {
   const frames = Math.max(2, Math.round(durPerImage * FPS));
-  // Gentle 10% zoom over the clip — a slow, elegant drift like the references.
-  const zinc = (0.10 / frames).toFixed(6);
+  // Forward-pushing zoom-in on every clip (≈12% over the clip) for the energetic
+  // "zoom a bit, then snap to the next" feel of the references.
+  const zinc = (0.12 / frames).toFixed(6);
   const parts: string[] = [];
 
   for (let i = 0; i < n; i++) {
-    // Alternate motion for rhythm: even = slow zoom-in, odd = slow zoom-out.
-    const z =
-      i % 2 === 0
-        ? `min(1.0+${zinc}*on,1.10)`
-        : `max(1.10-${zinc}*on,1.0)`;
-    // Crop-fill to the 2x supersample canvas, run the Ken Burns motion at 2x,
-    // then scale back to 1080x1920 so the integer-pixel zoom stepping is
-    // antialiased away (no judder) and the frame is full-bleed (no black bars).
+    const z = `min(1.0+${zinc}*on,1.12)`;
+    // Crop-fill to the 2x supersample canvas, run the zoom at 2x, then scale
+    // back to 1080x1920 so the integer-pixel zoom stepping is antialiased away
+    // (no judder) and the frame is full-bleed (no black bars).
     parts.push(
       `[${i}:v]scale=${SS_W}:${SS_H}:force_original_aspect_ratio=increase,` +
         `crop=${SS_W}:${SS_H},` +
@@ -122,8 +136,9 @@ function buildFilter(n: number, durPerImage: number, crossfade: number): string 
   for (let j = 1; j < n; j++) {
     const offset = (j * (durPerImage - crossfade)).toFixed(3);
     const out = j === n - 1 ? `[vout]` : `[x${j}]`;
+    const transition = TRANSITIONS[(j - 1) % TRANSITIONS.length];
     parts.push(
-      `${last}[v${j}]xfade=transition=fade:duration=${crossfade}:offset=${offset}${out}`,
+      `${last}[v${j}]xfade=transition=${transition}:duration=${crossfade}:offset=${offset}${out}`,
     );
     last = `[x${j}]`;
   }
@@ -136,7 +151,8 @@ async function render(
   outDir: string,
   durPerImage: number,
 ): Promise<void> {
-  const crossfade = 0.7;
+  // Fast transition so each switch snaps quickly into the next image.
+  const crossfade = 0.4;
   const filter = buildFilter(imagePaths.length, durPerImage, crossfade);
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
   const outPath = path.join(outDir, filename);
@@ -190,8 +206,9 @@ export function startShowcaseVideo(
   const jobId = randomUUID();
   jobs.set(jobId, { status: "processing", createdAt: Date.now() });
 
-  // Clamp to a sane range so the slider can't produce broken output.
-  const dur = Math.min(8, Math.max(2, durPerImage));
+  // Clamp to a sane range so the slider can't produce broken output. Allow as
+  // low as 1.5s for snappy, reference-style fast pacing.
+  const dur = Math.min(8, Math.max(1.5, durPerImage));
 
   render(jobId, imagePaths, outDir, dur)
     .catch((err: any) => {

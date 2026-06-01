@@ -2720,7 +2720,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
-  const [duration, setDuration] = useState(3.5);
+  const [duration, setDuration] = useState(2.5);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2745,7 +2745,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [showCaseDropdown]);
 
   const totalSeconds = images.length > 0
-    ? Math.max(0, images.length * duration - (images.length - 1) * 0.7)
+    ? Math.max(0, images.length * duration - (images.length - 1) * 0.4)
     : 0;
 
   const addFiles = (files: FileList | File[]) => {
@@ -2972,7 +2972,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
           <input
             type="range"
-            min={2}
+            min={1.5}
             max={6}
             step={0.5}
             value={duration}
