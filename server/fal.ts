@@ -429,7 +429,8 @@ export async function getAnimationVideoStatus(
 // referencevideoerne har, som FFmpeg-fake-parallax aldrig kan ramme. Selve
 // rummet må ALDRIG forandre sig; kun kameraet bevæger sig. Klippene klippes
 // bagefter til musikkens beat i showcase.ts.
-const SHOWCASE_ENDPOINT = "fal-ai/kling-video/v2.1/pro/image-to-video";
+const SHOWCASE_ENDPOINT = "fal-ai/kling-video/v2.1/standard/image-to-video";
+const SHOWCASE_COST_PER_CLIP_USD = 0.14; // Kling 2.1 Standard, 5-sec clip
 
 // Cykles pr. klip (i % 4): dolly-in → truck-right → dolly-out → truck-left.
 const SHOWCASE_MOVE_PROMPTS = [
@@ -463,6 +464,7 @@ export async function generateShowcaseClip(
   });
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No showcase clip generated");
+  console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
   return { videoUrl };
 }
 
