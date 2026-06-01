@@ -113,6 +113,41 @@ function resolveMusic(key?: string): string | null {
   return fs.existsSync(p) ? p : null;
 }
 
+// Beat-synced cuts: each music bed has a steady pulse that we measured once,
+// offline, with music-tempo (period = seconds per beat, phase = time of the
+// first beat). At render time we lock every image switch to a whole number of
+// beats so the cuts land *on* the rhythm — the AI-feeling "edited to the music"
+// look — instead of a fixed, arbitrary interval. No per-render analysis cost.
+const BEAT_GRID: Record<string, { period: number; phase: number }> = {
+  calm: { period: 0.33, phase: 0.58 },
+  uplifting: { period: 0.49, phase: 0.04 },
+  modern: { period: 0.545, phase: 0.31 },
+};
+// Roughly how long each photo should linger; snapped to the nearest whole beat.
+const TARGET_SEC = 3.0;
+// No music => nothing to sync to, so fall back to this pleasant fixed pace.
+const SILENT_DUR = 3.0;
+
+// Work out the per-image duration and a small audio pre-roll so a beat coincides
+// with each crossfade centre (the perceived switch sits crossfade/2 after the
+// xfade offset). Returns a uniform duration because a whole number of equal
+// beats already keeps every cut on the pulse.
+function beatPlan(
+  musicKey: string | undefined,
+  crossfade: number,
+): { durPerImage: number; musicSeek: number } {
+  const key = !musicKey || musicKey === "none" ? null : musicKey;
+  const grid = key ? BEAT_GRID[key] : undefined;
+  if (!grid) return { durPerImage: SILENT_DUR, musicSeek: 0 };
+  const m = Math.max(3, Math.min(16, Math.round(TARGET_SEC / grid.period)));
+  const switchInterval = m * grid.period;
+  // d - crossfade == switchInterval keeps each switch exactly `m` beats apart.
+  const durPerImage = switchInterval + crossfade;
+  let seek = (grid.phase - crossfade / 2) % grid.period;
+  if (seek < 0) seek += grid.period;
+  return { durPerImage, musicSeek: +seek.toFixed(3) };
+}
+
 // Build the filter_complex graph: per-image zoom then a varied transition chain.
 function buildFilter(n: number, durPerImage: number, crossfade: number): string {
   const frames = Math.max(2, Math.round(durPerImage * FPS));
@@ -176,12 +211,14 @@ async function render(
   jobId: string,
   imagePaths: string[],
   outDir: string,
-  durPerImage: number,
   musicKey?: string,
 ): Promise<void> {
   // "Mix" pacing: a soft 0.7s crossfade so most switches melt into the next image
   // (the calm, elegant feel) while the per-junction variation stays gentle.
   const crossfade = 0.7;
+  // Lock the per-image duration to the chosen track's pulse so cuts land on the
+  // beat. Silent videos use a fixed pleasant pace.
+  const { durPerImage, musicSeek } = beatPlan(musicKey, crossfade);
   const n = imagePaths.length;
   const filter = buildFilter(n, durPerImage, crossfade);
   const filename = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
@@ -199,8 +236,12 @@ async function render(
   let finalFilter = filter;
   if (musicPath) {
     // Loop the bed to cover the whole video, drop it to a tasteful background
-    // level, and fade in/out so it never starts or ends abruptly.
-    args.push("-stream_loop", "-1", "-i", musicPath);
+    // level, and fade in/out so it never starts or ends abruptly. The `-ss`
+    // pre-roll aligns the track's pulse with the crossfade centres so the cuts
+    // fall on the beat.
+    args.push("-stream_loop", "-1");
+    if (musicSeek > 0) args.push("-ss", String(musicSeek));
+    args.push("-i", musicPath);
     const fadeOutStart = Math.max(0.1, videoTotal - 3).toFixed(2);
     const audioChain =
       `[${n}:a]volume=0.32,afade=t=in:st=0:d=2,` +
@@ -249,7 +290,6 @@ async function render(
 export function startShowcaseVideo(
   imagePaths: string[],
   outDir: string,
-  durPerImage = 3.5,
   musicKey?: string,
 ): string | null {
   pruneJobs();
@@ -261,11 +301,7 @@ export function startShowcaseVideo(
   const jobId = randomUUID();
   jobs.set(jobId, { status: "processing", createdAt: Date.now() });
 
-  // Clamp to a sane range so the slider can't produce broken output. Allow as
-  // low as 1.5s for snappy, reference-style fast pacing.
-  const dur = Math.min(8, Math.max(1.5, durPerImage));
-
-  render(jobId, imagePaths, outDir, dur, musicKey)
+  render(jobId, imagePaths, outDir, musicKey)
     .catch((err: any) => {
       jobs.set(jobId, {
         status: "failed",

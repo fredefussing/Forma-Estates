@@ -24,3 +24,21 @@ negative on short reels.
 hot-reload server-side code. After editing `server/*.ts` you MUST restart the
 "Start application" workflow before re-testing, or you'll keep hitting the old
 bug and think the fix didn't work.
+
+## Beat-synced cuts (the "edited to the music" look)
+
+To make image switches land on the music's beat: measure each fixed track's pulse
+ONCE offline (decode mp3 → mono f32 PCM via ffmpeg, run the `music-tempo` npm pkg
+to get period = sec/beat and phase = first-beat time), then hardcode {period,
+phase} per track. No per-render analysis cost; `music-tempo` can be uninstalled.
+
+The crossfade eats time, so cuts drift unless you account for it. With a chained
+`xfade`, the switch-to-switch interval equals `durPerImage - crossfade`, NOT
+`durPerImage`. So to put switches `m` beats apart set
+`durPerImage = m*period + crossfade`. The perceived switch (xfade centre) sits
+`crossfade/2` after the xfade offset, so align phase by pre-rolling the audio with
+input `-ss ((phase - crossfade/2) mod period)` — then a beat coincides with each
+cut. `-ss` before `-i` works fine alongside `-stream_loop -1` and the `-t` cap.
+
+**Why:** user wanted AI-style cuts on the beat (vs a fixed per-image slider).
+**How to apply:** Bolig Showcase Video — `beatPlan()` in `server/showcase.ts`.

@@ -2720,8 +2720,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
-  const [duration, setDuration] = useState(3.5);
   const [music, setMusic] = useState<"calm" | "uplifting" | "modern" | "none">("calm");
+  // Per-image duration is locked to each track's pulse on the server (cuts land
+  // on the beat). These mirror that for a live length estimate only.
+  const DUR_PER_IMAGE: Record<string, number> = { calm: 3.67, uplifting: 3.64, modern: 3.97, none: 3.0 };
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2746,7 +2748,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [showCaseDropdown]);
 
   const totalSeconds = images.length > 0
-    ? Math.max(0, images.length * duration - (images.length - 1) * 0.7)
+    ? Math.max(0, images.length * (DUR_PER_IMAGE[music] ?? 3.0) - (images.length - 1) * 0.7)
     : 0;
 
   const addFiles = (files: FileList | File[]) => {
@@ -2791,7 +2793,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
-      fd.append("durationPerImage", String(duration));
       fd.append("music", music);
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
@@ -2964,30 +2965,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         )}
 
-        {/* Duration slider */}
+        {/* Music picker — image cuts are synced to the chosen track's beat */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>Tid pr. billede</span>
-            <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>
-              {duration.toFixed(1)}s {totalSeconds > 0 && <span style={{ color: "#9B9690" }}>· video ≈ {Math.round(totalSeconds)}s</span>}
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>Baggrundsmusik</span>
+            {totalSeconds > 0 && (
+              <span className="text-xs font-semibold" style={{ color: "#9B9690" }} data-testid="text-showcase-length">video ≈ {Math.round(totalSeconds)}s</span>
+            )}
           </div>
-          <input
-            type="range"
-            min={1.5}
-            max={6}
-            step={0.5}
-            value={duration}
-            onChange={(e) => { setDuration(parseFloat(e.target.value)); setVideoUrl(null); setSaveCaseId(null); }}
-            disabled={isGenerating}
-            className="w-full accent-[#C8956C]"
-            data-testid="slider-showcase-duration"
-          />
-        </div>
-
-        {/* Music picker */}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Baggrundsmusik</span>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {([
               { key: "calm", label: "Rolig" },

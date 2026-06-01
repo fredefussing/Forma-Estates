@@ -2233,16 +2233,14 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Upload mindst 3 billeder" });
       }
       const paths = files.map((f) => path.join(uploadDir, f.filename));
-      const raw = parseFloat(String(req.body?.durationPerImage ?? "3.5"));
-      const durPerImage = Number.isFinite(raw) ? raw : 3.5;
       const music = typeof req.body?.music === "string" ? req.body.music : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, durPerImage, music);
+      const jobId = startShowcaseVideo(paths, uploadDir, music);
       if (!jobId) {
         // Server is saturated — clean up the just-uploaded files and back off.
         for (const p of paths) fs.promises.unlink(p).catch(() => {});
         return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
-      log(`[Showcase] started job=${jobId} images=${files.length} dur=${durPerImage}`);
+      log(`[Showcase] started job=${jobId} images=${files.length} music=${music || "none"}`);
       return res.json({ success: true, job_id: jobId });
     } catch (err: any) {
       log(`[Showcase] submit error: ${err.message}`);
