@@ -85,10 +85,12 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
   };
   const boligTier = tierMap[validTier];
   const boligRoom = BOLIG_ROOM_ALIASES[roomType.toLowerCase()] ?? roomType.toLowerCase();
-  const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
-  if (boligPrompt && !boligPrompt.includes(`${BOLIG_STYLE_LABELS[style.toLowerCase()] ?? style} design with appropriate furniture`)) {
-    // getBoligPrompt har en generisk final fallback — kun brug den hvis vi fik en rigtig prompt.
+  try {
+    const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
     return boligPrompt;
+  } catch (promptErr: any) {
+    log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
+    throw promptErr;
   }
 
   // 3) Sidste udvej: generisk vocab prompt.
@@ -2007,7 +2009,17 @@ export async function registerRoutes(
       const startTime = Date.now();
 
       // Build prompt — use custom text for design agent, structured prompt otherwise
-      const prompt = isDesignAgent ? customPromptText : getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
+      let prompt: string;
+      if (isDesignAgent) {
+        prompt = customPromptText;
+      } else {
+        try {
+          prompt = getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
+        } catch (promptErr: any) {
+          log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
+          return res.status(400).json({ success: false, message: promptErr.message });
+        }
+      }
       log(`[BoligPotentiale] prompt: ${prompt.slice(0, 120)}…`);
 
       // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
@@ -2551,7 +2563,13 @@ export async function registerRoutes(
         budget: "tier1", standard: "tier2", luxury: "tier3",
       };
       const tier = tierMap[(property.tier || "standard").toLowerCase()] || "tier2";
-      const basePrompt = getBoligPrompt(roomType, property.style, tier);
+      let basePrompt: string;
+      try {
+        basePrompt = getBoligPrompt(roomType, property.style, tier);
+      } catch (promptErr: any) {
+        log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
+        return res.status(400).json({ success: false, message: promptErr.message });
+      }
       // Floor-plan-aware context: the user explicitly asked the AI to know
       // window/door positions inferred from the plantegning. We append the
       // room's relative size (% of total floor area) and nearest-wall hints

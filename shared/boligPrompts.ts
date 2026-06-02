@@ -710,11 +710,15 @@
     const direct = PROMPTS[style]?.[roomKey]?.[tier];
     if (direct) return direct;
 
-    // Fallback: use scandinavian for unsupported styles (classical, industrial, rustic, minimalist, bohemian, japandi)
+    // Fallback: use scandinavian for unsupported styles
     const fallback = PROMPTS.scandinavian?.[roomKey]?.[tier];
     if (fallback) return fallback;
 
-    // Final fallback for unknown rooms
-    return `Completely redesign this ${room}. ${BOLIG_STYLE_LABELS[style] ?? style} design with appropriate furniture and decor for the space. Replace all existing furniture and decor. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
+    // GUARD: No specific prompt found — throw instead of using generic fallback.
+    // This prevents any generation with an unspecified or misspelled room/tier combination.
+    throw new Error(
+      `PROMPT_NOT_FOUND: Ingen specifik prompt for rum="${roomKey}" stil="${style}" tier="${tier}". ` +
+      `Genereringen er stoppet for at undgå generisk output. Kontakt administrator.`
+    );
   }
   
