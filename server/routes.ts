@@ -2008,6 +2008,7 @@ export async function registerRoutes(
 
       // Build prompt — use custom text for design agent, structured prompt otherwise
       const prompt = isDesignAgent ? customPromptText : getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
+      log(`[BoligPotentiale] prompt: ${prompt.slice(0, 120)}…`);
 
       // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
       // 2 retries med 10s mellem forsøg.

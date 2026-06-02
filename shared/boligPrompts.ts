@@ -703,12 +703,15 @@
 };
 
   export function getBoligPrompt(room: string, style: string, tier: BoligTier): string {
+    // Normalize room key: underscores → spaces, lowercase
+    const roomKey = room.replace(/_/g, " ").toLowerCase().trim();
+
     // Direct lookup
-    const direct = PROMPTS[style]?.[room]?.[tier];
+    const direct = PROMPTS[style]?.[roomKey]?.[tier];
     if (direct) return direct;
 
     // Fallback: use scandinavian for unsupported styles (classical, industrial, rustic, minimalist, bohemian, japandi)
-    const fallback = PROMPTS.scandinavian?.[room]?.[tier];
+    const fallback = PROMPTS.scandinavian?.[roomKey]?.[tier];
     if (fallback) return fallback;
 
     // Final fallback for unknown rooms
