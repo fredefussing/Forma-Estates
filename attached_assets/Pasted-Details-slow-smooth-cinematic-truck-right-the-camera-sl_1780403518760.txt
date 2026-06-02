@@ -1,0 +1,109 @@
+Details
+slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail The room and everything in it — furniture, wal...see all
+
+0.000s
+Submitted
+0.047s
+0.047s
+Warm
+Start
+0.066s
+0.113s
+Execution
+Started
+65.779s
+65.892s
+Execution
+Finished
+Endpoint
+fal-ai/kling-video/v2.1/standard/image-to-video
+Request ID
+
+019e83d5-a56e-7f23-86e1-44366fbf6a3d
+Status
+200
+Duration
+
+65.78s
+Created
+
+about 21 hours ago
+Cost
+
+$0.28
+Runner ID
+bf9ede92
+Auth Method
+
+3Dfloorplan x animatet Videos
+
+Timing
+Submitted
+0.000s
+Request was submitted to the system, it's queued for processing.
+June 1st, 2026 at 5:37:57 PM GMT+2
+Warm Start
+0.047s
+Server instance was already running, no boot delay.
+June 1st, 2026 at 5:37:57 PM GMT+2
+0.066s
+Execution Started
+0.113s
+Application execution has begun.
+June 1st, 2026 at 5:37:57 PM GMT+2
+65.779s
+First Byte
+65.892s
+First response byte received from the model. This might be close to the time the execution finished unless it uses streaming or real-time requests.
+June 1st, 2026 at 5:39:03 PM GMT+2
+Execution Finished
+65.892s
+Application execution completed and response was sent to the client.
+June 1st, 2026 at 5:39:03 PM GMT+2
+
+Input
+
+{
+  "prompt": "slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail The room and everything in it — furniture, walls, windows, floor, materials, colors and lighting — stays EXACTLY as shown and never changes, morphs, appears or disappears. Only the camera moves. No warping, no distortion, no deformation; the architecture keeps a stable, correct perspective throughout. Photorealistic real-estate interior, soft natural lighting, ultra-smooth steady continuous motion, cinematic.",
+  "image_url": "https://v3b.fal.media/files/b/0a9c90b4/ih8B5WTK1ghPqmX59OVNr_1780328201007-epc2g229.jpg",
+  "duration": "5",
+  "negative_prompt": "warping, distortion, morphing, deformation, changing furniture, moving walls, melting, flicker, blur, low quality, text, watermark"
+}
+
+Output
+
+{
+  "video": {
+    "url": "https://v3b.fal.media/files/b/0a9c90c2/2vaWUIBFix7qn5v5zrCjV_output.mp4",
+    "content_type": "video/mp4",
+    "file_name": "output.mp4",
+    "file_size": 3986695
+  }
+}
+
+Logs
+
+No logs available
+
+Code
+
+JavaScript / Node.js
+
+import { fal } from "@fal-ai/client";
+
+const result = await fal.subscribe("fal-ai/kling-video/v2.1/standard/image-to-video", {
+  input: {
+    prompt: "slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail The room and everything in it — furniture, walls, windows, floor, materials, colors and lighting — stays EXACTLY as shown and never changes, morphs, appears or disappears. Only the camera moves. No warping, no distortion, no deformation; the architecture keeps a stable, correct perspective throughout. Photorealistic real-estate interior, soft natural lighting, ultra-smooth steady continuous motion, cinematic.",
+    image_url: "https://v3b.fal.media/files/b/0a9c90b4/ih8B5WTK1ghPqmX59OVNr_1780328201007-epc2g229.jpg",
+    duration: "5",
+    negative_prompt: "warping, distortion, morphing, deformation, changing furniture, moving walls, melting, flicker, blur, low quality, text, watermark"
+  },
+  logs: true,
+  onQueueUpdate: (update) => {
+    if (update.status === "IN_PROGRESS") {
+      update.logs.map((log) => log.message).forEach(console.log);
+    }
+  },
+});
+console.log(result.data);
+console.log(result.requestId);
