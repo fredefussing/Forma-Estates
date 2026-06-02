@@ -69,9 +69,10 @@ const styleLabels: Record<DesignStyle, string> = {
   "luxury": "Luksus",
   "industrial": "Industriel",
   "coastal": "Kyst",
-  "transitional": "Overgangs",
+  "bohemian": "Bohemisk",
+  "japandi": "Japandi",
+  "minimalist": "Minimalistisk",
   "farmhouse": "Landlig",
-  "midcentury": "Midcentury",
 };
 
 const styleDescriptions: Record<DesignStyle, string> = {
@@ -80,9 +81,10 @@ const styleDescriptions: Record<DesignStyle, string> = {
   "luxury": "Eksklusivt og sofistikeret",
   "industrial": "Råt, åbent og urbant",
   "coastal": "Afslappet med maritime toner",
-  "transitional": "Klassisk møder moderne",
-  "farmhouse": "Rustikt og varmt",
-  "midcentury": "Retro 50'er/60'er stil med træmøbler og organiske former",
+  "bohemian": "Farverigt, lagdelt og frithængende",
+  "japandi": "Japansk ro møder nordisk enkelhed",
+  "minimalist": "Rent, stille og med kun det nødvendige",
+  "farmhouse": "Rustikt, varmt og med landlig charme",
 };
 
 const valueMultipliers: Partial<Record<RoomType, number>> = {
@@ -135,20 +137,25 @@ const styleValueReasons: Record<DesignStyle, [string, string, string]> = {
     "Lyse, naturlige toner er tidløse og bredt appellerende",
     "Maritime detaljer skaber en unik, eftertragtet atmosfære",
   ],
-  "transitional": [
-    "Bred appel — kombinerer det klassiske og det moderne",
-    "Tidløst udtryk reducerer risiko for hurtig forældelse",
-    "Appellerer til den største del af det danske boligmarked",
+  "bohemian": [
+    "Farverigt og lagdelt udtryk skaber stærk personlig appel",
+    "Unikke tekstiler og detaljer differentierer boligen markant",
+    "Bohemisk stil tiltrækker kreative og livsstilsbevidste købere",
+  ],
+  "japandi": [
+    "Japansk ro og nordisk enkelhed er meget efterspurgt",
+    "Naturmaterialer og neutralt udtryk appellerer bredt",
+    "Tidløst og roligt miljø øger rummets opfattede kvalitet",
+  ],
+  "minimalist": [
+    "Rent og uklodset rum opfattes som større og mere værdifuldt",
+    "Minimalistisk udtryk er tidløst og bredt appellerende",
+    "Intet overflødig — hvert element understreger rummets styrker",
   ],
   "farmhouse": [
     "Rustikt og varmt miljø skaber stærk emotionel appel hos køber",
     "Hyggefaktoren er en af de vigtigste salgsdrivere i Danmark",
     "Naturmaterialer signalerer kvalitet og holdbarhed",
-  ],
-  "midcentury": [
-    "Designikonisk stil er meget populær og på vej tilbage",
-    "Organiske former og træmøbler skaber elegant, tidløst look",
-    "Differentierer boligen markant fra standardrenovering",
   ],
 };
 

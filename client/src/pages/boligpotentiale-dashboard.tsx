@@ -441,9 +441,10 @@ const STYLES = [
   { value: "luxury",       label: "Luksus" },
   { value: "industrial",   label: "Industriel" },
   { value: "coastal",      label: "Kyst" },
-  { value: "transitional", label: "Overgangs" },
-  { value: "rustic",       label: "Landlig" },
-  { value: "midcentury",   label: "Midcentury" },
+  { value: "bohemian",     label: "Bohemisk" },
+  { value: "japandi",      label: "Japandi" },
+  { value: "minimalist",   label: "Minimalistisk" },
+  { value: "farmhouse",    label: "Landlig" },
 ];
 
 const BUDGET_TIERS = [
@@ -3570,8 +3571,12 @@ const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string }> = [
   { key: "scandinavian", label: "Skandinavisk" },
   { key: "modern",       label: "Moderne" },
   { key: "luxury",       label: "Luksus" },
-  { key: "classical",    label: "Klassisk" },
+  { key: "industrial",   label: "Industriel" },
   { key: "coastal",      label: "Kyst" },
+  { key: "bohemian",     label: "Bohemisk" },
+  { key: "japandi",      label: "Japandi" },
+  { key: "minimalist",   label: "Minimalistisk" },
+  { key: "farmhouse",    label: "Landlig" },
 ];
 
 function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
