@@ -786,18 +786,21 @@ function CaseDetailPanel({
                               >
                                 <Download className="w-3 h-3" /> Postklar
                               </button>
-                              {img.beforeSrc && isVideoUrl(img.beforeSrc) && (
-                                <button
-                                  type="button"
-                                  onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(img.beforeSrc!, `original-${img.style}-${ts}.mp4`); }}
-                                  title="Download original (16:9)"
-                                  data-testid={`bolig-gallery-download-${img.id}-original`}
-                                  className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold"
-                                  style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
-                                >
-                                  <Download className="w-3 h-3" /> Original
-                                </button>
-                              )}
+                              {(() => {
+                                const origUrl = img.beforeSrc ?? img.src.replace(/\.mp4$/, "-clean.mp4");
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(origUrl, `original-${img.style}-${ts}.mp4`); }}
+                                    title="Download original format"
+                                    data-testid={`bolig-gallery-download-${img.id}-original`}
+                                    className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold"
+                                    style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
+                                  >
+                                    <Download className="w-3 h-3" /> Original
+                                  </button>
+                                );
+                              })()}
                             </>
                           ) : (
                           <DownloadMenu
@@ -1293,17 +1296,20 @@ function CaseDetailPanel({
                       >
                         <Download className="w-3 h-3" /> Postklar ↓
                       </button>
-                      {lightboxImg.beforeSrc && isVideoUrl(lightboxImg.beforeSrc) && (
-                        <button
-                          type="button"
-                          onClick={async () => { const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(lightboxImg.beforeSrc!, `original-${lightboxImg.style}-${ts}.mp4`); }}
-                          className="h-8 px-3 rounded-full font-semibold text-xs flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                          style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
-                          data-testid="bolig-lightbox-download-original"
-                        >
-                          <Download className="w-3 h-3" /> Original ↓
-                        </button>
-                      )}
+                      {(() => {
+                        const origUrl = lightboxImg.beforeSrc ?? lightboxImg.src.replace(/\.mp4$/, "-clean.mp4");
+                        return (
+                          <button
+                            type="button"
+                            onClick={async () => { const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(origUrl, `original-${lightboxImg.style}-${ts}.mp4`); }}
+                            className="h-8 px-3 rounded-full font-semibold text-xs flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                            style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
+                            data-testid="bolig-lightbox-download-original"
+                          >
+                            <Download className="w-3 h-3" /> Original ↓
+                          </button>
+                        );
+                      })()}
                     </>
                   ) : (
                     <DownloadMenu
