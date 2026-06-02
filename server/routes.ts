@@ -9,6 +9,7 @@ import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles, type InsertAiTourProperty } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
+import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail, sendContactFormEmails } from "./email";
@@ -2019,8 +2020,19 @@ export async function registerRoutes(
           log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
           return res.status(400).json({ success: false, message: promptErr.message });
         }
+        // ── Prompt-lås: sammenlign med låst reference — stop generering ved afvigelse ──
+        try {
+          assertPromptLocked(room, style, tier, prompt);
+        } catch (guardErr: any) {
+          log(guardErr.message);
+          return res.status(500).json({
+            success: false,
+            message: "PROMPT_INTEGRITY_VIOLATION",
+            detail: guardErr.message,
+          });
+        }
       }
-      log(`[BoligPotentiale] prompt: ${prompt.slice(0, 120)}…`);
+      log(`[BoligPotentiale] prompt OK (lås verificeret): ${prompt.slice(0, 120)}…`);
 
       // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
       // 2 retries med 10s mellem forsøg.
