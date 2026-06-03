@@ -1,5 +1,6 @@
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Check, ArrowRight } from "lucide-react";
+import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -138,42 +139,135 @@ function BeforeAfterPair({
   desc: string;
   testId: string;
 }) {
+  const [lightbox, setLightbox] = useState<"before" | "after" | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(null);
+      if (e.key === "ArrowLeft") setLightbox("before");
+      if (e.key === "ArrowRight") setLightbox("after");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) setLightbox(dx < 0 ? "after" : "before");
+    touchStartX.current = null;
+  };
+
   return (
-    <div
-      style={{
-        background: C.white,
-        border: `1px solid ${C.border}`,
-        borderRadius: 16,
-        overflow: "hidden",
-        boxShadow: "0 8px 32px rgba(15,25,35,0.05)",
-      }}
-      data-testid={testId}
-    >
-      <div className="grid grid-cols-2 gap-px" style={{ background: C.border }}>
-        <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-          <img src={before} alt={`${title} — før`} className="absolute inset-0 w-full h-full object-cover" />
-          <div
-            className="absolute top-3 left-3 uppercase"
-            style={{ background: "rgba(15,25,35,0.78)", color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
-          >
-            Før
-          </div>
+    <>
+      <div
+        style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+        data-testid={testId}
+      >
+        <div className="grid grid-cols-2 gap-px" style={{ background: C.border }}>
+          {(["before", "after"] as const).map((side) => (
+            <div
+              key={side}
+              className="relative cursor-zoom-in group"
+              style={{ aspectRatio: "4 / 3" }}
+              onClick={() => setLightbox(side)}
+            >
+              <img
+                src={side === "before" ? before : after}
+                alt={`${title} — ${side === "before" ? "før" : "efter"}`}
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+              <div
+                className="absolute top-3 left-3 uppercase"
+                style={{ background: side === "before" ? "rgba(15,25,35,0.78)" : C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
+              >
+                {side === "before" ? "Før" : "Efter"}
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "rgba(15,25,35,0.18)" }}>
+                <span style={{ background: "rgba(255,255,255,0.92)", color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", padding: "6px 14px", borderRadius: 20, textTransform: "uppercase" }}>Forstør</span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-          <img src={after} alt={`${title} — efter`} className="absolute inset-0 w-full h-full object-cover" />
-          <div
-            className="absolute top-3 left-3 uppercase"
-            style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
-          >
-            Efter
-          </div>
+        <div style={{ padding: "22px 26px 26px" }}>
+          <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 22, fontWeight: 500, lineHeight: 1.25, marginBottom: 6 }}>{title}</div>
+          <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55 }}>{desc}</div>
         </div>
       </div>
-      <div style={{ padding: "22px 26px 26px" }}>
-        <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 22, fontWeight: 500, lineHeight: 1.25, marginBottom: 6 }}>{title}</div>
-        <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55 }}>{desc}</div>
-      </div>
-    </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          style={{ background: "rgba(10,15,22,0.95)" }}
+          onClick={() => setLightbox(null)}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
+          {/* Close */}
+          <button
+            className="absolute top-5 right-5 flex items-center justify-center rounded-full transition-colors"
+            style={{ background: "rgba(255,255,255,0.12)", width: 44, height: 44, color: "#fff", border: "none", cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Image */}
+          <div
+            className="relative w-full flex items-center justify-center px-14"
+            style={{ maxHeight: "80vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightbox === "before" ? before : after}
+              alt={title}
+              style={{ maxWidth: "90vw", maxHeight: "76vh", objectFit: "contain", borderRadius: 10, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
+            />
+          </div>
+
+          {/* Toggle FØR / EFTER */}
+          <div
+            className="flex items-center gap-3 mt-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setLightbox("before")}
+              style={{ padding: "8px 22px", borderRadius: 30, fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", cursor: "pointer", border: "none", transition: "all 0.2s", background: lightbox === "before" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.12)", color: lightbox === "before" ? C.navy : "rgba(255,255,255,0.7)" }}
+            >
+              FØR
+            </button>
+            <button
+              onClick={() => setLightbox("after")}
+              style={{ padding: "8px 22px", borderRadius: 30, fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", cursor: "pointer", border: "none", transition: "all 0.2s", background: lightbox === "after" ? C.gold : "rgba(255,255,255,0.12)", color: lightbox === "after" ? "#fff" : "rgba(255,255,255,0.7)" }}
+            >
+              EFTER
+            </button>
+          </div>
+
+          {/* Prev/Next arrows */}
+          <button
+            className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-colors"
+            style={{ background: "rgba(255,255,255,0.12)", width: 44, height: 44, color: "#fff", border: "none", cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); setLightbox("before"); }}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-colors"
+            style={{ background: "rgba(255,255,255,0.12)", width: 44, height: 44, color: "#fff", border: "none", cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); setLightbox("after"); }}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 16 }}>Swipe eller brug piletasterne</p>
+        </div>
+      )}
+    </>
   );
 }
 
