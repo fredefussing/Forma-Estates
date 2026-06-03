@@ -207,6 +207,8 @@ type StageSlide =
       title: string;
       caption: string;
       meta: string;
+      contain?: boolean;
+      bg?: string;
     }
   | {
       kind: "video";
@@ -237,6 +239,8 @@ const STAGE_SLIDES: StageSlide[] = [
     title: "3D Plantegning",
     caption: "Fra flad plantegning til levende 3D-rum, køberen kan fornemme.",
     meta: "Stand-in eksempel",
+    contain: true,
+    bg: "#F0EDE8",
   },
   {
     kind: "video",
@@ -415,11 +419,12 @@ function HeroStage() {
               className="absolute inset-0"
             >
               {slide.kind === "swipe" ? (
-                <div className="relative w-full h-full select-none">
+                <div className="relative w-full h-full select-none" style={{ background: slide.contain ? (slide.bg ?? "#F0EDE8") : "#000" }}>
                   <img
                     src={slide.after}
                     alt={slide.afterLabel}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: slide.contain ? "contain" : "cover", padding: slide.contain ? "6%" : 0 }}
                   />
                   <div
                     className="absolute inset-0 overflow-hidden"
@@ -428,8 +433,8 @@ function HeroStage() {
                     <img
                       src={slide.before}
                       alt={slide.beforeLabel}
-                      className="absolute inset-0 h-full object-cover"
-                      style={{ width: `${100 / ((splitPct / 100) || 0.001)}%` }}
+                      className="absolute inset-0 h-full"
+                      style={{ objectFit: slide.contain ? "contain" : "cover", width: slide.contain ? "100%" : `${100 / ((splitPct / 100) || 0.001)}%`, padding: slide.contain ? "6%" : 0 }}
                     />
                   </div>
                   <div
