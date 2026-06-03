@@ -503,9 +503,9 @@ export function BranchevideoPage() {
         <div className="relative" style={{ aspectRatio: "16 / 9" }}>
           <video
             src="/videos/transformation-kling-v16-pro.mp4"
-            poster="/bolig-images/kitchen-after.jpg"
             controls
             playsInline
+            onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
             className="absolute inset-0 w-full h-full object-cover"
           />
         </div>
