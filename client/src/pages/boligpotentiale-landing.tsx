@@ -260,7 +260,7 @@ const STAGE_SLIDES: StageSlide[] = [
     title: "Før & efter",
     caption: "Upload et rumfoto — AI'en redesigner indretningen på under 30 sekunder.",
     meta: "Spisestue · Skandinavisk",
-    objectPosition: "center 30%",
+    objectPosition: "center 60%",
   },
 ];
 
