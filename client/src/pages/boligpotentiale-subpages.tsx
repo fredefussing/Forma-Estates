@@ -332,8 +332,22 @@ export function ForEfterPage() {
           ))}
         </div>
 
-        <p className="text-center mt-8" style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6 }}>
-          Alle stilarter er tilgængelige i tre budget-niveauer: IKEA/JYSK, mellemklasse og designermøbler.
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10">
+          {[
+            { tier: "Niveau 1", label: "Budget", example: "IKEA · JYSK · Jysk", desc: "Pænt og funktionelt uden at overdrive" },
+            { tier: "Niveau 2", label: "Standard", example: "BoConcept · HAY · Muuto", desc: "Mellemklasse med genkendeligt dansk design" },
+            { tier: "Niveau 3", label: "Premium", example: "Fritz Hansen · Carl Hansen", desc: "Designermøbler til præmiumboliger" },
+          ].map((t) => (
+            <div key={t.tier} className="flex-1 text-center" style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: C.gold, marginBottom: 4 }}>{t.tier}</div>
+              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 17, fontWeight: 500, marginBottom: 4 }}>{t.label}</div>
+              <div style={{ color: C.muted, fontSize: 12.5, marginBottom: 6 }}>{t.example}</div>
+              <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.5 }}>{t.desc}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center mt-5" style={{ color: C.muted, fontSize: 13 }}>
+          Alle 9 stilarter er tilgængelige på alle tre niveauer.
         </p>
       </div>
     </SubpageLayout>
