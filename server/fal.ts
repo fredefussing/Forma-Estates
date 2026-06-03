@@ -476,23 +476,26 @@ export async function generateShowcaseClip(
 // Drone intro / outro clip — cinematic exterior flyover for the first and last
 // frames of a showcase reel. Same Kling 2.1 Standard endpoint as normal gimbal
 // clips but with an outdoor aerial-motion prompt instead of an interior one.
-const DRONE_INTRO_PROMPT =
-  "Cinematic aerial drone shot flying low and smooth over the exterior, camera glides forward and rises gently revealing the full property. Smooth stabilized gimbal motion, golden hour warm lighting, photorealistic real-estate photography, 4K quality, ultra-smooth steady continuous motion, cinematic.";
-const DRONE_OUTRO_PROMPT =
-  "Cinematic aerial drone shot arriving at the property, camera slowly descends and settles, full exterior beautifully framed. Smooth stabilized landing motion, golden hour warm lighting, photorealistic real-estate photography, 4K quality, cinematic.";
+// Drone transition clip — Kling "start frame + end frame" mode (image-to-image).
+// Image 1 is the starting scene, image 2 is the target/destination scene. Kling
+// generates the cinematic motion between them (drone flyover, reveal, etc.).
+const DRONE_TRANSITION_PROMPT =
+  "Cinematic smooth camera transition between two scenes, aerial drone gliding forward, smooth continuous motion, golden hour warm lighting, photorealistic real-estate photography, 4K quality, stabilized gimbal motion, cinematic.";
 const DRONE_NEGATIVE_PROMPT =
-  "static image, slideshow, jump cuts, blurry, distorted architecture, warped walls, shaky camera, dark lighting, interior, indoor, people";
+  "static image, slideshow, jump cuts, blurry, distorted architecture, warped walls, shaky camera, dark lighting, people";
 
+// Generate ONE transition clip using Kling's start-frame + end-frame feature.
+// The result is a smooth cinematic move FROM startImageUrl TO endImageUrl.
 export async function generateDroneClip(
-  imageUrl: string,
-  isIntro: boolean,
+  startImageUrl: string,
+  endImageUrl: string,
 ): Promise<{ videoUrl: string }> {
-  const prompt = isIntro ? DRONE_INTRO_PROMPT : DRONE_OUTRO_PROMPT;
   const result = await Promise.race([
     fal.subscribe(SHOWCASE_ENDPOINT, {
       input: {
-        prompt,
-        image_url: imageUrl,
+        prompt: DRONE_TRANSITION_PROMPT,
+        image_url: startImageUrl,
+        end_image_url: endImageUrl,
         duration: "5" as const,
         negative_prompt: DRONE_NEGATIVE_PROMPT,
       },
@@ -503,7 +506,7 @@ export async function generateDroneClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No drone clip generated");
-  console.log(`[Showcase] drone ${isIntro ? "intro" : "outro"} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
+  console.log(`[Showcase] drone transition clip done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
   return { videoUrl };
 }
 

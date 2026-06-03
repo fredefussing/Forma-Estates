@@ -3082,11 +3082,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
                     {idx + 1}
                   </div>
-                  {idx === 0 && (
-                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>DRONE INTRO</div>
+                  {(startText || endText) && idx === 0 && (
+                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>START FRAME</div>
                   )}
-                  {idx === images.length - 1 && images.length > 1 && (
-                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#0F1D2F", color: "#fff" }}>DRONE OUTRO</div>
+                  {(startText || endText) && idx === 1 && images.length >= 2 && (
+                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#0F1D2F", color: "#fff" }}>END FRAME</div>
                   )}
                   <button
                     onClick={() => removeImage(img.id)}
@@ -3109,8 +3109,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <div className="rounded-xl border border-[#E8E4DE] p-4 space-y-3" style={{ background: "#F8F6F3" }}>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>TEST</span>
-              <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>Drone intro / outro tekst</span>
-              <span className="text-xs" style={{ color: "#9B9690" }}>— udfyld begge for at aktivere Kling drone-klips</span>
+              <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>Kling drone-overgang</span>
+              <span className="text-xs" style={{ color: "#9B9690" }}>— billede 1 + 2 genereres som ét overgangsvideo</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -3143,7 +3143,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             </div>
             <p className="text-[11px]" style={{ color: "#9B9690" }}>
-              Billede 1 (DRONE INTRO) og det sidste billede (DRONE OUTRO) genereres med Kling som drone-flyover i stedet for normal gimbal. Resten er standard AI-klips.
+              Kling bruger <strong>billede 1 som startframe</strong> og <strong>billede 2 som slutframe</strong> og genererer én glidende cinematic overgang imellem dem (ligesom videoen ovenfor). Billeder 3+ bruger normale gimbal-klips.
             </p>
           </div>
         )}

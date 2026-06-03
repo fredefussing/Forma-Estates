@@ -648,16 +648,22 @@ interface AIClipData {
 async function buildAIClips(
   imagePaths: string[],
   outDir: string,
-  droneIndices: Set<number>,
+  droneMode: boolean,
   onProgress?: (p: ShowcaseProgress) => void,
 ): Promise<AIClipData | null> {
-  const photos = imagePaths.slice(0, MAX_AI_CLIPS);
-  const total = photos.length;
+  // In drone mode: image[0] + image[1] become a SINGLE Kling start+end-frame
+  // transition clip. The remaining images (2+) use normal gimbal prompts.
+  // In normal mode: every image gets its own gimbal clip.
+  const allPhotos = imagePaths.slice(0, MAX_AI_CLIPS);
+  const dronePhotos = droneMode && allPhotos.length >= 2 ? allPhotos.slice(0, 2) : [];
+  const gimbalPhotos = droneMode && allPhotos.length >= 2 ? allPhotos.slice(2) : allPhotos;
+  const totalClips = (dronePhotos.length >= 2 ? 1 : 0) + gimbalPhotos.length;
 
-  onProgress?.({ stage: "uploading", currentClip: 0, totalClips: total, message: `Uploader ${total} billeder…` });
+  onProgress?.({ stage: "uploading", currentClip: 0, totalClips: totalClips, message: `Uploader ${allPhotos.length} billeder…` });
 
-  const uploads = await Promise.all(
-    photos.map((p) =>
+  // Upload all images in parallel
+  const allUploads = await Promise.all(
+    allPhotos.map((p) =>
       uploadToFal(p)
         .then((url) => url)
         .catch((e) => {
@@ -668,31 +674,61 @@ async function buildAIClips(
   );
 
   let done = 0;
-  onProgress?.({ stage: "generating", currentClip: 0, totalClips: total, message: `Laver AI-klip 0/${total}…` });
+  onProgress?.({ stage: "generating", currentClip: 0, totalClips: totalClips, message: `Laver AI-klip 0/${totalClips}…` });
 
-  const clips = await mapLimit(uploads, AI_CLIP_CONCURRENCY, async (url, i) => {
+  const clipPaths: string[] = [];
+
+  // --- Drone transition clip (image[0] → image[1]) ---
+  if (dronePhotos.length >= 2) {
+    const [startUrl, endUrl] = [allUploads[0], allUploads[1]];
+    if (startUrl && endUrl) {
+      try {
+        console.log("[showcase] generating drone transition clip (start+end frame)…");
+        const { videoUrl } = await generateDroneClip(startUrl, endUrl);
+        const dest = path.join(outDir, `clip-drone-${Date.now()}.mp4`);
+        await downloadToFile(videoUrl, dest);
+        clipPaths.push(dest);
+        done++;
+        onProgress?.({ stage: "generating", currentClip: done, totalClips: totalClips, message: `Laver AI-klip ${done}/${totalClips}…` });
+      } catch (e: any) {
+        console.warn("[showcase] drone clip failed:", e?.message || e);
+        done++;
+      }
+    } else {
+      done++;
+    }
+  }
+
+  // --- Normal gimbal clips (images[2+] in drone mode, or all images in normal mode) ---
+  const gimbalUploads = droneMode && allPhotos.length >= 2
+    ? allUploads.slice(2)
+    : allUploads;
+  // gimbal clip index offset so prompt variety isn't always "slot 0"
+  const idxOffset = dronePhotos.length >= 2 ? 1 : 0;
+
+  const gimbalClips = await mapLimit(gimbalUploads, AI_CLIP_CONCURRENCY, async (url, j) => {
     if (!url) return null;
+    const i = j + idxOffset;
     try {
-      const { videoUrl } = droneIndices.has(i)
-        ? await generateDroneClip(url, i === 0)
-        : await generateShowcaseClip(url, i);
+      const { videoUrl } = await generateShowcaseClip(url, i);
       const dest = path.join(
         outDir,
         `clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`,
       );
       await downloadToFile(videoUrl, dest);
       done++;
-      onProgress?.({ stage: "generating", currentClip: done, totalClips: total, message: `Laver AI-klip ${done}/${total}…` });
+      onProgress?.({ stage: "generating", currentClip: done, totalClips: totalClips, message: `Laver AI-klip ${done}/${totalClips}…` });
       return dest;
     } catch (e: any) {
-      console.warn(`[showcase] clip ${i} failed:`, e?.message || e);
+      console.warn(`[showcase] gimbal clip ${i} failed:`, e?.message || e);
       done++;
-      onProgress?.({ stage: "generating", currentClip: done, totalClips: total, message: `Laver AI-klip ${done}/${total}… (et klip fejlede)` });
+      onProgress?.({ stage: "generating", currentClip: done, totalClips: totalClips, message: `Laver AI-klip ${done}/${totalClips}… (et klip fejlede)` });
       return null;
     }
   });
 
-  const clipPaths = clips.filter((c): c is string => !!c);
+  clipPaths.push(...gimbalClips.filter((c): c is string => !!c));
+
   if (clipPaths.length === 0) return null;
 
   try {
@@ -928,20 +964,15 @@ async function render(
   try {
     const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
 
-    // Determine which clip indices should use the drone prompt (exterior flyover)
-    // instead of the normal interior gimbal prompt. Drone mode is activated when
-    // the caller supplies startText or endText — the first clip becomes the intro
-    // flyover and the last clip becomes the outro landing shot.
-    const hasDrone = !!(startText || endText);
-    const lastDroneIdx = Math.min(imagePaths.length - 1, MAX_AI_CLIPS - 1);
-    const droneIndices: Set<number> = hasDrone && imagePaths.length >= 2
-      ? new Set([0, lastDroneIdx])
-      : new Set();
+    // Drone mode: activated when the caller supplies startText or endText.
+    // Image[0] and image[1] are paired as Kling start+end-frame → ONE transition
+    // clip. Images[2+] use the normal interior gimbal prompts.
+    const droneMode = !!(startText || endText) && imagePaths.length >= 2;
 
     let clipData: AIClipData | null = null;
     if (isFalConfigured()) {
       try {
-        clipData = await buildAIClips(imagePaths, outDir, droneIndices, emit);
+        clipData = await buildAIClips(imagePaths, outDir, droneMode, emit);
       } catch (e: any) {
         console.warn("[showcase] AI path failed, falling back to local:", e?.message || e);
         clipData = null;
