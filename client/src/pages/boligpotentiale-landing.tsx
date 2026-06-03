@@ -1311,7 +1311,7 @@ export default function BoligpotentialeLanding() {
               Vis potentialet.<br />Ikke det tomme rum.
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {[
               {
                 eyebrow: "Før / Efter",
@@ -1333,6 +1333,20 @@ export default function BoligpotentialeLanding() {
                 desc: "Vækk følelser med en levende videogennemgang.",
                 media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
+              },
+              {
+                eyebrow: "AI Design Agent",
+                title: "Beskriv din vision",
+                desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
+                media: { kind: "image" as const, src: "/bolig-images/ai-agent-after.jpg" },
+                href: "/boligpotentiale/dashboard",
+              },
+              {
+                eyebrow: "Bolig Showcase",
+                title: "Vis potentialet",
+                desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
+                media: { kind: "image" as const, src: "/bolig-images/living-modern-after.jpg" },
+                href: "/boligpotentiale/dashboard",
               },
             ].map((t) => (
               <Link
