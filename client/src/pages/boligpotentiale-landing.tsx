@@ -147,14 +147,14 @@ type Plan = {
 const PRICING: Plan[] = [
   {
     name: "Start",
-    monthly: 2499,
+    monthly: 2999,
     features: ["15 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "1 Transformering Video / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Start",
     href: "/opret",
   },
   {
     name: "Pro",
-    monthly: 4999,
+    monthly: 5999,
     features: ["35 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "3 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Pro",
     highlight: true,
@@ -162,7 +162,7 @@ const PRICING: Plan[] = [
   },
   {
     name: "Business",
-    monthly: 9999,
+    monthly: 11999,
     features: ["80 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "8 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Business",
     href: "/opret",

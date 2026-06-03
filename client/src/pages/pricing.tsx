@@ -24,7 +24,7 @@ const packages: Plan[] = [
   {
     name: "Start",
     key: "starter",
-    price: "2.499",
+    price: "2.999",
     period: "kr./ måned",
     images: "15 AI Visualiseringer / md.",
     icon: Sparkles,
@@ -42,7 +42,7 @@ const packages: Plan[] = [
   {
     name: "Pro",
     key: "pro",
-    price: "4.999",
+    price: "5.999",
     period: "kr./ måned",
     images: "35 AI Visualiseringer / md.",
     icon: Zap,
@@ -60,7 +60,7 @@ const packages: Plan[] = [
   {
     name: "Business",
     key: "business",
-    price: "9.999",
+    price: "11.999",
     period: "kr./ måned",
     images: "80 AI Visualiseringer / md.",
     icon: Crown,

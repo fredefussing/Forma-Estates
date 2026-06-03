@@ -7475,7 +7475,7 @@ export default function BoligpotentialeDashboard() {
                 {[
                   {
                     name: "Start",
-                    price: "2.499",
+                    price: "2.999",
                     period: "kr./ måned",
                     desc: "Til dig der vil i gang med professionelle AI-visualiseringer.",
                     features: ["15 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "1 Transformering Video / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
@@ -7485,7 +7485,7 @@ export default function BoligpotentialeDashboard() {
                   },
                   {
                     name: "Pro",
-                    price: "4.999",
+                    price: "5.999",
                     period: "kr./ måned",
                     desc: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
                     features: ["35 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "3 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
@@ -7495,7 +7495,7 @@ export default function BoligpotentialeDashboard() {
                   },
                   {
                     name: "Business",
-                    price: "9.999",
+                    price: "11.999",
                     period: "kr./ måned",
                     desc: "Til bureauer og mæglerkæder med høj volumen.",
                     features: ["80 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "8 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
@@ -7577,9 +7577,9 @@ export default function BoligpotentialeDashboard() {
             };
             const billingHistory: { date: string; description: string; amount: string }[] = [];
             const referencePlans = [
-              { name: "Starter", price: "2.499 kr/md", features: ["25 billeder / md.", "5 designstile", "HD download", "Email support"], highlight: false },
-              { name: "Pro", price: "4.999 kr/md", features: ["100 billeder / md.", "Alle 8 designstile", "4K download", "Branding", "Prioriteret support"], highlight: true },
-              { name: "Business", price: "9.999 kr/md", features: ["250 billeder / md.", "Alle designstile", "4K + API adgang", "Hvid-label", "Dedikeret support"], highlight: false },
+              { name: "Start", price: "2.999 kr/md", features: ["15 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "1 Transformering Video / md.", "AI Design Agent, Før/Efter & Ejendomsrapport"], highlight: false },
+              { name: "Pro", price: "5.999 kr/md", features: ["35 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "3 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport"], highlight: true },
+              { name: "Business", price: "11.999 kr/md", features: ["80 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "8 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport"], highlight: false },
               { name: "Enterprise", price: "Kontakt os", features: ["Ubegrænsede billeder", "Custom stile", "Fuld API", "Hvid-label", "Onboarding + SLA"], highlight: false },
             ];
             const downloadCsv = () => {
