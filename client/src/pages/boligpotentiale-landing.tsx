@@ -1364,6 +1364,7 @@ export default function BoligpotentialeLanding() {
                       muted
                       loop
                       playsInline
+                      onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   ) : (
