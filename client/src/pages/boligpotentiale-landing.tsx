@@ -1310,8 +1310,8 @@ export default function BoligpotentialeLanding() {
               Vis potentialet.<br />Ikke det tomme rum.
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {[
+          {(() => {
+            const tiles = [
               {
                 eyebrow: "Før / Efter",
                 title: "AI-iscenesættelse",
@@ -1347,7 +1347,8 @@ export default function BoligpotentialeLanding() {
                 media: { kind: "image" as const, src: "/bolig-images/living-modern-after.jpg" },
                 href: "/boligpotentiale/dashboard",
               },
-            ].map((t) => (
+            ];
+            const renderTile = (t: typeof tiles[0]) => (
               <Link
                 key={t.eyebrow}
                 href={t.href}
@@ -1395,8 +1396,22 @@ export default function BoligpotentialeLanding() {
                   </span>
                 </div>
               </Link>
-            ))}
-          </div>
+            );
+            return (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 lg:gap-8">
+                  {tiles.slice(0, 3).map(renderTile)}
+                </div>
+                <div className="flex flex-col sm:flex-row justify-center gap-6 lg:gap-8 mt-6 lg:mt-8">
+                  {tiles.slice(3).map((t) => (
+                    <div key={t.eyebrow} className="w-full sm:w-[calc(33.333%-1rem)]">
+                      {renderTile(t)}
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
 
