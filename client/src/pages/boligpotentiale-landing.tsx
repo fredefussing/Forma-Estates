@@ -488,11 +488,48 @@ function HeroStage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Very subtle top-only gradient for meta chip readability */}
-          <div
-            className="absolute top-0 left-0 right-0 pointer-events-none"
-            style={{ height: "14%", background: "linear-gradient(to bottom, rgba(10,18,25,0.28) 0%, transparent 100%)", zIndex: 3 }}
-          />
+          {/* Very subtle top gradient for meta chip */}
+          <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: "14%", background: "linear-gradient(to bottom, rgba(10,18,25,0.28) 0%, transparent 100%)", zIndex: 3 }} />
+
+          {/* Subtle bottom gradient — enough for text, not killing the image */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(10,18,25,0.72) 0%, rgba(10,18,25,0.42) 26%, rgba(10,18,25,0.08) 52%, transparent 65%)", zIndex: 3 }} />
+
+          {/* Overlay — headline + CTAs in lower portion of image */}
+          <div className="absolute left-0 right-0" style={{ bottom: "clamp(28px, 4vw, 52px)", paddingLeft: "clamp(24px, 4vw, 52px)", paddingRight: "clamp(24px, 4vw, 52px)", zIndex: 4 }}>
+            <div style={{ maxWidth: "min(580px, 62%)" }}>
+              <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(28px, 3.8vw, 50px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 12, textShadow: "0 1px 12px rgba(0,0,0,0.3)" }}>
+                Sæt scenen.<br />Sælg hurtigere.
+              </h1>
+              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(13px, 1.2vw, 15px)", lineHeight: 1.55, marginBottom: 20, fontFamily: SANS, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
+                Upload et rumfoto — salgsklar visualisering på{" "}
+                <span style={{ color: C.gold }}>under 30 sekunder</span>.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link href="/opret">
+                  <button
+                    className="inline-flex items-center gap-2 transition-all"
+                    style={{ background: C.gold, color: C.navy, padding: "11px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                    data-testid="bolig-hero-cta"
+                  >
+                    Kom i gang gratis <ArrowRight className="w-4 h-4" />
+                  </button>
+                </Link>
+                <Link href="/boligpotentiale/eksempler">
+                  <button
+                    className="inline-flex items-center gap-2 transition-all"
+                    style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "11px 22px", borderRadius: 8, fontSize: 13, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
+                    data-testid="bolig-hero-cta-secondary"
+                  >
+                    Se eksempler
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
             <button
