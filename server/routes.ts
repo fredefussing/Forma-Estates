@@ -3152,15 +3152,12 @@ export async function registerRoutes(
 
   // ── CRM (admin only) ──────────────────────────────────────────────────────
   async function requireAdmin(req: any, res: any): Promise<{ dbUser: any } | null> {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) { res.status(401).json({ error: "Unauthorized" }); return null; }
     try {
-      const { auth } = await import("./firebaseAdmin");
-      const decoded = await auth.verifyIdToken(token);
-      const dbUser = await storage.getUserByFirebaseUid(decoded.uid);
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
       if (!dbUser?.isAdmin) { res.status(403).json({ error: "Admin only" }); return null; }
       return { dbUser };
-    } catch { res.status(401).json({ error: "Invalid token" }); return null; }
+    } catch { res.status(401).json({ error: "Unauthorized" }); return null; }
   }
 
   app.get("/api/crm/contacts", async (req, res) => {

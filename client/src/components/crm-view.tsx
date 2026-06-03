@@ -228,6 +228,9 @@ function ContactList({ onSelect }: { onSelect: (id: string) => void }) {
       if (filterPlan) params.set("plan", filterPlan);
       return crmFetch(`/api/crm/contacts?${params}`).then(r => r.json());
     },
+    enabled: !!auth.currentUser,
+    staleTime: 0,
+    retry: 1,
   });
 
   const contacts = data?.contacts ?? [];
