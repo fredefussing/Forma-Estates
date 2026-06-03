@@ -424,7 +424,7 @@ function HeroStage() {
                     src={slide.after}
                     alt={slide.afterLabel}
                     className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: slide.contain ? "contain" : "cover", padding: slide.contain ? "3%" : 0 }}
+                    style={{ objectFit: slide.contain ? "contain" : "cover", padding: slide.contain ? "1.5%" : 0 }}
                   />
                   <div
                     className="absolute inset-0 overflow-hidden"
@@ -436,7 +436,7 @@ function HeroStage() {
                       src={slide.before}
                       alt={slide.beforeLabel}
                       className="absolute inset-0 w-full h-full"
-                      style={{ objectFit: slide.contain ? "contain" : "cover", width: slide.contain ? "100%" : `${100 / ((splitPct / 100) || 0.001)}%`, padding: slide.contain ? "3%" : 0 }}
+                      style={{ objectFit: slide.contain ? "contain" : "cover", width: slide.contain ? "100%" : `${100 / ((splitPct / 100) || 0.001)}%`, padding: slide.contain ? "1.5%" : 0 }}
                     />
                   </div>
                   <div
