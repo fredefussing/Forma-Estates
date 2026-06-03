@@ -476,6 +476,8 @@ function HeroStage() {
                   loop
                   playsInline
                   preload="auto"
+                  onCanPlay={(e) => { e.currentTarget.play().catch(() => {}); }}
+                  onLoadedMetadata={(e) => { e.currentTarget.play().catch(() => {}); }}
                   className="absolute inset-0 w-full h-full object-cover"
                   data-testid="bolig-hero-stage-video"
                 />
