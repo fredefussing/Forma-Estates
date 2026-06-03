@@ -6510,6 +6510,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
   const { user, loading: authLoading, isAdmin, creditsRemaining } = useAuth();
+  const isOwner = user?.email?.toLowerCase() === "kontakt@nordic-homebuild.com";
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
@@ -6735,11 +6736,11 @@ export default function BoligpotentialeDashboard() {
     { id: "ai-design-agent" as Section, label: "AI Design Agent", icon: <PenTool className="w-[18px] h-[18px]" /> },
     { id: "3d-plantegning" as Section, label: "3D plantegning", icon: <Box className="w-[18px] h-[18px]" /> },
     { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" /> },
-    { id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> },
+    ...(isOwner ? [{ id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> }] : []),
     { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" /> },
     { id: "historik" as Section, label: "Historik", icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
-    ...(isAdmin ? [{ id: "crm" as Section, label: "CRM", icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
+    ...(isOwner ? [{ id: "crm" as Section, label: "CRM", icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -6905,7 +6906,7 @@ export default function BoligpotentialeDashboard() {
         </div>
 
         <div className="ml-auto flex items-center gap-3 relative">
-          {isAdmin && (
+          {isOwner && (
             <>
               <span className="hidden sm:inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>Ejer</span>
               <button
@@ -7272,8 +7273,8 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {/* AI boligfremvisning section */}
-          {section === "ai-boligfremvisning" && (
+          {/* AI boligfremvisning section — owner only */}
+          {section === "ai-boligfremvisning" && isOwner && (
             <motion.div key="ai-boligfremvisning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <PropertyTourFlow />
             </motion.div>
@@ -7472,8 +7473,8 @@ export default function BoligpotentialeDashboard() {
             <TeamView user={user} />
           )}
 
-          {/* CRM — admin only */}
-          {section === "crm" && isAdmin && (
+          {/* CRM — owner only */}
+          {section === "crm" && isOwner && (
             <motion.div key="crm-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full">
               <CrmView />
             </motion.div>
