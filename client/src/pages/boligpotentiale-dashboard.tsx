@@ -2263,7 +2263,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
             </label>
           ) : (
             <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE]">
-              <img src={imagePreview} alt="Plantegning" className="w-full block" data-testid="img-floorplan-preview" />
+              <img src={imagePreview} alt="Plantegning" className="w-full max-h-96 object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
               <button
                 onClick={() => confirmDiscardOr(() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setSaveCaseId(null); })}
                 className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white"
