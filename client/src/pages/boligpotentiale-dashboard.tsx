@@ -2797,6 +2797,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [droneEnabled, setDroneEnabled] = useState(false);
   const [startText, setStartText] = useState("");
   const [endText, setEndText] = useState("");
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
@@ -2867,8 +2868,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
       if (address.trim()) fd.append("address", address.trim());
-      if (startText.trim()) fd.append("startText", startText.trim());
-      if (endText.trim()) fd.append("endText", endText.trim());
+      if (droneEnabled && startText.trim()) fd.append("startText", startText.trim());
+      if (droneEnabled && endText.trim()) fd.append("endText", endText.trim());
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
         body: fd,
@@ -3082,10 +3083,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
                     {idx + 1}
                   </div>
-                  {(startText || endText) && idx === 0 && (
+                  {droneEnabled && idx === 0 && (
                     <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>START FRAME</div>
                   )}
-                  {(startText || endText) && idx === 1 && images.length >= 2 && (
+                  {droneEnabled && idx === 1 && images.length >= 2 && (
                     <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#0F1D2F", color: "#fff" }}>END FRAME</div>
                   )}
                   <button
@@ -3104,47 +3105,65 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         )}
 
-        {/* Drone intro / outro text — shown when 2+ images are uploaded */}
+        {/* Drone transition toggle — shown when 2+ images are uploaded */}
         {images.length >= 2 && (
-          <div className="rounded-xl border border-[#E8E4DE] p-4 space-y-3" style={{ background: "#F8F6F3" }}>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>TEST</span>
-              <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>Kling drone-overgang</span>
-              <span className="text-xs" style={{ color: "#9B9690" }}>— billede 1 + 2 genereres som ét overgangsvideo</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#C8956C" }}>▲ Start klip tekst</span>
-                <input
-                  type="text"
-                  value={startText}
-                  onChange={(e) => setStartText(e.target.value)}
-                  disabled={isGenerating}
-                  placeholder="F.eks. Strandvejen 12 · Hellerup"
-                  maxLength={60}
-                  className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
-                  style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
-                  data-testid="input-showcase-start-text"
-                />
+          <div className="rounded-xl border p-4 space-y-3 transition-colors" style={{ borderColor: droneEnabled ? "#C8956C" : "#E8E4DE", background: droneEnabled ? "#FDF8F4" : "#F8F6F3" }}>
+            {/* Toggle row */}
+            <button
+              type="button"
+              onClick={() => { if (!isGenerating) setDroneEnabled((v) => !v); }}
+              disabled={isGenerating}
+              className="w-full flex items-center justify-between gap-3 disabled:opacity-50"
+              data-testid="button-toggle-drone"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Drone overgang (start → slut frame)</span>
+                <span className="text-xs hidden sm:inline" style={{ color: "#9B9690" }}>Billede 1 + 2 genereres som ét sammenhængende klip</span>
               </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#0F1D2F" }}>▼ Slut klip tekst</span>
-                <input
-                  type="text"
-                  value={endText}
-                  onChange={(e) => setEndText(e.target.value)}
-                  disabled={isGenerating}
-                  placeholder="F.eks. Ring til os · +45 70 70 70 70"
-                  maxLength={60}
-                  className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
-                  style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
-                  data-testid="input-showcase-end-text"
-                />
+              {/* Toggle pill */}
+              <div className="relative flex-shrink-0 w-11 h-6 rounded-full transition-colors" style={{ background: droneEnabled ? "#C8956C" : "#D1CBC3" }}>
+                <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform" style={{ transform: droneEnabled ? "translateX(20px)" : "translateX(0)" }} />
               </div>
-            </div>
-            <p className="text-[11px]" style={{ color: "#9B9690" }}>
-              Kling bruger <strong>billede 1 som startframe</strong> og <strong>billede 2 som slutframe</strong> og genererer én glidende cinematic overgang imellem dem (ligesom videoen ovenfor). Billeder 3+ bruger normale gimbal-klips.
-            </p>
+            </button>
+
+            {/* Expanded content — only when enabled */}
+            {droneEnabled && (
+              <>
+                <p className="text-[11px]" style={{ color: "#9B9690" }}>
+                  Kling bruger <strong>billede 1 som startframe</strong> og <strong>billede 2 som slutframe</strong> og genererer ét glidende drone-klip hele vejen fra scene 1 til scene 2 — ingen klip, ingen overgang, bare ren kontinuerlig bevægelse. Billeder 3+ bruger normale gimbal-klips.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#C8956C" }}>Tekst over start-klip (valgfri)</span>
+                    <input
+                      type="text"
+                      value={startText}
+                      onChange={(e) => setStartText(e.target.value)}
+                      disabled={isGenerating}
+                      placeholder="F.eks. Strandvejen 12 · Hellerup"
+                      maxLength={60}
+                      className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
+                      style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
+                      data-testid="input-showcase-start-text"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#0F1D2F" }}>Tekst over slut-klip (valgfri)</span>
+                    <input
+                      type="text"
+                      value={endText}
+                      onChange={(e) => setEndText(e.target.value)}
+                      disabled={isGenerating}
+                      placeholder="F.eks. Ring til os · +45 70 70 70 70"
+                      maxLength={60}
+                      className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
+                      style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
+                      data-testid="input-showcase-end-text"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
