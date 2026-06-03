@@ -6510,7 +6510,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
   const { user, loading: authLoading, isAdmin, creditsRemaining } = useAuth();
-  const isOwner = user?.email?.toLowerCase() === "kontakt@nordic-homebuild.com";
+  const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
