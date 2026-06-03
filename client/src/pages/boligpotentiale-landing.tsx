@@ -241,7 +241,7 @@ const STAGE_SLIDES: StageSlide[] = [
   {
     kind: "video",
     src: "/videos/transformation-kling-v16-pro.mp4",
-    poster: "/bolig-images/kitchen-after.jpg",
+    poster: "/bolig-images/video-poster.jpg",
     title: "Cinematisk video",
     caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
     meta: "",
@@ -470,10 +470,12 @@ function HeroStage() {
                 <video
                   ref={videoRef}
                   src={slide.src}
+                  poster={(slide as any).poster}
                   autoPlay
                   muted
                   loop
                   playsInline
+                  preload="auto"
                   className="absolute inset-0 w-full h-full object-cover"
                   data-testid="bolig-hero-stage-video"
                 />
@@ -1322,7 +1324,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: "Branchevideo",
                 title: "Cinematisk fortælling",
                 desc: "Vækk følelser med en levende videogennemgang.",
-                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/kitchen-after.jpg" },
+                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },
             ].map((t) => (
