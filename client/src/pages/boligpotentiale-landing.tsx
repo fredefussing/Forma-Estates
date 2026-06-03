@@ -167,13 +167,6 @@ const PRICING: Plan[] = [
     cta: "Vælg Business",
     href: "/opret",
   },
-  {
-    name: "Enterprise",
-    monthly: null,
-    features: ["Ubegrænsede AI Visualiseringer", "Ubegrænsede 3D Floor Plans", "Ubegrænsede Transformering Videoer", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
-    cta: "Kontakt os",
-    href: "mailto:hej@formaestates.dk",
-  },
 ];
 
 const FAQS = [
@@ -1674,7 +1667,7 @@ export default function BoligpotentialeLanding() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
+          <div className="grid md:grid-cols-3 gap-6 mt-12">
             {PRICING.map((plan, i) => {
               const isPro = plan.highlight;
               const price = formatPrice(plan.monthly);
@@ -1773,10 +1766,16 @@ export default function BoligpotentialeLanding() {
             })}
           </div>
 
-          {/* Enterprise calculator */}
-          <div className="mt-16">
-            <EnterpriseCalculator dark />
+          {/* Bridge → Enterprise */}
+          <div className="relative mt-16 mb-10 flex items-center gap-4">
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest whitespace-nowrap"
+              style={{ border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>
+              Enterprise — byg din plan
+            </div>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
           </div>
+          <EnterpriseCalculator dark />
         </div>
       </section>
       {/* ── FAQ ── */}

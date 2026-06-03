@@ -7471,7 +7471,7 @@ export default function BoligpotentialeDashboard() {
                 <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Pris</h2>
                 <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov. Alle nye konti inkluderer 1 gratis visualisering.</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="settings-pricing-grid">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5" data-testid="settings-pricing-grid">
                 {[
                   {
                     name: "Start",
@@ -7502,16 +7502,6 @@ export default function BoligpotentialeDashboard() {
                     cta: "Vælg Business",
                     highlight: false,
                     custom: false,
-                  },
-                  {
-                    name: "Enterprise",
-                    price: "Custom",
-                    period: "kontakt os",
-                    desc: "Skræddersyet plan til store organisationer med særlige behov.",
-                    features: ["Ubegrænsede AI Visualiseringer", "Ubegrænsede 3D Floor Plans", "Ubegrænsede Transformering Videoer", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
-                    cta: "Kontakt os",
-                    highlight: false,
-                    custom: true,
                   },
                 ].map((plan) => (
                   <div
@@ -7565,10 +7555,16 @@ export default function BoligpotentialeDashboard() {
                 ))}
               </div>
 
-              {/* Enterprise custom calculator */}
-              <div className="mt-10">
-                <EnterpriseCalculator />
+              {/* Bridge → Enterprise */}
+              <div className="relative mt-12 mb-8 flex items-center gap-4">
+                <div className="flex-1 h-px" style={{ background: "#E5E2DC" }} />
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest whitespace-nowrap"
+                  style={{ border: "1px solid #E5E2DC", background: "#F8F6F3", color: "#6B6B6B" }}>
+                  Enterprise — byg din plan
+                </div>
+                <div className="flex-1 h-px" style={{ background: "#E5E2DC" }} />
               </div>
+              <EnterpriseCalculator />
             </motion.div>
           )}
 

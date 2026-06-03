@@ -75,25 +75,6 @@ const packages: Plan[] = [
     productUrl: null,
     popular: false,
   },
-  {
-    name: "Enterprise",
-    key: "enterprise",
-    price: "Custom",
-    period: "kontakt os",
-    images: "Ubegrænsede AI Visualiseringer",
-    icon: Building2,
-    subtitle: "Skræddersyet plan til store organisationer med særlige behov.",
-    features: [
-      "Ubegrænsede AI Visualiseringer",
-      "Ubegrænsede 3D Floor Plans",
-      "Ubegrænsede Transformering Videoer",
-      "AI Design Agent, Før/Efter & Ejendomsrapport",
-      "Adgang til nye produkter og teknologi",
-    ],
-    productUrl: null,
-    popular: false,
-    custom: true,
-  },
 ];
 
 export default function PricingPage() {
@@ -186,7 +167,7 @@ export default function PricingPage() {
             <div className="text-muted-foreground">Indlæser...</div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="grid-packages">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" data-testid="grid-packages">
             {packages.map((pkg, index) => {
               const Icon = pkg.icon;
               return (
@@ -282,6 +263,16 @@ export default function PricingPage() {
             })}
           </div>
         )}
+
+        {/* Bridge → Enterprise */}
+        <div className="relative mt-16 mb-10 flex items-center gap-4" data-testid="divider-enterprise">
+          <div className="flex-1 h-px bg-border/60" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border/60 bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+            <Building2 className="w-3.5 h-3.5" />
+            Enterprise — byg din plan
+          </div>
+          <div className="flex-1 h-px bg-border/60" />
+        </div>
 
         <EnterpriseCalculator />
 
