@@ -244,7 +244,7 @@ const STAGE_SLIDES: StageSlide[] = [
     poster: "/bolig-images/kitchen-after.jpg",
     title: "Cinematisk video",
     caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
-    meta: "Kling 1.6 Pro · 1080p",
+    meta: "",
   },
   {
     kind: "swipe",
