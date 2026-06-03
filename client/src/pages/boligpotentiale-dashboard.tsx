@@ -3795,7 +3795,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
     })();
   }, [property?.id, (property as any)?.floorplanAnalysis, propertyId, queryClient]);
 
-  const authHeader = async () => {
+  const authHeader = async (): Promise<Record<string, string>> => {
     const token = await auth.currentUser?.getIdToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   };

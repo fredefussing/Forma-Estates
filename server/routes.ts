@@ -1923,8 +1923,9 @@ export async function registerRoutes(
       const style = (req.query.style as string) || "scandinavian";
       const tierRaw = (req.query.tier as string) || "2";
       const tier = tierRaw === "1" || tierRaw === "tier1" ? "tier1" : tierRaw === "3" || tierRaw === "tier3" ? "tier3" : "tier2";
-      const prompt = getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
-      return res.json({ prompt, room, style, tier });
+      const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
+      const prompt = getBoligPrompt(resolvedRoom, style, tier as "tier1" | "tier2" | "tier3");
+      return res.json({ prompt, room, resolvedRoom, style, tier });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
