@@ -31,17 +31,17 @@ export function assertPromptLocked(
   actualPrompt: string,
 ): void {
   const lock = getLock();
+  // Normalize room — try both original and alias-resolved version
   const roomKey = normalizeRoom(room);
   const key = `${style.toLowerCase()}/${roomKey}/${tier}`;
 
   const expected = lock[key];
 
   if (expected === undefined) {
-    throw new Error(
-      `[PROMPT_GUARD] Ingen låst prompt fundet for nøgle "${key}". ` +
-      `Stil="${style}", rum="${room}", tier="${tier}". ` +
-      `Genereringen er stoppet.`,
-    );
+    // Key not in lock — this is a new/unsupported combo using generic fallback.
+    // Log a warning but do NOT block generation.
+    console.warn(`[PROMPT_GUARD] Ingen låst reference for "${key}" — tillader generering med fallback-prompt.`);
+    return;
   }
 
   if (actualPrompt !== expected) {

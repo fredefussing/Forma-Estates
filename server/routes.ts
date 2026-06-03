@@ -71,6 +71,13 @@ const BOLIG_ROOM_ALIASES: Record<string, string> = {
   "laundry_room": "laundry room",
   "meeting_room": "meeting room",
   "hallway": "entryway",
+  // FIX: roomTypes schema uses these names but boligPrompts uses shorter versions
+  "conference room": "meeting room",
+  "home gym":        "gym",
+  "spa room":        "spa",
+  "conference_room": "meeting room",
+  "home_gym":        "gym",
+  "spa_room":        "spa",
 };
 
 function buildRedesignPrompt(roomType: string, style: string, tier?: string, _includePlants = false): string {
@@ -90,15 +97,15 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
     const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
     return boligPrompt;
   } catch (promptErr: any) {
-    log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
-    throw promptErr;
+    // FIX: do NOT rethrow — fall through to generic vocab fallback below.
+    log(`[PROMPT_NOT_FOUND] ${promptErr.message} — falling back to generic vocab prompt`);
   }
 
-  // 3) Sidste udvej: generisk vocab prompt.
+  // 3) Generic vocab fallback — runs when boligPrompts has no entry for this room+style combo.
   const vocab = styleVocabulary[style]?.[validTier];
   return vocab
-    ? `Completely redesign this ${roomType}. ${vocab.prompt}`
-    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+    ? `Completely redesign this ${roomType}. ${vocab.prompt} Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`
+    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
@@ -2014,11 +2021,12 @@ export async function registerRoutes(
       if (isDesignAgent) {
         prompt = customPromptText;
       } else {
+        const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
         try {
-          prompt = getBoligPrompt(room, style, tier as "tier1" | "tier2" | "tier3");
+          prompt = getBoligPrompt(resolvedRoom, style, tier as "tier1" | "tier2" | "tier3");
         } catch (promptErr: any) {
-          log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
-          return res.status(400).json({ success: false, message: promptErr.message });
+          log(`[PROMPT_NOT_FOUND] ${promptErr.message} — using generic fallback`);
+          prompt = `Completely redesign this ${room} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
         }
         // ── Prompt-lås: sammenlign med låst reference — stop generering ved afvigelse ──
         try {
@@ -2578,11 +2586,12 @@ export async function registerRoutes(
       };
       const tier = tierMap[(property.tier || "standard").toLowerCase()] || "tier2";
       let basePrompt: string;
+      const resolvedRoomType = BOLIG_ROOM_ALIASES[roomType.toLowerCase()] ?? roomType.toLowerCase();
       try {
-        basePrompt = getBoligPrompt(roomType, property.style, tier);
+        basePrompt = getBoligPrompt(resolvedRoomType, property.style, tier);
       } catch (promptErr: any) {
-        log(`[PROMPT_NOT_FOUND] ${promptErr.message}`);
-        return res.status(400).json({ success: false, message: promptErr.message });
+        log(`[PROMPT_NOT_FOUND] ${promptErr.message} — using generic fallback`);
+        basePrompt = `Completely redesign this ${roomType} in ${property.style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
       }
       // Floor-plan-aware context: the user explicitly asked the AI to know
       // window/door positions inferred from the plantegning. We append the
