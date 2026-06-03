@@ -7085,6 +7085,47 @@ export default function BoligpotentialeDashboard() {
                 </div>
               )}
 
+              {/* AI-funktioner — klikbare kort */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6" data-testid="bolig-feature-cards">
+                {[
+                  {
+                    eyebrow: "AI Design Agent",
+                    title: "Beskriv din vision",
+                    desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
+                    icon: <PenTool className="w-5 h-5" style={{ color: "#C8956C" }} />,
+                    section: "ai-design-agent" as Section,
+                    testId: "bolig-feature-ai-agent",
+                  },
+                  {
+                    eyebrow: "Bolig Showcase",
+                    title: "Vis potentialet",
+                    desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
+                    icon: <Film className="w-5 h-5" style={{ color: "#C8956C" }} />,
+                    section: "showcase-video" as Section,
+                    testId: "bolig-feature-showcase",
+                  },
+                ].map((f) => (
+                  <button
+                    key={f.eyebrow}
+                    onClick={() => setSection(f.section)}
+                    className="group text-left bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+                    data-testid={f.testId}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,108,0.1)" }}>
+                        {f.icon}
+                      </div>
+                      <span className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: "#C8956C" }}>{f.eyebrow}</span>
+                    </div>
+                    <h3 className="text-base font-semibold mb-1.5" style={{ color: "#0F1D2F" }}>{f.title}</h3>
+                    <p className="text-sm leading-relaxed mb-4" style={{ color: "#6B6B6B" }}>{f.desc}</p>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold transition-all group-hover:gap-2.5" style={{ color: "#0F1D2F" }}>
+                      Se mere <ArrowUpRight className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+
               {/* Hurtig-handlinger + Seneste aktivitet */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4" data-testid="bolig-bottom-row">
 

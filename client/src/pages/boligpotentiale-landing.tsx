@@ -1360,12 +1360,10 @@ export default function BoligpotentialeLanding() {
                   {t.media.kind === "video" ? (
                     <video
                       src={t.media.src}
-                      poster={t.media.poster}
+                      autoPlay
                       muted
                       loop
                       playsInline
-                      onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
-                      onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   ) : (
