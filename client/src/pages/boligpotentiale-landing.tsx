@@ -488,50 +488,11 @@ function HeroStage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Persistent gradient — stays while slides transition beneath */}
+          {/* Very subtle top-only gradient for meta chip readability */}
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: "linear-gradient(to top, rgba(10,18,25,0.90) 0%, rgba(10,18,25,0.65) 28%, rgba(10,18,25,0.18) 55%, transparent 70%)", zIndex: 3 }}
+            className="absolute top-0 left-0 right-0 pointer-events-none"
+            style={{ height: "14%", background: "linear-gradient(to bottom, rgba(10,18,25,0.28) 0%, transparent 100%)", zIndex: 3 }}
           />
-
-          {/* Persistent hero overlay — fixed headline + CTAs */}
-          <div className="absolute bottom-0 left-0" style={{ padding: "clamp(22px, 3.5vw, 42px)", zIndex: 4, maxWidth: "min(600px, 65%)" }}>
-            <div className="flex items-center gap-1.5 mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.16em", fontFamily: SANS, textTransform: "uppercase" }}>
-              <span>✦</span>
-              <span>AI-visualisering til ejendomsmæglere</span>
-            </div>
-            <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(28px, 4vw, 50px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 14, textShadow: "0 2px 20px rgba(0,0,0,0.35)" }}>
-              Sæt scenen.<br />Sælg hurtigere.
-            </h1>
-            <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "clamp(13px, 1.3vw, 15px)", lineHeight: 1.6, marginBottom: 22, fontFamily: SANS, textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
-              Upload et rumfoto — få en salgsklar visualisering på{" "}
-              <span style={{ color: C.gold }}>under 30 sekunder</span>.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href="/opret">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: C.gold, color: C.navy, padding: "12px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: SANS, boxShadow: "0 6px 20px rgba(201,169,110,0.38)" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
-                  data-testid="bolig-hero-cta"
-                >
-                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
-                </button>
-              </Link>
-              <a href="#how-it-works">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: "rgba(255,255,255,0.12)", color: "#fff", padding: "12px 22px", borderRadius: 8, fontSize: 13, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.32)", backdropFilter: "blur(8px)" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.20)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
-                  data-testid="bolig-hero-cta-secondary"
-                >
-                  ▶ Se eksempler
-                </button>
-              </a>
-            </div>
-          </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
             <button
@@ -1217,34 +1178,62 @@ export default function BoligpotentialeLanding() {
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
       <div id="top" style={{ background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
-        {/* Bouncing "Udforsk mere" scroll cue — sits centered below hero images */}
-        <div className="flex justify-center" style={{ paddingBottom: 14 }}>
-          <a
-            href="#how-it-works"
-            className="group flex flex-col items-center gap-1.5 transition-colors"
-            style={{ color: "#E4CB94" }}
-            data-testid="bolig-hero-scroll-cue"
-          >
-            <span
-              className="uppercase"
-              style={{ fontSize: 11, letterSpacing: "0.28em", fontWeight: 500, opacity: 0.85 }}
-            >
-              Udforsk mere
-            </span>
+
+        {/* CTA strip — headline + buttons directly below carousel */}
+        <div className="px-6" style={{ paddingTop: 24, paddingBottom: 20, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="mx-auto flex flex-col sm:flex-row items-center sm:justify-between gap-4" style={{ maxWidth: 1280 }}>
+            <div>
+              <h1 style={{ fontFamily: SERIF, color: C.white, fontSize: "clamp(22px, 2.8vw, 38px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+                Sæt scenen. Sælg hurtigere.
+              </h1>
+              <p className="mt-1" style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, fontFamily: SANS }}>
+                Upload et rumfoto — salgsklar visualisering på <span style={{ color: C.gold }}>under 30 sek.</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Link href="/opret">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: C.gold, color: C.navy, padding: "10px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: SANS }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}
+                  data-testid="bolig-hero-cta"
+                >
+                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+              <Link href="/boligpotentiale/eksempler">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: "transparent", color: "rgba(255,255,255,0.7)", padding: "10px 20px", borderRadius: 8, fontSize: 13, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.2)" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"; (e.currentTarget.style as any).color = "#fff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; (e.currentTarget.style as any).color = "rgba(255,255,255,0.7)"; }}
+                  data-testid="bolig-hero-cta-secondary"
+                >
+                  Se eksempler
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Compact scroll cue */}
+        <div className="flex justify-center" style={{ paddingBottom: 8, paddingTop: 2 }}>
+          <a href="#how-it-works" style={{ color: "rgba(228,203,148,0.6)" }} data-testid="bolig-hero-scroll-cue">
             <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              animate={{ y: [0, 5, 0] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
               className="flex items-center justify-center rounded-full"
-              style={{ width: 34, height: 34, border: "1px solid rgba(228,203,148,0.55)" }}
+              style={{ width: 24, height: 24, border: "1px solid rgba(228,203,148,0.3)" }}
             >
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-3 h-3" />
             </motion.div>
           </a>
         </div>
       </div>
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
-      <section style={{ background: C.navy, paddingTop: 18, paddingBottom: 22 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
+      <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
           <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
