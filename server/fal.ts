@@ -480,9 +480,9 @@ export async function generateShowcaseClip(
 // Image 1 is the starting scene, image 2 is the target/destination scene. Kling
 // generates the cinematic motion between them (drone flyover, reveal, etc.).
 const DRONE_TRANSITION_PROMPT =
-  "Cinematic smooth camera transition between two scenes, aerial drone gliding forward, smooth continuous motion, golden hour warm lighting, photorealistic real-estate photography, 4K quality, stabilized gimbal motion, cinematic.";
+  "Single continuous uninterrupted drone flythrough, camera moves forward the entire time without stopping, drone starts at the first scene and smoothly flies all the way forward until it arrives at the second scene, seamless one-shot motion, no cuts no transitions no dissolves, the drone keeps flying forward the whole clip, smooth forward momentum from start to finish, cinematic real-estate drone shot, golden hour warm light, photorealistic 4K.";
 const DRONE_NEGATIVE_PROMPT =
-  "static image, slideshow, jump cuts, blurry, distorted architecture, warped walls, shaky camera, dark lighting, people";
+  "static, freeze, pause, cut, transition, crossfade, dissolve, jump, teleport, image switch, blurry, shaky, distorted, people, interior shot, dark";
 
 // Generate ONE transition clip using Kling's start-frame + end-frame feature.
 // The result is a smooth cinematic move FROM startImageUrl TO endImageUrl.
