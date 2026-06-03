@@ -432,11 +432,15 @@ export async function getAnimationVideoStatus(
 const SHOWCASE_ENDPOINT = "fal-ai/kling-video/v2.1/standard/image-to-video";
 const SHOWCASE_COST_PER_CLIP_USD = 0.14; // Kling 2.1 Standard, 5-sec clip
 
-// Cykles pr. klip (i % 4): dolly-in → truck-right → dolly-out → truck-left.
+// Cykles pr. klip (i % 8): 8 distinct cinematic camera moves.
 const SHOWCASE_MOVE_PROMPTS = [
   "slow smooth cinematic dolly-in: the camera glides gently and steadily forward, deeper into the room",
-  "slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail",
+  "slow smooth cinematic orbit right: the camera arcs smoothly around the subject in a wide circular arc to the right, keeping the subject centered, like a drone orbiting",
   "slow smooth cinematic dolly-out: the camera glides gently and steadily backward, slowly revealing more of the room",
+  "slow smooth cinematic orbit left: the camera arcs smoothly around the subject in a wide circular arc to the left, keeping the subject centered, like a drone orbiting",
+  "slow smooth cinematic crane up: the camera rises steadily upward from a low angle, slowly revealing the full height of the space",
+  "slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail",
+  "slow smooth cinematic crane down: the camera descends steadily downward from a high angle, slowly settling to eye level",
   "slow smooth cinematic truck left: the camera slides steadily to the left, like on a gimbal dolly rail",
 ];
 const SHOWCASE_PROMPT_SUFFIX =
