@@ -400,3 +400,59 @@ export type TeamMember = typeof teamMembers.$inferSelect;
 export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type TeamInvite = typeof teamInvites.$inferSelect;
 export type InsertTeamInvite = z.infer<typeof insertTeamInviteSchema>;
+
+// ── CRM ───────────────────────────────────────────────────────────────────────
+export const crmContacts = pgTable("crm_contacts", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  company: text("company"),
+  phone: text("phone"),
+  plan: text("plan").notNull().default("none"),
+  status: text("status").notNull().default("lead"),
+  engagementScore: integer("engagement_score").notNull().default(0),
+  notes: text("notes"),
+  linkedUserId: integer("linked_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastActiveAt: timestamp("last_active_at"),
+});
+
+export const crmActivities = pgTable("crm_activities", {
+  id: text("id").primaryKey(),
+  contactId: text("contact_id").references(() => crmContacts.id).notNull(),
+  type: text("type").notNull(),
+  description: text("description"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const crmInteractions = pgTable("crm_interactions", {
+  id: text("id").primaryKey(),
+  contactId: text("contact_id").references(() => crmContacts.id).notNull(),
+  type: text("type").notNull().default("note"),
+  content: text("content").notNull(),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const crmUserOverrides = pgTable("crm_user_overrides", {
+  id: text("id").primaryKey(),
+  contactId: text("contact_id").references(() => crmContacts.id).notNull(),
+  overrideKey: text("override_key").notNull(),
+  overrideValue: text("override_value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCrmContactSchema = createInsertSchema(crmContacts).omit({ createdAt: true as never });
+export const insertCrmActivitySchema = createInsertSchema(crmActivities).omit({ createdAt: true as never });
+export const insertCrmInteractionSchema = createInsertSchema(crmInteractions).omit({ createdAt: true as never });
+export const insertCrmUserOverrideSchema = createInsertSchema(crmUserOverrides).omit({ updatedAt: true as never });
+
+export type CrmContact = typeof crmContacts.$inferSelect;
+export type InsertCrmContact = z.infer<typeof insertCrmContactSchema>;
+export type CrmActivity = typeof crmActivities.$inferSelect;
+export type InsertCrmActivity = z.infer<typeof insertCrmActivitySchema>;
+export type CrmInteraction = typeof crmInteractions.$inferSelect;
+export type InsertCrmInteraction = z.infer<typeof insertCrmInteractionSchema>;
+export type CrmUserOverride = typeof crmUserOverrides.$inferSelect;
+export type InsertCrmUserOverride = z.infer<typeof insertCrmUserOverrideSchema>;

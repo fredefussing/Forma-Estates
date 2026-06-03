@@ -14,6 +14,10 @@ import {
   type Team, type InsertTeam, teams,
   type TeamMember, type InsertTeamMember, teamMembers,
   type TeamInvite, type InsertTeamInvite, teamInvites,
+  type CrmContact, type InsertCrmContact, crmContacts,
+  type CrmActivity, type InsertCrmActivity, crmActivities,
+  type CrmInteraction, type InsertCrmInteraction, crmInteractions,
+  type CrmUserOverride, crmUserOverrides,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
@@ -96,6 +100,15 @@ export interface IStorage {
   getTeamSoldCases(teamId: number): Promise<Array<{ id: number; address: string; caseNo: string | null; soldDateISO: string | null; ownerName: string; latestImageUrl: string | null; imageCount: number }>>;
   allocateCreditsToMember(fromTeamId: number, toUserId: number, amount: number): Promise<void>;
   updateTeamCreditsUsed(teamId: number, amount: number): Promise<void>;
+
+  // CRM
+  getCrmContacts(opts: { search?: string; status?: string; plan?: string }): Promise<{ contacts: CrmContact[]; total: number }>;
+  getCrmContact(id: string): Promise<{ contact: CrmContact; activities: CrmActivity[]; interactions: CrmInteraction[]; overrides: CrmUserOverride[] } | null>;
+  createCrmContact(data: Omit<InsertCrmContact, "id">): Promise<CrmContact>;
+  updateCrmContact(id: string, updates: Partial<CrmContact>): Promise<CrmContact | null>;
+  addCrmInteraction(data: Omit<InsertCrmInteraction, "id">): Promise<CrmInteraction>;
+  setCrmOverride(contactId: string, key: string, value: string): Promise<void>;
+  deleteCrmOverride(contactId: string, key: string): Promise<void>;
 
   // AI Boligfremvisning
   createAiTourProperty(data: InsertAiTourProperty): Promise<AiTourProperty>;
@@ -757,6 +770,93 @@ export class DatabaseStorage implements IStorage {
     if (!owned) return undefined;
     const [row] = await db.update(aiTourRooms).set(updates).where(eq(aiTourRooms.id, roomId)).returning();
     return row;
+  }
+
+  // ── CRM ────────────────────────────────────────────────────────────────────
+  async getCrmContacts(opts: { search?: string; status?: string; plan?: string }): Promise<{ contacts: CrmContact[]; total: number }> {
+    const { rows } = await pool.query(`
+      SELECT * FROM crm_contacts
+      WHERE ($1::text IS NULL OR email ILIKE $1 OR name ILIKE $1 OR company ILIKE $1)
+        AND ($2::text IS NULL OR status = $2)
+        AND ($3::text IS NULL OR plan = $3)
+      ORDER BY created_at DESC
+      LIMIT 200
+    `, [
+      opts.search ? `%${opts.search}%` : null,
+      opts.status || null,
+      opts.plan || null,
+    ]);
+    const total = rows.length;
+    const contacts = rows.map((r: any) => ({
+      id: r.id, email: r.email, name: r.name, company: r.company, phone: r.phone,
+      plan: r.plan, status: r.status, engagementScore: r.engagement_score, notes: r.notes,
+      linkedUserId: r.linked_user_id, createdAt: r.created_at, lastActiveAt: r.last_active_at,
+    }));
+    return { contacts, total };
+  }
+
+  async getCrmContact(id: string): Promise<{ contact: CrmContact; activities: CrmActivity[]; interactions: CrmInteraction[]; overrides: CrmUserOverride[] } | null> {
+    const { rows: cr } = await pool.query(`SELECT * FROM crm_contacts WHERE id = $1`, [id]);
+    if (!cr[0]) return null;
+    const r = cr[0];
+    const contact: CrmContact = {
+      id: r.id, email: r.email, name: r.name, company: r.company, phone: r.phone,
+      plan: r.plan, status: r.status, engagementScore: r.engagement_score, notes: r.notes,
+      linkedUserId: r.linked_user_id, createdAt: r.created_at, lastActiveAt: r.last_active_at,
+    };
+    const { rows: acts } = await pool.query(`SELECT * FROM crm_activities WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]);
+    const { rows: ints } = await pool.query(`SELECT * FROM crm_interactions WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]);
+    const { rows: ovs } = await pool.query(`SELECT * FROM crm_user_overrides WHERE contact_id = $1 ORDER BY updated_at DESC`, [id]);
+    const activities = acts.map((a: any) => ({ id: a.id, contactId: a.contact_id, type: a.type, description: a.description, metadata: a.metadata, createdAt: a.created_at }));
+    const interactions = ints.map((i: any) => ({ id: i.id, contactId: i.contact_id, type: i.type, content: i.content, createdBy: i.created_by, createdAt: i.created_at }));
+    const overrides = ovs.map((o: any) => ({ id: o.id, contactId: o.contact_id, overrideKey: o.override_key, overrideValue: o.override_value, updatedAt: o.updated_at }));
+    return { contact, activities, interactions, overrides };
+  }
+
+  async createCrmContact(data: Omit<InsertCrmContact, "id">): Promise<CrmContact> {
+    const id = crypto.randomUUID();
+    await pool.query(`
+      INSERT INTO crm_contacts (id, email, name, company, phone, plan, status, engagement_score, notes, linked_user_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `, [id, data.email, data.name ?? null, data.company ?? null, data.phone ?? null,
+        data.plan ?? "none", data.status ?? "lead", data.engagementScore ?? 0, data.notes ?? null, data.linkedUserId ?? null]);
+    const result = await this.getCrmContact(id);
+    return result!.contact;
+  }
+
+  async updateCrmContact(id: string, updates: Partial<CrmContact>): Promise<CrmContact | null> {
+    const fields: string[] = [];
+    const vals: any[] = [];
+    let i = 1;
+    const map: Record<string, string> = { name: "name", company: "company", phone: "phone", plan: "plan", status: "status", engagementScore: "engagement_score", notes: "notes" };
+    for (const [key, col] of Object.entries(map)) {
+      if (key in updates) { fields.push(`${col} = $${i++}`); vals.push((updates as any)[key]); }
+    }
+    if (!fields.length) return null;
+    vals.push(id);
+    await pool.query(`UPDATE crm_contacts SET ${fields.join(", ")} WHERE id = $${i}`, vals);
+    const result = await this.getCrmContact(id);
+    return result?.contact ?? null;
+  }
+
+  async addCrmInteraction(data: Omit<InsertCrmInteraction, "id">): Promise<CrmInteraction> {
+    const id = crypto.randomUUID();
+    await pool.query(`INSERT INTO crm_interactions (id, contact_id, type, content, created_by) VALUES ($1,$2,$3,$4,$5)`,
+      [id, data.contactId, data.type ?? "note", data.content, data.createdBy ?? null]);
+    return { id, contactId: data.contactId, type: data.type ?? "note", content: data.content, createdBy: data.createdBy ?? null, createdAt: new Date() };
+  }
+
+  async setCrmOverride(contactId: string, key: string, value: string): Promise<void> {
+    const id = crypto.randomUUID();
+    await pool.query(`
+      INSERT INTO crm_user_overrides (id, contact_id, override_key, override_value, updated_at)
+      VALUES ($1,$2,$3,$4,NOW())
+      ON CONFLICT (contact_id, override_key) DO UPDATE SET override_value = $4, updated_at = NOW()
+    `, [id, contactId, key, value]);
+  }
+
+  async deleteCrmOverride(contactId: string, key: string): Promise<void> {
+    await pool.query(`DELETE FROM crm_user_overrides WHERE contact_id = $1 AND override_key = $2`, [contactId, key]);
   }
 }
 

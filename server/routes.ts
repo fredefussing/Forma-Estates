@@ -3150,5 +3150,90 @@ export async function registerRoutes(
     }
   });
 
+  // ── CRM (admin only) ──────────────────────────────────────────────────────
+  async function requireAdmin(req: any, res: any): Promise<{ dbUser: any } | null> {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) { res.status(401).json({ error: "Unauthorized" }); return null; }
+    try {
+      const { auth } = await import("./firebaseAdmin");
+      const decoded = await auth.verifyIdToken(token);
+      const dbUser = await storage.getUserByFirebaseUid(decoded.uid);
+      if (!dbUser?.isAdmin) { res.status(403).json({ error: "Admin only" }); return null; }
+      return { dbUser };
+    } catch { res.status(401).json({ error: "Invalid token" }); return null; }
+  }
+
+  app.get("/api/crm/contacts", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const { search, status, plan } = req.query as Record<string, string>;
+      const result = await storage.getCrmContacts({ search, status, plan });
+      return res.json(result);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.get("/api/crm/contacts/:id", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const result = await storage.getCrmContact(req.params.id);
+      if (!result) return res.status(404).json({ error: "Ikke fundet" });
+      return res.json(result);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/crm/contacts", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const { email, name, company, phone, plan, status, notes } = req.body;
+      if (!email) return res.status(400).json({ error: "Email påkrævet" });
+      const contact = await storage.createCrmContact({ email, name, company, phone, plan: plan ?? "none", status: status ?? "lead", notes });
+      return res.json(contact);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.patch("/api/crm/contacts/:id", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const updated = await storage.updateCrmContact(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Ikke fundet" });
+      return res.json(updated);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/crm/contacts/:id/interactions", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const { type, content, createdBy } = req.body;
+      if (!content) return res.status(400).json({ error: "Indhold påkrævet" });
+      const interaction = await storage.addCrmInteraction({ contactId: req.params.id, type: type ?? "note", content, createdBy });
+      return res.json(interaction);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/crm/contacts/:id/overrides", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const { key, value } = req.body;
+      if (!key || value === undefined) return res.status(400).json({ error: "key og value påkrævet" });
+      await storage.setCrmOverride(req.params.id, key, String(value));
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete("/api/crm/contacts/:id/overrides/:key", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      await storage.deleteCrmOverride(req.params.id, decodeURIComponent(req.params.key));
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
   return httpServer;
 }

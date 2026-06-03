@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
+import { CrmView } from "@/components/crm-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering";
+type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "crm";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
@@ -6738,6 +6739,7 @@ export default function BoligpotentialeDashboard() {
     { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" /> },
     { id: "historik" as Section, label: "Historik", icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
+    ...(isAdmin ? [{ id: "crm" as Section, label: "CRM", icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -6904,7 +6906,17 @@ export default function BoligpotentialeDashboard() {
 
         <div className="ml-auto flex items-center gap-3 relative">
           {isAdmin && (
-            <span className="hidden sm:inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>Ejer</span>
+            <>
+              <span className="hidden sm:inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>Ejer</span>
+              <button
+                onClick={() => setSection("crm")}
+                className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+                style={{ background: section === "crm" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "crm" ? "#fff" : "#C8956C" }}
+                data-testid="bolig-topbar-crm"
+              >
+                <Shield className="w-3.5 h-3.5" /> CRM
+              </button>
+            </>
           )}
           <span className="text-sm hidden sm:block truncate max-w-[130px]" style={{ color: "rgba(245,243,239,0.8)" }} data-testid="bolig-topbar-username">{displayName}</span>
           <button
@@ -7458,6 +7470,13 @@ export default function BoligpotentialeDashboard() {
           {/* Team section */}
           {section === "team" && (
             <TeamView user={user} />
+          )}
+
+          {/* CRM — admin only */}
+          {section === "crm" && isAdmin && (
+            <motion.div key="crm-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full">
+              <CrmView />
+            </motion.div>
           )}
 
           {/* Settings view */}
