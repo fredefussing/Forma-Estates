@@ -773,14 +773,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── CRM ────────────────────────────────────────────────────────────────────
+  async syncUsersToContacts(): Promise<void> {
+    // Pull all users with their team name and subscription info, upsert into crm_contacts
+    const { rows } = await pool.query(`
+      SELECT
+        u.id, u.email, u.display_name, u.subscription_status, u.subscription_tier, u.created_at,
+        t.name AS team_name
+      FROM users u
+      LEFT JOIN team_members tm ON tm.user_id = u.id
+      LEFT JOIN teams t ON t.id = tm.team_id
+      ORDER BY u.id
+    `);
+    for (const r of rows) {
+      const plan = r.subscription_tier ?? (r.subscription_status === 'active' ? 'start' : 'none');
+      const status = r.subscription_status === 'active' ? 'active' : r.subscription_status === 'trialing' ? 'trial' : 'lead';
+      const id = `user-${r.id}`;
+      await pool.query(`
+        INSERT INTO crm_contacts (id, email, name, company, plan, status, linked_user_id, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (email) DO UPDATE SET
+          name = COALESCE(EXCLUDED.name, crm_contacts.name),
+          company = COALESCE(EXCLUDED.company, crm_contacts.company),
+          plan = EXCLUDED.plan,
+          status = EXCLUDED.status,
+          linked_user_id = EXCLUDED.linked_user_id
+      `, [id, r.email, r.display_name || null, r.team_name || null, plan, status, r.id, r.created_at]);
+    }
+  }
+
   async getCrmContacts(opts: { search?: string; status?: string; plan?: string }): Promise<{ contacts: CrmContact[]; total: number }> {
+    await this.syncUsersToContacts();
     const { rows } = await pool.query(`
       SELECT * FROM crm_contacts
       WHERE ($1::text IS NULL OR email ILIKE $1 OR name ILIKE $1 OR company ILIKE $1)
         AND ($2::text IS NULL OR status = $2)
         AND ($3::text IS NULL OR plan = $3)
-      ORDER BY created_at DESC
-      LIMIT 200
+      ORDER BY COALESCE(company,'zzz'), created_at DESC
+      LIMIT 500
     `, [
       opts.search ? `%${opts.search}%` : null,
       opts.status || null,

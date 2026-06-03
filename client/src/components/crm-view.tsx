@@ -1,8 +1,31 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Plus, Search, User, Building2, Phone, Mail, Calendar, ChevronRight, AlertCircle, MessageSquare, Activity, Settings2, Trash2, Check, X } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import {
+  ArrowLeft, Plus, Search, User, Calendar, ChevronRight,
+  MessageSquare, Activity, Trash2, Check, X, ChevronDown, Building2,
+  Shield, Users, RefreshCw,
+} from "lucide-react";
+import { auth } from "@/lib/firebase";
+
+async function crmFetch(url: string, options?: RequestInit): Promise<Response> {
+  const token = await auth.currentUser?.getIdToken();
+  const headers: Record<string, string> = {
+    ...(options?.body ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res;
+}
+
+async function crmReq(method: string, url: string, data?: unknown): Promise<any> {
+  const res = await crmFetch(url, { method, body: data ? JSON.stringify(data) : undefined });
+  return res.json();
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Contact = {
@@ -13,34 +36,54 @@ type Contact = {
 type Activity = { id: string; contactId: string; type: string; description?: string; metadata?: string; createdAt: string };
 type Interaction = { id: string; contactId: string; type: string; content: string; createdBy?: string; createdAt: string };
 type Override = { id: string; contactId: string; overrideKey: string; overrideValue: string; updatedAt: string };
+type CompanyGroup = { company: string | null; contacts: Contact[] };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (d: string) => new Date(d).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" });
 const fmtShort = (d: string) => new Date(d).toLocaleDateString("da-DK", { day: "numeric", month: "short" });
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+const STATUS: Record<string, { bg: string; text: string; label: string }> = {
   lead:    { bg: "#EFF6FF", text: "#1D4ED8", label: "Lead" },
   trial:   { bg: "#FEF9C3", text: "#854D0E", label: "Trial" },
   active:  { bg: "#F0FDF4", text: "#166534", label: "Aktiv" },
   churned: { bg: "#FEF2F2", text: "#991B1B", label: "Churned" },
 };
-const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
+const PLAN: Record<string, { bg: string; text: string }> = {
   none:     { bg: "#F3F4F6", text: "#6B7280" },
   start:    { bg: "#EFF6FF", text: "#1D4ED8" },
   pro:      { bg: "#F5F3FF", text: "#6D28D9" },
   business: { bg: "#FFF7ED", text: "#C2410C" },
+  enterprise: { bg: "#FDF4FF", text: "#7C3AED" },
 };
 const ACT_ICON: Record<string, string> = {
-  visualization: "🖼️", login: "🔑", download: "⬇️", video: "🎬", upgrade: "📈", note: "📝", email: "📧", call: "📞", support: "🛠️",
+  visualization: "🖼️", login: "🔑", download: "⬇️", video: "🎬",
+  upgrade: "📈", note: "📝", email: "📧", call: "📞", support: "🛠️",
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const c = STATUS_COLORS[status] ?? { bg: "#F3F4F6", text: "#374151", label: status };
+  const c = STATUS[status] ?? { bg: "#F3F4F6", text: "#374151", label: status };
   return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.text }}>{c.label ?? status}</span>;
 }
 function PlanBadge({ plan }: { plan: string }) {
-  const c = PLAN_COLORS[plan] ?? { bg: "#F3F4F6", text: "#374151" };
-  return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize" style={{ background: c.bg, color: c.text }}>{plan === "none" ? "Ingen" : plan}</span>;
+  const c = PLAN[plan] ?? { bg: "#F3F4F6", text: "#374151" };
+  return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize" style={{ background: c.bg, color: c.text }}>{plan === "none" ? "Ingen plan" : plan}</span>;
+}
+
+function groupByCompany(contacts: Contact[]): CompanyGroup[] {
+  const map = new Map<string, Contact[]>();
+  for (const c of contacts) {
+    const key = c.company ?? "__none__";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(c);
+  }
+  const groups: CompanyGroup[] = [];
+  map.forEach((cs, key) => groups.push({ company: key === "__none__" ? null : key, contacts: cs }));
+  groups.sort((a, b) => {
+    if (!a.company) return 1;
+    if (!b.company) return -1;
+    return a.company.localeCompare(b.company, "da");
+  });
+  return groups;
 }
 
 // ── New Contact Modal ──────────────────────────────────────────────────────────
@@ -53,7 +96,7 @@ function NewContactModal({ onClose, onCreated }: { onClose: () => void; onCreate
     if (!form.email) { setErr("Email er påkrævet"); return; }
     setSaving(true); setErr("");
     try {
-      await apiRequest("POST", "/api/crm/contacts", form);
+      await crmReq("POST", "/api/crm/contacts", form);
       onCreated(); onClose();
     } catch (e: any) { setErr(e.message ?? "Fejl"); setSaving(false); }
   };
@@ -76,14 +119,14 @@ function NewContactModal({ onClose, onCreated }: { onClose: () => void; onCreate
               <label className="block text-xs font-medium mb-1" style={{ color: "#6B6B6B" }}>Plan</label>
               <select value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E5E2DC" }}>
-                {["none","start","pro","business","enterprise"].map(p => <option key={p} value={p}>{p === "none" ? "Ingen" : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                {["none","start","pro","business","enterprise"].map(p => <option key={p} value={p}>{p === "none" ? "Ingen plan" : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: "#6B6B6B" }}>Status</label>
               <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E5E2DC" }}>
-                {["lead","trial","active","churned"].map(s => <option key={s} value={s}>{STATUS_COLORS[s]?.label ?? s}</option>)}
+                {["lead","trial","active","churned"].map(s => <option key={s} value={s}>{STATUS[s]?.label ?? s}</option>)}
               </select>
             </div>
           </div>
@@ -99,44 +142,123 @@ function NewContactModal({ onClose, onCreated }: { onClose: () => void; onCreate
   );
 }
 
+// ── Company Group Row ──────────────────────────────────────────────────────────
+function CompanyFolder({ group, defaultOpen, onSelect }: { group: CompanyGroup; defaultOpen: boolean; onSelect: (id: string) => void }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const activeCount = group.contacts.filter(c => c.status === "active").length;
+  const trialCount = group.contacts.filter(c => c.status === "trial").length;
+
+  return (
+    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E5E2DC" }}>
+      {/* Folder header */}
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#F8F6F3]"
+        style={{ background: open ? "#F8F6F3" : "#fff" }}
+        data-testid={`crm-company-${group.company ?? "ingen-firma"}`}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: group.company ? "rgba(200,149,108,0.15)" : "#F3F4F6" }}>
+          {group.company ? <Building2 className="w-4 h-4" style={{ color: "#C8956C" }} /> : <User className="w-4 h-4" style={{ color: "#9CA3AF" }} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm" style={{ color: "#0F1D2F" }}>
+            {group.company ?? "Ingen firma"}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs" style={{ color: "#9CA3AF" }}>
+              <Users className="w-3 h-3 inline mr-0.5" />{group.contacts.length} bruger{group.contacts.length !== 1 ? "e" : ""}
+            </span>
+            {activeCount > 0 && <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#F0FDF4", color: "#166534" }}>{activeCount} aktiv{activeCount !== 1 ? "e" : ""}</span>}
+            {trialCount > 0 && <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF9C3", color: "#854D0E" }}>{trialCount} trial</span>}
+          </div>
+        </div>
+        <ChevronDown className="w-4 h-4 flex-shrink-0 transition-transform" style={{ color: "#9CA3AF", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
+      </button>
+
+      {/* Member rows */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }}>
+            <div style={{ borderTop: "1px solid #F0EDE7" }}>
+              {group.contacts.map((c, i) => (
+                <button key={c.id} onClick={() => onSelect(c.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F8F6F3]"
+                  style={{ borderTop: i > 0 ? "1px solid #F8F6F3" : "none" }}
+                  data-testid={`crm-contact-row-${c.id}`}>
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                    style={{ background: c.status === "active" ? "#16A34A" : c.status === "trial" ? "#CA8A04" : "#9CA3AF" }}>
+                    {(c.name || c.email)[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate" style={{ color: "#0F1D2F" }}>
+                      {c.name || <span style={{ color: "#9CA3AF" }}>—</span>}
+                    </div>
+                    <div className="text-xs truncate" style={{ color: "#9CA3AF" }}>{c.email}</div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <PlanBadge plan={c.plan} />
+                    <StatusBadge status={c.status} />
+                  </div>
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "#D1CEC9" }} />
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Contact List ───────────────────────────────────────────────────────────────
 function ContactList({ onSelect }: { onSelect: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPlan, setFilterPlan] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [viewMode, setViewMode] = useState<"firma" | "liste">("firma");
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ contacts: Contact[]; total: number }>({
+  const { data, isLoading, refetch, isFetching } = useQuery<{ contacts: Contact[]; total: number }>({
     queryKey: ["/api/crm/contacts", search, filterStatus, filterPlan],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (filterStatus) params.set("status", filterStatus);
       if (filterPlan) params.set("plan", filterPlan);
-      return fetch(`/api/crm/contacts?${params}`).then(r => r.json());
+      return crmFetch(`/api/crm/contacts?${params}`).then(r => r.json());
     },
   });
 
   const contacts = data?.contacts ?? [];
+  const groups = groupByCompany(contacts);
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-start justify-between mb-5 flex-shrink-0">
         <div>
           <h2 className="text-xl font-bold" style={{ color: "#0F1D2F" }}>CRM — Kontakter</h2>
-          <p className="text-sm mt-0.5" style={{ color: "#6B6B6B" }}>{data?.total ?? 0} kontakter totalt</p>
+          <p className="text-sm mt-0.5" style={{ color: "#6B6B6B" }}>
+            {data?.total ?? 0} kontakter · {groups.filter(g => g.company).length} firmaer
+          </p>
         </div>
-        <button onClick={() => setShowNew(true)} className="h-9 px-4 rounded-xl text-sm font-semibold text-white flex items-center gap-2"
-          style={{ background: "#C8956C" }} data-testid="crm-new-contact">
-          <Plus className="w-4 h-4" /> Ny kontakt
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => refetch()} disabled={isFetching}
+            className="h-9 w-9 rounded-xl flex items-center justify-center transition-all hover:opacity-80 disabled:opacity-40"
+            style={{ border: "1px solid #E5E2DC" }} title="Synkroniser brugere">
+            <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} style={{ color: "#6B6B6B" }} />
+          </button>
+          <button onClick={() => setShowNew(true)} className="h-9 px-4 rounded-xl text-sm font-semibold text-white flex items-center gap-2"
+            style={{ background: "#C8956C" }} data-testid="crm-new-contact">
+            <Plus className="w-4 h-4" /> Ny kontakt
+          </button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 mb-5">
-        <div className="relative flex-1">
+      {/* Filters + view toggle */}
+      <div className="flex gap-2 mb-4 flex-shrink-0 flex-wrap">
+        <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#6B6B6B" }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Søg navn, email, firma…"
             className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none" style={{ border: "1px solid #E5E2DC", color: "#0F1D2F" }}
@@ -153,60 +275,79 @@ function ContactList({ onSelect }: { onSelect: (id: string) => void }) {
         <select value={filterPlan} onChange={e => setFilterPlan(e.target.value)}
           className="rounded-lg px-3 py-2 text-sm outline-none" style={{ border: "1px solid #E5E2DC" }}>
           <option value="">Alle planer</option>
-          <option value="none">Ingen</option>
+          <option value="none">Ingen plan</option>
           <option value="start">Start</option>
           <option value="pro">Pro</option>
           <option value="business">Business</option>
           <option value="enterprise">Enterprise</option>
         </select>
+        {/* View toggle */}
+        <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid #E5E2DC" }}>
+          {(["firma","liste"] as const).map(v => (
+            <button key={v} onClick={() => setViewMode(v)}
+              className="px-3 py-2 text-xs font-medium transition-all"
+              style={{ background: viewMode === v ? "#0F1D2F" : "#fff", color: viewMode === v ? "#fff" : "#6B6B6B" }}>
+              {v === "firma" ? "🏢 Firma" : "📋 Liste"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto rounded-xl border" style={{ borderColor: "#E5E2DC" }}>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center h-40 text-sm" style={{ color: "#6B6B6B" }}>Indlæser…</div>
+          <div className="flex items-center justify-center h-40 text-sm" style={{ color: "#6B6B6B" }}>
+            <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Synkroniserer brugere…
+          </div>
         ) : contacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2">
             <User className="w-8 h-8" style={{ color: "#D1CEC9" }} />
             <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen kontakter fundet</p>
           </div>
+        ) : viewMode === "firma" ? (
+          <div className="space-y-3 pb-4">
+            {groups.map((group, i) => (
+              <CompanyFolder key={group.company ?? "__none__"} group={group} defaultOpen={i === 0} onSelect={onSelect} />
+            ))}
+          </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ background: "#F8F6F3", borderBottom: "1px solid #E5E2DC" }}>
-                {["Navn / Email", "Firma", "Plan", "Status", "Score", "Seneste aktivitet"].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold" style={{ color: "#6B6B6B" }}>{h}</th>
-                ))}
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {contacts.map((c, i) => (
-                <tr key={c.id} onClick={() => onSelect(c.id)} className="cursor-pointer transition-colors hover:bg-[#F8F6F3]"
-                  style={{ borderTop: i > 0 ? "1px solid #F0EDE7" : "none" }} data-testid={`crm-contact-row-${c.id}`}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium" style={{ color: "#0F1D2F" }}>{c.name || <span style={{ color: "#9CA3AF" }}>—</span>}</div>
-                    <div className="text-xs" style={{ color: "#6B6B6B" }}>{c.email}</div>
-                  </td>
-                  <td className="px-4 py-3" style={{ color: "#6B6B6B" }}>{c.company || "—"}</td>
-                  <td className="px-4 py-3"><PlanBadge plan={c.plan} /></td>
-                  <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "#E5E2DC" }}>
-                        <div className="h-full rounded-full" style={{ width: `${Math.min(c.engagementScore, 100)}%`, background: "#C8956C" }} />
-                      </div>
-                      <span className="text-xs" style={{ color: "#6B6B6B" }}>{c.engagementScore}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs" style={{ color: "#6B6B6B" }}>
-                    {c.lastActiveAt ? fmtShort(c.lastActiveAt) : "Aldrig"}
-                  </td>
-                  <td className="px-4 py-3"><ChevronRight className="w-4 h-4" style={{ color: "#D1CEC9" }} /></td>
+          /* Flat list */
+          <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E5E2DC" }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: "#F8F6F3", borderBottom: "1px solid #E5E2DC" }}>
+                  {["Navn / Email", "Firma", "Plan", "Status", "Score", "Aktiv"].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold" style={{ color: "#6B6B6B" }}>{h}</th>
+                  ))}
+                  <th className="px-4 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {contacts.map((c, i) => (
+                  <tr key={c.id} onClick={() => onSelect(c.id)} className="cursor-pointer transition-colors hover:bg-[#F8F6F3]"
+                    style={{ borderTop: i > 0 ? "1px solid #F0EDE7" : "none" }} data-testid={`crm-contact-row-${c.id}`}>
+                    <td className="px-4 py-3">
+                      <div className="font-medium" style={{ color: "#0F1D2F" }}>{c.name || <span style={{ color: "#9CA3AF" }}>—</span>}</div>
+                      <div className="text-xs" style={{ color: "#6B6B6B" }}>{c.email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: "#6B6B6B" }}>{c.company || "—"}</td>
+                    <td className="px-4 py-3"><PlanBadge plan={c.plan} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-14 h-1.5 rounded-full overflow-hidden" style={{ background: "#E5E2DC" }}>
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(c.engagementScore, 100)}%`, background: "#C8956C" }} />
+                        </div>
+                        <span className="text-xs" style={{ color: "#6B6B6B" }}>{c.engagementScore}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs" style={{ color: "#6B6B6B" }}>{c.lastActiveAt ? fmtShort(c.lastActiveAt) : "—"}</td>
+                    <td className="px-4 py-3"><ChevronRight className="w-4 h-4" style={{ color: "#D1CEC9" }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -230,26 +371,26 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
 
   const { data, isLoading } = useQuery<{ contact: Contact; activities: Activity[]; interactions: Interaction[]; overrides: Override[] }>({
     queryKey: ["/api/crm/contacts", contactId],
-    queryFn: () => fetch(`/api/crm/contacts/${contactId}`).then(r => r.json()),
+    queryFn: () => crmFetch(`/api/crm/contacts/${contactId}`).then(r => r.json()),
   });
 
   const addNote = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/crm/contacts/${contactId}/interactions`, { type: noteType, content: newNote, createdBy: "Admin" }),
+    mutationFn: () => crmReq("POST", `/api/crm/contacts/${contactId}/interactions`, { type: noteType, content: newNote, createdBy: "Admin" }),
     onSuccess: () => { setNewNote(""); qc.invalidateQueries({ queryKey: ["/api/crm/contacts", contactId] }); },
   });
 
   const updateContact = useMutation({
-    mutationFn: (updates: Partial<Contact>) => apiRequest("PATCH", `/api/crm/contacts/${contactId}`, updates),
+    mutationFn: (updates: Partial<Contact>) => crmReq("PATCH", `/api/crm/contacts/${contactId}`, updates),
     onSuccess: () => { setEditField(null); qc.invalidateQueries({ queryKey: ["/api/crm/contacts", contactId] }); qc.invalidateQueries({ queryKey: ["/api/crm/contacts"] }); },
   });
 
   const saveOverride = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/crm/contacts/${contactId}/overrides`, { key: overrideKey, value: overrideVal }),
+    mutationFn: () => crmReq("POST", `/api/crm/contacts/${contactId}/overrides`, { key: overrideKey, value: overrideVal }),
     onSuccess: () => { setOverrideKey(""); setOverrideVal(""); qc.invalidateQueries({ queryKey: ["/api/crm/contacts", contactId] }); },
   });
 
   const deleteOverride = useMutation({
-    mutationFn: (key: string) => apiRequest("DELETE", `/api/crm/contacts/${contactId}/overrides/${encodeURIComponent(key)}`),
+    mutationFn: (key: string) => crmReq("DELETE", `/api/crm/contacts/${contactId}/overrides/${encodeURIComponent(key)}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/crm/contacts", contactId] }),
   });
 
@@ -268,11 +409,15 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Back + header */}
-      <div className="flex items-start gap-4 mb-6 flex-shrink-0">
-        <button onClick={onBack} className="mt-1 flex items-center gap-1.5 text-sm font-medium" style={{ color: "#C8956C" }}>
+      <div className="flex items-center gap-4 mb-5 flex-shrink-0">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "#C8956C" }}>
           <ArrowLeft className="w-4 h-4" /> Alle kontakter
         </button>
+        {c.company && (
+          <span className="text-sm" style={{ color: "#9CA3AF" }}>
+            / <Building2 className="w-3.5 h-3.5 inline mr-1" />{c.company}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden min-h-0">
@@ -280,12 +425,14 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
         <div className="w-full lg:w-72 flex-shrink-0 space-y-4 overflow-y-auto">
           <div className="rounded-2xl border p-5" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style={{ background: "#C8956C" }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                style={{ background: c.status === "active" ? "#16A34A" : c.status === "trial" ? "#CA8A04" : "#C8956C" }}>
                 {(c.name || c.email)[0].toUpperCase()}
               </div>
               <div className="min-w-0">
                 <div className="font-semibold truncate" style={{ color: "#0F1D2F" }}>{c.name || c.email}</div>
                 <div className="text-xs truncate" style={{ color: "#6B6B6B" }}>{c.email}</div>
+                {c.company && <div className="text-xs mt-0.5 font-medium" style={{ color: "#C8956C" }}>{c.company}</div>}
               </div>
             </div>
 
@@ -294,7 +441,6 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
               <StatusBadge status={c.status} />
             </div>
 
-            {/* Editable fields */}
             {([
               ["name", "Navn", c.name, "text"],
               ["company", "Firma", c.company, "text"],
@@ -324,20 +470,19 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
               </div>
             ))}
 
-            {/* Plan + status selects */}
             <div className="grid grid-cols-2 gap-2 mt-4">
               <div>
                 <label className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Plan</label>
                 <select value={c.plan} onChange={e => updateContact.mutate({ plan: e.target.value })}
                   className="w-full mt-0.5 rounded-lg px-2 py-1.5 text-xs outline-none" style={{ border: "1px solid #E5E2DC" }}>
-                  {["none","start","pro","business","enterprise"].map(p => <option key={p} value={p}>{p === "none" ? "Ingen" : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                  {["none","start","pro","business","enterprise"].map(p => <option key={p} value={p}>{p === "none" ? "Ingen plan" : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Status</label>
                 <select value={c.status} onChange={e => updateContact.mutate({ status: e.target.value })}
                   className="w-full mt-0.5 rounded-lg px-2 py-1.5 text-xs outline-none" style={{ border: "1px solid #E5E2DC" }}>
-                  {["lead","trial","active","churned"].map(s => <option key={s} value={s}>{STATUS_COLORS[s]?.label ?? s}</option>)}
+                  {["lead","trial","active","churned"].map(s => <option key={s} value={s}>{STATUS[s]?.label ?? s}</option>)}
                 </select>
               </div>
             </div>
@@ -355,6 +500,7 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
             <div className="mt-4 pt-4 text-xs space-y-1" style={{ borderTop: "1px solid #F0EDE7", color: "#9CA3AF" }}>
               <div className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Oprettet {fmt(c.createdAt)}</div>
               {c.lastActiveAt && <div className="flex items-center gap-1.5"><Activity className="w-3 h-3" /> Aktiv {fmt(c.lastActiveAt)}</div>}
+              {c.linkedUserId && <div className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Bruger-ID #{c.linkedUserId}</div>}
             </div>
           </div>
 
@@ -369,7 +515,6 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
             ))}
           </div>
 
-          {/* Notes */}
           <div className="rounded-2xl border p-4" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
             <label className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Interne noter</label>
             <textarea rows={4} defaultValue={c.notes ?? ""} placeholder="Fri tekst til dig selv…"
@@ -392,7 +537,6 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
 
           {activeTab === "timeline" && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Add note */}
               <div className="flex gap-2 mb-4 flex-shrink-0">
                 <select value={noteType} onChange={e => setNoteType(e.target.value)}
                   className="rounded-lg px-2 py-2 text-sm outline-none" style={{ border: "1px solid #E5E2DC" }}>
@@ -412,7 +556,6 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
                 </button>
               </div>
 
-              {/* Timeline */}
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {timeline.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-32 gap-2">
@@ -439,7 +582,7 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
             <div className="flex-1 overflow-y-auto">
               <div className="rounded-2xl border p-5 mb-4" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
                 <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
-                  Tilføj nøgle/værdi-par der kun gælder for <strong>{c.name || c.email}</strong>. Bruges til at skræddersy brugerens oplevelse.
+                  Tilføj nøgle/værdi-par der kun gælder for <strong>{c.name || c.email}</strong>.
                 </p>
                 <div className="flex gap-2 mb-4">
                   <input value={overrideKey} onChange={e => setOverrideKey(e.target.value)} placeholder="nøgle (fx layout_mode)"
