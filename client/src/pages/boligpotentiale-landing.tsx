@@ -222,13 +222,13 @@ type StageSlide =
 const STAGE_SLIDES: StageSlide[] = [
   {
     kind: "swipe",
-    before: "/bolig-images/kitchen-before.jpg",
-    after: "/bolig-images/kitchen-after.jpg",
+    before: "/bolig-images/facade-before.jpg",
+    after: "/bolig-images/facade-after.jpg",
     beforeLabel: "Før",
     afterLabel: "Efter",
     title: "Før & efter",
-    caption: "Upload et rumfoto — AI'en redesigner indretningen på under 30 sekunder.",
-    meta: "Køkken · Moderne",
+    caption: "Upload et foto — AI'en transformerer ejendommen på under 30 sekunder.",
+    meta: "Facade · AI Design Agent",
   },
   {
     kind: "swipe",
