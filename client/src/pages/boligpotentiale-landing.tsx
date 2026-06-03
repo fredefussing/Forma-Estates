@@ -420,20 +420,20 @@ function HeroStage() {
               className="absolute inset-0"
             >
               {slide.kind === "swipe" ? (
-                <div className="relative w-full h-full select-none" style={{ background: slide.bg ?? "#F5F3EF" }}>
-                  {/* After image — full size, underneath */}
+                <div className="relative w-full h-full select-none" style={{ background: slide.bg ?? "#0a1219" }}>
+                  {/* After image — fills frame */}
                   <img
                     src={slide.after}
                     alt={slide.afterLabel}
                     className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: "contain" }}
+                    style={{ objectFit: "cover", objectPosition: "center" }}
                   />
-                  {/* Before image — same full size, clipped from right via clip-path so it doesn't distort */}
+                  {/* Before image — same cover, curtain-clipped from the right so it slides cleanly without distorting */}
                   <img
                     src={slide.before}
                     alt={slide.beforeLabel}
                     className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: "contain", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
+                    style={{ objectFit: "cover", objectPosition: "center", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
                   />
                   <div
                     className="absolute top-0 bottom-0 flex items-center"
