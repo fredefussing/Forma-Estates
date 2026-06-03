@@ -252,13 +252,13 @@ const STAGE_SLIDES: StageSlide[] = [
   },
   {
     kind: "swipe",
-    before: "/bolig-images/ai-agent-before.jpg",
-    after: "/bolig-images/ai-agent-after.jpg",
-    beforeLabel: "Før prompt",
-    afterLabel: "Efter AI",
-    title: "AI Design Agent",
-    caption: "Beskriv ændringen i ord — AI'en gør resten. Fjern møbler, skift gulv, tilføj planter.",
-    meta: "Stue · Skandinavisk",
+    before: "/bolig-images/dining-before.jpg",
+    after: "/bolig-images/dining-after.jpg",
+    beforeLabel: "Før",
+    afterLabel: "Efter",
+    title: "Før & efter",
+    caption: "Upload et rumfoto — AI'en redesigner indretningen på under 30 sekunder.",
+    meta: "Spisestue · Skandinavisk",
   },
 ];
 
