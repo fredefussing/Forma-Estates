@@ -148,14 +148,14 @@ const PRICING: Plan[] = [
   {
     name: "Start",
     monthly: 2999,
-    features: ["15 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "1 Transformering Video / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    features: ["10 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Start",
     href: "/opret",
   },
   {
     name: "Pro",
     monthly: 5999,
-    features: ["35 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "3 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    features: ["25 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Pro",
     highlight: true,
     href: "/opret",
@@ -163,7 +163,7 @@ const PRICING: Plan[] = [
   {
     name: "Business",
     monthly: 11999,
-    features: ["80 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "8 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    features: ["60 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Business",
     href: "/opret",
   },
