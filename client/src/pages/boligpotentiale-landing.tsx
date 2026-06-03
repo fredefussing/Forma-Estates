@@ -609,7 +609,7 @@ function HeroStage() {
                     style={{
                       width: `${progress * 100}%`,
                       background: C.gold,
-                      transition: paused ? "none" : "width 80ms linear",
+                      transition: false ? "none" : "width 80ms linear",
                     }}
                   />
                 )}

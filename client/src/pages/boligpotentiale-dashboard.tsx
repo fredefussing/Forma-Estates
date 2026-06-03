@@ -102,7 +102,7 @@ async function fetchImageAsDataUrl(url: string): Promise<{ dataUrl: string; w: n
     return null;
   }
 }
-export async function downloadCasePdf(opts: {
+async function downloadCasePdf(opts: {
   url: string;
   beforeUrl?: string | null;
   address?: string | null;
@@ -254,7 +254,7 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(objUrl);
 }
-export async function downloadImageFile(
+async function downloadImageFile(
   url: string,
   opts: { address?: string | null; room?: string | null; style?: string | null; format?: "jpg" | "png" } = {}
 ): Promise<void> {
@@ -4068,7 +4068,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saving}
             className="h-11 px-5 rounded-full font-semibold text-sm inline-flex items-center gap-2 disabled:opacity-50 border"
             style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
@@ -6524,6 +6524,7 @@ export default function BoligpotentialeDashboard() {
   const [prevSection, setPrevSection] = useState<Section>("dashboard");
   const [now, setNow] = useState(Date.now());
   const [pendingCase, setPendingCase] = useState<ApiCase | null>(null);
+  const [activityLightbox, setActivityLightbox] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -7747,6 +7748,37 @@ export default function BoligpotentialeDashboard() {
             onCreated={handleNewCase}
             isPending={createCaseMutation.isPending}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── ACTIVITY LIGHTBOX ── */}
+      <AnimatePresence>
+        {activityLightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
+            onClick={() => setActivityLightbox(null)}
+            data-testid="dashboard-activity-lightbox"
+          >
+            <img
+              src={activityLightbox}
+              alt="Genereret billede"
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setActivityLightbox(null)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+              data-testid="dashboard-activity-lightbox-close"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
 

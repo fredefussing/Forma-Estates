@@ -282,7 +282,7 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   const res = await fetch(collovUrl);
   if (!res.ok) throw new Error(`VST: Failed to fetch image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
-  const enhanced = await sharp(buffer)
+  const enhanced = await (sharp(buffer) as any)
     .sharpen({ sigma: 1.0, flat: 0.5, jagged: 2 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
     .modulate({ saturation: 1.05, brightness: 1.02 })
@@ -535,7 +535,7 @@ export async function registerRoutes(
           clearStatusMsg(design.id);
           await storage.updateDesign(design.id, { status: "failed", failReason });
         }
-      }, 5000);
+      });
 
       return;
     } catch (err: any) {

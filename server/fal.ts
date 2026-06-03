@@ -502,7 +502,7 @@ export async function generateDroneClip(
         end_image_url: endImageUrl,
         duration: "5" as const,
         negative_prompt: DRONE_NEGATIVE_PROMPT,
-      },
+      } as any,
     }),
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Drone clip timeout (3 min)")), 180_000),

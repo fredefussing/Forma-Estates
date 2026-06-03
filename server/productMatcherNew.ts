@@ -154,7 +154,7 @@ function parseDescription(desc: string): ParsedDescription {
     const excl = EXCLUDE_MAP[type];
     if (excl) excl.forEach(e => excludeSet.add(e));
   }
-  found.excludeTypes = [...excludeSet];
+  found.excludeTypes = Array.from(excludeSet);
 
   return found;
 }
@@ -335,7 +335,7 @@ export async function findProductsForDesign(
   for (const t of types) {
     for (const s of (SISTER_TYPES[t] ?? [])) sisterTypes.add(s);
   }
-  const sisterArr = [...sisterTypes];
+  const sisterArr = Array.from(sisterTypes);
   if (sisterArr.length > 0) {
     rows = await queryProducts(sisterArr, targetStyle, 0, 999999, 5000, 999999, [], [], excludeTypes, limit * 3);
     if (rows.length >= 1) {
