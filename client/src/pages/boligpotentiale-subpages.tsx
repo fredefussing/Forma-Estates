@@ -199,6 +199,7 @@ export function EksemplerPage() {
     { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Stue — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
     { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", title: "Stue — moderne", desc: "Rene linjer, mørke accenter og statementmøbler." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Køkken — landlig", desc: "Træfronter, sten og naturligt lys gør rummet levende." },
+    { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
     { before: "/bolig-images/ai-agent-before.jpg", after: "/bolig-images/ai-agent-after.jpg", title: "Loft — atelier", desc: "Originale bjælker bevaret, indretningen tilført varme." },
   ];
   return (
@@ -221,6 +222,7 @@ export function ForEfterPage() {
     { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Tom stue → skandinavisk hjem", desc: "Tomt rum forvandlet til et hyggeligt skandinavisk opholdsrum med dæmpede toner." },
     { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", title: "Tom stue → moderne look", desc: "Samme rum, samme dag — moderne indretning med fokus på linjer og lys." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Slidt køkken → frisk indretning", desc: "Iscenesat med nye farver, planter og en levende stemning." },
+    { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse → japandi stil", desc: "Sten, træ og papirlamper skaber ro og balance på under 30 sekunder." },
   ];
   return (
     <SubpageLayout
