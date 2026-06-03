@@ -241,6 +241,101 @@ export function ForEfterPage() {
           { title: "Køberen ser sig selv", desc: "Et iscenesat rum forkorter tiden til første bud markant." },
         ]}
       />
+
+      {/* ── 9 stilarter guide ── */}
+      <div style={{ marginTop: 72 }}>
+        <div className="text-center mb-10">
+          <span className="uppercase" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em" }}>9 tilgængelige stilarter</span>
+          <h2 className="mt-3" style={{ fontFamily: SERIF, color: C.navy, fontSize: 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: "-0.01em" }}>
+            Find den stil der sælger boligen
+          </h2>
+          <p className="mt-3 mx-auto" style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.65, maxWidth: 520 }}>
+            Vores AI behersker ni distinkте stilarter. Upload ét foto — prøv dem alle. Vi anbefaler at starte med Skandinavisk, da efterspørgslen er størst på det danske marked.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[
+            {
+              label: "Skandinavisk",
+              tag: "Mest populær",
+              desc: "Lyst egetræ, naturlige tekstiler og dæmpet lys. Skaber den varme, hyggelige fornemmelse danske købere reagerer stærkest på. Passer til næsten alle boligtyper.",
+              recommended: true,
+            },
+            {
+              label: "Moderne",
+              tag: null,
+              desc: "Rene linjer, mørke accenter og statementmøbler. Fungerer særligt godt i nybyggeri og loftlejligheder med åbne planløsninger.",
+            },
+            {
+              label: "Luksus",
+              tag: null,
+              desc: "Designermøbler, messing og bespoke detaljer. Ideelt til præmiumboliger og villaer, hvor prissætningen skal understøttes af visuelle signaler om kvalitet.",
+            },
+            {
+              label: "Japandi",
+              tag: null,
+              desc: "Fusion af japansk zen og skandinavisk enkelhed. Stensætninger, naturmaterialer og afdæmpet palet — stærkt valg til rolige badeværelser og soverum.",
+            },
+            {
+              label: "Minimalistisk",
+              tag: null,
+              desc: "Bare essentials, neutral farvepalet og bevidst negativt rum. Lader arkitekturen tale og fungerer godt, når boligens struktur er det stærkeste salgsargument.",
+            },
+            {
+              label: "Industriel",
+              tag: null,
+              desc: "Eksponeret beton, stål og råt træ. Passer til loftkonversioner, townhouses og boliger med høje lofter og store vinduer.",
+            },
+            {
+              label: "Bohemisk",
+              tag: null,
+              desc: "Lag på lag af tekstiler, planter og varme jordtoner. Skaber en levende, personlig stemning — effektivt til rum der ellers virker kliniske.",
+            },
+            {
+              label: "Kyst",
+              tag: null,
+              desc: "Drivtømmer, hvide nuancer og maritime accenter. Naturlig kandidat til sommerhuse, strandnære lejligheder og boliger med havudsigt.",
+            },
+            {
+              label: "Landlig",
+              tag: null,
+              desc: "Varmt træ, rustikke overflader og hyggelig atmosfære. Fremhæver ældre ejendommes charme og fungerer godt i landejendomme og byhuse.",
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              style={{
+                background: s.recommended ? C.navy : C.white,
+                border: s.recommended ? "none" : `1px solid ${C.border}`,
+                borderRadius: 14,
+                padding: "24px 26px 26px",
+                boxShadow: s.recommended ? "0 12px 40px rgba(15,25,35,0.14)" : "0 4px 16px rgba(15,25,35,0.04)",
+                position: "relative",
+              }}
+            >
+              {s.tag && (
+                <span
+                  className="inline-block mb-3"
+                  style={{ background: C.gold, color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", padding: "4px 10px", borderRadius: 4, textTransform: "uppercase" }}
+                >
+                  {s.tag}
+                </span>
+              )}
+              <div style={{ fontFamily: SERIF, color: s.recommended ? "#fff" : C.navy, fontSize: 19, fontWeight: 500, marginBottom: 8 }}>
+                {s.label}
+              </div>
+              <div style={{ color: s.recommended ? "rgba(255,255,255,0.72)" : C.muted, fontSize: 14, lineHeight: 1.6 }}>
+                {s.desc}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center mt-8" style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6 }}>
+          Alle stilarter er tilgængelige i tre budget-niveauer: IKEA/JYSK, mellemklasse og designermøbler.
+        </p>
+      </div>
     </SubpageLayout>
   );
 }
