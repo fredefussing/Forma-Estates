@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -1770,6 +1771,11 @@ export default function BoligpotentialeLanding() {
                 </motion.div>
               );
             })}
+          </div>
+
+          {/* Enterprise calculator */}
+          <div className="mt-16">
+            <EnterpriseCalculator dark />
           </div>
         </div>
       </section>

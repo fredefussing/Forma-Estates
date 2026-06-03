@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
+import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -7473,12 +7474,12 @@ export default function BoligpotentialeDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="settings-pricing-grid">
                 {[
                   {
-                    name: "Starter",
+                    name: "Start",
                     price: "2.499",
                     period: "kr./ måned",
-                    desc: "Til dig der vil prøve AI-visualisering af og til.",
-                    features: ["25 billeder / md.", "5 designstile", "HD download", "Email support"],
-                    cta: "Vælg Starter",
+                    desc: "Til dig der vil i gang med professionelle AI-visualiseringer.",
+                    features: ["15 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "1 Transformering Video / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+                    cta: "Vælg Start",
                     highlight: false,
                     custom: false,
                   },
@@ -7487,7 +7488,7 @@ export default function BoligpotentialeDashboard() {
                     price: "4.999",
                     period: "kr./ måned",
                     desc: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
-                    features: ["100 billeder / md.", "Alle 8 designstile", "4K download", "Prioriteret support", "Branding på billeder"],
+                    features: ["35 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "3 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
                     cta: "Vælg Pro",
                     highlight: true,
                     custom: false,
@@ -7497,7 +7498,7 @@ export default function BoligpotentialeDashboard() {
                     price: "9.999",
                     period: "kr./ måned",
                     desc: "Til bureauer og mæglerkæder med høj volumen.",
-                    features: ["250 billeder / md.", "Alle designstile", "4K download", "API adgang", "Hvid-label mulighed", "Dedikeret support"],
+                    features: ["80 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "8 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
                     cta: "Vælg Business",
                     highlight: false,
                     custom: false,
@@ -7507,7 +7508,7 @@ export default function BoligpotentialeDashboard() {
                     price: "Custom",
                     period: "kontakt os",
                     desc: "Skræddersyet plan til store organisationer med særlige behov.",
-                    features: ["Ubegrænsede billeder", "Alle designstile + custom", "4K download", "Fuld API adgang", "Hvid-label mulighed", "Dedikeret onboarding", "SLA & dedikeret support"],
+                    features: ["Ubegrænsede AI Visualiseringer", "Ubegrænsede 3D Floor Plans", "Ubegrænsede Transformering Videoer", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
                     cta: "Kontakt os",
                     highlight: false,
                     custom: true,
@@ -7562,6 +7563,11 @@ export default function BoligpotentialeDashboard() {
                     </button>
                   </div>
                 ))}
+              </div>
+
+              {/* Enterprise custom calculator */}
+              <div className="mt-10">
+                <EnterpriseCalculator />
               </div>
             </motion.div>
           )}
