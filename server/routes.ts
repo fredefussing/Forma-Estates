@@ -2254,12 +2254,14 @@ export async function registerRoutes(
   app.post("/api/bolig/showcase-video", upload.array("images", 30), async (req, res) => {
     try {
       const files = (req.files as Express.Multer.File[] | undefined) || [];
-      if (files.length < 3) {
-        return res.status(400).json({ success: false, message: "Upload mindst 3 billeder" });
+      if (files.length < 2) {
+        return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
       }
       const paths = files.map((f) => path.join(uploadDir, f.filename));
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, address);
+      const startText = typeof req.body?.startText === "string" ? req.body.startText.slice(0, 80) : undefined;
+      const endText = typeof req.body?.endText === "string" ? req.body.endText.slice(0, 80) : undefined;
+      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText);
       if (!jobId) {
         // Server is saturated — clean up the just-uploaded files and back off.
         for (const p of paths) fs.promises.unlink(p).catch(() => {});

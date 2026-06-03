@@ -1,0 +1,40 @@
+TEST: Generér en Higgsfield-style cinematic flyover video med vores 
+eksisterende Kling 2.1 Standard integration.
+
+INPUT: Start-billede = kystudsigt (image_1), target = hvidt hus (image_2)
+
+API KALD (præcis kode):
+
+const result = await fal.subscribe(
+  "fal-ai/kling-video/v2.1/standard/image-to-video",
+  {
+    input: {
+      image_url: "https://[DIN-DOMAIN]/uploads/zoom-effekt-test.jpeg",
+      prompt: "Cinematic drone shot flying low over calm blue coastal water, camera moves forward and rises smoothly through green coastal bushes and hedges, revealing a charming white Scandinavian house with red tile roof in a beautiful garden, smooth stabilized gimbal motion, golden hour warm lighting, photorealistic architectural photography, 4K quality, no warping, stable horizon",
+      duration: 5,
+      aspect_ratio: "16:9",
+      negative_prompt: "static image, slideshow, jump cuts, blurry, distorted architecture, warped walls, shaky camera, dark lighting"
+    }
+  }
+);
+
+VIKTIGE PARAMETRE:
+- duration: 5 (max for standard tier)
+- aspect_ratio: "16:9" (landscape)
+- prompt: Skal beskrive bevægelsen i detaljer
+
+NEGATIVE PROMPT (for at undgå fejl):
+- static image, slideshow — sikrer bevægelse
+- blurry, distorted — sikrer skarphed
+- warped walls — sikrer arkitektur bevares
+
+FORVENTET RESULTAT:
+Video starter med kystudsigt (som billede 1), kamera flyver fremad og 
+opad gennem vegetation, afslører huset. Ligner Higgsfield-videoen 
+til ~70-80%.
+
+Hvis resultatet er godt → behold denne prompt template
+Hvis resultatet mangler præcision → overvej Higgsfield API integration
+Alternativ: Kør testen direkte i din app
+Gå til jeres showcase video generator, og i stedet for at bruge Ken Burns, vælg "AI Gimbal (Kling)" og indsæt dette prompt:
+"Cinematic drone shot flying low over calm blue coastal water, camera moves forward and rises smoothly through green coastal bushes and hedges, revealing a charming white Scandinavian house with red tile roof in a beautiful garden, smooth stabilized gimbal motion, golden hour warm lighting, photorealistic architectural photography, 4K quality"

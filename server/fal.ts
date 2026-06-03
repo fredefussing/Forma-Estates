@@ -473,6 +473,40 @@ export async function generateShowcaseClip(
   return { videoUrl };
 }
 
+// Drone intro / outro clip — cinematic exterior flyover for the first and last
+// frames of a showcase reel. Same Kling 2.1 Standard endpoint as normal gimbal
+// clips but with an outdoor aerial-motion prompt instead of an interior one.
+const DRONE_INTRO_PROMPT =
+  "Cinematic aerial drone shot flying low and smooth over the exterior, camera glides forward and rises gently revealing the full property. Smooth stabilized gimbal motion, golden hour warm lighting, photorealistic real-estate photography, 4K quality, ultra-smooth steady continuous motion, cinematic.";
+const DRONE_OUTRO_PROMPT =
+  "Cinematic aerial drone shot arriving at the property, camera slowly descends and settles, full exterior beautifully framed. Smooth stabilized landing motion, golden hour warm lighting, photorealistic real-estate photography, 4K quality, cinematic.";
+const DRONE_NEGATIVE_PROMPT =
+  "static image, slideshow, jump cuts, blurry, distorted architecture, warped walls, shaky camera, dark lighting, interior, indoor, people";
+
+export async function generateDroneClip(
+  imageUrl: string,
+  isIntro: boolean,
+): Promise<{ videoUrl: string }> {
+  const prompt = isIntro ? DRONE_INTRO_PROMPT : DRONE_OUTRO_PROMPT;
+  const result = await Promise.race([
+    fal.subscribe(SHOWCASE_ENDPOINT, {
+      input: {
+        prompt,
+        image_url: imageUrl,
+        duration: "5" as const,
+        negative_prompt: DRONE_NEGATIVE_PROMPT,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Drone clip timeout (3 min)")), 180_000),
+    ),
+  ]);
+  const videoUrl = (result.data as any).video?.url;
+  if (!videoUrl) throw new Error("No drone clip generated");
+  console.log(`[Showcase] drone ${isIntro ? "intro" : "outro"} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
+  return { videoUrl };
+}
+
 // Download a remote URL to an explicit local path (used for fal-hosted clips that
 // we then feed into FFmpeg). Throws on a non-2xx response.
 export async function downloadToFile(remoteUrl: string, destPath: string): Promise<void> {

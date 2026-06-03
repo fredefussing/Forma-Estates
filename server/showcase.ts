@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { isFalConfigured, uploadToFal, generateShowcaseClip, downloadToFile } from "./fal";
+import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, downloadToFile } from "./fal";
 
 // ===== BOLIG SHOWCASE VIDEO =====
 // Vertical (9:16) property reel. PRIMARY path: each photo becomes one real AI
@@ -648,6 +648,7 @@ interface AIClipData {
 async function buildAIClips(
   imagePaths: string[],
   outDir: string,
+  droneIndices: Set<number>,
   onProgress?: (p: ShowcaseProgress) => void,
 ): Promise<AIClipData | null> {
   const photos = imagePaths.slice(0, MAX_AI_CLIPS);
@@ -672,7 +673,9 @@ async function buildAIClips(
   const clips = await mapLimit(uploads, AI_CLIP_CONCURRENCY, async (url, i) => {
     if (!url) return null;
     try {
-      const { videoUrl } = await generateShowcaseClip(url, i);
+      const { videoUrl } = droneIndices.has(i)
+        ? await generateDroneClip(url, i === 0)
+        : await generateShowcaseClip(url, i);
       const dest = path.join(
         outDir,
         `clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`,
@@ -772,6 +775,8 @@ async function assembleVideo(
   outDir: string,
   address: string | undefined,
   moodKey: string,
+  startText?: string,
+  endText?: string,
 ): Promise<string> {
   const { inputPaths, slideCount, slideDur, musicSeek, filter } = inputs;
   const ts = Date.now();
@@ -820,6 +825,37 @@ async function assembleVideo(
         drawCaption(addrFile, addrSize, "60", addrAlpha, `between(t,0,${addrEnd.toFixed(2)})`, FONT_BOLD),
       );
     }
+
+    // Drone start text: large centered text shown at the very beginning of the reel.
+    const stRaw = (startText || "").trim();
+    if (stRaw && videoTotal >= 2.0) {
+      const stFile = path.join(outDir, `${baseName}-start.txt`);
+      fs.writeFileSync(stFile, stRaw, "utf8");
+      tmpFiles.push(stFile);
+      const stEnd = Math.min(5.0, videoTotal);
+      const stHold = Math.min(3.5, videoTotal * 0.6);
+      const stSize = Math.max(30, Math.min(56, Math.floor(900 / (stRaw.length * 0.55))));
+      const stAlpha = `if(lt(t,0.6),t/0.6,if(lt(t,${stHold.toFixed(2)}),1,if(lt(t,${stEnd.toFixed(2)}),(${stEnd.toFixed(2)}-t)/${Math.max(0.01, stEnd - stHold).toFixed(2)},0)))`;
+      draws.unshift(
+        drawCaption(stFile, stSize, "h*0.38", stAlpha, `between(t,0,${stEnd.toFixed(2)})`, FONT_BOLD),
+      );
+    }
+
+    // Drone end text: large centered text shown near the end of the reel.
+    const etRaw = (endText || "").trim();
+    if (etRaw && videoTotal >= 3.0) {
+      const etFile = path.join(outDir, `${baseName}-end.txt`);
+      fs.writeFileSync(etFile, etRaw, "utf8");
+      tmpFiles.push(etFile);
+      const etStart = Math.max(0, videoTotal - 4.5);
+      const etFadeIn = +(etStart + 0.6).toFixed(3);
+      const etSize = Math.max(30, Math.min(56, Math.floor(900 / (etRaw.length * 0.55))));
+      const etAlpha = `if(lt(t,${etStart.toFixed(2)}),0,if(lt(t,${etFadeIn.toFixed(2)}),(t-${etStart.toFixed(2)})/0.6,1))`;
+      draws.push(
+        drawCaption(etFile, etSize, "h*0.38", etAlpha, `between(t,${etStart.toFixed(2)},${videoTotal.toFixed(2)})`, FONT_BOLD),
+      );
+    }
+
     overlayChain = `;[vbase]${draws.join(",")}[vout]`;
   }
 
@@ -885,15 +921,27 @@ async function render(
   imagePaths: string[],
   outDir: string,
   address?: string,
+  startText?: string,
+  endText?: string,
 ): Promise<void> {
   await acquireSlot();
   try {
     const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
 
+    // Determine which clip indices should use the drone prompt (exterior flyover)
+    // instead of the normal interior gimbal prompt. Drone mode is activated when
+    // the caller supplies startText or endText — the first clip becomes the intro
+    // flyover and the last clip becomes the outro landing shot.
+    const hasDrone = !!(startText || endText);
+    const lastDroneIdx = Math.min(imagePaths.length - 1, MAX_AI_CLIPS - 1);
+    const droneIndices: Set<number> = hasDrone && imagePaths.length >= 2
+      ? new Set([0, lastDroneIdx])
+      : new Set();
+
     let clipData: AIClipData | null = null;
     if (isFalConfigured()) {
       try {
-        clipData = await buildAIClips(imagePaths, outDir, emit);
+        clipData = await buildAIClips(imagePaths, outDir, droneIndices, emit);
       } catch (e: any) {
         console.warn("[showcase] AI path failed, falling back to local:", e?.message || e);
         clipData = null;
@@ -917,7 +965,7 @@ async function render(
       } else {
         inputs = await buildLocalInputs(imagePaths, mood);
       }
-      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood);
+      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, startText, endText);
 
       // "Original" variant — landscape 1920×1080, same music/text, crop-to-fill.
       let cleanInputs: RenderInputs;
@@ -926,7 +974,7 @@ async function render(
       } else {
         cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, mood);
       }
-      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`);
+      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`, startText, endText);
     }
 
     // Clean up downloaded AI clips — every mood + clean variant is now done.
@@ -952,6 +1000,8 @@ export function startShowcaseVideo(
   imagePaths: string[],
   outDir: string,
   address?: string,
+  startText?: string,
+  endText?: string,
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) {
@@ -965,7 +1015,7 @@ export function startShowcaseVideo(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  render(jobId, imagePaths, outDir, address)
+  render(jobId, imagePaths, outDir, address, startText, endText)
     .catch((err: any) => {
       const cur = jobs.get(jobId);
       jobs.set(jobId, {

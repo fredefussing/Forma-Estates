@@ -2797,6 +2797,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [startText, setStartText] = useState("");
+  const [endText, setEndText] = useState("");
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -2865,6 +2867,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
       if (address.trim()) fd.append("address", address.trim());
+      if (startText.trim()) fd.append("startText", startText.trim());
+      if (endText.trim()) fd.append("endText", endText.trim());
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
         body: fd,
@@ -3015,7 +3019,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     <div className="max-w-3xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig showcase</h1>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med ægte AI-kamerabevægelse (dolly ind/ud, truck) klippet til musikkens beat — perfekt til socials og reels.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med ægte AI-kamerabevægelse klippet til musikkens beat. Aktivér drone intro/outro ved at udfylde start- og sluttekst — <strong>billede 1</strong> og <strong>det sidste billede</strong> genereres som cinematic drone-klips.</p>
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
@@ -3078,6 +3082,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
                     {idx + 1}
                   </div>
+                  {idx === 0 && (
+                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>DRONE INTRO</div>
+                  )}
+                  {idx === images.length - 1 && images.length > 1 && (
+                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#0F1D2F", color: "#fff" }}>DRONE OUTRO</div>
+                  )}
                   <button
                     onClick={() => removeImage(img.id)}
                     className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3091,6 +3101,50 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Drone intro / outro text — shown when 2+ images are uploaded */}
+        {images.length >= 2 && (
+          <div className="rounded-xl border border-[#E8E4DE] p-4 space-y-3" style={{ background: "#F8F6F3" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>TEST</span>
+              <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>Drone intro / outro tekst</span>
+              <span className="text-xs" style={{ color: "#9B9690" }}>— udfyld begge for at aktivere Kling drone-klips</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#C8956C" }}>▲ Start klip tekst</span>
+                <input
+                  type="text"
+                  value={startText}
+                  onChange={(e) => setStartText(e.target.value)}
+                  disabled={isGenerating}
+                  placeholder="F.eks. Strandvejen 12 · Hellerup"
+                  maxLength={60}
+                  className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
+                  style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
+                  data-testid="input-showcase-start-text"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#0F1D2F" }}>▼ Slut klip tekst</span>
+                <input
+                  type="text"
+                  value={endText}
+                  onChange={(e) => setEndText(e.target.value)}
+                  disabled={isGenerating}
+                  placeholder="F.eks. Ring til os · +45 70 70 70 70"
+                  maxLength={60}
+                  className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
+                  style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
+                  data-testid="input-showcase-end-text"
+                />
+              </div>
+            </div>
+            <p className="text-[11px]" style={{ color: "#9B9690" }}>
+              Billede 1 (DRONE INTRO) og det sidste billede (DRONE OUTRO) genereres med Kling som drone-flyover i stedet for normal gimbal. Resten er standard AI-klips.
+            </p>
           </div>
         )}
 
@@ -3112,7 +3166,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
         <button
           onClick={handleGenerate}
-          disabled={images.length < 3 || isGenerating}
+          disabled={images.length < 2 || isGenerating}
           className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
           style={{ background: "#C8956C" }}
           data-testid="button-generate-showcase"
