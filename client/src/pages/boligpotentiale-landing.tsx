@@ -1216,44 +1216,6 @@ export default function BoligpotentialeLanding() {
       <div id="top" style={{ background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
 
-        {/* CTA strip — headline + buttons directly below carousel */}
-        <div className="px-6" style={{ paddingTop: 24, paddingBottom: 20, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          <div className="mx-auto flex flex-col sm:flex-row items-center sm:justify-between gap-4" style={{ maxWidth: 1280 }}>
-            <div>
-              <h1 style={{ fontFamily: SERIF, color: C.white, fontSize: "clamp(22px, 2.8vw, 38px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
-                Sæt scenen. Sælg hurtigere.
-              </h1>
-              <p className="mt-1" style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, fontFamily: SANS }}>
-                Upload et rumfoto — salgsklar visualisering på <span style={{ color: C.gold }}>under 30 sek.</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <Link href="/opret">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: C.gold, color: C.navy, padding: "10px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: SANS }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; }}
-                  data-testid="bolig-hero-cta"
-                >
-                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
-                </button>
-              </Link>
-              <Link href="/boligpotentiale/eksempler">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: "transparent", color: "rgba(255,255,255,0.7)", padding: "10px 20px", borderRadius: 8, fontSize: 13, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.2)" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"; (e.currentTarget.style as any).color = "#fff"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; (e.currentTarget.style as any).color = "rgba(255,255,255,0.7)"; }}
-                  data-testid="bolig-hero-cta-secondary"
-                >
-                  Se eksempler
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-
         {/* Compact scroll cue */}
         <div className="flex justify-center" style={{ paddingBottom: 8, paddingTop: 2 }}>
           <a href="#how-it-works" style={{ color: "rgba(228,203,148,0.6)" }} data-testid="bolig-hero-scroll-cue">
