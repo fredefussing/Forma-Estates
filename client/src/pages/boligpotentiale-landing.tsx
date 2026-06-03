@@ -364,7 +364,7 @@ function HeroStage() {
   const nextIndex = (index + 1) % STAGE_SLIDES.length;
   const prevSlide = STAGE_SLIDES[prevIndex];
   const nextSlide = STAGE_SLIDES[nextIndex];
-  const sidePreview = (s: StageSlide) => (s.kind === "swipe" ? s.after : s.poster || "");
+  const sidePreview = (s: StageSlide) => (s.kind === "swipe" ? s.after : "");
 
   return (
     <section
@@ -476,14 +476,13 @@ function HeroStage() {
                 <video
                   ref={videoRef}
                   src={slide.src}
-                  poster={(slide as any).poster}
                   autoPlay
                   muted
                   loop
                   playsInline
                   preload="auto"
                   onCanPlay={(e) => { e.currentTarget.play().catch(() => {}); }}
-                  onLoadedMetadata={(e) => { e.currentTarget.play().catch(() => {}); }}
+                  onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; e.currentTarget.play().catch(() => {}); }}
                   className="absolute inset-0 w-full h-full object-cover"
                   data-testid="bolig-hero-stage-video"
                 />
