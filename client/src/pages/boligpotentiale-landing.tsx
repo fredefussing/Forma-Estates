@@ -1256,41 +1256,11 @@ export default function BoligpotentialeLanding() {
       </header>
 
       {/* ── HERO TAGLINE ── */}
-      <section style={{ background: C.champagne, paddingTop: 52, paddingBottom: 48 }} className="px-6" data-testid="bolig-hero-tagline">
-        <div className="mx-auto text-center" style={{ maxWidth: 720 }}>
-          <div className="uppercase mb-4" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", fontFamily: SANS }}>
-            Til ejendomsmæglere i Danmark
-          </div>
-          <h1 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(32px, 5vw, 54px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}>
-            Sæt scenen.<br />Sælg hurtigere.
+      <section style={{ background: C.champagne, paddingTop: 44, paddingBottom: 32 }} className="px-6" data-testid="bolig-hero-tagline">
+        <div className="mx-auto text-center" style={{ maxWidth: 800 }}>
+          <h1 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(36px, 5.5vw, 64px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+            Sæt scenen. Sælg hurtigere.
           </h1>
-          <p className="mt-5 mx-auto" style={{ color: C.muted, fontSize: "clamp(15px, 1.6vw, 17px)", lineHeight: 1.65, maxWidth: 560 }}>
-            Upload et foto — få professionel AI-iscenesættelse, 3D-plantegning eller transformationsvideo klar til annoncen på under 30 sekunder. Ingen fotograf. Ingen ventetid.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link href="/opret">
-              <button
-                className="inline-flex items-center gap-2 transition-all"
-                style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: SANS, boxShadow: "0 8px 24px rgba(201,169,110,0.28)" }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
-                data-testid="bolig-tagline-cta-primary"
-              >
-                Prøv gratis <ArrowRight className="w-4 h-4" />
-              </button>
-            </Link>
-            <a href="#how-it-works">
-              <button
-                className="inline-flex items-center gap-2 transition-all"
-                style={{ background: "transparent", color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 500, fontFamily: SANS, border: `1px solid ${C.navy}` }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.navy; (e.currentTarget.style as any).color = C.white; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; (e.currentTarget.style as any).color = C.navy; }}
-                data-testid="bolig-tagline-cta-secondary"
-              >
-                Se eksempler
-              </button>
-            </a>
-          </div>
         </div>
       </section>
 
