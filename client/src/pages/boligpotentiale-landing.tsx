@@ -148,14 +148,14 @@ const PRICING: Plan[] = [
   {
     name: "Start",
     monthly: 2999,
-    features: ["10 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    features: ["10 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
     cta: "Vælg Start",
     href: "/opret",
   },
   {
     name: "Pro",
     monthly: 5999,
-    features: ["25 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    features: ["25 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
     cta: "Vælg Pro",
     highlight: true,
     href: "/opret",
@@ -163,7 +163,7 @@ const PRICING: Plan[] = [
   {
     name: "Business",
     monthly: 11999,
-    features: ["60 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    features: ["60 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
     cta: "Vælg Business",
     href: "/opret",
   },
