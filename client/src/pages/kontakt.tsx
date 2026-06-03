@@ -273,14 +273,14 @@ export default function KontaktPage() {
                   <Mail className="w-4 h-4 mt-1" style={{ color: C.gold }} />
                   <div>
                     <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>E-mail</div>
-                    <a href="mailto:kontakt@formaestates.dk" className="hover:underline" style={{ color: C.white }} data-testid="link-email">kontakt@formaestates.dk</a>
+                    <a href="mailto:kontakt@formaestates.com" className="hover:underline" style={{ color: C.white }} data-testid="link-email">kontakt@formaestates.com</a>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
                   <Phone className="w-4 h-4 mt-1" style={{ color: C.gold }} />
                   <div>
                     <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>Telefon</div>
-                    <a href="tel:+4570707070" className="hover:underline" style={{ color: C.white }} data-testid="link-phone">+45 70 70 70 70</a>
+                    <a href="tel:+4529172732" className="hover:underline" style={{ color: C.white }} data-testid="link-phone">+45 29 17 27 32</a>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">

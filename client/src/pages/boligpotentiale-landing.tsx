@@ -148,14 +148,14 @@ const PRICING: Plan[] = [
   {
     name: "Start",
     monthly: 2999,
-    features: ["10 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
+    features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformationsvideoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
     cta: "Vælg Start",
     href: "/opret",
   },
   {
     name: "Pro",
     monthly: 5999,
-    features: ["25 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
+    features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformationsvideoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
     cta: "Vælg Pro",
     highlight: true,
     href: "/opret",
@@ -163,7 +163,7 @@ const PRICING: Plan[] = [
   {
     name: "Business",
     monthly: 11999,
-    features: ["60 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
+    features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformationsvideoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
     cta: "Vælg Business",
     href: "/opret",
   },
@@ -176,7 +176,7 @@ const FAQS = [
   },
   {
     q: "Hvad får jeg gratis, og hvad koster det?",
-    a: "Når du opretter en konto, får du 1 gratis visualisering — ingen kreditkort krævet. Herefter kan du vælge en af vores abonnementsplaner fra 2.499 kr./md.",
+    a: "Når du opretter en konto, får du 1 gratis visualisering — ingen kreditkort krævet. Herefter kan du vælge en af vores abonnementsplaner fra 2.999 kr./md.",
   },
   {
     q: "Hvilke filformater kan jeg uploade?",
@@ -1255,6 +1255,45 @@ export default function BoligpotentialeLanding() {
         </AnimatePresence>
       </header>
 
+      {/* ── HERO TAGLINE ── */}
+      <section style={{ background: C.champagne, paddingTop: 52, paddingBottom: 48 }} className="px-6" data-testid="bolig-hero-tagline">
+        <div className="mx-auto text-center" style={{ maxWidth: 720 }}>
+          <div className="uppercase mb-4" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", fontFamily: SANS }}>
+            Til ejendomsmæglere i Danmark
+          </div>
+          <h1 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(32px, 5vw, 54px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}>
+            Sæt scenen.<br />Sælg hurtigere.
+          </h1>
+          <p className="mt-5 mx-auto" style={{ color: C.muted, fontSize: "clamp(15px, 1.6vw, 17px)", lineHeight: 1.65, maxWidth: 560 }}>
+            Upload et foto — få professionel AI-iscenesættelse, 3D-plantegning eller transformationsvideo klar til annoncen på under 30 sekunder. Ingen fotograf. Ingen ventetid.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <Link href="/opret">
+              <button
+                className="inline-flex items-center gap-2 transition-all"
+                style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: SANS, boxShadow: "0 8px 24px rgba(201,169,110,0.28)" }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                data-testid="bolig-tagline-cta-primary"
+              >
+                Prøv gratis <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+            <a href="#how-it-works">
+              <button
+                className="inline-flex items-center gap-2 transition-all"
+                style={{ background: "transparent", color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 500, fontFamily: SANS, border: `1px solid ${C.navy}` }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.navy; (e.currentTarget.style as any).color = C.white; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; (e.currentTarget.style as any).color = C.navy; }}
+                data-testid="bolig-tagline-cta-secondary"
+              >
+                Se eksempler
+              </button>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* ── HERO STAGE (DR1-style auto-rotating showcase) ── */}
       <div id="top" style={{ background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
@@ -1805,7 +1844,7 @@ export default function BoligpotentialeLanding() {
                 <p className="mt-3 mb-6" style={{ color: C.muted, fontSize: 15, lineHeight: 1.6 }}>
                   Vi sidder klar til at hjælpe dig. Send os en besked, så vender vi tilbage inden for 24 timer.
                 </p>
-                <a href="mailto:hej@formaestates.dk">
+                <a href="mailto:kontakt@formaestates.com">
                   <button
                     className="w-full transition-colors hover:bg-[color:var(--gold-h)]"
                     style={{
@@ -1909,13 +1948,18 @@ export default function BoligpotentialeLanding() {
               </p>
               <div
                 className="flex items-center justify-center md:justify-start"
-                style={{ gap: 20, color: "#6B6B6B", cursor: "default" }}
+                style={{ gap: 20 }}
                 data-testid="bolig-footer-social"
-                aria-hidden="true"
               >
-                <Linkedin size={22} strokeWidth={1.5} />
-                <Facebook size={22} strokeWidth={1.5} />
-                <Instagram size={22} strokeWidth={1.5} />
+                <a href="https://linkedin.com/company/formaestates" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
+                  <Linkedin size={22} strokeWidth={1.5} />
+                </a>
+                <a href="https://facebook.com/formaestates" target="_blank" rel="noopener noreferrer" aria-label="Facebook" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
+                  <Facebook size={22} strokeWidth={1.5} />
+                </a>
+                <a href="https://instagram.com/formaestates" target="_blank" rel="noopener noreferrer" aria-label="Instagram" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
+                  <Instagram size={22} strokeWidth={1.5} />
+                </a>
               </div>
             </div>
             <div>
@@ -1931,7 +1975,7 @@ export default function BoligpotentialeLanding() {
             <div>
               <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Support</div>
               <ul className="space-y-3">
-                {[["FAQ", "#faq"], ["Kontakt", "mailto:hej@formaestates.dk"], ["Privatlivspolitik", "#"]].map(([l, h]) => (
+                {[["FAQ", "#faq"], ["Kontakt", "mailto:kontakt@formaestates.com"], ["Privatlivspolitik", "#"]].map(([l, h]) => (
                   <li key={l}>
                     <a href={h} className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>{l}</a>
                   </li>

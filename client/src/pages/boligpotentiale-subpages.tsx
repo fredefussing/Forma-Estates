@@ -498,6 +498,9 @@ export function OmOsPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </Link>
+          <div className="mt-8" style={{ color: C.muted, fontSize: 13 }}>
+            Forma Estates · CVR: 12345678 · København, Danmark
+          </div>
         </div>
       </div>
     </SubpageLayout>
