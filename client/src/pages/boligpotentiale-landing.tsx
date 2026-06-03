@@ -446,24 +446,26 @@ function HeroStage() {
                     </div>
                   </div>
                   <div
-                    className="absolute top-4 left-4 text-white text-[11px] font-medium uppercase"
+                    className="absolute top-4 left-4 text-white text-[12px] font-semibold uppercase"
                     style={{
                       background: C.navy,
-                      padding: "5px 11px",
-                      borderRadius: 4,
+                      padding: "6px 13px",
+                      borderRadius: 5,
                       letterSpacing: "0.1em",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.22)",
                     }}
                   >
                     {slide.beforeLabel}
                   </div>
                   <div
-                    className="absolute top-4 right-4 text-[11px] font-medium uppercase"
+                    className="absolute top-4 right-4 text-[12px] font-semibold uppercase"
                     style={{
                       background: C.gold,
                       color: C.navy,
-                      padding: "5px 11px",
-                      borderRadius: 4,
+                      padding: "6px 13px",
+                      borderRadius: 5,
                       letterSpacing: "0.1em",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
                     }}
                   >
                     {slide.afterLabel}
