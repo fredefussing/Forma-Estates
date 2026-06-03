@@ -145,16 +145,16 @@ type Plan = {
 
 const PRICING: Plan[] = [
   {
-    name: "Starter",
+    name: "Start",
     monthly: 2499,
-    features: ["25 billeder / md.", "5 designstile", "HD download", "Email support"],
-    cta: "Vælg Starter",
+    features: ["15 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "1 Transformering Video / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
+    cta: "Vælg Start",
     href: "/opret",
   },
   {
     name: "Pro",
     monthly: 4999,
-    features: ["100 billeder / md.", "Alle 8 designstile", "4K download", "Prioriteret support", "Branding på billeder"],
+    features: ["35 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "3 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Pro",
     highlight: true,
     href: "/opret",
@@ -162,14 +162,14 @@ const PRICING: Plan[] = [
   {
     name: "Business",
     monthly: 9999,
-    features: ["250 billeder / md.", "Alle designstile", "4K download", "API adgang", "Hvid-label mulighed", "Dedikeret support"],
+    features: ["80 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "8 Transformering Videoer / md.", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Vælg Business",
     href: "/opret",
   },
   {
     name: "Enterprise",
     monthly: null,
-    features: ["Ubegrænsede billeder", "Alle designstile + custom", "4K download", "Fuld API adgang", "Hvid-label", "Dedikeret onboarding", "SLA & dedikeret support"],
+    features: ["Ubegrænsede AI Visualiseringer", "Ubegrænsede 3D Floor Plans", "Ubegrænsede Transformering Videoer", "AI Design Agent, Før/Efter & Ejendomsrapport", "Adgang til nye produkter og teknologi"],
     cta: "Kontakt os",
     href: "mailto:hej@formaestates.dk",
   },
