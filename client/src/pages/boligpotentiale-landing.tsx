@@ -420,26 +420,21 @@ function HeroStage() {
               className="absolute inset-0"
             >
               {slide.kind === "swipe" ? (
-                <div className="relative w-full h-full select-none" style={{ background: slide.contain ? (slide.bg ?? "#F0EDE8") : "#000" }}>
+                <div className="relative w-full h-full select-none" style={{ background: slide.bg ?? "#F5F3EF" }}>
+                  {/* After image — full size, underneath */}
                   <img
                     src={slide.after}
                     alt={slide.afterLabel}
                     className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: slide.contain ? "contain" : "cover", padding: slide.contain ? "1.5%" : 0 }}
+                    style={{ objectFit: "contain" }}
                   />
-                  <div
-                    className="absolute inset-0 overflow-hidden"
-                    style={slide.contain
-                      ? { clipPath: `inset(0 ${100 - splitPct}% 0 0)` }
-                      : { width: `${splitPct}%` }}
-                  >
-                    <img
-                      src={slide.before}
-                      alt={slide.beforeLabel}
-                      className="absolute inset-0 w-full h-full"
-                      style={{ objectFit: slide.contain ? "contain" : "cover", width: slide.contain ? "100%" : `${100 / ((splitPct / 100) || 0.001)}%`, padding: slide.contain ? "1.5%" : 0 }}
-                    />
-                  </div>
+                  {/* Before image — same full size, clipped from right via clip-path so it doesn't distort */}
+                  <img
+                    src={slide.before}
+                    alt={slide.beforeLabel}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: "contain", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
+                  />
                   <div
                     className="absolute top-0 bottom-0 flex items-center"
                     style={{ left: `${splitPct}%`, transform: "translateX(-50%)" }}
