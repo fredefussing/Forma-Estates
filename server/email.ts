@@ -22,7 +22,7 @@ async function sendBrevoEmail(options: EmailOptions) {
   }
 
   const payload: Record<string, unknown> = {
-    sender: { name: options.senderName || "Nordic Homebuild", email: options.senderEmail },
+    sender: { name: options.senderName || "Forma Estates", email: options.senderEmail },
     to: [{ email: options.to }],
     subject: options.subject,
     htmlContent: options.html,
@@ -69,15 +69,15 @@ export async function sendWelcomeEmail(email: string, source?: string) {
   try {
     await sendBrevoEmail({
       to: email,
-      subject: "Velkommen til Nordic Homebuild!",
+      subject: "Velkommen til Forma Estates!",
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Nordic Homebuild!</h1>
+          <h1 style="color: #1a1a1a; font-size: 24px;">Velkommen til Forma Estates!</h1>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">Hej!</p>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">Tak for at du oprettede en konto. Du har nu <strong>2 gratis AI-billeder</strong> klar til brug!</p>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">Med Nordic Homebuild kan du:</p>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Med Forma Estates kan du:</p>
           <ul style="color: #666; font-size: 16px; line-height: 2;">
             <li>Transformere dit rum med AI</li>
             <li>Vælge mellem 8 forskellige stilarter</li>
@@ -91,7 +91,7 @@ export async function sendWelcomeEmail(email: string, source?: string) {
           </p>
           <p style="color: #666; font-size: 14px;">Har du spørgsmål? Svar bare på denne mail.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuild</strong></p>
+          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Forma Estates</strong></p>
         </div>
       `,
     });
@@ -124,7 +124,7 @@ export async function sendWelcomeEmail(email: string, source?: string) {
             </tr>
           </table>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Nordic Homebuild — Admin notifikation</p>
+          <p style="color: #999; font-size: 12px;">Forma Estates — Admin notifikation</p>
         </div>
       `,
     });
@@ -193,7 +193,7 @@ export async function sendQuoteRequestEmail(data: {
           </ul>
           <p style="color: #666; font-size: 14px;">Har du spørgsmål i mellemtiden? Svar bare på denne mail.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Nordic Homebuild</strong></p>
+          <p style="color: #999; font-size: 12px;">Med venlig hilsen,<br><strong>Frederik fra Forma Estates</strong></p>
         </div>
       `,
     });
@@ -240,7 +240,7 @@ export async function sendQuoteRequestEmail(data: {
           <h3 style="color: #1a1a1a; font-size: 16px; margin-top: 24px;">AI genereret design:</h3>
           <img src="${data.generatedImageUrl}" alt="Genereret design" style="max-width: 100%; border-radius: 8px; margin-top: 8px;" />
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Nordic Homebuild — Admin notifikation</p>
+          <p style="color: #999; font-size: 12px;">Forma Estates — Admin notifikation</p>
         </div>
       `,
     });
@@ -298,7 +298,7 @@ export async function sendOrderConfirmationEmail(data: {
             </tr>
           </table>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Nordic Homebuild — Admin notifikation</p>
+          <p style="color: #999; font-size: 12px;">Forma Estates — Admin notifikation</p>
         </div>
       `,
     });
@@ -573,7 +573,7 @@ export async function sendAIAnalysisEmail(data: {
 
       </div>
 
-      <p style="color:#ccc; font-size:11px; text-align:center; margin-top:16px;">Nordic Homebuild — AI Analyse System · Design #${data.designId}</p>
+      <p style="color:#ccc; font-size:11px; text-align:center; margin-top:16px;">Forma Estates — AI Analyse System · Design #${data.designId}</p>
     </div>
   `;
 
@@ -595,13 +595,13 @@ export async function sendTeamInviteEmail(toEmail: string, teamName: string, inv
   try {
     await sendBrevoEmail({
       to: toEmail,
-      subject: `Du er inviteret til teamet "${teamName}" på Nordic Homebuild`,
+      subject: `Du er inviteret til teamet "${teamName}" på Forma Estates`,
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #F5F3EF; padding: 32px;">
           <div style="background: #0F1D2F; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #C8956C; font-size: 22px; margin: 0;">Nordic Homebuild</h1>
+            <h1 style="color: #C8956C; font-size: 22px; margin: 0;">Forma Estates</h1>
             <p style="color: rgba(245,243,239,0.6); font-size: 13px; margin: 4px 0 0;">Forma Estates</p>
           </div>
           <div style="background: #fff; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #E8E4DE;">

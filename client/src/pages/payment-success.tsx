@@ -93,7 +93,7 @@ export default function PaymentSuccessPage() {
       <header className="border-b border-border/60 bg-background/90 backdrop-blur-lg">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-16">
           <Link href="/">
-            <span className="text-lg font-semibold tracking-tight cursor-pointer" data-testid="link-logo">Nordic Homebuild</span>
+            <span className="text-lg font-semibold tracking-tight cursor-pointer" data-testid="link-logo">Forma Estates</span>
           </Link>
         </div>
       </header>

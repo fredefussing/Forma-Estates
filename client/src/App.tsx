@@ -47,7 +47,7 @@ function BoligComingSoon() {
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#FAF7F2" }}>
       <div className="max-w-lg w-full text-center" data-testid="bolig-coming-soon">
         <div className="text-xs font-semibold tracking-[0.2em] uppercase mb-4" style={{ color: "#C8956C" }}>
-          Nordic Homebuild
+          Forma Estates
         </div>
         <h1 className="text-4xl md:text-5xl font-light mb-6" style={{ color: "#0F1D2F" }}>
           AI Boligfremvisning

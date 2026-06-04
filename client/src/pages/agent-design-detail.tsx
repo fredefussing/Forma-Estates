@@ -55,7 +55,7 @@ export default function AgentDesignDetailPage() {
       <header className="bg-white shadow-sm">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-16">
           <Link href="/">
-            <span className="text-lg font-semibold tracking-tight cursor-pointer text-[#1a1a1a]" data-testid="link-logo">Nordic Homebuild</span>
+            <span className="text-lg font-semibold tracking-tight cursor-pointer text-[#1a1a1a]" data-testid="link-logo">Forma Estates</span>
           </Link>
           <nav className="flex items-center gap-6">
             <Link href="/">

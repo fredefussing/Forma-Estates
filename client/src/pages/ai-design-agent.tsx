@@ -177,7 +177,7 @@ export default function AIDesignAgentPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
         <div className="mx-auto max-w-5xl flex items-center justify-between px-6 h-16">
           <Link href="/">
-            <span className="text-lg font-semibold tracking-tight cursor-pointer" data-testid="link-home">Nordic Homebuild</span>
+            <span className="text-lg font-semibold tracking-tight cursor-pointer" data-testid="link-home">Forma Estates</span>
           </Link>
           <div className="flex items-center gap-6">
             <Link href="/pris">

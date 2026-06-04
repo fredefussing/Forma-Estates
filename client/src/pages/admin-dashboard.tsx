@@ -140,7 +140,7 @@ export default function AdminDashboardPage() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-dashboard-title">
             <BarChart3 className="w-6 h-6" />
-            Nordic Homebuild Dashboard
+            Forma Estates Dashboard
           </h1>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => refetch()} className="gap-2" data-testid="button-refresh">
