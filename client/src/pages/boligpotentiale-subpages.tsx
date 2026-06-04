@@ -824,8 +824,8 @@ export function AIDesignAgentPage() {
   return (
     <SubpageLayout
       eyebrow="AI Design Agent"
-      title="Beskriv ændringen — vi laver den"
-      intro="Skriv hvad du vil ændre i et rum, så genererer agenten det. Skift gulv, farve, møbler eller stemning med en sætning."
+      title="Beskriv det — agenten laver det"
+      intro="Ingen begrænsninger. Skriv præcis hvad du vil ændre — møbler, lys, vejr, farver, sæson, mennesker, biler, himmel, stemning. Agenten forstår naturligt sprog og leverer resultatet direkte."
     >
       <div className="grid lg:grid-cols-2 gap-7 items-center">
         <div
@@ -881,8 +881,8 @@ export function AIDesignAgentPage() {
       <BenefitRow
         items={[
           { title: "Frit sprog", desc: "Beskriv ændringen som du ville beskrive den til en designer." },
-          { title: "Bevarer rummet", desc: "Vægge, vinduer og struktur forbliver intakte — kun indretningen ændres." },
-          { title: "Iterér frit", desc: "Send flere prompts på samme billede indtil resultatet sidder." },
+          { title: "Ingen begrænsninger", desc: "Skift indretning, vejr, lys, årstid, biler i indkørslen, mennesker i haven — alt hvad du kan beskrive, kan agenten ændre." },
+          { title: "Iterér til det sidder", desc: "Send flere prompts på samme billede. Finpuds detaljer trin for trin indtil resultatet er præcis som du vil have det." },
         ]}
       />
     </SubpageLayout>
