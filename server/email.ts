@@ -1,9 +1,28 @@
 import { log } from "./index";
 import { getStoreSearchUrl } from "./product_matcher";
 import type { AnalysisResult, OpenAIProduct } from "./ai_analyzer";
+import nodemailer from "nodemailer";
 
 const KONTAKT_EMAIL = "kontakt@formaestates.com";
-const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const SENDER_NAME = "Forma Estates";
+
+function createTransporter() {
+  const host = process.env.SMTP_HOST || "smtpout.secureserver.net";
+  const port = parseInt(process.env.SMTP_PORT || "465");
+  const secure = port === 465;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user: KONTAKT_EMAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+    tls: { rejectUnauthorized: false },
+  });
+}
+
+const transporter = createTransporter();
 
 interface EmailOptions {
   to: string;
@@ -16,42 +35,18 @@ interface EmailOptions {
 }
 
 async function sendBrevoEmail(options: EmailOptions) {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    throw new Error("BREVO_API_KEY not configured");
+  if (!process.env.SMTP_PASSWORD) {
+    throw new Error("SMTP_PASSWORD not configured");
   }
 
-  const payload: Record<string, unknown> = {
-    sender: { name: options.senderName || "Forma Estates", email: options.senderEmail },
-    to: [{ email: options.to }],
+  await transporter.sendMail({
+    from: `"${options.senderName || SENDER_NAME}" <${KONTAKT_EMAIL}>`,
+    to: options.to,
     subject: options.subject,
-    htmlContent: options.html,
-  };
-
-  if (options.replyTo) {
-    payload.replyTo = { email: options.replyTo };
-  }
-
-  if (options.bcc) {
-    payload.bcc = [{ email: options.bcc }];
-  }
-
-  const response = await fetch(BREVO_API_URL, {
-    method: "POST",
-    headers: {
-      "accept": "application/json",
-      "api-key": apiKey,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    html: options.html,
+    replyTo: options.replyTo || KONTAKT_EMAIL,
+    bcc: options.bcc,
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Brevo API error ${response.status}: ${errorText}`);
-  }
-
-  return response.json();
 }
 
 export async function sendWelcomeEmail(email: string, source?: string) {
