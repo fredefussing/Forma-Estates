@@ -199,42 +199,33 @@ export async function sendQuoteRequestEmail(data: {
   try {
     await sendBrevoEmail({
       to: KONTAKT_EMAIL,
-      subject: `Ny tilbudsforespørgsel - ${data.customerEmail}`,
+      subject: `Ny tilbudsforespørgsel — ${data.customerEmail}`,
       senderEmail: KONTAKT_EMAIL,
-      replyTo: KONTAKT_EMAIL,
+      replyTo: data.customerEmail,
       html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a1a1a; font-size: 20px; margin-bottom: 24px;">Ny tilbudsforespørgsel</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666; width: 160px;">Kundens email:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.customerEmail}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Rum-type:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${roomLabel}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Valgt stil:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${styleLabel}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Budget:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${budgetLabel}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Tidspunkt:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${timestamp}</td>
-            </tr>
-            ${data.notes ? `<tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Bemærkninger:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.notes}</td>
-            </tr>` : ""}
-          </table>
-          <h3 style="color: #1a1a1a; font-size: 16px; margin-top: 24px;">AI genereret design:</h3>
-          <img src="${data.generatedImageUrl}" alt="Genereret design" style="max-width: 100%; border-radius: 8px; margin-top: 8px;" />
-          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Forma Estates — Admin notifikation</p>
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:640px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Tilbudsforespørgsel</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">Ny tilbudsforespørgsel</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;width:160px;border-bottom:1px solid #F0EBE1;">Email</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;"><a href="mailto:${data.customerEmail}" style="color:#0F1923;">${data.customerEmail}</a></td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Rum-type</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;">${roomLabel}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Stil</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;">${styleLabel}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Budget</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:600;border-bottom:1px solid #F0EBE1;">${budgetLabel}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Tidspunkt</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;border-bottom:1px solid #F0EBE1;">${timestamp}</td></tr>
+              ${data.notes ? `<tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;vertical-align:top;">Bemærkninger</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;border-bottom:1px solid #F0EBE1;">${data.notes}</td></tr>` : ""}
+            </table>
+            <div style="padding:20px 28px;">
+              <div style="color:#777;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">AI-genereret design</div>
+              <img src="${data.generatedImageUrl}" alt="AI design" style="width:100%;border-radius:8px;display:block;" />
+            </div>
+            <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">
+              Svar direkte på denne e-mail — den går til ${data.customerEmail}.
+            </div>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Admin notifikation</div>
         </div>
       `,
     });
@@ -267,32 +258,30 @@ export async function sendOrderConfirmationEmail(data: {
   try {
     await sendBrevoEmail({
       to: KONTAKT_EMAIL,
-      subject: `Nyt salg - ${data.packageName} pakke - ${data.customerEmail}`,
+      subject: `Nyt salg — ${data.packageName} · ${data.customerEmail}`,
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a1a1a; font-size: 20px; margin-bottom: 24px;">Nyt salg!</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666; width: 160px;">Kundens email:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.customerEmail}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Produkt:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${productLabel}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Pris:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${data.price} kr</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; color: #666;">Tidspunkt:</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600;">${timestamp}</td>
-            </tr>
-          </table>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="color: #999; font-size: 12px;">Forma Estates — Admin notifikation</p>
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:640px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Nyt salg</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">💳 Nyt køb gennemført</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;width:160px;border-bottom:1px solid #F0EBE1;">Email</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;"><a href="mailto:${data.customerEmail}" style="color:#0F1923;">${data.customerEmail}</a></td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Navn</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;">${data.customerName}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Pakke</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;">${data.packageName}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Produkt</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;border-bottom:1px solid #F0EBE1;">${productLabel}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Pris</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:700;border-bottom:1px solid #F0EBE1;">${data.price} kr</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Ordre-ID</td><td style="padding:10px 14px;color:#0F1923;font-size:13px;font-family:monospace;border-bottom:1px solid #F0EBE1;">${data.orderId}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;">Tidspunkt</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;">${timestamp}</td></tr>
+            </table>
+            <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">
+              Forma Estates · Admin notifikation
+            </div>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates</div>
         </div>
       `,
     });
@@ -402,24 +391,31 @@ export async function sendSpecialRequestEmail(data: {
   try {
     await sendBrevoEmail({
       to: KONTAKT_EMAIL,
-      subject: `Ny manuel forespørgsel #${data.designId}`,
+      subject: `Manuel forespørgsel #${data.designId}${data.customerEmail ? " — " + data.customerEmail : ""}`,
       senderEmail: KONTAKT_EMAIL,
-      replyTo: KONTAKT_EMAIL,
+      replyTo: data.customerEmail || KONTAKT_EMAIL,
       html: `
-        <h2>Ny kunde vil have manuel tilpasning</h2>
-        <p><strong>Ønske:</strong> ${data.request}</p>
-        <p><strong>Pris:</strong> ${data.price} kr</p>
-        ${data.customerEmail ? `<p><strong>Kunde email:</strong> ${data.customerEmail}</p>` : '<p><em>Ingen email angivet</em></p>'}
-        <h3>Originalt billede:</h3>
-        <img src="${data.originalImageUrl}" style="max-width: 600px; border-radius: 8px;" />
-        <hr />
-        <h3>Din opgave:</h3>
-        <ol>
-          <li>Åbn billedet i Photoshop/Canva</li>
-          <li>Ret: ${data.request}</li>
-          <li>Upload rettet version til admin</li>
-          <li>Send til kunde</li>
-        </ol>
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:640px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Manuel tilpasning</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">Ny forespørgsel #${data.designId}</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              ${data.customerEmail ? `<tr><td style="padding:10px 14px;color:#777;font-size:13px;width:160px;border-bottom:1px solid #F0EBE1;">Kunde email</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;"><a href="mailto:${data.customerEmail}" style="color:#0F1923;">${data.customerEmail}</a></td></tr>` : ""}
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Pris</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:700;border-bottom:1px solid #F0EBE1;">${data.price} kr</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;vertical-align:top;">Ønske</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;line-height:1.55;">${data.request.replace(/</g, "&lt;")}</td></tr>
+            </table>
+            <div style="padding:20px 28px;border-top:1px solid #F0EBE1;">
+              <div style="color:#777;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Originalt billede</div>
+              <img src="${data.originalImageUrl}" alt="Originalt billede" style="width:100%;border-radius:8px;display:block;" />
+            </div>
+            <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">
+              ${data.customerEmail ? `Svar direkte på denne e-mail — den går til ${data.customerEmail}.` : "Ingen kunde-email angivet."}
+            </div>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Admin notifikation</div>
+        </div>
       `,
     });
     log(`Special request email sent to ${KONTAKT_EMAIL} for design #${data.designId}`);
