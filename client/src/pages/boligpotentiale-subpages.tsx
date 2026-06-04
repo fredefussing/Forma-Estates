@@ -712,6 +712,114 @@ export function OmOsPage() {
 }
 
 
+export function BoligShowcasePage() {
+  const examples = [
+    {
+      src: "/bolig-images/living-scandi-after.jpg",
+      title: "Stue — skandinavisk",
+      desc: "Lyst egetræ, uldtæppe og stearinlys gør det tomt rum til et hjem køber kan se sig selv i.",
+    },
+    {
+      src: "/bolig-images/living-modern-after.jpg",
+      title: "Stue — moderne",
+      desc: "Rene linjer og mørke accenter fremhæver rummets arkitektur og størrelse.",
+    },
+    {
+      src: "/bolig-images/kitchen-after.jpg",
+      title: "Køkken — landlig",
+      desc: "Træfronter og naturligt lys giver køkkenet liv og varme.",
+    },
+    {
+      src: "/bolig-images/bathroom-after.jpg",
+      title: "Badeværelse — japandi",
+      desc: "Sten, træ og dæmpet palet skaber ro og balance.",
+    },
+  ];
+
+  return (
+    <SubpageLayout
+      eyebrow="Bolig Showcase"
+      title="Vis boligens fulde potentiale"
+      intro="Præsentér alle rum i deres bedste lys med professionelle AI-visualiseringer — klar til annoncen, sociale medier og fremvisning. Vi dækker hele boligen på én gang."
+    >
+      {/* Grid af eksempler */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7" data-testid="showcase-grid">
+        {examples.map((ex, i) => (
+          <div
+            key={ex.title}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+            data-testid={`showcase-example-${i}`}
+          >
+            <div className="relative" style={{ aspectRatio: "4 / 3" }}>
+              <img
+                src={ex.src}
+                alt={ex.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div
+                className="absolute top-3 left-3 uppercase"
+                style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
+              >
+                AI Visualisering
+              </div>
+            </div>
+            <div style={{ padding: "22px 26px 26px" }}>
+              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 20, fontWeight: 500, lineHeight: 1.25, marginBottom: 6 }}>{ex.title}</div>
+              <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55 }}>{ex.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <BenefitRow
+        items={[
+          { title: "Hele boligen dækket", desc: "Stue, køkken, soveværelse, badeværelse — alle rum iscenesat i én leverance." },
+          { title: "Klar til annoncen", desc: "Høj opløsning, klar til Boligsiden, Estate og sociale medier uden ekstra redigering." },
+          { title: "Hurtig leverance", desc: "Fra upload til komplet showcase på under én time — ingen fotograf, ingen ventetid." },
+        ]}
+      />
+
+      {/* Hvad er inkluderet */}
+      <div style={{ marginTop: 72 }}>
+        <div className="text-center mb-10">
+          <span className="uppercase" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em" }}>Hvad er inkluderet</span>
+          <h2 className="mt-3" style={{ fontFamily: SERIF, color: C.navy, fontSize: 32, fontWeight: 500, lineHeight: 1.2 }}>
+            Alt hvad du behøver til en komplet boligpræsentation
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {[
+            { label: "AI-iscenesættelse", desc: "Hvert rum transformeres til en stilfuld visualisering i den valgte designstil." },
+            { label: "9 stilarter", desc: "Skandinavisk, moderne, luksus, japandi, minimalistisk og flere — vælg den der passer til boligen." },
+            { label: "3 kvalitetsniveauer", desc: "Budget (IKEA/JYSK), Standard (BoConcept/HAY) eller Premium (Fritz Hansen/Carl Hansen)." },
+            { label: "HD billeder", desc: "Leveres i høj opløsning — klar til print, digital annoncering og sociale medier." },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 26px" }}
+            >
+              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, marginBottom: 6 }}>{item.label}</div>
+              <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>{item.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div className="text-center mt-10">
+          <Link href="/opret">
+            <button
+              className="inline-flex items-center justify-center gap-2 transition-colors"
+              style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600 }}
+              data-testid="showcase-cta"
+            >
+              Kom i gang gratis
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
+        </div>
+      </div>
+    </SubpageLayout>
+  );
+}
+
 export function AIDesignAgentPage() {
   return (
     <SubpageLayout

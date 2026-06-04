@@ -1337,14 +1337,14 @@ export default function BoligpotentialeLanding() {
                 title: "Beskriv din vision",
                 desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
                 media: { kind: "image" as const, src: "/bolig-images/ai-agent-after.jpg" },
-                href: "/boligpotentiale/dashboard",
+                href: "/boligpotentiale/ai-design-agent",
               },
               {
                 eyebrow: "Bolig Showcase",
                 title: "Vis potentialet",
                 desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
                 media: { kind: "image" as const, src: "/bolig-images/living-modern-after.jpg" },
-                href: "/boligpotentiale/dashboard",
+                href: "/boligpotentiale/bolig-showcase",
               },
             ];
             const renderTile = (t: typeof tiles[0]) => (
