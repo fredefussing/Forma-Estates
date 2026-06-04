@@ -223,16 +223,6 @@ type StageSlide =
 const STAGE_SLIDES: StageSlide[] = [
   {
     kind: "swipe",
-    before: "/bolig-images/facade-before.jpg",
-    after: "/bolig-images/facade-after.jpg",
-    beforeLabel: "Før",
-    afterLabel: "Efter",
-    title: "Før & efter",
-    caption: "Upload et foto — AI'en transformerer ejendommen på under 30 sekunder.",
-    meta: "Facade · AI Design Agent",
-  },
-  {
-    kind: "swipe",
     before: "/bolig-images/floorplan-2d.jpg",
     after: "/bolig-images/floorplan-3d.jpg",
     beforeLabel: "2D plan",
@@ -242,6 +232,16 @@ const STAGE_SLIDES: StageSlide[] = [
     meta: "Stand-in eksempel",
     contain: true,
     bg: "#F0EDE8",
+  },
+  {
+    kind: "swipe",
+    before: "/bolig-images/facade-before.jpg",
+    after: "/bolig-images/facade-after.jpg",
+    beforeLabel: "Før",
+    afterLabel: "Efter",
+    title: "Før & efter",
+    caption: "Upload et foto — AI'en transformerer ejendommen på under 30 sekunder.",
+    meta: "Facade · AI Design Agent",
   },
   {
     kind: "video",
@@ -427,14 +427,14 @@ function HeroStage() {
                     src={slide.after}
                     alt={slide.afterLabel}
                     className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: "cover", objectPosition: slide.objectPosition ?? "center" }}
+                    style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center" }}
                   />
-                  {/* Before image — same cover, curtain-clipped from the right so it slides cleanly without distorting */}
+                  {/* Before image — same fit, curtain-clipped from the right so it slides cleanly without distorting */}
                   <img
                     src={slide.before}
                     alt={slide.beforeLabel}
                     className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: "cover", objectPosition: slide.objectPosition ?? "center", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
+                    style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
                   />
                   <div
                     className="absolute top-0 bottom-0 flex items-center"
