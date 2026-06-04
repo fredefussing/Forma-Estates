@@ -8,8 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import type { Design } from "@shared/schema";
 import { styleVocabulary, type BudgetTier } from "@shared/styleVocabulary";
 import { formatDKK, getTierLabel } from "@shared/budgetUtils";
-import { QuoteRequest } from "@/components/quote-request";
-import { SpecialRequest } from "@/components/special-request";
 
 const roomTypeLabels: Record<string, string> = {
   "living room": "Stue",
@@ -201,18 +199,6 @@ export default function DesignDetailPage() {
               </div>
             )}
 
-            <QuoteRequest
-              designId={design.id}
-              generatedImageUrl={design.resultImageUrl}
-              roomType={design.roomType}
-              style={design.style}
-              budget={design.budget}
-            />
-
-            <SpecialRequest
-              designId={design.id}
-              originalImageUrl={design.originalImageUrl}
-            />
           </div>
         ) : design.status === "failed" ? (
           <div className="border border-border/60 rounded-xl flex flex-col items-center justify-center py-20 bg-white">

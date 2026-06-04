@@ -19,8 +19,6 @@ import { styleVocabulary } from "@shared/styleVocabulary";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { DesignCard } from "@/components/design-card";
 import { BudgetSlider } from "@/components/budget-slider";
-import { SpecialRequest } from "@/components/special-request";
-import { QuoteRequest } from "@/components/quote-request";
 import { FurnitureDetector } from "@/components/furniture-detector";
 import { ShopThisStyle } from "@/components/shop-this-style";
 import { ProductMatches } from "@/components/product-matches";
@@ -829,18 +827,6 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    <QuoteRequest
-                      designId={activeDesign.id}
-                      generatedImageUrl={activeDesign.resultImageUrl!}
-                      roomType={activeDesign.roomType}
-                      style={activeDesign.style}
-                      budget={activeDesign.budget}
-                    />
-
-                    <SpecialRequest
-                      designId={activeDesign.id}
-                      originalImageUrl={activeDesign.originalImageUrl}
-                    />
                   </div>
                 ) : activeDesign.status === "failed" ? (
                   <div className="border border-border/60 rounded-xl flex flex-col items-center justify-center py-20 bg-card/30">

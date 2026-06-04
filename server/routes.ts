@@ -6,14 +6,13 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
-import { createDesignSchema, createQuoteSchema, createSpecialRequestSchema, createQuoteRequestSchema, freeStyles, type InsertAiTourProperty } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendQuoteRequestEmail, sendSpecialRequestEmail, sendOrderConfirmationEmail, sendWelcomeEmail, sendAIAnalysisEmail, sendContactFormEmails } from "./email";
-import { analyzeDesignImage } from "./ai_analyzer";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails } from "./email";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
@@ -847,177 +846,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/special-requests", async (req, res) => {
-    try {
-      const parsed = createSpecialRequestSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
-      }
-
-      const specialRequest = await storage.createSpecialRequest({
-        designId: parsed.data.designId,
-        originalImageUrl: parsed.data.originalImageUrl,
-        request: parsed.data.request,
-        customerEmail: parsed.data.customerEmail || null,
-        price: parsed.data.price,
-        status: "pending",
-      });
-
-      log(`New special request #${specialRequest.id}: "${parsed.data.request}" for design ${parsed.data.designId}`);
-
-      sendSpecialRequestEmail({
-        customerEmail: parsed.data.customerEmail,
-        request: parsed.data.request,
-        originalImageUrl: parsed.data.originalImageUrl,
-        designId: parsed.data.designId,
-        price: parsed.data.price,
-      });
-
-      return res.json(specialRequest);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.get("/api/special-requests", async (_req, res) => {
-    const requests = await storage.getAllSpecialRequests();
-    return res.json(requests);
-  });
-
-  app.get("/api/special-requests/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
-
-    const request = await storage.getSpecialRequest(id);
-    if (!request) return res.status(404).json({ message: "Special request not found" });
-
-    return res.json(request);
-  });
-
-  app.patch("/api/special-requests/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
-
-      const request = await storage.updateSpecialRequest(id, req.body);
-      if (!request) return res.status(404).json({ message: "Special request not found" });
-
-      return res.json(request);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/analyze-design", async (req, res) => {
-    try {
-      const firebaseUser = await verifyFirebaseToken(req.headers.authorization);
-
-      const { designId } = req.body;
-      if (!designId) return res.status(400).json({ message: "designId required" });
-
-      const design = await storage.getDesign(Number(designId));
-      if (!design) return res.status(404).json({ message: "Design not found" });
-      if (design.status !== "completed" || !design.resultImageUrl) {
-        return res.status(400).json({ message: "Design not completed yet" });
-      }
-      if (!design.budget) return res.status(400).json({ message: "Design has no budget" });
-
-      const dbUser = await storage.getUserByFirebaseUid(firebaseUser.uid);
-      if (!dbUser) return res.status(404).json({ message: "User not found" });
-
-      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
-      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
-      const toAbsolute = (url: string) =>
-        url.startsWith("http") ? url : `${protocol}://${host}${url}`;
-
-      const resultImageUrl = toAbsolute(design.resultImageUrl);
-      const originalImageUrl = toAbsolute(design.originalImageUrl);
-
-      log(`Starting AI analysis for design #${design.id}`);
-      const analysis = await analyzeDesignImage(resultImageUrl, design.budget, design.roomType, design.style);
-
-      sendAIAnalysisEmail({
-        customerEmail: dbUser.email,
-        designId: design.id,
-        roomType: design.roomType,
-        style: design.style,
-        budget: design.budget,
-        resultImageUrl,
-        originalImageUrl,
-        analysis,
-      });
-
-      return res.json({ success: true, productCount: analysis.products.length });
-    } catch (err: any) {
-      log(`AI analysis error: ${err.message}`);
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/quote-requests", async (req, res) => {
-    try {
-      const parsed = createQuoteRequestSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
-      }
-
-      const quoteRequest = await storage.createQuoteRequest({
-        designId: parsed.data.designId,
-        customerEmail: parsed.data.customerEmail,
-        notes: parsed.data.notes || null,
-        generatedImageUrl: parsed.data.generatedImageUrl,
-        roomType: parsed.data.roomType,
-        style: parsed.data.style,
-        budget: parsed.data.budget || null,
-        status: "pending",
-      });
-
-      log(`New quote request #${quoteRequest.id} from ${parsed.data.customerEmail} for design ${parsed.data.designId}`);
-
-      sendQuoteRequestEmail({
-        customerEmail: parsed.data.customerEmail,
-        notes: parsed.data.notes,
-        roomType: parsed.data.roomType,
-        style: parsed.data.style,
-        budget: parsed.data.budget,
-        generatedImageUrl: parsed.data.generatedImageUrl,
-        designId: parsed.data.designId,
-      });
-
-      return res.json(quoteRequest);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.get("/api/quote-requests", async (_req, res) => {
-    const requests = await storage.getAllQuoteRequests();
-    return res.json(requests);
-  });
-
-  app.get("/api/quote-requests/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
-
-    const request = await storage.getQuoteRequest(id);
-    if (!request) return res.status(404).json({ message: "Quote request not found" });
-
-    return res.json(request);
-  });
-
-  app.patch("/api/quote-requests/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
-
-      const request = await storage.updateQuoteRequest(id, req.body);
-      if (!request) return res.status(404).json({ message: "Quote request not found" });
-
-      return res.json(request);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
 
   const packageMap: Record<string, { name: string; images: number; price: number }> = {
     "52707296543062": { name: "Basic", images: 10, price: 49 },
