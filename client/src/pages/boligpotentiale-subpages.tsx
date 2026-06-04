@@ -294,7 +294,7 @@ export function EksemplerPage() {
     { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", title: "Stue — moderne", desc: "Rene linjer, mørke accenter og statementmøbler." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Køkken — landlig", desc: "Træfronter, sten og naturligt lys gør rummet levende." },
     { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
-    { before: "/bolig-images/ai-agent-before.jpg", after: "/bolig-images/ai-agent-after.jpg", title: "Loft — atelier", desc: "Originale bjælker bevaret, indretningen tilført varme." },
+    { before: "/bolig-images/ai-agent-before.jpg", after: "/bolig-images/ai-agent-after-v2.jpg", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
   ];
   return (
     <SubpageLayout
@@ -872,7 +872,7 @@ export function AIDesignAgentPage() {
         </div>
         <BeforeAfterPair
           before="/bolig-images/ai-agent-before.jpg"
-          after="/bolig-images/ai-agent-after.jpg"
+          after="/bolig-images/ai-agent-after-v2.jpg"
           title="“Tilføj varmere belysning og lyse træmøbler”"
           desc="Et eksempel på hvad agenten kan, fra ét enkelt promptkrav."
           testId="agent-pair-0"

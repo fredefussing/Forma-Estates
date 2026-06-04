@@ -1336,7 +1336,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: "AI Design Agent",
                 title: "Beskriv din vision",
                 desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
-                media: { kind: "image" as const, src: "/bolig-images/ai-agent-after.jpg" },
+                media: { kind: "image" as const, src: "/bolig-images/ai-agent-after-v2.jpg" },
                 href: "/boligpotentiale/ai-design-agent",
               },
               {
