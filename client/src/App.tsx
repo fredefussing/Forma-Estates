@@ -84,12 +84,12 @@ function Router() {
     <Switch>
       <Route path="/join/:code" component={BoligpotentialeJoinTeam} />
       <Route path="/boligpotentiale/join-team" component={BoligpotentialeJoinTeam} />
-      <Route path="/boligpotentiale/dashboard" component={BoligpotentialeDashboard} />
+      <Route path="/boligpotentiale/dashboard" component={() => <BoligGate><BoligpotentialeDashboard /></BoligGate>} />
       <Route path="/boligpotentiale/eksempler" component={EksemplerPage} />
-      <Route path="/boligpotentiale/foer-efter" component={ForEfterPage} />
-      <Route path="/boligpotentiale/3d-plantegning" component={PlantegningPage} />
-      <Route path="/boligpotentiale/branchevideo" component={BranchevideoPage} />
-      <Route path="/boligpotentiale/ai-design-agent" component={AIDesignAgentSubpage} />
+      <Route path="/boligpotentiale/foer-efter" component={() => <BoligGate><ForEfterPage /></BoligGate>} />
+      <Route path="/boligpotentiale/3d-plantegning" component={() => <BoligGate><PlantegningPage /></BoligGate>} />
+      <Route path="/boligpotentiale/branchevideo" component={() => <BoligGate><BranchevideoPage /></BoligGate>} />
+      <Route path="/boligpotentiale/ai-design-agent" component={() => <BoligGate><AIDesignAgentSubpage /></BoligGate>} />
       <Route path="/boligpotentiale/om-os" component={OmOsPage} />
       <Route path="/kontakt" component={KontaktPage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />

@@ -476,6 +476,10 @@ export async function registerRoutes(
 
       const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
 
+      if (!COLLOV_API_KEY) {
+        return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
+      }
+
       if (!dbUser.isAdmin) {
         const creditDeducted = await storage.deductCredit(dbUser.id, `Genereret billede: ${parsed.data.roomType} - ${parsed.data.style}`);
         if (!creditDeducted) {
@@ -498,11 +502,6 @@ export async function registerRoutes(
         budget: parsed.data.budget || null,
         tier: tier || null,
       });
-
-      if (!COLLOV_API_KEY) {
-        await storage.updateDesign(design.id, { status: "failed", failReason: "api_key_missing" });
-        return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
-      }
 
       const includePlants = req.body.includePlants === "true";
 
@@ -1299,12 +1298,6 @@ export async function registerRoutes(
         if (user) {
           userId = user.id;
           isAdmin = user.isAdmin;
-          if (!isAdmin) {
-            const deducted = await storage.deductCredit(user.id, "AI Design Agent generation");
-            if (!deducted) {
-              return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
-            }
-          }
         }
       } catch {
         return res.status(401).json({ error: "Invalid token" });
@@ -1314,6 +1307,13 @@ export async function registerRoutes(
 
       const prompt = (req.body.prompt || "").trim();
       if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+
+      if (userId !== null && !isAdmin) {
+        const deducted = await storage.deductCredit(userId, "AI Design Agent generation");
+        if (!deducted) {
+          return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
+        }
+      }
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
