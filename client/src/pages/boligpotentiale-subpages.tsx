@@ -841,17 +841,17 @@ export function AIDesignAgentPage() {
             style={{ background: C.warm, border: `1px solid ${C.border}`, borderRadius: 8, padding: "18px", minHeight: 130, color: C.navy, fontSize: 15, lineHeight: 1.6, fontFamily: SANS }}
             data-testid="agent-prompt-example"
           >
-            "Skift den blå sofa ud med en lys, naturlig linnedsofa. Tilføj et lavt egetræsbord, en stor potteplante i hjørnet og et uldtæppe i sand. Behold væggene og lyset som det er."
+            "Renover dette forfaldne hus og bring det til sit fulde potentiale. Ny belægning på indkørslen, frisk hvid maling på facaden, ryd haven og tilføj blomsterbed langs muren. Bevar husets karakter og den blå dør."
           </div>
           <div className="uppercase mb-2" style={{ color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
             Eksempler du kan prøve
           </div>
           <ul className="space-y-2 mb-6">
             {[
-              "Fjern den røde sofa og indsæt en grå sektionssofa",
-              "Skift gulvet til lyst egetræ og væggene til kalkmaling",
-              "Lav hele rummet om til japandi-stil",
-              "Tilføj plantekrukker, bøger og et stort kunstværk over sofaen",
+              "Ryd haven og tilføj et velplejet blomsterbed langs indgangen",
+              "Skift belægningen til lyse betonfliser og grus",
+              "Giv facaden frisk hvid maling og reparer revnerne",
+              "Tilføj udebelysning, en ny postkasse og en ren indkørsel",
             ].map((ex, i) => (
               <li key={i} className="flex items-start gap-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
                 <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
@@ -873,7 +873,7 @@ export function AIDesignAgentPage() {
         <BeforeAfterPair
           before="/bolig-images/ai-agent-before.jpg"
           after="/bolig-images/ai-agent-after-v2.jpg"
-          title="“Tilføj varmere belysning og lyse træmøbler”"
+          title="“Renover facaden, ny belægning og ryd haven”"
           desc="Et eksempel på hvad agenten kan, fra ét enkelt promptkrav."
           testId="agent-pair-0"
         />
