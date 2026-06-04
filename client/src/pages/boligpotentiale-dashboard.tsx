@@ -6009,7 +6009,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <div data-testid="team-credits-total"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{teamTotalUsed}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>brugt i alt</span></div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <a href="https://www.nordichomebuild.dk/products/credits" target="_blank" rel="noopener noreferrer"
+          <a href="/pris" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
             style={{ background: "#C8956C" }} data-testid="team-credits-buy">
             <CreditCard className="w-4 h-4" /> Køb credits
@@ -7599,9 +7599,9 @@ export default function BoligpotentialeDashboard() {
                     <button
                       onClick={() => {
                         if (plan.custom) {
-                          window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
+                          window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
                         } else {
-                          window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Abonnement%3A%20" + encodeURIComponent(plan.name);
+                          window.location.href = "mailto:kontakt@formaestates.com?subject=Abonnement%3A%20" + encodeURIComponent(plan.name);
                         }
                       }}
                       className="w-full h-11 rounded-full font-semibold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"

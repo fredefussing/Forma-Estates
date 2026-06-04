@@ -244,7 +244,7 @@ export function EnterpriseCalculator({ dark = false }: Props) {
               .filter((p) => quantities[p.key] > 0)
               .map((p) => `${p.label}: ${quantities[p.key]} stk. à ${getUnitPrice(p, quantities[p.key])} kr.`)
               .join("%0A");
-            window.location.href = `mailto:kontakt@nordichomebuild.dk?subject=Enterprise%20tilbud&body=Hej%2C%20jeg%20er%20interesseret%20i%20f%C3%B8lgende%3A%0A${lines}%0A%0ASamlet%3A%20${totalDiscounted.toLocaleString("da-DK")}%20kr.`;
+            window.location.href = `mailto:kontakt@formaestates.com?subject=Enterprise%20tilbud&body=Hej%2C%20jeg%20er%20interesseret%20i%20f%C3%B8lgende%3A%0A${lines}%0A%0ASamlet%3A%20${totalDiscounted.toLocaleString("da-DK")}%20kr.`;
           }}
           className="flex-shrink-0 h-12 px-8 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-opacity disabled:opacity-40"
           style={{ background: "#C8956C", color: "#fff" }}

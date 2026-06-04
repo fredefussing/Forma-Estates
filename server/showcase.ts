@@ -574,7 +574,7 @@ const FONT_REG  = fs.existsSync(_INTER_REG)  ? _INTER_REG  : _DEJAVU_R;
 const FONT      = FONT_BOLD; // legacy alias
 
 const CONTACT_TEXT =
-  "Forma Estates  |  +45 70 70 70 70  |  kontakt@formaestates.dk";
+  "Forma Estates  |  +45 70 70 70 70  |  kontakt@formaestates.com";
 
 // White text centred inside a thin semi-transparent dark box — the pill/bar look
 // seen on premium real-estate reels. `box=1` draws the background rect; `boxborderw`

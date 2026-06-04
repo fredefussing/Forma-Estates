@@ -240,7 +240,7 @@ export default function PaymentSuccessPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground/60 mt-6">
-                  Kontakt os på kontakt@nordic-homebuild.com hvis du stadig mangler credits efter 10 minutter.
+                  Kontakt os på kontakt@formaestates.com hvis du stadig mangler credits efter 10 minutter.
                 </p>
               </motion.div>
             )}

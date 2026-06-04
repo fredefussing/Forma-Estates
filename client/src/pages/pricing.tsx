@@ -92,7 +92,7 @@ export default function PricingPage() {
 
   const handleBuy = (pkg: Plan) => {
     if (pkg.custom) {
-      window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
+      window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
       return;
     }
     if (!user) {
@@ -102,7 +102,7 @@ export default function PricingPage() {
     if (pkg.productUrl) {
       window.open(pkg.productUrl, "_blank", "noopener,noreferrer");
     } else {
-      window.location.href = "mailto:kontakt@nordichomebuild.dk?subject=Abonnement%3A%20" + encodeURIComponent(pkg.name);
+      window.location.href = "mailto:kontakt@formaestates.com?subject=Abonnement%3A%20" + encodeURIComponent(pkg.name);
     }
   };
 

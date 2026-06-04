@@ -2,7 +2,7 @@ import { log } from "./index";
 import { getStoreSearchUrl } from "./product_matcher";
 import type { AnalysisResult, OpenAIProduct } from "./ai_analyzer";
 
-const KONTAKT_EMAIL = "kontakt@nordic-homebuild.com";
+const KONTAKT_EMAIL = "kontakt@formaestates.com";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 interface EmailOptions {
@@ -84,7 +84,7 @@ export async function sendWelcomeEmail(email: string, source?: string) {
             <li>Se dit hjem før du køber møbler</li>
           </ul>
           <p style="text-align: center; margin: 30px 0;">
-            <a href="https://nordic-homebuild.com/find-stil"
+            <a href="https://formaestates.com/find-stil"
                style="background: #1a1a1a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
               Start dit første design →
             </a>
@@ -567,7 +567,7 @@ export async function sendAIAnalysisEmail(data: {
             </tr>
           </table>
           <div style="margin-top:16px; padding-top:16px; border-top:1px solid #333;">
-            <a href="https://nordic-homebuild.com/admin/quotes" style="display:inline-block; background:#fff; color:#1a1a1a; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:600; font-size:13px;">Byg tilbud i admin →</a>
+            <a href="https://formaestates.com/admin/quotes" style="display:inline-block; background:#fff; color:#1a1a1a; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:600; font-size:13px;">Byg tilbud i admin →</a>
           </div>
         </div>
 
