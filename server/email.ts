@@ -7,13 +7,12 @@ const KONTAKT_EMAIL = "kontakt@formaestates.com";
 const SENDER_NAME = "Forma Estates";
 
 function createTransporter() {
-  const host = process.env.SMTP_HOST || "smtpout.secureserver.net";
-  const port = parseInt(process.env.SMTP_PORT || "465");
-  const secure = port === 465;
+  const host = process.env.SMTP_HOST || "smtp.office365.com";
+  const port = parseInt(process.env.SMTP_PORT || "587");
   return nodemailer.createTransport({
     host,
     port,
-    secure,
+    secure: false,
     auth: {
       user: KONTAKT_EMAIL,
       pass: process.env.SMTP_PASSWORD,
