@@ -1,0 +1,175 @@
+Perfekt — nu har jeg det fulde billede. Jeres setup er faktisk solidt bygget allerede: Collov til billeder, FAL/Kling til kamerabevægelser, FFmpeg til mux. Problemet er, at assemble-pipetinen i showcase.ts er for "dum" — den behandler alle klip ens uden at tænke over rytme, tempo og flow.
+Her er de præcise ændringer I skal lave:
+1. Varierende klip-længder med "impact scoring" (største effekt)
+I stedet for at alle klip klippes til beat-intervallet, lad Claude analysere hvert billede og tildele en varighed baseret på rum-typen:
+TypeScript
+// showcase.ts — tilføj dette før assemble-trinnet
+function getClipDuration(roomType: string, beatInterval: number): number {
+  const base = beatInterval; // typisk 2-3 sekunder per beat
+  switch (roomType) {
+    case 'udsigt': case 'altan': case 'terrasse': return base * 1.8;  // 5-6 sek — imponerende
+    case 'køkken': case 'stue': return base * 1.4;                    // 4 sek — vigtige rum
+    case 'soveværelse': case 'badeværelse': return base * 1.0;        // 3 sek — standard
+    case 'entre': case 'gang': case 'bryggers': return base * 0.6;    // 1.5-2 sek — hurtigt
+    default: return base;
+  }
+}
+Hvis I ikke har roomType gemt per billede, kan I bruge Claude Vision til at analysere billederne og returnere rum-type + impact score. Tag ~1 sek per billede, kør det én gang når brugeren uploader.
+2. Crossfade overgange i stedet for hårde cuts
+Jer nuværende FFmpeg-pipeline bruger sikkert concat filter med cuts. Skift til xfade med fade transition:
+TypeScript
+// I stedet for: concat med hårde cuts
+// Brug: xfade med crossfade
+
+// Eksempel på FFmpeg filter_complex for 3 klip:
+// [0:v][1:v]xfade=transition=fade:duration=1.0:offset=4.0[f1];
+// [f1][2:v]xfade=transition=fade:duration=1.0:offset=7.5[f2]
+
+function buildCrossfadeFilter(
+  clipCount: number, 
+  clipDurations: number[],  // fx [5, 4, 2, 4.5, ...]
+  fadeDuration: number = 1.0
+): string {
+  let filter = '';
+  let offset = 0;
+  
+  for (let i = 0; i < clipCount - 1; i++) {
+    const inputA = i === 0 ? '[0:v]' : `[f${i}]`;
+    const inputB = `[${i + 1}:v]`;
+    const output = i === clipCount - 2 ? '[outv]' : `[f${i + 1}]`;
+    
+    offset += clipDurations[i] - (i > 0 ? fadeDuration : 0);
+    filter += `${inputA}${inputB}xfade=transition=fade:duration=${fadeDuration}:offset=${offset.toFixed(2)}${output}`;
+    if (i < clipCount - 2) filter += ';';
+n  }
+  return filter;
+}
+3. Beat-sync med varierende klip-længder (den smarte del)
+I stedet for at alle klip skifter på beat, skal kun nogle klip skifte på beat — resten følger impact-varigheden. Det giver en dynamisk rytme:
+TypeScript
+// Beat detection (brug librosa eller aubio)
+const beatTimes = await detectBeats(audioPath); // [0, 2.4, 4.8, 7.2, 9.6, ...]
+
+// Byg "rhythm map" — hvilke klip skifter på beat?
+function buildRhythmMap(
+  clipCount: number, 
+  impactScores: number[]
+): boolean[] {
+  // Første og sidste klip + højeste impact = beat-sync
+  // Resten = fri varighed
+  const sorted = [...impactScores].map((s, i) => ({ s, i }))
+    .sort((a, b) => b.s - a.s);
+  
+  const beatSyncIndices = new Set([0, clipCount - 1]); // altid start+slut
+  sorted.slice(0, Math.ceil(clipCount * 0.4)).forEach(x => beatSyncIndices.add(x.i));
+  
+  return Array.from({ length: clipCount }, (_, i) => beatSyncIndices.has(i));
+}
+Resultat: Videoen føles synkroniseret til musikken uden at være mekanisk. Nogle klip er korte og snappy, andre strækker sig over flere beats og giver plads til at nyde rummet.
+4. Musik-stemning (nemmeste fix, stor effekt)
+Skift fra dramatisk/trailer til behagelig, stemningsfuld musik. Nogle gratis/low-cost kilder:
+Table
+Kilde	Pris	Stil
+Uppbeat.io	$6.99/måned	Lo-fi, ambient, Nordic
+Epidemic Sound	~$15/måned	Professionel, mange stemninger
+Artlist	~$10/måned	Filmisk, clean
+Free Music Archive	Gratis	Begrænset udvalg
+Anbefaling til jer: Søg efter "Nordic ambient", "lo-fi chill", eller "acoustic minimal". Tempo: 90-110 BPM — langsom nok til at boligen føles rolig, hurtig nok til at holde attention.
+5. Fjern blur-bars og minimér overlays (clean look)
+Kig på jeres nuværende FFmpeg drawtext + pad setup. Fjern eller reducer:
+TypeScript
+// FJERN eller reducer disse:
+// - Blur-bars top/bund (pad/scale med blur)
+// - Store tekstbjælker midt på skærmen
+
+// BEHOLD diskret:
+// - Mæglernavn + telefon i bunden (lille, elegant font)
+// - Eventuelt sagens adresse som intro-text (fade ind/ud)
+
+// Eksempel — minimal tekst:
+const watermarkFilter = `
+  drawtext=text='Forma Estates | +45 70 70 70 70'
+    :fontsize=24
+    :fontcolor=white@0.7
+    :x=(w-text_w)/2
+    :y=h-text_h-30
+    :enable='between(t,2,${totalDuration-2})'
+`;
+Konkret implementeringsrækkefølge
+Table
+Prioritet	Ændring	Estimeret tid	Effekt
+1	Varierende klip-længder (rum-type mapping)	2-4 timer	Stor
+2	Crossfade overgange (xfade filter)	2-3 timer	Stor
+3	Ny musik-stemning	1-2 timer	Stor
+4	Minimér overlays	1 time	Medium
+5	Beat-sync (librosa)	4-6 timer	Medium
+6	Claude impact analysis	3-4 timer	Medium
+Total: 1-2 dages arbejde for at komme fra "slideshow" til "filmisk".
+Skal jeg bygge det for jer?
+Jeg kan implementere de første 4 punkter direkte i jeres eksisterende showcase.ts — det er de lavthængende frugter med størst effekt. Jeg behøver at se jeres nuværende kode for at give præcis kode, men her er hvad jeg ville gøre:
+Læse jeres nuværende showcase.ts og forstå FFmpeg pipelinen
+Implementere varierende klip-længder baseret på roomType fra databasen
+Skifte fra concat til xfade med crossfade transitions
+Rydde op i overlays (fjerne blur-bars, minimere tekst)
+Skifte musik-URL til en bedre stemning
+Skal jeg gå i gang? Send mig jeres showcase.ts fil, så laver jeg de præcise ændringer. Alternativt kan jeg bygge en helt ny, forbedret version fra bunden baseret på jeres eksisterende struktur.
+Hvad foretrækker I?
+er der en anden ai en claude fx chat der kan dette? da jeg ikke har claude endnu, venter på kodkendelse til deres gratis claude max
+Copy
+Share
+Think
+Ja, der er flere alternativer — nogle endda gratis. Lad mig give dig en præcis oversigt over hvad der virker til denne opgave:
+Alternativer til Claude (billedanalyse → JSON)
+1. Kimi K2 (Gratis — det du bruger lige nu!)
+Ja, Kimi K2 kan sagtens analysere billeder og returnere JSON med rum-typer og impact scores. Det er faktisk det jeg bruger nu til at se dine videoer og billeder.
+Prompt du kan bruge:
+plain
+Analysér dette boligbillede og returner JSON:
+{
+  "roomType": "stue|køkken|soveværelse|badeværelse|entre|altan|terrasse|gang|udsigt",
+  "impactScore": 1-10,
+  "suggestedDuration": "lang|mellem|kort",
+  "cameraMovement": "dolly_in|dolly_out|orbit|crab_left|crab_right|truck|pan",
+  "reason": "kort forklaring"
+}
+Fordele: Gratis, du har det allerede, god til billeder
+Ulempe: Ikke helt så præcis som Claude på rum-arkitektur
+2. GPT-4o / GPT-4o-mini (OpenAI — betalt, men billigt)
+gpt-4o-mini er ekstremt billig (~$0.15 per 1M tokens) og kan analysere billeder fint. gpt-4o er bedre men dyrere.
+Pris for 30 billeder: ~$0.50-2.00
+API-nøgle: På få minutter på platform.openai.com
+3. Gemini 2.5 Flash (Google — GRATIS tier!)
+Googles Gemini har en gratis tier med 15 requests/minut. Den kan analysere billeder og returnere JSON.
+Fordele: Helt gratis, ingen betaling nødvendig, ingen venteliste
+Ulempe: Ikke helt så præcis som Claude på detaljer
+4. Groq + Llama 3.2 Vision (GRATIS!)
+Groq tilbyder gratis API-adgang til Llama 3.2 Vision modellen. Ingen kreditkort, instant adgang.
+Fordele: 100% gratis, lynhurtig (Groq's hardware er hurtig)
+Ulempe: Llama 3.2 Vision er ikke helt så god som Claude/GPT-4o på rum-analyse
+Min anbefaling til dig
+Da I er "ved at være til vejs ende" og skal bruge det snart:
+Table
+Trin	AI	Årsag
+Billedanalyse	Kimi K2 (eller Gemini gratis)	Du har det allerede, ingen ekstra opsætning
+Klip-længder	Hardcoded mapping (se nedenfor)	100% gratis, instant, ingen API
+Beat detection	Python librosa (lokal)	Gratis, kører på jeres server
+Crossfade + assemble	FFmpeg (lokal)	I har det allerede
+Smarteste løsning uden Claude (hardcoded mapping)
+I stedet for at bruge AI til at analysere hvert billede, kan I bruge filnavn- eller mappe-baseret mapping — det kræver INGEN AI overhovedet:
+TypeScript
+// Hardcoded rum-typer baseret på filnavn eller upload-rækkefølge
+// Mægleren uploader billeder i rækkefølge: entre → stue → køkken → soveværelse → bad → altan
+
+const DEFAULT_ROOM_ORDER = [
+  { type: 'entre',       duration: 1.5,  camera: 'dolly_in' },     // 1.5 sek — hurtigt
+  { type: 'stue',        duration: 4.5,  camera: 'orbit' },        // 4.5 sek — imponerende
+  { type: 'køkken',      duration: 4.0,  camera: 'crab_right' },   // 4 sek — vigtigt rum
+  { type: 'soveværelse', duration: 3.0,  camera: 'dolly_out' },    // 3 sek — standard
+  { type: 'badeværelse', duration: 2.5,  camera: 'pan' },          // 2.5 sek — standard
+  { type: 'altan',       duration: 4.5,  camera: 'dolly_in' },     // 4.5 sek — highlight
+];
+
+// Hvis mægleren uploader 12 billeder, gentages rækkefølgen:
+// [entre, stue, køkken, soveværelse, bad, altan, stue, køkken, soveværelse, bad, udsigt, terrasse]
+// Med varierende varigheder: [1.5, 4.5, 4.0, 3.0, 2.5, 4.5, 4.5, 4.0, 3.0, 2.5, 5.0, 4.0]
+Dette kræver INGEN AI, INGEN API-nøgle, INGEN omkostningER. Og det virker 100% af tiden.
