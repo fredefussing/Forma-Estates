@@ -386,23 +386,40 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number): 
   );
 }
 
-// Build the filter_complex graph: one gimbal slide per photo, joined with HARD CUTS
-// (concat, no crossfade) so every switch is instant and lands on the beat. `n` is
-// the slide count (photos already cycled); `sizes[i]` is the source photo's pixels.
-function buildFilter(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
-  const frames = Math.max(2, Math.round(slideDur * FPS));
+// Build chained xfade transitions between slide labels [v0]..[vN-1].
+// offset for step i = sum(durations[0..i]) - (i+1)*fadeDur — keeps every
+// transition starting at the END-fadeDur point of each slide in stream time.
+function buildXfadeConcat(n: number, durations: number[], fadeDur: number): string {
+  let cumDur = 0;
+  const xfades: string[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const inputA = i === 0 ? `[v0]` : `[xf${i}]`;
+    const inputB = `[v${i + 1}]`;
+    const output = i === n - 2 ? `[vbase]` : `[xf${i + 1}]`;
+    cumDur += durations[i];
+    const offset = Math.max(0, cumDur - (i + 1) * fadeDur);
+    xfades.push(`${inputA}${inputB}xfade=transition=fade:duration=${fadeDur.toFixed(3)}:offset=${offset.toFixed(4)}${output}`);
+  }
+  return xfades.join(";");
+}
+
+// Build the filter_complex graph: one gimbal slide per photo joined with smooth
+// xfade crossfades. `durations[i]` is each slide's length in seconds.
+function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
   const parts: string[] = [];
-  for (let i = 0; i < n; i++) parts.push(buildSlide(i, sizes[i], frames));
+  for (let i = 0; i < n; i++) {
+    const frames = Math.max(2, Math.round(durations[i] * FPS));
+    parts.push(buildSlide(i, sizes[i], frames));
+  }
 
   if (n === 1) {
-    // Single image: just expose it as the output label.
     parts.push(`[v0]null[vbase]`);
     return parts.join(";");
   }
 
-  // Hard cuts: concatenate the slides with no transition.
-  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
-  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  const minDur = Math.min(...durations);
+  const fadeDur = parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
+  parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
 
@@ -512,13 +529,16 @@ function buildSlideClean(i: number, dims: { w: number; h: number }, frames: numb
   );
 }
 
-function buildFilterClean(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
-  const frames = Math.max(2, Math.round(slideDur * FPS));
+function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
   const parts: string[] = [];
-  for (let i = 0; i < n; i++) parts.push(buildSlideClean(i, sizes[i], frames));
+  for (let i = 0; i < n; i++) {
+    const frames = Math.max(2, Math.round(durations[i] * FPS));
+    parts.push(buildSlideClean(i, sizes[i], frames));
+  }
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
-  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
-  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  const minDur = Math.min(...durations);
+  const fadeDur = parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
+  parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
 
@@ -549,13 +569,16 @@ function buildSlideCleanLandscape(i: number, dims: { w: number; h: number }, fra
   );
 }
 
-function buildFilterCleanLandscape(n: number, slideDur: number, sizes: Array<{ w: number; h: number }>): string {
-  const frames = Math.max(2, Math.round(slideDur * FPS));
+function buildFilterCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
   const parts: string[] = [];
-  for (let i = 0; i < n; i++) parts.push(buildSlideCleanLandscape(i, sizes[i], frames));
+  for (let i = 0; i < n; i++) {
+    const frames = Math.max(2, Math.round(durations[i] * FPS));
+    parts.push(buildSlideCleanLandscape(i, sizes[i], frames));
+  }
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
-  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
-  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  const minDur = Math.min(...durations);
+  const fadeDur = parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
+  parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
 
@@ -610,27 +633,63 @@ interface RenderInputs {
   tmpClips: string[];
 }
 
+// Position-aware variable durations for the LOCAL (still-image) path, reusing
+// the same ENERGY_BEATS / ENERGY_SEQUENCE tables as the AI path so both paths
+// share the same cinematic rhythm logic.
+function localEnergyPlan(musicKey: string | undefined, n: number): { durations: number[]; musicSeek: number } {
+  const key = !musicKey || musicKey === "none" ? null : musicKey;
+  const grid  = key ? BEAT_GRID[key]      : undefined;
+  const beatMap = key ? ENERGY_BEATS[key] : undefined;
+  const seq   = key ? ENERGY_SEQUENCE[key]: undefined;
+
+  if (!grid || !beatMap || !seq) {
+    return { durations: Array(n).fill(SILENT_SLIDE_SEC), musicSeek: 0 };
+  }
+
+  const MIN_LOCAL = 0.5;
+  const MAX_LOCAL = 4.0;
+  const durations = Array.from({ length: n }, (_, i) => {
+    const pos = n > 1 ? i / (n - 1) : 0.5;
+    const level = seq(pos);
+    let beats = beatMap[level];
+    let dur = beats * grid.period;
+    while (dur > MAX_LOCAL && beats > 1) { beats--; dur = beats * grid.period; }
+    while (dur < MIN_LOCAL)              { beats++; dur = beats * grid.period; }
+    return +dur.toFixed(4);
+  });
+
+  let seek = grid.phase % grid.period;
+  if (seek < 0) seek += grid.period;
+
+  const total = durations.reduce((a, b) => a + b, 0);
+  console.log(`[showcase] local energy plan (${key}, ${n} slides): [${durations.join(", ")}]s = ${total.toFixed(2)}s`);
+  return { durations, musicSeek: +seek.toFixed(3) };
+}
+
 // FALLBACK (free, local): cycle the photos to fill a punchy reel and fake the
-// gimbal move with split-layer zoompan on each still.
+// gimbal move with split-layer zoompan on each still. Variable clip lengths
+// follow the mood's energy sequence; transitions use xfade crossfades.
 async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
   const n = imagePaths.length;
-  const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
+  const { durations: baseDurations, musicSeek } = localEnergyPlan(musicKey, n);
+  const avgBase = baseDurations.reduce((a, b) => a + b, 0) / n;
+  const slideCount = Math.min(MAX_SLIDES, Math.max(n, Math.round(TARGET_TOTAL_SEC / avgBase)));
   const inputPaths: string[] = [];
-  for (let k = 0; k < slideCount; k++) inputPaths.push(imagePaths[k % n]);
-  // Each slide fits its photo WHOLE (no crop), so we need the source pixel size.
-  // Probe once per unique photo and reuse across cycled slides.
+  const durations: number[] = [];
+  for (let k = 0; k < slideCount; k++) {
+    inputPaths.push(imagePaths[k % n]);
+    durations.push(baseDurations[k % n]);
+  }
   const sizeCache = new Map<string, { w: number; h: number }>();
   const sizes: Array<{ w: number; h: number }> = [];
   for (const p of inputPaths) {
     let s = sizeCache.get(p);
-    if (!s) {
-      s = await ffprobeSize(p);
-      sizeCache.set(p, s);
-    }
+    if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
     sizes.push(s);
   }
-  const filter = buildFilter(slideCount, slideDur, sizes);
-  return { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips: [] };
+  const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
+  const filter = buildFilter(slideCount, durations, sizes);
+  return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
 // Thin struct holding the downloaded AI clips and their pixel sizes — the
@@ -772,9 +831,15 @@ function makeRenderInputsAICleanLandscape(clips: AIClipData, musicKey: string): 
 // FALLBACK clean 9:16 version.
 async function buildLocalInputsClean(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
   const n = imagePaths.length;
-  const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
+  const { durations: baseDurations, musicSeek } = localEnergyPlan(musicKey, n);
+  const avgBase = baseDurations.reduce((a, b) => a + b, 0) / n;
+  const slideCount = Math.min(MAX_SLIDES, Math.max(n, Math.round(TARGET_TOTAL_SEC / avgBase)));
   const inputPaths: string[] = [];
-  for (let k = 0; k < slideCount; k++) inputPaths.push(imagePaths[k % n]);
+  const durations: number[] = [];
+  for (let k = 0; k < slideCount; k++) {
+    inputPaths.push(imagePaths[k % n]);
+    durations.push(baseDurations[k % n]);
+  }
   const sizeCache = new Map<string, { w: number; h: number }>();
   const sizes: Array<{ w: number; h: number }> = [];
   for (const p of inputPaths) {
@@ -782,16 +847,23 @@ async function buildLocalInputsClean(imagePaths: string[], musicKey?: string): P
     if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
     sizes.push(s);
   }
-  const filter = buildFilterClean(slideCount, slideDur, sizes);
-  return { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips: [] };
+  const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
+  const filter = buildFilterClean(slideCount, durations, sizes);
+  return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
 // FALLBACK landscape (1920×1080) "Original" version.
 async function buildLocalInputsCleanLandscape(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
   const n = imagePaths.length;
-  const { slideDur, musicSeek, slideCount } = beatPlan(musicKey, n);
+  const { durations: baseDurations, musicSeek } = localEnergyPlan(musicKey, n);
+  const avgBase = baseDurations.reduce((a, b) => a + b, 0) / n;
+  const slideCount = Math.min(MAX_SLIDES, Math.max(n, Math.round(TARGET_TOTAL_SEC / avgBase)));
   const inputPaths: string[] = [];
-  for (let k = 0; k < slideCount; k++) inputPaths.push(imagePaths[k % n]);
+  const durations: number[] = [];
+  for (let k = 0; k < slideCount; k++) {
+    inputPaths.push(imagePaths[k % n]);
+    durations.push(baseDurations[k % n]);
+  }
   const sizeCache = new Map<string, { w: number; h: number }>();
   const sizes: Array<{ w: number; h: number }> = [];
   for (const p of inputPaths) {
@@ -799,8 +871,9 @@ async function buildLocalInputsCleanLandscape(imagePaths: string[], musicKey?: s
     if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
     sizes.push(s);
   }
-  const filter = buildFilterCleanLandscape(slideCount, slideDur, sizes);
-  return { inputPaths, slideCount, slideDur, musicSeek, filter, tmpClips: [] };
+  const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
+  const filter = buildFilterCleanLandscape(slideCount, durations, sizes);
+  return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
 // Assemble one MP4 from pre-built render inputs. Returns the public /uploads/
