@@ -38,10 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(data.user.isAdmin || false);
         setSubscriptionStatus(data.user.subscriptionStatus || "none");
         setSubscriptionTier(data.user.subscriptionTier || null);
-      } else if (res.status === 401) {
-        // Token er fra et andet Firebase-projekt — log ud og ryd session
-        await signOut(auth);
-        window.location.href = "/login";
       }
     } catch {}
   }, []);
