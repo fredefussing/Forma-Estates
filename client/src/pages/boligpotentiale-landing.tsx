@@ -364,7 +364,7 @@ function HeroStage() {
   const nextIndex = (index + 1) % STAGE_SLIDES.length;
   const prevSlide = STAGE_SLIDES[prevIndex];
   const nextSlide = STAGE_SLIDES[nextIndex];
-  const sidePreview = (s: StageSlide) => (s.kind === "swipe" ? s.after : "");
+  const sidePreview = (s: StageSlide) => (s.kind === "swipe" ? s.after : (s.poster ?? ""));
 
   return (
     <section
