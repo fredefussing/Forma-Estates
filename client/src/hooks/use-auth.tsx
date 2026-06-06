@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 interface AuthContextType {
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyWithBackend = useCallback(async (firebaseUser: User) => {
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await firebaseUser.getIdToken(true);
       const res = await fetch("/api/auth/verify", {
         method: "POST",
         headers: {
@@ -38,6 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(data.user.isAdmin || false);
         setSubscriptionStatus(data.user.subscriptionStatus || "none");
         setSubscriptionTier(data.user.subscriptionTier || null);
+      } else if (res.status === 401) {
+        // Token er fra et andet Firebase-projekt — log ud og ryd session
+        await signOut(auth);
+        window.location.href = "/login";
       }
     } catch {}
   }, []);
