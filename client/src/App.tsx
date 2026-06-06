@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { SupportChat } from "@/components/support-chat";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
@@ -44,6 +46,13 @@ import {
 // kører videre uafhængigt.
 // ─────────────────────────────────────────────────────────────────────
 function BoligComingSoon() {
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    window.location.href = "/login";
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#FAF7F2" }}>
       <div className="max-w-lg w-full text-center" data-testid="bolig-coming-soon">
@@ -59,14 +68,26 @@ function BoligComingSoon() {
         <p className="text-sm" style={{ color: "#0F1D2F", opacity: 0.7 }}>
           Vi finpudser de sidste detaljer. Funktionen lanceres meget snart — tak for tålmodigheden.
         </p>
-        <a
-          href="/"
-          className="inline-block mt-8 px-6 py-3 rounded-lg text-sm font-semibold border transition-colors"
-          style={{ background: "white", color: "#0F1D2F", borderColor: "#E8E4DE" }}
-          data-testid="link-back-home"
-        >
-          Tilbage til forsiden
-        </a>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+          <a
+            href="/"
+            className="inline-block px-6 py-3 rounded-lg text-sm font-semibold border transition-colors"
+            style={{ background: "white", color: "#0F1D2F", borderColor: "#E8E4DE" }}
+            data-testid="link-back-home"
+          >
+            Tilbage til forsiden
+          </a>
+          {user && (
+            <button
+              onClick={handleLogout}
+              className="inline-block px-6 py-3 rounded-lg text-sm font-semibold border transition-colors"
+              style={{ background: "#0F1D2F", color: "white", borderColor: "#0F1D2F" }}
+              data-testid="button-logout"
+            >
+              Log ud
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
