@@ -3,11 +3,12 @@ import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: "nordic-homebuilding1.firebaseapp.com",
-  projectId: "nordic-homebuilding1",
-  storageBucket: "nordic-homebuilding1.firebasestorage.app",
-  messagingSenderId: "126571617593",
-  appId: "1:126571617593:web:80fcdb36b73a87489b1ce8",
+  authDomain: "nordic-homebuilding.firebaseapp.com",
+  projectId: "nordic-homebuilding",
+  storageBucket: "nordic-homebuilding.firebasestorage.app",
+  messagingSenderId: "1086068815265",
+  appId: "1:1086068815265:web:1fd2452f4946d97c5f47e0",
+  measurementId: "G-5BRC2FMPNT",
 };
 
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
