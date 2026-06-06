@@ -3,7 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 
 if (getApps().length === 0) {
   initializeApp({
-    projectId: "nordic-homebuilding1",
+    projectId: process.env.FIREBASE_PROJECT_ID || "nordic-homebuilding",
   });
 }
 
