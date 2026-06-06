@@ -222,28 +222,6 @@ type StageSlide =
 
 const STAGE_SLIDES: StageSlide[] = [
   {
-    kind: "swipe",
-    before: "/bolig-images/floorplan-2d.jpg",
-    after: "/bolig-images/floorplan-3d.jpg",
-    beforeLabel: "2D plan",
-    afterLabel: "3D",
-    title: "3D Plantegning",
-    caption: "Fra flad plantegning til levende 3D-rum, køberen kan fornemme.",
-    meta: "Stand-in eksempel",
-    contain: true,
-    bg: "#F0EDE8",
-  },
-  {
-    kind: "swipe",
-    before: "/bolig-images/facade-before.jpg",
-    after: "/bolig-images/facade-after.jpg",
-    beforeLabel: "Før",
-    afterLabel: "Efter",
-    title: "Før & efter",
-    caption: "Upload et foto — AI'en transformerer ejendommen på under 30 sekunder.",
-    meta: "Facade · AI Design Agent",
-  },
-  {
     kind: "video",
     src: "/videos/transformation-kling-v16-pro.mp4",
     poster: "/bolig-images/video-poster.jpg",
@@ -260,6 +238,28 @@ const STAGE_SLIDES: StageSlide[] = [
     title: "Før & efter",
     caption: "Upload et rumfoto — AI'en redesigner indretningen på under 30 sekunder.",
     meta: "Spisestue · Skandinavisk",
+  },
+  {
+    kind: "swipe",
+    before: "/bolig-images/facade-before.jpg",
+    after: "/bolig-images/facade-after.jpg",
+    beforeLabel: "Før",
+    afterLabel: "Efter",
+    title: "Før & efter",
+    caption: "Upload et foto — AI'en transformerer ejendommen på under 30 sekunder.",
+    meta: "Facade · AI Design Agent",
+  },
+  {
+    kind: "swipe",
+    before: "/bolig-images/floorplan-2d.jpg",
+    after: "/bolig-images/floorplan-3d.jpg",
+    beforeLabel: "2D plan",
+    afterLabel: "3D",
+    title: "3D Plantegning",
+    caption: "Fra flad plantegning til levende 3D-rum, køberen kan fornemme.",
+    meta: "Stand-in eksempel",
+    contain: true,
+    bg: "#F0EDE8",
   },
 ];
 
