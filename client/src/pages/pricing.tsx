@@ -31,7 +31,7 @@ const packages: Plan[] = [
     subtitle: "Til dig der vil i gang med professionelle AI-visualiseringer.",
     features: [
       "10 AI Visualiseringer / md.",
-      "2 3D Floor Plans / md.",
+      "2 3D Plantegninger / md.",
       "2 Transformering Videoer / md.",
       "1 Bolig Showcase / md.",
       "HD 1080p download",
@@ -52,7 +52,7 @@ const packages: Plan[] = [
     subtitle: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
     features: [
       "25 AI Visualiseringer / md.",
-      "5 3D Floor Plans / md.",
+      "5 3D Plantegninger / md.",
       "5 Transformering Videoer / md.",
       "3 Bolig Showcase / md.",
       "4K download",
@@ -73,7 +73,7 @@ const packages: Plan[] = [
     subtitle: "Til bureauer og mæglerkæder med høj volumen.",
     features: [
       "60 AI Visualiseringer / md.",
-      "12 3D Floor Plans / md.",
+      "12 3D Plantegninger / md.",
       "12 Transformering Videoer / md.",
       "8 Bolig Showcase / md.",
       "4K download",

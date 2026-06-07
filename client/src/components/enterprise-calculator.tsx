@@ -28,7 +28,7 @@ const ENTERPRISE_PRODUCTS: Product[] = [
   },
   {
     key: "floor",
-    label: "3D Floor Plan",
+    label: "3D Plantegning",
     basePrice: 300,
     max: 60,
     unit: "stk.",

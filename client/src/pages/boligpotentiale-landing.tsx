@@ -1341,7 +1341,7 @@ export default function BoligpotentialeLanding() {
               {
                 eyebrow: "Branchevideo",
                 title: "Cinematisk fortælling",
-                desc: "Vækk følelser med en levende videogennemgang.",
+                desc: "Væk følelser med en levende videogennemgang.",
                 media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },

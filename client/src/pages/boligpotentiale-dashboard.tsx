@@ -7556,7 +7556,7 @@ export default function BoligpotentialeDashboard() {
                     price: "2.999",
                     period: "kr./ måned",
                     desc: "Til dig der vil i gang med professionelle AI-visualiseringer.",
-                    features: ["10 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
+                    features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
                     cta: "Vælg Start",
                     highlight: false,
                     custom: false,
@@ -7566,7 +7566,7 @@ export default function BoligpotentialeDashboard() {
                     price: "5.999",
                     period: "kr./ måned",
                     desc: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
-                    features: ["25 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
+                    features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
                     cta: "Vælg Pro",
                     highlight: true,
                     custom: false,
@@ -7576,7 +7576,7 @@ export default function BoligpotentialeDashboard() {
                     price: "11.999",
                     period: "kr./ måned",
                     desc: "Til bureauer og mæglerkæder med høj volumen.",
-                    features: ["60 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
+                    features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
                     cta: "Vælg Business",
                     highlight: false,
                     custom: false,
@@ -7655,9 +7655,9 @@ export default function BoligpotentialeDashboard() {
             };
             const billingHistory: { date: string; description: string; amount: string }[] = [];
             const referencePlans = [
-              { name: "Start", price: "2.999 kr/md", features: ["10 AI Visualiseringer / md.", "2 3D Floor Plans / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md."], highlight: false },
-              { name: "Pro", price: "5.999 kr/md", features: ["25 AI Visualiseringer / md.", "5 3D Floor Plans / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md."], highlight: true },
-              { name: "Business", price: "11.999 kr/md", features: ["60 AI Visualiseringer / md.", "12 3D Floor Plans / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md."], highlight: false },
+              { name: "Start", price: "2.999 kr/md", features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md."], highlight: false },
+              { name: "Pro", price: "5.999 kr/md", features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md."], highlight: true },
+              { name: "Business", price: "11.999 kr/md", features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md."], highlight: false },
               { name: "Enterprise", price: "Kontakt os", features: ["Ubegrænsede billeder", "Custom stile", "Fuld API", "Hvid-label", "Onboarding + SLA"], highlight: false },
             ];
             const downloadCsv = () => {

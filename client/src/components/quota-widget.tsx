@@ -36,7 +36,7 @@ function QuotaBar({ used, limit, color = "#C8956C" }: { used: number; limit: num
 
 const FEATURES = [
   { key: "ai",            label: "AI Visualiseringer",  icon: Sparkles },
-  { key: "floorPlan",     label: "3D Floor Plans",      icon: Box },
+  { key: "floorPlan",     label: "3D Plantegninger",     icon: Box },
   { key: "transformVideo",label: "Transformering Video", icon: Video },
   { key: "showcase",      label: "Bolig Showcase",       icon: Film },
 ] as const;
