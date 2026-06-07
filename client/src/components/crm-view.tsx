@@ -400,15 +400,8 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
   if (isLoading) return <div className="flex items-center justify-center h-40 text-sm" style={{ color: "#6B6B6B" }}>Indlæser…</div>;
   if (!data) return null;
 
-  const { contact: c, activities, interactions, overrides } = data;
+  const { contact: c, activities, interactions, overrides, stats } = data;
   const timeline = [...activities, ...interactions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const counts = {
-    visualizations: activities.filter(a => a.type === "visualization").length,
-    videos: activities.filter(a => a.type === "video").length,
-    logins: activities.filter(a => a.type === "login").length,
-    downloads: activities.filter(a => a.type === "download").length,
-  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -507,15 +500,30 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
             </div>
           </div>
 
-          {/* Stat cards */}
-          <div className="grid grid-cols-2 gap-2">
-            {[["🖼️", "Billeder", counts.visualizations], ["🎬", "Videoer", counts.videos], ["🔑", "Logins", counts.logins], ["⬇️", "Downloads", counts.downloads]].map(([icon, label, val]) => (
-              <div key={label as string} className="rounded-xl border p-3 text-center" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
-                <div className="text-xl">{icon}</div>
-                <div className="text-lg font-bold mt-0.5" style={{ color: "#0F1D2F" }}>{val}</div>
-                <div className="text-[11px]" style={{ color: "#9CA3AF" }}>{label}</div>
+          {/* Stat cards — real data from generated_images */}
+          <div className="rounded-2xl border p-4" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
+            <div className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "#9CA3AF" }}>Aktivitet (live)</div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["🖼️", "Visualiseringer", stats?.totalGenerations ?? 0, "totalt"],
+                ["🎬", "Videoer", stats?.totalVideos ?? 0, "totalt"],
+                ["📋", "Handlinger", activities.length, "seneste 100"],
+                ["🔥", "Engagement", c.engagementScore, "/ 100"],
+              ] as [string, string, number, string][]).map(([icon, label, val, sub]) => (
+                <div key={label} className="rounded-xl p-3 text-center" style={{ background: "#F8F6F3" }}>
+                  <div className="text-lg">{icon}</div>
+                  <div className="text-xl font-bold mt-0.5" style={{ color: "#0F1D2F" }}>{val}</div>
+                  <div className="text-[10px] font-medium" style={{ color: "#6B6B6B" }}>{label}</div>
+                  <div className="text-[10px]" style={{ color: "#B0ABA5" }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+            {stats?.lastGeneratedAt && (
+              <div className="mt-3 pt-3 text-xs flex items-center gap-1.5" style={{ borderTop: "1px solid #F0EDE7", color: "#9CA3AF" }}>
+                <Activity className="w-3 h-3 flex-shrink-0" />
+                Seneste generering: <span className="font-medium" style={{ color: "#6B6B6B" }}>{fmt(stats.lastGeneratedAt)}</span>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="rounded-2xl border p-4" style={{ borderColor: "#E5E2DC", background: "#fff" }}>

@@ -2048,6 +2048,11 @@ export async function registerRoutes(
         }
       }
 
+      // CRM: log activity fire-and-forget
+      if (authedUserId) {
+        storage.logCrmActivity(authedUserId, "visualization", `${room} · ${style}`).catch(() => {});
+      }
+
       return res.json({ success: true, image_url: collovImageUrl, original_url: `/uploads/${req.file!.filename}`, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
     } catch (err: any) {
       log(`[BoligPotentiale] generate error: ${err.message}`);
@@ -2065,10 +2070,12 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Intet plantegning-billede uploadet" });
       }
       // Auth + quota check
+      let floorPlanUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
         if (u) {
+          floorPlanUserId = u.id;
           const q = await storage.checkAndIncrementQuota(u.id, "floorPlan");
           if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
         }
@@ -2083,6 +2090,7 @@ export async function registerRoutes(
       const { imageUrl } = await generate3DFloorplan(falUrl);
       const processingTime = Math.round((Date.now() - startTime) / 1000);
       log(`[3D] floorplan done in ${processingTime}s → ${imageUrl.slice(0, 60)}`);
+      if (floorPlanUserId) storage.logCrmActivity(floorPlanUserId, "visualization", "3D Plantegning").catch(() => {});
       return res.json({
         success: true,
         image_url: imageUrl,
@@ -2114,10 +2122,12 @@ export async function registerRoutes(
           return res.status(400).json({ success: false, message: "Både før- og efter-billede skal uploades" });
         }
         // Auth + quota check
+        let transformUserId: number | null = null;
         try {
           const { uid } = await verifyFirebaseToken(req.headers.authorization);
           const u = await storage.getUserByFirebaseUid(uid);
           if (u) {
+            transformUserId = u.id;
             const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
             if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
           }
@@ -2144,6 +2154,7 @@ export async function registerRoutes(
         log(`[Video] submit mode=${mode} before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
         const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode);
         log(`[Video] submitted request_id=${requestId}`);
+        if (transformUserId) storage.logCrmActivity(transformUserId, "video", `Transformeringsvideo · ${mode}`).catch(() => {});
 
         return res.json({
           success: true,
@@ -2198,10 +2209,12 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
       }
       // Auth + quota check
+      let showcaseUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
         if (u) {
+          showcaseUserId = u.id;
           const q = await storage.checkAndIncrementQuota(u.id, "showcase");
           if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
         }
@@ -2217,6 +2230,7 @@ export async function registerRoutes(
         return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
       log(`[Showcase] started job=${jobId} images=${files.length}`);
+      if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase · ${files.length} billeder`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
     } catch (err: any) {
       log(`[Showcase] submit error: ${err.message}`);

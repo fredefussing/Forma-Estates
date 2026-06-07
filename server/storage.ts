@@ -107,12 +107,13 @@ export interface IStorage {
 
   // CRM
   getCrmContacts(opts: { search?: string; status?: string; plan?: string }): Promise<{ contacts: CrmContact[]; total: number }>;
-  getCrmContact(id: string): Promise<{ contact: CrmContact; activities: CrmActivity[]; interactions: CrmInteraction[]; overrides: CrmUserOverride[] } | null>;
+  getCrmContact(id: string): Promise<{ contact: CrmContact; activities: CrmActivity[]; interactions: CrmInteraction[]; overrides: CrmUserOverride[]; stats: { totalGenerations: number; totalVideos: number; lastGeneratedAt: string | null } } | null>;
   createCrmContact(data: Omit<InsertCrmContact, "id">): Promise<CrmContact>;
   updateCrmContact(id: string, updates: Partial<CrmContact>): Promise<CrmContact | null>;
   addCrmInteraction(data: Omit<InsertCrmInteraction, "id">): Promise<CrmInteraction>;
   setCrmOverride(contactId: string, key: string, value: string): Promise<void>;
   deleteCrmOverride(contactId: string, key: string): Promise<void>;
+  logCrmActivity(userId: number, type: string, description?: string): Promise<void>;
 
   // AI Boligfremvisning
   createAiTourProperty(data: InsertAiTourProperty): Promise<AiTourProperty>;
@@ -786,12 +787,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── CRM ────────────────────────────────────────────────────────────────────
+  private _lastSyncTime = 0;
+
   async syncUsersToContacts(): Promise<void> {
-    // Pull all users with their team name and subscription info, upsert into crm_contacts
+    // Cache: only sync at most once every 2 minutes
+    const now = Date.now();
+    if (now - this._lastSyncTime < 2 * 60 * 1000) return;
+    this._lastSyncTime = now;
+
+    // Pull all users with their team name, subscription info, and last generation date
     const { rows } = await pool.query(`
       SELECT
         u.id, u.email, u.display_name, u.subscription_status, u.subscription_tier, u.created_at,
-        t.name AS team_name
+        t.name AS team_name,
+        (SELECT MAX(created_at) FROM generated_images WHERE user_id = u.id) AS last_generated_at
       FROM users u
       LEFT JOIN team_members tm ON tm.user_id = u.id
       LEFT JOIN teams t ON t.id = tm.team_id
@@ -799,18 +808,39 @@ export class DatabaseStorage implements IStorage {
     `);
     for (const r of rows) {
       const plan = r.subscription_tier ?? (r.subscription_status === 'active' ? 'start' : 'none');
-      const status = r.subscription_status === 'active' ? 'active' : r.subscription_status === 'trialing' ? 'trial' : 'lead';
+      // Churned detection: if sub is not active/trialing, check if they previously were active
+      const rawStatus = r.subscription_status === 'active' ? 'active' : r.subscription_status === 'trialing' ? 'trial' : null;
       const id = `user-${r.id}`;
-      await pool.query(`
-        INSERT INTO crm_contacts (id, email, name, company, plan, status, linked_user_id, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (email) DO UPDATE SET
-          name = COALESCE(EXCLUDED.name, crm_contacts.name),
-          company = COALESCE(EXCLUDED.company, crm_contacts.company),
-          plan = EXCLUDED.plan,
-          status = EXCLUDED.status,
-          linked_user_id = EXCLUDED.linked_user_id
-      `, [id, r.email, r.display_name || null, r.team_name || null, plan, status, r.id, r.created_at]);
+      if (rawStatus) {
+        // Active or trial — always upsert with current status
+        await pool.query(`
+          INSERT INTO crm_contacts (id, email, name, company, plan, status, linked_user_id, created_at, last_active_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ON CONFLICT (email) DO UPDATE SET
+            name = COALESCE(EXCLUDED.name, crm_contacts.name),
+            company = COALESCE(EXCLUDED.company, crm_contacts.company),
+            plan = EXCLUDED.plan,
+            status = EXCLUDED.status,
+            linked_user_id = EXCLUDED.linked_user_id,
+            last_active_at = COALESCE(crm_contacts.last_active_at, EXCLUDED.last_active_at)
+        `, [id, r.email, r.display_name || null, r.team_name || null, plan, rawStatus, r.id, r.created_at, r.last_generated_at || null]);
+      } else {
+        // Not currently subscribed — insert as lead, but if they were active/trial before → mark churned
+        await pool.query(`
+          INSERT INTO crm_contacts (id, email, name, company, plan, status, linked_user_id, created_at, last_active_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ON CONFLICT (email) DO UPDATE SET
+            name = COALESCE(EXCLUDED.name, crm_contacts.name),
+            company = COALESCE(EXCLUDED.company, crm_contacts.company),
+            plan = EXCLUDED.plan,
+            status = CASE
+              WHEN crm_contacts.status IN ('active', 'trial') THEN 'churned'
+              ELSE crm_contacts.status
+            END,
+            linked_user_id = EXCLUDED.linked_user_id,
+            last_active_at = COALESCE(crm_contacts.last_active_at, EXCLUDED.last_active_at)
+        `, [id, r.email, r.display_name || null, r.team_name || null, plan, 'lead', r.id, r.created_at, r.last_generated_at || null]);
+      }
     }
   }
 
@@ -837,7 +867,7 @@ export class DatabaseStorage implements IStorage {
     return { contacts, total };
   }
 
-  async getCrmContact(id: string): Promise<{ contact: CrmContact; activities: CrmActivity[]; interactions: CrmInteraction[]; overrides: CrmUserOverride[] } | null> {
+  async getCrmContact(id: string): Promise<{ contact: CrmContact; activities: CrmActivity[]; interactions: CrmInteraction[]; overrides: CrmUserOverride[]; stats: { totalGenerations: number; totalVideos: number; lastGeneratedAt: string | null } } | null> {
     const { rows: cr } = await pool.query(`SELECT * FROM crm_contacts WHERE id = $1`, [id]);
     if (!cr[0]) return null;
     const r = cr[0];
@@ -846,13 +876,34 @@ export class DatabaseStorage implements IStorage {
       plan: r.plan, status: r.status, engagementScore: r.engagement_score, notes: r.notes,
       linkedUserId: r.linked_user_id, createdAt: r.created_at, lastActiveAt: r.last_active_at,
     };
-    const { rows: acts } = await pool.query(`SELECT * FROM crm_activities WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]);
-    const { rows: ints } = await pool.query(`SELECT * FROM crm_interactions WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]);
-    const { rows: ovs } = await pool.query(`SELECT * FROM crm_user_overrides WHERE contact_id = $1 ORDER BY updated_at DESC`, [id]);
-    const activities = acts.map((a: any) => ({ id: a.id, contactId: a.contact_id, type: a.type, description: a.description, metadata: a.metadata, createdAt: a.created_at }));
-    const interactions = ints.map((i: any) => ({ id: i.id, contactId: i.contact_id, type: i.type, content: i.content, createdBy: i.created_by, createdAt: i.created_at }));
-    const overrides = ovs.map((o: any) => ({ id: o.id, contactId: o.contact_id, overrideKey: o.override_key, overrideValue: o.override_value, updatedAt: o.updated_at }));
-    return { contact, activities, interactions, overrides };
+    const [actsRes, intsRes, ovsRes] = await Promise.all([
+      pool.query(`SELECT * FROM crm_activities WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]),
+      pool.query(`SELECT * FROM crm_interactions WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]),
+      pool.query(`SELECT * FROM crm_user_overrides WHERE contact_id = $1 ORDER BY updated_at DESC`, [id]),
+    ]);
+    const activities = actsRes.rows.map((a: any) => ({ id: a.id, contactId: a.contact_id, type: a.type, description: a.description, metadata: a.metadata, createdAt: a.created_at }));
+    const interactions = intsRes.rows.map((i: any) => ({ id: i.id, contactId: i.contact_id, type: i.type, content: i.content, createdBy: i.created_by, createdAt: i.created_at }));
+    const overrides = ovsRes.rows.map((o: any) => ({ id: o.id, contactId: o.contact_id, overrideKey: o.override_key, overrideValue: o.override_value, updatedAt: o.updated_at }));
+
+    // Real generation stats from generated_images
+    let stats = { totalGenerations: 0, totalVideos: 0, lastGeneratedAt: null as string | null };
+    if (contact.linkedUserId) {
+      const { rows: statRows } = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE style != 'transform-video') AS total_gen,
+          COUNT(*) FILTER (WHERE style = 'transform-video') AS total_vid,
+          MAX(created_at) AS last_at
+        FROM generated_images WHERE user_id = $1
+      `, [contact.linkedUserId]);
+      if (statRows[0]) {
+        stats = {
+          totalGenerations: parseInt(statRows[0].total_gen ?? "0"),
+          totalVideos: parseInt(statRows[0].total_vid ?? "0"),
+          lastGeneratedAt: statRows[0].last_at ? new Date(statRows[0].last_at).toISOString() : null,
+        };
+      }
+    }
+    return { contact, activities, interactions, overrides, stats };
   }
 
   async createCrmContact(data: Omit<InsertCrmContact, "id">): Promise<CrmContact> {
@@ -899,6 +950,32 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCrmOverride(contactId: string, key: string): Promise<void> {
     await pool.query(`DELETE FROM crm_user_overrides WHERE contact_id = $1 AND override_key = $2`, [contactId, key]);
+  }
+
+  async logCrmActivity(userId: number, type: string, description?: string): Promise<void> {
+    try {
+      const { rows } = await pool.query(`SELECT id FROM crm_contacts WHERE linked_user_id = $1`, [userId]);
+      if (!rows[0]) return;
+      const contactId = rows[0].id;
+      const activityId = crypto.randomUUID();
+      await pool.query(
+        `INSERT INTO crm_activities (id, contact_id, type, description, created_at) VALUES ($1, $2, $3, $4, NOW())`,
+        [activityId, contactId, type, description ?? null]
+      );
+      // Recalculate engagement score: 4 pts per activity in last 30 days, max 100
+      const { rows: actRows } = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM crm_activities WHERE contact_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+        [contactId]
+      );
+      const actCount = parseInt(actRows[0]?.cnt ?? "0");
+      const newScore = Math.min(100, actCount * 4);
+      await pool.query(
+        `UPDATE crm_contacts SET last_active_at = NOW(), engagement_score = $1 WHERE id = $2`,
+        [newScore, contactId]
+      );
+    } catch (err: any) {
+      console.error('[CRM] logCrmActivity error:', err.message);
+    }
   }
 
   async getUserQuota(userId: number) {
