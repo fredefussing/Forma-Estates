@@ -50,7 +50,7 @@ async function sendBrevoEmail(subject: string, html: string): Promise<void> {
       Accept: "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "Forma Estates Monitor", email: ALERT_EMAIL },
+      sender: { name: "Forma Estates Tracker", email: ALERT_EMAIL },
       to: [{ email: ALERT_EMAIL }],
       subject,
       htmlContent: html,
