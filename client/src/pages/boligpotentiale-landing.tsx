@@ -275,12 +275,13 @@ function HeroStage() {
 
   const slide = STAGE_SLIDES[index];
 
-  // Slide timing (ms)
-  // 1.2s lead-in on "før", slow 3.8s wipe to "efter", then 4s rest before next slide.
-  const SWIPE_BEFORE = 1200;
-  const SWIPE_IN = 3800;
-  const SWIPE_AFTER = 4000;
-  const SWIPE_TOTAL = SWIPE_BEFORE + SWIPE_IN + SWIPE_AFTER;
+  // Slide timing (ms) — 3-phase reveal: hold → sweep to 50% → pull back to 20% → full reveal → rest
+  const SWIPE_LEAD  = 900;   // hold at "før"
+  const SWIPE_FWD1  = 1400;  // sweep forward to 50%
+  const SWIPE_BACK  = 700;   // pull back to ~20%
+  const SWIPE_FWD2  = 1600;  // sweep all the way to "efter"
+  const SWIPE_REST  = 3500;  // hold at "efter"
+  const SWIPE_TOTAL = SWIPE_LEAD + SWIPE_FWD1 + SWIPE_BACK + SWIPE_FWD2 + SWIPE_REST;
   const VIDEO_DURATION = 9000;
 
   const resetTo = (next: number) => {
@@ -318,13 +319,26 @@ function HeroStage() {
       const autoAdvanceAllowed = sinceInteraction > AUTO_RESUME_AFTER;
 
       if (slide.kind === "swipe") {
-        if (elapsed < SWIPE_BEFORE) {
+        if (elapsed < SWIPE_LEAD) {
+          // Phase 0: hold at "før"
           setPos(1);
-        } else if (elapsed < SWIPE_BEFORE + SWIPE_IN) {
-          const t = (elapsed - SWIPE_BEFORE) / SWIPE_IN;
+        } else if (elapsed < SWIPE_LEAD + SWIPE_FWD1) {
+          // Phase 1: sweep forward 1→0.5 (ease-out — starts fast, settles at midpoint)
+          const t = (elapsed - SWIPE_LEAD) / SWIPE_FWD1;
+          const eased = 1 - Math.pow(1 - t, 2);
+          setPos(1 - eased * 0.5);
+        } else if (elapsed < SWIPE_LEAD + SWIPE_FWD1 + SWIPE_BACK) {
+          // Phase 2: pull back 0.5→0.8 (ease-in-out — teases the "før" back into view)
+          const t = (elapsed - SWIPE_LEAD - SWIPE_FWD1) / SWIPE_BACK;
+          const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          setPos(0.5 + eased * 0.3);
+        } else if (elapsed < SWIPE_LEAD + SWIPE_FWD1 + SWIPE_BACK + SWIPE_FWD2) {
+          // Phase 3: final sweep 0.8→0 (cubic ease-in-out — dramatic full reveal)
+          const t = (elapsed - SWIPE_LEAD - SWIPE_FWD1 - SWIPE_BACK) / SWIPE_FWD2;
           const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-          setPos(1 - eased);
+          setPos(0.8 - eased * 0.8);
         } else if (elapsed < SWIPE_TOTAL || !autoAdvanceAllowed) {
+          // Phase 4: hold at "efter"
           setPos(0);
         } else {
           advance();
