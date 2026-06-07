@@ -276,7 +276,7 @@ function HeroStage() {
   const slide = STAGE_SLIDES[index];
 
   // Slide timing (ms) — 3-phase reveal: hold → sweep to 50% → pull back to 20% → full reveal → rest
-  const SWIPE_LEAD  = 900;   // hold at "før"
+  const SWIPE_LEAD  = 1400;  // hold at "før"
   const SWIPE_FWD1  = 1400;  // sweep forward to 50%
   const SWIPE_BACK  = 700;   // pull back to ~20%
   const SWIPE_FWD2  = 1600;  // sweep all the way to "efter"
