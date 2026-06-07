@@ -958,6 +958,68 @@ export async function registerRoutes(
     return res.status(401).json({ error: "Forkert adgangskode" });
   });
 
+  // ── System Tracker API ────────────────────────────────────────────────────
+  {
+    const {
+      getTrackerStatus, getTrackerHistory, muteAlert, unmuteAlert,
+      getMutedChecks, triggerManualCheck, getDbHistory,
+    } = await import("./tracker");
+
+    app.get("/api/tracker/status", async (req, res) => {
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const admin = await storage.getUserByFirebaseUid(uid);
+        if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+        return res.json({ checks: getTrackerStatus(), muted: getMutedChecks() });
+      } catch { return res.status(401).json({ message: "Ikke autoriseret" }); }
+    });
+
+    app.get("/api/tracker/history", async (req, res) => {
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const admin = await storage.getUserByFirebaseUid(uid);
+        if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+        const hours = parseInt(req.query.hours as string || "24");
+        const [mem, db] = await Promise.all([getTrackerHistory(200), getDbHistory(hours)]);
+        return res.json({ memory: mem, db });
+      } catch { return res.status(401).json({ message: "Ikke autoriseret" }); }
+    });
+
+    app.post("/api/tracker/mute", async (req, res) => {
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const admin = await storage.getUserByFirebaseUid(uid);
+        if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+        const { checkName, hours = 1 } = req.body;
+        if (!checkName) return res.status(400).json({ message: "checkName required" });
+        muteAlert(checkName, hours);
+        return res.json({ success: true, mutedUntil: new Date(Date.now() + hours * 3600_000).toISOString() });
+      } catch { return res.status(401).json({ message: "Ikke autoriseret" }); }
+    });
+
+    app.post("/api/tracker/unmute", async (req, res) => {
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const admin = await storage.getUserByFirebaseUid(uid);
+        if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+        const { checkName } = req.body;
+        if (!checkName) return res.status(400).json({ message: "checkName required" });
+        unmuteAlert(checkName);
+        return res.json({ success: true });
+      } catch { return res.status(401).json({ message: "Ikke autoriseret" }); }
+    });
+
+    app.post("/api/tracker/run-now", async (req, res) => {
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const admin = await storage.getUserByFirebaseUid(uid);
+        if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+        void triggerManualCheck();
+        return res.json({ success: true, message: "Checks startet — genindlæs om 10 sekunder" });
+      } catch { return res.status(401).json({ message: "Ikke autoriseret" }); }
+    });
+  }
+
   app.get("/api/admin/stats", async (req, res) => {
     try {
       const pw = req.query.pw as string;

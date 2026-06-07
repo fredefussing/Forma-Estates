@@ -28,6 +28,7 @@ import PaymentSuccessPage from "@/pages/payment-success";
 import BoligpotentialeLanding from "@/pages/boligpotentiale-landing";
 import BoligpotentialeDashboard from "@/pages/boligpotentiale-dashboard";
 import BoligpotentialeJoinTeam from "@/pages/boligpotentiale-join-team";
+import TrackerDashboard from "@/pages/tracker-dashboard";
 import {
   EksemplerPage,
   ForEfterPage,
@@ -134,6 +135,7 @@ function Router() {
       <Route path="/mine-designs" component={MyDesignsPage} />
       <Route path="/betalt" component={PaymentSuccessPage} />
       <Route path="/admin" component={AdminDashboardPage} />
+      <Route path="/admin/tracker" component={TrackerDashboard} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
       <Route path="/agent-design/:id" component={AgentDesignDetailPage} />
       <Route path="/ai-design-agent" component={AIDesignAgentPage} />

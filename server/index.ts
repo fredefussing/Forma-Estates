@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { startTracker } from "./tracker";
 
 const app = express();
 const httpServer = createServer(app);
@@ -99,6 +100,9 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Start system tracker (isolated background loops)
+      setTimeout(() => startTracker(), 5000);
 
       // Pre-warm Collov GPU models 10s after start
       setTimeout(async () => {

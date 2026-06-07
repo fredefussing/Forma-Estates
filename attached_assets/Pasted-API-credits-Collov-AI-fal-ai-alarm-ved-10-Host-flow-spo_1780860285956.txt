@@ -1,0 +1,141 @@
+API credits (Collov AI, fal.ai) — alarm ved < 10%
+Host flow — spor fejl gennem hele kæden
+Mail alerts til kontakt@formaestates.com med præcis fejlbeskrivelse
+Lad mig formulere dette til et præcist prompt til Replit:
+Execute Python code
+Her er det komplette prompt klar til at kopiere og sende til Replit:
+📋 PROMPT TIL REPLIT — KOPIER DETTE
+plain
+📋 OPGAVE: Byg Live System Tracker & Alert Dashboard
+
+## 🎯 FORMÅL
+Overvåg HELE Forma Estates infrastruktur i real-time. Ved fejl eller lavt credit-niveau (< 10%), send straks email alarm til kontakt@formaestates.com med præcis fejlbeskrivelse og hvor i kæden fejlen opstod.
+
+---
+
+## 📊 1. CREDIT TRACKING (KRITISK)
+
+### Collov AI Credits
+- Endpoint: Tjek Collov AI API for remaining credits
+- Threshold: < 10% = 🔴 KRITISK ALARM
+- Mail emne: "🚨 Collov AI Credits Kritisk - Forma Estates"
+- Mail indhold: Nuværende credits: X% | Anbefalet handling: Køb credits | Tidspunkt: [timestamp]
+
+### fal.ai Credits/Balance
+- Endpoint: Tjek fal.ai API for remaining balance
+- Threshold: < 10% = 🔴 KRITISK ALARM
+- Mail emne: "🚨 fal.ai Balance Kritisk - Forma Estates"
+- Mail indhold: Nuværende balance: X% | Anbefalet handling: Køb credits | Tidspunkt: [timestamp]
+
+---
+
+## 🌐 2. HOST FLOW TRACKING (End-to-End)
+
+Overvåg HELE kæden og identificer præcis hvor fejlen opstår:
+
+GoDaddy (DNS) → Cloudflare (CDN/SSL) → Railway (Hosting) → Replit (Dev/Build) → GitHub (Repo) → App (Node/Express)
+                    ↓
+              Firebase (Auth) → PostgreSQL (DB) → Collov AI (Billeder) → fal.ai (Video)
+
+### Checkpoints:
+1. GoDaddy DNS - Domain formaestates.com resolver korrekt?
+2. Cloudflare - CDN/SSL aktiv? Status 200?
+3. Railway - App running? Health check OK?
+4. GitHub - Repo tilgængelig? Sidste push succes?
+5. Replit - Build succes? Dev miljø kører?
+6. Firebase Auth - Auth service oppe? Login virker?
+7. PostgreSQL - DB forbindelse? Query response < 2s?
+8. Collov AI - API responsiv? Billede-generering virker?
+9. fal.ai - API responsiv? Video-generering virker?
+10. Sitemap/Robots - XML tilgængelig? Meta tags korrekte?
+
+### Fejl-mail format:
+Emne: 🚨 [CHECKPOINT NAVN] Fejl - Forma Estates
+Indhold: 📍 Fejl lokation: [præcis checkpoint] | ⏰ Tidspunkt: [timestamp] | 🔴 Fejltype: [HTTP 500/Timeout/DNS Error] | 📝 Detaljer: [præcis fejlbesked] | Anbefalet handling: [step-by-step fix]
+
+---
+
+## 🎨 3. DASHBOARD UI (Admin Panel)
+
+Byg admin dashboard på /admin/tracker med:
+- Auto-refresh hver 30 sekund
+- Status farver: 🟢 Grøn (OK) / 🟡 Gul (Advarsel) / 🔴 Rød (Fejl)
+- Credit bars med procent (Collov AI, fal.ai)
+- Host flow visualisering med alle checkpoints
+- Klik på fejl = vis detaljer + log + anbefalet fix
+- Mute knap (slå alerts fra i 1 time)
+- Historik: Sidste 24 timers fejl og oppetid
+
+---
+
+## 📧 4. EMAIL SETUP
+
+Brug eksisterende Brevo email setup:
+- Fra: kontakt@formaestates.com
+- Til: kontakt@formaestates.com
+- Emne prefix: "🚨" kritisk, "⚠️" advarsel
+- HTML email template med rød/gul header, fejldetaljer, anbefalet handling, link til dashboard
+
+---
+
+## ⏱️ 5. SCHEDULING
+
+- Credit checks: Hver 5. minut
+- Host flow checks: Hver 2. minut
+- Deep health check: Hver 15. minut
+- Rate limiting: Max 1 email per 30 min for SAMME fejl (undgå spam)
+- Daglig opsummering kl. 08:00
+
+---
+
+## 🔐 6. SIKKERHET
+
+- Dashboard kræver admin login (Firebase auth + admin claim)
+- API endpoints beskyttet med API key
+- Email logs gemmes i database (30 dage retention)
+
+---
+
+## 📁 FILSTRUKTUR
+
+server/
+  tracker/
+    ├── index.ts              # Main tracker service
+    ├── checks/
+    │   ├── collov-check.ts   # Collov AI credit check
+    │   ├── fal-check.ts      # fal.ai balance check
+    │   ├── dns-check.ts      # GoDaddy/Cloudflare check
+    │   ├── railway-check.ts  # Railway health check
+    │   ├── firebase-check.ts # Firebase auth check
+    │   └── db-check.ts       # PostgreSQL check
+    ├── alerts/
+    │   ├── email-service.ts  # Brevo integration
+    │   └── templates/        # Email templates
+    └── dashboard/
+        └── route.ts          # /admin/tracker API endpoint
+
+---
+
+## ✅ ACCEPTKRITERIER
+
+1. Credit checks kører automatisk hver 5. minut
+2. Email sendes ved < 10% credits med præcis info
+3. Host flow checker alle 10 checkpoints hver 2. minut
+4. Fejl-mail identificerer præcis hvor i kæden fejlen er
+5. Dashboard viser real-time status med farvekoder
+6. Auto-refresh på dashboard hver 30 sekund
+7. Email rate limiting: max 1 per 30 min for samme fejl
+8. Daglig opsummeringsmail kl. 08:00
+9. Admin-only adgang til dashboard
+10. Alle checks logges med timestamp i database
+
+---
+
+## 🚀 IMPLEMENTERINGSRÆKKEFØLGE
+
+1. Dag 1: Email service + Collov/fal credit checks
+2. Dag 2: Host flow checks (DNS, Railway, DB)
+3. Dag 3: Dashboard UI + auto-refresh
+4. Dag 4: Rate limiting + historik + test
+
+Spørg mig om Collov AI og fal.ai API endpoints/docs når du når til credit checks.
