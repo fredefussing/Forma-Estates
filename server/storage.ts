@@ -28,6 +28,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getUserByFirebaseUid(uid: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(userId: number): Promise<User | undefined>;
   updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode">>): Promise<User | undefined>;
   getUserByCustomerCode(code: string): Promise<User | undefined>;
   searchUsers(query: string): Promise<User[]>;
@@ -157,9 +158,14 @@ export class DatabaseStorage implements IStorage {
   async searchUsers(query: string): Promise<User[]> {
     const q = `%${query}%`;
     return db.select().from(users)
-      .where(or(ilike(users.email, q), ilike(users.customerCode, q)))
+      .where(or(ilike(users.email, q), ilike(users.displayName, q), ilike(users.customerCode, q)))
       .orderBy(desc(users.createdAt))
       .limit(50);
+  }
+
+  async getUserById(userId: number): Promise<User | undefined> {
+    const [result] = await db.select().from(users).where(eq(users.id, userId));
+    return result;
   }
 
   async updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined> {

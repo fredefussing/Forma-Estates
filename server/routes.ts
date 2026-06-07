@@ -1851,6 +1851,75 @@ export async function registerRoutes(
   });
 
   // ── Set user quotas (admin only) ──────────────────────────────────────────
+  // ── Admin: søg brugere ──────────────────────────────────────────────────────
+  app.get("/api/admin/users/search", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const admin = await storage.getUserByFirebaseUid(uid);
+      if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+      const q = (req.query.q as string || "").trim();
+      if (!q) return res.json([]);
+      const results = await storage.searchUsers(q);
+      return res.json(results.map(u => ({
+        id: u.id, email: u.email, displayName: u.displayName,
+        isAdmin: u.isAdmin, subscriptionStatus: u.subscriptionStatus,
+        subscriptionTier: u.subscriptionTier, creditsRemaining: u.creditsRemaining,
+        totalCreditsUsed: u.totalCreditsUsed, createdAt: u.createdAt,
+      })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: hent enkelt bruger ────────────────────────────────────────────────
+  app.get("/api/admin/users/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const admin = await storage.getUserByFirebaseUid(uid);
+      if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) return res.status(400).json({ message: "Ugyldigt bruger-id" });
+      const u = await storage.getUserById(userId);
+      if (!u) return res.status(404).json({ message: "Bruger ikke fundet" });
+      // Also get quota info
+      const quota = await storage.getUserQuota(userId);
+      return res.json({
+        id: u.id, email: u.email, displayName: u.displayName,
+        isAdmin: u.isAdmin, subscriptionStatus: u.subscriptionStatus,
+        subscriptionTier: u.subscriptionTier, creditsRemaining: u.creditsRemaining,
+        totalCreditsUsed: u.totalCreditsUsed, createdAt: u.createdAt,
+        customerCode: u.customerCode, quota,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: opdater brugerprofil ──────────────────────────────────────────────
+  app.patch("/api/admin/users/:id/profile", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const admin = await storage.getUserByFirebaseUid(uid);
+      if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) return res.status(400).json({ message: "Ugyldigt bruger-id" });
+      // Whitelist only the fields we allow admin to change
+      const allowed: Record<string, unknown> = {};
+      if (typeof req.body.displayName === "string") allowed.displayName = req.body.displayName.trim() || null;
+      if (typeof req.body.isAdmin === "boolean") allowed.isAdmin = req.body.isAdmin;
+      if (["none","active","trialing","canceled","paused"].includes(req.body.subscriptionStatus)) allowed.subscriptionStatus = req.body.subscriptionStatus;
+      if (["none","start","pro","business","enterprise"].includes(req.body.subscriptionTier) || req.body.subscriptionTier === null) allowed.subscriptionTier = req.body.subscriptionTier || null;
+      if (typeof req.body.creditsRemaining === "number") allowed.creditsRemaining = Math.max(0, Math.round(req.body.creditsRemaining));
+      if (Object.keys(allowed).length === 0) return res.status(400).json({ message: "Ingen gyldige felter at opdatere" });
+      const updated = await storage.updateUser(userId, allowed as any);
+      if (!updated) return res.status(404).json({ message: "Bruger ikke fundet" });
+      log(`[Admin] ${admin.email} updated user #${userId}: ${JSON.stringify(Object.keys(allowed))}`);
+      return res.json({ success: true, user: { id: updated.id, email: updated.email, displayName: updated.displayName, isAdmin: updated.isAdmin, subscriptionStatus: updated.subscriptionStatus, subscriptionTier: updated.subscriptionTier, creditsRemaining: updated.creditsRemaining } });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.patch("/api/admin/users/:id/quota", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
