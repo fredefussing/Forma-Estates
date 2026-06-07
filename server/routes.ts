@@ -1856,10 +1856,12 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const admin = await storage.getUserByFirebaseUid(uid);
+      console.log("[admin/users/search] uid:", uid, "isAdmin:", admin?.isAdmin, "q:", req.query.q);
       if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
       const q = (req.query.q as string || "").trim();
       if (!q) return res.json([]);
       const results = await storage.searchUsers(q);
+      console.log("[admin/users/search] results:", results.length);
       return res.json(results.map(u => ({
         id: u.id, email: u.email, displayName: u.displayName,
         isAdmin: u.isAdmin, subscriptionStatus: u.subscriptionStatus,

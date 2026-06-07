@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, User, Shield, Check, X, ChevronRight, ArrowLeft, AlertTriangle, Crown, CreditCard, Calendar, Hash } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
@@ -318,24 +318,47 @@ function UserDetailPanel({ userId, onBack }: { userId: number; onBack: () => voi
 // ── Main UserManagerView ──────────────────────────────────────────────────────
 export function UserManagerView() {
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [results, setResults] = useState<UserSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    const q = query.trim();
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    if (!q) { setResults([]); setSearchError(null); return; }
+
+    timerRef.current = setTimeout(async () => {
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
+      setIsLoading(true);
+      setSearchError(null);
+      try {
+        const token = await auth.currentUser?.getIdToken(true);
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(q)}`, {
+          headers,
+          signal: abortRef.current.signal,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          setSearchError(`${res.status}: ${text}`);
+          setResults([]);
+        } else {
+          const data = await res.json();
+          setResults(data);
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") setSearchError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 350);
+
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [query]);
-
-  const { data: results = [], isLoading, isFetching } = useQuery<UserSummary[]>({
-    queryKey: ["/api/admin/users/search", debouncedQuery],
-    queryFn: async () => {
-      if (!debouncedQuery) return [];
-      return (await adminFetch(`/api/admin/users/search?q=${encodeURIComponent(debouncedQuery)}`)).json();
-    },
-    enabled: debouncedQuery.length > 0,
-  });
 
   if (selectedId !== null) {
     return <UserDetailPanel userId={selectedId} onBack={() => setSelectedId(null)} />;
@@ -361,17 +384,26 @@ export function UserManagerView() {
           style={{ border: "1px solid #E5E2DC", background: "#fff" }}
           autoFocus data-testid="input-user-search"
         />
-        {isFetching && query && (
+        {isLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 animate-spin"
             style={{ borderColor: "#E5E2DC", borderTopColor: "#C8956C" }} />
         )}
       </div>
 
+      {/* Error */}
+      {searchError && (
+        <div className="rounded-2xl border p-4 mb-2 flex items-start gap-2" style={{ borderColor: "#FCA5A5", background: "#FEF2F2" }}>
+          <span className="text-xs font-medium" style={{ color: "#991B1B" }}>
+            Fejl: {searchError}
+          </span>
+        </div>
+      )}
+
       {/* Results */}
-      {debouncedQuery && !isLoading && results.length === 0 && (
+      {query.trim() && !isLoading && !searchError && results.length === 0 && (
         <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
           <User className="w-8 h-8 mx-auto mb-2" style={{ color: "#D1CEC9" }} />
-          <p className="text-sm" style={{ color: "#9CA3AF" }}>Ingen brugere fundet for "{debouncedQuery}"</p>
+          <p className="text-sm" style={{ color: "#9CA3AF" }}>Ingen brugere fundet for "{query.trim()}"</p>
         </div>
       )}
 
@@ -419,7 +451,7 @@ export function UserManagerView() {
         </div>
       )}
 
-      {!debouncedQuery && (
+      {!query.trim() && (
         <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
           <Search className="w-8 h-8 mx-auto mb-2" style={{ color: "#D1CEC9" }} />
           <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Find en bruger</p>
