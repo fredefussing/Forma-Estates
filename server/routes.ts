@@ -325,14 +325,15 @@ export async function registerRoutes(
 
   // Serve sitemap.xml and robots.txt as static XML/text before Vite catch-all
   app.get("/sitemap.xml", (_req, res) => {
-    const sitemapPath = path.resolve(process.cwd(), "public", "sitemap.xml");
+    const sitemapPath = path.resolve(process.cwd(), "client", "public", "sitemap.xml");
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
     res.sendFile(sitemapPath);
   });
 
   app.get("/robots.txt", (_req, res) => {
+    const robotsPath = path.resolve(process.cwd(), "client", "public", "robots.txt");
     res.setHeader("Content-Type", "text/plain");
-    res.send("User-agent: *\nAllow: /\nSitemap: https://formaestates.com/sitemap.xml\n");
+    res.sendFile(robotsPath);
   });
 
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
