@@ -545,6 +545,7 @@ export async function registerRoutes(
           const failReason = err.message?.includes("apiKey") ? "api_key_invalid" : "ai_send_failed";
           clearStatusMsg(design.id);
           await storage.updateDesign(design.id, { status: "failed", failReason });
+          void import("./tracker").then(m => m.reportGenerationFailure("collov", err.message ?? failReason)).catch(() => {});
         }
       });
 
@@ -1179,6 +1180,7 @@ export async function registerRoutes(
           }
           await refundCredit();
           await storage.updateAgentDesign(agentDesignId, { status: "failed", failReason: "collov_service_failed" });
+          void import("./tracker").then(m => m.reportGenerationFailure("collov", "collov_service_failed — agent design fejl efter max retries")).catch(() => {});
           log(`AgentDesign ${agentDesignId} failed permanently after ${retryCount} retries`);
           return;
         }
@@ -2247,6 +2249,7 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       log(`[3D] floorplan error: ${err.message}`);
+      void import("./tracker").then(m => m.reportGenerationFailure("fal", err.message ?? "3D floorplan fejl")).catch(() => {});
       return res.status(500).json({ success: false, message: err.message || "Generering mislykkedes" });
     }
   });
@@ -2312,6 +2315,7 @@ export async function registerRoutes(
         });
       } catch (err: any) {
         log(`[Video] submit error: ${err.message}`);
+        void import("./tracker").then(m => m.reportGenerationFailure("fal", err.message ?? "transformeringsvideo fejl")).catch(() => {});
         return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
       }
     },

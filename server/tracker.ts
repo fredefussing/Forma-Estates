@@ -548,6 +548,97 @@ export async function triggerManualCheck(): Promise<void> {
   await runAll();
 }
 
+// ── Generation failure tracking ───────────────────────────────────────────────
+// Counts real generation failures per service and alerts when threshold is hit.
+// This is the reliable proxy for "out of credits / no funds" since neither API
+// exposes a billing endpoint.
+
+const genFailures = new Map<string, { count: number; firstAt: number; lastReason: string }>();
+const GEN_FAIL_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const GEN_FAIL_THRESHOLD = 2; // 2 failures in window = alert
+
+export async function reportGenerationFailure(
+  service: "collov" | "fal",
+  errorMsg: string
+): Promise<void> {
+  const now = Date.now();
+  const existing = genFailures.get(service);
+
+  let count: number;
+  let firstAt: number;
+
+  if (!existing || now - existing.firstAt > GEN_FAIL_WINDOW_MS) {
+    count = 1;
+    firstAt = now;
+  } else {
+    count = existing.count + 1;
+    firstAt = existing.firstAt;
+  }
+
+  genFailures.set(service, { count, firstAt, lastReason: errorMsg });
+
+  const label = service === "collov" ? "Collov AI" : "fal.ai";
+  const dashboard = service === "collov" ? COLLOV_DASHBOARD : FAL_DASHBOARD;
+  const minutesInWindow = Math.round((now - firstAt) / 60000) || 1;
+
+  console.log(`[tracker] Generation failure #${count}/${GEN_FAIL_THRESHOLD} for ${service}: ${errorMsg.slice(0, 80)}`);
+
+  if (count >= GEN_FAIL_THRESHOLD) {
+    const msgLower = errorMsg.toLowerCase();
+    const isCreditIssue =
+      msgLower.includes("credit") || msgLower.includes("quota") ||
+      msgLower.includes("insufficient") || msgLower.includes("balance") ||
+      msgLower.includes("payment") || msgLower.includes("fund") ||
+      msgLower.includes("402") || msgLower.includes("limit");
+
+    const alertMessage = isCreditIssue
+      ? `${label}: ${count} fejl på ${minutesInWindow} min — sandsynligvis tomme credits/saldo`
+      : `${label}: ${count} genereringsfejl på ${minutesInWindow} min — tjek service`;
+
+    // Update in-memory tracker result so dashboard reflects it
+    const r: CheckResult = {
+      name: service === "collov" ? "collov_api" : "fal_api",
+      label,
+      status: "error",
+      message: alertMessage,
+      details: {
+        fejl_antal: count,
+        tidsvindue_min: minutesInWindow,
+        seneste_fejl: errorMsg.slice(0, 200),
+        kredit_problem: isCreditIssue,
+      },
+      checkedAt: new Date().toISOString(),
+      durationMs: 0,
+    };
+    saveResult(r);
+    await persistLog(r);
+
+    // Send immediate alert — no cooldown for real generation failures
+    try {
+      await sendBrevoEmail(
+        `🚨 ${label} generering fejler — Forma Estates`,
+        alertHtml("🚨", "#C0392B", `${label} generering fejler`, [
+          ["Service", label],
+          ["Antal fejl", `${count} fejl inden for ${minutesInWindow} minutter`],
+          ["Seneste fejlbesked", errorMsg.slice(0, 300)],
+          ["Mulig årsag", isCreditIssue
+            ? "⚠️ Sandsynligvis tomme credits/saldo"
+            : "API-fejl eller service utilgængelig"],
+          ["Handling", isCreditIssue
+            ? `Genopfyld på <a href="${dashboard}">${dashboard}</a>`
+            : `Tjek API-status på <a href="${dashboard}">${dashboard}</a>`],
+        ])
+      );
+      console.log(`[tracker] Generation failure alert sent for ${service} (${count} failures)`);
+    } catch (e: any) {
+      console.warn(`[tracker] Failed to send generation failure alert: ${e.message}`);
+    }
+
+    // Reset so next failure starts a fresh window
+    genFailures.delete(service);
+  }
+}
+
 export async function triggerTestAlert(): Promise<void> {
   const key = process.env.BREVO_SYSTEM_TRACKER;
   if (!key) throw new Error("BREVO_SYSTEM_TRACKER ikke konfigureret");
