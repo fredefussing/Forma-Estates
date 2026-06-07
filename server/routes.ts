@@ -323,6 +323,18 @@ export async function registerRoutes(
   });
   app.use("/uploads", express.static(uploadDir));
 
+  // Serve sitemap.xml and robots.txt as static XML/text before Vite catch-all
+  app.get("/sitemap.xml", (_req, res) => {
+    const sitemapPath = path.resolve(process.cwd(), "public", "sitemap.xml");
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.sendFile(sitemapPath);
+  });
+
+  app.get("/robots.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain");
+    res.send("User-agent: *\nAllow: /\nSitemap: https://formaestates.com/sitemap.xml\n");
+  });
+
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
   app.post("/api/admin/bootstrap", async (req, res) => {
     const { password } = req.body || {};

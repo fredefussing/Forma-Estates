@@ -1,0 +1,64 @@
+OPGAVE: SEO-setup for Forma Estates — komplet guide
+
+Vi er i gang med at få Forma Estates til at dukke op på Google. Her er præcis hvad der skal gøres:
+
+## 1. Sitemap.xml (KRITISK — fix først)
+- Opret fil: public/sitemap.xml
+- Indhold:
+<?xml version="1.0" encoding="UTF-8"?>
+<<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://formaestates.com</loc>
+    <lastmod>2026-06-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://formaestates.com/boligpotentiale</loc>
+    <lastmod>2026-06-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
+
+- VIGTIGT: Filen skal være i public/ mappen
+- VIGTIGT: Det skal være XML, ikke HTML
+
+## 2. SEO Meta Tags (i index.html <head>)
+<title>Forma Estates — AI BoligVisualisering & 3D Plantegninger til Ejendomsmæglere</title>
+<meta name="description" content="Forma Estates bruger AI til at skabe fotorealistiske boligvisualiseringer, 3D plantegninger og marketingvideoer. Øg salgsprisen med op til 15% — book gratis demo.">
+<meta name="keywords" content="AI boligvisualisering, 3D plantegning, ejendomsmægler, bolig salg, virtual staging, Forma Estates">
+<meta property="og:title" content="Forma Estates — AI BoligVisualisering">
+<meta property="og:description" content="Skab AI-genererede boligvisualiseringer og 3D plantegninger til ejendomsmæglere.">
+<meta property="og:url" content="https://formaestates.com">
+<meta property="og:type" content="website">
+
+## 3. Schema.org struktureret data (i <head>)
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Forma Estates",
+  "url": "https://formaestates.com",
+  "logo": "https://formaestates.com/logo.png",
+  "description": "AI boligvisualisering og 3D plantegninger til ejendomsmæglere",
+  "sameAs": [
+    "https://linkedin.com/company/forma-estates",
+    "https://instagram.com/formaestates"
+  ]
+}
+</script>
+
+## 4. Efter ændringer
+- Commit og push
+- Bekræft at https://formaestates.com/sitemap.xml viser XML-kode (ikke HTML)
+- Bekræft at meta tags er korrekte i browser dev tools
+
+## KONTEXT
+- Domæne: formaestates.com
+- Hostet på Railway
+- Firebase auth: nordic-homebuilding1
+- Brand: Forma Estates (ikke Nordic Homebuilding)
+- Mål: Komme øverst på Google når folk søger "Forma Estates" og "AI boligvisualisering"
+
+Gør dette NU. Spørg hvis noget er uklart.
