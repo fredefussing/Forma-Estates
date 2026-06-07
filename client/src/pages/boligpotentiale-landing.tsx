@@ -521,7 +521,7 @@ function HeroStage() {
                 Professionelle boligvisualiseringer på få sekunder
               </h1>
               <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(11px, 1vw, 13px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
-                Skab AI-genererede boligvisualiseringer, 3D floorplans og salgsvideoer — direkte fra din browser
+                Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Link href="/opret">
