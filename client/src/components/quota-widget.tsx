@@ -1,7 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { BarChart3, Sparkles, Box, Video, Film, Users, Copy, Check } from "lucide-react";
-import { useState } from "react";
 
 interface QuotaData {
   isAdmin: boolean;
@@ -71,25 +70,36 @@ function CopyButton({ text }: { text: string }) {
 
 export function QuotaWidget() {
   const { user } = useAuth();
+  const [data, setData] = useState<QuotaData | null>(null);
 
-  const { data } = useQuery<QuotaData>({
-    queryKey: ["/api/bolig/quota"],
-    queryFn: async () => {
-      if (!user) throw new Error("No user");
-      const token = await user.getIdToken();
-      const res = await fetch("/api/bolig/quota", { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    enabled: !!user,
-    refetchInterval: 30_000,
-  });
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/bolig/quota", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setData(json);
+      } catch { /* ignore */ }
+    };
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user]);
 
   if (!data) return null;
 
   const { quota, isAdmin, inviteLink } = data;
   const isUnlimitedUser = isAdmin || quota.teamPlan === "unlimited";
-  const planLabel = isAdmin ? "Admin (Ubegrænset)" : quota.teamPlan ? `${TIER_LABELS[quota.teamPlan] ?? quota.teamPlan} plan` : null;
+  const planLabel = isAdmin
+    ? "Admin · Ubegrænset"
+    : quota.teamPlan
+    ? `${TIER_LABELS[quota.teamPlan] ?? quota.teamPlan} plan`
+    : null;
 
   const resetDate = quota.resetsAt
     ? new Date(quota.resetsAt).toLocaleDateString("da-DK", { day: "numeric", month: "long" })
@@ -100,24 +110,24 @@ export function QuotaWidget() {
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
             <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>Månedlig kvota</h3>
+            {planLabel && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>
+                {planLabel}
+              </span>
+            )}
           </div>
-          {planLabel && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block mt-0.5" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>
-              {planLabel}
-            </span>
-          )}
         </div>
         <div className="text-right">
           {resetDate && !isUnlimitedUser && (
             <span className="text-[11px] block" style={{ color: "#9B9690" }}>Nulstilles {resetDate}</span>
           )}
           {quota.teamName && quota.memberCount !== null && quota.maxMembers !== null && (
-            <div className="flex items-center gap-1 mt-1 justify-end">
+            <div className="flex items-center gap-1 mt-0.5 justify-end">
               <Users className="w-3 h-3" style={{ color: "#9B9690" }} />
-              <span className="text-[11px]" style={{ color: "#9B9690" }}>{quota.memberCount}/{quota.maxMembers} medlemmer</span>
+              <span className="text-[11px]" style={{ color: "#9B9690" }}>{quota.memberCount}/{quota.maxMembers} medl.</span>
             </div>
           )}
         </div>
@@ -126,7 +136,7 @@ export function QuotaWidget() {
       {/* Feature rows */}
       <div className="space-y-3.5">
         {FEATURES.map(({ key, label, icon: Icon }) => {
-          const f = quota[key as keyof typeof quota] as { limit: number | null; used: number };
+          const f = (quota as any)[key] as { limit: number | null; used: number };
           const unlimited = isUnlimitedUser || f.limit === null;
           const remaining = unlimited ? null : Math.max(0, (f.limit ?? 0) - f.used);
           const exhausted = !unlimited && remaining === 0;
@@ -154,7 +164,7 @@ export function QuotaWidget() {
         })}
       </div>
 
-      {/* Invite link for team owners */}
+      {/* Invite link — only for team owners */}
       {inviteLink && (
         <div className="mt-4 pt-4 border-t border-[#F0EDE8]">
           <div className="flex items-center justify-between mb-1">
