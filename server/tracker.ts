@@ -217,17 +217,24 @@ async function runCheck(
 
 async function checkDatabase() {
   const start = Date.now();
-  await pool.query("SELECT 1");
+  try {
+    await pool.query("SELECT 1");
+  } catch (e: any) {
+    return { status: "error" as CheckStatus, message: `PostgreSQL: forbindelsesfejl — ${e.message} — data kan ikke gemmes` };
+  }
   const ms = Date.now() - start;
-  if (ms > 2000) return { status: "warn" as CheckStatus, message: `DB svarer langsomt: ${ms}ms` };
-  return { status: "ok" as CheckStatus, message: `Forbundet — svar på ${ms}ms` };
+  if (ms > 3000) return { status: "error" as CheckStatus, message: `PostgreSQL: meget langsom respons (${ms}ms) — databasen er overbelastet`, details: { responstid_ms: ms } };
+  if (ms > 1500) return { status: "warn" as CheckStatus, message: `PostgreSQL: langsom respons (${ms}ms) — overvåg ydeevnen`, details: { responstid_ms: ms } };
+  return { status: "ok" as CheckStatus, message: `PostgreSQL: forbundet (${ms}ms)`, details: { responstid_ms: ms } };
 }
 
 async function checkCollovApi() {
   const key = process.env.COLLOV_API_KEY;
-  if (!key) return { status: "warn" as CheckStatus, message: "COLLOV_API_KEY ikke konfigureret" };
+  if (!key) return { status: "error" as CheckStatus, message: "COLLOV_API_KEY mangler — AI-generering virker ikke" };
 
-  // Try credit/info endpoint first, fall back to a lightweight call
+  const WARN_CREDITS = 50;
+  const ERROR_CREDITS = 20;
+
   const endpoints = [
     `${COLLOV_BASE}/flair/enterpriseApi/user/credit`,
     `${COLLOV_BASE}/flair/enterpriseApi/user/info`,
@@ -245,35 +252,36 @@ async function checkCollovApi() {
       try { json = JSON.parse(text); } catch { json = null; }
 
       if (res.ok || res.status === 404) {
-        // Check for credit fields
         const credit = json?.data?.credit ?? json?.credit ?? json?.credits ?? json?.remaining;
         if (typeof credit === "number") {
-          const total = json?.data?.totalCredit ?? json?.totalCredit ?? json?.total ?? 100;
-          const pct = total > 0 ? Math.round((credit / total) * 100) : 100;
-          if (pct < 10) {
+          const total = json?.data?.totalCredit ?? json?.totalCredit ?? json?.total ?? "?";
+          if (credit < ERROR_CREDITS) {
             return {
               status: "error" as CheckStatus,
-              message: `Collov credits kritisk: ${pct}% tilbage (${credit}/${total})`,
-              details: { credit, total, pct },
+              message: `Collov AI: kun ${credit} credits tilbage — genopfyld NU`,
+              details: { credits_tilbage: credit, total_credits: total, grænse_fejl: ERROR_CREDITS, grænse_advarsel: WARN_CREDITS },
             };
           }
-          if (pct < 25) {
+          if (credit < WARN_CREDITS) {
             return {
               status: "warn" as CheckStatus,
-              message: `Collov credits lavt: ${pct}% tilbage (${credit}/${total})`,
-              details: { credit, total, pct },
+              message: `Collov AI: ${credit} credits tilbage (under ${WARN_CREDITS} — overvej genopfyldning)`,
+              details: { credits_tilbage: credit, total_credits: total, grænse_advarsel: WARN_CREDITS },
             };
           }
-          return { status: "ok" as CheckStatus, message: `API tilgængeligt — ${pct}% credits`, details: { credit, total, pct } };
+          return { status: "ok" as CheckStatus, message: `Collov AI: ${credit} credits tilbage`, details: { credits_tilbage: credit, total_credits: total } };
         }
-        if (res.ok) return { status: "ok" as CheckStatus, message: "API tilgængeligt", details: { endpoint: ep, status: res.status } };
+        if (res.ok) return { status: "ok" as CheckStatus, message: "Collov AI API tilgængeligt" };
+      }
+      if (res.status === 401 || res.status === 403) {
+        return { status: "error" as CheckStatus, message: `Collov AI: API-nøgle afvist (HTTP ${res.status}) — tjek COLLOV_API_KEY` };
       }
     } catch {
       // try next endpoint
     }
   }
 
-  // Fallback: try the pre-warm endpoint (known to work)
+  // Fallback ping
   try {
     const form = new FormData();
     form.append("uploadUrl", "https://example.com/test.jpg");
@@ -284,49 +292,70 @@ async function checkCollovApi() {
       signal: AbortSignal.timeout(8000),
     });
     if (res.ok || res.status === 400 || res.status === 422) {
-      return { status: "ok" as CheckStatus, message: "API tilgængeligt (ping ok)", details: { httpStatus: res.status } };
+      return { status: "ok" as CheckStatus, message: "Collov AI API tilgængeligt (ping ok)", details: { httpStatus: res.status } };
     }
     if (res.status === 401 || res.status === 403) {
-      return { status: "error" as CheckStatus, message: `API-nøgle afvist (HTTP ${res.status})` };
+      return { status: "error" as CheckStatus, message: `Collov AI: API-nøgle afvist (HTTP ${res.status}) — tjek COLLOV_API_KEY` };
     }
-    return { status: "warn" as CheckStatus, message: `API returnerede HTTP ${res.status}`, details: { httpStatus: res.status } };
+    return { status: "warn" as CheckStatus, message: `Collov AI API svarede HTTP ${res.status} — mulig driftforstyrrelse`, details: { httpStatus: res.status } };
   } catch (e: any) {
-    return { status: "error" as CheckStatus, message: `Collov API ikke nåbar: ${e.message}` };
+    return { status: "error" as CheckStatus, message: `Collov AI ikke nåbar: ${e.message} — AI-generering er nede` };
   }
 }
 
 async function checkFalApi() {
   const key = process.env.FAL_KEY;
-  if (!key) return { status: "warn" as CheckStatus, message: "FAL_KEY ikke konfigureret" };
+  if (!key) return { status: "error" as CheckStatus, message: "FAL_KEY mangler — video-generering virker ikke" };
 
-  try {
-    const res = await fetch(`${FAL_BASE}/accounts/me`, {
-      headers: { Authorization: `Key ${key}` },
-      signal: AbortSignal.timeout(8000),
-    });
+  const WARN_BALANCE = 30;
+  const ERROR_BALANCE = 10;
 
-    if (res.ok) {
-      const json = await res.json().catch(() => ({}));
-      const balance = json?.balance ?? json?.credits ?? json?.remaining_credits;
-      if (typeof balance === "number") {
-        const details: Record<string, unknown> = { balance };
-        if (balance < 5) {
-          return { status: "error" as CheckStatus, message: `fal.ai balance kritisk: $${balance.toFixed(2)}`, details };
+  // Try multiple known fal.ai billing endpoints
+  const endpoints = [
+    { url: "https://api.fal.ai/billing/balance", auth: `Key ${key}` },
+    { url: `${FAL_BASE}/accounts/me`, auth: `Key ${key}` },
+  ];
+
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep.url, {
+        headers: { Authorization: ep.auth },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const balance =
+          json?.balance ??
+          json?.credits ??
+          json?.remaining_credits ??
+          json?.available_balance ??
+          json?.data?.balance;
+
+        if (typeof balance === "number") {
+          const details: Record<string, unknown> = { saldo_usd: `$${balance.toFixed(2)}`, grænse_advarsel: `$${WARN_BALANCE}`, grænse_fejl: `$${ERROR_BALANCE}` };
+          if (balance < 0) {
+            return { status: "error" as CheckStatus, message: `fal.ai: NEGATIV saldo $${balance.toFixed(2)} — video-generering er spærret`, details };
+          }
+          if (balance < ERROR_BALANCE) {
+            return { status: "error" as CheckStatus, message: `fal.ai: kun $${balance.toFixed(2)} tilbage — indsæt penge NU`, details };
+          }
+          if (balance < WARN_BALANCE) {
+            return { status: "warn" as CheckStatus, message: `fal.ai: $${balance.toFixed(2)} tilbage (under $${WARN_BALANCE} — overvej at genopfylde)`, details };
+          }
+          return { status: "ok" as CheckStatus, message: `fal.ai: $${balance.toFixed(2)} tilbage`, details };
         }
-        if (balance < 20) {
-          return { status: "warn" as CheckStatus, message: `fal.ai balance lavt: $${balance.toFixed(2)}`, details };
-        }
-        return { status: "ok" as CheckStatus, message: `fal.ai tilgængeligt — $${balance.toFixed(2)} tilbage`, details };
+        return { status: "ok" as CheckStatus, message: "fal.ai API tilgængeligt" };
       }
-      return { status: "ok" as CheckStatus, message: "fal.ai API tilgængeligt" };
+      if (res.status === 401 || res.status === 403) {
+        return { status: "error" as CheckStatus, message: `fal.ai: API-nøgle ugyldig (HTTP ${res.status}) — tjek FAL_KEY` };
+      }
+    } catch {
+      // try next endpoint
     }
-    if (res.status === 401) {
-      return { status: "error" as CheckStatus, message: "fal.ai API-nøgle ugyldig (401)" };
-    }
-    return { status: "warn" as CheckStatus, message: `fal.ai API HTTP ${res.status}` };
-  } catch (e: any) {
-    return { status: "error" as CheckStatus, message: `fal.ai ikke nåbar: ${e.message}` };
   }
+
+  return { status: "warn" as CheckStatus, message: "fal.ai: saldo kunne ikke hentes — API svarer ikke som forventet" };
 }
 
 async function checkAppSelf() {
@@ -345,31 +374,37 @@ async function checkAppSelf() {
 }
 
 async function checkSiteOnline() {
+  const t0 = Date.now();
   try {
     const res = await fetch(SITE_URL, {
       redirect: "follow",
       signal: AbortSignal.timeout(10000),
     });
+    const ms = Date.now() - t0;
     if (res.ok || res.status === 301 || res.status === 302) {
-      return { status: "ok" as CheckStatus, message: `formaestates.com online — HTTP ${res.status}` };
+      if (ms > 5000) return { status: "warn" as CheckStatus, message: `formaestates.com online men langsom (${ms}ms svartid)`, details: { http_status: res.status, responstid_ms: ms } };
+      return { status: "ok" as CheckStatus, message: `formaestates.com online (${ms}ms)`, details: { http_status: res.status } };
     }
-    return { status: "warn" as CheckStatus, message: `formaestates.com returnerede HTTP ${res.status}` };
+    return { status: "error" as CheckStatus, message: `formaestates.com returnerede HTTP ${res.status} — siden kan være nede`, details: { http_status: res.status } };
   } catch (e: any) {
-    return { status: "error" as CheckStatus, message: `formaestates.com ikke nåbar: ${e.message}` };
+    return { status: "error" as CheckStatus, message: `formaestates.com ikke nåbar: ${e.message} — siden er sandsynligvis nede` };
   }
 }
 
 async function checkFirebaseConfig() {
-  const vars = [
+  const required = [
     "FIREBASE_PROJECT_ID",
     "FIREBASE_PRIVATE_KEY",
     "FIREBASE_CLIENT_EMAIL",
   ];
-  const missing = vars.filter((v) => !process.env[v]);
-  if (missing.length > 0) {
-    return { status: "warn" as CheckStatus, message: `Firebase env mangler: ${missing.join(", ")}` };
+  const missing = required.filter((v) => !process.env[v]);
+  if (missing.length === required.length) {
+    return { status: "error" as CheckStatus, message: `Firebase: ALLE env-variabler mangler — login virker ikke`, details: { mangler: missing.join(", ") } };
   }
-  return { status: "ok" as CheckStatus, message: "Firebase env konfigureret" };
+  if (missing.length > 0) {
+    return { status: "warn" as CheckStatus, message: `Firebase: ${missing.length} env-variabel(er) mangler: ${missing.join(", ")}`, details: { mangler: missing.join(", ") } };
+  }
+  return { status: "ok" as CheckStatus, message: "Firebase: alle env-variabler konfigureret" };
 }
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
@@ -444,7 +479,7 @@ function scheduleDailySummary() {
 }
 
 async function sendDailySummary() {
-  if (!process.env.SMTP_PASSWORD) return;
+  if (!process.env.BREVO_SYSTEM_TRACKER) return;
   try {
     const allResults = Array.from(results.values());
     const errors = allResults.filter((r) => r.status === "error");
