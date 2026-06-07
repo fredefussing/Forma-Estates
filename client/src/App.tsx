@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { SupportChat } from "@/components/support-chat";
+import { PaywallPage } from "@/components/paywall-gate";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import DesignPage from "@/pages/home";
@@ -94,11 +95,14 @@ function BoligComingSoon() {
 }
 
 function BoligGate({ children }: { children: React.ReactNode }) {
-  const { isAdmin, loading } = useAuth();
+  const { user, loading } = useAuth();
   if (loading) {
     return <div className="min-h-screen" style={{ background: "#FAF7F2" }} />;
   }
-  if (!isAdmin) return <BoligComingSoon />;
+  if (!user) {
+    window.location.href = "/login?redirect=/boligpotentiale/dashboard";
+    return null;
+  }
   return <>{children}</>;
 }
 
@@ -109,11 +113,11 @@ function Router() {
       <Route path="/boligpotentiale/join-team" component={BoligpotentialeJoinTeam} />
       <Route path="/boligpotentiale/dashboard" component={() => <BoligGate><BoligpotentialeDashboard /></BoligGate>} />
       <Route path="/boligpotentiale/eksempler" component={EksemplerPage} />
-      <Route path="/boligpotentiale/foer-efter" component={() => <BoligGate><ForEfterPage /></BoligGate>} />
-      <Route path="/boligpotentiale/3d-plantegning" component={() => <BoligGate><PlantegningPage /></BoligGate>} />
-      <Route path="/boligpotentiale/branchevideo" component={() => <BoligGate><BranchevideoPage /></BoligGate>} />
-      <Route path="/boligpotentiale/ai-design-agent" component={() => <BoligGate><AIDesignAgentSubpage /></BoligGate>} />
-      <Route path="/boligpotentiale/bolig-showcase" component={() => <BoligGate><BoligShowcasePage /></BoligGate>} />
+      <Route path="/boligpotentiale/foer-efter" component={() => <BoligGate><PaywallPage><ForEfterPage /></PaywallPage></BoligGate>} />
+      <Route path="/boligpotentiale/3d-plantegning" component={() => <BoligGate><PaywallPage><PlantegningPage /></PaywallPage></BoligGate>} />
+      <Route path="/boligpotentiale/branchevideo" component={() => <BoligGate><PaywallPage><BranchevideoPage /></PaywallPage></BoligGate>} />
+      <Route path="/boligpotentiale/ai-design-agent" component={() => <BoligGate><PaywallPage><AIDesignAgentSubpage /></PaywallPage></BoligGate>} />
+      <Route path="/boligpotentiale/bolig-showcase" component={() => <BoligGate><PaywallPage><BoligShowcasePage /></PaywallPage></BoligGate>} />
       <Route path="/boligpotentiale/om-os" component={OmOsPage} />
       <Route path="/kontakt" component={KontaktPage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />

@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
+import { PaywallBanner, PaywallAction } from "@/components/paywall-gate";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
   LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
@@ -6509,7 +6510,8 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
-  const { user, loading: authLoading, isAdmin, creditsRemaining } = useAuth();
+  const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus } = useAuth();
+  const isSubscribed = isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -6752,14 +6754,16 @@ export default function BoligpotentialeDashboard() {
 
   const SidebarContent = () => (
     <>
-      <button
-        onClick={() => { setModal("newSag"); setSidebarOpen(false); }}
-        className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold text-sm text-white mb-5 transition-all hover:opacity-90 active:scale-95"
-        style={{ background: "#C8956C" }}
-        data-testid="bolig-sidebar-new-sag"
-      >
-        <Plus className="w-4 h-4" /> Ny sag
-      </button>
+      <PaywallAction>
+        <button
+          onClick={() => { setModal("newSag"); setSidebarOpen(false); }}
+          className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold text-sm text-white mb-5 transition-all hover:opacity-90 active:scale-95"
+          style={{ background: "#C8956C" }}
+          data-testid="bolig-sidebar-new-sag"
+        >
+          <Plus className="w-4 h-4" /> Ny sag
+        </button>
+      </PaywallAction>
 
       <nav className="space-y-0.5 flex-1">
         {NAV.map((item) => {
@@ -6952,6 +6956,8 @@ export default function BoligpotentialeDashboard() {
         </div>
       </header>
 
+      <PaywallBanner />
+
       <div className="flex flex-1 pt-32">
         {/* ── DESKTOP SIDEBAR ── */}
         <aside className="hidden md:flex flex-col w-56 flex-shrink-0 fixed left-0 top-32 bottom-0 px-4 py-5" style={{ background: "#0F1D2F" }} data-testid="bolig-sidebar">
@@ -7048,10 +7054,12 @@ export default function BoligpotentialeDashboard() {
                         </div>
                       );
                     })}
-                    <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[180px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)]" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-add-case">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE7" }}><Plus className="w-5 h-5" style={{ color: "#C8956C" }} /></div>
-                      <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
-                    </button>
+                    <PaywallAction>
+                      <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[180px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)] w-full h-full" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-add-case">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE7" }}><Plus className="w-5 h-5" style={{ color: "#C8956C" }} /></div>
+                        <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
+                      </button>
+                    </PaywallAction>
                   </div>
                 )}
               </div>
@@ -7393,10 +7401,12 @@ export default function BoligpotentialeDashboard() {
                           </div>
                         );
                       })}
-                      <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[200px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)]" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-sager-add">
-                        <Plus className="w-6 h-6" style={{ color: "#C8956C" }} />
-                        <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
-                      </button>
+                      <PaywallAction>
+                        <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[200px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)] w-full h-full" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-sager-add">
+                          <Plus className="w-6 h-6" style={{ color: "#C8956C" }} />
+                          <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
+                        </button>
+                      </PaywallAction>
                     </div>
                   </div>
 
