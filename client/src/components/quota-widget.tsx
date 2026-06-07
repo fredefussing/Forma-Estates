@@ -68,19 +68,16 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function QuotaWidget() {
+export function useQuotaData(): QuotaData | null {
   const { user } = useAuth();
   const [data, setData] = useState<QuotaData | null>(null);
-
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     const load = async () => {
       try {
         const token = await user.getIdToken();
-        const res = await fetch("/api/bolig/quota", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch("/api/bolig/quota", { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) return;
         const json = await res.json();
         if (!cancelled) setData(json);
@@ -90,6 +87,11 @@ export function QuotaWidget() {
     const interval = setInterval(load, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [user]);
+  return data;
+}
+
+export function QuotaWidget() {
+  const data = useQuotaData();
 
   if (!data) return null;
 

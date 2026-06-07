@@ -11,7 +11,7 @@ import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction } from "@/components/paywall-gate";
-import { QuotaWidget } from "@/components/quota-widget";
+import { QuotaWidget, useQuotaData } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
   LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
@@ -1451,6 +1451,7 @@ function HistoryView({
 }) {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | "case" | "quick">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [lightbox, setLightbox] = useState<ApiGeneration | null>(null);
   const [regen, setRegen] = useState<ApiGeneration | null>(null);
   const [regenStyle, setRegenStyle] = useState("scandinavian");
@@ -1480,10 +1481,21 @@ function HistoryView({
   }, [cases]);
 
   const filtered = useMemo(() => {
-    if (filter === "case") return items.filter((it) => it.caseId !== null);
-    if (filter === "quick") return items.filter((it) => it.caseId === null);
-    return items;
-  }, [items, filter]);
+    let result = items;
+    if (filter === "case") result = result.filter((it) => it.caseId !== null);
+    if (filter === "quick") result = result.filter((it) => it.caseId === null);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((it) => {
+        const c = it.caseId ? caseById.get(it.caseId) : null;
+        const addr = (c?.address ?? "").toLowerCase();
+        const date = new Date(it.createdAt).toLocaleDateString("da-DK").toLowerCase();
+        const room = (it.room ?? "").toLowerCase();
+        return addr.includes(q) || date.includes(q) || room.includes(q);
+      });
+    }
+    return result;
+  }, [items, filter, searchQuery, caseById]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -1584,22 +1596,36 @@ function HistoryView({
         <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Alle dine AI-visualiseringer — både fra sager og hurtige uploads.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6" data-testid="bolig-history-filters">
-        {filterTabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setFilter(t.id)}
-            className="h-9 px-4 rounded-full text-xs font-semibold border-2 transition-all"
-            style={{
-              background: filter === t.id ? "#0F1D2F" : "#fff",
-              borderColor: filter === t.id ? "#0F1D2F" : "#D9D5CF",
-              color: filter === t.id ? "#fff" : "#1A1A1A",
-            }}
-            data-testid={`bolig-history-filter-${t.id}`}
-          >
-            {t.label} <span className="opacity-60 ml-1">({t.count})</span>
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9B9690" }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Søg på adresse, dato eller rum..."
+            className="w-full h-9 pl-9 pr-3 rounded-full border text-xs outline-none transition-all"
+            style={{ borderColor: searchQuery ? "#C8956C" : "#D9D5CF", background: "#fff", color: "#1A1A1A" }}
+            data-testid="bolig-history-search"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2" data-testid="bolig-history-filters">
+          {filterTabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setFilter(t.id)}
+              className="h-9 px-4 rounded-full text-xs font-semibold border-2 transition-all"
+              style={{
+                background: filter === t.id ? "#0F1D2F" : "#fff",
+                borderColor: filter === t.id ? "#0F1D2F" : "#D9D5CF",
+                color: filter === t.id ? "#fff" : "#1A1A1A",
+              }}
+              data-testid={`bolig-history-filter-${t.id}`}
+            >
+              {t.label} <span className="opacity-60 ml-1">({t.count})</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
@@ -2439,6 +2465,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [afterPreview, setAfterPreview] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [videoProgressStep, setVideoProgressStep] = useState<0|1|2|3>(0);
   const [error, setError] = useState<string | null>(null);
   const [dragSide, setDragSide] = useState<"before" | "after" | null>(null);
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
@@ -2478,6 +2505,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const handleGenerate = async () => {
     if (!beforeFile || !afterFile) return;
     setIsGenerating(true);
+    setVideoProgressStep(1);
     setError(null);
     setVideoUrl(null);
     setSaveCaseId(null);
@@ -2501,10 +2529,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         throw new Error(data.message || "Indsendelse mislykkedes");
       }
       const requestId = data.request_id as string;
+      setVideoProgressStep(2);
       // Poll every 6s for up to ~8 minutes.
       const maxAttempts = 80;
       let finalUrl: string | null = null;
       for (let i = 0; i < maxAttempts; i++) {
+        if (i === 15) setVideoProgressStep(3);
         await new Promise((r) => setTimeout(r, 6000));
         const sres = await fetch(`/api/bolig/transform-video/status/${requestId}`);
         const sctype = sres.headers.get("content-type") || "";
@@ -2524,6 +2554,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       setError(err.message || "Noget gik galt");
     } finally {
       setIsGenerating(false);
+      setVideoProgressStep(0);
     }
   };
 
@@ -2696,7 +2727,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           {isGenerating ? (
             <>
               <RotateCcw className="w-4 h-4 animate-spin" />
-              Genererer video... (1-3 minutter)
+              {videoProgressStep === 1 ? "Sender billeder..." : videoProgressStep === 3 ? "Færdiggør video..." : "Bygger video..."}
             </>
           ) : (
             <>
@@ -2705,6 +2736,33 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             </>
           )}
         </button>
+
+        {isGenerating && (
+          <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4">
+            <div className="flex items-center justify-between mb-3">
+              {[
+                { step: 1, label: "Analyserer billeder" },
+                { step: 2, label: "Bygger video" },
+                { step: 3, label: "Færdiggør" },
+              ].map(({ step, label }, i) => (
+                <div key={step} className="flex items-center gap-2">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 transition-all"
+                    style={{
+                      background: videoProgressStep >= step ? "#C8956C" : "#E8E4DE",
+                      color: videoProgressStep >= step ? "#fff" : "#9B9690",
+                    }}
+                  >
+                    {videoProgressStep > step ? "✓" : step}
+                  </div>
+                  <span className="text-xs" style={{ color: videoProgressStep >= step ? "#0F1D2F" : "#9B9690" }}>{label}</span>
+                  {i < 2 && <div className="w-8 h-px mx-1 flex-shrink-0" style={{ background: videoProgressStep > step ? "#C8956C" : "#E8E4DE" }} />}
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-center" style={{ color: "#9B9690" }}>Ca. 1–3 minutter · Luk ikke vinduet</p>
+          </div>
+        )}
 
         {error && (
           <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-video-error">
@@ -5088,12 +5146,36 @@ const AGENT_PROMPT_CATEGORIES: AgentPromptCategory[] = [
   },
 ];
 
+const AGENT_SAVED_KEY = "forma_agent_prompts_v1";
+function getAgentSavedPrompts(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(AGENT_SAVED_KEY) || "{}"); } catch { return {}; }
+}
+function recordAgentPrompt(text: string) {
+  const trimmed = text.trim();
+  if (trimmed.length < 10) return;
+  const saved = getAgentSavedPrompts();
+  saved[trimmed] = (saved[trimmed] || 0) + 1;
+  localStorage.setItem(AGENT_SAVED_KEY, JSON.stringify(saved));
+}
+
 function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [promptText, setPromptText] = useState("");
+  const [savedPromptSuggestions, setSavedPromptSuggestions] = useState<Array<{ text: string; count: number }>>([]);
+
+  useEffect(() => {
+    const saved = getAgentSavedPrompts();
+    const list = Object.entries(saved)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([text, count]) => ({ text, count }));
+    setSavedPromptSuggestions(list);
+  }, []);
+  const quotaData = useQuotaData();
   const [activeCat, setActiveCat] = useState(AGENT_PROMPT_CATEGORIES[0].id);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -5138,6 +5220,15 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       setResultUrl(data.image_url);
       setOriginalUrl(data.original_url ?? null);
       setStage("result");
+      recordAgentPrompt(promptText);
+      setSavedPromptSuggestions((prev) => {
+        const saved = getAgentSavedPrompts();
+        return Object.entries(saved)
+          .filter(([, count]) => count >= 2)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([text, count]) => ({ text, count }));
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
@@ -5257,26 +5348,54 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/6000 tegn</p>
         </div>
 
+        {/* Saved prompt suggestions — only shown if user has 2+ uses of same prompt */}
+        {savedPromptSuggestions.length > 0 && (
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.08em] uppercase mb-2" style={{ color: "#9B9690" }}>Dine tidligere prompts</p>
+            <div className="flex flex-wrap gap-2">
+              {savedPromptSuggestions.map(({ text }) => (
+                <button
+                  key={text}
+                  onClick={() => setPromptText(text)}
+                  title={text}
+                  className="h-8 px-3 rounded-full border text-xs font-medium transition-all hover:opacity-80 truncate max-w-[220px]"
+                  style={{ borderColor: "#D9D5CF", background: "#F8F6F3", color: "#0F1D2F" }}
+                  data-testid="bolig-agent-saved-prompt"
+                >
+                  {text.length > 40 ? text.slice(0, 40) + "…" : text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Generate button */}
-        <button
-          onClick={handleGenerate}
-          disabled={!imageFile || !promptText.trim() || stage === "loading"}
-          className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: "#0F1D2F" }}
-          data-testid="bolig-agent-generate"
-        >
-          {stage === "loading" ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-              Genererer billede...
-            </>
-          ) : (
-            <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
+        <div>
+          <button
+            onClick={handleGenerate}
+            disabled={!imageFile || !promptText.trim() || stage === "loading"}
+            className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: "#0F1D2F" }}
+            data-testid="bolig-agent-generate"
+          >
+            {stage === "loading" ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Genererer billede...
+              </>
+            ) : (
+              <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
+            )}
+          </button>
+          {quotaData && !quotaData.isAdmin && quotaData.quota.ai.limit !== null && (
+            <p className="text-[11px] mt-2" style={{ color: "#9B9690" }}>
+              Bruger 1 AI Visualisering · {quotaData.quota.ai.used}/{quotaData.quota.ai.limit} brugt denne måned
+            </p>
           )}
-        </button>
+        </div>
 
         {/* Result */}
         {stage === "result" && resultUrl && (
