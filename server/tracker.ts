@@ -5,6 +5,7 @@
  */
 
 import { pool } from "./db";
+import nodemailer from "nodemailer";
 
 const ALERT_EMAIL = "kontakt@formaestates.com";
 const COLLOV_BASE = "https://api.collov.ai";
@@ -37,29 +38,30 @@ const mutedUntil = new Map<string, number>();
 const alertCooldown = new Map<string, number>();
 const COOLDOWN_MS = 30 * 60 * 1000;
 
-// ── Email via Brevo API ───────────────────────────────────────────────────────
+// ── Email via Brevo SMTP relay ────────────────────────────────────────────────
+// BREVO_API_KEY er en xsmtpsib-nøgle — bruges som SMTP-password på smtp-relay.brevo.com
+
+function makeBrevoTransport() {
+  return nodemailer.createTransport({
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: ALERT_EMAIL,
+      pass: process.env.BREVO_API_KEY,
+    },
+  });
+}
 
 async function sendBrevoEmail(subject: string, html: string): Promise<void> {
-  const key = process.env.BREVO_API_KEY;
-  if (!key) throw new Error("BREVO_API_KEY ikke konfigureret");
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "api-key": key,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      sender: { name: "Forma Estates Tracker", email: ALERT_EMAIL },
-      to: [{ email: ALERT_EMAIL }],
-      subject,
-      htmlContent: html,
-    }),
+  if (!process.env.BREVO_API_KEY) throw new Error("BREVO_API_KEY ikke konfigureret");
+  const t = makeBrevoTransport();
+  await t.sendMail({
+    from: `"Forma Estates Tracker" <${ALERT_EMAIL}>`,
+    to: ALERT_EMAIL,
+    subject,
+    html,
   });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Brevo HTTP ${res.status}: ${txt.slice(0, 200)}`);
-  }
 }
 
 async function sendAlertEmail(
