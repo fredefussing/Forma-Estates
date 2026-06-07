@@ -38,11 +38,11 @@ const alertCooldown = new Map<string, number>();
 const COOLDOWN_MS = 30 * 60 * 1000;
 
 // ── Email via Brevo REST API ──────────────────────────────────────────────────
-// BREVO_API_KEY er en xkeysib-nøgle — bruges direkte som api-key header
+// BREVO_SYSTEM_TRACKER er en xkeysib-nøgle — bruges direkte som api-key header
 
 async function sendBrevoEmail(subject: string, html: string): Promise<void> {
-  const key = process.env.BREVO_API_KEY;
-  if (!key) throw new Error("BREVO_API_KEY ikke konfigureret");
+  const key = process.env.BREVO_SYSTEM_TRACKER;
+  if (!key) throw new Error("BREVO_SYSTEM_TRACKER ikke konfigureret");
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
@@ -68,7 +68,7 @@ async function sendAlertEmail(
   html: string,
   alertKey: string
 ): Promise<void> {
-  if (!process.env.BREVO_API_KEY) return;
+  if (!process.env.BREVO_SYSTEM_TRACKER) return;
 
   const now = Date.now();
   const lastSent = alertCooldown.get(alertKey) ?? 0;
