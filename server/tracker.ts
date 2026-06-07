@@ -355,19 +355,12 @@ async function checkSiteOnline() {
 }
 
 async function checkFirebaseConfig() {
-  const required = [
-    "FIREBASE_PROJECT_ID",
-    "FIREBASE_PRIVATE_KEY",
-    "FIREBASE_CLIENT_EMAIL",
-  ];
-  const missing = required.filter((v) => !process.env[v]);
-  if (missing.length === required.length) {
-    return { status: "error" as CheckStatus, message: `Firebase: ALLE env-variabler mangler — login virker ikke`, details: { mangler: missing.join(", ") } };
+  // Only FIREBASE_PROJECT_ID is required — token verification uses Firebase's
+  // public JWKS endpoint and does not need PRIVATE_KEY or CLIENT_EMAIL.
+  if (!process.env.FIREBASE_PROJECT_ID) {
+    return { status: "error" as CheckStatus, message: "Firebase: FIREBASE_PROJECT_ID mangler — login virker ikke", details: { mangler: "FIREBASE_PROJECT_ID" } };
   }
-  if (missing.length > 0) {
-    return { status: "warn" as CheckStatus, message: `Firebase: ${missing.length} env-variabel(er) mangler: ${missing.join(", ")}`, details: { mangler: missing.join(", ") } };
-  }
-  return { status: "ok" as CheckStatus, message: "Firebase: alle env-variabler konfigureret" };
+  return { status: "ok" as CheckStatus, message: "Firebase: konfigureret korrekt" };
 }
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
