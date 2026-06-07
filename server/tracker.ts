@@ -170,21 +170,30 @@ async function maybeAlert(r: CheckResult) {
 
   const emoji = r.status === "error" ? "🚨" : "⚠️";
   const color = r.status === "error" ? "#C0392B" : "#D68910";
-  const subjectPrefix = r.status === "error" ? "🚨" : "⚠️";
+  const subject = `${emoji} ${r.label} ${r.status === "error" ? "Fejl" : "Advarsel"} — Forma Estates`;
+  const html = alertHtml(emoji, color, `${r.label} ${r.status === "error" ? "Fejl" : "Advarsel"}`, [
+    ["Check", r.label],
+    ["Status", r.status.toUpperCase()],
+    ["Besked", r.message],
+    ["Varighed", `${r.durationMs} ms`],
+    ...(r.details
+      ? Object.entries(r.details).map(([k, v]) => [k, String(v)] as [string, string])
+      : []),
+  ]);
 
-  await sendAlertEmail(
-    `${subjectPrefix} ${r.label} ${r.status === "error" ? "Fejl" : "Advarsel"} — Forma Estates`,
-    alertHtml(emoji, color, `${r.label} ${r.status === "error" ? "Fejl" : "Advarsel"}`, [
-      ["Check", r.label],
-      ["Status", r.status.toUpperCase()],
-      ["Besked", r.message],
-      ["Varighed", `${r.durationMs} ms`],
-      ...(r.details
-        ? Object.entries(r.details).map(([k, v]) => [k, String(v)] as [string, string])
-        : []),
-    ]),
-    `${r.name}:${r.status}`
-  );
+  // Errors (below minimum limit) always send — no cooldown
+  // Warnings respect 30-min cooldown to avoid spam
+  if (r.status === "error") {
+    try {
+      await sendBrevoEmail(subject, html);
+      await pool.query(`INSERT INTO tracker_alert_sent (alert_key) VALUES ($1)`, [`${r.name}:error`]).catch(() => {});
+      console.log(`[tracker] CRITICAL alert sent (no cooldown): ${r.name}`);
+    } catch (e: any) {
+      console.warn(`[tracker] Failed to send critical alert: ${e.message}`);
+    }
+  } else {
+    await sendAlertEmail(subject, html, `${r.name}:warn`);
+  }
 }
 
 async function runCheck(
@@ -464,60 +473,137 @@ async function runAll() {
 }
 
 function scheduleDailySummary() {
-  function msUntilNext8() {
+  function msUntilNext18() {
     const now = new Date();
     const next = new Date();
-    next.setHours(8, 0, 0, 0);
-    if (next <= now) next.setDate(next.getDate() + 1);
+    next.setUTCHours(16, 0, 0, 0); // 16:00 UTC = 18:00 Copenhagen (CEST)
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
     return next.getTime() - now.getTime();
   }
+
+  const msUntil = msUntilNext18();
+  const hoursUntil = Math.round(msUntil / 1000 / 60 / 60 * 10) / 10;
+  console.log(`[tracker] Daily summary scheduled in ${hoursUntil}h (kl. 18:00)`);
 
   setTimeout(async () => {
     await sendDailySummary();
     setInterval(sendDailySummary, 24 * 60 * 60 * 1000);
-  }, msUntilNext8());
+  }, msUntil);
+}
+
+async function fetchCollovCredits(): Promise<string> {
+  const key = process.env.COLLOV_API_KEY;
+  if (!key) return "API-nøgle mangler";
+  const endpoints = [
+    `${COLLOV_BASE}/flair/enterpriseApi/user/credit`,
+    `${COLLOV_BASE}/flair/enterpriseApi/user/info`,
+  ];
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep, { headers: { apiKey: key }, signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const credit = json?.data?.credit ?? json?.credit ?? json?.credits ?? json?.remaining;
+        const total = json?.data?.totalCredit ?? json?.totalCredit ?? json?.total;
+        if (typeof credit === "number") {
+          return total ? `${credit} / ${total} credits` : `${credit} credits`;
+        }
+      }
+    } catch { /* try next */ }
+  }
+  return "Kunne ikke hentes";
+}
+
+async function fetchFalBalance(): Promise<string> {
+  const key = process.env.FAL_KEY;
+  if (!key) return "API-nøgle mangler";
+  const endpoints = [
+    "https://api.fal.ai/billing/balance",
+    `${FAL_BASE}/accounts/me`,
+  ];
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep, { headers: { Authorization: `Key ${key}` }, signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const balance = json?.balance ?? json?.credits ?? json?.remaining_credits ?? json?.available_balance ?? json?.data?.balance;
+        if (typeof balance === "number") return `$${balance.toFixed(2)}`;
+      }
+    } catch { /* try next */ }
+  }
+  return "Kunne ikke hentes";
 }
 
 async function sendDailySummary() {
   if (!process.env.BREVO_SYSTEM_TRACKER) return;
   try {
+    // Fetch live credits/balance for the summary
+    const [collovCredits, falBalance] = await Promise.all([fetchCollovCredits(), fetchFalBalance()]);
+
     const allResults = Array.from(results.values());
     const errors = allResults.filter((r) => r.status === "error");
     const warns = allResults.filter((r) => r.status === "warn");
     const ok = allResults.filter((r) => r.status === "ok");
 
-    const rows = allResults
+    const statusLine =
+      errors.length > 0 ? `🔴 ${errors.length} fejl` :
+      warns.length > 0 ? `🟡 ${warns.length} advarsler` : `🟢 Alt kører`;
+
+    const dateStr = new Date().toLocaleDateString("da-DK", { timeZone: "Europe/Copenhagen", day: "numeric", month: "long", year: "numeric" });
+
+    const systemRows = allResults
       .map((r) => {
         const icon = r.status === "ok" ? "🟢" : r.status === "warn" ? "🟡" : "🔴";
-        return `<tr>
-          <td style="padding:8px 14px;font-size:13px;color:#777;">${icon} ${r.label}</td>
-          <td style="padding:8px 14px;font-size:13px;color:#0F1923;">${r.message}</td>
-          <td style="padding:8px 14px;font-size:12px;color:#999;">${r.durationMs}ms</td>
+        const color = r.status === "ok" ? "#27AE60" : r.status === "warn" ? "#D68910" : "#C0392B";
+        return `<tr style="border-bottom:1px solid #F0EAE0;">
+          <td style="padding:10px 14px;font-size:13px;color:#777;width:170px;vertical-align:top;">${r.label}</td>
+          <td style="padding:10px 14px;font-size:13px;color:${color};">${icon} ${r.message}</td>
         </tr>`;
       })
       .join("");
 
-    const statusLine =
-      errors.length > 0
-        ? `🔴 ${errors.length} fejl`
-        : warns.length > 0
-        ? `🟡 ${warns.length} advarsler`
-        : `🟢 Alt OK`;
+    const creditColor = (collovCredits.includes("Kunne") || collovCredits.includes("mangler")) ? "#C0392B" :
+      parseInt(collovCredits) < 20 ? "#C0392B" : parseInt(collovCredits) < 50 ? "#D68910" : "#27AE60";
+    const falColor = (falBalance.includes("Kunne") || falBalance.includes("mangler")) ? "#C0392B" :
+      parseFloat(falBalance.replace("$", "")) < 10 ? "#C0392B" : parseFloat(falBalance.replace("$", "")) < 30 ? "#D68910" : "#27AE60";
 
-    const html = `<div style="font-family:'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:28px;">
+    const html = `<div style="font-family:'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:#FAF6EC;padding:28px;">
   <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
-    <div style="background:#0F1923;padding:22px 28px;">
-      <div style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">Forma Estates · Daglig Status</div>
-      <h1 style="color:#fff;font-size:20px;margin:6px 0 0;font-weight:500;">📊 ${statusLine} — ${new Date().toLocaleDateString("da-DK", { day: "numeric", month: "long" })}</h1>
+    <div style="background:#0F1923;padding:24px 28px;">
+      <div style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">Forma Estates · Daglig System Status</div>
+      <h1 style="color:#fff;font-size:21px;margin:8px 0 0;font-weight:500;">📊 ${statusLine} — ${dateStr}</h1>
     </div>
-    <table style="width:100%;border-collapse:collapse;">${rows}</table>
-    <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#999;font-size:12px;">
-      ${ok.length} OK · ${warns.length} advarsler · ${errors.length} fejl · 
-      <a href="${SITE_URL}/admin/tracker" style="color:#C9A96E;">Åbn live dashboard</a>
-    </div>
-  </div></div>`;
 
-    await sendBrevoEmail(`📊 Daglig System Status — ${statusLine}`, html);
+    <!-- Credit / Balance overview -->
+    <div style="background:#F5F0E8;padding:16px 28px;border-bottom:1px solid #E8DFD0;">
+      <div style="font-size:11px;color:#999;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;">Forbrug & Saldo</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="width:50%;padding:6px 12px 6px 0;">
+            <div style="font-size:12px;color:#888;margin-bottom:2px;">Collov AI credits</div>
+            <div style="font-size:20px;font-weight:600;color:${creditColor};">${collovCredits}</div>
+            <div style="font-size:11px;color:#aaa;">Advarsel &lt;50 · Fejl &lt;20</div>
+          </td>
+          <td style="width:50%;padding:6px 0 6px 12px;border-left:1px solid #E8DFD0;padding-left:20px;">
+            <div style="font-size:12px;color:#888;margin-bottom:2px;">fal.ai saldo</div>
+            <div style="font-size:20px;font-weight:600;color:${falColor};">${falBalance}</div>
+            <div style="font-size:11px;color:#aaa;">Advarsel &lt;$30 · Fejl &lt;$10</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- System checks -->
+    <table style="width:100%;border-collapse:collapse;">${systemRows}</table>
+
+    <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#999;font-size:12px;display:flex;justify-content:space-between;">
+      <span>${ok.length} OK · ${warns.length} advarsler · ${errors.length} fejl</span>
+      <a href="${SITE_URL}/admin/tracker" style="color:#C9A96E;">Åbn live dashboard →</a>
+    </div>
+  </div>
+</div>`;
+
+    await sendBrevoEmail(`📊 Daglig status kl. 18 — ${statusLine} — ${dateStr}`, html);
     console.log("[tracker] Daily summary sent");
   } catch (e: any) {
     console.warn("[tracker] Failed to send daily summary:", e.message);
