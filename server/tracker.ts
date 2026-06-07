@@ -241,56 +241,8 @@ async function checkCollovApi() {
   const key = process.env.COLLOV_API_KEY;
   if (!key) return { status: "error" as CheckStatus, message: "COLLOV_API_KEY mangler — AI-generering virker ikke" };
 
-  const WARN_CREDITS = 50;
-  const ERROR_CREDITS = 20;
-
-  const endpoints = [
-    `${COLLOV_BASE}/flair/enterpriseApi/user/credit`,
-    `${COLLOV_BASE}/flair/enterpriseApi/user/info`,
-  ];
-
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(ep, {
-        method: "GET",
-        headers: { apiKey: key },
-        signal: AbortSignal.timeout(8000),
-      });
-      const text = await res.text();
-      let json: any;
-      try { json = JSON.parse(text); } catch { json = null; }
-
-      if (res.ok || res.status === 404) {
-        const credit = json?.data?.credit ?? json?.credit ?? json?.credits ?? json?.remaining;
-        if (typeof credit === "number") {
-          const total = json?.data?.totalCredit ?? json?.totalCredit ?? json?.total ?? "?";
-          if (credit < ERROR_CREDITS) {
-            return {
-              status: "error" as CheckStatus,
-              message: `Collov AI: kun ${credit} credits tilbage — genopfyld NU`,
-              details: { credits_tilbage: credit, total_credits: total, grænse_fejl: ERROR_CREDITS, grænse_advarsel: WARN_CREDITS },
-            };
-          }
-          if (credit < WARN_CREDITS) {
-            return {
-              status: "warn" as CheckStatus,
-              message: `Collov AI: ${credit} credits tilbage (under ${WARN_CREDITS} — overvej genopfyldning)`,
-              details: { credits_tilbage: credit, total_credits: total, grænse_advarsel: WARN_CREDITS },
-            };
-          }
-          return { status: "ok" as CheckStatus, message: `Collov AI: ${credit} credits tilbage`, details: { credits_tilbage: credit, total_credits: total } };
-        }
-        if (res.ok) return { status: "ok" as CheckStatus, message: "Collov AI API tilgængeligt" };
-      }
-      if (res.status === 401 || res.status === 403) {
-        return { status: "error" as CheckStatus, message: `Collov AI: API-nøgle afvist (HTTP ${res.status}) — tjek COLLOV_API_KEY` };
-      }
-    } catch {
-      // try next endpoint
-    }
-  }
-
-  // Fallback ping
+  // Collov exposes no billing API — ping the generation endpoint to verify it's up and accepting requests
+  // If credits run out, the API returns 401/403/specific error codes
   try {
     const form = new FormData();
     form.append("uploadUrl", "https://example.com/test.jpg");
@@ -300,11 +252,26 @@ async function checkCollovApi() {
       body: form,
       signal: AbortSignal.timeout(8000),
     });
-    if (res.ok || res.status === 400 || res.status === 422) {
-      return { status: "ok" as CheckStatus, message: "Collov AI API tilgængeligt (ping ok)", details: { httpStatus: res.status } };
-    }
+
     if (res.status === 401 || res.status === 403) {
-      return { status: "error" as CheckStatus, message: `Collov AI: API-nøgle afvist (HTTP ${res.status}) — tjek COLLOV_API_KEY` };
+      return { status: "error" as CheckStatus, message: "Collov AI: API-nøgle afvist — tjek COLLOV_API_KEY eller om kontoen er aktiv" };
+    }
+    // 400/422 = API is up and accepting requests (bad input is expected for a test ping)
+    if (res.ok || res.status === 400 || res.status === 422) {
+      let extra = "";
+      try {
+        const json = await res.json();
+        // Look for out-of-credits signals in the response body
+        const msg = JSON.stringify(json).toLowerCase();
+        if (msg.includes("credit") && (msg.includes("insufficient") || msg.includes("0") || msg.includes("exhausted") || msg.includes("limit"))) {
+          return { status: "error" as CheckStatus, message: `Collov AI: credits opbrugt — genopfyld på collov.ai dashboard`, details: { api_response: JSON.stringify(json).slice(0, 200) } };
+        }
+      } catch { /* no json */ }
+      return {
+        status: "ok" as CheckStatus,
+        message: "Collov AI: API tilgængeligt og accepterer kald",
+        details: { note: "Tjek credits manuelt på collov.ai/dashboard", httpStatus: res.status },
+      };
     }
     return { status: "warn" as CheckStatus, message: `Collov AI API svarede HTTP ${res.status} — mulig driftforstyrrelse`, details: { httpStatus: res.status } };
   } catch (e: any) {
@@ -316,55 +283,42 @@ async function checkFalApi() {
   const key = process.env.FAL_KEY;
   if (!key) return { status: "error" as CheckStatus, message: "FAL_KEY mangler — video-generering virker ikke" };
 
-  const WARN_BALANCE = 30;
-  const ERROR_BALANCE = 10;
+  // fal.ai exposes no public billing API — ping the queue endpoint to verify key is valid
+  // If account runs out of funds, job submissions will fail with 402/403
+  try {
+    const res = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt: "ping" }),
+      signal: AbortSignal.timeout(8000),
+    });
 
-  // Try multiple known fal.ai billing endpoints
-  const endpoints = [
-    { url: "https://api.fal.ai/billing/balance", auth: `Key ${key}` },
-    { url: `${FAL_BASE}/accounts/me`, auth: `Key ${key}` },
-  ];
-
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(ep.url, {
-        headers: { Authorization: ep.auth },
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (res.ok) {
-        const json = await res.json().catch(() => ({}));
-        const balance =
-          json?.balance ??
-          json?.credits ??
-          json?.remaining_credits ??
-          json?.available_balance ??
-          json?.data?.balance;
-
-        if (typeof balance === "number") {
-          const details: Record<string, unknown> = { saldo_usd: `$${balance.toFixed(2)}`, grænse_advarsel: `$${WARN_BALANCE}`, grænse_fejl: `$${ERROR_BALANCE}` };
-          if (balance < 0) {
-            return { status: "error" as CheckStatus, message: `fal.ai: NEGATIV saldo $${balance.toFixed(2)} — video-generering er spærret`, details };
-          }
-          if (balance < ERROR_BALANCE) {
-            return { status: "error" as CheckStatus, message: `fal.ai: kun $${balance.toFixed(2)} tilbage — indsæt penge NU`, details };
-          }
-          if (balance < WARN_BALANCE) {
-            return { status: "warn" as CheckStatus, message: `fal.ai: $${balance.toFixed(2)} tilbage (under $${WARN_BALANCE} — overvej at genopfylde)`, details };
-          }
-          return { status: "ok" as CheckStatus, message: `fal.ai: $${balance.toFixed(2)} tilbage`, details };
-        }
-        return { status: "ok" as CheckStatus, message: "fal.ai API tilgængeligt" };
-      }
-      if (res.status === 401 || res.status === 403) {
-        return { status: "error" as CheckStatus, message: `fal.ai: API-nøgle ugyldig (HTTP ${res.status}) — tjek FAL_KEY` };
-      }
-    } catch {
-      // try next endpoint
+    if (res.status === 401 || res.status === 403) {
+      return { status: "error" as CheckStatus, message: "fal.ai: API-nøgle ugyldig eller adgang nægtet — tjek FAL_KEY" };
     }
+    if (res.status === 402) {
+      return { status: "error" as CheckStatus, message: "fal.ai: INGEN SALDO — video-generering er spærret. Indsæt penge på fal.ai/dashboard" };
+    }
+    // 200 or 202 (accepted) = key works and account has funds
+    if (res.ok || res.status === 202) {
+      return {
+        status: "ok" as CheckStatus,
+        message: "fal.ai: API tilgængeligt og konto har saldo",
+        details: { note: "Tjek præcis saldo manuelt på fal.ai/dashboard", httpStatus: res.status },
+      };
+    }
+    // Other errors = API issue not billing
+    return {
+      status: "warn" as CheckStatus,
+      message: `fal.ai: API svarede HTTP ${res.status} — mulig driftforstyrrelse`,
+      details: { httpStatus: res.status, note: "Tjek saldo manuelt på fal.ai/dashboard" },
+    };
+  } catch (e: any) {
+    return { status: "error" as CheckStatus, message: `fal.ai ikke nåbar: ${e.message} — video-generering er nede` };
   }
-
-  return { status: "warn" as CheckStatus, message: "fal.ai: saldo kunne ikke hentes — API svarer ikke som forventet" };
 }
 
 async function checkAppSelf() {
@@ -491,55 +445,14 @@ function scheduleDailySummary() {
   }, msUntil);
 }
 
-async function fetchCollovCredits(): Promise<string> {
-  const key = process.env.COLLOV_API_KEY;
-  if (!key) return "API-nøgle mangler";
-  const endpoints = [
-    `${COLLOV_BASE}/flair/enterpriseApi/user/credit`,
-    `${COLLOV_BASE}/flair/enterpriseApi/user/info`,
-  ];
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(ep, { headers: { apiKey: key }, signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        const json = await res.json().catch(() => ({}));
-        const credit = json?.data?.credit ?? json?.credit ?? json?.credits ?? json?.remaining;
-        const total = json?.data?.totalCredit ?? json?.totalCredit ?? json?.total;
-        if (typeof credit === "number") {
-          return total ? `${credit} / ${total} credits` : `${credit} credits`;
-        }
-      }
-    } catch { /* try next */ }
-  }
-  return "Kunne ikke hentes";
-}
-
-async function fetchFalBalance(): Promise<string> {
-  const key = process.env.FAL_KEY;
-  if (!key) return "API-nøgle mangler";
-  const endpoints = [
-    "https://api.fal.ai/billing/balance",
-    `${FAL_BASE}/accounts/me`,
-  ];
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(ep, { headers: { Authorization: `Key ${key}` }, signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        const json = await res.json().catch(() => ({}));
-        const balance = json?.balance ?? json?.credits ?? json?.remaining_credits ?? json?.available_balance ?? json?.data?.balance;
-        if (typeof balance === "number") return `$${balance.toFixed(2)}`;
-      }
-    } catch { /* try next */ }
-  }
-  return "Kunne ikke hentes";
-}
+// Neither Collov nor fal.ai expose public billing APIs.
+// Daily summary links directly to their dashboards instead.
+const COLLOV_DASHBOARD = "https://collov.ai/dashboard";
+const FAL_DASHBOARD = "https://fal.ai/dashboard";
 
 async function sendDailySummary() {
   if (!process.env.BREVO_SYSTEM_TRACKER) return;
   try {
-    // Fetch live credits/balance for the summary
-    const [collovCredits, falBalance] = await Promise.all([fetchCollovCredits(), fetchFalBalance()]);
-
     const allResults = Array.from(results.values());
     const errors = allResults.filter((r) => r.status === "error");
     const warns = allResults.filter((r) => r.status === "warn");
@@ -562,11 +475,6 @@ async function sendDailySummary() {
       })
       .join("");
 
-    const creditColor = (collovCredits.includes("Kunne") || collovCredits.includes("mangler")) ? "#C0392B" :
-      parseInt(collovCredits) < 20 ? "#C0392B" : parseInt(collovCredits) < 50 ? "#D68910" : "#27AE60";
-    const falColor = (falBalance.includes("Kunne") || falBalance.includes("mangler")) ? "#C0392B" :
-      parseFloat(falBalance.replace("$", "")) < 10 ? "#C0392B" : parseFloat(falBalance.replace("$", "")) < 30 ? "#D68910" : "#27AE60";
-
     const html = `<div style="font-family:'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:#FAF6EC;padding:28px;">
   <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
     <div style="background:#0F1923;padding:24px 28px;">
@@ -574,31 +482,32 @@ async function sendDailySummary() {
       <h1 style="color:#fff;font-size:21px;margin:8px 0 0;font-weight:500;">📊 ${statusLine} — ${dateStr}</h1>
     </div>
 
-    <!-- Credit / Balance overview -->
+    <!-- Manual credit/balance links — APIs expose no billing data -->
     <div style="background:#F5F0E8;padding:16px 28px;border-bottom:1px solid #E8DFD0;">
-      <div style="font-size:11px;color:#999;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;">Forbrug & Saldo</div>
+      <div style="font-size:11px;color:#999;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;">Tjek credits & saldo manuelt</div>
       <table style="width:100%;border-collapse:collapse;">
         <tr>
-          <td style="width:50%;padding:6px 12px 6px 0;">
-            <div style="font-size:12px;color:#888;margin-bottom:2px;">Collov AI credits</div>
-            <div style="font-size:20px;font-weight:600;color:${creditColor};">${collovCredits}</div>
-            <div style="font-size:11px;color:#aaa;">Advarsel &lt;50 · Fejl &lt;20</div>
+          <td style="width:50%;padding:4px 12px 4px 0;vertical-align:top;">
+            <div style="font-size:13px;color:#555;font-weight:600;">Collov AI Credits</div>
+            <div style="font-size:12px;color:#888;margin:3px 0 6px;">Advarsel ved &lt;50 · Alert ved &lt;20</div>
+            <a href="${COLLOV_DASHBOARD}" style="display:inline-block;background:#C9A96E;color:#fff;padding:6px 14px;border-radius:5px;font-size:12px;text-decoration:none;">Åbn Collov dashboard →</a>
           </td>
-          <td style="width:50%;padding:6px 0 6px 12px;border-left:1px solid #E8DFD0;padding-left:20px;">
-            <div style="font-size:12px;color:#888;margin-bottom:2px;">fal.ai saldo</div>
-            <div style="font-size:20px;font-weight:600;color:${falColor};">${falBalance}</div>
-            <div style="font-size:11px;color:#aaa;">Advarsel &lt;$30 · Fejl &lt;$10</div>
+          <td style="width:50%;padding:4px 0 4px 20px;border-left:1px solid #E8DFD0;vertical-align:top;">
+            <div style="font-size:13px;color:#555;font-weight:600;">fal.ai Saldo</div>
+            <div style="font-size:12px;color:#888;margin:3px 0 6px;">Advarsel ved &lt;$30 · Alert ved &lt;$10</div>
+            <a href="${FAL_DASHBOARD}" style="display:inline-block;background:#C9A96E;color:#fff;padding:6px 14px;border-radius:5px;font-size:12px;text-decoration:none;">Åbn fal.ai dashboard →</a>
           </td>
         </tr>
       </table>
+      <div style="margin-top:10px;font-size:11px;color:#bbb;">Disse API'er eksponerer ikke balance-data programmatisk — se dashboardene for præcise tal.</div>
     </div>
 
     <!-- System checks -->
     <table style="width:100%;border-collapse:collapse;">${systemRows}</table>
 
-    <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#999;font-size:12px;display:flex;justify-content:space-between;">
-      <span>${ok.length} OK · ${warns.length} advarsler · ${errors.length} fejl</span>
-      <a href="${SITE_URL}/admin/tracker" style="color:#C9A96E;">Åbn live dashboard →</a>
+    <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#999;font-size:12px;">
+      ${ok.length} OK · ${warns.length} advarsler · ${errors.length} fejl &nbsp;·&nbsp;
+      <a href="${SITE_URL}/admin/tracker" style="color:#C9A96E;">Åbn live tracker →</a>
     </div>
   </div>
 </div>`;
