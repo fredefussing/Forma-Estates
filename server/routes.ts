@@ -1806,9 +1806,34 @@ export async function registerRoutes(
       const u = await storage.getUserByFirebaseUid(uid);
       if (!u) return res.status(401).json({ message: "Bruger ikke fundet" });
       const quota = await storage.getUserQuota(u.id);
-      return res.json({ success: true, isAdmin: u.isAdmin, quota });
+      // Include invite link for team owners (using the permanent team code)
+      const membership = await storage.getTeamByUserId(u.id);
+      const teamCode = membership?.team?.code ?? null;
+      const inviteLink = teamCode ? `${req.protocol}://${req.get("host")}/boligpotentiale/join-team?code=${teamCode}` : null;
+      return res.json({ success: true, isAdmin: u.isAdmin, quota, teamCode, inviteLink });
     } catch {
       return res.status(401).json({ message: "Ikke autoriseret" });
+    }
+  });
+
+  // ── Team invite link (permanent, code-based) ──────────────────────────────
+  app.get("/api/team/invite-link", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const u = await storage.getUserByFirebaseUid(uid);
+      if (!u) return res.status(401).json({ error: "Ikke autoriseret" });
+      const membership = await storage.getTeamByUserId(u.id);
+      if (!membership) return res.status(404).json({ error: "Du er ikke i et team" });
+      const { team } = membership;
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const inviteLink = `${baseUrl}/boligpotentiale/join-team?code=${team.code}`;
+      const memberCntRes = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(*)::text AS cnt FROM team_members WHERE team_id = $1`, [team.id]
+      );
+      const memberCount = parseInt(memberCntRes.rows[0]?.cnt ?? "0", 10) + 1; // +1 for owner
+      return res.json({ inviteLink, teamCode: team.code, teamName: team.name, memberCount, maxMembers: 15 });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
   });
 
@@ -3046,15 +3071,26 @@ export async function registerRoutes(
 
       const invite = await storage.getTeamInviteByToken(token);
       if (!invite) return res.status(404).json({ error: "Invitation ikke fundet" });
-      if (invite.usedAt) return res.status(400).json({ error: "Invitationen er allerede brugt" });
       if (new Date() > invite.expiresAt) return res.status(400).json({ error: "Invitationen er udløbet" });
 
       // Check user is not already in this team
       const existing = await storage.getTeamByUserId(dbUser.id);
-      if (existing) return res.status(400).json({ error: "Du er allerede i et team" });
+      if (existing) {
+        if (existing.team.id === invite.teamId) return res.status(400).json({ error: "Du er allerede med i dette team." });
+        return res.status(400).json({ error: "Du er allerede i et andet team. Kontakt os for at skifte." });
+      }
+
+      // Enforce max 15 members (owner + members)
+      const memberCntRes = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(*)::text AS cnt FROM team_members WHERE team_id = $1`, [invite.teamId]
+      );
+      const totalMembers = parseInt(memberCntRes.rows[0]?.cnt ?? "0", 10) + 1; // +1 for owner
+      if (totalMembers >= 15) {
+        return res.status(400).json({ error: "Dette team har nået grænsen på 15 medlemmer. Kontakt os på support@formaestates.dk for at hæve grænsen." });
+      }
 
       await storage.addTeamMember({ teamId: invite.teamId, userId: dbUser.id, role: "user" });
-      await storage.markTeamInviteUsed(invite.id);
+      // Do NOT mark invite as used — the link stays active for future team members
 
       return res.json({ success: true });
     } catch (err: any) {

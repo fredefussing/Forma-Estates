@@ -1,28 +1,35 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { BarChart3, Sparkles, Box, Video, Film } from "lucide-react";
+import { BarChart3, Sparkles, Box, Video, Film, Users, Copy, Check } from "lucide-react";
+import { useState } from "react";
 
 interface QuotaData {
   isAdmin: boolean;
+  inviteLink: string | null;
+  teamCode: string | null;
   quota: {
     ai:            { limit: number | null; used: number };
     floorPlan:     { limit: number | null; used: number };
     transformVideo:{ limit: number | null; used: number };
     showcase:      { limit: number | null; used: number };
     resetsAt:      string | null;
+    teamPlan:      string | null;
+    teamName:      string | null;
+    memberCount:   number | null;
+    maxMembers:    number | null;
   };
 }
 
 function QuotaBar({ used, limit, color = "#C8956C" }: { used: number; limit: number | null; color?: string }) {
   if (limit === null) return (
-    <div className="h-1.5 rounded-full w-full" style={{ background: "rgba(200,149,108,0.25)" }}>
-      <div className="h-1.5 rounded-full w-full" style={{ background: color, opacity: 0.5 }} />
+    <div className="h-1.5 rounded-full w-full" style={{ background: "rgba(200,149,108,0.15)" }}>
+      <div className="h-1.5 rounded-full w-full" style={{ background: color, opacity: 0.4 }} />
     </div>
   );
   const pct = limit === 0 ? 0 : Math.min(100, (used / limit) * 100);
   const barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : color;
   return (
-    <div className="h-1.5 rounded-full w-full" style={{ background: "rgba(0,0,0,0.08)" }}>
+    <div className="h-1.5 rounded-full w-full" style={{ background: "rgba(0,0,0,0.06)" }}>
       <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
     </div>
   );
@@ -34,6 +41,33 @@ const FEATURES = [
   { key: "transformVideo",label: "Transformering Video", icon: Video },
   { key: "showcase",      label: "Bolig Showcase",       icon: Film },
 ] as const;
+
+const TIER_LABELS: Record<string, string> = {
+  start: "Start",
+  pro: "Pro",
+  business: "Business",
+  unlimited: "Unlimited",
+};
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all"
+      style={{ background: copied ? "rgba(45,106,79,0.1)" : "rgba(200,149,108,0.1)", color: copied ? "#2D6A4F" : "#C8956C" }}
+      data-testid="button-copy-invite-link"
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {copied ? "Kopieret!" : "Kopier link"}
+    </button>
+  );
+}
 
 export function QuotaWidget() {
   const { user } = useAuth();
@@ -53,31 +87,49 @@ export function QuotaWidget() {
 
   if (!data) return null;
 
-  const resetDate = data.quota.resetsAt
-    ? new Date(data.quota.resetsAt).toLocaleDateString("da-DK", { day: "numeric", month: "long" })
+  const { quota, isAdmin, inviteLink } = data;
+  const isUnlimitedUser = isAdmin || quota.teamPlan === "unlimited";
+  const planLabel = isAdmin ? "Admin (Ubegrænset)" : quota.teamPlan ? `${TIER_LABELS[quota.teamPlan] ?? quota.teamPlan} plan` : null;
+
+  const resetDate = quota.resetsAt
+    ? new Date(quota.resetsAt).toLocaleDateString("da-DK", { day: "numeric", month: "long" })
     : null;
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-[#E8E4DE] shadow-sm" data-testid="quota-widget">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
-          <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>Månedlig kvota</h3>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>Månedlig kvota</h3>
+          </div>
+          {planLabel && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block mt-0.5" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>
+              {planLabel}
+            </span>
+          )}
         </div>
-        {resetDate && (
-          <span className="text-[11px]" style={{ color: "#9B9690" }}>Nulstilles {resetDate}</span>
-        )}
-        {data.isAdmin && (
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>Admin</span>
-        )}
+        <div className="text-right">
+          {resetDate && !isUnlimitedUser && (
+            <span className="text-[11px] block" style={{ color: "#9B9690" }}>Nulstilles {resetDate}</span>
+          )}
+          {quota.teamName && quota.memberCount !== null && quota.maxMembers !== null && (
+            <div className="flex items-center gap-1 mt-1 justify-end">
+              <Users className="w-3 h-3" style={{ color: "#9B9690" }} />
+              <span className="text-[11px]" style={{ color: "#9B9690" }}>{quota.memberCount}/{quota.maxMembers} medlemmer</span>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Feature rows */}
       <div className="space-y-3.5">
         {FEATURES.map(({ key, label, icon: Icon }) => {
-          const f = data.quota[key as keyof typeof data.quota] as { limit: number | null; used: number };
-          const isUnlimited = data.isAdmin || f.limit === null;
-          const remaining = isUnlimited ? null : Math.max(0, (f.limit ?? 0) - f.used);
-          const exhausted = !isUnlimited && remaining === 0;
+          const f = quota[key as keyof typeof quota] as { limit: number | null; used: number };
+          const unlimited = isUnlimitedUser || f.limit === null;
+          const remaining = unlimited ? null : Math.max(0, (f.limit ?? 0) - f.used);
+          const exhausted = !unlimited && remaining === 0;
 
           return (
             <div key={key}>
@@ -87,15 +139,11 @@ export function QuotaWidget() {
                   <span className="text-xs font-medium" style={{ color: exhausted ? "#EF4444" : "#1A1A1A" }}>{label}</span>
                 </div>
                 <span className="text-[11px] font-semibold" style={{ color: exhausted ? "#EF4444" : "#6B6B6B" }}>
-                  {isUnlimited ? "Ubegrænset" : exhausted ? "Brugt op" : `${remaining} tilbage`}
+                  {unlimited ? "Ubegrænset" : exhausted ? "Brugt op" : `${remaining} tilbage`}
                 </span>
               </div>
-              <QuotaBar
-                used={f.used}
-                limit={isUnlimited ? null : f.limit}
-                color={exhausted ? "#EF4444" : "#C8956C"}
-              />
-              {!isUnlimited && (
+              <QuotaBar used={f.used} limit={unlimited ? null : f.limit} color={exhausted ? "#EF4444" : "#C8956C"} />
+              {!unlimited && (
                 <div className="flex justify-between mt-0.5">
                   <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{f.used} brugt</span>
                   <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{f.limit ?? 0} i alt</span>
@@ -105,6 +153,23 @@ export function QuotaWidget() {
           );
         })}
       </div>
+
+      {/* Invite link for team owners */}
+      {inviteLink && (
+        <div className="mt-4 pt-4 border-t border-[#F0EDE8]">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
+              <span className="text-xs font-semibold" style={{ color: "#1A1A1A" }}>Team invite-link</span>
+            </div>
+            <CopyButton text={inviteLink} />
+          </div>
+          <p className="text-[11px] leading-relaxed" style={{ color: "#9B9690" }}>
+            Del dette link med kolleger. Op til 15 medlemmer kan tilmelde sig og bruge platformens funktioner gratis under dit team.
+            Over 15? <a href="mailto:support@formaestates.dk" className="underline" style={{ color: "#C8956C" }}>Kontakt os</a>.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

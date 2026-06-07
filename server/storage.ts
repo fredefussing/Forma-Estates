@@ -482,7 +482,16 @@ export class DatabaseStorage implements IStorage {
     const team = await this.getTeamByCode(code);
     if (!team) return { error: "Ugyldig kode. Tjek at du har skrevet den korrekt." };
     const existing = await this.getTeamByUserId(userId);
-    if (existing) return { error: "Du er allerede i et team." };
+    if (existing) {
+      if (existing.team.id === team.id) return { error: "Du er allerede med i dette team." };
+      return { error: "Du er allerede i et andet team. Kontakt os for at skifte." };
+    }
+    // Enforce max 15 members (owner + members)
+    const memberCount = await pool.query<{ cnt: string }>(
+      `SELECT COUNT(*)::text AS cnt FROM team_members WHERE team_id = $1`, [team.id]
+    );
+    const total = parseInt(memberCount.rows[0]?.cnt ?? "0", 10) + 1; // +1 for owner
+    if (total >= 15) return { error: "Dette team har nået grænsen på 15 medlemmer. Kontakt os på support@formaestates.dk for at hæve grænsen." };
     await db.insert(teamMembers).values({ teamId: team.id, userId, role: "user" });
     return { team };
   }
@@ -894,20 +903,71 @@ export class DatabaseStorage implements IStorage {
 
   async getUserQuota(userId: number) {
     const res = await pool.query(
-      `SELECT quota_ai_visualizations, quota_floor_plans, quota_transform_videos, quota_showcase_videos,
-              used_ai_visualizations, used_floor_plans, used_transform_videos, used_showcase_videos,
-              quota_resets_at FROM users WHERE id = $1`,
+      `SELECT u.quota_ai_visualizations, u.quota_floor_plans, u.quota_transform_videos, u.quota_showcase_videos,
+              u.used_ai_visualizations, u.used_floor_plans, u.used_transform_videos, u.used_showcase_videos,
+              u.quota_resets_at, u.is_admin
+       FROM users u WHERE u.id = $1`,
       [userId]
     );
     const r = res.rows[0];
-    if (!r) return { ai: { limit: 0, used: 0 }, floorPlan: { limit: 0, used: 0 }, transformVideo: { limit: 0, used: 0 }, showcase: { limit: 0, used: 0 }, resetsAt: null };
-    return {
-      ai:            { limit: r.quota_ai_visualizations,  used: r.used_ai_visualizations  ?? 0 },
-      floorPlan:     { limit: r.quota_floor_plans,        used: r.used_floor_plans        ?? 0 },
-      transformVideo:{ limit: r.quota_transform_videos,   used: r.used_transform_videos   ?? 0 },
-      showcase:      { limit: r.quota_showcase_videos,    used: r.used_showcase_videos    ?? 0 },
-      resetsAt:      r.quota_resets_at,
-    };
+    if (!r) return { ai: { limit: 0, used: 0 }, floorPlan: { limit: 0, used: 0 }, transformVideo: { limit: 0, used: 0 }, showcase: { limit: 0, used: 0 }, resetsAt: null, teamPlan: null, teamName: null, memberCount: null, maxMembers: null };
+
+    // If user has no explicit quotas set (all null) and is not admin → check team membership
+    const hasOwnQuotas = r.quota_ai_visualizations !== null || r.quota_floor_plans !== null;
+    let teamPlan: string | null = null;
+    let teamName: string | null = null;
+    let memberCount: number | null = null;
+    let maxMembers: number | null = null;
+    let effectiveLimits: { ai: number | null; floorPlan: number | null; transformVideo: number | null; showcase: number | null } | null = null;
+
+    if (!r.is_admin && !hasOwnQuotas) {
+      const teamRes = await pool.query<{ team_name: string; subscription_tier: string | null; owner_is_admin: boolean; member_cnt: string }>(
+        `SELECT t.name AS team_name, ou.subscription_tier, ou.is_admin AS owner_is_admin,
+                (SELECT COUNT(*) FROM team_members WHERE team_id = t.id)::text AS member_cnt
+         FROM team_members tm
+         JOIN teams t ON t.id = tm.team_id
+         JOIN users ou ON ou.id = t.owner_user_id
+         WHERE tm.user_id = $1
+         LIMIT 1`,
+        [userId]
+      );
+      if (teamRes.rows.length > 0) {
+        const tr = teamRes.rows[0];
+        teamName = tr.team_name;
+        memberCount = parseInt(tr.member_cnt, 10) + 1; // +1 for owner
+        maxMembers = 15;
+        if (tr.owner_is_admin) {
+          teamPlan = "unlimited";
+        } else {
+          teamPlan = tr.subscription_tier ?? null;
+          if (teamPlan && teamPlan in SUBSCRIPTION_QUOTAS) {
+            const q = SUBSCRIPTION_QUOTAS[teamPlan as keyof typeof SUBSCRIPTION_QUOTAS];
+            effectiveLimits = { ai: q.ai as number | null, floorPlan: q.floorPlans as number | null, transformVideo: q.transformVideos as number | null, showcase: q.showcase as number | null };
+          }
+        }
+      }
+    }
+
+    // Also check if user OWNS a team (for owner's own quota widget)
+    if (!r.is_admin && !hasOwnQuotas && !teamName) {
+      const ownedTeam = await pool.query<{ team_name: string; member_cnt: string }>(
+        `SELECT t.name AS team_name, (SELECT COUNT(*) FROM team_members WHERE team_id = t.id)::text AS member_cnt
+         FROM teams t WHERE t.owner_user_id = $1 LIMIT 1`,
+        [userId]
+      );
+      if (ownedTeam.rows.length > 0) {
+        teamName = ownedTeam.rows[0].team_name;
+        memberCount = parseInt(ownedTeam.rows[0].member_cnt, 10) + 1;
+        maxMembers = 15;
+      }
+    }
+
+    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: r.used_ai_visualizations  ?? 0 } : { limit: r.quota_ai_visualizations,  used: r.used_ai_visualizations  ?? 0 };
+    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: r.used_floor_plans        ?? 0 } : { limit: r.quota_floor_plans,        used: r.used_floor_plans        ?? 0 };
+    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: r.used_transform_videos   ?? 0 } : { limit: r.quota_transform_videos,   used: r.used_transform_videos   ?? 0 };
+    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: r.used_showcase_videos    ?? 0 } : { limit: r.quota_showcase_videos,    used: r.used_showcase_videos    ?? 0 };
+
+    return { ai, floorPlan, transformVideo, showcase, resetsAt: r.quota_resets_at, teamPlan, teamName, memberCount, maxMembers };
   }
 
   async checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase") {
@@ -932,8 +992,38 @@ export class DatabaseStorage implements IStorage {
     // Admin bypass — unlimited usage
     if (row.is_admin) return { allowed: true, remaining: null, feature: label };
 
-    const limit: number | null = row[`quota_${col}`];
+    let limit: number | null = row[`quota_${col}`];
     const used: number = row[`used_${col}`] ?? 0;
+
+    // If no explicit quota is set, check team membership → inherit owner's subscription tier
+    if (limit === null) {
+      const teamRes = await pool.query<{ subscription_tier: string | null; owner_is_admin: boolean }>(
+        `SELECT ou.subscription_tier, ou.is_admin AS owner_is_admin
+         FROM team_members tm
+         JOIN teams t ON t.id = tm.team_id
+         JOIN users ou ON ou.id = t.owner_user_id
+         WHERE tm.user_id = $1
+         LIMIT 1`,
+        [userId]
+      );
+      if (teamRes.rows.length > 0) {
+        const tr = teamRes.rows[0];
+        if (tr.owner_is_admin) {
+          // Team owner is admin/unlimited — team member inherits unlimited
+          return { allowed: true, remaining: null, feature: label };
+        }
+        const tier = tr.subscription_tier;
+        if (tier && tier in SUBSCRIPTION_QUOTAS) {
+          const q = SUBSCRIPTION_QUOTAS[tier as keyof typeof SUBSCRIPTION_QUOTAS];
+          const tierLimit = feature === "ai" ? q.ai : feature === "floorPlan" ? q.floorPlans : feature === "transformVideo" ? q.transformVideos : q.showcase;
+          limit = tierLimit as number | null;
+        } else {
+          // Owner has no plan → deny
+          return { allowed: false, remaining: 0, feature: label };
+        }
+      }
+      // If still null and not in a team — allow (paywall already gates access; no quota set means no hard limit)
+    }
 
     if (limit !== null && used >= limit) {
       return { allowed: false, remaining: 0, feature: label };
