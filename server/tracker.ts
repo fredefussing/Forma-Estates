@@ -553,6 +553,30 @@ export async function triggerManualCheck(): Promise<void> {
   await runAll();
 }
 
+export async function triggerTestAlert(): Promise<void> {
+  const key = process.env.BREVO_SYSTEM_TRACKER;
+  if (!key) throw new Error("BREVO_SYSTEM_TRACKER ikke konfigureret");
+
+  const now = new Date().toLocaleString("da-DK", {
+    timeZone: "Europe/Copenhagen",
+    day: "numeric", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+
+  const html = alertHtml("🧪", "#2C3E7A", "Test af System Tracker", [
+    ["Test type", "Manuel alert-test"],
+    ["Collov AI simuleret", "⚠️ 32 credits tilbage (under 50 — advarsel)"],
+    ["fal.ai simuleret", "🚨 $8.40 tilbage (under $10 — kritisk)"],
+    ["PostgreSQL simuleret", "✅ Forbundet (42ms)"],
+    ["formaestates.com", "✅ Online (310ms)"],
+    ["Firebase", "✅ Alle env-variabler konfigureret"],
+    ["Tidspunkt", now],
+    ["Konklusion", "Email-pipeline virker — rigtige alerts sendes ved lave credits/saldo"],
+  ]);
+
+  await sendBrevoEmail("🧪 [TEST] System Tracker alert-test — Forma Estates", html);
+}
+
 export async function getDbHistory(hours = 24): Promise<Array<{
   id: number; check_name: string; status: string; message: string; checked_at: string;
 }>> {

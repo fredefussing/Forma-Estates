@@ -962,7 +962,7 @@ export async function registerRoutes(
   {
     const {
       getTrackerStatus, getTrackerHistory, muteAlert, unmuteAlert,
-      getMutedChecks, triggerManualCheck, getDbHistory,
+      getMutedChecks, triggerManualCheck, getDbHistory, triggerTestAlert,
     } = await import("./tracker");
 
     app.get("/api/tracker/status", async (req, res) => {
@@ -1017,6 +1017,21 @@ export async function registerRoutes(
         void triggerManualCheck();
         return res.json({ success: true, message: "Checks startet — genindlæs om 10 sekunder" });
       } catch { return res.status(401).json({ message: "Ikke autoriseret" }); }
+    });
+
+    // Test-alert: sends real alert emails with simulated low-credit/balance data
+    // Protected by ADMIN_PASSWORD — for manual testing only
+    app.post("/api/tracker/test-alert", async (req, res) => {
+      const pw = req.query.pw as string;
+      if (pw !== process.env.ADMIN_PASSWORD) {
+        return res.status(401).json({ message: "Ikke autoriseret" });
+      }
+      try {
+        await triggerTestAlert();
+        return res.json({ success: true, message: "Test-alert sendt til kontakt@formaestates.com" });
+      } catch (e: any) {
+        return res.status(500).json({ message: e.message });
+      }
     });
   }
 
