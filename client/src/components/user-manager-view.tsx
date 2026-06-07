@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, User, Shield, Check, X, ChevronRight, ArrowLeft, AlertTriangle, Crown, CreditCard, Calendar, Hash } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
