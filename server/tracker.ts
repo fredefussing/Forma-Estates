@@ -5,7 +5,6 @@
  */
 
 import { pool } from "./db";
-import nodemailer from "nodemailer";
 
 const ALERT_EMAIL = "kontakt@formaestates.com";
 const COLLOV_BASE = "https://api.collov.ai";
@@ -38,16 +37,29 @@ const mutedUntil = new Map<string, number>();
 const alertCooldown = new Map<string, number>();
 const COOLDOWN_MS = 30 * 60 * 1000;
 
-// ── Email ─────────────────────────────────────────────────────────────────────
+// ── Email via Brevo API ───────────────────────────────────────────────────────
 
-function makeTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.office365.com",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: false,
-    auth: { user: ALERT_EMAIL, pass: process.env.SMTP_PASSWORD },
-    tls: { rejectUnauthorized: false },
+async function sendBrevoEmail(subject: string, html: string): Promise<void> {
+  const key = process.env.BREVO_API_KEY;
+  if (!key) throw new Error("BREVO_API_KEY ikke konfigureret");
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": key,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "Forma Estates Monitor", email: ALERT_EMAIL },
+      to: [{ email: ALERT_EMAIL }],
+      subject,
+      htmlContent: html,
+    }),
   });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Brevo HTTP ${res.status}: ${txt.slice(0, 200)}`);
+  }
 }
 
 async function sendAlertEmail(
@@ -55,7 +67,7 @@ async function sendAlertEmail(
   html: string,
   alertKey: string
 ): Promise<void> {
-  if (!process.env.SMTP_PASSWORD) return;
+  if (!process.env.BREVO_API_KEY) return;
 
   const now = Date.now();
   const lastSent = alertCooldown.get(alertKey) ?? 0;
@@ -78,13 +90,7 @@ async function sendAlertEmail(
   alertCooldown.set(alertKey, now);
 
   try {
-    const t = makeTransporter();
-    await t.sendMail({
-      from: `"Forma Estates Monitor" <${ALERT_EMAIL}>`,
-      to: ALERT_EMAIL,
-      subject,
-      html,
-    });
+    await sendBrevoEmail(subject, html);
     await pool.query(
       `INSERT INTO tracker_alert_sent (alert_key) VALUES ($1)`,
       [alertKey]
@@ -475,13 +481,7 @@ async function sendDailySummary() {
     </div>
   </div></div>`;
 
-    const t = makeTransporter();
-    await t.sendMail({
-      from: `"Forma Estates Monitor" <${ALERT_EMAIL}>`,
-      to: ALERT_EMAIL,
-      subject: `📊 Daglig System Status — ${statusLine}`,
-      html,
-    });
+    await sendBrevoEmail(`📊 Daglig System Status — ${statusLine}`, html);
     console.log("[tracker] Daily summary sent");
   } catch (e: any) {
     console.warn("[tracker] Failed to send daily summary:", e.message);
