@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
-  const redirect = new URLSearchParams(window.location.search).get("redirect") || "/min-konto";
+  const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
 
   useEffect(() => {
     if (!authLoading && user) {

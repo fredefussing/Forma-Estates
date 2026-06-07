@@ -19,7 +19,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
-  const redirect = new URLSearchParams(window.location.search).get("redirect") || "/min-konto";
+  const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -48,7 +48,7 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: displayName.trim() });
 
-      const signupSource = redirect !== "/min-konto"
+      const signupSource = redirect !== "/boligpotentiale/dashboard"
         ? `Signup via ${redirect} redirect`
         : `Direkte signup (/opret)`;
       fetch("/api/auth/welcome-email", {
