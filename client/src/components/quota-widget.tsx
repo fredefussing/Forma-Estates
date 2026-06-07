@@ -157,16 +157,18 @@ export function QuotaWidget() {
       {/* Invite link for team owners */}
       {inviteLink && (
         <div className="mt-4 pt-4 border-t border-[#F0EDE8]">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
               <span className="text-xs font-semibold" style={{ color: "#1A1A1A" }}>Team invite-link</span>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>Max 15 medl.</span>
             </div>
             <CopyButton text={inviteLink} />
           </div>
           <p className="text-[11px] leading-relaxed" style={{ color: "#9B9690" }}>
-            Del dette link med kolleger. Op til 15 medlemmer kan tilmelde sig og bruge platformens funktioner gratis under dit team.
-            Over 15? <a href="mailto:support@formaestates.dk" className="underline" style={{ color: "#C8956C" }}>Kontakt os</a>.
+            Del med kolleger — gratis adgang under dit team. Mere end 15?{" "}
+            <a href="mailto:support@formaestates.dk" className="underline" style={{ color: "#C8956C" }}>Skriv til support</a>
+            {" "}og vi fikser det.
           </p>
         </div>
       )}
