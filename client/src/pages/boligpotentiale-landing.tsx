@@ -518,11 +518,10 @@ function HeroStage() {
           <div className="absolute left-0 right-0" style={{ bottom: "clamp(14px, 2vw, 28px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
             <div style={{ maxWidth: "min(560px, 60%)" }}>
               <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(22px, 3vw, 42px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 12px rgba(0,0,0,0.3)" }}>
-                Sæt scenen.<br />Sælg hurtigere.
+                Professionelle boligvisualiseringer på få sekunder
               </h1>
               <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(11px, 1vw, 13px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
-                Upload et rumfoto — salgsklar visualisering på{" "}
-                <span style={{ color: C.gold }}>under 30 sekunder</span>.
+                Skab AI-genererede boligvisualiseringer, 3D floorplans og salgsvideoer — direkte fra din browser
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Link href="/opret">
