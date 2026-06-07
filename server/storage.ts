@@ -73,6 +73,10 @@ export interface IStorage {
   addBoligCaseImage(data: InsertBoligCaseImage): Promise<BoligCaseImage>;
   getBoligCaseImages(caseId: number): Promise<BoligCaseImage[]>;
   getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>;
+  getUserQuota(userId: number): Promise<{ ai: { limit: number | null; used: number }; floorPlan: { limit: number | null; used: number }; transformVideo: { limit: number | null; used: number }; showcase: { limit: number | null; used: number }; resetsAt: Date | null }>;
+  checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<{ allowed: boolean; remaining: number | null; feature: string }>;
+  setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date }): Promise<void>;
+  resetMonthlyUsage(userId: number): Promise<void>;
   createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage>;
   getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]>;
   getAllGeneratedImages(userId: number, limit?: number): Promise<GeneratedImage[]>;
@@ -886,6 +890,84 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCrmOverride(contactId: string, key: string): Promise<void> {
     await pool.query(`DELETE FROM crm_user_overrides WHERE contact_id = $1 AND override_key = $2`, [contactId, key]);
+  }
+
+  async getUserQuota(userId: number) {
+    const res = await pool.query(
+      `SELECT quota_ai_visualizations, quota_floor_plans, quota_transform_videos, quota_showcase_videos,
+              used_ai_visualizations, used_floor_plans, used_transform_videos, used_showcase_videos,
+              quota_resets_at FROM users WHERE id = $1`,
+      [userId]
+    );
+    const r = res.rows[0];
+    if (!r) return { ai: { limit: 0, used: 0 }, floorPlan: { limit: 0, used: 0 }, transformVideo: { limit: 0, used: 0 }, showcase: { limit: 0, used: 0 }, resetsAt: null };
+    return {
+      ai:            { limit: r.quota_ai_visualizations,  used: r.used_ai_visualizations  ?? 0 },
+      floorPlan:     { limit: r.quota_floor_plans,        used: r.used_floor_plans        ?? 0 },
+      transformVideo:{ limit: r.quota_transform_videos,   used: r.used_transform_videos   ?? 0 },
+      showcase:      { limit: r.quota_showcase_videos,    used: r.used_showcase_videos    ?? 0 },
+      resetsAt:      r.quota_resets_at,
+    };
+  }
+
+  async checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase") {
+    const col = feature === "ai" ? "ai_visualizations" : feature === "floorPlan" ? "floor_plans" : feature === "transformVideo" ? "transform_videos" : "showcase_videos";
+    const label = feature === "ai" ? "AI Visualiseringer" : feature === "floorPlan" ? "3D Floor Plans" : feature === "transformVideo" ? "Transformering Videoer" : "Bolig Showcase";
+
+    // Auto-reset if past reset date
+    await pool.query(
+      `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0,
+       quota_resets_at = NOW() + INTERVAL '1 month'
+       WHERE id=$1 AND quota_resets_at IS NOT NULL AND quota_resets_at < NOW()`,
+      [userId]
+    );
+
+    const res = await pool.query(
+      `SELECT is_admin, quota_${col}, used_${col} FROM users WHERE id=$1`,
+      [userId]
+    );
+    const row = res.rows[0];
+    if (!row) return { allowed: false, remaining: 0, feature: label };
+
+    // Admin bypass — unlimited usage
+    if (row.is_admin) return { allowed: true, remaining: null, feature: label };
+
+    const limit: number | null = row[`quota_${col}`];
+    const used: number = row[`used_${col}`] ?? 0;
+
+    if (limit !== null && used >= limit) {
+      return { allowed: false, remaining: 0, feature: label };
+    }
+
+    // Increment
+    await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [userId]);
+    const remaining = limit === null ? null : limit - used - 1;
+    return { allowed: true, remaining, feature: label };
+  }
+
+  async setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date }) {
+    const sets: string[] = [];
+    const vals: any[] = [];
+    let i = 1;
+    if ("ai" in quotas)             { sets.push(`quota_ai_visualizations=$${i++}`);  vals.push(quotas.ai); }
+    if ("floorPlans" in quotas)     { sets.push(`quota_floor_plans=$${i++}`);        vals.push(quotas.floorPlans); }
+    if ("transformVideos" in quotas){ sets.push(`quota_transform_videos=$${i++}`);   vals.push(quotas.transformVideos); }
+    if ("showcase" in quotas)       { sets.push(`quota_showcase_videos=$${i++}`);    vals.push(quotas.showcase); }
+    if ("resetsAt" in quotas)       { sets.push(`quota_resets_at=$${i++}`);          vals.push(quotas.resetsAt); }
+    if (!sets.length) return;
+    vals.push(userId);
+    await pool.query(`UPDATE users SET ${sets.join(",")} WHERE id=$${i}`, vals);
+  }
+
+  async resetMonthlyUsage(userId: number) {
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setDate(1);
+    nextMonth.setHours(0, 0, 0, 0);
+    await pool.query(
+      `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0, quota_resets_at=$2 WHERE id=$1`,
+      [userId, nextMonth]
+    );
   }
 }
 

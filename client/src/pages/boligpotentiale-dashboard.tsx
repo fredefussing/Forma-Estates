@@ -11,6 +11,7 @@ import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction } from "@/components/paywall-gate";
+import { QuotaWidget } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
   LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
@@ -7017,6 +7018,11 @@ export default function BoligpotentialeDashboard() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Månedlig kvota */}
+              <div className="mb-6">
+                <QuotaWidget />
               </div>
 
               {/* Aktive Sager */}

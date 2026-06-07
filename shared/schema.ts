@@ -56,7 +56,27 @@ export const users = pgTable("users", {
   subscriptionTier: varchar("subscription_tier", { length: 20 }),
   subscriptionExpires: timestamp("subscription_expires"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Per-feature monthly quotas (null = unlimited for admin)
+  quotaAiVisualizations: integer("quota_ai_visualizations"),
+  quotaFloorPlans: integer("quota_floor_plans"),
+  quotaTransformVideos: integer("quota_transform_videos"),
+  quotaShowcaseVideos: integer("quota_showcase_videos"),
+  usedAiVisualizations: integer("used_ai_visualizations").notNull().default(0),
+  usedFloorPlans: integer("used_floor_plans").notNull().default(0),
+  usedTransformVideos: integer("used_transform_videos").notNull().default(0),
+  usedShowcaseVideos: integer("used_showcase_videos").notNull().default(0),
+  quotaResetsAt: timestamp("quota_resets_at"),
 });
+
+// Monthly quotas per subscription tier
+export const SUBSCRIPTION_QUOTAS = {
+  start:    { ai: 10, floorPlans: 2,  transformVideos: 2,  showcase: 1 },
+  pro:      { ai: 25, floorPlans: 5,  transformVideos: 5,  showcase: 3 },
+  business: { ai: 60, floorPlans: 12, transformVideos: 12, showcase: 8 },
+  unlimited: { ai: null as number | null, floorPlans: null as number | null, transformVideos: null as number | null, showcase: null as number | null },
+} as const;
+
+export type QuotaFeature = "ai" | "floorPlan" | "transformVideo" | "showcase";
 
 export const creditTransactions = pgTable("credit_transactions", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),

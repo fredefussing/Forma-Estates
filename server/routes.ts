@@ -6,7 +6,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
-import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty } from "@shared/schema";
+import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import { assertPromptLocked } from "./promptGuard";
@@ -1799,6 +1799,45 @@ export async function registerRoutes(
     }
   });
 
+  // ── Quota info endpoint ────────────────────────────────────────────────────
+  app.get("/api/bolig/quota", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const u = await storage.getUserByFirebaseUid(uid);
+      if (!u) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const quota = await storage.getUserQuota(u.id);
+      return res.json({ success: true, isAdmin: u.isAdmin, quota });
+    } catch {
+      return res.status(401).json({ message: "Ikke autoriseret" });
+    }
+  });
+
+  // ── Set user quotas (admin only) ──────────────────────────────────────────
+  app.patch("/api/admin/users/:id/quota", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const admin = await storage.getUserByFirebaseUid(uid);
+      if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) return res.status(400).json({ message: "Ugyldigt bruger-id" });
+      const { ai, floorPlans, transformVideos, showcase, tier } = req.body;
+      // If a tier name is provided, use preset quotas
+      if (tier && tier in SUBSCRIPTION_QUOTAS) {
+        const q = SUBSCRIPTION_QUOTAS[tier as keyof typeof SUBSCRIPTION_QUOTAS];
+        const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1); nextMonth.setDate(1); nextMonth.setHours(0,0,0,0);
+        await storage.setUserQuotas(userId, { ai: q.ai, floorPlans: q.floorPlans, transformVideos: q.transformVideos, showcase: q.showcase, resetsAt: nextMonth });
+        await storage.updateUser(userId, { subscriptionStatus: "active", subscriptionTier: tier });
+      } else {
+        const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1); nextMonth.setDate(1); nextMonth.setHours(0,0,0,0);
+        await storage.setUserQuotas(userId, { ai, floorPlans, transformVideos, showcase, resetsAt: nextMonth });
+        await storage.updateUser(userId, { subscriptionStatus: "active" });
+      }
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── AI BoligPotentiale: generate endpoint ──────────────────────────────────
   app.post("/api/bolig/generate", upload.single("image"), async (req, res) => {
     try {
@@ -1833,6 +1872,14 @@ export async function registerRoutes(
       const caseId = req.body.caseId ? parseInt(req.body.caseId as string) : null;
       const isQuickGeneration = req.body.isQuick === "true" || req.body.isQuick === true;
       const customPromptText = (req.body.promptText as string) || "";
+
+      // Quota check — blocks non-admin users who have exhausted their AI visualization quota
+      if (authedUserId) {
+        const q = await storage.checkAndIncrementQuota(authedUserId, "ai");
+        if (!q.allowed) {
+          return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}. Opgrader din pakke for at generere flere billeder.` });
+        }
+      }
 
       if (!COLLOV_API_KEY) {
         return res.status(500).json({ success: false, message: "API nøgle ikke konfigureret" });
@@ -1979,6 +2026,15 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ success: false, message: "Intet plantegning-billede uploadet" });
       }
+      // Auth + quota check
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (u) {
+          const q = await storage.checkAndIncrementQuota(u.id, "floorPlan");
+          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        }
+      } catch { /* allow if no token — gateway handles paywall */ }
 
       const localPath = path.join(uploadDir, req.file.filename);
       log(`[3D] uploading plan to fal.storage…`);
@@ -2019,6 +2075,15 @@ export async function registerRoutes(
         if (!beforeFile || !afterFile) {
           return res.status(400).json({ success: false, message: "Både før- og efter-billede skal uploades" });
         }
+        // Auth + quota check
+        try {
+          const { uid } = await verifyFirebaseToken(req.headers.authorization);
+          const u = await storage.getUserByFirebaseUid(uid);
+          if (u) {
+            const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
+            if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+          }
+        } catch { /* allow if no token */ }
 
         const beforePath = path.join(uploadDir, beforeFile.filename);
         const afterPath = path.join(uploadDir, afterFile.filename);
@@ -2094,6 +2159,15 @@ export async function registerRoutes(
       if (files.length < 2) {
         return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
       }
+      // Auth + quota check
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (u) {
+          const q = await storage.checkAndIncrementQuota(u.id, "showcase");
+          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        }
+      } catch { /* allow if no token */ }
       const paths = files.map((f) => path.join(uploadDir, f.filename));
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
       const startText = typeof req.body?.startText === "string" ? req.body.startText.slice(0, 80) : undefined;
