@@ -6766,7 +6766,7 @@ export default function BoligpotentialeDashboard() {
         </button>
       </PaywallAction>
 
-      <nav className="space-y-0.5 flex-1">
+      <nav className="space-y-0.5 flex-1 overflow-y-auto min-h-0" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
         {NAV.map((item) => {
           const isActive = section === item.id || (section === "sag-detail" && item.id === "sager");
           return (
