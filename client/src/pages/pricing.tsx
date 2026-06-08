@@ -161,14 +161,8 @@ export default function PricingPage() {
         </div>
 
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-4 py-2 rounded-full text-sm font-medium mb-6" data-testid="text-free-note">
-            <Sparkles className="w-4 h-4" />
-            {user
-              ? "Du har 2 billeder tilbage. Opgrader for at få flere!"
-              : "Opret en konto og få 2 AI-billeder med det samme!"}
-          </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" data-testid="text-title">Vælg din plan</h1>
-          <p className="text-muted-foreground" data-testid="text-subtitle">Alle nye konti inkluderer 1 gratis visualisering — ingen kreditkort krævet</p>
+          <p className="text-muted-foreground" data-testid="text-subtitle">Vælg den plan der passer til dit behov og kom i gang med det samme</p>
         </div>
 
         {loading ? (
@@ -293,8 +287,8 @@ export default function PricingPage() {
               <p className="text-sm text-muted-foreground" data-testid="text-faq-1-answer">Hvert billede er en AI-genereret redesign af dit rum. Upload et foto, vælg stil og budget, og få et nyt design på sekunder.</p>
             </div>
             <div className="bg-card rounded-xl border border-border/60 p-5">
-              <h3 className="font-medium mb-2" data-testid="text-faq-2-title">Kan jeg prøve gratis?</h3>
-              <p className="text-sm text-muted-foreground" data-testid="text-faq-2-answer">Ja! Du får 2 gratis billeder i Skandinavisk eller Moderne stil. Opgrader for at få adgang til alle 8 stilarter.</p>
+              <h3 className="font-medium mb-2" data-testid="text-faq-2-title">Hvornår kan jeg komme i gang?</h3>
+              <p className="text-sm text-muted-foreground" data-testid="text-faq-2-answer">Straks efter du vælger en plan. Opret din konto, vælg abonnement, og generer dine første visualiseringer inden for minutter.</p>
             </div>
             <div className="bg-card rounded-xl border border-border/60 p-5">
               <h3 className="font-medium mb-2" data-testid="text-faq-3-title">Udløber mine billeder?</h3>

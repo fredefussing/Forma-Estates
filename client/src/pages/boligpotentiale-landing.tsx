@@ -176,7 +176,7 @@ const FAQS = [
   },
   {
     q: "Hvad får jeg gratis, og hvad koster det?",
-    a: "Når du opretter en konto, får du 1 gratis visualisering — ingen kreditkort krævet. Herefter kan du vælge en af vores abonnementsplaner fra 2.999 kr./md.",
+    a: "Vælg en af vores abonnementsplaner fra 2.999 kr./md. og kom i gang med det samme. Du betaler kun for det du bruger.",
   },
   {
     q: "Hvilke filformater kan jeg uploade?",
@@ -1651,7 +1651,7 @@ export default function BoligpotentialeLanding() {
             <Overline light>Priser</Overline>
             <H2 light>Vælg din plan</H2>
             <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.65)", fontSize: 16, lineHeight: 1.6 }}>
-              Alle nye konti inkluderer <span style={{ color: C.white, fontWeight: 600 }}>1 gratis visualisering</span> — ingen kreditkort krævet.
+              Vælg den plan der passer til dig og kom i gang med det samme.
             </p>
 
             {/* Billing toggle */}

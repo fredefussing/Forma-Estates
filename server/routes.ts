@@ -384,18 +384,11 @@ export async function registerRoutes(
             email,
             firebaseUid: uid,
             displayName: name ?? null,
-            creditsRemaining: 2,
+            creditsRemaining: 0,
             totalCreditsUsed: 0,
           });
 
-          await storage.createCreditTransaction({
-            userId: user.id,
-            amount: 2,
-            type: "signup_free",
-            description: "2 gratis billeder ved oprettelse",
-          });
-
-          log(`New user created: ${email} (uid: ${uid}) with 2 free credits`);
+          log(`New user created: ${email} (uid: ${uid})`);
         }
       }
 

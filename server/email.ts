@@ -70,7 +70,7 @@ export async function sendWelcomeEmail(email: string, source?: string) {
             <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
             <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">Velkommen til Forma Estates!</h1>
             <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Hej!</p>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Tak for at du oprettede en konto. Du har nu <strong>2 gratis AI-billeder</strong> klar til brug!</p>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Tak for at du oprettede en konto. Vi glæder os til at hjælpe dig med at sælge dine boliger hurtigere med professionelle AI-visualiseringer.</p>
             <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 8px;">Med Forma Estates kan du:</p>
             <ul style="color:#555;font-size:15px;line-height:2;margin:0 0 20px;padding-left:20px;">
               <li>Transformere rum med AI på sekunder</li>

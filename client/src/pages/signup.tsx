@@ -86,7 +86,7 @@ export default function SignupPage() {
         </Link>
 
         <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">Opret bruger</h1>
-        <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Start med 2 gratis AI-billeder</p>
+        <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Opret din konto og vælg en plan</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

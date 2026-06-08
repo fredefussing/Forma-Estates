@@ -7692,7 +7692,7 @@ export default function BoligpotentialeDashboard() {
             <motion.div key="pris-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <div className="mb-8">
                 <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Pris</h2>
-                <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov. Alle nye konti inkluderer 1 gratis visualisering.</p>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5" data-testid="settings-pricing-grid">
                 {[
@@ -7794,8 +7794,8 @@ export default function BoligpotentialeDashboard() {
           {section === "fakturering" && (() => {
             const usedThisMonth = stats?.totalImages ?? 0;
             const currentPlan = {
-              name: "Gratis prøveperiode",
-              includedText: "1 gratis visualisering",
+              name: "Ingen aktiv plan",
+              includedText: "Køb en plan for at komme i gang",
               creditsPerMonth: null as number | null,
             };
             const billingHistory: { date: string; description: string; amount: string }[] = [];
