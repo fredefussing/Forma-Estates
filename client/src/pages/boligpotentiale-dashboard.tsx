@@ -5944,16 +5944,16 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Du er med i {team.name}</h1>
           <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { icon: <ImageIcon className="w-5 h-5" />, value: myPerf.visuals, label: "Visuals denne md." },
+            { icon: <ImageIcon className="w-5 h-5" />, value: myPerf.visuals, label: "Visuals md." },
             { icon: <Building2 className="w-5 h-5" />, value: myPerf.activeCases, label: "Aktive sager" },
-            { icon: <Clock className="w-5 h-5" />, value: myPerf.avgTimeMs ? `${Math.round(myPerf.avgTimeMs / 1000)} sek` : "–", label: "Gns. tid" },
+            { icon: <Clock className="w-5 h-5" />, value: myPerf.avgTimeMs ? `${Math.round(myPerf.avgTimeMs / 1000)}s` : "–", label: "Gns. tid" },
           ].map((s, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
-              <div className="mb-2" style={{ color: "#C8956C" }}>{s.icon}</div>
-              <div className="text-2xl font-bold mb-0.5" style={{ color: "#0F1D2F" }}>{s.value}</div>
-              <div className="text-xs" style={{ color: "#9B9690" }}>{s.label}</div>
+            <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-3 sm:p-5 overflow-hidden">
+              <div className="mb-1.5" style={{ color: "#C8956C" }}>{s.icon}</div>
+              <div className="text-xl sm:text-2xl font-bold mb-0.5" style={{ color: "#0F1D2F" }}>{s.value}</div>
+              <div className="text-xs leading-tight" style={{ color: "#9B9690" }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -6014,47 +6014,51 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         {[
           { icon: <Users className="w-5 h-5" />, value: stats?.memberCount ?? 0, label: "Medlemmer" },
-          { icon: <ImageIcon className="w-5 h-5" />, value: stats?.visualsThisMonth ?? 0, label: "Visuals denne md." },
+          { icon: <ImageIcon className="w-5 h-5" />, value: stats?.visualsThisMonth ?? 0, label: "Visuals md." },
           { icon: <Building2 className="w-5 h-5" />, value: stats?.activeCases ?? 0, label: "Aktive sager" },
         ].map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
-            <div className="mb-2" style={{ color: "#C8956C" }}>{s.icon}</div>
-            <div className="text-2xl font-bold mb-0.5" style={{ color: "#0F1D2F" }}>{s.value}</div>
-            <div className="text-xs" style={{ color: "#9B9690" }}>{s.label}</div>
+          <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-3 sm:p-5 overflow-hidden">
+            <div className="mb-1.5" style={{ color: "#C8956C" }}>{s.icon}</div>
+            <div className="text-xl sm:text-2xl font-bold mb-0.5" style={{ color: "#0F1D2F" }}>{s.value}</div>
+            <div className="text-xs leading-tight" style={{ color: "#9B9690" }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Performance table */}
+      {/* Performance — stacked list, no horizontal scroll */}
       <div className="bg-white rounded-2xl border border-[#E8E4DE] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#F0EDE7] flex items-center gap-2">
           <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
           <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>TEAM PERFORMANCE</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr style={{ background: "#F5F3EF" }}>
-              {["Navn", "Visuals", "Sager", "Avg. tid"].map((h) => (
-                <th key={h} className="px-5 py-3 text-left text-xs font-semibold" style={{ color: "#6B6B6B" }}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {performance.length === 0 ? (
-                <tr><td colSpan={4} className="px-5 py-8 text-center text-sm" style={{ color: "#9B9690" }}>Ingen data endnu</td></tr>
-              ) : performance.map((p) => (
-                <tr key={p.userId} className="border-t border-[#F0EDE7]" data-testid={`team-perf-row-${p.userId}`}>
-                  <td className="px-5 py-3.5 font-medium" style={{ color: "#1A1A1A" }}>{p.name}</td>
-                  <td className="px-5 py-3.5" style={{ color: "#1A1A1A" }}>{p.visuals}</td>
-                  <td className="px-5 py-3.5" style={{ color: "#1A1A1A" }}>{p.activeCases}</td>
-                  <td className="px-5 py-3.5" style={{ color: "#6B6B6B" }}>{p.avgTimeMs ? `${Math.round(p.avgTimeMs / 1000)} sek` : "–"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {performance.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm" style={{ color: "#9B9690" }}>Ingen data endnu</p>
+        ) : (
+          <div className="divide-y divide-[#F0EDE7]">
+            {performance.map((p) => (
+              <div key={p.userId} className="px-5 py-3.5 flex items-center justify-between gap-3 min-w-0" data-testid={`team-perf-row-${p.userId}`}>
+                <span className="text-sm font-medium truncate flex-1 min-w-0" style={{ color: "#1A1A1A" }}>{p.name}</span>
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="text-center">
+                    <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{p.visuals}</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>visuals</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{p.activeCases}</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>sager</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>{p.avgTimeMs ? `${Math.round(p.avgTimeMs / 1000)}s` : "–"}</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>gns. tid</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Active cases */}
@@ -7124,18 +7128,18 @@ export default function BoligpotentialeDashboard() {
               {/* Statistik — 6 kort */}
               <div className="mb-6" data-testid="bolig-stats">
                 <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>Overblik</h2>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { value: stats ? String(stats.todayImages) : "—", label: "visualiseringer i dag" },
-                    { value: stats ? String(stats.totalImages) : "—", label: "visualiseringer i alt" },
-                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: "aktive sager" },
-                    { value: stats ? String(stats.soldCases) : String(soldCount), label: "solgte sager" },
-                    { value: stats ? String(stats.totalCases) : String(cases.length), label: "sager i alt" },
-                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: "gns. dage på markedet" },
+                    { value: stats ? String(stats.todayImages) : "—", label: "I dag" },
+                    { value: stats ? String(stats.totalImages) : "—", label: "Visuals i alt" },
+                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: "Aktive sager" },
+                    { value: stats ? String(stats.soldCases) : String(soldCount), label: "Solgte sager" },
+                    { value: stats ? String(stats.totalCases) : String(cases.length), label: "Sager i alt" },
+                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: "Dage på marked" },
                   ].map((s, i) => (
-                    <div key={i} className="rounded-xl p-4 border border-[#E8E4DE] hover:shadow-sm transition-shadow" style={{ background: "#fff" }} data-testid={`bolig-stat-${i}`}>
+                    <div key={i} className="rounded-xl p-4 border border-[#E8E4DE] hover:shadow-sm transition-shadow overflow-hidden" style={{ background: "#fff" }} data-testid={`bolig-stat-${i}`}>
                       <div className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.value}</div>
-                      <div className="text-xs" style={{ color: "#9B9690" }}>{s.label}</div>
+                      <div className="text-xs leading-tight" style={{ color: "#9B9690" }}>{s.label}</div>
                     </div>
                   ))}
                 </div>
