@@ -18,6 +18,7 @@ import {
   type CrmActivity, type InsertCrmActivity, crmActivities,
   type CrmInteraction, type InsertCrmInteraction, crmInteractions,
   type CrmUserOverride, crmUserOverrides,
+  SUBSCRIPTION_QUOTAS,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";

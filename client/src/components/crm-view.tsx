@@ -36,6 +36,7 @@ type Contact = {
 type Activity = { id: string; contactId: string; type: string; description?: string; metadata?: string; createdAt: string };
 type Interaction = { id: string; contactId: string; type: string; content: string; createdBy?: string; createdAt: string };
 type Override = { id: string; contactId: string; overrideKey: string; overrideValue: string; updatedAt: string };
+type Stats = { totalGenerations: number; totalVideos: number; lastGeneratedAt: string | null };
 type CompanyGroup = { company: string | null; contacts: Contact[] };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -372,7 +373,7 @@ function ContactDetail({ contactId, onBack }: { contactId: string; onBack: () =>
   const [activeTab, setActiveTab] = useState<"timeline" | "overrides">("timeline");
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ contact: Contact; activities: Activity[]; interactions: Interaction[]; overrides: Override[] }>({
+  const { data, isLoading } = useQuery<{ contact: Contact; activities: Activity[]; interactions: Interaction[]; overrides: Override[]; stats: Stats }>({
     queryKey: ["/api/crm/contacts", contactId],
     queryFn: () => crmFetch(`/api/crm/contacts/${contactId}`).then(r => r.json()),
   });
