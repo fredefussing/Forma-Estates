@@ -1,6 +1,5 @@
 [build]
 builder = "railpack"
-buildCommand = "npm run build"
 
 [build.railpack]
 installCommand = "npm install --no-audit --no-fund"
