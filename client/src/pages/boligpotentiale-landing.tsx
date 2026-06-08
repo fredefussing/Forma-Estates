@@ -514,8 +514,8 @@ function HeroStage() {
           {/* Bottom gradient */}
           <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "38%", background: "linear-gradient(to top, rgba(10,18,25,0.88) 0%, rgba(10,18,25,0.60) 35%, rgba(10,18,25,0.18) 70%, transparent 100%)", zIndex: 6 }} />
 
-          {/* Headline + CTAs */}
-          <div className="absolute left-0 right-0" style={{ bottom: "clamp(14px, 2vw, 28px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
+          {/* Headline + CTAs — desktop only; mobile version lives below the stage */}
+          <div className="hidden md:block absolute left-0 right-0" style={{ bottom: "clamp(14px, 2vw, 28px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
             <div style={{ maxWidth: "clamp(260px, 90%, 560px)" }}>
               <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(22px, 3vw, 42px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 12px rgba(0,0,0,0.3)" }}>
                 Professionelle boligvisualiseringer på få sekunder
@@ -629,6 +629,37 @@ function HeroStage() {
             );
           })}
         </div>
+
+        {/* ── Mobile-only headline + CTAs — below the stage image, clean & uncluttered ── */}
+        <div className="md:hidden" style={{ paddingTop: 20, paddingBottom: 8, paddingLeft: 20, paddingRight: 20 }}>
+          <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: 28, fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 12 }}>
+            Professionelle boligvisualiseringer på få sekunder
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 1.6, marginBottom: 20, fontFamily: SANS }}>
+            Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href="/opret">
+              <button
+                className="inline-flex items-center gap-2"
+                style={{ background: C.gold, color: C.navy, padding: "12px 22px", borderRadius: 7, fontSize: 14, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
+                data-testid="bolig-hero-cta-mobile"
+              >
+                Kom i gang gratis <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+            <Link href="/boligpotentiale/eksempler">
+              <button
+                className="inline-flex items-center gap-2"
+                style={{ background: "transparent", color: "#fff", padding: "12px 22px", borderRadius: 7, fontSize: 14, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
+                data-testid="bolig-hero-cta-secondary-mobile"
+              >
+                Se eksempler
+              </button>
+            </Link>
+          </div>
+        </div>
+
       </div>
     </section>
   );
