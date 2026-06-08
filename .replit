@@ -59,6 +59,7 @@ SOLID10_MODE = "false"
 FIREBASE_PROJECT_ID = "nordic-homebuilding"
 SENTRY_DSN = "https://f1e964e7b1b9cec075c847e4e75d0305@o4511528605974528.ingest.de.sentry.io/4511528620326992"
 VITE_SENTRY_DSN = "https://f1e964e7b1b9cec075c847e4e75d0305@o4511528605974528.ingest.de.sentry.io/4511528620326992"
+BREVO_SYSTEM_TRACKER = "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"
 
 [postMerge]
 path = "scripts/post-merge.sh"
