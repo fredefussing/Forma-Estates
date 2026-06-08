@@ -389,7 +389,7 @@ function HeroStage() {
       <div className="w-full px-2 sm:px-3 lg:px-4">
         <div
           className="relative w-full flex items-stretch gap-3 sm:gap-4"
-          style={{ height: "min(72.7vh, calc((100vw - 32px) * 9 / 21 * 0.9860))" }}
+          style={{ height: "min(min(72.7vh, 820px), max(260px, calc((100vw - 32px) * 9 / 21 * 0.9860)))" }}
         >
           {/* PREV peek */}
           <button
@@ -516,7 +516,7 @@ function HeroStage() {
 
           {/* Headline + CTAs */}
           <div className="absolute left-0 right-0" style={{ bottom: "clamp(14px, 2vw, 28px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
-            <div style={{ maxWidth: "min(560px, 60%)" }}>
+            <div style={{ maxWidth: "clamp(260px, 90%, 560px)" }}>
               <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(22px, 3vw, 42px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 12px rgba(0,0,0,0.3)" }}>
                 Professionelle boligvisualiseringer på få sekunder
               </h1>
@@ -1096,7 +1096,7 @@ export default function BoligpotentialeLanding() {
                   src={formaEstatesLogo}
                   alt="Forma Estates"
                   className="w-auto"
-                  style={{ height: 150 }}
+                  style={{ height: "clamp(36px, 10vw, 150px)" }}
                 />
               </div>
             </Link>
@@ -1317,7 +1317,7 @@ export default function BoligpotentialeLanding() {
             </span>
             <h2
               className="mt-4"
-              style={{ fontFamily: SERIF, color: C.navy, fontSize: 42, fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}
+              style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 5vw, 42px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}
             >
               Vis potentialet<br />Ikke det tomme rum
             </h2>
