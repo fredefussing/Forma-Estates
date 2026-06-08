@@ -1319,7 +1319,7 @@ export default function BoligpotentialeLanding() {
               className="mt-4"
               style={{ fontFamily: SERIF, color: C.navy, fontSize: 42, fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}
             >
-              Vis potentialet.<br />Ikke det tomme rum.
+              Vis potentialet<br />Ikke det tomme rum
             </h2>
           </div>
           {(() => {
@@ -1431,7 +1431,7 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>Sådan virker det</Overline>
-            <H2>Tre trin. Under ét minut.</H2>
+            <H2>Tre trin — under ét minut</H2>
             <p className="mt-4 max-w-xl mx-auto" style={{ color: C.muted, fontSize: 16, lineHeight: 1.6 }}>
               Ingen software, ingen teknisk viden — bare et foto og et klik.
             </p>
@@ -1525,7 +1525,7 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>Funktioner</Overline>
-            <H2>Alt hvad du behøver.</H2>
+            <H2>Alt hvad du behøver</H2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => {
@@ -1608,7 +1608,7 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-10">
             <Overline light>Priser</Overline>
-            <H2 light>Vælg din plan.</H2>
+            <H2 light>Vælg din plan</H2>
             <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.65)", fontSize: 16, lineHeight: 1.6 }}>
               Alle nye konti inkluderer <span style={{ color: C.white, fontWeight: 600 }}>1 gratis visualisering</span> — ingen kreditkort krævet.
             </p>
@@ -1778,7 +1778,7 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>FAQ</Overline>
-            <H2>Ofte stillede spørgsmål.</H2>
+            <H2>Ofte stillede spørgsmål</H2>
           </div>
           <div className="grid lg:grid-cols-[3fr_2fr] gap-12">
             <div>
