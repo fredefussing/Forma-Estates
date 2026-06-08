@@ -1,6 +1,6 @@
 [build]
-installCommand = "npm install --ignore-scripts"
+builder = "railpack"
 buildCommand = "npm run build"
 
-[deploy]
-startCommand = "npm run start"
+[build.railpack]
+installCommand = "npm install --ignore-scripts"
