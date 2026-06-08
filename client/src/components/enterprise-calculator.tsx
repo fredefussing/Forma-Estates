@@ -109,7 +109,7 @@ export function EnterpriseCalculator({ dark = false }: Props) {
 
   return (
     <div
-      className="rounded-3xl border p-8 md:p-10"
+      className="rounded-3xl border p-5 sm:p-8 md:p-10"
       style={{ background: bg, borderColor: border }}
       data-testid="section-enterprise-calculator"
     >
@@ -186,7 +186,7 @@ export function EnterpriseCalculator({ dark = false }: Props) {
                   style={{ accentColor: "#C8956C" }}
                   data-testid={`slider-enterprise-${product.key}`}
                 />
-                <div className="flex items-center gap-1 min-w-[72px]">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => setQuantities((prev) => ({ ...prev, [product.key]: Math.max(0, qty - 1) }))}
                     className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors"

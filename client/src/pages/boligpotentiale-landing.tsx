@@ -1558,7 +1558,7 @@ export default function BoligpotentialeLanding() {
             <Overline>Funktioner</Overline>
             <H2>Alt hvad du behøver</H2>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {FEATURES.map((f, i) => {
               const Icon = f.Icon;
               const isOpen = openFeature === i;
