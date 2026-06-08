@@ -1,5 +1,5 @@
 [build]
-builder = "NIXPACKS"
+installCommand = "npm install --ignore-scripts"
 buildCommand = "npm run build"
 
 [deploy]
