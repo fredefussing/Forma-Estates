@@ -1092,7 +1092,7 @@ export default function BoligpotentialeLanding() {
       >
         {/* Top utility bar — clean centered wordmark with thin underline (DR1-style) */}
         <div
-          className="hidden md:flex items-center justify-center relative"
+          className="flex items-center justify-center relative"
           style={{ height: 32, paddingTop: 10 }}
           data-testid="bolig-nav-wordmark-bar"
         >
@@ -1101,7 +1101,7 @@ export default function BoligpotentialeLanding() {
             style={{
               fontFamily: SERIF,
               color: C.navy,
-              fontSize: 14,
+              fontSize: "clamp(10px, 2.8vw, 14px)",
               fontWeight: 700,
               letterSpacing: "0.42em",
               lineHeight: 1,
@@ -1112,7 +1112,7 @@ export default function BoligpotentialeLanding() {
           </span>
           <div
             className="absolute left-1/2 -translate-x-1/2"
-            style={{ bottom: 0, width: 280, height: 1, background: "#9A8F7C" }}
+            style={{ bottom: 0, width: "clamp(160px, 60vw, 280px)", height: 1, background: "#9A8F7C" }}
           />
         </div>
 
@@ -1218,14 +1218,24 @@ export default function BoligpotentialeLanding() {
             </Link>
           </div>
 
-          <button
-            className="md:hidden p-2"
-            onClick={() => setMobileOpen((o) => !o)}
-            style={{ color: C.navy }}
-            data-testid="bolig-mobile-menu-toggle"
-          >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            <Link href="/opret">
+              <button
+                style={{ background: C.gold, color: C.navy, padding: "7px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, fontFamily: SANS }}
+                data-testid="bolig-mobile-nav-cta"
+              >
+                Kom i gang
+              </button>
+            </Link>
+            <button
+              className="p-2"
+              onClick={() => setMobileOpen((o) => !o)}
+              style={{ color: C.navy }}
+              data-testid="bolig-mobile-menu-toggle"
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         <AnimatePresence>
@@ -1285,7 +1295,7 @@ export default function BoligpotentialeLanding() {
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
-          <div className="flex items-center justify-center gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="flex items-center justify-start sm:justify-center gap-5 sm:gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {[
               { label: "Sådan virker det", href: "#how-it-works" },
               { label: "Eksempler", href: "/boligpotentiale/eksempler" },
