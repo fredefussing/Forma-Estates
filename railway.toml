@@ -3,4 +3,4 @@ builder = "railpack"
 buildCommand = "npm run build"
 
 [build.railpack]
-installCommand = "npm install --ignore-scripts --legacy-peer-deps"
+installCommand = "npm install --no-audit --no-fund"
