@@ -1096,7 +1096,7 @@ export default function BoligpotentialeLanding() {
                   src={formaEstatesLogo}
                   alt="Forma Estates"
                   className="w-auto"
-                  style={{ height: "clamp(36px, 10vw, 150px)" }}
+                  style={{ height: "clamp(52px, 14vw, 150px)" }}
                 />
               </div>
             </Link>
@@ -1306,7 +1306,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── HVORFOR VISUALISERING — cinematic image-led tiles ── */}
-      <section style={{ background: C.warm, paddingTop: 80, paddingBottom: 96 }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
+      <section style={{ background: C.warm, paddingTop: "clamp(48px, 6vw, 80px)", paddingBottom: "clamp(52px, 7vw, 96px)" }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
           <div className="text-center mb-14">
             <span
@@ -1427,7 +1427,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" style={{ background: C.warm, paddingTop: 48, paddingBottom: 100 }} className="px-6" data-testid="bolig-how-it-works">
+      <section id="how-it-works" style={{ background: C.warm, paddingTop: "clamp(36px, 5vw, 48px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} className="px-6" data-testid="bolig-how-it-works">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>Sådan virker det</Overline>
@@ -1450,7 +1450,7 @@ export default function BoligpotentialeLanding() {
                   style={{
                     background: C.white,
                     borderRadius: 8,
-                    padding: "48px 36px",
+                    padding: "clamp(28px, 4vw, 48px) clamp(22px, 3vw, 36px)",
                     boxShadow: C.shadowCard,
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.boxShadow = C.shadowCardHover)}
@@ -1474,7 +1474,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── SÆLG HURTIGERE — STATS ── */}
-      <section id="saelg-hurtigere" style={{ background: C.navy, paddingTop: 100, paddingBottom: 100 }} className="px-6" data-testid="bolig-stats">
+      <section id="saelg-hurtigere" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} className="px-6" data-testid="bolig-stats">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.18em" }}>Sælg hurtigere</div>
@@ -1485,7 +1485,7 @@ export default function BoligpotentialeLanding() {
               Boliger med professionel visualisering sælges hurtigere, til højere priser og tiltrækker flere visninger online.
             </p>
           </div>
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {[
               { stat: "73%", label: "hurtigere salg", desc: "Iscenesatte boliger sælges i gennemsnit 73% hurtigere end ikke-iscenesatte." },
               { stat: "+8%", label: "højere salgspris", desc: "Køberne byder typisk 1–8% mere for en bolig, der er visualiseret professionelt." },
@@ -1521,13 +1521,13 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section className="px-6" style={{ background: C.warm, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-features">
+      <section className="px-6" style={{ background: C.warm, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-features">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>Funktioner</Overline>
             <H2>Alt hvad du behøver</H2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {FEATURES.map((f, i) => {
               const Icon = f.Icon;
               const isOpen = openFeature === i;
@@ -1542,7 +1542,7 @@ export default function BoligpotentialeLanding() {
                   style={{
                     background: C.white,
                     borderRadius: 8,
-                    padding: "36px 32px",
+                    padding: "clamp(20px, 4vw, 36px) clamp(16px, 3vw, 32px)",
                     boxShadow: C.shadowCard,
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.boxShadow = C.shadowCardHover)}
@@ -1604,7 +1604,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" className="px-6" style={{ background: C.navy, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-pricing">
+      <section id="pricing" className="px-6" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-pricing">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-10">
             <Overline light>Priser</Overline>
@@ -1774,7 +1774,7 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
       {/* ── FAQ ── */}
-      <section id="faq" className="px-6" style={{ background: C.champagne, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-faq">
+      <section id="faq" className="px-6" style={{ background: C.champagne, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-faq">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <Overline>FAQ</Overline>
@@ -1825,7 +1825,7 @@ export default function BoligpotentialeLanding() {
       </section>
 
       {/* ── PRE-FOOTER CTA ── */}
-      <section className="px-6" style={{ background: C.navy, paddingTop: 100, paddingBottom: 100 }} data-testid="bolig-footer-cta">
+      <section className="px-6" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-footer-cta">
         <div className="mx-auto max-w-3xl text-center">
           <H2 light style={{ fontSize: "clamp(28px, 4vw, 42px)" }}>Klar til at vise boligens potentiale?</H2>
           <p className="mt-5 mb-10" style={{ color: "rgba(255,255,255,0.7)", fontSize: 18, lineHeight: 1.6 }}>
