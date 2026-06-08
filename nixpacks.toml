@@ -1,8 +1,5 @@
-[phases.setup]
-nixPkgs = ["vips", "pkg-config", "python3"]
-
 [phases.install]
-cmds = ["npm ci --ignore-scripts", "npm rebuild sharp", "npm rebuild @xenova/transformers --if-present"]
+cmds = ["npm install --ignore-scripts"]
 
 [phases.build]
 cmds = ["npm run build"]
