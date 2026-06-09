@@ -1,6 +1,0 @@
-[build]
-builder = "railpack"
-buildCommand = "npm run build"
-
-[deploy]
-startCommand = "node dist/index.cjs"
