@@ -149,11 +149,11 @@ function Router() {
       <Route path="/opret-team" component={OpretTeamPage} />
       <Route path="/boligpotentiale/dashboard" component={() => <BoligGate><TeamSetupGate><BoligpotentialeDashboard /></TeamSetupGate></BoligGate>} />
       <Route path="/boligpotentiale/eksempler" component={EksemplerPage} />
-      <Route path="/boligpotentiale/foer-efter" component={() => <BoligGate><PaywallPage><ForEfterPage /></PaywallPage></BoligGate>} />
-      <Route path="/boligpotentiale/3d-plantegning" component={() => <BoligGate><PaywallPage><PlantegningPage /></PaywallPage></BoligGate>} />
-      <Route path="/boligpotentiale/branchevideo" component={() => <BoligGate><PaywallPage><BranchevideoPage /></PaywallPage></BoligGate>} />
-      <Route path="/boligpotentiale/ai-design-agent" component={() => <BoligGate><PaywallPage><AIDesignAgentSubpage /></PaywallPage></BoligGate>} />
-      <Route path="/boligpotentiale/bolig-showcase" component={() => <BoligGate><PaywallPage><BoligShowcasePage /></PaywallPage></BoligGate>} />
+      <Route path="/boligpotentiale/foer-efter" component={ForEfterPage} />
+      <Route path="/boligpotentiale/3d-plantegning" component={PlantegningPage} />
+      <Route path="/boligpotentiale/branchevideo" component={BranchevideoPage} />
+      <Route path="/boligpotentiale/ai-design-agent" component={AIDesignAgentSubpage} />
+      <Route path="/boligpotentiale/bolig-showcase" component={BoligShowcasePage} />
       <Route path="/boligpotentiale/om-os" component={OmOsPage} />
       <Route path="/kontakt" component={KontaktPage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />
