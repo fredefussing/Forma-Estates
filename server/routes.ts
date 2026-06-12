@@ -114,10 +114,6 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
   form.append("uploadUrl", uploadUrl);
   form.append("prompt", prompt);
 
-  console.log("=== COLLOV DEBUG ===");
-  console.log("Endpoint:", "https://api.collov.ai/flair/enterpriseApi/edit/generate");
-  console.log("uploadUrl:", uploadUrl);
-  console.log("=== END DEBUG ===");
   log(`Collov redesign send: style=${style}, roomType=${roomType}, prompt="${prompt.slice(0, 100)}..."`);
 
   const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
@@ -1315,7 +1311,7 @@ export async function registerRoutes(
 
       return res.json({ products });
     } catch (err: any) {
-      console.error("find-similar fejl:", err.message);
+      log(`find-similar fejl: ${err.message}`);
       return res.status(500).json({ error: err.message });
     }
   });
@@ -1340,7 +1336,7 @@ export async function registerRoutes(
 
       return res.json({ objects, imageUrl, imageWidth: dimensions.width, imageHeight: dimensions.height });
     } catch (err: any) {
-      console.error("analyze-image fejl:", err.message);
+      log(`analyze-image fejl: ${err.message}`);
       return res.status(500).json({ error: err.message });
     }
   });
@@ -1391,7 +1387,7 @@ export async function registerRoutes(
         yoloConfidence < 0.6 &&
         description.type !== yoloLabel
       ) {
-        console.log(`Vision override: ${yoloLabel} (${Math.round(yoloConfidence * 100)}%) → ${description.type}`);
+        log(`Vision override: ${yoloLabel} (${Math.round(yoloConfidence * 100)}%) → ${description.type}`);
         effectiveLabel = description.type;
       }
 
@@ -1418,12 +1414,12 @@ export async function registerRoutes(
           }
 
           textEmbedding = await getClipTextEmbedding(textQuery);
-          console.log(`Multimodal fusion: image + text ("${textQuery.substring(0, 80)}")`);
+          log(`Multimodal fusion: image + text ("${textQuery.substring(0, 80)}")`);
         } catch (textErr: any) {
-          console.warn(`Text embedding fejlede, bruger image embedding alene: ${textErr.message}`);
+          log(`Text embedding fejlede, bruger image embedding alene: ${textErr.message}`);
         }
       } else {
-        console.log(`CLIP image-only (Vision type: "${description?.type ?? "mangler"}")`);
+        log(`CLIP image-only (Vision type: "${description?.type ?? "mangler"}")`);
       }
 
       // Pass both image and text vectors — search does 0.7*clip + 0.3*text fusion
@@ -1438,7 +1434,7 @@ export async function registerRoutes(
 
       return res.json({ products, description });
     } catch (err: any) {
-      console.error("find-similar-crop fejl:", err.message);
+      log(`find-similar-crop fejl: ${err.message}`);
       return res.status(500).json({ error: err.message });
     }
   });
@@ -1928,12 +1924,10 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const admin = await storage.getUserByFirebaseUid(uid);
-      console.log("[admin/users/search] uid:", uid, "isAdmin:", admin?.isAdmin, "q:", req.query.q);
       if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
       const q = (req.query.q as string || "").trim();
       if (!q) return res.json([]);
       const results = await storage.searchUsers(q);
-      console.log("[admin/users/search] results:", results.length);
       return res.json(results.map(u => ({
         id: u.id, email: u.email, displayName: u.displayName,
         isAdmin: u.isAdmin, subscriptionStatus: u.subscriptionStatus,

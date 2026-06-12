@@ -351,7 +351,7 @@ Photorealistic, cinematic interior real-estate walkthrough, soft natural lightin
 
 export type VideoMode = "cinematic" | "morph";
 
-const VIDEO_ENDPOINT = "fal-ai/kling-video/v3/pro/image-to-video";
+const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 
 // To forskellige opførsler:
 //  • morph ("Forvandling"): start=før, end=efter, fast kamera → rummet
