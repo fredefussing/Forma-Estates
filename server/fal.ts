@@ -369,8 +369,8 @@ export type VideoMode = "cinematic" | "morph";
 
 const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 
-// To forskellige opførsler — begge bruger start_image_url + end_image_url
-// (kling v1.6 interpolations-mode):
+// To forskellige opførsler — begge bruger image_url + tail_image_url (kling
+// v1.6 to-frame interpolation). Kun prompten er forskellig:
 //  • morph ("Forvandling"): statisk kamera, rummet forvandler sig i billedet.
 //  • cinematic ("Cinematisk gennemgang"): kameraet avancerer fremad igennem
 //    rummet; renoveringen afsløres, efterhånden som kameraet bevæger sig.
@@ -389,11 +389,14 @@ function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: Vi
       duration: "5" as const,
     };
   }
+  // Morph bruger SAMME gyldige kling-feltnavne som cinematic (image_url +
+  // tail_image_url). start_image_url/end_image_url + duration "8" er IKKE
+  // gyldige for denne endpoint og giver 422 hos workeren — kun prompten skifter.
   return {
     prompt: TRANSFORM_VIDEO_MORPH_PROMPT,
-    start_image_url: beforeImageUrl,
-    end_image_url: afterImageUrl,
-    duration: "8" as const,
+    image_url: beforeImageUrl,
+    tail_image_url: afterImageUrl,
+    duration: "5" as const,
   };
 }
 

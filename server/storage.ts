@@ -77,6 +77,7 @@ export interface IStorage {
   getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>;
   getUserQuota(userId: number): Promise<{ ai: { limit: number | null; used: number }; floorPlan: { limit: number | null; used: number }; transformVideo: { limit: number | null; used: number }; showcase: { limit: number | null; used: number }; resetsAt: Date | null }>;
   checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<{ allowed: boolean; remaining: number | null; feature: string }>;
+  refundQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<void>;
   setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date }): Promise<void>;
   resetMonthlyUsage(userId: number): Promise<void>;
   createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage>;
@@ -1167,6 +1168,36 @@ export class DatabaseStorage implements IStorage {
     await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [userId]);
     const remaining = limit === null ? null : limit - used - 1;
     return { allowed: true, remaining, feature: label };
+  }
+
+  // Reverse one quota consumption when a job ultimately fails. Mirrors
+  // checkAndIncrementQuota's resolution: admins never consumed, team members
+  // charged the owner's shared pool, everyone else charged their own counter.
+  async refundQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase") {
+    const col = feature === "ai" ? "ai_visualizations" : feature === "floorPlan" ? "floor_plans" : feature === "transformVideo" ? "transform_videos" : "showcase_videos";
+    const res = await pool.query(`SELECT is_admin, quota_${col} FROM users WHERE id=$1`, [userId]);
+    const row = res.rows[0];
+    if (!row) return;
+    if (row.is_admin) return; // admin never consumed a credit
+
+    let targetId = userId;
+    if (row[`quota_${col}`] === null) {
+      // No explicit quota → the owner's shared pool may have been charged.
+      const teamRes = await pool.query<{ owner_id: number; owner_is_admin: boolean }>(
+        `SELECT ou.id AS owner_id, ou.is_admin AS owner_is_admin
+         FROM team_members tm
+         JOIN teams t ON t.id = tm.team_id
+         JOIN users ou ON ou.id = t.owner_user_id
+         WHERE tm.user_id = $1
+         LIMIT 1`,
+        [userId]
+      );
+      if (teamRes.rows.length > 0) {
+        if (teamRes.rows[0].owner_is_admin) return; // owner admin → nothing consumed
+        targetId = teamRes.rows[0].owner_id;
+      }
+    }
+    await pool.query(`UPDATE users SET used_${col} = GREATEST(used_${col} - 1, 0) WHERE id=$1`, [targetId]);
   }
 
   async setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date }) {

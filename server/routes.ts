@@ -19,6 +19,26 @@ import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startShowcaseVideo, getShowcaseJob } from "./showcase";
 
+// requestId / jobId → userId, so we can refund the quota credit (charged at
+// submit time) if a video job ultimately fails. In-memory, mirrors the
+// showcase job registry; a server restart simply forfeits a pending refund.
+const transformVideoRefunds = new Map<string, number>();
+const showcaseVideoRefunds = new Map<string, number>();
+
+function refundTransformVideo(requestId: string) {
+  const uid = transformVideoRefunds.get(requestId);
+  if (uid == null) return;
+  transformVideoRefunds.delete(requestId);
+  storage.refundQuota(uid, "transformVideo").catch(() => {});
+}
+
+function refundShowcaseVideo(jobId: string) {
+  const uid = showcaseVideoRefunds.get(jobId);
+  if (uid == null) return;
+  showcaseVideoRefunds.delete(jobId);
+  storage.refundQuota(uid, "showcase").catch(() => {});
+}
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -2284,6 +2304,7 @@ export async function registerRoutes(
       { name: "afterImage", maxCount: 1 },
     ]),
     async (req, res) => {
+      let transformUserId: number | null = null;
       try {
         if (!isFalConfigured()) {
           return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
@@ -2295,7 +2316,6 @@ export async function registerRoutes(
           return res.status(400).json({ success: false, message: "Både før- og efter-billede skal uploades" });
         }
         // Auth + quota check
-        let transformUserId: number | null = null;
         try {
           const { uid } = await verifyFirebaseToken(req.headers.authorization);
           const u = await storage.getUserByFirebaseUid(uid);
@@ -2311,8 +2331,8 @@ export async function registerRoutes(
         log(`[Video] uploading before+after to fal.storage…`);
         const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
 
-        // Begge modes bruger nu start_image_url + end_image_url (kling
-        // interpolations-mode), og begge kræver identiske dimensioner.
+        // Begge modes bruger image_url + tail_image_url (kling v1.6 to-frame
+        // interpolation), og begge kræver identiske dimensioner.
         // uploadVideoPairToFal center-cropper og normaliserer begge billeder
         // til identiske mål (maks 1920px, lige tal) for at undgå 422.
         const { beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
@@ -2320,6 +2340,8 @@ export async function registerRoutes(
         log(`[Video] submit mode=${mode} before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
         const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode);
         log(`[Video] submitted request_id=${requestId}`);
+        // Track for a quota refund if the job later fails at the poll stage.
+        if (transformUserId) transformVideoRefunds.set(requestId, transformUserId);
         if (transformUserId) storage.logCrmActivity(transformUserId, "video", `Transformeringsvideo · ${mode}`).catch(() => {});
 
         return res.json({
@@ -2330,6 +2352,8 @@ export async function registerRoutes(
         });
       } catch (err: any) {
         log(`[Video] submit error: ${err.message}`);
+        // Quota was charged before submission — refund it on failure.
+        if (transformUserId) storage.refundQuota(transformUserId, "transformVideo").catch(() => {});
         void import("./tracker").then(m => m.reportGenerationFailure("fal", err.message ?? "transformeringsvideo fejl")).catch(() => {});
         return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
       }
@@ -2346,6 +2370,7 @@ export async function registerRoutes(
       const { requestId } = req.params;
       const result = await getAnimationVideoStatus(requestId);
       if (result.status === "COMPLETED" && result.videoUrl) {
+        transformVideoRefunds.delete(requestId);
         let localVideoUrl = result.videoUrl;
         try {
           localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
@@ -2356,6 +2381,7 @@ export async function registerRoutes(
         return res.json({ success: true, status: "COMPLETED", video_url: localVideoUrl });
       }
       if (result.status === "FAILED") {
+        refundTransformVideo(requestId);
         return res.json({ success: false, status: "FAILED", message: result.error || "Generering mislykkedes" });
       }
       return res.json({ success: true, status: result.status });
@@ -2370,13 +2396,13 @@ export async function registerRoutes(
   // Ken Burns motion + crossfades. Runs async (own in-memory job registry) and
   // the client polls the status endpoint.
   app.post("/api/bolig/showcase-video", upload.array("images", 30), async (req, res) => {
+    let showcaseUserId: number | null = null;
     try {
       const files = (req.files as Express.Multer.File[] | undefined) || [];
       if (files.length < 2) {
         return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
       }
       // Auth + quota check
-      let showcaseUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
@@ -2392,15 +2418,20 @@ export async function registerRoutes(
       const endText = typeof req.body?.endText === "string" ? req.body.endText.slice(0, 80) : undefined;
       const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText);
       if (!jobId) {
-        // Server is saturated — clean up the just-uploaded files and back off.
+        // Server saturated — no work started, so refund the charged credit.
+        if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
         for (const p of paths) fs.promises.unlink(p).catch(() => {});
         return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
+      // Track for a quota refund if the render later fails.
+      if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       log(`[Showcase] started job=${jobId} images=${files.length}`);
       if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase · ${files.length} billeder`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
     } catch (err: any) {
       log(`[Showcase] submit error: ${err.message}`);
+      // Quota was charged before the job started — refund it on failure.
+      if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
       return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
     }
   });
@@ -2425,13 +2456,20 @@ export async function registerRoutes(
       return;
     }
     send(job.progress);
-    if (job.status !== "processing") { res.end(); return; }
+    if (job.status !== "processing") {
+      if (job.status === "failed") refundShowcaseVideo(jobId);
+      else if (job.status === "completed") showcaseVideoRefunds.delete(jobId);
+      res.end();
+      return;
+    }
 
     const iv = setInterval(() => {
       const j = getShowcaseJob(jobId);
       if (!j) { clearInterval(iv); try { res.end(); } catch {} return; }
       send(j.progress);
       if (j.status === "completed" || j.status === "failed") {
+        if (j.status === "failed") refundShowcaseVideo(jobId);
+        else showcaseVideoRefunds.delete(jobId);
         clearInterval(iv);
         try { res.end(); } catch {}
       }
@@ -2446,9 +2484,11 @@ export async function registerRoutes(
       return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
     }
     if (job.status === "completed" && job.videoUrls) {
+      showcaseVideoRefunds.delete(req.params.jobId);
       return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls, clean_video_urls: job.cleanVideoUrls });
     }
     if (job.status === "failed") {
+      refundShowcaseVideo(req.params.jobId);
       return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
     }
     return res.json({ success: true, status: "IN_PROGRESS" });
