@@ -1881,6 +1881,24 @@ export async function registerRoutes(
   });
 
   // ── Quota info endpoint ────────────────────────────────────────────────────
+  // ── Image proxy — fetches external image server-side and streams to client ──
+  // Fixes CORS issue where browser cannot directly fetch Cloudfront/S3 images.
+  app.get("/api/proxy-image", async (req, res) => {
+    const url = req.query.url as string;
+    if (!url || !url.startsWith("http")) return res.status(400).send("Invalid url");
+    try {
+      const upstream = await fetch(url);
+      if (!upstream.ok) return res.status(502).send("Upstream fetch failed");
+      const contentType = upstream.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      return res.end(buf);
+    } catch (err: any) {
+      return res.status(502).send(err.message || "Proxy failed");
+    }
+  });
+
   app.get("/api/bolig/quota", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);

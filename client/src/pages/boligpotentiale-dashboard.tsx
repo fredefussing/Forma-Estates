@@ -264,8 +264,10 @@ async function downloadImageFile(
   if (!url) return;
   const format = opts.format ?? "jpg";
   const filename = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: format });
+  // Route external URLs through our server proxy to avoid CORS restrictions.
+  const fetchUrl = url.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url;
   try {
-    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    const res = await fetch(fetchUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     if (format === "png" && !blob.type.includes("png")) {
