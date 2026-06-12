@@ -5829,6 +5829,18 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
     onError: (e: Error) => showToast(e.message),
   });
 
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ memberId, role }: { memberId: number; role: string }) => {
+      const token = await user.getIdToken();
+      const r = await fetch(`/api/team/member/${memberId}/role`, { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast("Rolle opdateret!"); },
+    onError: (e: Error) => showToast(e.message),
+  });
+
   const allocateMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: number; amount: number }) => {
       const token = await user.getIdToken();
@@ -6169,14 +6181,36 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           const perf = performance.find((p) => p.userId === m.userId);
           const isMe = m.userId === myUserId;
           const memberName = m.displayName || m.email?.split("@")[0] || "?";
+          const iAmOwner = user.email?.toLowerCase() === data?.ownerEmail?.toLowerCase();
+          const isAdmin = m.role === "admin";
           return (
             <div key={m.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0EDE7] last:border-0" data-testid={`team-member-row-${m.id}`}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#F0EDE7", color: "#C8956C" }}>{memberName[0]?.toUpperCase() ?? "?"}</div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>{memberName}</p>
+                <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>
+                  {memberName}
+                  {isAdmin && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.15)", color: "#C8956C" }}>Admin</span>}
+                </p>
                 <p className="text-xs truncate" style={{ color: "#9B9690" }}>{m.email} · {perf?.visuals ?? 0} visuals</p>
               </div>
-              {!isMe && (
+              {!isMe && iAmOwner && (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => updateRoleMutation.mutate({ memberId: m.id, role: isAdmin ? "user" : "admin" })}
+                    disabled={updateRoleMutation.isPending}
+                    className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-[#F5F3EF] disabled:opacity-40"
+                    style={{ borderColor: "#D9D5CF", color: "#6B6B6B" }}
+                    data-testid={`team-toggle-admin-${m.id}`}>
+                    {isAdmin ? "Fjern admin" : "Gør admin"}
+                  </button>
+                  <button onClick={() => removeMemberMutation.mutate(m.id)} disabled={removeMemberMutation.isPending}
+                    className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40"
+                    style={{ borderColor: "#D9D5CF", color: "#9B9690" }} data-testid={`team-remove-member-${m.id}`}>
+                    Fjern
+                  </button>
+                </div>
+              )}
+              {!isMe && !iAmOwner && (
                 <button onClick={() => removeMemberMutation.mutate(m.id)} disabled={removeMemberMutation.isPending}
                   className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40 flex-shrink-0"
                   style={{ borderColor: "#D9D5CF", color: "#9B9690" }} data-testid={`team-remove-member-${m.id}`}>

@@ -3197,6 +3197,28 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/team/member/:memberId/role", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const membership = await storage.getTeamByUserId(dbUser.id);
+      if (!membership) return res.status(403).json({ error: "Du er ikke i et team" });
+      if (membership.team.ownerUserId !== dbUser.id) return res.status(403).json({ error: "Kun team-ejeren kan ændre roller" });
+
+      const memberId = parseInt(req.params.memberId);
+      const { role } = req.body;
+      if (!["admin", "user"].includes(role)) return res.status(400).json({ error: "Ugyldig rolle" });
+
+      await storage.updateTeamMemberRole(memberId, role);
+
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/team/credits/allocate", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);

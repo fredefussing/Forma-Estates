@@ -72,7 +72,7 @@ export default function PaymentSuccessPage() {
           await refreshCredits();
           localStorage.removeItem("pendingPurchase");
           setPollState("success");
-          setTimeout(() => setLocation("/design"), 3500);
+          setTimeout(() => setLocation("/opret-team"), 3500);
         }
       } catch {}
     };
@@ -193,10 +193,10 @@ export default function PaymentSuccessPage() {
 
                 <Button
                   className="w-full h-12 text-sm font-medium rounded-full"
-                  onClick={() => setLocation("/design")}
+                  onClick={() => setLocation("/opret-team")}
                   data-testid="button-go-to-design"
                 >
-                  Start dit design nu
+                  Opsæt dit team nu
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </motion.div>
