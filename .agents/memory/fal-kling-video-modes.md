@@ -14,9 +14,9 @@ Sending only `start_image_url` (no `end_image_url`) satisfies *neither* mode →
 **Why:** The two modes are a discriminated union. `start_image_url` alone is not a valid single-image request — single-image mode keys off `image_url`.
 
 **How to apply for our two video modes:**
-- **Cinematisk gennemgang** (cinematic walkthrough): uses `start_image_url` (before) + `end_image_url` (after) — the model walks the camera forward while interpolating between the two states. The prompt instructs "camera walks through, architecture locked, renovation reveals along the camera path." Same field structure as morph, different prompt.
-- **Forvandling** (morph): also uses `start_image_url` (before) + `end_image_url` (after) but with a "static camera, room transforms in place" prompt.
-- Both require identical image dimensions — use `uploadVideoPairToFal()` for both (Jimp center-crop to same dims).
+- **Cinematisk gennemgang** (cinematic walkthrough): use `image_url` (before/start) + `tail_image_url` (after/end) + `duration: "5"`. These are the CORRECT kling field names for two-frame interpolation. `start_image_url`/`end_image_url` are NOT valid for this endpoint and cause 422 "image_url Field required" at the worker.
+- **Forvandling** (morph): uses `start_image_url` (before) + `end_image_url` (after) + `duration: "8"` (also accepted). These happen to work — possibly fal client-side aliasing. Do not touch.
+- Cinematic requires `uploadVideoPairToFal()` (Jimp center-crop to same dimensions) before upload.
 
 ## Critical debugging note
 `fal.queue.submit` **accepts** an invalid body and returns a `request_id` — the 422 only surfaces later when polling `fal.queue.result`/`status` (job status becomes FAILED). So "submit succeeded" does NOT mean the input is valid. Always poll to confirm, and capture `err.body.detail` (not just `err.message`, which is the generic "Unprocessable Entity") to see the exact field error.

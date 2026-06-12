@@ -376,14 +376,17 @@ const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 //    rummet; renoveringen afsløres, efterhånden som kameraet bevæger sig.
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
   if (mode === "cinematic") {
-    // Bruger start→end interpolation (start_image_url=før, end_image_url=efter)
-    // så modellen fastlåser arkitekturen fra begge frames og kun kamera +
-    // overflader ændrer sig langs kamerabanen.
+    // Kling v1.6/pro/image-to-video to-frame interpolation:
+    //   image_url     = startframe (før-billede)
+    //   tail_image_url = slutframe (efter-billede)
+    // VIGTIGT: start_image_url/end_image_url er IKKE gyldige feltnavne for
+    // denne endpoint — brug image_url + tail_image_url. Forkerte feltnavne
+    // giver 422 "image_url Field required" fra workeren.
     return {
       prompt: CINEMATIC_WALKTHROUGH_PROMPT,
-      start_image_url: beforeImageUrl,
-      end_image_url: afterImageUrl,
-      duration: "8" as const,
+      image_url: beforeImageUrl,
+      tail_image_url: afterImageUrl,
+      duration: "5" as const,
     };
   }
   return {
