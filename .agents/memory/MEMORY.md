@@ -2,3 +2,4 @@
 - [Upgrade fal.ai transform-video to v3/pro](fal-video-model-upgrade.md) — currently on v1.6/pro due to account access; upgrade to v3/pro when fal.ai billing is in order.
 - [Showcase paid-AI slot gating](showcase-paid-ai-gating.md) — gate paid fal.ai clip generation behind the render queue slot (acquire at top of render), bound per-job fan-out, clean partial temp clips.
 - [FFmpeg looped audio bed](ffmpeg-looped-audio.md) — never `-shortest` with `-stream_loop -1` audio (it deadlocks/fails); cap with `-t videoTotal`. Also: `tsx` dev server needs a workflow restart for server edits.
+- [Replit dev: Node.js HTTP intercepted](replit-nodejs-http-proxy.md) — Node.js fetch() and https.get() are intercepted by Replit's network layer; use spawn("curl") instead for server-side external fetches.

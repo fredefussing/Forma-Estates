@@ -1,6 +1,7 @@
 import type { Express, Request } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
+import { spawn } from "child_process";
 import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
@@ -1883,33 +1884,36 @@ export async function registerRoutes(
   // ── Quota info endpoint ────────────────────────────────────────────────────
   // ── Image proxy — fetches external image server-side and streams to client ──
   // Fixes CORS issue where browser cannot directly fetch Cloudfront/S3 images.
-  app.get("/api/proxy-image", async (req, res) => {
+  app.get("/api/proxy-image", (req, res) => {
     const url = req.query.url as string;
     const format = (req.query.format as string | undefined) ?? "jpg";
-    if (!url || !url.startsWith("http")) return res.status(400).send("Invalid url");
-    try {
-      const upstream = await fetch(url);
-      if (!upstream.ok) return res.status(502).send("Upstream fetch failed");
-      const buf = Buffer.from(await upstream.arrayBuffer());
+    if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
 
-      if (format === "png") {
-        // Convert to true PNG bytes server-side using Jimp (avoids canvas CORS issues in browser)
-        const { Jimp } = await import("jimp");
-        const image = await Jimp.fromBuffer(buf);
-        const pngBuf = await image.getBuffer("image/png");
-        res.setHeader("Content-Type", "image/png");
-        res.setHeader("Cache-Control", "private, max-age=86400");
-        return res.end(pngBuf);
+    // Node.js HTTP/fetch is intercepted by Replit's network layer in dev.
+    // curl has direct OS-level network access and bypasses it.
+    const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", url]);
+
+    const chunks: Buffer[] = [];
+    curl.stdout.on("data", (c: Buffer) => chunks.push(c));
+    curl.on("close", async (code: number) => {
+      if (code !== 0) { res.status(502).send("Image fetch failed"); return; }
+      try {
+        const buf = Buffer.concat(chunks);
+        if (format === "png") {
+          const pngBuf = await sharp(buf).png().toBuffer();
+          res.setHeader("Content-Type", "image/png");
+          res.setHeader("Cache-Control", "private, max-age=86400");
+          res.end(pngBuf);
+        } else {
+          res.setHeader("Content-Type", "image/jpeg");
+          res.setHeader("Cache-Control", "private, max-age=86400");
+          res.end(buf);
+        }
+      } catch (e: any) {
+        res.status(502).send(e.message || "Conversion failed");
       }
-
-      // Default: return as JPEG
-      const contentType = upstream.headers.get("content-type") || "image/jpeg";
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "private, max-age=86400");
-      return res.end(buf);
-    } catch (err: any) {
-      return res.status(502).send(err.message || "Proxy failed");
-    }
+    });
+    curl.on("error", (e: Error) => res.status(502).send(e.message));
   });
 
   app.get("/api/bolig/quota", async (req, res) => {
