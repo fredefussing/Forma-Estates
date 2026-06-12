@@ -2997,6 +2997,18 @@ export async function registerRoutes(
   });
 
   // ── Team API ──────────────────────────────────────────────────────────────
+  app.get("/api/teams/mine", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+      const membership = await storage.getTeamByUserId(dbUser.id);
+      return res.json({ hasTeam: !!membership, teamName: membership?.team?.name ?? null });
+    } catch (err: any) {
+      return res.status(401).json({ error: err.message });
+    }
+  });
+
   app.get("/api/team", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);

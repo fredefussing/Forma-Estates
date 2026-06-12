@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { useState, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -28,6 +29,7 @@ import PaymentSuccessPage from "@/pages/payment-success";
 import BoligpotentialeLanding from "@/pages/boligpotentiale-landing";
 import BoligpotentialeDashboard from "@/pages/boligpotentiale-dashboard";
 import BoligpotentialeJoinTeam from "@/pages/boligpotentiale-join-team";
+import OpretTeamPage from "@/pages/opret-team";
 import TrackerDashboard from "@/pages/tracker-dashboard";
 import {
   EksemplerPage,
@@ -107,12 +109,45 @@ function BoligGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function TeamSetupGate({ children }: { children: React.ReactNode }) {
+  const { user, loading, subscriptionStatus, isAdmin } = useAuth();
+  const [checked, setChecked] = useState(false);
+  const [hasTeam, setHasTeam] = useState(true);
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (isAdmin || subscriptionStatus !== "active") {
+      setChecked(true);
+      return;
+    }
+    user.getIdToken().then((token) =>
+      fetch("/api/teams/mine", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((d) => {
+          setHasTeam(!!d.hasTeam);
+          setChecked(true);
+        })
+        .catch(() => setChecked(true))
+    );
+  }, [user, loading, subscriptionStatus, isAdmin]);
+
+  useEffect(() => {
+    if (checked && !hasTeam) setLocation("/opret-team");
+  }, [checked, hasTeam, setLocation]);
+
+  if (!checked) return <div className="min-h-screen" style={{ background: "#FAF7F2" }} />;
+  if (!hasTeam) return null;
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/join/:code" component={BoligpotentialeJoinTeam} />
       <Route path="/boligpotentiale/join-team" component={BoligpotentialeJoinTeam} />
-      <Route path="/boligpotentiale/dashboard" component={() => <BoligGate><BoligpotentialeDashboard /></BoligGate>} />
+      <Route path="/opret-team" component={OpretTeamPage} />
+      <Route path="/boligpotentiale/dashboard" component={() => <BoligGate><TeamSetupGate><BoligpotentialeDashboard /></TeamSetupGate></BoligGate>} />
       <Route path="/boligpotentiale/eksempler" component={EksemplerPage} />
       <Route path="/boligpotentiale/foer-efter" component={() => <BoligGate><PaywallPage><ForEfterPage /></PaywallPage></BoligGate>} />
       <Route path="/boligpotentiale/3d-plantegning" component={() => <BoligGate><PaywallPage><PlantegningPage /></PaywallPage></BoligGate>} />
