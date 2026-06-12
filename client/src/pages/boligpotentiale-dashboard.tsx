@@ -2473,6 +2473,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [videoMode, setVideoMode] = useState<"cinematic" | "morph">("cinematic");
+  const [showTransformEksempel, setShowTransformEksempel] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
 
@@ -2716,6 +2717,16 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             </button>
           </div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowTransformEksempel(true); }}
+            className="flex items-center gap-1 text-xs mt-1 transition-opacity hover:opacity-70"
+            style={{ color: "#C8956C" }}
+            data-testid="button-transform-eksempel"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+            Se eksempel
+          </button>
         </div>
 
         <button
@@ -2835,6 +2846,49 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           </>
         )}
       </div>
+
+      {showTransformEksempel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.72)" }}
+          onClick={() => setShowTransformEksempel(false)}
+          data-testid="modal-transform-eksempel"
+        >
+          <div
+            className="relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
+            style={{ background: "#0F1D2F" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Forvandling — eksempel</div>
+                <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI-genereret transformation fra original til nyt interiør</div>
+              </div>
+              <button
+                onClick={() => setShowTransformEksempel(false)}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+                style={{ background: "rgba(255,255,255,0.1)", color: "white" }}
+                data-testid="button-close-eksempel"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <video
+              src="/eksempel-transformering.mp4"
+              autoPlay
+              loop
+              controls
+              className="w-full block"
+              style={{ maxHeight: "60vh" }}
+              data-testid="video-eksempel"
+            />
+            <div className="px-4 py-3 flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Dette er et eksempel på hvad Forvandling kan producere. Resultater varierer efter billedkvalitet og stil.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
