@@ -415,6 +415,23 @@ export async function registerRoutes(
         user = { ...user, displayName: name };
       }
 
+      // Super-admins are always elevated to full access on every login,
+      // regardless of what the DB currently says. ONLY these two — no one else.
+      const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+      if (
+        SUPER_ADMIN_EMAILS.includes(user.email) &&
+        (!user.isAdmin || user.subscriptionStatus !== "active" || user.subscriptionTier !== "unlimited")
+      ) {
+        await storage.updateUser(user.id, {
+          isAdmin: true,
+          creditsRemaining: 999999,
+          subscriptionStatus: "active",
+          subscriptionTier: "unlimited",
+        });
+        user = { ...user, isAdmin: true, creditsRemaining: 999999, subscriptionStatus: "active", subscriptionTier: "unlimited" };
+        log(`[auth] Auto-elevated super-admin: ${user.email}`);
+      }
+
       return res.json({
         user: {
           id: user.id,

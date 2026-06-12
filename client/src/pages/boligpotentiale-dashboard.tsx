@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { PaywallBanner, PaywallAction } from "@/components/paywall-gate";
+import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
 import { QuotaWidget, useQuotaData } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
@@ -7544,21 +7544,27 @@ export default function BoligpotentialeDashboard() {
           {/* AI Design Agent section */}
           {section === "ai-design-agent" && (
             <motion.div key="ai-design-agent-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
+              <PaywallPage>
+                <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
+              </PaywallPage>
             </motion.div>
           )}
 
           {/* 3D plantegning section */}
           {section === "3d-plantegning" && (
             <motion.div key="3d-plantegning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <Floorplan3DFlow cases={cases} />
+              <PaywallPage>
+                <Floorplan3DFlow cases={cases} />
+              </PaywallPage>
             </motion.div>
           )}
 
           {/* Transformering video section */}
           {section === "transformering-video" && (
             <motion.div key="transformering-video-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <TransformVideoFlow cases={cases} />
+              <PaywallPage>
+                <TransformVideoFlow cases={cases} />
+              </PaywallPage>
             </motion.div>
           )}
 
@@ -7579,7 +7585,9 @@ export default function BoligpotentialeDashboard() {
           {/* Bolig showcase video section */}
           {section === "showcase-video" && (
             <motion.div key="showcase-video-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <ShowcaseVideoFlow cases={cases} />
+              <PaywallPage>
+                <ShowcaseVideoFlow cases={cases} />
+              </PaywallPage>
             </motion.div>
           )}
 

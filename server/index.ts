@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startTracker } from "./tracker";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +63,25 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Ensure both super-admin accounts always have full access on every deploy,
+  // even if the production DB was reset or bootstrapped without them.
+  // ONLY these two accounts — no one else.
+  const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+  for (const email of SUPER_ADMIN_EMAILS) {
+    try {
+      const user = await storage.getUserByEmail(email);
+      if (user && (!user.isAdmin || user.subscriptionStatus !== "active" || user.subscriptionTier !== "unlimited")) {
+        await storage.updateUser(user.id, {
+          isAdmin: true,
+          creditsRemaining: 999999,
+          subscriptionStatus: "active",
+          subscriptionTier: "unlimited",
+        });
+        console.log(`[init] Elevated ${email} to super-admin`);
+      }
+    } catch { /* non-fatal — will be fixed on next login via /api/auth/verify */ }
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
