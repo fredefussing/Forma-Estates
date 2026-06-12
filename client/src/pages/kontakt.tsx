@@ -298,6 +298,9 @@ export default function KontaktPage() {
                   </div>
                 </li>
               </ul>
+              <div className="mt-5 pt-5" style={{ borderTop: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
+                CVR: 46551796
+              </div>
             </div>
 
             <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24 }}>

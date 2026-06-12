@@ -440,7 +440,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-border/40 py-8 px-6">
         <div className="mx-auto max-w-6xl flex items-center justify-between">
-          <span className="text-sm text-muted-foreground/60">© 2026 Forma Estates</span>
+          <span className="text-sm text-muted-foreground/60">© 2026 Forma Estates · CVR: 46551796</span>
           <span className="text-xs text-muted-foreground/40">AI-drevet interiørdesign</span>
         </div>
       </footer>

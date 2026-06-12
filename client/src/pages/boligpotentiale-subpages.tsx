@@ -89,7 +89,7 @@ function SubpageLayout({
         <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div style={{ fontFamily: SERIF, fontSize: 14, letterSpacing: "0.32em" }}>FORMA ESTATES</div>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
-            © {new Date().getFullYear()} Forma Estates. Visualisering for ejendomsmæglere.
+            © {new Date().getFullYear()} Forma Estates · CVR: 46551796 · Visualisering for ejendomsmæglere.
           </div>
         </div>
       </footer>
@@ -703,7 +703,7 @@ export function OmOsPage() {
             </button>
           </Link>
           <div className="mt-8" style={{ color: C.muted, fontSize: 13 }}>
-            Forma Estates · CVR: 12345678 · København, Danmark
+            Forma Estates · CVR: 46551796 · København, Danmark
           </div>
         </div>
       </div>
