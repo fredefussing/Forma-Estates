@@ -360,9 +360,13 @@ const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 //    kameraet glider ind i det nye rum uden at noget forvandler sig.
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
   if (mode === "cinematic") {
+    // Single-image mode på kling v1.6/pro/image-to-video kræver feltet
+    // `image_url` (IKKE `start_image_url` — det felt hører til start→slut-
+    // interpolationen, som morph bruger). Med kun `start_image_url` afviser
+    // worker'en med 422 "image_url Field required".
     return {
       prompt: CINEMATIC_FLYTHROUGH_PROMPT,
-      start_image_url: afterImageUrl,
+      image_url: afterImageUrl,
       duration: "5" as const,
     };
   }

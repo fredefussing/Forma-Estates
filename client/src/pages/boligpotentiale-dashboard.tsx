@@ -2648,7 +2648,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
     <div className="max-w-3xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload et før-billede og det færdige efter-billede — AI skaber en cinematisk transformationsvideo mellem de to.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload et før-billede og det færdige efter-billede, vælg derefter videostil — AI skaber videoen for dig.</p>
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
@@ -2722,7 +2722,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           ) : (
             <>
               <Video className="w-4 h-4" />
-              Generér transformeringsvideo
+              {videoMode === "cinematic" ? "Generér cinematisk video" : "Generér forvandlingsvideo"}
             </>
           )}
         </button>
