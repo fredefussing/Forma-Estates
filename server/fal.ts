@@ -336,38 +336,54 @@ export async function generate360Panorama(
 // hvor mægleren vil bevise "før→efter" konkret.
 const TRANSFORM_VIDEO_MORPH_PROMPT = `A cinematic room renovation. The scene transforms smoothly from the original interior to the beautifully renovated interior. All architectural structure remains completely fixed and untouched — walls, windows, doors, flooring layout, ceiling, and room geometry never move or warp. Only the interior styling, furniture, materials, and decor change. Each element transforms in a natural, believable sequence one after another — cabinetry and storage units first, then surfaces and countertops, then lighting fixtures, then seating and tables, then textiles and decor last. Nothing appears magically or spawns from nowhere — each change is a smooth, organic morph. Warm golden daylight floods through the windows, soft natural shadows, cozy inviting atmosphere. Ultra-smooth slow motion throughout, no abrupt jumps, no warping, no stretching, no deformation of any element. Photorealistic architectural visualization quality, 1080p, cinematic.`;
 
-// "Cinematisk gennemgang": kameraet glider/svæver ind i det NYE rum. Vi giver
-// kun efter-billedet som startframe (ingen end_image), så modellen er fri til
-// en ren kamerabevægelse i stedet for at være bundet til en før→efter-morph.
-const CINEMATIC_FLYTHROUGH_PROMPT = `A cinematic first-person real-estate walkthrough: the camera enters the room as if a person is stepping inside and looking around, like a smooth handheld steadicam tour. It moves gently forward into the space and slowly pans and tilts to reveal different parts of the room — sweeping across the furniture, walls, windows, and key features — as if a buyer is taking in the room from the inside.
+// "Cinematisk gennemgang": kameraet bevæger sig FREM igennem rummet fra
+// før-tilstanden (gammelt/uistandsat) til efter-tilstanden (renoveret).
+// Begge billeder (start_image_url + end_image_url) fastlåser arkitekturen
+// — vægge, vinduer, døre, gulvplan forbliver uændret. Kun overflader,
+// møbler og finish ændrer sig i takt med, at kameraet avancerer.
+const CINEMATIC_WALKTHROUGH_PROMPT = `A single continuous cinematic walkthrough of a real room undergoing renovation, captured as one uninterrupted camera move from the "before" state to the "after" state.
 
-The motion combines a soft forward push with natural, gentle panning left and right and a subtle look up and down, giving a sense of exploring and surveying the space. Gentle parallax makes foreground elements drift slightly faster than the background to enhance depth.
+FIRST FRAME — "before" state: the room in its original, unrenovated condition. Old surfaces, empty or dated, unfinished.
+FINAL FRAME — "after" state: the exact same room, fully renovated. New materials, furnished, clean, modern.
 
-The room and everything in it stays exactly as shown — furniture, materials, colors, lighting, and layout do NOT change, morph, appear, or disappear. Nothing transforms. Only the camera moves.
+PHYSICAL REALITY — LOCKED. These NEVER change between start and end:
+- Every wall stays in its exact position. No walls appear, disappear, or move.
+- Every window stays on the same wall in the same position. No new windows added.
+- Every door opening stays exactly where it is. No doors added or removed.
+- Ceiling height and room proportions are fixed throughout.
+- Room geometry, floor plan, and all structural elements are identical from first to last frame.
 
-The movement is slow, smooth, and continuous with no harsh shake, no abrupt cuts, and no warping of the architecture. Walls, windows, doors, and furniture keep correct, stable perspective throughout the tour.
+CAMERA MOVEMENT:
+- One single, smooth, continuous forward path through the space — a slow steadicam walk-through.
+- No cuts, no jump edits, no angle changes, no reverse movement.
+- The camera enters from the "before" side and arrives at the "after" side.
 
-Photorealistic, cinematic interior real-estate walkthrough, soft natural lighting, high detail, architectural visualization quality.`;
+RENOVATION REVEAL: as the camera moves forward, the renovation reveals itself naturally — the space behind the camera is already transformed, the space ahead is still old. The transition boundary follows architectural lines: a door frame, a wall corner, or a floor seam.
+
+What CHANGES between first and last frame: wall paint and finishes, floor material, furniture and decor, lighting fixtures.
+What NEVER changes: number and placement of doors, windows, walls, ceiling, and all fixed structural elements.
+
+Slow, deliberate, smooth camera motion. No shakiness. Photorealistic, architecturally faithful, interior real-estate visualization quality.`;
 
 export type VideoMode = "cinematic" | "morph";
 
 const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
 
-// To forskellige opførsler:
-//  • morph ("Forvandling"): start=før, end=efter, fast kamera → rummet
-//    forvandler sig på stedet.
-//  • cinematic ("Cinematisk gennemgang"): start=efter, intet end-billede →
-//    kameraet glider ind i det nye rum uden at noget forvandler sig.
+// To forskellige opførsler — begge bruger start_image_url + end_image_url
+// (kling v1.6 interpolations-mode):
+//  • morph ("Forvandling"): statisk kamera, rummet forvandler sig i billedet.
+//  • cinematic ("Cinematisk gennemgang"): kameraet avancerer fremad igennem
+//    rummet; renoveringen afsløres, efterhånden som kameraet bevæger sig.
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
   if (mode === "cinematic") {
-    // Single-image mode på kling v1.6/pro/image-to-video kræver feltet
-    // `image_url` (IKKE `start_image_url` — det felt hører til start→slut-
-    // interpolationen, som morph bruger). Med kun `start_image_url` afviser
-    // worker'en med 422 "image_url Field required".
+    // Bruger start→end interpolation (start_image_url=før, end_image_url=efter)
+    // så modellen fastlåser arkitekturen fra begge frames og kun kamera +
+    // overflader ændrer sig langs kamerabanen.
     return {
-      prompt: CINEMATIC_FLYTHROUGH_PROMPT,
-      image_url: afterImageUrl,
-      duration: "5" as const,
+      prompt: CINEMATIC_WALKTHROUGH_PROMPT,
+      start_image_url: beforeImageUrl,
+      end_image_url: afterImageUrl,
+      duration: "8" as const,
     };
   }
   return {

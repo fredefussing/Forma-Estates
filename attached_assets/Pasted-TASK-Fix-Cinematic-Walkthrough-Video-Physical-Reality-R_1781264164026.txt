@@ -1,0 +1,76 @@
+TASK: Fix Cinematic Walkthrough Video — Physical Reality Required
+
+CURRENT PROBLEM:
+The walkthrough shows 6 disconnected shots with different angles and even different rooms. This is WRONG. The "before" and "after" images must be the SAME physical space with identical structure.
+
+CORRECT BEHAVIOR:
+One continuous camera movement. Start in the "before" image. End in the "after" image. Same room. Same walls. Same windows. Same doors. Nothing added. Nothing removed.
+
+RULES — NON-NEGOTIABLE:
+
+1. SPATIAL LOCK
+   - Before and after MUST share identical floor plan, wall positions, window placements, door openings
+   - If a window is on the left wall in before, it stays on the left wall in after
+   - If there is no door in the back wall in before, there is NO door in the back wall in after
+   - Ceiling height, room proportions, architectural features — all locked
+
+2. CAMERA MOVEMENT
+   - Single continuous path (dolly/tracking, NOT multiple cuts)
+   - Start: fully in "before" state (old, messy, unfinished)
+   - End: fully in "after" state (renovated, furnished, clean)
+   - The transition happens GRADUALLY as the camera moves through the space
+   - No jump cuts, no angle changes, no "magic" cuts to different rooms
+
+3. TRANSITION LOGIC
+   - The renovation reveals itself as the camera advances
+   - Example: Camera moves forward through a doorway → the space ahead is already finished, the space behind is still old
+   - OR: Camera pans across the room → left side still old, right side already renovated, middle zone is the transition
+   - The transition boundary must follow a natural architectural line (door frame, wall edge, corner)
+
+4. WHAT CHANGES vs WHAT STAYS
+   CHANGES (allowed):
+   - Wall surface (old paint → new paint/wallpaper)
+   - Floor material (concrete/unfinished → finished flooring)
+   - Furniture and decor (empty → furnished)
+   - Lighting fixtures (old → new)
+   - General wear and damage (fixed)
+   
+   STAYS LOCKED (never changes):
+   - Number and position of doors
+   - Number and position of windows
+   - Wall locations and room shape
+   - Ceiling structure
+   - Any fixed architectural element
+
+5. OUTPUT FORMAT
+   - Single video file, 8-12 seconds
+   - 1080p, 30fps
+   - Smooth cinematic motion (slow, deliberate, NOT shaky or fast)
+   - No text overlays, no arrows, no "before/after" labels inside the video
+   - The video itself IS the proof — viewer sees the transformation naturally
+
+EXAMPLE SCENARIOS:
+
+A) Entryway passage:
+   Start: Standing in messy entryway, construction debris, old paint
+   Move: Camera walks forward through the doorway into the next room
+   Transition: As camera passes the door frame, the view ahead transforms
+   End: Same doorway, same room beyond, now fully finished and furnished
+
+B) Wall-edge reveal:
+   Start: In old empty bedroom, peeling paint, bare floor
+   Move: Camera slowly tracks along the wall toward the window
+   Transition: The renovation "spreads" from the window outward as camera moves
+   End: Same bedroom, same window position, now modern and complete
+
+C) Corner turn:
+   Start: In unfinished kitchen, exposed pipes, no cabinets
+   Move: Camera turns the corner around a fixed wall
+   Transition: The other side of the corner is already renovated
+   End: Same kitchen layout, same corner, now fully installed
+
+TECHNICAL NOTE:
+Use depth-aware generation or 3D scene understanding to ensure the camera path respects the actual geometry of the space. Do not hallucinate architecture that does not exist in the source images.
+
+DELIVERABLE:
+A video generation endpoint that takes before/after image pair + camera path direction, outputs a single continuous walkthrough video with physically accurate renovation reveal.

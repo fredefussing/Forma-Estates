@@ -2311,19 +2311,12 @@ export async function registerRoutes(
         log(`[Video] uploading before+after to fal.storage…`);
         const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
 
-        // Cinematic bruger kun efter-billedet (kameraet glider ind i det nye
-        // rum), så vi bevarer dets eget format. Morph laver en før→efter-morph
-        // og kræver, at begge billeder har identiske dimensioner — ellers
-        // afviser Kling v3 med 422.
-        let beforeFalUrl: string;
-        let afterFalUrl: string;
-        if (mode === "cinematic") {
-          afterFalUrl = await uploadToFal(afterPath, afterFile.mimetype);
-          beforeFalUrl = afterFalUrl;
-        } else {
-          ({ beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
-            await uploadVideoPairToFal(beforePath, afterPath));
-        }
+        // Begge modes bruger nu start_image_url + end_image_url (kling
+        // interpolations-mode), og begge kræver identiske dimensioner.
+        // uploadVideoPairToFal center-cropper og normaliserer begge billeder
+        // til identiske mål (maks 1920px, lige tal) for at undgå 422.
+        const { beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
+          await uploadVideoPairToFal(beforePath, afterPath);
         log(`[Video] submit mode=${mode} before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
         const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode);
         log(`[Video] submitted request_id=${requestId}`);
