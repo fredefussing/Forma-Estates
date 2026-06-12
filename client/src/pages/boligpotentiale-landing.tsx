@@ -2002,7 +2002,7 @@ export default function BoligpotentialeLanding() {
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }}>
             <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-              © 2026 Forma Estates · Danskudviklet og bygget i Danmark · All rights reserved
+              © 2026 Forma Estates · CVR: 46551796 · Danskudviklet og bygget i Danmark · All rights reserved
             </span>
           </div>
         </div>
