@@ -1885,14 +1885,27 @@ export async function registerRoutes(
   // Fixes CORS issue where browser cannot directly fetch Cloudfront/S3 images.
   app.get("/api/proxy-image", async (req, res) => {
     const url = req.query.url as string;
+    const format = (req.query.format as string | undefined) ?? "jpg";
     if (!url || !url.startsWith("http")) return res.status(400).send("Invalid url");
     try {
       const upstream = await fetch(url);
       if (!upstream.ok) return res.status(502).send("Upstream fetch failed");
+      const buf = Buffer.from(await upstream.arrayBuffer());
+
+      if (format === "png") {
+        // Convert to true PNG bytes server-side using Jimp (avoids canvas CORS issues in browser)
+        const { Jimp } = await import("jimp");
+        const image = await Jimp.fromBuffer(buf);
+        const pngBuf = await image.getBuffer("image/png");
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "private, max-age=86400");
+        return res.end(pngBuf);
+      }
+
+      // Default: return as JPEG
       const contentType = upstream.headers.get("content-type") || "image/jpeg";
       res.setHeader("Content-Type", contentType);
       res.setHeader("Cache-Control", "private, max-age=86400");
-      const buf = Buffer.from(await upstream.arrayBuffer());
       return res.end(buf);
     } catch (err: any) {
       return res.status(502).send(err.message || "Proxy failed");

@@ -264,41 +264,17 @@ async function downloadImageFile(
   if (!url) return;
   const format = opts.format ?? "jpg";
   const filename = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: format });
-  // Route external URLs through our server proxy to avoid CORS restrictions.
-  const fetchUrl = url.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url;
+  // Server proxy handles both fetching (CORS) and format conversion (JPG/PNG).
+  const fetchUrl = url.startsWith("http")
+    ? `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}`
+    : url;
   try {
     const res = await fetch(fetchUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
-    if (format === "png" && !blob.type.includes("png")) {
-      // Convert via canvas so the user really gets PNG bytes, not a renamed JPEG.
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result as string);
-        fr.onerror = reject;
-        fr.readAsDataURL(blob);
-      });
-      const img: HTMLImageElement = await new Promise((resolve, reject) => {
-        const im = new Image();
-        im.onload = () => resolve(im);
-        im.onerror = reject;
-        im.src = dataUrl;
-      });
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas context unavailable");
-      ctx.drawImage(img, 0, 0);
-      const pngBlob: Blob = await new Promise((resolve, reject) =>
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png")
-      );
-      triggerBlobDownload(pngBlob, filename);
-    } else {
-      triggerBlobDownload(blob, filename);
-    }
+    triggerBlobDownload(blob, filename);
   } catch {
-    // Fallback: open in new tab so the user can save manually if CORS blocked the fetch.
+    // Last-resort fallback — should rarely happen.
     const a = document.createElement("a");
     a.href = url; a.download = filename; a.target = "_blank"; a.rel = "noopener noreferrer";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
