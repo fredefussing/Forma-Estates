@@ -15,7 +15,7 @@ Sending only `start_image_url` (no `end_image_url`) satisfies *neither* mode →
 
 **How to apply for our two video modes:**
 - **Cinematisk gennemgang** (cinematic walkthrough): use `image_url` (before/start) + `tail_image_url` (after/end) + `duration: "5"`. These are the CORRECT kling field names for two-frame interpolation. `start_image_url`/`end_image_url` are NOT valid for this endpoint and cause 422 "image_url Field required" at the worker.
-- **Forvandling** (morph): uses `start_image_url` (before) + `end_image_url` (after) + `duration: "8"` (also accepted). These happen to work — possibly fal client-side aliasing. Do not touch.
+- **Forvandling** (morph): uses `start_image_url` (before) + `end_image_url` (after) + `duration: "8"`. **CONTESTED:** a prior session observed this "happens to work" (possibly fal client-side aliasing), but `tsc` rejects `duration: "8"` (SDK type allows only `"5" | "10"`) and our own cinematic-branch comment says `start_image_url`/`end_image_url` 422 on this endpoint. Not re-verified against live fal (no prod logs). Before trusting morph, run one live submit+poll; if it 422s, align morph to the cinematic field shape (`image_url` + `tail_image_url` + `duration: "5"`) keeping the morph prompt.
 - Cinematic requires `uploadVideoPairToFal()` (Jimp center-crop to same dimensions) before upload.
 
 ## Critical debugging note
