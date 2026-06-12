@@ -97,6 +97,7 @@ export interface IStorage {
   addTeamMember(data: InsertTeamMember): Promise<TeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   updateTeamMemberRole(memberId: number, role: string): Promise<TeamMember | undefined>;
+  getTeamsOwnedByUser(userId: number): Promise<Team[]>;
   createTeamInvite(data: InsertTeamInvite): Promise<TeamInvite>;
   getTeamInviteByToken(token: string): Promise<TeamInvite | undefined>;
   markTeamInviteUsed(id: number): Promise<void>;
@@ -531,6 +532,10 @@ export class DatabaseStorage implements IStorage {
   async addTeamMember(data: InsertTeamMember): Promise<TeamMember> {
     const [result] = await db.insert(teamMembers).values(data).returning();
     return result;
+  }
+
+  async getTeamsOwnedByUser(userId: number): Promise<Team[]> {
+    return db.select().from(teams).where(eq(teams.ownerUserId, userId)).orderBy(teams.createdAt);
   }
 
   async removeTeamMember(memberId: number): Promise<void> {
@@ -1058,7 +1063,7 @@ export class DatabaseStorage implements IStorage {
     const col = feature === "ai" ? "ai_visualizations" : feature === "floorPlan" ? "floor_plans" : feature === "transformVideo" ? "transform_videos" : "showcase_videos";
     const label = feature === "ai" ? "AI Visualiseringer" : feature === "floorPlan" ? "3D Floor Plans" : feature === "transformVideo" ? "Transformering Videoer" : "Bolig Showcase";
 
-    // Auto-reset if past reset date
+    // Auto-reset if past reset date (for this user)
     await pool.query(
       `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0,
        quota_resets_at = NOW() + INTERVAL '1 month'
@@ -1077,12 +1082,11 @@ export class DatabaseStorage implements IStorage {
     if (row.is_admin) return { allowed: true, remaining: null, feature: label };
 
     let limit: number | null = row[`quota_${col}`];
-    const used: number = row[`used_${col}`] ?? 0;
 
-    // If no explicit quota is set, check team membership → inherit owner's subscription tier
+    // If no explicit quota is set, check team membership → shared pool from owner's subscription
     if (limit === null) {
-      const teamRes = await pool.query<{ subscription_tier: string | null; owner_is_admin: boolean }>(
-        `SELECT ou.subscription_tier, ou.is_admin AS owner_is_admin
+      const teamRes = await pool.query<{ owner_id: number; subscription_tier: string | null; owner_is_admin: boolean }>(
+        `SELECT ou.id AS owner_id, ou.subscription_tier, ou.is_admin AS owner_is_admin
          FROM team_members tm
          JOIN teams t ON t.id = tm.team_id
          JOIN users ou ON ou.id = t.owner_user_id
@@ -1093,7 +1097,6 @@ export class DatabaseStorage implements IStorage {
       if (teamRes.rows.length > 0) {
         const tr = teamRes.rows[0];
         if (tr.owner_is_admin) {
-          // Team owner is admin/unlimited — team member inherits unlimited
           return { allowed: true, remaining: null, feature: label };
         }
         const tier = tr.subscription_tier;
@@ -1101,19 +1104,36 @@ export class DatabaseStorage implements IStorage {
           const q = SUBSCRIPTION_QUOTAS[tier as keyof typeof SUBSCRIPTION_QUOTAS];
           const tierLimit = feature === "ai" ? q.ai : feature === "floorPlan" ? q.floorPlans : feature === "transformVideo" ? q.transformVideos : q.showcase;
           limit = tierLimit as number | null;
+
+          // ── Shared pool: auto-reset owner if needed, then track usage on owner ──
+          await pool.query(
+            `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0,
+             quota_resets_at = NOW() + INTERVAL '1 month'
+             WHERE id=$1 AND quota_resets_at IS NOT NULL AND quota_resets_at < NOW()`,
+            [tr.owner_id]
+          );
+          const ownerRes = await pool.query<{ used: number }>(
+            `SELECT used_${col} AS used FROM users WHERE id=$1`, [tr.owner_id]
+          );
+          const ownerUsed = ownerRes.rows[0]?.used ?? 0;
+          if (limit !== null && ownerUsed >= limit) {
+            return { allowed: false, remaining: 0, feature: label };
+          }
+          await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [tr.owner_id]);
+          const remaining = limit === null ? null : limit - ownerUsed - 1;
+          return { allowed: true, remaining, feature: label };
         } else {
-          // Owner has no plan → deny
           return { allowed: false, remaining: 0, feature: label };
         }
       }
-      // If still null and not in a team — allow (paywall already gates access; no quota set means no hard limit)
+      // Not in a team and no explicit quota — allow (paywall already gates access)
     }
 
+    // Per-user quota path (owner or user with explicit quota)
+    const used: number = row[`used_${col}`] ?? 0;
     if (limit !== null && used >= limit) {
       return { allowed: false, remaining: 0, feature: label };
     }
-
-    // Increment
     await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [userId]);
     const remaining = limit === null ? null : limit - used - 1;
     return { allowed: true, remaining, feature: label };

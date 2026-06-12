@@ -5779,14 +5779,28 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
   const [allocateAmount, setAllocateAmount] = useState("10");
   const [localToast, setLocalToast] = useState<string | null>(null);
   const [teamCaseModal, setTeamCaseModal] = useState<{ id: number; address: string; ownerName: string; status: string } | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
 
   const showToast = (msg: string) => { setLocalToast(msg); setTimeout(() => setLocalToast(null), 3500); };
 
-  const { data, isLoading } = useQuery<TeamApiResponse>({
-    queryKey: ["/api/team"],
+  const { data: mineData } = useQuery<{ hasTeam: boolean; teamName: string | null; ownedTeams: { id: number; name: string; code: string }[] }>({
+    queryKey: ["/api/teams/mine"],
     queryFn: async () => {
       const token = await user.getIdToken();
-      const r = await fetch("/api/team", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/teams/mine", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  const ownedTeams = mineData?.ownedTeams ?? [];
+
+  const { data, isLoading } = useQuery<TeamApiResponse>({
+    queryKey: ["/api/team", selectedTeamId],
+    queryFn: async () => {
+      const token = await user.getIdToken();
+      const url = selectedTeamId ? `/api/team?teamId=${selectedTeamId}` : "/api/team";
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       return r.json();
     },
     refetchInterval: 5000,
@@ -5991,37 +6005,65 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
   }
 
   // ── Admin View ─────────────────────────────────────────────────────────────
+  const totalMembers = (members.length + 1); // members + owner
+  const atLimit = totalMembers >= 15;
+
   return (
     <motion.div key="admin-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
 
       {/* Header + Invite link */}
       <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <Crown className="w-4 h-4" style={{ color: "#C8956C" }} />
-              <h1 className="text-xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{team.name}</h1>
+              <Crown className="w-4 h-4 flex-shrink-0" style={{ color: "#C8956C" }} />
+              <h1 className="text-xl font-bold truncate" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{team.name}</h1>
             </div>
             <p className="text-xs" style={{ color: "#9B9690" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
           </div>
+          {/* Team switcher — only shown when owner has multiple teams */}
+          {ownedTeams.length > 1 && (
+            <select
+              value={selectedTeamId ?? team.id}
+              onChange={(e) => setSelectedTeamId(Number(e.target.value))}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-[#D9D5CF] bg-white focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30 flex-shrink-0"
+              style={{ color: "#1A1A1A" }}
+              data-testid="team-switcher">
+              {ownedTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
         </div>
 
         {/* Invite code block */}
-        <div className="mt-4 rounded-xl p-4" style={{ background: "#F5F3EF" }}>
-          <p className="text-xs font-semibold mb-2" style={{ color: "#6B6B6B" }}>INVITE-KODE — Del med kollega</p>
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-2xl font-bold tracking-[0.15em]" style={{ color: "#0F1D2F", fontFamily: "monospace" }}>{team.code}</span>
+        <div className="mt-4 rounded-xl p-4" style={{ background: atLimit ? "#FFF7ED" : "#F5F3EF", border: atLimit ? "1px solid #FED7AA" : "none" }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>INVITE-KODE — Del med kollega</p>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: atLimit ? "rgba(239,68,68,0.1)" : "rgba(200,149,108,0.15)", color: atLimit ? "#DC2626" : "#C8956C" }} data-testid="team-member-count">
+              {totalMembers}/15 medlemmer
+            </span>
           </div>
-          <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-[#E8E4DE] mb-3">
-            <span className="text-xs flex-1 truncate" style={{ color: "#6B6B6B", fontFamily: "monospace" }}>{inviteLink}</span>
-          </div>
-          <button
-            onClick={() => copyToClipboard(inviteLink)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: copied ? "#2D6A4F" : "#C8956C" }}
-            data-testid="team-copy-invite-link">
-            {copied ? <><CheckCheck className="w-4 h-4" /> Kopieret!</> : <><Copy className="w-4 h-4" /> Kopier invite-link</>}
-          </button>
+          {atLimit ? (
+            <p className="text-xs mb-3 leading-relaxed" style={{ color: "#DC2626" }}>
+              Teamet har nået grænsen på 15 medlemmer.<br />
+              Kontakt os på <strong>support@formaestates.dk</strong> for at hæve grænsen.
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl font-bold tracking-[0.15em]" style={{ color: "#0F1D2F", fontFamily: "monospace" }}>{team.code}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-[#E8E4DE] mb-3">
+                <span className="text-xs flex-1 truncate" style={{ color: "#6B6B6B", fontFamily: "monospace" }}>{inviteLink}</span>
+              </div>
+              <button
+                onClick={() => copyToClipboard(inviteLink)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
+                style={{ background: copied ? "#2D6A4F" : "#C8956C" }}
+                data-testid="team-copy-invite-link">
+                {copied ? <><CheckCheck className="w-4 h-4" /> Kopieret!</> : <><Copy className="w-4 h-4" /> Kopier invite-link</>}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

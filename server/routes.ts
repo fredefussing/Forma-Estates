@@ -3002,8 +3002,20 @@ export async function registerRoutes(
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const dbUser = await storage.getUserByFirebaseUid(uid);
       if (!dbUser) return res.status(401).json({ error: "User not found" });
+      const ownedTeams = await storage.getTeamsOwnedByUser(dbUser.id);
+      if (ownedTeams.length > 0) {
+        return res.json({
+          hasTeam: true,
+          teamName: ownedTeams[0].name,
+          ownedTeams: ownedTeams.map(t => ({ id: t.id, name: t.name, code: t.code })),
+        });
+      }
       const membership = await storage.getTeamByUserId(dbUser.id);
-      return res.json({ hasTeam: !!membership, teamName: membership?.team?.name ?? null });
+      return res.json({
+        hasTeam: !!membership,
+        teamName: membership?.team?.name ?? null,
+        ownedTeams: [],
+      });
     } catch (err: any) {
       return res.status(401).json({ error: err.message });
     }
@@ -3015,7 +3027,22 @@ export async function registerRoutes(
       const dbUser = await storage.getUserByFirebaseUid(uid);
       if (!dbUser) return res.status(401).json({ error: "User not found" });
 
-      const membership = await storage.getTeamByUserId(dbUser.id);
+      // Support ?teamId=X to select a specific team (for multi-team owners)
+      const requestedTeamId = req.query.teamId ? parseInt(req.query.teamId as string) : null;
+      let membership: { team: import("@shared/schema").Team; role: string } | null = null;
+      if (requestedTeamId) {
+        const team = await storage.getTeamById(requestedTeamId);
+        if (team && team.ownerUserId === dbUser.id) {
+          membership = { team, role: "admin" };
+        } else if (team) {
+          const members = await storage.getTeamMembers(team.id);
+          const myMember = members.find(m => m.userId === dbUser.id);
+          if (myMember) membership = { team, role: myMember.role };
+        }
+      } else {
+        membership = await storage.getTeamByUserId(dbUser.id);
+      }
+
       if (!membership) return res.json({ noTeam: true });
 
       const { team, role } = membership;
@@ -3091,8 +3118,11 @@ export async function registerRoutes(
       const dbUser = await storage.getUserByFirebaseUid(uid);
       if (!dbUser) return res.status(401).json({ error: "User not found" });
 
+      // Block members (non-owners) from creating a team — owners may create multiple teams
       const existing = await storage.getTeamByUserId(dbUser.id);
-      if (existing) return res.status(400).json({ error: "Du er allerede i et team" });
+      if (existing && existing.team.ownerUserId !== dbUser.id) {
+        return res.status(400).json({ error: "Du er allerede med i et team som medlem. Forlad teamet først for at oprette dit eget." });
+      }
 
       const { name } = req.body;
       if (!name || typeof name !== "string" || name.trim().length < 2) {
@@ -3147,6 +3177,15 @@ export async function registerRoutes(
       const { team, role } = membership;
       if (role !== "admin" && team.ownerUserId !== dbUser.id) {
         return res.status(403).json({ error: "Kun admins kan invitere" });
+      }
+
+      // Enforce 15-member cap before issuing invite
+      const memberCountRes = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(*)::text AS cnt FROM team_members WHERE team_id = $1`, [team.id]
+      );
+      const currentCount = parseInt(memberCountRes.rows[0]?.cnt ?? "0", 10) + 1; // +1 for owner
+      if (currentCount >= 15) {
+        return res.status(400).json({ error: "Teamet har nået grænsen på 15 medlemmer. Kontakt kundeservice på support@formaestates.dk for at hæve grænsen." });
       }
 
       const { email } = req.body;
