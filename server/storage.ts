@@ -1009,10 +1009,20 @@ export class DatabaseStorage implements IStorage {
     let maxMembers: number | null = null;
     let effectiveLimits: { ai: number | null; floorPlan: number | null; transformVideo: number | null; showcase: number | null } | null = null;
 
+    // Track owner's used counts (shared pool) — set when user is a team member
+    let ownerUsedCounts: { ai: number; floorPlan: number; transformVideo: number; showcase: number } | null = null;
+
     if (!r.is_admin && !hasOwnQuotas) {
-      const teamRes = await pool.query<{ team_name: string; subscription_tier: string | null; owner_is_admin: boolean; member_cnt: string }>(
+      const teamRes = await pool.query<{
+        team_name: string; subscription_tier: string | null; owner_is_admin: boolean; member_cnt: string;
+        owner_used_ai: number; owner_used_floor: number; owner_used_video: number; owner_used_showcase: number;
+      }>(
         `SELECT t.name AS team_name, ou.subscription_tier, ou.is_admin AS owner_is_admin,
-                (SELECT COUNT(*) FROM team_members WHERE team_id = t.id)::text AS member_cnt
+                (SELECT COUNT(*) FROM team_members WHERE team_id = t.id)::text AS member_cnt,
+                ou.used_ai_visualizations AS owner_used_ai,
+                ou.used_floor_plans AS owner_used_floor,
+                ou.used_transform_videos AS owner_used_video,
+                ou.used_showcase_videos AS owner_used_showcase
          FROM team_members tm
          JOIN teams t ON t.id = tm.team_id
          JOIN users ou ON ou.id = t.owner_user_id
@@ -1025,6 +1035,13 @@ export class DatabaseStorage implements IStorage {
         teamName = tr.team_name;
         memberCount = parseInt(tr.member_cnt, 10) + 1; // +1 for owner
         maxMembers = 15;
+        // Shared pool: report owner's used counts so member sees the real team consumption
+        ownerUsedCounts = {
+          ai: tr.owner_used_ai ?? 0,
+          floorPlan: tr.owner_used_floor ?? 0,
+          transformVideo: tr.owner_used_video ?? 0,
+          showcase: tr.owner_used_showcase ?? 0,
+        };
         if (tr.owner_is_admin) {
           teamPlan = "unlimited";
         } else {
@@ -1051,10 +1068,16 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: r.used_ai_visualizations  ?? 0 } : { limit: r.quota_ai_visualizations,  used: r.used_ai_visualizations  ?? 0 };
-    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: r.used_floor_plans        ?? 0 } : { limit: r.quota_floor_plans,        used: r.used_floor_plans        ?? 0 };
-    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: r.used_transform_videos   ?? 0 } : { limit: r.quota_transform_videos,   used: r.used_transform_videos   ?? 0 };
-    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: r.used_showcase_videos    ?? 0 } : { limit: r.quota_showcase_videos,    used: r.used_showcase_videos    ?? 0 };
+    // For team members use owner's counters (shared pool); for owner/standalone use own counters
+    const usedAi            = ownerUsedCounts ? ownerUsedCounts.ai            : (r.used_ai_visualizations  ?? 0);
+    const usedFloor         = ownerUsedCounts ? ownerUsedCounts.floorPlan      : (r.used_floor_plans        ?? 0);
+    const usedVideo         = ownerUsedCounts ? ownerUsedCounts.transformVideo  : (r.used_transform_videos   ?? 0);
+    const usedShowcase      = ownerUsedCounts ? ownerUsedCounts.showcase        : (r.used_showcase_videos    ?? 0);
+
+    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: usedAi       } : { limit: r.quota_ai_visualizations,  used: usedAi       };
+    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: usedFloor    } : { limit: r.quota_floor_plans,        used: usedFloor    };
+    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: usedVideo    } : { limit: r.quota_transform_videos,   used: usedVideo    };
+    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: usedShowcase } : { limit: r.quota_showcase_videos,    used: usedShowcase };
 
     return { ai, floorPlan, transformVideo, showcase, resetsAt: r.quota_resets_at, teamPlan, teamName, memberCount, maxMembers };
   }
@@ -1105,23 +1128,30 @@ export class DatabaseStorage implements IStorage {
           const tierLimit = feature === "ai" ? q.ai : feature === "floorPlan" ? q.floorPlans : feature === "transformVideo" ? q.transformVideos : q.showcase;
           limit = tierLimit as number | null;
 
-          // ── Shared pool: auto-reset owner if needed, then track usage on owner ──
+          // ── Shared pool: auto-reset owner if needed, then atomically claim one slot ──
           await pool.query(
             `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0,
              quota_resets_at = NOW() + INTERVAL '1 month'
              WHERE id=$1 AND quota_resets_at IS NOT NULL AND quota_resets_at < NOW()`,
             [tr.owner_id]
           );
-          const ownerRes = await pool.query<{ used: number }>(
-            `SELECT used_${col} AS used FROM users WHERE id=$1`, [tr.owner_id]
-          );
-          const ownerUsed = ownerRes.rows[0]?.used ?? 0;
-          if (limit !== null && ownerUsed >= limit) {
-            return { allowed: false, remaining: 0, feature: label };
+          if (limit !== null) {
+            // Atomic increment only if under the cap — prevents concurrent over-spend
+            const atomicRes = await pool.query<{ new_used: number }>(
+              `UPDATE users SET used_${col} = used_${col} + 1
+               WHERE id=$1 AND used_${col} < $2
+               RETURNING used_${col} AS new_used`,
+              [tr.owner_id, limit]
+            );
+            if ((atomicRes.rowCount ?? 0) === 0) {
+              return { allowed: false, remaining: 0, feature: label };
+            }
+            const newUsed: number = atomicRes.rows[0].new_used;
+            return { allowed: true, remaining: limit - newUsed, feature: label };
           }
+          // Unlimited owner (no cap) — just increment
           await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [tr.owner_id]);
-          const remaining = limit === null ? null : limit - ownerUsed - 1;
-          return { allowed: true, remaining, feature: label };
+          return { allowed: true, remaining: null, feature: label };
         } else {
           return { allowed: false, remaining: 0, feature: label };
         }
