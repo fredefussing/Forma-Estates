@@ -172,27 +172,35 @@ const PRICING: Plan[] = [
 const FAQS = [
   {
     q: "Hvad er Forma Estates?",
-    a: "Forma Estates er et værktøj, der bruger kunstig intelligens til at omdesigne rum på fotos. Du uploader et billede, vælger en stil, og AI'en genererer et realistisk bud på, hvordan rummet kan se ud med ny indretning.",
+    a: "Forma Estates er en AI-platform bygget til ejendomsmæglere. Du uploader billeder af en bolig og får på få sekunder: stilfulde AI-visualiseringer af rummene i op til 8 forskellige designstile, en cinematisk ejendomsvideo med AI-kamerabevægelser og beatsynkroniseret musik, en transformationsvideo der animerer overgangen fra før til efter, en 3D-plantegning ud fra din 2D-grundplan, og professionelle PDF-præsentationer med før/efter-sammenligning — alt klar til annoncen, sociale medier og kundepræsentationer.",
   },
   {
-    q: "Hvad får jeg gratis, og hvad koster det?",
-    a: "Vælg en af vores abonnementsplaner fra 2.999 kr./md. og kom i gang med det samme. Du betaler kun for det du bruger.",
+    q: "Hvad er AI-visualiseringer, og hvad er transformationsvideoer?",
+    a: "AI-visualiseringer er stillbilleder, hvor AI'en redesigner rummet i en valgt stil — vægge, gulv og vinduer forbliver uændrede, mens møbler, belysning og overflader skiftes ud. Transformationsvideoer er 5-sekunders videoklip, der animerer selve overgangen fra det originale rum til det redesignede — ideelt til at vise boligens potentiale på Instagram og i annoncen.",
+  },
+  {
+    q: "Hvad er ejendomsvideoerne (Showcase)?",
+    a: "Showcase-videoen samler dine ejendomsbilleder til en vertikal 9:16-video med AI-genererede kamerabevægelser (dolly, orbit, panorering) og beatsynkroniseret baggrundsmusik. Resultatet er en professionel ejendomsreel klar til Instagram Reels, Facebook og boligportaler — uden kamerahold eller videoredigering.",
+  },
+  {
+    q: "Hvad koster det?",
+    a: "Abonnementer starter fra 2.999 kr./md. og giver adgang til alle funktioner: AI-visualiseringer, transformationsvideoer, ejendomsvideoer, 3D-plantegninger og PDF-præsentationer. Kontakt os for et tilbud tilpasset dit team.",
   },
   {
     q: "Hvilke filformater kan jeg uploade?",
-    a: "Vi understøtter JPG og PNG. For bedste resultat bør billedet minimum være 800×600 pixels og taget i godt lys.",
+    a: "Vi understøtter JPG og PNG. For bedste resultat bør billedet minimum være 800×600 pixels og være taget i godt, naturligt lys. Undgå stærkt modlys eller meget mørke rum — jo bedre input, jo bedre output.",
   },
   {
-    q: "Kan jeg bruge billederne i mine boligannoncer?",
-    a: "Ja. Alle genererede visualiseringer kan downloades og bruges frit i dine annoncer, på sociale medier og i trykte materialer. Vi anbefaler at markere billeder som AI-genererede i overensstemmelse med branchens retningslinjer.",
+    q: "Kan jeg bruge materialet i mine boligannoncer?",
+    a: "Ja. Alle genererede visualiseringer, videoer og PDF'er kan downloades og bruges frit i dine annoncer, på sociale medier og i trykte materialer. Vi anbefaler at markere AI-genererede billeder tydeligt i overensstemmelse med branchens retningslinjer.",
   },
   {
     q: "Bevarer AI'en rummets struktur?",
-    a: "Ja. Vægge, vinduer, gulv og rummets proportioner forbliver uændrede. Kun møbler, belysning og overflader skiftes ud, så resultatet ser realistisk ud.",
+    a: "Ja. Vægge, vinduer, gulv og rummets proportioner forbliver uændrede. Kun møbler, belysning og overflader redesignes, så resultatet ser realistisk og troværdigt ud for potentielle købere.",
   },
   {
     q: "Er mine billeder fortrolige?",
-    a: "Ja. Uploadede billeder bruges udelukkende til at generere din visualisering og deles ikke med tredjepart.",
+    a: "Ja. Uploadede billeder bruges udelukkende til at generere din visualisering og deles ikke med tredjepart. Se vores privatlivspolitik for fulde detaljer om databeskyttelse.",
   },
 ];
 
