@@ -802,10 +802,20 @@ function CookieBanner() {
     }
   }, []);
 
+  const applyGaConsent = (statistics: boolean) => {
+    try {
+      (window as any)['ga-disable-G-5BRC2FMPNT'] = !statistics;
+      if (statistics && typeof (window as any).gtag === 'function') {
+        (window as any).gtag('event', 'page_view');
+      }
+    } catch {}
+  };
+
   const persist = (consent: { necessary: true; statistics: boolean; preferences: boolean }) => {
     try {
       localStorage.setItem("forma-cookie-consent", JSON.stringify({ ...consent, ts: Date.now() }));
     } catch {}
+    applyGaConsent(consent.statistics);
     setVisible(false);
   };
 
