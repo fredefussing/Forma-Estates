@@ -6256,6 +6256,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           const isMe = m.userId === myUserId;
           const memberName = m.displayName || m.email?.split("@")[0] || "?";
           const iAmOwner = user.email?.toLowerCase() === data?.ownerEmail?.toLowerCase();
+          const iAmAdmin = data?.role === "admin" && !iAmOwner;
           const isAdmin = m.role === "admin";
           return (
             <div key={m.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0EDE7] last:border-0" data-testid={`team-member-row-${m.id}`}>
@@ -6267,6 +6268,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 </p>
                 <p className="text-xs truncate" style={{ color: "#9B9690" }}>{m.email} · {perf?.visuals ?? 0} visuals</p>
               </div>
+              {/* Ejer: ser "Gør/Fjern admin" + "Fjern" for alle andre */}
               {!isMe && iAmOwner && (
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
@@ -6284,13 +6286,15 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                   </button>
                 </div>
               )}
-              {!isMe && !iAmOwner && (
+              {/* Team-admin: kan kun fjerne normale brugere (ikke andre admins eller ejeren) */}
+              {!isMe && iAmAdmin && !isAdmin && (
                 <button onClick={() => removeMemberMutation.mutate(m.id)} disabled={removeMemberMutation.isPending}
                   className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40 flex-shrink-0"
                   style={{ borderColor: "#D9D5CF", color: "#9B9690" }} data-testid={`team-remove-member-${m.id}`}>
                   Fjern
                 </button>
               )}
+              {/* Normale brugere ser ingenting */}
             </div>
           );
         })}
