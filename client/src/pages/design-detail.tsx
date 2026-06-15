@@ -102,8 +102,12 @@ export default function DesignDetailPage() {
 
   const handleDownload = async () => {
     if (!design.resultImageUrl) return;
+    const fetchUrl = design.resultImageUrl.startsWith("http")
+      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
+      : design.resultImageUrl;
     try {
-      const response = await fetch(design.resultImageUrl);
+      const response = await fetch(fetchUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

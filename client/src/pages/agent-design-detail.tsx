@@ -32,12 +32,26 @@ export default function AgentDesignDetailPage() {
     fetchDesign();
   }, [match, params]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!design?.resultImageUrl) return;
-    const a = document.createElement("a");
-    a.href = design.resultImageUrl;
-    a.download = `nordic-homebuild-agent-${design.id}.jpg`;
-    a.click();
+    const fetchUrl = design.resultImageUrl.startsWith("http")
+      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
+      : design.resultImageUrl;
+    try {
+      const res = await fetch(fetchUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = `forma-estates-ai-design-${design.id}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      window.open(design.resultImageUrl, "_blank");
+    }
   };
 
   if (authLoading || loading) {
