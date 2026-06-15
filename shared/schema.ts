@@ -41,7 +41,7 @@ export type DesignStyle = (typeof designStyles)[number];
 export type BudgetTier = (typeof budgetTiers)[number];
 export type QuoteStatus = (typeof quoteStatuses)[number];
 
-export const freeStyles: DesignStyle[] = ["modern", "scandinavian"];
+export const freeStyles: DesignStyle[] = [];
 
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
