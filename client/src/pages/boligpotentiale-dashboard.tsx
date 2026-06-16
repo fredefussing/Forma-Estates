@@ -136,6 +136,27 @@ async function downloadCasePdf(opts: {
         format: [pageW, pageH],
       });
       pdfImg.addImage(after.dataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
+      // Watermark for images-only mode
+      const drawWatermarkImg = (imgX: number, imgY: number, imgW: number, imgH: number) => {
+        const label = "AI-redigeret";
+        const fs = Math.max(6.5, imgH * 0.032);
+        const approxW = fs * 5.6;
+        const boxH = fs * 1.55;
+        const padX = 1.8;
+        const padBottom = imgH * 0.022;
+        const bx = imgX + imgW - approxW - padX - 1;
+        const by = imgY + imgH - boxH - padBottom;
+        pdfImg.saveGraphicsState();
+        (pdfImg as any).setGState(new (pdfImg as any).GState({ opacity: 0.55 }));
+        pdfImg.setFillColor(0, 0, 0);
+        pdfImg.roundedRect(bx, by, approxW + 2, boxH, 0.8, 0.8, "F");
+        pdfImg.restoreGraphicsState();
+        pdfImg.setFont("helvetica", "bold");
+        pdfImg.setFontSize(fs);
+        pdfImg.setTextColor(255, 255, 255);
+        pdfImg.text(label, imgX + imgW - padX - 0.5, by + boxH - fs * 0.38, { align: "right" });
+      };
+      drawWatermarkImg(0, 0, pageW, pageH);
       const filenameImg = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: "pdf" });
       pdfImg.save(filenameImg);
       return { ok: true };

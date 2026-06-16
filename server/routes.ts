@@ -320,11 +320,20 @@ async function runSolid10AndGetResult(
   throw lastErr || new Error("SOLID10_FAILED");
 }
 
-// ── VST finalize: download + skarp post-processing ───────────────────────────
+// ── VST finalize: download (curl) + sharp post-processing + R2 upload ─────────
+// Uses spawn("curl") because Node.js fetch is intercepted by Replit's network layer.
 async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
-  const res = await fetch(collovUrl);
-  if (!res.ok) throw new Error(`VST: Failed to fetch image: ${res.status}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
+  const buffer = await new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const curl = spawn("curl", ["-sL", "--max-time", "60", "--fail", collovUrl]);
+    curl.stdout.on("data", (c: Buffer) => chunks.push(c));
+    curl.on("close", (code: number) => {
+      if (code !== 0) return reject(new Error(`curl exit ${code} fetching Collov image`));
+      resolve(Buffer.concat(chunks));
+    });
+    curl.on("error", reject);
+  });
+  if (buffer.length < 1000) throw new Error("VST: image buffer too small — fetch likely failed");
   const enhanced = await (sharp(buffer) as any)
     .sharpen({ sigma: 1.0, flat: 0.5, jagged: 2 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
@@ -334,8 +343,8 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const localFilePath = path.join(uploadDir, filename);
   fs.writeFileSync(localFilePath, enhanced);
-  log(`Design ${designId}: VST enhanced saved → /uploads/${filename}`);
-  r2UploadFile(localFilePath).catch(() => {});
+  log(`Design ${designId}: saved to /uploads/${filename} and queued R2 upload`);
+  r2UploadFile(localFilePath).catch((e: any) => log(`[R2] Upload failed for ${filename}: ${e?.message}`));
   return `/uploads/${filename}`;
 }
 
@@ -609,10 +618,18 @@ export async function registerRoutes(
       setImmediate(async () => {
         try {
           log(`Design ${design.id}: starting workflow...`);
-          const finalUrl = await runDesignWorkflow(
+          const collovUrl = await runDesignWorkflow(
             publicUrl, parsed.data.roomType, parsed.data.style, tier, includePlants, design.id,
           );
-          // Ingen post-processing — rå Collov CDN URL gemmes direkte (samme som agent design #58)
+          // Download from Collov, sharpen, save locally + R2 → persistent URL
+          setStatusMsg(design.id, "Gemmer billede...");
+          let finalUrl = collovUrl;
+          try {
+            finalUrl = await sharpenAndSaveVst(collovUrl, design.id);
+          } catch (saveErr: any) {
+            log(`Design ${design.id}: R2/local save failed (using Collov URL as fallback): ${saveErr?.message}`);
+            finalUrl = collovUrl;
+          }
           clearStatusMsg(design.id);
           const updated = await storage.getDesign(design.id);
           await storage.updateDesign(design.id, { status: "completed", resultImageUrl: finalUrl, versions: [finalUrl] });
@@ -1239,7 +1256,14 @@ export async function registerRoutes(
       try {
         const result = await pollCollovAgentResult(uuid);
         if (result.status === "completed" && result.resultUrl) {
-          await storage.updateAgentDesign(agentDesignId, { status: "completed", resultImageUrl: result.resultUrl });
+          // Download + save locally + R2 so URL persists beyond Collov CDN TTL
+          let persistUrl = result.resultUrl;
+          try {
+            persistUrl = await sharpenAndSaveVst(result.resultUrl, agentDesignId);
+          } catch (saveErr: any) {
+            log(`AgentDesign ${agentDesignId}: R2/local save failed (fallback to Collov URL): ${saveErr?.message}`);
+          }
+          await storage.updateAgentDesign(agentDesignId, { status: "completed", resultImageUrl: persistUrl });
           log(`AgentDesign ${agentDesignId} completed`);
           return;
         }
@@ -3012,6 +3036,14 @@ export async function registerRoutes(
       } catch (e: any) {
         return res.status(504).json({ message: e.message || "Generering fejlede" });
       }
+
+      // Persist generated images locally + R2 so they survive Collov CDN expiry
+      const persistCollov = async (url: string, suffix: number): Promise<string> => {
+        try { return await sharpenAndSaveVst(url, roomId * 1000 + suffix); }
+        catch (e: any) { log(`[ai-tour] R2 save failed (fallback): ${e?.message}`); return url; }
+      };
+      if (after1) after1 = await persistCollov(after1, 1);
+      if (after2) after2 = await persistCollov(after2, 2);
 
       const patch: any = { afterImageUrl: after1 };
       if (after2) patch.afterImageUrl2 = after2;
