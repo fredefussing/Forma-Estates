@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
 import { CrmView } from "@/components/crm-view";
-import { UserManagerView } from "@/components/user-manager-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
@@ -6898,7 +6897,6 @@ export default function BoligpotentialeDashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
-  const [crmSubTab, setCrmSubTab] = useState<"kontakter" | "brugere">("kontakter");
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -7126,7 +7124,7 @@ export default function BoligpotentialeDashboard() {
     { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" /> },
     { id: "historik" as Section, label: "Historik", icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
-    ...(isOwner ? [{ id: "crm" as Section, label: "CRM", icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
+    ...(isAdmin ? [{ id: "crm" as Section, label: "CRM", icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -7921,30 +7919,10 @@ export default function BoligpotentialeDashboard() {
             <TeamView user={user} />
           )}
 
-          {/* CRM — owner only */}
-          {section === "crm" && isOwner && (
+          {/* CRM — both admins */}
+          {section === "crm" && isAdmin && (
             <motion.div key="crm-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
-              {/* Sub-tab switcher */}
-              {isAdmin && (
-                <div className="flex gap-1 mb-4 flex-shrink-0">
-                  {([["kontakter", "📋 Kontakter"], ["brugere", "🛡️ Brugerstyring"]] as [string, string][]).map(([key, label]) => (
-                    <button key={key}
-                      onClick={() => setCrmSubTab(key as "kontakter" | "brugere")}
-                      className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                      style={{
-                        background: crmSubTab === key ? "#0F1D2F" : "transparent",
-                        color: crmSubTab === key ? "#fff" : "#6B6B6B",
-                        border: crmSubTab === key ? "none" : "1px solid #E5E2DC",
-                      }}
-                      data-testid={`crm-tab-${key}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="flex-1 overflow-hidden min-h-0">
-                {crmSubTab === "kontakter" ? <CrmView /> : <UserManagerView />}
-              </div>
+              <CrmView isOwner={isOwner} />
             </motion.div>
           )}
 

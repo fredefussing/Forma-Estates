@@ -3639,6 +3639,24 @@ export async function registerRoutes(
       if (!admin) return;
       const { search, status, plan } = req.query as Record<string, string>;
       const result = await storage.getCrmContacts({ search, status, plan });
+      // Enrich with linked user credits
+      if (result.contacts.length > 0) {
+        const linkedIds = result.contacts.filter(c => c.linkedUserId).map(c => c.linkedUserId!);
+        if (linkedIds.length > 0) {
+          const { rows: urows } = await pool.query(
+            `SELECT id, credits_remaining, total_credits_used FROM users WHERE id = ANY($1)`,
+            [linkedIds]
+          );
+          const umap = new Map(urows.map((r: any) => [r.id, r]));
+          result.contacts.forEach((c: any) => {
+            if (c.linkedUserId && umap.has(c.linkedUserId)) {
+              const u = umap.get(c.linkedUserId) as any;
+              c.creditsRemaining = u.credits_remaining;
+              c.totalCreditsUsed = u.total_credits_used;
+            }
+          });
+        }
+      }
       return res.json(result);
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
@@ -3649,7 +3667,42 @@ export async function registerRoutes(
       if (!admin) return;
       const result = await storage.getCrmContact(req.params.id);
       if (!result) return res.status(404).json({ error: "Ikke fundet" });
+      // Enrich with linked user credits + quota
+      if (result.contact.linkedUserId) {
+        const uid = result.contact.linkedUserId;
+        const { rows: ur } = await pool.query(
+          `SELECT credits_remaining, total_credits_used FROM users WHERE id = $1`, [uid]);
+        if (ur[0]) {
+          (result.contact as any).creditsRemaining = ur[0].credits_remaining;
+          (result.contact as any).totalCreditsUsed = ur[0].total_credits_used;
+        }
+        const quota = await storage.getUserQuota(uid);
+        (result as any).quota = quota;
+      }
       return res.json(result);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  // ── CRM: give credits via contact (owner only) ────────────────────────────
+  app.post("/api/crm/contacts/:id/credits/add", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller || caller.email !== "fredefussing@gmail.com") {
+        return res.status(403).json({ error: "Kun ejeren kan tildele credits" });
+      }
+      const result = await storage.getCrmContact(req.params.id);
+      if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
+      const amount = typeof req.body.amount === "number" ? Math.round(req.body.amount) : parseInt(req.body.amount);
+      if (!amount || amount < 1 || amount > 10000) return res.status(400).json({ error: "Ugyldigt antal (1–10.000)" });
+      const note = typeof req.body.note === "string" ? req.body.note.slice(0, 120) : "";
+      const description = note || `Tildelt via CRM af ${caller.email}`;
+      await storage.addCredits(result.contact.linkedUserId, amount, description);
+      // Log in timeline
+      await storage.addCrmInteraction({ contactId: req.params.id, type: "credit", content: `${amount} credits tildelt${note ? ` — ${note}` : ""}`, createdBy: caller.email });
+      const { rows: ur } = await pool.query(`SELECT credits_remaining FROM users WHERE id = $1`, [result.contact.linkedUserId]);
+      log(`[CRM] ${caller.email} gave ${amount} credits to contact ${req.params.id} → ${ur[0]?.credits_remaining}`);
+      return res.json({ success: true, creditsRemaining: ur[0]?.credits_remaining ?? 0 });
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 

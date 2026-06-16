@@ -1,0 +1,106 @@
+Byg et simpelt CRM-dashboard til Forma Estates (AI-boligvisualisering til ejendomsmæglere). 
+KUN 2 personer har adgang: fredefussing@gmail.com og nikolajthomsen0102@gmail.com.
+
+TEKNISK STACK:
+- HTML + Tailwind CSS + vanilla JavaScript (ingen framework, ingen React)
+- Firebase Authentication (Google login) + Firestore (database)
+- Deploy via Replit eller Firebase Hosting
+
+PAGES:
+
+1. LOGIN-side
+   - "Log ind med Google" knap
+   - Tjek om email er fredefussing@gmail.com eller nikolajthomsen0102@gmail.com
+   - Hvis ikke: vis "Ingen adgang. Kontakt admin."
+
+2. BRUGEROVERSIGT (/)
+   - Tabel med alle brugere
+   - Kolonner: Navn | Firma | Plan | Status | Credits tilbage | Oprettet
+   - Klik på række = åbn bruger-detail
+   - Filtrer: Alle | Aktive | Leads | Churned
+   - Søgefelt øverst
+
+3. BRUGER-DETAIL (/user/:id)
+   Layout: 3 kolonner på desktop, stacked på mobil.
+
+   KOLONNE 1 — BRUGERINFO (venstre):
+   - Navn (redigerbart)
+   - Firma (redigerbart)
+   - Telefon (redigerbart)
+   - Email
+   - Status dropdown: Lead → Trial → Aktiv → Churned
+   - Plan dropdown: Start | Pro | Business | Enterprise
+   - Oprettet dato
+   
+   KOLONNE 2 — CREDITS (midt):
+   - Nuværende credits (stort tal)
+   - 4 rækker:
+     AI Visualiseringer: [__] brugt / [__] tilgængelig
+     3D Plantegninger:   [__] brugt / [__] tilgængelig
+     Videoer:            [__] brugt / [__] tilgængelig
+     Bolig Showcase:     [__] brugt / [__] tilgængelig
+   - "Tilføj credits" knap → popup med:
+     Type: [dropdown: Visualisering / 3D / Video / Showcase]
+     Antal: [input]
+     Note: [input] (fx "Pilot bonus" eller "Kundeservice")
+     [Gem]
+   - Vis totalforbrug i kr. (beregnet fra credits × stykpris)
+
+   KOLONNE 3 — HANDLING (højre):
+   
+   A) Email-sektion:
+   - "Send privat email" → åbner modal med:
+     Til: [brugerens email]
+     Emne: [input]
+     Besked: [textarea, rich text eller plain]
+     [Send] → gemmer i timeline
+   
+   - "Send kampagne-email" → åbner modal med:
+     Vælg skabelon: [dropdown med gemte skabeloner]
+     Eller skriv ny: [textarea]
+     [Forhåndsvis] [Send]
+
+   B) Timeline:
+   - Kronologisk liste over alle hændelser
+   - Ikoner: 📝 Notat | 📧 Email sendt | 💰 Credits tilføjet | 🔄 Plan ændret
+   - "Tilføj notat" felt nederst: [textarea] + [Gem]
+   - Hvert notat viser: dato, forfatter, tekst
+
+FIREBASE DATASTRUKTUR:
+
+users/{userId}:
+  name, email, company, phone, plan, status, createdAt
+
+credits/{userId}:
+  ai_visualization: { used: 0, available: 10 }
+  floorplan_3d:     { used: 0, available: 2 }
+  video:            { used: 0, available: 2 }
+  showcase:         { used: 0, available: 1 }
+
+credit_transactions/{autoId}:
+  userId, type, amount, note, createdBy, createdAt
+
+timeline/{autoId}:
+  userId, type (note|email|credit_change|plan_change), 
+  content, createdBy, createdAt
+
+email_templates/{templateId}:
+  name, subject, body
+
+FJERN FRA NUVÆRENDE (det du IKKE skal bygge):
+- ❌ Engagement score — fjernes helt
+- ❌ "Bruger-overrides" / nøgle-værdi-par — fjernes helt  
+- ❌ "Seneste 100 handlinger" — vis kun timeline for den pågældende bruger
+- ❌ Overflødige labels — kun det der beskrevet ovenfor
+
+DESIGN:
+- Hvid baggrund, grå kantlinjer
+- Blå (#0ea5e9) som primær-farve til knapper og aktive elementer
+- Grøn (#22c55e) for positive handlinger, rød (#ef4444) for advarsler
+- Simpelt, luftigt, professionelt B2B-look
+- 14px tekst som standard, 16px overskrifter
+
+BONUS HVIS TID:
+- Email-skabeloner der kan gemmes/genbruges
+- "Eksportér brugerdata til CSV" knap
+- Enkel statistik på oversigten: "Aktive brugere: X | Credits brugt denne måned: Y"
