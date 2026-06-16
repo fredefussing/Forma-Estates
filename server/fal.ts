@@ -102,6 +102,10 @@ Preserve the exact geometry, wall placement, proportions, circulation, room layo
 
 CRITICAL: Render ONLY the rooms and area that exist in the original floor plan. Do not add, extend, invent, or outpaint any extra rooms, walls, sections, or floor area. The outer footprint and total number of rooms must match the original exactly. Keep the same framing and aspect ratio as the input image — do not enlarge the canvas or add empty space around the plan.
 
+CRITICAL — NO RECOMPOSITION: Do NOT crop, zoom in, pan, re-center, or re-frame the drawing relative to the image you receive. Reproduce the plan at the EXACT same scale and position within the frame as the input image. The walls and outer boundary must land in the same place on the canvas as in the input.
+
+CRITICAL — TERRACES STAY OPEN: Any outdoor terrace, balcony, or open area (often drawn with a thin or angled/diagonal outline rather than thick walls) MUST remain an open-air outdoor surface. Do NOT enclose it with walls, do NOT turn it into an interior room, and do NOT add a roof or new walls around it. Keep its exact angled/diagonal boundary shape from the original drawing.
+
 The final image should feel like a high-end Scandinavian real estate presentation created for luxury property marketing.
 
 STYLE & VISUAL QUALITY

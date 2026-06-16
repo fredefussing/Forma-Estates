@@ -79,7 +79,7 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
           />
 
           <div
-            className="absolute top-0 left-0 bottom-0 overflow-hidden"
+            className="absolute top-0 left-0 bottom-0 overflow-hidden bg-white"
             style={{ width: `${sliderPos}%` }}
           >
             <img
