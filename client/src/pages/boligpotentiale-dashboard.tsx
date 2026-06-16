@@ -2166,6 +2166,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isOwner = user?.email === "fredefussing@gmail.com";
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
@@ -2348,9 +2349,9 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             </div>
 
-            <Floorplan3DViewer resultUrl={resultUrl} />
+            {isOwner && <Floorplan3DViewer resultUrl={resultUrl} />}
 
-            {originalUrl && !showDollhouse && (
+            {isOwner && originalUrl && !showDollhouse && (
               <div
                 className="rounded-2xl border overflow-hidden"
                 style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}
@@ -2376,7 +2377,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                 </div>
               </div>
             )}
-            {originalUrl && showDollhouse && <FloorplanDollhouseViewer planUrl={originalUrl} />}
+            {isOwner && originalUrl && showDollhouse && <FloorplanDollhouseViewer planUrl={originalUrl} />}
 
             <div className="flex flex-wrap gap-3">
               <DownloadMenu
