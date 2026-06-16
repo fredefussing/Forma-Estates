@@ -2364,6 +2364,25 @@ export async function registerRoutes(
     }
   });
 
+  // ── 3D Depth map (DepthAnything — bruges til interaktiv HTML-viewer) ─────
+  app.post("/api/bolig/depth-map", async (req, res) => {
+    try {
+      const { imageUrl } = req.body ?? {};
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ success: false, message: "imageUrl mangler" });
+      }
+      try { await verifyFirebaseToken(req.headers.authorization); } catch {
+        return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+      }
+      const { generateDepthMap } = await import("./depth");
+      const result = await generateDepthMap(imageUrl);
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      log(`[Depth] fejl: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message || "Depth-generering mislykkedes" });
+    }
+  });
+
   // ── Transformeringsvideo (fal.ai luma dream machine — før → efter) ────────
   app.post(
     "/api/bolig/transform-video",

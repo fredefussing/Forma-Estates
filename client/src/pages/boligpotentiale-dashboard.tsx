@@ -12,6 +12,7 @@ import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
+import { Floorplan3DViewer } from "@/components/floorplan-3d-viewer";
 import { QuotaWidget, useQuotaData } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
@@ -2338,6 +2339,8 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                 {imagePreview ? "Træk slideren for at sammenligne 2D og 3D" : "AI-genereret 3D render"}
               </div>
             </div>
+
+            <Floorplan3DViewer resultUrl={resultUrl} />
 
             <div className="flex flex-wrap gap-3">
               <DownloadMenu
