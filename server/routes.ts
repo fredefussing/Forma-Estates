@@ -3639,20 +3639,50 @@ export async function registerRoutes(
       if (!admin) return;
       const { search, status, plan } = req.query as Record<string, string>;
       const result = await storage.getCrmContacts({ search, status, plan });
-      // Enrich with linked user credits
+      // Enrich with linked user credits + team info
       if (result.contacts.length > 0) {
         const linkedIds = result.contacts.filter(c => c.linkedUserId).map(c => c.linkedUserId!);
         if (linkedIds.length > 0) {
-          const { rows: urows } = await pool.query(
-            `SELECT id, credits_remaining, total_credits_used FROM users WHERE id = ANY($1)`,
-            [linkedIds]
-          );
+          const [{ rows: urows }, { rows: teamRows }] = await Promise.all([
+            pool.query(
+              `SELECT id, credits_remaining, total_credits_used, subscription_tier, subscription_status,
+                      quota_ai_visualizations, quota_floor_plans, quota_transform_videos, quota_showcase_videos,
+                      used_ai_visualizations, used_floor_plans, used_transform_videos, used_showcase_videos
+               FROM users WHERE id = ANY($1)`,
+              [linkedIds]
+            ),
+            pool.query(
+              `SELECT u_id, team_id, team_name FROM (
+                SELECT ou.id AS u_id, t.id AS team_id, t.name AS team_name
+                FROM teams t JOIN users ou ON ou.id = t.owner_user_id WHERE ou.id = ANY($1)
+                UNION
+                SELECT tm.user_id AS u_id, t.id AS team_id, t.name AS team_name
+                FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = ANY($1)
+               ) sub`,
+              [linkedIds]
+            ),
+          ]);
           const umap = new Map(urows.map((r: any) => [r.id, r]));
+          const teamMap = new Map(teamRows.map((r: any) => [r.u_id, { teamId: r.team_id, teamName: r.team_name }]));
           result.contacts.forEach((c: any) => {
-            if (c.linkedUserId && umap.has(c.linkedUserId)) {
+            if (c.linkedUserId) {
               const u = umap.get(c.linkedUserId) as any;
-              c.creditsRemaining = u.credits_remaining;
-              c.totalCreditsUsed = u.total_credits_used;
+              if (u) {
+                c.creditsRemaining = u.credits_remaining;
+                c.totalCreditsUsed = u.total_credits_used;
+                c.subscriptionTier = u.subscription_tier;
+                c.subscriptionStatus = u.subscription_status;
+                c.quotaAi = u.quota_ai_visualizations;
+                c.quotaFloor = u.quota_floor_plans;
+                c.quotaVideo = u.quota_transform_videos;
+                c.quotaShowcase = u.quota_showcase_videos;
+                c.usedAi = u.used_ai_visualizations ?? 0;
+                c.usedFloor = u.used_floor_plans ?? 0;
+                c.usedVideo = u.used_transform_videos ?? 0;
+                c.usedShowcase = u.used_showcase_videos ?? 0;
+              }
+              const team = teamMap.get(c.linkedUserId);
+              if (team) { c.teamId = team.teamId; c.teamName = team.teamName; }
             }
           });
         }
@@ -3703,6 +3733,76 @@ export async function registerRoutes(
       const { rows: ur } = await pool.query(`SELECT credits_remaining FROM users WHERE id = $1`, [result.contact.linkedUserId]);
       log(`[CRM] ${caller.email} gave ${amount} credits to contact ${req.params.id} → ${ur[0]?.credits_remaining}`);
       return res.json({ success: true, creditsRemaining: ur[0]?.credits_remaining ?? 0 });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  // ── CRM: add quota/credits by feature type (owner only) ─────────────────────
+  app.post("/api/crm/contacts/:id/quotas/add", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller || caller.email !== "fredefussing@gmail.com") return res.status(403).json({ error: "Kun ejeren" });
+      const result = await storage.getCrmContact(req.params.id);
+      if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
+      const uid2 = result.contact.linkedUserId;
+      const { type, amount, note } = req.body;
+      const n = parseInt(amount);
+      if (!n || n < 1 || n > 10000) return res.status(400).json({ error: "Ugyldigt antal" });
+      const validTypes = ["ai", "floorPlan", "transformVideo", "showcase"];
+      if (!validTypes.includes(type)) return res.status(400).json({ error: "Ugyldig type" });
+      const colMap: Record<string, string> = {
+        ai: "quota_ai_visualizations",
+        floorPlan: "quota_floor_plans",
+        transformVideo: "quota_transform_videos",
+        showcase: "quota_showcase_videos",
+      };
+      const typeLabels: Record<string, string> = { ai: "AI visualiseringer", floorPlan: "3D plantegninger", transformVideo: "videoer", showcase: "showcase-videoer" };
+      // Increase the quota limit for this feature (COALESCE so null→0 first)
+      await pool.query(
+        `UPDATE users SET ${colMap[type]} = COALESCE(${colMap[type]}, 0) + $1 WHERE id = $2`,
+        [n, uid2]
+      );
+      const noteText = note || "";
+      await storage.addCrmInteraction({ contactId: req.params.id, type: "credit", content: `+${n} ${typeLabels[type]} tildelt${noteText ? ` — ${noteText}` : ""}`, createdBy: caller.email });
+      const quota = await storage.getUserQuota(uid2);
+      return res.json({ success: true, quota });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  // ── CRM: change subscription tier (owner only) ────────────────────────────
+  app.patch("/api/crm/contacts/:id/subscription", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller || caller.email !== "fredefussing@gmail.com") return res.status(403).json({ error: "Kun ejeren" });
+      const result = await storage.getCrmContact(req.params.id);
+      if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
+      const uid2 = result.contact.linkedUserId;
+      const { tier } = req.body; // e.g. "start","pro","business","unlimited","none"
+      const QUOTAS: Record<string, { ai: number|null; fp: number|null; tv: number|null; sv: number|null }> = {
+        none:       { ai: 0,    fp: 0,    tv: 0,    sv: 0    },
+        start:      { ai: 10,   fp: 2,    tv: 2,    sv: 1    },
+        pro:        { ai: 25,   fp: 5,    tv: 5,    sv: 3    },
+        business:   { ai: 60,   fp: 12,   tv: 12,   sv: 8    },
+        unlimited:  { ai: null, fp: null, tv: null, sv: null },
+      };
+      if (!QUOTAS[tier]) return res.status(400).json({ error: "Ugyldigt abonnement" });
+      const q = QUOTAS[tier];
+      const status = tier === "none" ? "none" : "active";
+      await pool.query(`
+        UPDATE users SET
+          subscription_tier = $1,
+          subscription_status = $2,
+          quota_ai_visualizations = $3,
+          quota_floor_plans = $4,
+          quota_transform_videos = $5,
+          quota_showcase_videos = $6
+        WHERE id = $7
+      `, [tier === "none" ? null : tier, status, q.ai, q.fp, q.tv, q.sv, uid2]);
+      const tierLabel: Record<string, string> = { none: "Ingen plan", start: "Start", pro: "Pro", business: "Business", unlimited: "Unlimited" };
+      await storage.addCrmInteraction({ contactId: req.params.id, type: "plan_change", content: `Abonnement ændret til ${tierLabel[tier] ?? tier}`, createdBy: caller.email });
+      log(`[CRM] ${caller.email} set subscription for user ${uid2} → ${tier}`);
+      return res.json({ success: true, tier });
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
