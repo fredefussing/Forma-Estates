@@ -100,6 +100,8 @@ const FLOORPLAN_3D_PROMPT = `Use the attached floor plan as a STRICT spatial and
 
 Preserve the exact geometry, wall placement, proportions, circulation, room layout, windows, doors, and all architectural boundaries precisely as shown in the original 2D floor plan. Do not redesign, reinterpret, simplify, or modify the structure in any way.
 
+CRITICAL: Render ONLY the rooms and area that exist in the original floor plan. Do not add, extend, invent, or outpaint any extra rooms, walls, sections, or floor area. The outer footprint and total number of rooms must match the original exactly. Keep the same framing and aspect ratio as the input image — do not enlarge the canvas or add empty space around the plan.
+
 The final image should feel like a high-end Scandinavian real estate presentation created for luxury property marketing.
 
 STYLE & VISUAL QUALITY
@@ -255,7 +257,9 @@ The final result should look like a luxury real estate marketing visualization r
 // (auto-crop), let kontrast-boost. Renser UI-artefakter (knapper, hvide
 // margener, overskrifter) der ellers forvirrer modellen og får den til at
 // generere interior renders i stedet for dollhouse-views.
-async function preprocessFloorplan(sourceUrl: string): Promise<string> {
+async function preprocessFloorplan(
+  sourceUrl: string,
+): Promise<{ url: string; width: number; height: number }> {
   const image = await Jimp.read(sourceUrl);
   // Auto-crop hvide/lyse kanter rundt om selve plantegningen
   try {
@@ -265,9 +269,48 @@ async function preprocessFloorplan(sourceUrl: string): Promise<string> {
   }
   // Let kontrast-boost for at fremhæve vægge
   image.contrast(0.15);
+  const width = image.bitmap.width;
+  const height = image.bitmap.height;
   const buffer = await image.getBuffer(JimpMime.jpeg);
   const file = new File([buffer], `floorplan_${Date.now()}.jpg`, { type: "image/jpeg" });
-  return await fal.storage.upload(file);
+  const url = await fal.storage.upload(file);
+  return { url, width, height };
+}
+
+// Map et vilkårligt billed-størrelsesforhold til den nærmeste aspect_ratio som
+// nano-banana-2/edit understøtter. Vi låser output til input-formatet, så
+// modellen ikke selv vælger et større lærred og "outpainter" ekstra rum.
+type FloorplanAspectRatio =
+  | "9:16" | "2:3" | "3:4" | "4:5" | "1:1"
+  | "5:4" | "4:3" | "3:2" | "16:9" | "21:9";
+
+function nearestSupportedAspectRatio(
+  width: number,
+  height: number,
+): FloorplanAspectRatio {
+  const supported: Array<[FloorplanAspectRatio, number]> = [
+    ["9:16", 9 / 16],
+    ["2:3", 2 / 3],
+    ["3:4", 3 / 4],
+    ["4:5", 4 / 5],
+    ["1:1", 1],
+    ["5:4", 5 / 4],
+    ["4:3", 4 / 3],
+    ["3:2", 3 / 2],
+    ["16:9", 16 / 9],
+    ["21:9", 21 / 9],
+  ];
+  const target = width / height;
+  let best = supported[0];
+  let bestDiff = Infinity;
+  for (const entry of supported) {
+    const diff = Math.abs(entry[1] - target);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = entry;
+    }
+  }
+  return best[0];
 }
 
 
@@ -278,8 +321,17 @@ export async function generate3DFloorplan(
   // den oprindelige URL hvis preprocessing fejler — så vi aldrig blokerer
   // selve generereringen pga. en jimp-fejl.
   let inputUrl = floorPlanImageUrl;
+  // "auto" lader modellen selv vælge lærred — det giver et andet format end
+  // input og får den til at outpainte ekstra rum. Vi låser det til input-
+  // formatet når preprocessing lykkes.
+  let aspectRatio: FloorplanAspectRatio | "auto" = "auto";
   try {
-    inputUrl = await preprocessFloorplan(floorPlanImageUrl);
+    const pre = await preprocessFloorplan(floorPlanImageUrl);
+    inputUrl = pre.url;
+    aspectRatio = nearestSupportedAspectRatio(pre.width, pre.height);
+    console.log(
+      `[generate3DFloorplan] input ${pre.width}x${pre.height} -> aspect_ratio ${aspectRatio}`,
+    );
   } catch (e) {
     console.warn("[generate3DFloorplan] preprocess failed, using raw URL:", e);
   }
@@ -289,6 +341,7 @@ export async function generate3DFloorplan(
       prompt: FLOORPLAN_3D_PROMPT,
       image_urls: [inputUrl],
       resolution: "2K",
+      aspect_ratio: aspectRatio,
     },
   });
 
