@@ -55,54 +55,74 @@ function b64ToDataUrl(b64, mime) { return 'data:' + mime + ';base64,' + b64; }
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0F1D2F);
 
-const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.01, 50);
-camera.position.set(0, 0.5, 3.2);
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.01, 100);
+camera.position.set(0, 2.6, 1.5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
+// Diorama-opsætning: planet lægges fladt og kameraet kigger ned ovenfra.
+// Polar-vinklen begrænses, så man aldrig kan rotere ned til den flade "ark"-
+// kant, hvor displacement-teknikken bryder sammen — kun den pæne 3D-skråvinkel.
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 1.0;
-controls.maxDistance = 6.0;
-controls.minPolarAngle = 0.1;
-controls.maxPolarAngle = Math.PI / 1.8;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1.3;
+controls.maxDistance = 4.5;
+controls.minPolarAngle = 0.0;
+controls.maxPolarAngle = 0.95;
+controls.enablePan = false;
+controls.target.set(0, 0, 0);
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.6;
+controls.autoRotateSpeed = 0.5;
 
 controls.addEventListener('start', () => { controls.autoRotate = false; hideHint(); });
 
-const loader = new THREE.TextureLoader();
+const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+scene.add(ambient);
+const key = new THREE.DirectionalLight(0xfff5ee, 0.85);
+key.position.set(2, 5, 2);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xd0e8ff, 0.35);
+fill.position.set(-2, 3, -1);
+scene.add(fill);
+
+const manager = new THREE.LoadingManager();
+const loader = new THREE.TextureLoader(manager);
 const imgTex = loader.load(b64ToDataUrl(IMAGE_B64, IMAGE_MIME));
 const depthTex = loader.load(b64ToDataUrl(DEPTH_B64, 'image/png'));
 imgTex.colorSpace = THREE.SRGBColorSpace;
+imgTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-const aspect = 4 / 3;
-const geo = new THREE.PlaneGeometry(aspect * 2.2, 2.2, 220, 165);
-const mat = new THREE.MeshStandardMaterial({
-  map: imgTex,
-  displacementMap: depthTex,
-  displacementScale: 0.38,
-  displacementBias: -0.18,
-  roughness: 0.85,
-  metalness: 0.0,
-});
-const plane = new THREE.Mesh(geo, mat);
-scene.add(plane);
-
-const ambient = new THREE.AmbientLight(0xffffff, 1.1);
-scene.add(ambient);
-const key = new THREE.DirectionalLight(0xfff5ee, 0.7);
-key.position.set(2, 3, 2);
-scene.add(key);
-const fill = new THREE.DirectionalLight(0xd0e8ff, 0.3);
-fill.position.set(-2, 1, -1);
-scene.add(fill);
-
-document.getElementById('loading').style.display = 'none';
+// Byg geometrien først når billedet er hentet, så vi kender det rigtige
+// størrelsesforhold og undgår at strække plantegningen.
+manager.onLoad = () => {
+  const iw = imgTex.image.width || 4;
+  const ih = imgTex.image.height || 3;
+  const aspect = iw / ih;
+  const planeH = 2.4;
+  const planeW = planeH * aspect;
+  // Klamp segment-antallet, så et ekstremt portræt-format ikke sprænger
+  // vertex-budgettet på svage GPU'er.
+  const segX = Math.min(480, Math.round(360 * Math.max(1, aspect)));
+  const segY = Math.min(480, Math.max(1, Math.round(segX / aspect)));
+  const geo = new THREE.PlaneGeometry(planeW, planeH, segX, segY);
+  const mat = new THREE.MeshStandardMaterial({
+    map: imgTex,
+    displacementMap: depthTex,
+    displacementScale: 0.16,
+    displacementBias: -0.04,
+    roughness: 0.9,
+    metalness: 0.0,
+  });
+  const plane = new THREE.Mesh(geo, mat);
+  plane.rotation.x = -Math.PI / 2;
+  scene.add(plane);
+  document.getElementById('loading').style.display = 'none';
+};
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;

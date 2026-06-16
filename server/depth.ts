@@ -41,26 +41,30 @@ export async function generateDepthMap(imageUrl: string): Promise<{
     const srcData: Uint8ClampedArray = depth.data;
     const channels: number = depth.channels ?? 1;
 
-    // Build a raw RGBA buffer for the PNG
-    const rgba = Buffer.alloc(w * h * 4);
+    // Normaliser dybdeværdierne til fuld 0–255 range for et renere relief.
+    let min = 255;
+    let max = 0;
     for (let i = 0; i < w * h; i++) {
       const v = channels === 1 ? srcData[i] : srcData[i * channels];
-      rgba[i * 4 + 0] = v;
-      rgba[i * 4 + 1] = v;
-      rgba[i * 4 + 2] = v;
-      rgba[i * 4 + 3] = 255;
+      if (v < min) min = v;
+      if (v > max) max = v;
     }
+    const range = Math.max(1, max - min);
 
     // Use Jimp v1 API: Jimp.fromBitmap or create via constructor
     const { Jimp, rgbaToInt } = await import("jimp");
     const depthImg = new Jimp({ width: w, height: h });
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        const i = y * w + x;
-        const v = channels === 1 ? srcData[i] : srcData[i * channels];
+        const raw =
+          channels === 1 ? srcData[y * w + x] : srcData[(y * w + x) * channels];
+        const v = Math.round(((raw - min) / range) * 255);
         depthImg.setPixelColor(rgbaToInt(v, v, v, 255), x, y);
       }
     }
+    // Glat dybdekortet, så væg-/møbelkanter bliver bløde ramper i stedet for
+    // skarpe lodrette spring, der ellers river den displacede geometri i stykker.
+    depthImg.blur(3);
     const depthBuffer = await depthImg.getBuffer("image/png");
     const imageBuffer = fs.readFileSync(tmpInput);
 

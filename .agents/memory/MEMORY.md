@@ -4,3 +4,4 @@
 - [FFmpeg looped audio bed](ffmpeg-looped-audio.md) — never `-shortest` with `-stream_loop -1` audio (it deadlocks/fails); cap with `-t videoTotal`. Also: `tsx` dev server needs a workflow restart for server edits.
 - [Replit dev: Node.js HTTP intercepted](replit-nodejs-http-proxy.md) — Node.js fetch() and https.get() are intercepted by Replit's network layer; use spawn("curl") instead for server-side external fetches.
 - [Kling v1.6 image-to-video field modes](fal-kling-video-modes.md) — single-image mode requires `image_url`, not `start_image_url`; 422 surfaces at generation poll, not at submit.
+- [Depth-displacement diorama viewer](depth-displacement-diorama.md) — single-plane depth viewer is 2.5D relief; lay flat + constrain polar angle so users never see the torn edge-on view.
