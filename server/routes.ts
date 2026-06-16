@@ -2014,23 +2014,28 @@ export async function registerRoutes(
         const imgH = meta.height || 1067;
 
         // ── Watermark: brændes ALTID ind — kan ikke frakobles ─────────────────
-        const fontSize = Math.max(12, Math.round(imgH * 0.018));
-        const padX = Math.round(imgW * 0.014);
-        const padY = Math.round(imgH * 0.016);
-        const approxTextW = Math.round(fontSize * 5.8);
-        const boxH = Math.round(fontSize * 1.65);
-        const boxW = approxTextW + Math.round(padX * 0.9);
-        const boxX = imgW - boxW - padX;
-        const boxY = imgH - boxH - padY;
-        const textX = imgW - padX - Math.round(padX * 0.35);
-        const textY = boxY + boxH - Math.round(boxH * 0.26);
+        // Font: minimum 26px, skalerer med billedets højde
+        const fontSize = Math.max(26, Math.round(imgH * 0.032));
+        const padRight = Math.round(imgW * 0.022);
+        const padBottom = Math.round(imgH * 0.022);
+        const hPad = Math.round(fontSize * 0.55);
+        const vPad = Math.round(fontSize * 0.38);
+        const approxTextW = Math.round(fontSize * 5.6); // "AI-redigeret" ≈ 5.6× font
+        const boxW = approxTextW + hPad * 2;
+        const boxH = Math.round(fontSize * 1.55);
+        const rx = Math.round(boxH * 0.28);
+        const boxX = imgW - boxW - padRight;
+        const boxY = imgH - boxH - padBottom;
+        // Text baseline: vertically centred inside box
+        const textX = boxX + boxW / 2;
+        const textY = boxY + boxH - vPad;
 
         const svgWatermark = Buffer.from(
           `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` +
-          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${Math.round(boxH * 0.32)}" fill="rgba(0,0,0,0.42)"/>` +
+          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(0,0,0,0.55)"/>` +
           `<text x="${textX}" y="${textY}" ` +
-          `font-family="Helvetica,Arial,sans-serif" font-size="${fontSize}" font-weight="600" ` +
-          `letter-spacing="0.07em" fill="rgba(255,255,255,0.88)" text-anchor="end">AI-redigeret</text>` +
+          `font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="700" ` +
+          `letter-spacing="1" fill="#FFFFFF" text-anchor="middle">AI-redigeret</text>` +
           `</svg>`
         );
 
