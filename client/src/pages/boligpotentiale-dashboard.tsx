@@ -6389,7 +6389,7 @@ function saveJSON(key: string, value: unknown) { try { localStorage.setItem(key,
 // user's chosen accent color, and adjusts contrast text color.
 function applyBoligBrand() {
   if (typeof document === "undefined") return;
-  const accent = loadJSON<string>("bolig-accent", "bronze");
+  const accent = loadJSON<string>("bolig-accent", "navy");
   const textMode = loadJSON<"light" | "dark">("bolig-text-mode", "light");
   const accentColor = ACCENT_COLORS[accent] ?? "#0F1D2F";
   const bg = textMode === "light" ? accentColor : `${accentColor}26`;
@@ -6444,7 +6444,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 
   // ── Udseende ──
   const [theme, setTheme] = useState<string>(() => loadJSON("bolig-theme", "lys"));
-  const [accent, setAccent] = useState<string>(() => loadJSON("bolig-accent", "bronze"));
+  const [accent, setAccent] = useState<string>(() => loadJSON("bolig-accent", "navy"));
   const [textMode, setTextMode] = useState<"light" | "dark">(() => loadJSON("bolig-text-mode", "light"));
   const handleAccent = (v: string) => { setAccent(v); saveJSON("bolig-accent", v); applyBoligBrand(); };
   const handleTextMode = (v: "light" | "dark") => { setTextMode(v); saveJSON("bolig-text-mode", v); applyBoligBrand(); };
