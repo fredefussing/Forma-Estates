@@ -42,3 +42,9 @@ id = "t6fyeaPKAcojuFH-wIVu8"
 uri = "file://server/music/modern.mp3"
 type = "audio"
 title = "modern lofi house bed"
+
+[[outputs]]
+id = "p5jt75fV8wV9jjPSNtA7W"
+uri = "file://client/public/test-watermark.jpg"
+type = "image"
+title = "Test: AI-redigeret watermark"
