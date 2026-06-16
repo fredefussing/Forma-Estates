@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, User, Shield, Check, X, ChevronRight, ArrowLeft, AlertTriangle, Crown, CreditCard, Calendar, Hash } from "lucide-react";
+import { Search, User, Shield, Check, X, ChevronRight, ArrowLeft, AlertTriangle, Crown, CreditCard, Calendar, Hash, Plus, RefreshCw, Zap, TrendingDown, TrendingUp } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -43,6 +43,7 @@ type UserDetail = UserSummary & {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (d: string) => new Date(d).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" });
+const fmtTime = (d: string) => new Date(d).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   active:   { bg: "#F0FDF4", text: "#166534", label: "Aktiv betaler" },
@@ -55,6 +56,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
 const PLAN_LABELS: Record<string, string> = {
   none: "Ingen plan", start: "Start", pro: "Pro", business: "Business", enterprise: "Enterprise",
 };
+
+const QUICK_AMOUNTS = [10, 25, 50, 100];
 
 // ── Confirm dialog ────────────────────────────────────────────────────────────
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
@@ -76,17 +79,168 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
   );
 }
 
+// ── Live Credit Panel ─────────────────────────────────────────────────────────
+function LiveCreditPanel({ userId, initialCredits, totalUsed }: { userId: number; initialCredits: number; totalUsed: number }) {
+  const qc = useQueryClient();
+  const [customAmount, setCustomAmount] = useState("");
+  const [lastAdded, setLastAdded] = useState<number | null>(null);
+  const [liveCredits, setLiveCredits] = useState(initialCredits);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchLiveCredits = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setRefreshing(true);
+    try {
+      const res = await adminFetch(`/api/admin/users/${userId}`);
+      const data = await res.json();
+      setLiveCredits(data.creditsRemaining ?? liveCredits);
+    } catch {}
+    if (showSpinner) setRefreshing(false);
+  }, [userId, liveCredits]);
+
+  useEffect(() => {
+    setLiveCredits(initialCredits);
+  }, [initialCredits]);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => fetchLiveCredits(), 8000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [fetchLiveCredits]);
+
+  const addMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      return adminReq("POST", `/api/admin/users/${userId}/credits/add`, { amount });
+    },
+    onSuccess: (data, amount) => {
+      setLiveCredits(data.creditsRemaining);
+      setLastAdded(amount);
+      setCustomAmount("");
+      setErrorMsg(null);
+      setTimeout(() => setLastAdded(null), 3000);
+      qc.invalidateQueries({ queryKey: ["/api/admin/users", userId] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/users/search"] });
+    },
+    onError: (err: Error) => {
+      setErrorMsg(err.message.replace(/^\d+:\s*/, "").replace(/^\{.*"message":"([^"]+)".*\}$/, "$1"));
+      setTimeout(() => setErrorMsg(null), 4000);
+    },
+  });
+
+  const handleAdd = (amount: number) => {
+    if (amount < 1 || addMutation.isPending) return;
+    addMutation.mutate(amount);
+  };
+
+  const handleCustom = () => {
+    const n = parseInt(customAmount);
+    if (!n || n < 1 || n > 10000) { setErrorMsg("Angiv et tal mellem 1 og 10.000"); setTimeout(() => setErrorMsg(null), 3000); return; }
+    handleAdd(n);
+  };
+
+  const creditColor = liveCredits === 0 ? "#DC2626" : liveCredits < 5 ? "#C2410C" : "#16A34A";
+
+  return (
+    <div className="rounded-2xl border p-5 mb-4" style={{ borderColor: liveCredits === 0 ? "#FCA5A5" : "#E5E2DC", background: liveCredits === 0 ? "#FEF2F2" : "#fff" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4" style={{ color: "#C8956C" }} />
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Credits</span>
+        </div>
+        <button onClick={() => fetchLiveCredits(true)} disabled={refreshing}
+          className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-colors hover:bg-[#F0EDE7]"
+          style={{ color: "#9CA3AF" }} data-testid="button-refresh-credits">
+          <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} /> Opdater
+        </button>
+      </div>
+
+      {/* Live balance */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold tabular-nums" style={{ color: creditColor }} data-testid="text-live-credits">
+              {liveCredits.toLocaleString("da-DK")}
+            </span>
+            <span className="text-sm" style={{ color: "#9CA3AF" }}>tilbage</span>
+            {lastAdded !== null && (
+              <span className="flex items-center gap-0.5 text-xs font-semibold animate-pulse" style={{ color: "#16A34A" }}>
+                <TrendingUp className="w-3.5 h-3.5" />+{lastAdded} tildelt ✓
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 mt-1 text-xs" style={{ color: "#9CA3AF" }}>
+            <TrendingDown className="w-3 h-3" />
+            <span>{totalUsed.toLocaleString("da-DK")} brugt i alt</span>
+          </div>
+        </div>
+        {liveCredits === 0 && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5" }}>
+            <AlertTriangle className="w-3.5 h-3.5" /> Blokeret
+          </div>
+        )}
+      </div>
+
+      {/* Quick add buttons */}
+      <div className="mb-3">
+        <p className="text-[10px] font-medium uppercase tracking-wide mb-2" style={{ color: "#9CA3AF" }}>Hurtig tildeling</p>
+        <div className="grid grid-cols-4 gap-2">
+          {QUICK_AMOUNTS.map(n => (
+            <button key={n} onClick={() => handleAdd(n)}
+              disabled={addMutation.isPending}
+              className="flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+              style={{ background: "#F0EDE7", color: "#0F1D2F" }}
+              data-testid={`button-add-credits-${n}`}>
+              <Plus className="w-3 h-3" />{n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom amount */}
+      <div className="flex gap-2">
+        <input
+          type="number" min={1} max={10000}
+          value={customAmount}
+          onChange={e => setCustomAmount(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") handleCustom(); }}
+          placeholder="Andet antal…"
+          className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+          style={{ border: "1px solid #E5E2DC", background: "#FAFAF9" }}
+          data-testid="input-custom-credits"
+        />
+        <button onClick={handleCustom}
+          disabled={addMutation.isPending || !customAmount}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
+          style={{ background: "#C8956C" }}
+          data-testid="button-add-custom-credits">
+          {addMutation.isPending ? (
+            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+          ) : (
+            <><Plus className="w-4 h-4" /> Giv</>
+          )}
+        </button>
+      </div>
+
+      {errorMsg && (
+        <p className="text-xs mt-2 font-medium" style={{ color: "#DC2626" }}>{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
 // ── User Detail Panel ─────────────────────────────────────────────────────────
 function UserDetailPanel({ userId, onBack }: { userId: number; onBack: () => void }) {
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [editName, setEditName] = useState<string | null>(null);
-  const [editCredits, setEditCredits] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
   const { data: u, isLoading } = useQuery<UserDetail>({
     queryKey: ["/api/admin/users", userId],
     queryFn: async () => (await adminFetch(`/api/admin/users/${userId}`)).json(),
+    refetchInterval: 10000,
   });
 
   const patch = useMutation({
@@ -98,7 +252,6 @@ function UserDetailPanel({ userId, onBack }: { userId: number; onBack: () => voi
       setSaved(key);
       setTimeout(() => setSaved(null), 2000);
       setEditName(null);
-      setEditCredits(null);
     },
   });
 
@@ -149,9 +302,11 @@ function UserDetailPanel({ userId, onBack }: { userId: number; onBack: () => voi
           <div className="flex items-center gap-2"><Hash className="w-3 h-3" /> Bruger-ID: <span className="font-mono font-medium" style={{ color: "#0F1D2F" }}>#{u.id}</span></div>
           {u.customerCode && <div className="flex items-center gap-2"><Hash className="w-3 h-3" /> Kundekode: <span className="font-mono font-medium" style={{ color: "#0F1D2F" }}>{u.customerCode}</span></div>}
           <div className="flex items-center gap-2"><Calendar className="w-3 h-3" /> Oprettet: <span style={{ color: "#0F1D2F" }}>{fmt(u.createdAt)}</span></div>
-          <div className="flex items-center gap-2"><CreditCard className="w-3 h-3" /> Credits: <span style={{ color: "#0F1D2F" }}>{u.creditsRemaining} tilbage / {u.totalCreditsUsed} brugt</span></div>
         </div>
       </div>
+
+      {/* ── Live Credit Panel (owner-only action) ── */}
+      <LiveCreditPanel userId={u.id} initialCredits={u.creditsRemaining} totalUsed={u.totalCreditsUsed} />
 
       {/* Editable fields */}
       <div className="rounded-2xl border p-5 mb-4 space-y-5" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
@@ -218,33 +373,6 @@ function UserDetailPanel({ userId, onBack }: { userId: number; onBack: () => voi
             <option value="paused">Sat på pause</option>
           </select>
           {saved === "subscriptionStatus" && <p className="text-[10px] mt-1 font-semibold" style={{ color: "#16A34A" }}>✓ Gemt</p>}
-        </div>
-
-        {/* Credits */}
-        <div>
-          <label className="text-[11px] font-medium uppercase tracking-wide block mb-1" style={{ color: "#9CA3AF" }}>Credits (direkte)</label>
-          {editCredits !== null ? (
-            <div className="flex gap-2">
-              <input type="number" value={editCredits} onChange={e => setEditCredits(e.target.value)} min={0} max={9999}
-                onKeyDown={e => { if (e.key === "Enter" && editCredits !== null) patch.mutate({ creditsRemaining: parseInt(editCredits) }); if (e.key === "Escape") setEditCredits(null); }}
-                autoFocus className="flex-1 rounded-lg px-3 py-1.5 text-sm outline-none"
-                style={{ border: "1px solid #C8956C" }} data-testid="input-user-credits" />
-              <button onClick={() => editCredits !== null && patch.mutate({ creditsRemaining: parseInt(editCredits) })}
-                className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#F0FDF4" }}>
-                <Check className="w-3.5 h-3.5" style={{ color: "#16A34A" }} />
-              </button>
-              <button onClick={() => setEditCredits(null)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#FEF2F2" }}>
-                <X className="w-3.5 h-3.5" style={{ color: "#DC2626" }} />
-              </button>
-            </div>
-          ) : (
-            <div onClick={() => setEditCredits(String(u.creditsRemaining))} className="cursor-pointer rounded-lg px-3 py-1.5 text-sm hover:bg-[#F8F6F3] transition-colors"
-              style={{ color: "#0F1D2F", border: "1px solid #E5E2DC" }} data-testid="field-user-credits">
-              {u.creditsRemaining} credits
-              {saved === "creditsRemaining" && <span className="ml-2 text-[10px] font-semibold" style={{ color: "#16A34A" }}>✓ Gemt</span>}
-            </div>
-          )}
         </div>
 
         {/* Admin toggle */}
@@ -336,7 +464,7 @@ export function UserManagerView() {
       setIsLoading(true);
       setSearchError(null);
       try {
-        const token = await auth.currentUser?.getIdToken(true);
+        const token = await auth.currentUser?.getIdToken();
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(q)}`, {
           headers,
@@ -371,7 +499,7 @@ export function UserManagerView() {
           <Shield className="w-4 h-4" style={{ color: "#C8956C" }} />
           <h2 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Brugerstyring</h2>
         </div>
-        <p className="text-xs" style={{ color: "#9CA3AF" }}>Søg efter en bruger via email eller navn for at redigere deres profil</p>
+        <p className="text-xs" style={{ color: "#9CA3AF" }}>Søg efter en bruger via email eller navn — kun du kan tildele credits</p>
       </div>
 
       {/* Search */}
@@ -411,6 +539,7 @@ export function UserManagerView() {
         <div className="rounded-2xl border overflow-hidden flex-1 overflow-y-auto" style={{ borderColor: "#E5E2DC" }}>
           {results.map((u, i) => {
             const sc = STATUS_COLORS[u.subscriptionStatus] ?? STATUS_COLORS.none;
+            const creditColor = u.creditsRemaining === 0 ? "#DC2626" : u.creditsRemaining < 5 ? "#C2410C" : "#16A34A";
             return (
               <button key={u.id} onClick={() => setSelectedId(u.id)} className="w-full text-left transition-colors hover:bg-[#F8F6F3]"
                 style={{ borderTop: i > 0 ? "1px solid #F0EDE7" : "none", display: "block" }}
@@ -432,18 +561,14 @@ export function UserManagerView() {
                     </div>
                     <div className="text-xs truncate" style={{ color: "#6B6B6B" }}>{u.email}</div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.text }}>
-                      {sc.label}
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: sc.bg, color: sc.text }}>{sc.label}</span>
+                    <span className="text-[10px] font-bold tabular-nums" style={{ color: creditColor }}>
+                      {u.creditsRemaining === 0 ? "⚠ 0 credits" : `${u.creditsRemaining.toLocaleString("da-DK")} credits`}
                     </span>
-                    {u.subscriptionTier && u.subscriptionTier !== "none" && (
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                        style={{ background: "#EFF6FF", color: "#1D4ED8" }}>
-                        {PLAN_LABELS[u.subscriptionTier] ?? u.subscriptionTier}
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4" style={{ color: "#D1CEC9" }} />
                   </div>
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "#D1CEC9" }} />
                 </div>
               </button>
             );
@@ -452,10 +577,14 @@ export function UserManagerView() {
       )}
 
       {!query.trim() && (
-        <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "#E5E2DC", background: "#fff" }}>
-          <Search className="w-8 h-8 mx-auto mb-2" style={{ color: "#D1CEC9" }} />
-          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Find en bruger</p>
-          <p className="text-xs" style={{ color: "#9CA3AF" }}>Skriv en email eller del af et navn for at søge</p>
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "#F0EDE7" }}>
+            <Zap className="w-6 h-6" style={{ color: "#C8956C" }} />
+          </div>
+          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Tildel credits til brugere</p>
+          <p className="text-xs max-w-xs" style={{ color: "#9CA3AF" }}>
+            Søg efter en bruger ovenfor. Kun du kan give credits — når de løber tør, kan de ikke generere.
+          </p>
         </div>
       )}
     </div>

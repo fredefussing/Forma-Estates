@@ -2188,6 +2188,30 @@ export async function registerRoutes(
     }
   });
 
+  // ── Owner-only: tilføj credits til bruger (atomisk increment) ───────────────
+  app.post("/api/admin/users/:id/credits/add", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const caller = await storage.getUserByFirebaseUid(uid);
+      // Only the platform owner may give credits
+      if (!caller || caller.email !== "fredefussing@gmail.com") {
+        return res.status(403).json({ message: "Kun ejeren kan tildele credits" });
+      }
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) return res.status(400).json({ message: "Ugyldigt bruger-id" });
+      const amount = typeof req.body.amount === "number" ? Math.round(req.body.amount) : parseInt(req.body.amount);
+      if (!amount || amount < 1 || amount > 10000) return res.status(400).json({ message: "Ugyldigt beløb (1–10000)" });
+      const description = typeof req.body.description === "string" ? req.body.description.slice(0, 120) : `Tildelt af ${caller.email}`;
+      await storage.addCredits(userId, amount, description);
+      const updated = await storage.getUserById(userId);
+      if (!updated) return res.status(404).json({ message: "Bruger ikke fundet" });
+      log(`[CRM] ${caller.email} gave ${amount} credits to user #${userId} (${updated.email}) — new total: ${updated.creditsRemaining}`);
+      return res.json({ success: true, creditsRemaining: updated.creditsRemaining });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.patch("/api/admin/users/:id/quota", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);

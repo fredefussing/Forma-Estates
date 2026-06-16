@@ -75,19 +75,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
         verifyWithBackend(firebaseUser);
+        // Poll credits every 60s so live CRM credit grants appear on dashboard
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(async () => {
+          try {
+            const token = await firebaseUser.getIdToken();
+            const res = await fetch("/api/credits", { headers: { Authorization: `Bearer ${token}` } });
+            if (res.ok) {
+              const data = await res.json();
+              setCreditsRemaining(data.creditsRemaining);
+              if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin);
+              setSubscriptionStatus(data.subscriptionStatus || "none");
+              setSubscriptionTier(data.subscriptionTier || null);
+            }
+          } catch {}
+        }, 60000);
       } else {
         setCreditsRemaining(null);
         setIsAdmin(false);
         setSubscriptionStatus("none");
         setSubscriptionTier(null);
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
       }
       setLoading(false);
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribe();
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [verifyWithBackend]);
 
   return (
