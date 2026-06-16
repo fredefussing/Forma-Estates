@@ -2001,8 +2001,6 @@ export async function registerRoutes(
     const format = (req.query.format as string | undefined) ?? "jpg";
     if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
 
-    // Node.js HTTP/fetch is intercepted by Replit's network layer in dev.
-    // curl has direct OS-level network access and bypasses it.
     const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", url]);
 
     const chunks: Buffer[] = [];
@@ -2011,15 +2009,41 @@ export async function registerRoutes(
       if (code !== 0) { res.status(502).send("Image fetch failed"); return; }
       try {
         const buf = Buffer.concat(chunks);
+        const meta = await sharp(buf).metadata();
+        const imgW = meta.width || 1600;
+        const imgH = meta.height || 1067;
+
+        // ── Watermark: brændes ALTID ind — kan ikke frakobles ─────────────────
+        const fontSize = Math.max(12, Math.round(imgH * 0.018));
+        const padX = Math.round(imgW * 0.014);
+        const padY = Math.round(imgH * 0.016);
+        const approxTextW = Math.round(fontSize * 5.8);
+        const boxH = Math.round(fontSize * 1.65);
+        const boxW = approxTextW + Math.round(padX * 0.9);
+        const boxX = imgW - boxW - padX;
+        const boxY = imgH - boxH - padY;
+        const textX = imgW - padX - Math.round(padX * 0.35);
+        const textY = boxY + boxH - Math.round(boxH * 0.26);
+
+        const svgWatermark = Buffer.from(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` +
+          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${Math.round(boxH * 0.32)}" fill="rgba(0,0,0,0.42)"/>` +
+          `<text x="${textX}" y="${textY}" ` +
+          `font-family="Helvetica,Arial,sans-serif" font-size="${fontSize}" font-weight="600" ` +
+          `letter-spacing="0.07em" fill="rgba(255,255,255,0.88)" text-anchor="end">AI-redigeret</text>` +
+          `</svg>`
+        );
+
         if (format === "png") {
-          const pngBuf = await sharp(buf).png().toBuffer();
+          const out = await sharp(buf).composite([{ input: svgWatermark, blend: "over" }]).png().toBuffer();
           res.setHeader("Content-Type", "image/png");
           res.setHeader("Cache-Control", "private, max-age=86400");
-          res.end(pngBuf);
+          res.end(out);
         } else {
+          const out = await sharp(buf).composite([{ input: svgWatermark, blend: "over" }]).jpeg({ quality: 92 }).toBuffer();
           res.setHeader("Content-Type", "image/jpeg");
           res.setHeader("Cache-Control", "private, max-age=86400");
-          res.end(buf);
+          res.end(out);
         }
       } catch (e: any) {
         res.status(502).send(e.message || "Conversion failed");

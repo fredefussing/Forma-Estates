@@ -153,6 +153,26 @@ async function downloadCasePdf(opts: {
     const muted = [107, 107, 107] as const;
     const accent = [200, 149, 108] as const;
 
+    const drawWatermark = (imgX: number, imgY: number, imgW: number, imgH: number) => {
+      const label = "AI-redigeret";
+      const fs = 6.5;
+      const approxW = 19;
+      const boxH = 4.2;
+      const padX = 1.4;
+      const bx = imgX + imgW - approxW - padX;
+      const by = imgY + imgH - boxH - 1.8;
+      pdf.saveGraphicsState();
+      (pdf as any).setGState(new (pdf as any).GState({ opacity: 0.45 }));
+      pdf.setFillColor(0, 0, 0);
+      pdf.roundedRect(bx, by, approxW, boxH, 0.8, 0.8, "F");
+      pdf.restoreGraphicsState();
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(fs);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(label, imgX + imgW - padX - 0.5, by + boxH - 1.1, { align: "right" });
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
+    };
+
     const drawFooter = () => {
       pdf.setDrawColor(217, 213, 207);
       pdf.setLineWidth(0.2);
@@ -206,6 +226,7 @@ async function downloadCasePdf(opts: {
     const heroX = (pageW - heroW) / 2;
     const heroY = metaY + 8;
     pdf.addImage(after.dataUrl, "JPEG", heroX, heroY, heroW, heroH, undefined, "FAST");
+    drawWatermark(heroX, heroY, heroW, heroH);
     drawFooter();
 
     // ── Page 2: Før / Efter (or large single) ────────────────────────────────
@@ -228,6 +249,7 @@ async function downloadCasePdf(opts: {
         if (h > maxH) { h = maxH; w = maxH * r; }
         const ox = x + (half - w) / 2;
         pdf.addImage(img.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
+        drawWatermark(ox, imgTop, w, h);
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(9);
         pdf.setTextColor(accent[0], accent[1], accent[2]);
@@ -241,7 +263,9 @@ async function downloadCasePdf(opts: {
       const r = after.w / after.h;
       let w = maxW, h = maxW / r;
       if (h > maxH) { h = maxH; w = maxH * r; }
-      pdf.addImage(after.dataUrl, "JPEG", (pageW - w) / 2, imgTop, w, h, undefined, "FAST");
+      const singleX = (pageW - w) / 2;
+      pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
+      drawWatermark(singleX, imgTop, w, h);
     }
     drawFooter();
 
