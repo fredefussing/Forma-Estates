@@ -2383,6 +2383,28 @@ export async function registerRoutes(
     }
   });
 
+  // ── Dollhouse-vægge (lokal billedanalyse → rigtige lodrette BoxGeometry-vægge) ─
+  // Additiv: kører EFTER 3D-plantegningen. Rører ikke fal.ai-genereringen eller
+  // den eksisterende depth-viewer. Tager den rene 2D-plantegning, finder vægge
+  // og returnerer rektangler som klienten bygger som ægte 3D-vægge.
+  app.post("/api/bolig/floorplan-dollhouse", async (req, res) => {
+    try {
+      const { planUrl } = req.body ?? {};
+      if (!planUrl || typeof planUrl !== "string") {
+        return res.status(400).json({ success: false, message: "planUrl mangler" });
+      }
+      try { await verifyFirebaseToken(req.headers.authorization); } catch {
+        return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+      }
+      const { extractFloorplanWalls } = await import("./floorplan-walls");
+      const result = await extractFloorplanWalls(planUrl);
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      log(`[Dollhouse] fejl: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message || "Dollhouse-generering mislykkedes" });
+    }
+  });
+
   // ── Transformeringsvideo (fal.ai luma dream machine — før → efter) ────────
   app.post(
     "/api/bolig/transform-video",

@@ -1,0 +1,68 @@
+Byg en 3D plantegnings-viewer i Three.js der ligner Fundas dollhouse-visning.
+
+INPUT: Et 2D plantegningsbillede (ovenfra, med vægge, rum, møbler).
+
+OUTPUT: En interaktiv 3D-scene hvor:
+- Plantegningsbilledet ligger som tekstur på gulvet (et fladt plan)
+- Der er RIGTIGE 3D-vægge bygget op omkring og mellem rum
+- Kamera kigger skråt nedfra (isometrisk dollhouse-vinkel)
+- Brugeren kan rotere med musen og zoome
+
+Teknisk tilgang:
+
+1. GULV: PlaneGeometry med plantegningsbillede som tekstur. 
+   Det er det eneste sted billedet vises — på gulvet.
+
+2. VÆGGE — Dette er nøglen: 
+   a) Tag plantegningsbillede, konverter til gråtone
+   b) Kør Canny edge detection (OpenCV.js eller Canvas API)
+   c) Find YDRE kontur automatisk — lav vægge langs den (BoxGeometry, højde: 2.5m)
+   d) For INDVENDIGE vægge: Giv brugeren et "tegn-værktøj" hvor de kan tegne 
+      streger ovenpå plantegningen. Hver streg bliver til en 3D-væg (BoxGeometry).
+      Alternativt: Prøv Hough Line Transform for at finde lige linjer automatisk.
+   e) Vægge skal være tynde (10cm tykke) og hvide/lysegrå
+
+3. KAMERA: PerspectiveCamera, position (8, 10, 8), kig på (0,0,0).
+   OrbitControls med maxPolarAngle = PI/2.5 (så man ikke kommer under gulvet).
+
+4. LYS: AmbientLight(0xffffff, 0.5) + DirectionalLight(0xffffff, 0.8) 
+   der kaster skygger. Det giver dybden.
+
+5. MATERIALER:
+   - Gulv: MeshStandardMaterial med plantegnings-tekstur
+   - Vægge: MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.8 })
+   - Væg-top: lidt mørkere grå for definition
+
+6. EKSTRA: 
+   - ClipPlanes så man kan "cut" vægge væk og se bedre ind
+   - 2D/3D toggle-knap der skifter mellem ortografisk (top-down) og perspektiv
+   - Gulvet skal være lidt under væggenes bund (y = -0.01)
+
+STRUKTUR:
+- index.html med Three.js fra CDN (esm.sh eller unpkg)
+- style.css med mørk baggrund, top-bar med 2D/3D tabs
+- app.js med hele scenen
+
+VIGTIGST: VÆGGENE SKAL VÆRE LODRET. IKKE bølgede. IKKE displacement. 
+Rigtige BoxGeometry-vægge med skarpe kanter. Det er det der skaber Funda-looket.
+Alternativt: Semi-manuel tilgang (hurtigere resultat)
+Hvis auto-detektion er for svær, gør det semi-manuelt:
+plain
+VÆG-SKABELON:
+Når brugeren uploader et plantegningsbillede:
+1. Systemet finder automatisk YDRE vægge (bounding box / contour)
+2. Brugeren klikker "Tilføj væg" og trækker en linje på plantegningen
+3. Hver linje bliver til en BoxGeometry-væg i 3D
+4. Brugeren kan slette/redigere vægge
+5. Når færdig, gemmes væg-layoutet og 3D vises
+
+Det tager 2-3 minutter at tegne vægge for en typisk plantegning, 
+men resultatet er en RIGTIG 3D-model der ligner Funda.
+Den HURTIGE vej (hvis du vil have resultat NU)
+Hvis du ikke vil bygge wall-detection, så lav én ekstra fal.ai-prompt der genererer plantegningen i isometrisk perspektiv:
+plain
+"Isometric architectural dollhouse cutaway view of a floor plan, 
+walls visible with height and thickness, open ceiling showing 
+interior rooms from 45-degree angle, white walls, wooden floors, 
+furniture visible inside rooms, soft shadows, clean light grey 
+background, professional real estate visualization"

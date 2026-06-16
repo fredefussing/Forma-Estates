@@ -4,4 +4,6 @@
 - [FFmpeg looped audio bed](ffmpeg-looped-audio.md) — never `-shortest` with `-stream_loop -1` audio (it deadlocks/fails); cap with `-t videoTotal`. Also: `tsx` dev server needs a workflow restart for server edits.
 - [Replit dev: Node.js HTTP intercepted](replit-nodejs-http-proxy.md) — Node.js fetch() and https.get() are intercepted by Replit's network layer; use spawn("curl") instead for server-side external fetches.
 - [Kling v1.6 image-to-video field modes](fal-kling-video-modes.md) — single-image mode requires `image_url`, not `start_image_url`; 422 surfaces at generation poll, not at submit.
+- [Floorplan wall detection](floorplan-wall-detection.md) — paper-white-relative threshold + dilate + keep-large-components beats Otsu+absolute-minArea for thin grey walls.
+- [Screenshot tool has no WebGL](screenshot-no-webgl.md) — app_preview headless browser can't create a WebGL context; 3D/Three.js scenes never render in screenshots.
 - [Depth-displacement diorama viewer](depth-displacement-diorama.md) — single-plane depth viewer is 2.5D relief; lay flat + constrain polar angle so users never see the torn edge-on view.
