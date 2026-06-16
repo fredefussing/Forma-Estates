@@ -1990,7 +1990,7 @@ export default function BoligpotentialeLanding() {
             <div>
               <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Support</div>
               <ul className="space-y-3">
-                {[["FAQ", "#faq"], ["Kontakt", "mailto:kontakt@formaestates.com"], ["Privatlivspolitik", "/privatlivspolitik"]].map(([l, h]) => (
+                {[["FAQ", "#faq"], ["Kontakt", "mailto:kontakt@formaestates.com"], ["Privatlivspolitik", "/privatlivspolitik"], ["Handelsbetingelser", "/handelsbetingelser"]].map(([l, h]) => (
                   <li key={l}>
                     <a href={h} className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>{l}</a>
                   </li>

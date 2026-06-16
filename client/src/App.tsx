@@ -25,6 +25,7 @@ import MyDesignsPage from "@/pages/my-designs";
 import AgentDesignDetailPage from "@/pages/agent-design-detail";
 import KontaktPage from "@/pages/kontakt";
 import PrivatlivspolitikPage from "@/pages/privatlivspolitik";
+import HandelsbetingelserPage from "@/pages/handelsbetingelser";
 import DesignDetailPage from "@/pages/design-detail";
 import PaymentSuccessPage from "@/pages/payment-success";
 import BoligpotentialeLanding from "@/pages/boligpotentiale-landing";
@@ -158,6 +159,7 @@ function Router() {
       <Route path="/boligpotentiale/om-os" component={OmOsPage} />
       <Route path="/kontakt" component={KontaktPage} />
       <Route path="/privatlivspolitik" component={PrivatlivspolitikPage} />
+      <Route path="/handelsbetingelser" component={HandelsbetingelserPage} />
       <Route path="/boligpotentiale" component={BoligpotentialeLanding} />
       <Route path="/" component={BoligpotentialeLanding} />
       <Route path="/nordic-homebuild" component={LandingPage} />

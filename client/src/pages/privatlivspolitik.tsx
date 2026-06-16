@@ -447,6 +447,11 @@ export default function PrivatlivspolitikPage() {
       </main>
 
       <footer className="border-t py-6 px-6 text-center" style={{ borderColor: C.border }}>
+        <div className="flex justify-center gap-6 mb-3">
+          <Link href="/handelsbetingelser">
+            <a className="text-xs underline" style={{ color: C.gold }}>Handelsbetingelser</a>
+          </Link>
+        </div>
         <p className="text-xs" style={{ color: C.muted }}>
           © {new Date().getFullYear()} Forma Estates &middot; CVR: 46551796 &middot;{" "}
           Senest opdateret juni 2026
