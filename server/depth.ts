@@ -38,22 +38,30 @@ export async function generateDepthMap(imageUrl: string): Promise<{
 
     const w: number = depth.width;
     const h: number = depth.height;
-    const data: Uint8ClampedArray = depth.data;
+    const srcData: Uint8ClampedArray = depth.data;
+    const channels: number = depth.channels ?? 1;
 
-    const Jimp = (await import("jimp")).default;
-    const depthImg = new Jimp(w, h);
-
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const idx = y * w + x;
-        const channels = depth.channels ?? 1;
-        const v = channels === 1 ? data[idx] : data[idx * channels];
-        const color = Jimp.rgbaToInt(v, v, v, 255);
-        depthImg.setPixelColor(color, x, y);
-      }
+    // Build a raw RGBA buffer for the PNG
+    const rgba = Buffer.alloc(w * h * 4);
+    for (let i = 0; i < w * h; i++) {
+      const v = channels === 1 ? srcData[i] : srcData[i * channels];
+      rgba[i * 4 + 0] = v;
+      rgba[i * 4 + 1] = v;
+      rgba[i * 4 + 2] = v;
+      rgba[i * 4 + 3] = 255;
     }
 
-    const depthBuffer = await depthImg.getBufferAsync(Jimp.MIME_PNG);
+    // Use Jimp v1 API: Jimp.fromBitmap or create via constructor
+    const { Jimp, rgbaToInt } = await import("jimp");
+    const depthImg = new Jimp({ width: w, height: h });
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        const v = channels === 1 ? srcData[i] : srcData[i * channels];
+        depthImg.setPixelColor(rgbaToInt(v, v, v, 255), x, y);
+      }
+    }
+    const depthBuffer = await depthImg.getBuffer("image/png");
     const imageBuffer = fs.readFileSync(tmpInput);
 
     return {
