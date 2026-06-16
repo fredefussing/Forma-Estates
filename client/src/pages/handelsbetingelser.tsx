@@ -214,6 +214,10 @@ export default function HandelsbetingelserPage() {
               De AI-genererede visualiseringer, der produceres på grundlag af dit uploadede billede, tilhører dig og må frit anvendes til erhvervsmæssige formål, herunder boligsalg, markedsføring og præsentationer.
               Forma Estates forbeholder sig ret til at anvende anonymiserede og aggregerede eksempler fra platformen til markedsføring — aldrig identificerbare boliger eller kundespecifikke data uden udtrykkelig tilladelse.
             </P>
+            <P>
+              Alle billeder downloadet via platformens officielle formater (JPG, PNG og PDF) mærkes automatisk med "AI-redigeret" i overensstemmelse med markedsføringsloven.
+              Hvis der downloades uden for vores officielle formater (JPG/PNG/PDF m.v.), sker det på eget ansvar, og der garanteres ikke for automatisk AI-mærkning.
+            </P>
           </Section>
 
           {/* 7 */}
