@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "wouter";
 import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -199,9 +200,9 @@ function BeforeAfterPair({
       </div>
 
       {/* Lightbox */}
-      {lightbox && (
+      {lightbox && createPortal(
         <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
           style={{ background: "rgba(10,15,22,0.95)" }}
           onClick={() => setLightbox(null)}
           onTouchStart={onTouchStart}
@@ -265,7 +266,8 @@ function BeforeAfterPair({
           </button>
 
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 16 }}>Swipe eller brug piletasterne</p>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
