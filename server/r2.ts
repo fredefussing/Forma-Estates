@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import type { Readable } from "stream";
 import path from "path";
 import fs from "fs";
@@ -90,6 +90,25 @@ export function createR2MulterStorage(uploadDir: string): any {
       fs.unlink(file.path, () => cb(null));
     },
   };
+}
+
+// Delete one or more keys from R2
+export async function r2DeleteFiles(keys: string[]): Promise<void> {
+  if (!isR2Configured() || keys.length === 0) return;
+  const client = makeClient();
+  if (!client) return;
+  try {
+    if (keys.length === 1) {
+      await client.send(new DeleteObjectCommand({ Bucket: bucket(), Key: keys[0] }));
+    } else {
+      await client.send(new DeleteObjectsCommand({
+        Bucket: bucket(),
+        Delete: { Objects: keys.map((k) => ({ Key: k })) },
+      }));
+    }
+  } catch (err: any) {
+    console.warn("[R2] Delete failed:", err?.message);
+  }
 }
 
 // Upload a local file to R2 (used for generated images and videos)

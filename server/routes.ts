@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { isR2Configured, createR2MulterStorage, r2GetStream, r2UploadFile } from "./r2";
+import { isR2Configured, createR2MulterStorage, r2GetStream, r2UploadFile, r2DeleteFiles } from "./r2";
 import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
@@ -1776,7 +1776,26 @@ export async function registerRoutes(
       const existing = await storage.getBoligCase(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+
+      // Collect all file paths before deleting DB records
+      const images = await storage.getBoligCaseImages(id);
+      const allPaths = images.flatMap((img) => [img.src, img.beforeSrc].filter(Boolean) as string[]);
+
+      // Delete DB records
       await storage.deleteBoligCase(id);
+
+      // Clean up files (non-blocking — DB delete already succeeded)
+      const r2Keys: string[] = [];
+      for (const p of allPaths) {
+        if (!p.startsWith("/uploads/")) continue;
+        const filename = path.basename(p);
+        // Local disk
+        const localPath = path.join(uploadDir, filename);
+        fs.unlink(localPath, () => {});
+        r2Keys.push(filename);
+      }
+      r2DeleteFiles(r2Keys).catch(() => {});
+
       return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
