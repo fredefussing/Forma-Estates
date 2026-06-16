@@ -24,7 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyWithBackend = useCallback(async (firebaseUser: User) => {
     try {
-      const token = await firebaseUser.getIdToken(true);
+      // Use cached token first (getIdToken without true) — force-refresh can fail silently
+      const token = await firebaseUser.getIdToken();
       const res = await fetch("/api/auth/verify", {
         method: "POST",
         headers: {
@@ -38,6 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(data.user.isAdmin || false);
         setSubscriptionStatus(data.user.subscriptionStatus || "none");
         setSubscriptionTier(data.user.subscriptionTier || null);
+      } else {
+        // If verify fails, retry once with a fresh token
+        const freshToken = await firebaseUser.getIdToken(true);
+        const retry = await fetch("/api/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${freshToken}` },
+        });
+        if (retry.ok) {
+          const data = await retry.json();
+          setCreditsRemaining(data.user.creditsRemaining);
+          setIsAdmin(data.user.isAdmin || false);
+          setSubscriptionStatus(data.user.subscriptionStatus || "none");
+          setSubscriptionTier(data.user.subscriptionTier || null);
+        }
       }
     } catch {}
   }, []);

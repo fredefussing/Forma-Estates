@@ -2,9 +2,12 @@ import { Lock, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 
+const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+
 export function useIsSubscribed() {
-  const { isAdmin, subscriptionStatus } = useAuth();
-  return isAdmin || subscriptionStatus === "active";
+  const { isAdmin, subscriptionStatus, user } = useAuth();
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes((user?.email ?? "").toLowerCase());
+  return isSuperAdmin || isAdmin || subscriptionStatus === "active";
 }
 
 const EXAMPLE_PAIRS = [

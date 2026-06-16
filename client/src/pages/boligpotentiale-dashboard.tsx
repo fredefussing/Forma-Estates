@@ -6892,7 +6892,8 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
   const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus } = useAuth();
-  const isSubscribed = isAdmin || subscriptionStatus === "active";
+  const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+  const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
