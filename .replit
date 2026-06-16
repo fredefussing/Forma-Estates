@@ -30,3 +30,10 @@ channel = "stable-25_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+R2_ACCOUNT_ID = "16c92edc2dbe403856f79dd71b88235b"
+R2_BUCKET_NAME = "forma-billeder"
+R2_ENDPOINT = "https://16c92edc2dbe403856f79dd71b88235b.r2.cloudflarestorage.com"
