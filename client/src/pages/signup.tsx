@@ -109,6 +109,7 @@ export default function SignupPage() {
               type="email"
               required
               placeholder="din@email.dk"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5"
@@ -122,6 +123,7 @@ export default function SignupPage() {
               type="password"
               required
               placeholder="Min. 6 tegn"
+              autoComplete="new-password"
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -136,6 +138,7 @@ export default function SignupPage() {
               type="password"
               required
               placeholder="Gentag password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="mt-1.5"

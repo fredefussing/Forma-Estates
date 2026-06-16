@@ -7,7 +7,8 @@ import { Users, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 export default function BoligpotentialeJoinTeam() {
   const [, setLocation] = useLocation();
   const params = useParams<{ code: string }>();
-  const code = (params.code ?? "").toUpperCase();
+  const queryCode = new URLSearchParams(window.location.search).get("code") ?? "";
+  const code = (params.code ?? queryCode ?? "").toUpperCase();
   const { user, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<"loading" | "valid" | "joining" | "done" | "error">("loading");
   const [teamName, setTeamName] = useState("");

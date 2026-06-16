@@ -69,6 +69,7 @@ export default function LoginPage() {
               type="email"
               required
               placeholder="din@email.dk"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5"
@@ -82,6 +83,7 @@ export default function LoginPage() {
               type="password"
               required
               placeholder="Dit password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1.5"

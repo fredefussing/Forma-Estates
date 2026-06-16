@@ -30,7 +30,7 @@ export interface IStorage {
   getUserByFirebaseUid(uid: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(userId: number): Promise<User | undefined>;
-  updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode">>): Promise<User | undefined>;
+  updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode" | "displayName">>): Promise<User | undefined>;
   getUserByCustomerCode(code: string): Promise<User | undefined>;
   searchUsers(query: string): Promise<User[]>;
   updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined>;

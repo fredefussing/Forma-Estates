@@ -2037,7 +2037,7 @@ export async function registerRoutes(
       // Include invite link for team owners (using the permanent team code)
       const membership = await storage.getTeamByUserId(u.id);
       const teamCode = membership?.team?.code ?? null;
-      const inviteLink = teamCode ? `${req.protocol}://${req.get("host")}/boligpotentiale/join-team?code=${teamCode}` : null;
+      const inviteLink = teamCode ? `${req.protocol}://${req.get("host")}/join/${teamCode}` : null;
       return res.json({ success: true, isAdmin: u.isAdmin, quota, teamCode, inviteLink });
     } catch {
       return res.status(401).json({ message: "Ikke autoriseret" });
@@ -2054,7 +2054,7 @@ export async function registerRoutes(
       if (!membership) return res.status(404).json({ error: "Du er ikke i et team" });
       const { team } = membership;
       const baseUrl = `${req.protocol}://${req.get("host")}`;
-      const inviteLink = `${baseUrl}/boligpotentiale/join-team?code=${team.code}`;
+      const inviteLink = `${baseUrl}/join/${team.code}`;
       const memberCntRes = await pool.query<{ cnt: string }>(
         `SELECT COUNT(*)::text AS cnt FROM team_members WHERE team_id = $1`, [team.id]
       );
@@ -3397,7 +3397,7 @@ export async function registerRoutes(
       });
 
       const baseUrl = `${req.protocol}://${req.get("host")}`;
-      const inviteLink = `${baseUrl}/boligpotentiale/join-team?token=${token}`;
+      const inviteLink = `${baseUrl}/join/${team.code}`;
 
       if (email?.trim()) {
         const { sendTeamInviteEmail } = await import("./email");
