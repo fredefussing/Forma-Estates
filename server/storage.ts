@@ -1075,10 +1075,16 @@ export class DatabaseStorage implements IStorage {
     const usedVideo         = ownerUsedCounts ? ownerUsedCounts.transformVideo  : (r.used_transform_videos   ?? 0);
     const usedShowcase      = ownerUsedCounts ? ownerUsedCounts.showcase        : (r.used_showcase_videos    ?? 0);
 
-    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: usedAi       } : { limit: r.quota_ai_visualizations,  used: usedAi       };
-    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: usedFloor    } : { limit: r.quota_floor_plans,        used: usedFloor    };
-    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: usedVideo    } : { limit: r.quota_transform_videos,   used: usedVideo    };
-    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: usedShowcase } : { limit: r.quota_showcase_videos,    used: usedShowcase };
+    // For admins with NULL quotas → null means unlimited.
+    // For regular users with NULL quotas (no plan purchased) → treat as 0, not unlimited.
+    const nullMeansUnlimited = r.is_admin;
+    const resolveLimit = (raw: number | null): number | null =>
+      raw !== null ? raw : (nullMeansUnlimited ? null : 0);
+
+    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: usedAi       } : { limit: resolveLimit(r.quota_ai_visualizations),  used: usedAi       };
+    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: usedFloor    } : { limit: resolveLimit(r.quota_floor_plans),        used: usedFloor    };
+    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: usedVideo    } : { limit: resolveLimit(r.quota_transform_videos),   used: usedVideo    };
+    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: usedShowcase } : { limit: resolveLimit(r.quota_showcase_videos),    used: usedShowcase };
 
     return { ai, floorPlan, transformVideo, showcase, resetsAt: r.quota_resets_at, teamPlan, teamName, memberCount, maxMembers };
   }
@@ -1157,11 +1163,13 @@ export class DatabaseStorage implements IStorage {
           return { allowed: false, remaining: 0, feature: label };
         }
       }
-      // Not in a team and no explicit quota — allow (paywall already gates access)
+      // Not in a team and no explicit quota set → block (no plan purchased)
+      return { allowed: false, remaining: 0, feature: label };
     }
 
     // Per-user quota path (owner or user with explicit quota)
     const used: number = row[`used_${col}`] ?? 0;
+    // limit === null here only for admins (already returned above), so this is safe
     if (limit !== null && used >= limit) {
       return { allowed: false, remaining: 0, feature: label };
     }

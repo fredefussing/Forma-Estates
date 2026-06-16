@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Plus, Search, User, RefreshCw, ChevronRight,
@@ -649,10 +649,10 @@ export function CrmView({ isOwner = false }: { isOwner?: boolean }) {
             </thead>
             <tbody>
               {grouped.map(group => (
-                <>
+                <Fragment key={group.teamId ?? "no-team"}>
                   {/* Team header row */}
                   {group.teamName && (
-                    <tr key={`team-${group.teamId}`} style={{ background: "#F8FAFC", borderTop: "1px solid #F1F5F9" }}>
+                    <tr style={{ background: "#F8FAFC", borderTop: "1px solid #F1F5F9" }}>
                       <td colSpan={8} className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <Users className="w-3.5 h-3.5 text-sky-400" />
@@ -665,8 +665,11 @@ export function CrmView({ isOwner = false }: { isOwner?: boolean }) {
                   {group.contacts.map((c, i) => {
                     const creditColor = (c.creditsRemaining ?? 0) === 0 ? "#EF4444" : (c.creditsRemaining ?? 0) < 5 ? "#F97316" : "#16A34A";
                     const tier = TIERS.find(t => t.value === (c.subscriptionTier ?? "none"));
+                    const isUnlimitedPlan = c.subscriptionTier === "unlimited" || c.plan === "unlimited";
+                    const fmtQ = (v: number | null | undefined) =>
+                      v === undefined ? "—" : v === null ? (isUnlimitedPlan ? "∞" : "0") : String(v);
                     const quotaSummary = c.quotaAi !== undefined
-                      ? `${c.quotaAi === null ? "∞" : c.quotaAi} · ${c.quotaFloor === null ? "∞" : c.quotaFloor} · ${c.quotaVideo === null ? "∞" : c.quotaVideo}`
+                      ? `${fmtQ(c.quotaAi)} · ${fmtQ(c.quotaFloor)} · ${fmtQ(c.quotaVideo)}`
                       : "—";
                     return (
                       <tr key={c.id} onClick={() => setSelectedId(c.id)}
@@ -716,7 +719,7 @@ export function CrmView({ isOwner = false }: { isOwner?: boolean }) {
                       </tr>
                     );
                   })}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
