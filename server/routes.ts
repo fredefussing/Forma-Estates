@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { isR2Configured, createR2MulterStorage, r2GetStream, r2UploadFile } from "./r2";
 import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
@@ -45,13 +46,15 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploadDir,
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname) || ".jpg";
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-    },
-  }),
+  storage: isR2Configured()
+    ? createR2MulterStorage(uploadDir)
+    : multer.diskStorage({
+        destination: uploadDir,
+        filename: (_req, file, cb) => {
+          const ext = path.extname(file.originalname) || ".jpg";
+          cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+        },
+      }),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) {
@@ -305,8 +308,10 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
     .jpeg({ quality: 96, mozjpeg: true })
     .toBuffer();
   const filename = `result-${designId}-${Date.now()}.jpg`;
-  fs.writeFileSync(path.join(uploadDir, filename), enhanced);
+  const localFilePath = path.join(uploadDir, filename);
+  fs.writeFileSync(localFilePath, enhanced);
   log(`Design ${designId}: VST enhanced saved → /uploads/${filename}`);
+  r2UploadFile(localFilePath).catch(() => {});
   return `/uploads/${filename}`;
 }
 
@@ -334,11 +339,38 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  app.use("/uploads", (req, res, next) => {
+  app.use("/uploads", async (req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
+    const key = decodeURIComponent(req.path.replace(/^\//, ""));
+    if (!key || key.includes("..") || key.includes("/")) return next();
+
+    // 1. Serve from local disk if present (dev + same-session files)
+    const localPath = path.join(uploadDir, key);
+    if (fs.existsSync(localPath)) {
+      return res.sendFile(localPath);
+    }
+
+    // 2. Stream from R2 when file isn't on local disk (after a deploy / cross-session)
+    if (isR2Configured()) {
+      try {
+        const stream = await r2GetStream(key);
+        if (stream) {
+          const ext = path.extname(key).toLowerCase();
+          const ct = ext === ".png" ? "image/png"
+                   : ext === ".webp" ? "image/webp"
+                   : ext === ".mp4" ? "video/mp4"
+                   : "image/jpeg";
+          res.setHeader("Content-Type", ct);
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          return (stream as any).pipe(res);
+        }
+      } catch {
+        // fall through to 404
+      }
+    }
+
     next();
   });
-  app.use("/uploads", express.static(uploadDir));
 
   // Serve sitemap.xml and robots.txt as static XML/text before Vite catch-all
   app.get("/sitemap.xml", (_req, res) => {

@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, downloadToFile } from "./fal";
+import { r2UploadFile } from "./r2";
 
 // ===== BOLIG SHOWCASE VIDEO =====
 // Vertical (9:16) property reel. PRIMARY path: each photo becomes one real AI
@@ -1015,6 +1016,7 @@ async function assembleVideo(
     for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
   }
 
+  r2UploadFile(outPath).catch(() => {});
   return `/uploads/${filename}`;
 }
 

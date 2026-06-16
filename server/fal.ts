@@ -2,6 +2,7 @@ import { fal } from "@fal-ai/client";
 import fs from "fs";
 import path from "path";
 import { Jimp, JimpMime } from "jimp";
+import { r2UploadFile } from "./r2";
 
 const FAL_KEY = process.env.FAL_KEY;
 if (FAL_KEY) {
@@ -561,5 +562,6 @@ export async function downloadToUploads(
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
   const full = path.join(uploadDir, filename);
   fs.writeFileSync(full, buf);
+  r2UploadFile(full).catch(() => {});
   return `/uploads/${filename}`;
 }

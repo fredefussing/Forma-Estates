@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1069.0",
     "@fal-ai/client": "^1.10.1",
     "@getbrevo/brevo": "^4.0.1",
     "@hookform/resolvers": "^3.10.0",
