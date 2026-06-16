@@ -2240,6 +2240,21 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en 2D plantegning — AI bygger et møbleret 3D dukkehus set fra oven, baseret på rumlayoutet.</p>
       </div>
 
+      {/* Eksempel */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Input — 2D plantegning</p>
+            <img src="/bolig-images/floorplan-2d.jpg" alt="2D plantegning eksempel" className="w-full rounded-xl object-cover" style={{ aspectRatio: "4/3" }} />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Output — 3D dukkehus</p>
+            <img src="/bolig-images/floorplan-3d.jpg" alt="3D plantegning eksempel" className="w-full rounded-xl object-cover" style={{ aspectRatio: "4/3" }} />
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
         <div>
           <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Plantegning (2D)</label>
@@ -2649,6 +2664,23 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload et før-billede og det færdige efter-billede, vælg derefter videostil — AI skaber videoen for dig.</p>
+      </div>
+
+      {/* Eksempel */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Før-billede</p>
+            <img src="/bolig-images/living-scandi-before.jpg" alt="Før eksempel" className="w-full rounded-xl object-cover" style={{ aspectRatio: "4/3" }} />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter-billede</p>
+            <img src="/bolig-images/living-scandi-after.jpg" alt="Efter eksempel" className="w-full rounded-xl object-cover" style={{ aspectRatio: "4/3" }} />
+          </div>
+        </div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Eksempel video (AI-skabt overgang)</p>
+        <video src="/eksempel-transformering.mp4" autoPlay muted loop playsInline className="w-full rounded-xl" style={{ aspectRatio: "16/9", objectFit: "cover", background: "#0F1D2F" }} />
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
@@ -3116,6 +3148,18 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig showcase</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med ægte AI-kamerabevægelse klippet til musikkens beat. Aktivér drone intro/outro ved at udfylde start- og sluttekst — <strong>billede 1</strong> og <strong>det sidste billede</strong> genereres som cinematic drone-klips.</p>
+      </div>
+
+      {/* Eksempel */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <p className="text-[11px] font-medium mb-2" style={{ color: "#9B9690" }}>Dine boligbilleder → professionel showcase-video</p>
+        <div className="grid grid-cols-3 gap-2">
+          <img src="/bolig-images/facade-after.jpg" alt="Facade" className="w-full rounded-xl object-cover" style={{ aspectRatio: "9/16" }} />
+          <img src="/bolig-images/living-modern-after.jpg" alt="Stue" className="w-full rounded-xl object-cover" style={{ aspectRatio: "9/16" }} />
+          <img src="/bolig-images/dining-after.jpg" alt="Spisestue" className="w-full rounded-xl object-cover" style={{ aspectRatio: "9/16" }} />
+        </div>
+        <p className="text-[11px] mt-2" style={{ color: "#9B9690" }}>AI tilføjer ægte kamerabevægelse til hvert billede og syr det hele sammen til én flydende 9:16 video med musik.</p>
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
@@ -5306,6 +5350,21 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>AI Design Agent</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Beskriv præcis hvad du vil ændre — AI'en følger dine instruktioner</p>
+      </div>
+
+      {/* Eksempel */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
+            <img src="/bolig-images/ai-agent-before.jpg" alt="Før AI Design Agent" className="w-full rounded-xl object-cover" style={{ aspectRatio: "4/3" }} />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
+            <img src="/bolig-images/ai-agent-after.jpg" alt="Efter AI Design Agent" className="w-full rounded-xl object-cover" style={{ aspectRatio: "4/3" }} />
+          </div>
+        </div>
       </div>
 
       {/* Info card */}
