@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { BarChart3, Sparkles, Box, Video, Film, Users, Copy, Check } from "lucide-react";
+import { BarChart3, Sparkles, Box, Video, Film, Users, Copy, Check, Lock } from "lucide-react";
 
 interface QuotaData {
   isAdmin: boolean;
@@ -184,6 +184,56 @@ export function QuotaWidget() {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── QuotaGate ────────────────────────────────────────────────────────────────
+// Wraps a generate button — shows a lock banner when the user's quota is
+// exhausted (used >= limit) or when they have no plan (limit=0).
+const QUOTA_GATE_LABELS: Record<string, string> = {
+  ai: "AI-visualiseringer",
+  floorPlan: "3D-plantegninger",
+  transformVideo: "transformeringsvideoer",
+  showcase: "showcase-videoer",
+};
+
+export function QuotaGate({
+  feature,
+  children,
+}: {
+  feature: "ai" | "floorPlan" | "transformVideo" | "showcase";
+  children: React.ReactNode;
+}) {
+  const data = useQuotaData();
+  if (!data) return <>{children}</>;
+  const { isAdmin, quota } = data;
+  if (isAdmin) return <>{children}</>;
+
+  const f = quota[feature];
+  const exhausted = f.limit !== null && f.used >= f.limit;
+  if (!exhausted) return <>{children}</>;
+
+  return (
+    <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col items-center gap-3 text-center">
+      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+        <Lock className="w-5 h-5 text-amber-600" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-amber-900">
+          Alle dine {QUOTA_GATE_LABELS[feature]} er brugt op
+        </p>
+        <p className="text-xs text-amber-700 mt-1">
+          Opgradér din pakke for at generere flere
+        </p>
+      </div>
+      <a
+        href="/priser"
+        className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
+        style={{ background: "#C8956C" }}
+      >
+        Se pakker →
+      </a>
     </div>
   );
 }

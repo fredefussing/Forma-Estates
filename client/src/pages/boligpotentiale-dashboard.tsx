@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
 import { Floorplan3DViewer } from "@/components/floorplan-3d-viewer";
 import { FloorplanDollhouseViewer } from "@/components/floorplan-dollhouse-viewer";
-import { QuotaWidget, useQuotaData } from "@/components/quota-widget";
+import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
   LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
@@ -1144,6 +1144,7 @@ function CaseDetailPanel({
                     )}
 
                     {/* ⑥ GENERATE BUTTON */}
+                    <QuotaGate feature="ai">
                     <button
                       onClick={handleGenerate}
                       disabled={isGenerating}
@@ -1163,6 +1164,7 @@ function CaseDetailPanel({
                         </>
                       )}
                     </button>
+                    </QuotaGate>
                   </div>
                 </div>
 
@@ -2147,9 +2149,11 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
                 {error && <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50">{error}</div>}
-                <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}>
-                  Generer visualisering →
-                </button>
+                <QuotaGate feature="ai">
+                  <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}>
+                    Generer visualisering →
+                  </button>
+                </QuotaGate>
               </div>
             </div>
           </motion.div>
@@ -2351,25 +2355,27 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
           )}
         </div>
 
-        <button
-          onClick={handleGenerate}
-          disabled={!imageFile || isGenerating}
-          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-          style={{ background: "#C8956C" }}
-          data-testid="button-generate-floorplan"
-        >
-          {isGenerating ? (
-            <>
-              <RotateCcw className="w-4 h-4 animate-spin" />
-              Genererer 3D plantegning... (kan tage 30-90 sek)
-            </>
-          ) : (
-            <>
-              <Box className="w-4 h-4" />
-              Generér 3D plantegning
-            </>
-          )}
-        </button>
+        <QuotaGate feature="floorPlan">
+          <button
+            onClick={handleGenerate}
+            disabled={!imageFile || isGenerating}
+            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+            style={{ background: "#C8956C" }}
+            data-testid="button-generate-floorplan"
+          >
+            {isGenerating ? (
+              <>
+                <RotateCcw className="w-4 h-4 animate-spin" />
+                Genererer 3D plantegning... (kan tage 30-90 sek)
+              </>
+            ) : (
+              <>
+                <Box className="w-4 h-4" />
+                Generér 3D plantegning
+              </>
+            )}
+          </button>
+        </QuotaGate>
 
         {error && (
           <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-floorplan-error">
@@ -2823,25 +2829,27 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           </button>
         </div>
 
-        <button
-          onClick={handleGenerate}
-          disabled={!beforeFile || !afterFile || isGenerating}
-          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-          style={{ background: "#C8956C" }}
-          data-testid="button-generate-video"
-        >
-          {isGenerating ? (
-            <>
-              <RotateCcw className="w-4 h-4 animate-spin" />
-              {videoProgressStep === 1 ? "Sender billeder..." : videoProgressStep === 3 ? "Færdiggør video..." : "Bygger video..."}
-            </>
-          ) : (
-            <>
-              <Video className="w-4 h-4" />
-              {videoMode === "cinematic" ? "Generér cinematisk video" : "Generér forvandlingsvideo"}
-            </>
-          )}
-        </button>
+        <QuotaGate feature="transformVideo">
+          <button
+            onClick={handleGenerate}
+            disabled={!beforeFile || !afterFile || isGenerating}
+            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+            style={{ background: "#C8956C" }}
+            data-testid="button-generate-video"
+          >
+            {isGenerating ? (
+              <>
+                <RotateCcw className="w-4 h-4 animate-spin" />
+                {videoProgressStep === 1 ? "Sender billeder..." : videoProgressStep === 3 ? "Færdiggør video..." : "Bygger video..."}
+              </>
+            ) : (
+              <>
+                <Video className="w-4 h-4" />
+                {videoMode === "cinematic" ? "Generér cinematisk video" : "Generér forvandlingsvideo"}
+              </>
+            )}
+          </button>
+        </QuotaGate>
 
         {isGenerating && (
           <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4">
@@ -3406,25 +3414,27 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           />
         </div>
 
-        <button
-          onClick={handleGenerate}
-          disabled={images.length < 2 || isGenerating}
-          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-          style={{ background: "#C8956C" }}
-          data-testid="button-generate-showcase"
-        >
-          {isGenerating ? (
-            <>
-              <RotateCcw className="w-4 h-4 animate-spin" />
-              {progressMsg || "Laver AI-kameraklip…"}
-            </>
-          ) : (
-            <>
-              <Film className="w-4 h-4" />
-              Generér alle 4 stemninger
-            </>
-          )}
-        </button>
+        <QuotaGate feature="showcase">
+          <button
+            onClick={handleGenerate}
+            disabled={images.length < 2 || isGenerating}
+            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+            style={{ background: "#C8956C" }}
+            data-testid="button-generate-showcase"
+          >
+            {isGenerating ? (
+              <>
+                <RotateCcw className="w-4 h-4 animate-spin" />
+                {progressMsg || "Laver AI-kameraklip…"}
+              </>
+            ) : (
+              <>
+                <Film className="w-4 h-4" />
+                Generér alle 4 stemninger
+              </>
+            )}
+          </button>
+        </QuotaGate>
 
         {error && (
           <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-showcase-error">
@@ -5547,26 +5557,28 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
         {/* Generate button */}
         <div>
-          <button
-            onClick={handleGenerate}
-            disabled={!imageFile || !promptText.trim() || stage === "loading"}
-            className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "#0F1D2F" }}
-            data-testid="bolig-agent-generate"
-          >
-            {stage === "loading" ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
-                Genererer billede...
-              </>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
-            )}
-          </button>
-          {quotaData && !quotaData.isAdmin && quotaData.quota.ai.limit !== null && (
+          <QuotaGate feature="ai">
+            <button
+              onClick={handleGenerate}
+              disabled={!imageFile || !promptText.trim() || stage === "loading"}
+              className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: "#0F1D2F" }}
+              data-testid="bolig-agent-generate"
+            >
+              {stage === "loading" ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Genererer billede...
+                </>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
+              )}
+            </button>
+          </QuotaGate>
+          {quotaData && !quotaData.isAdmin && quotaData.quota.ai.limit !== null && quotaData.quota.ai.limit > 0 && (
             <p className="text-[11px] mt-2" style={{ color: "#9B9690" }}>
               Bruger 1 AI Visualisering · {quotaData.quota.ai.used}/{quotaData.quota.ai.limit} brugt denne måned
             </p>
