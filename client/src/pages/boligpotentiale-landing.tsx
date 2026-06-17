@@ -774,6 +774,7 @@ function HeroSliderSection() {
         </div>
         <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>Før</div>
         <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>Efter</div>
+        <div className="absolute bottom-3 right-3 text-white text-[10px] font-semibold" style={{ background: "rgba(0,0,0,0.52)", padding: "3px 8px", borderRadius: 4, letterSpacing: "0.08em" }}>AI-redigeret</div>
       </div>
 
       <div className="flex justify-center gap-2 mt-5">
@@ -1054,6 +1055,7 @@ function ManualSwipeSlider({
       </div>
       <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{beforeLabel}</div>
       <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.gold, color: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{afterLabel}</div>
+      <div className="absolute bottom-3 right-3 text-white text-[10px] font-semibold" style={{ background: "rgba(0,0,0,0.52)", padding: "3px 8px", borderRadius: 4, letterSpacing: "0.08em" }}>AI-redigeret</div>
     </div>
   );
 }

@@ -156,12 +156,15 @@ export default function AIDesignAgentPage() {
   const handleDownload = async () => {
     if (!resultUrl) return;
     try {
-      const r = await fetch(resultUrl);
+      const proxyUrl = resultUrl.startsWith("http")
+        ? `/api/proxy-image?url=${encodeURIComponent(resultUrl)}&format=jpg`
+        : resultUrl;
+      const r = await fetch(proxyUrl);
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "nordic-ai-design.jpg";
+      a.download = "forma-estates-ai-design.jpg";
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -226,16 +229,21 @@ export default function AIDesignAgentPage() {
 
                 <BeforeAfterSlider beforeSrc={originalUrl} afterSrc={resultUrl} />
 
-                <div className="mt-4 flex gap-3">
-                  <Button onClick={handleDownload} variant="outline" className="gap-2" data-testid="button-download">
-                    <Download className="w-4 h-4" /> Download billede
-                  </Button>
-                  <Link href="/design">
-                    <Button variant="outline" className="gap-2" data-testid="button-try-styled">
-                      Prøv med stilvalg
-                      <ArrowRight className="w-4 h-4" />
+                <div className="mt-4 flex flex-col gap-2">
+                  <div className="flex gap-3">
+                    <Button onClick={handleDownload} variant="outline" className="gap-2" data-testid="button-download">
+                      <Download className="w-4 h-4" /> Download billede
                     </Button>
-                  </Link>
+                    <Link href="/design">
+                      <Button variant="outline" className="gap-2" data-testid="button-try-styled">
+                        Prøv med stilvalg
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <p className="text-xs text-muted-foreground" data-testid="text-ai-label-notice">
+                    Downloadede billeder mærkes automatisk med "AI-redigeret" som krævet ved lov.
+                  </p>
                 </div>
               </motion.div>
             ) : isGenerating ? (
