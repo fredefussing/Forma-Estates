@@ -317,13 +317,13 @@ export function ForEfterPage() {
   const pairs = [
     { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", title: "Tom stue → moderne look", desc: "Samme rum, samme dag — moderne indretning med fokus på linjer og lys." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Slidt køkken → frisk indretning", desc: "Iscenesat med nye farver, planter og en levende stemning." },
-    { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse → japandi stil", desc: "Sten, træ og papirlamper skaber ro og balance på under 30 sekunder." },
+    { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse → japandi stil", desc: "Sten, træ og papirlamper skaber ro og balance på under 20 sekunder." },
   ];
   return (
     <SubpageLayout
       eyebrow="Før / Efter"
       title="AI-iscenesættelse af tomme rum"
-      intro="Upload et foto af et tomt rum. Få det tilbage iscenesat i den stil der passer til boligen — møbler, lys og tekstiler placeret naturligt på under 30 sekunder."
+      intro="Upload et foto af et tomt rum. Få det tilbage iscenesat i den stil der passer til boligen — møbler, lys og tekstiler placeret naturligt på under 20 sekunder."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
         {pairs.map((p, i) => (
@@ -332,7 +332,7 @@ export function ForEfterPage() {
       </div>
       <BenefitRow
         items={[
-          { title: "30 sekunder", desc: "Fra upload til færdig visualisering. Ingen ventetid, ingen fotograf." },
+          { title: "20 sekunder", desc: "Fra upload til færdig visualisering. Ingen ventetid, ingen fotograf." },
           { title: "Flere stilarter", desc: "Skandinavisk, moderne, klassisk — vis samme rum i flere udtryk." },
           { title: "Køberen ser sig selv", desc: "Et iscenesat rum forkorter tiden til første bud markant." },
         ]}

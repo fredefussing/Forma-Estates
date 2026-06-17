@@ -78,7 +78,7 @@ const HOW_IT_WORKS = [
   {
     step: "03",
     title: "Download din visualisering",
-    desc: "AI'en genererer dit billede på under 30 sekunder. Klar til download i fuld kvalitet.",
+    desc: "AI'en genererer dit billede på under 20 sekunder. Klar til download i fuld kvalitet.",
     Icon: Download,
   },
 ];
@@ -115,7 +115,7 @@ const FEATURES = [
   },
   {
     Icon: Zap,
-    title: "Klar på under 30 sek.",
+    title: "Klar på under 20 sek.",
     desc: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet.",
   },
   {
@@ -244,7 +244,7 @@ const STAGE_SLIDES: StageSlide[] = [
     beforeLabel: "Før",
     afterLabel: "Efter",
     title: "Før & efter",
-    caption: "Upload et rumfoto — AI'en redesigner indretningen på under 30 sekunder.",
+    caption: "Upload et rumfoto — AI'en redesigner indretningen på under 20 sekunder.",
     meta: "Spisestue · Skandinavisk",
   },
   {
@@ -254,7 +254,7 @@ const STAGE_SLIDES: StageSlide[] = [
     beforeLabel: "Før",
     afterLabel: "Efter",
     title: "Før & efter",
-    caption: "Upload et foto — AI'en transformerer ejendommen på under 30 sekunder.",
+    caption: "Upload et foto — AI'en transformerer ejendommen på under 20 sekunder.",
     meta: "Facade · AI Design Agent",
   },
   {
