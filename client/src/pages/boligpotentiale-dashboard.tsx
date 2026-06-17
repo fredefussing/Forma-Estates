@@ -20,7 +20,7 @@ import {
   ArrowUpRight, Check, LogOut, Trash2, ArrowRight, TrendingUp,
   CheckCircle2, BarChart3, ImageIcon, PackageCheck, PartyPopper,
   PenTool, Sparkles, RotateCcw, ChevronDown, Mail, Copy, CheckCheck,
-  Shield, UserPlus, Crown, Clock, Building2, Coins,
+  Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
   FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical,
 } from "lucide-react";
@@ -6081,7 +6081,18 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
             <Users className="w-7 h-7" style={{ color: "#C8956C" }} />
           </div>
           <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Team</h1>
-          <p className="text-sm mb-8 text-center" style={{ color: "#6B6B6B" }}>Opret et nyt team, eller tilslut dig et eksisterende med en invite-kode.</p>
+          <p className="text-sm mb-5 text-center" style={{ color: "#6B6B6B" }}>Opret et nyt team, eller tilslut dig et eksisterende med en invite-kode.</p>
+
+          {/* Subscription info box */}
+          <div className="rounded-xl p-4 mb-6 flex gap-3 items-start" style={{ background: "rgba(200,149,108,0.08)", border: "1px solid rgba(200,149,108,0.25)" }}>
+            <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
+            <div>
+              <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>Team-funktioner kræver abonnement</p>
+              <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
+                Du kan oprette et team nu og invitere kolleger. Team-funktionerne (delte sager, statistik og credits) låses op, når teamets ejer har et aktivt abonnement.
+              </p>
+            </div>
+          </div>
 
           {/* Create team */}
           <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6 mb-4">
@@ -6145,7 +6156,8 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
 
   if (!data?.team) return null;
 
-  const { team, isAdmin, ownerEmail, ownerDisplayName, members = [], stats, performance = [], activeCases = [], soldCases = [], myUserId, isUnlimited = false, teamTotalUsed = 0 } = data;
+  const { team, isAdmin, ownerEmail, ownerDisplayName, ownerIsAdmin = false, ownerSubscriptionTier = null, members = [], stats, performance = [], activeCases = [], soldCases = [], myUserId, isUnlimited = false, teamTotalUsed = 0 } = data;
+  const ownerHasSub = ownerIsAdmin || !!ownerSubscriptionTier;
   const inviteLink = `${window.location.origin}/join/${team.code}`;
 
   // ── Member View ────────────────────────────────────────────────────────────
@@ -6157,6 +6169,19 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Du er med i {team.name}</h1>
           <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
         </div>
+
+        {/* Subscription lock banner for member view */}
+        {!ownerHasSub && (
+          <div className="rounded-xl p-4 flex gap-3 items-start" style={{ background: "rgba(200,149,108,0.08)", border: "1px solid rgba(200,149,108,0.3)" }}>
+            <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
+            <div>
+              <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>Team-funktioner er låste</p>
+              <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
+                Teamets ejer <strong>{ownerDisplayName || ownerEmail}</strong> har endnu ikke et aktivt abonnement. Bed ejeren om at opgradere for at låse op for delte sager og statistik.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-3">
           {[
             { icon: <ImageIcon className="w-5 h-5" />, value: myPerf.visuals, label: "Visuals md." },
@@ -6197,6 +6222,26 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
 
   return (
     <motion.div key="admin-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
+
+      {/* Subscription lock banner — shown when owner has no active plan */}
+      {!ownerHasSub && (
+        <div className="rounded-xl p-4 flex gap-3 items-start" style={{ background: "rgba(200,149,108,0.08)", border: "1px solid rgba(200,149,108,0.3)" }}>
+          <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>Team-funktioner er låste — opgrader for at låse op</p>
+            <p className="text-xs leading-relaxed mb-2" style={{ color: "#6B6B6B" }}>
+              Du kan invitere kolleger nu via invite-koden herunder. Når du køber et abonnement låses alle team-funktioner op for dig og alle der bruger dit invite-link — delte sager, statistik og credit-styring.
+            </p>
+            <button
+              onClick={() => window.location.href = "/pris"}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90"
+              style={{ background: "#C8956C" }}
+              data-testid="team-upgrade-cta">
+              Se abonnementer <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header + Invite link */}
       <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
