@@ -489,7 +489,7 @@ function CaseThumb({ src, alt, className }: { src: string | null; alt?: string; 
   if (url.endsWith(".mp4") || url.includes(".mp4?")) {
     return <video src={url} className={className} muted playsInline autoPlay loop style={{ objectFit: "cover" }} />;
   }
-  return <img src={url} alt={alt ?? ""} className={className} />;
+  return <img src={url} alt={alt ?? ""} className={className} onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_THUMB; }} />;
 }
 
 function timeAgo(dateStr: string | Date): string {
@@ -5886,7 +5886,7 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
                   <BeforeAfterSlider beforeSrc={current.beforeSrc} afterSrc={current.src} />
                 ) : (
                   <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
-                    <img src={current?.src} alt={caseInfo.address} className="w-full object-contain max-h-[60vh]" style={{ background: "#F5F3EF" }} />
+                    <img src={current?.src} alt={caseInfo.address} className="w-full object-contain max-h-[60vh]" style={{ background: "#F5F3EF" }} onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_THUMB; }} />
                   </div>
                 )}
                 <div className="flex items-center justify-between mt-2.5">
@@ -5922,7 +5922,7 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
                       className="w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0"
                       style={{ borderColor: i === idx ? "#C8956C" : "#E8E4DE" }}
                       data-testid={`team-case-thumb-${img.id}`}>
-                      <img src={img.src} alt="" className="w-full h-full object-cover" />
+                      <img src={img.src} alt="" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_THUMB; }} />
                     </button>
                   ))}
                 </div>
