@@ -524,12 +524,12 @@ function HeroStage() {
           <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "38%", background: "linear-gradient(to top, rgba(10,18,25,0.88) 0%, rgba(10,18,25,0.60) 35%, rgba(10,18,25,0.18) 70%, transparent 100%)", zIndex: 6 }} />
 
           {/* Headline + CTAs — desktop only; mobile version lives below the stage */}
-          <div className="hidden md:block absolute left-0 right-0" style={{ bottom: "clamp(14px, 2vw, 28px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
+          <div className="hidden md:block absolute left-0 right-0" style={{ bottom: "clamp(90px, 9vw, 150px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
             <div style={{ maxWidth: "clamp(260px, 90%, 560px)" }}>
               <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(22px, 3vw, 42px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 12px rgba(0,0,0,0.3)" }}>
                 Professionelle boligvisualiseringer på få sekunder
               </h1>
-              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(11px, 1vw, 13px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
+              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(13px, 1.2vw, 15px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
                 Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
               </p>
               <div className="flex flex-wrap items-center gap-2">

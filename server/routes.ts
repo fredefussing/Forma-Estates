@@ -471,6 +471,7 @@ export async function registerRoutes(
           });
 
           log(`New user created: ${email} (uid: ${uid})`);
+          sendWelcomeEmail(email, "Server-side oprettelse (Firebase verify)");
         }
       }
 

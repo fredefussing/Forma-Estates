@@ -8140,11 +8140,11 @@ export default function BoligpotentialeDashboard() {
 
           {section === "fakturering" && (() => {
             const usedThisMonth = stats?.totalImages ?? 0;
-            const currentPlan = {
-              name: "Ingen aktiv plan",
-              includedText: "Køb en plan for at komme i gang",
-              creditsPerMonth: null as number | null,
-            };
+            const currentPlan = isAdmin
+              ? { name: "Admin — Ubegrænset", includedText: "Fuld adgang til alle funktioner uden begrænsning", creditsPerMonth: null as number | null }
+              : subscriptionStatus === "active"
+              ? { name: "Aktiv plan", includedText: "Alle inkluderede funktioner er aktiveret", creditsPerMonth: null as number | null }
+              : { name: "Ingen aktiv plan", includedText: "Kontakt os for at vælge en plan", creditsPerMonth: null as number | null };
             const billingHistory: { date: string; description: string; amount: string }[] = [];
             const referencePlans = [
               { name: "Start", price: "2.999 kr/md", features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md."], highlight: false },
