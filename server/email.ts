@@ -273,7 +273,7 @@ export async function sendContactFormEmails(data: {
 
 export async function sendPasswordResetToUser(toEmail: string, name: string) {
   try {
-    const loginUrl = "https://formaestates.com/log-ind";
+    const loginUrl = "https://formaestates.com/login";
     await sendBrevoEmail({
       to: toEmail,
       subject: "Nulstil din adgangskode – Forma Estates",

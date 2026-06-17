@@ -449,7 +449,7 @@ export default function PrivatlivspolitikPage() {
       <footer className="border-t py-6 px-6 text-center" style={{ borderColor: C.border }}>
         <div className="flex justify-center gap-6 mb-3">
           <Link href="/handelsbetingelser">
-            <a className="text-xs underline" style={{ color: C.gold }}>Handelsbetingelser</a>
+            <span className="text-xs underline cursor-pointer" style={{ color: C.gold }}>Handelsbetingelser</span>
           </Link>
         </div>
         <p className="text-xs" style={{ color: C.muted }}>

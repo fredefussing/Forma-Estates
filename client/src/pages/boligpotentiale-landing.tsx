@@ -200,7 +200,7 @@ const FAQS = [
   },
   {
     q: "Er mine billeder fortrolige?",
-    a: "Ja. Uploadede billeder bruges udelukkende til at generere din visualisering og deles ikke med tredjepart. Se vores privatlivspolitik for fulde detaljer om databeskyttelse.",
+    a: 'Ja. Uploadede billeder bruges udelukkende til at generere din visualisering og deles ikke med tredjepart. <a href="/privatlivspolitik" style="color:inherit;text-decoration:underline;">Se vores privatlivspolitik</a> for fulde detaljer om databeskyttelse.',
   },
 ];
 
@@ -498,6 +498,7 @@ function HeroStage() {
                 <video
                   ref={videoRef}
                   src={slide.src}
+                  poster={(slide as Extract<StageSlide, { kind: "video" }>).poster}
                   autoPlay
                   muted
                   loop
@@ -952,7 +953,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <p style={{ paddingBottom: 24, color: C.muted, fontSize: 15, lineHeight: 1.7 }}>{a}</p>
+            <p style={{ paddingBottom: 24, color: C.muted, fontSize: 15, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: a }} />
           </motion.div>
         )}
       </AnimatePresence>

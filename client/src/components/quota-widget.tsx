@@ -228,7 +228,7 @@ export function QuotaGate({
         </p>
       </div>
       <a
-        href="/priser"
+        href="/pris"
         className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
         style={{ background: "#C8956C" }}
       >

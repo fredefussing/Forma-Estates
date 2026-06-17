@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,12 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
+
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
 
@@ -49,6 +55,95 @@ export default function LoginPage() {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError("");
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetSent(true);
+    } catch (err: any) {
+      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-email") {
+        setResetError("Ingen konto fundet med denne email.");
+      } else {
+        setResetError("Der skete en fejl. Prøv igen.");
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  if (resetMode) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f0] flex items-center justify-center px-4">
+        <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-lg w-full max-w-[420px]">
+          <Link href="/">
+            <span className="text-xl font-bold text-center block mb-6 cursor-pointer text-[#1a1a1a]" data-testid="link-logo">
+              Forma Estates
+            </span>
+          </Link>
+
+          <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">Nulstil password</h1>
+          <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Vi sender dig et link til at oprette nyt password</p>
+
+          {resetSent ? (
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-sm text-muted-foreground">Vi har sendt et link til <strong>{resetEmail}</strong>. Tjek din indbakke (og spam-mappen).</p>
+              <button
+                onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
+                className="text-sm text-[#1a1a1a] underline"
+                data-testid="link-back-to-login"
+              >
+                Tilbage til log ind
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handlePasswordReset} className="space-y-5">
+              <div>
+                <Label htmlFor="reset-email">Email</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  required
+                  placeholder="din@email.dk"
+                  autoComplete="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="mt-1.5"
+                  data-testid="input-reset-email"
+                />
+              </div>
+
+              <Button type="submit" className="w-full h-12 text-base" disabled={resetLoading} data-testid="button-send-reset">
+                {resetLoading ? "Sender..." : "Send nulstillingslink"}
+              </Button>
+
+              {resetError && (
+                <p className="text-destructive text-sm text-center" data-testid="text-reset-error">{resetError}</p>
+              )}
+            </form>
+          )}
+
+          {!resetSent && (
+            <button
+              onClick={() => setResetMode(false)}
+              className="flex items-center justify-center gap-1.5 mt-6 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors w-full"
+              data-testid="link-back-to-login-bottom"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Tilbage til log ind
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f0] flex items-center justify-center px-4">
       <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-lg w-full max-w-[420px]">
@@ -77,7 +172,17 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label htmlFor="password">Password</Label>
+              <button
+                type="button"
+                onClick={() => { setResetMode(true); setResetEmail(email); }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+                data-testid="link-forgot-password"
+              >
+                Glemt password?
+              </button>
+            </div>
             <Input
               id="password"
               type="password"
@@ -86,7 +191,6 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5"
               data-testid="input-password"
             />
           </div>

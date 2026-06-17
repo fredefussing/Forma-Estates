@@ -8183,14 +8183,14 @@ export default function BoligpotentialeDashboard() {
                       <p className="text-xs font-semibold tracking-wider uppercase mb-1" style={{ color: "#C8956C" }}>Din nuværende plan</p>
                       <h3 className="text-xl font-bold" style={{ color: "#0F1D2F" }}>{currentPlan.name}</h3>
                     </div>
-                    <button
-                      disabled
-                      className="px-4 py-2 rounded-full text-sm font-semibold cursor-not-allowed opacity-70"
-                      style={{ background: "#F0EDE7", color: "#6B6B6B" }}
+                    <a
+                      href="mailto:kontakt@formaestates.com?subject=Abonnement%20-%20Opgrader%20plan&body=Hej%20Forma%20Estates%2C%0A%0AJeg%20er%20interesseret%20i%20at%20opgradere%20min%20plan.%0A%0AMvh"
+                      className="px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-1.5"
+                      style={{ background: "#C8956C", color: "#fff" }}
                       data-testid="billing-upgrade-button"
                     >
-                      Opgrader til betalt plan — kommer snart
-                    </button>
+                      Kontakt os for at opgradere
+                    </a>
                   </div>
                   <p className="text-sm mb-2" style={{ color: "#6B6B6B" }}>Inkluderet:</p>
                   <ul className="space-y-1.5">
@@ -8244,7 +8244,7 @@ export default function BoligpotentialeDashboard() {
                 {/* ── Reference plans ── */}
                 <div>
                   <h3 className="text-lg font-bold mb-1" style={{ color: "#0F1D2F" }}>Prisplaner</h3>
-                  <p className="text-xs mb-5" style={{ color: "#6B6B6B" }}>Stripe-integration kommer snart — knapperne er deaktiveret indtil videre.</p>
+                  <p className="text-xs mb-5" style={{ color: "#6B6B6B" }}>Kontakt os for at vælge en plan — vi opsætter det hurtigt for dig.</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="billing-reference-plans">
                     {referencePlans.map((plan) => (
                       <div
@@ -8271,14 +8271,17 @@ export default function BoligpotentialeDashboard() {
                             </li>
                           ))}
                         </ul>
-                        <button
-                          disabled
-                          className="w-full h-10 rounded-full font-semibold text-xs cursor-not-allowed opacity-70 inline-flex items-center justify-center gap-1.5"
-                          style={{ background: "#F0EDE7", color: "#6B6B6B" }}
+                        <a
+                          href={`mailto:kontakt@formaestates.com?subject=Abonnement%20-%20${encodeURIComponent(plan.name)}%20plan&body=Hej%20Forma%20Estates%2C%0A%0AJeg%20er%20interesseret%20i%20${encodeURIComponent(plan.name)}-planen%20(${encodeURIComponent(plan.price)}).%0A%0AMvh`}
+                          className="w-full h-10 rounded-full font-semibold text-xs inline-flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+                          style={{
+                            background: plan.highlight ? "#C8956C" : "#0F1D2F",
+                            color: "#fff",
+                          }}
                           data-testid={`billing-plan-cta-${plan.name.toLowerCase()}`}
                         >
-                          <Clock className="w-3 h-3" /> Kommer snart
-                        </button>
+                          Vælg {plan.name}
+                        </a>
                       </div>
                     ))}
                   </div>

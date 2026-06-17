@@ -596,8 +596,7 @@ export function OmOsPage() {
       <div className="mx-auto" style={{ maxWidth: 760 }}>
         <div className="space-y-5" data-testid="omos-intro">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Forma Estates er et dansk teknologiselskab grundlagt i København med et klart mål: at
-            revolutionere den danske ejendomsbranche gennem kunstig intelligens. Vi udvikler
+            Vi revolutionerer den danske ejendomsbranche gennem kunstig intelligens. Vi udvikler
             skræddersyede værktøjer, der hjælper lokale ejendomsmæglere med at spare tid, reducere
             omkostninger og sælge boliger hurtigere — uden at gå på kompromis med kvaliteten.
           </p>
