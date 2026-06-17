@@ -801,6 +801,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserAccount(userId: number): Promise<void> {
+    await pool.query(`UPDATE crm_contacts SET linked_user_id = NULL WHERE linked_user_id = $1`, [userId]);
     await db.delete(crmActivities).where(eq(crmActivities.userId, userId));
     await db.delete(crmInteractions).where(eq(crmInteractions.userId, userId));
     await db.delete(crmUserOverrides).where(eq(crmUserOverrides.userId, userId));

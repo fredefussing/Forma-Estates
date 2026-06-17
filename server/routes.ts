@@ -3801,6 +3801,8 @@ export async function registerRoutes(
       if (!QUOTAS[tier]) return res.status(400).json({ error: "Ugyldigt abonnement" });
       const q = QUOTAS[tier];
       const status = tier === "none" ? "none" : "active";
+      const now = new Date();
+      const resetsAt = tier === "none" ? null : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
       await pool.query(`
         UPDATE users SET
           subscription_tier = $1,
@@ -3808,13 +3810,34 @@ export async function registerRoutes(
           quota_ai_visualizations = $3,
           quota_floor_plans = $4,
           quota_transform_videos = $5,
-          quota_showcase_videos = $6
+          quota_showcase_videos = $6,
+          quota_resets_at = $8,
+          used_ai_visualizations = 0,
+          used_floor_plans = 0,
+          used_transform_videos = 0,
+          used_showcase_videos = 0
         WHERE id = $7
-      `, [tier === "none" ? null : tier, status, q.ai, q.fp, q.tv, q.sv, uid2]);
+      `, [tier === "none" ? null : tier, status, q.ai, q.fp, q.tv, q.sv, uid2, resetsAt]);
       const tierLabel: Record<string, string> = { none: "Ingen plan", start: "Start", pro: "Pro", business: "Business", unlimited: "Unlimited" };
       await storage.addCrmInteraction({ contactId: req.params.id, type: "plan_change", content: `Abonnement ændret til ${tierLabel[tier] ?? tier}`, createdBy: caller.email });
       log(`[CRM] ${caller.email} set subscription for user ${uid2} → ${tier}`);
       return res.json({ success: true, tier });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/crm/contacts/:id/send-password-reset", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller || caller.email !== "fredefussing@gmail.com") return res.status(403).json({ error: "Kun ejeren" });
+      const result = await storage.getCrmContact(req.params.id);
+      if (!result) return res.status(404).json({ error: "Kontakt ikke fundet" });
+      const targetEmail = result.contact.email;
+      const targetName = result.contact.name ?? targetEmail.split("@")[0];
+      const { sendPasswordResetToUser } = await import("./email");
+      await sendPasswordResetToUser(targetEmail, targetName);
+      await storage.addCrmInteraction({ contactId: req.params.id, type: "email", content: `Password reset email sendt til ${targetEmail}`, createdBy: caller.email });
+      return res.json({ success: true });
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 

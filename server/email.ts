@@ -271,6 +271,49 @@ export async function sendContactFormEmails(data: {
   }
 }
 
+export async function sendPasswordResetToUser(toEmail: string, name: string) {
+  try {
+    const loginUrl = "https://formaestates.com/log-ind";
+    await sendBrevoEmail({
+      to: toEmail,
+      subject: "Nulstil din adgangskode – Forma Estates",
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Konto</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">Nulstil din adgangskode</h1>
+            </div>
+            <div style="padding:32px;">
+              <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">
+                Hej ${name},<br><br>
+                Din administrator har anmodet om en nulstilling af din adgangskode på Forma Estates.
+              </p>
+              <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 24px;">
+                Klik på knappen nedenfor for at gå til login-siden og vælg "Glemt adgangskode" for at oprette en ny adgangskode.
+              </p>
+              <p style="text-align:center;margin:28px 0;">
+                <a href="${loginUrl}"
+                   style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
+                  Gå til login →
+                </a>
+              </p>
+              <p style="color:#999;font-size:13px;margin:24px 0 0;">Hvis du ikke har bedt om dette, kan du ignorere denne email. Din nuværende adgangskode er uændret.</p>
+            </div>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+        </div>
+      `,
+    });
+    log(`Password reset email sent to ${toEmail}`);
+  } catch (err: any) {
+    log(`Failed to send password reset email to ${toEmail}: ${err.message}`);
+    throw err;
+  }
+}
+
 export async function sendTeamInviteEmail(toEmail: string, teamName: string, inviteLink: string) {
   try {
     await sendBrevoEmail({

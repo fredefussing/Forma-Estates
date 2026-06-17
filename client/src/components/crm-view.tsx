@@ -432,9 +432,10 @@ function TimelinePanel({ contact, interactions, onRefresh }: { contact: Contact;
 }
 
 // ── Info Panel ────────────────────────────────────────────────────────────────
-function InfoPanel({ contact, onUpdated }: { contact: Contact; onUpdated: () => void }) {
+function InfoPanel({ contact, onUpdated, isOwner }: { contact: Contact; onUpdated: () => void; isOwner: boolean }) {
   const [form, setForm] = useState({ name: contact.name ?? "", company: contact.company ?? "", phone: contact.phone ?? "", status: contact.status });
   const [saving, setSaving] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const { msg, flash } = useFlash();
   useEffect(() => { setForm({ name: contact.name ?? "", company: contact.company ?? "", phone: contact.phone ?? "", status: contact.status }); }, [contact.id]);
   const isDirty = form.name !== (contact.name ?? "") || form.company !== (contact.company ?? "") || form.phone !== (contact.phone ?? "") || form.status !== contact.status;
@@ -443,6 +444,14 @@ function InfoPanel({ contact, onUpdated }: { contact: Contact; onUpdated: () => 
     try { await cf(`/api/crm/contacts/${contact.id}`, { method: "PATCH", body: JSON.stringify(form) }); flash("✓ Gemt"); onUpdated(); }
     catch {}
     setSaving(false);
+  };
+  const sendPasswordReset = async () => {
+    setSendingReset(true);
+    try {
+      await cf(`/api/crm/contacts/${contact.id}/send-password-reset`, { method: "POST" });
+      flash("✓ Password reset email sendt");
+    } catch (e: any) { flash(`Fejl: ${e.message}`); }
+    setSendingReset(false);
   };
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
@@ -475,7 +484,14 @@ function InfoPanel({ contact, onUpdated }: { contact: Contact; onUpdated: () => 
           className="mt-4 w-full h-9 rounded-xl text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           style={{ background: PRIMARY }}>{saving ? "Gemmer…" : "Gem ændringer"}</button>
       )}
-      {msg && !isDirty && <p className="mt-2 text-xs text-center text-green-600 font-medium">{msg}</p>}
+      {msg && <p className="mt-2 text-xs text-center text-green-600 font-medium">{msg}</p>}
+      {isOwner && contact.linkedUserId && (
+        <button onClick={sendPasswordReset} disabled={sendingReset}
+          className="mt-3 w-full h-9 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+          style={{ color: "#374151" }} data-testid="crm-send-password-reset">
+          {sendingReset ? "Sender…" : "🔑 Send password reset email"}
+        </button>
+      )}
     </div>
   );
 }
@@ -499,7 +515,7 @@ function ContactDetail({ contactId, onBack, isOwner }: { contactId: string; onBa
       <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-4 gap-4 pb-4">
         {/* Col 1: Info + Subscription */}
         <div className="lg:col-span-1 space-y-4">
-          <InfoPanel contact={data.contact} onUpdated={refresh} />
+          <InfoPanel contact={data.contact} onUpdated={refresh} isOwner={isOwner} />
           <SubscriptionPanel contact={data.contact} isOwner={isOwner} onRefresh={refresh} />
         </div>
         {/* Col 2: Credits + Quota */}
