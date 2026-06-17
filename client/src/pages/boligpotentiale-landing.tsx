@@ -1888,7 +1888,7 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto max-w-3xl text-center">
           <H2 light style={{ fontSize: "clamp(28px, 4vw, 42px)" }}>Klar til at vise boligens potentiale?</H2>
           <p className="mt-5 mb-10" style={{ color: "rgba(255,255,255,0.7)", fontSize: 18, lineHeight: 1.6 }}>
-            Opret en konto på 2 minutter — ingen kreditkort nødvendigt.
+            Opret en konto på under 1 minut — ingen kreditkort nødvendigt.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/opret">
