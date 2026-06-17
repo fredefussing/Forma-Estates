@@ -1959,7 +1959,7 @@ export default function BoligpotentialeLanding() {
                 FORMA ESTATES
               </div>
               <p className="mx-auto md:mx-0 mb-5" style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, lineHeight: 1.6, maxWidth: 280 }}>
-                AI-drevet boligvisualisering til ejendomsmæglere i Danmark.
+                AI-drevet boligvisualisering, 3D plantegninger og videoer til ejendomsmæglere i Danmark.
               </p>
               <div
                 className="flex items-center justify-center md:justify-start"
