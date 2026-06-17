@@ -7,7 +7,7 @@ import formaEstatesLogo from "@assets/forma-estates-logo.png";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { signOut, sendPasswordResetEmail, updateProfile } from "firebase/auth";
+import { signOut, sendPasswordResetEmail, updateProfile, deleteUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
@@ -6661,6 +6661,8 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 
   // ── Konto ──
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const handlePasswordReset = async () => {
     if (!user.email) return;
     try {
@@ -6668,6 +6670,20 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
       showToast("Vi har sendt et link til at skifte password");
     } catch (err: any) {
       showToast(`Fejl: ${err.message ?? "Kunne ikke sende email"}`);
+    }
+  };
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "SLET") return;
+    setDeletingAccount(true);
+    try {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/user/account", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error((await r.json()).message ?? "Fejl");
+      if (auth.currentUser) await deleteUser(auth.currentUser);
+      await signOut(auth);
+    } catch (err: any) {
+      setDeletingAccount(false);
+      showToast(`Fejl: ${err.message ?? "Kunne ikke slette konto"}`);
     }
   };
 
@@ -6931,11 +6947,42 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                 </div>
                 <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Slet min konto?</h3>
               </div>
-              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>
-                Dette sletter permanent din konto og alle dine sager. Handlingen kan ikke fortrydes. Kontakt support på <span className="font-semibold">hello@nordichomebuild.com</span> for at gennemføre sletningen.
+              <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
+                Dette sletter permanent din konto, alle dine sager og alt indhold. Handlingen kan <span className="font-semibold">ikke fortrydes</span>.
               </p>
+              <div className="mb-4">
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#0F1D2F" }}>
+                  Skriv <span className="font-bold text-red-600">SLET</span> for at bekræfte
+                </label>
+                <input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="SLET"
+                  className="w-full px-3.5 py-2.5 rounded-lg text-sm outline-none border"
+                  style={{ background: "#FEF2F2", borderColor: "#FCA5A5", color: "#1A1A1A" }}
+                  data-testid="bolig-delete-account-confirm-input"
+                  disabled={deletingAccount}
+                />
+              </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setDeleteOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }} data-testid="bolig-delete-account-cancel">Annuller</button>
+                <button
+                  onClick={() => { setDeleteOpen(false); setDeleteConfirmText(""); }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]"
+                  style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
+                  data-testid="bolig-delete-account-cancel"
+                  disabled={deletingAccount}
+                >
+                  Annuller
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== "SLET" || deletingAccount}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-40"
+                  style={{ background: "#B91C1C" }}
+                  data-testid="bolig-delete-account-submit"
+                >
+                  {deletingAccount ? "Sletter..." : "Slet konto permanent"}
+                </button>
               </div>
             </motion.div>
           </div>

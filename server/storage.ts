@@ -128,6 +128,7 @@ export interface IStorage {
   setAiTourRooms(propertyId: number, userId: number, rooms: Array<Omit<InsertAiTourRoom, "propertyId">>): Promise<AiTourRoom[]>;
   getAiTourRooms(propertyId: number, userId: number): Promise<AiTourRoom[]>;
   updateAiTourRoom(roomId: number, userId: number, updates: Partial<InsertAiTourRoom>): Promise<AiTourRoom | undefined>;
+  deleteUserAccount(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -797,6 +798,37 @@ export class DatabaseStorage implements IStorage {
     if (!owned) return undefined;
     const [row] = await db.update(aiTourRooms).set(updates).where(eq(aiTourRooms.id, roomId)).returning();
     return row;
+  }
+
+  async deleteUserAccount(userId: number): Promise<void> {
+    await db.delete(crmActivities).where(eq(crmActivities.userId, userId));
+    await db.delete(crmInteractions).where(eq(crmInteractions.userId, userId));
+    await db.delete(crmUserOverrides).where(eq(crmUserOverrides.userId, userId));
+    await db.delete(teamMembers).where(eq(teamMembers.userId, userId));
+    const ownedTeams = await db.select({ id: teams.id }).from(teams).where(eq(teams.ownerUserId, userId));
+    for (const t of ownedTeams) {
+      await db.delete(teamMembers).where(eq(teamMembers.teamId, t.id));
+      await db.delete(teamInvites).where(eq(teamInvites.teamId, t.id));
+      await db.delete(teams).where(eq(teams.id, t.id));
+    }
+    const ownedProps = await db.select({ id: aiTourProperties.id }).from(aiTourProperties).where(eq(aiTourProperties.userId, userId));
+    for (const p of ownedProps) {
+      await db.delete(aiTourRooms).where(eq(aiTourRooms.propertyId, p.id));
+    }
+    await db.delete(aiTourProperties).where(eq(aiTourProperties.userId, userId));
+    const ownedCases = await db.select({ id: boligCases.id }).from(boligCases).where(eq(boligCases.userId, userId));
+    for (const c of ownedCases) {
+      await db.delete(boligCaseImages).where(eq(boligCaseImages.caseId, c.id));
+    }
+    await db.delete(boligCases).where(eq(boligCases.userId, userId));
+    await db.delete(generatedImages).where(eq(generatedImages.userId, userId));
+    await db.delete(agentDesigns).where(eq(agentDesigns.userId, userId));
+    await db.delete(designs).where(eq(designs.userId, userId));
+    await db.delete(creditTransactions).where(eq(creditTransactions.userId, userId));
+    await db.delete(specialRequests).where(eq(specialRequests.userId, userId));
+    await db.delete(quoteRequests).where(eq(quoteRequests.userId, userId));
+    await db.delete(quotes).where(eq(quotes.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
   }
 
   // ── CRM ────────────────────────────────────────────────────────────────────
