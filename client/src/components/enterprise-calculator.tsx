@@ -250,7 +250,7 @@ export function EnterpriseCalculator({ dark = false }: Props) {
           style={{ background: "#C8956C", color: "#fff" }}
           data-testid="button-enterprise-get-quote"
         >
-          Få tilbud
+          Vælg din pakke
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
