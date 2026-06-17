@@ -1,0 +1,178 @@
+
+Search logs
+
+Live tail
+
+
+
+      2337 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2341:6:
+      2341 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2357:6:
+      2357 │       "types": "./singlestore-core/session.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2349:6:
+      2349 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2353:6:
+      2353 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2369:6:
+      2369 │       "types": "./singlestore-core/subquery.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2361:6:
+      2361 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2365:6:
+      2365 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2381:6:
+      2381 │       "types": "./singlestore-core/table.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2373:6:
+      2373 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2377:6:
+      2377 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2393:6:
+      2393 │       "types": "./singlestore-core/unique-constraint.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2385:6:
+      2385 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2389:6:
+      2389 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2405:6:
+      2405 │       "types": "./singlestore-core/utils.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2397:6:
+      2397 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2401:6:
+      2401 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2417:6:
+      2417 │       "types": "./singlestore-core/view-base.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2409:6:
+      2409 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2413:6:
+      2413 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2429:6:
+      2429 │       "types": "./singlestore-core/view-common.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2421:6:
+      2421 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2425:6:
+      2425 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2441:6:
+      2441 │       "types": "./singlestore-core/view.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2433:6:
+      2433 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2437:6:
+      2437 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2453:6:
+      2453 │       "types": "./singlestore-proxy/driver.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2445:6:
+      2445 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2449:6:
+      2449 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2465:6:
+      2465 │       "types": "./singlestore-proxy/index.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2457:6:
+      2457 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2461:6:
+      2461 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2477:6:
+      2477 │       "types": "./singlestore-proxy/migrator.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2469:6:
+      2469 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2473:6:
+      2473 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2489:6:
+      2489 │       "types": "./singlestore-proxy/session.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2481:6:
+      2481 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:2485:6:
+      2485 │       "require": {
+           ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/drizzle-orm/package.json:2501:6:
+      2501 │       "types": "./sql/index.d.ts",
+           ╵       ~~~~~~~
+  The "import" condition comes earlier and will be used for all "import" statements:
+    node_modules/drizzle-orm/package.json:2493:6:
+      2493 │       "import": {
+           ╵       ~~~~~~~~
+  The "require" condition comes earlier and will be used for all "require" calls:
+    node_modules/drizzle-orm/package.json:3945:6:
+      841 │       "require": {
+          ╵       ~~~~~~~~~
+● [DEBUG] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+    node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.21.0/node_modules/drizzle-orm/package.json:857:6:
+    node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.21.0/node_modules/drizzle-orm/package.json:1305:6:
+  The "import" condition comes earlier and will be used for all "import" statements:
+           ╵       ~~~~~~~
+      3109 │       "require": {
+[tracker] Failed to send critical alert: BREVO_SYSTEM_TRACKER ikke konfigureret
+5:27:12 PM [express] [Pre-warm] Warming Collov models...
+5:27:12 PM [express] [Pre-warm] Done
