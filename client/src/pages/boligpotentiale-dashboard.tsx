@@ -8026,7 +8026,7 @@ export default function BoligpotentialeDashboard() {
           {/* CRM — both admins */}
           {section === "crm" && isAdmin && (
             <motion.div key="crm-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
-              <CrmView isOwner={isOwner} />
+              <CrmView isOwner={isAdmin} />
             </motion.div>
           )}
 

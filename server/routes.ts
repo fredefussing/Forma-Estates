@@ -3731,8 +3731,8 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const caller = await storage.getUserByFirebaseUid(uid);
-      if (!caller || caller.email !== "fredefussing@gmail.com") {
-        return res.status(403).json({ error: "Kun ejeren kan tildele credits" });
+      if (!caller?.isAdmin) {
+        return res.status(403).json({ error: "Kun admins kan tildele credits" });
       }
       const result = await storage.getCrmContact(req.params.id);
       if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
@@ -3754,7 +3754,7 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const caller = await storage.getUserByFirebaseUid(uid);
-      if (!caller || caller.email !== "fredefussing@gmail.com") return res.status(403).json({ error: "Kun ejeren" });
+      if (!caller?.isAdmin) return res.status(403).json({ error: "Kun admins" });
       const result = await storage.getCrmContact(req.params.id);
       if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
       const uid2 = result.contact.linkedUserId;
@@ -3787,7 +3787,7 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const caller = await storage.getUserByFirebaseUid(uid);
-      if (!caller || caller.email !== "fredefussing@gmail.com") return res.status(403).json({ error: "Kun ejeren" });
+      if (!caller?.isAdmin) return res.status(403).json({ error: "Kun admins" });
       const result = await storage.getCrmContact(req.params.id);
       if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
       const uid2 = result.contact.linkedUserId;
@@ -3830,7 +3830,7 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const caller = await storage.getUserByFirebaseUid(uid);
-      if (!caller || caller.email !== "fredefussing@gmail.com") return res.status(403).json({ error: "Kun ejeren" });
+      if (!caller?.isAdmin) return res.status(403).json({ error: "Kun admins" });
       const result = await storage.getCrmContact(req.params.id);
       if (!result) return res.status(404).json({ error: "Kontakt ikke fundet" });
       const targetEmail = result.contact.email;
