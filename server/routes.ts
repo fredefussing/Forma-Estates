@@ -3791,7 +3791,7 @@ export async function registerRoutes(
       const result = await storage.getCrmContact(req.params.id);
       if (!result?.contact.linkedUserId) return res.status(400).json({ error: "Ingen tilknyttet bruger" });
       const uid2 = result.contact.linkedUserId;
-      const { tier } = req.body; // e.g. "start","pro","business","unlimited","none"
+      const { tier, overrides } = req.body; // overrides: { ai?, fp?, tv?, sv? } — null=unlimited, 0=locked
       const QUOTAS: Record<string, { ai: number|null; fp: number|null; tv: number|null; sv: number|null }> = {
         none:       { ai: 0,    fp: 0,    tv: 0,    sv: 0    },
         start:      { ai: 10,   fp: 2,    tv: 2,    sv: 1    },
@@ -3800,7 +3800,14 @@ export async function registerRoutes(
         unlimited:  { ai: null, fp: null, tv: null, sv: null },
       };
       if (!QUOTAS[tier]) return res.status(400).json({ error: "Ugyldigt abonnement" });
-      const q = QUOTAS[tier];
+      const base = QUOTAS[tier];
+      // Apply per-feature overrides on top of tier defaults
+      const q = {
+        ai: overrides?.ai !== undefined ? overrides.ai : base.ai,
+        fp: overrides?.fp !== undefined ? overrides.fp : base.fp,
+        tv: overrides?.tv !== undefined ? overrides.tv : base.tv,
+        sv: overrides?.sv !== undefined ? overrides.sv : base.sv,
+      };
       const status = tier === "none" ? "none" : "active";
       const now = new Date();
       const resetsAt = tier === "none" ? null : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));

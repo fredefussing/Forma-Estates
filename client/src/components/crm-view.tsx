@@ -127,19 +127,50 @@ function NewContactModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 }
 
 // ── Subscription Panel ────────────────────────────────────────────────────────
+type FeatureKey = "ai" | "fp" | "tv" | "sv";
+const FEATURES: { key: FeatureKey; icon: string; label: string; tierKey: "ai" | "fp" | "tv" | "sv" }[] = [
+  { key: "ai", icon: "🖼️", label: "AI Visualiseringer", tierKey: "ai" },
+  { key: "fp", icon: "📐", label: "3D Plantegninger",   tierKey: "fp" },
+  { key: "tv", icon: "🎬", label: "Transformeringsvideoer", tierKey: "tv" },
+  { key: "sv", icon: "🏡", label: "Bolig Showcase",     tierKey: "sv" },
+];
+
 function SubscriptionPanel({ contact, isOwner, onRefresh }: { contact: Contact; isOwner: boolean; onRefresh: () => void }) {
   const [tier, setTier] = useState(contact.subscriptionTier ?? "none");
+  const [locked, setLocked] = useState<Record<FeatureKey, boolean>>({ ai: false, fp: false, tv: false, sv: false });
   const [saving, setSaving] = useState(false);
   const { msg, flash } = useFlash();
   const [err, setErr] = useState("");
 
   useEffect(() => { setTier(contact.subscriptionTier ?? "none"); }, [contact.subscriptionTier]);
 
+  // Detect currently locked features from contact quotas
+  useEffect(() => {
+    setLocked({
+      ai: contact.quotaAi === 0,
+      fp: contact.quotaFloor === 0,
+      tv: contact.quotaVideo === 0,
+      sv: contact.quotaShowcase === 0,
+    });
+  }, [contact.quotaAi, contact.quotaFloor, contact.quotaVideo, contact.quotaShowcase]);
+
+  const toggleLock = (key: FeatureKey) => setLocked(l => ({ ...l, [key]: !l[key] }));
+
   const apply = async () => {
     setSaving(true); setErr("");
     try {
-      await cf(`/api/crm/contacts/${contact.id}/subscription`, { method: "PATCH", body: JSON.stringify({ tier }) });
-      flash(`✓ Abonnement sat til ${TIERS.find(t => t.value === tier)?.label}`);
+      const selectedTier = TIERS.find(t => t.value === tier);
+      const overrides: Record<string, number | null> = {};
+      FEATURES.forEach(f => {
+        if (locked[f.key]) {
+          overrides[f.key] = 0;
+        }
+      });
+      await cf(`/api/crm/contacts/${contact.id}/subscription`, {
+        method: "PATCH",
+        body: JSON.stringify({ tier, overrides: Object.keys(overrides).length > 0 ? overrides : undefined }),
+      });
+      flash(`✓ Abonnement sat til ${selectedTier?.label}`);
       onRefresh();
     } catch (e: any) { setErr(e.message); }
     setSaving(false);
@@ -147,7 +178,8 @@ function SubscriptionPanel({ contact, isOwner, onRefresh }: { contact: Contact; 
 
   const current = TIERS.find(t => t.value === (contact.subscriptionTier ?? "none"));
   const selected = TIERS.find(t => t.value === tier);
-  const changed = tier !== (contact.subscriptionTier ?? "none");
+  const hasLocks = Object.values(locked).some(Boolean);
+  const changed = tier !== (contact.subscriptionTier ?? "none") || hasLocks;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
@@ -162,6 +194,7 @@ function SubscriptionPanel({ contact, isOwner, onRefresh }: { contact: Contact; 
 
       {isOwner ? (
         <div className="space-y-2">
+          {/* Tier selector */}
           <div className="grid grid-cols-1 gap-1">
             {TIERS.map(t => (
               <button key={t.value} onClick={() => setTier(t.value)}
@@ -182,15 +215,42 @@ function SubscriptionPanel({ contact, isOwner, onRefresh }: { contact: Contact; 
               </button>
             ))}
           </div>
+
+          {/* Per-feature lock toggles — only shown when a real tier is selected */}
+          {tier !== "none" && (
+            <div className="mt-3 border border-slate-100 rounded-xl p-3 bg-slate-50">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Features — lås/åbn</p>
+              <div className="space-y-1.5">
+                {FEATURES.map(f => {
+                  const isLocked = locked[f.key];
+                  return (
+                    <div key={f.key} className="flex items-center justify-between">
+                      <span className="text-xs text-slate-600">{f.icon} {f.label}</span>
+                      <button
+                        onClick={() => toggleLock(f.key)}
+                        data-testid={`crm-lock-${f.key}`}
+                        className="text-[11px] px-2.5 py-0.5 rounded-full font-semibold transition-all"
+                        style={{
+                          background: isLocked ? "#FEE2E2" : "#DCFCE7",
+                          color: isLocked ? "#991B1B" : "#166534",
+                          border: isLocked ? "1px solid #FECACA" : "1px solid #BBF7D0",
+                        }}>
+                        {isLocked ? "🔒 Låst" : "✓ Åben"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {err && <p className="text-xs text-red-500">{err}</p>}
           {msg && <p className="text-xs text-green-600 font-medium">{msg}</p>}
-          {changed && (
-            <button onClick={apply} disabled={saving}
-              className="w-full h-9 rounded-xl text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 mt-1"
-              style={{ background: PRIMARY }} data-testid="crm-apply-subscription">
-              {saving ? "Anvender…" : `Anvend ${selected?.label}`}
-            </button>
-          )}
+          <button onClick={apply} disabled={saving}
+            className="w-full h-9 rounded-xl text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 mt-1"
+            style={{ background: PRIMARY }} data-testid="crm-apply-subscription">
+            {saving ? "Anvender…" : `Anvend ${selected?.label ?? "ændringer"}${hasLocks ? " (med låse)" : ""}`}
+          </button>
         </div>
       ) : (
         <p className="text-sm text-slate-500">{current?.label ?? "Ingen plan"}</p>
