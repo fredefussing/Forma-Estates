@@ -4042,5 +4042,39 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
     }
   });
 
+  // ── Package Calculator ────────────────────────────────────────────────────
+  const PACKAGE_PRODUCTS = [
+    { key: "aiVisual",       name: "AI Visualisering",       basePrice: 100, tiers: [{ from:1,p:100},{from:16,p:90},{from:41,p:80},{from:81,p:72},{from:151,p:65}] },
+    { key: "plan3d",         name: "3D Plantegning",         basePrice: 300, tiers: [{ from:1,p:300},{from:6,p:270},{from:13,p:240},{from:26,p:216},{from:41,p:195}] },
+    { key: "transformVideo", name: "Transformering Video",   basePrice: 300, tiers: [{ from:1,p:300},{from:6,p:270},{from:13,p:240},{from:26,p:216},{from:41,p:195}] },
+    { key: "showcase",       name: "Bolig Showcase Video",   basePrice: 500, tiers: [{ from:1,p:500},{from:6,p:450},{from:13,p:400},{from:26,p:360},{from:41,p:325}] },
+  ];
+
+  function calcPackage(input: Record<string, number>) {
+    let originalTotal = 0, grandTotal = 0;
+    const items = PACKAGE_PRODUCTS.map(prod => {
+      const qty = Math.max(0, Math.round(input[prod.key] ?? 0));
+      let unitPrice = prod.basePrice;
+      if (qty > 0) {
+        for (const t of prod.tiers) { if (qty >= t.from) unitPrice = t.p; else break; }
+      }
+      const total = unitPrice * qty;
+      const originalLinetotal = prod.basePrice * qty;
+      originalTotal += originalLinetotal;
+      grandTotal += total;
+      return { name: prod.name, quantity: qty, unitPrice, originalUnitPrice: prod.basePrice,
+        total, originalTotal: originalLinetotal,
+        discountPercent: qty > 0 ? Math.round((1 - unitPrice / prod.basePrice) * 100) : 0 };
+    });
+    const totalSavings = originalTotal - grandTotal;
+    return { items, originalTotal, grandTotal, totalSavings,
+      totalDiscountPercent: originalTotal > 0 ? Math.round((totalSavings / originalTotal) * 100) : 0 };
+  }
+
+  app.post("/api/calculate-package", (req, res) => {
+    try { return res.json(calcPackage(req.body)); }
+    catch (err: any) { return res.status(400).json({ error: err.message }); }
+  });
+
   return httpServer;
 }
