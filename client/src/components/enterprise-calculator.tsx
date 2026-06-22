@@ -366,7 +366,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
   return (
     <div
       className="rounded-3xl overflow-hidden"
-      style={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)" }}
+      style={{ background: "#0F1923", border: "1px solid rgba(201,169,110,0.15)" }}
       data-testid="section-enterprise-calculator"
     >
       {/* Top bar */}
@@ -476,7 +476,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             className="flex-shrink-0 h-12 px-7 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-all"
             style={{
               background: hasItems ? "#c9a96e" : "rgba(255,255,255,0.08)",
-              color: hasItems ? "#0f172a" : "rgba(255,255,255,0.2)",
+              color: hasItems ? "#0F1923" : "rgba(255,255,255,0.2)",
               cursor: hasItems ? "pointer" : "default",
               pointerEvents: hasItems ? "auto" : "none",
             }}
