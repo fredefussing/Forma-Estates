@@ -8293,102 +8293,115 @@ export default function BoligpotentialeDashboard() {
                       </div>
 
                       <div className="px-6 py-5">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
-                          {billingOverview?.subscription?.startDate && (
-                            <div>
-                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Startdato</p>
-                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                {new Date(billingOverview.subscription.startDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
-                              </p>
+                        {billingOverview?.subscription ? (
+                          <>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
+                              {billingOverview.subscription.startDate && (
+                                <div>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Startdato</p>
+                                  <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                    {new Date(billingOverview.subscription.startDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                  </p>
+                                </div>
+                              )}
+                              {billingOverview.subscription.nextBillingDate && !billingOverview.subscription.cancelAtPeriodEnd && (
+                                <div>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Næste betaling</p>
+                                  <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                    {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                  </p>
+                                </div>
+                              )}
+                              {billingOverview.subscription.cancelAtPeriodEnd && billingOverview.subscription.nextBillingDate && (
+                                <div>
+                                  <p className="text-xs mb-1" style={{ color: "#92400E" }}>Adgang til og med</p>
+                                  <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                                    {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                  </p>
+                                </div>
+                              )}
+                              {billingOverview.subscription.amount != null && (
+                                <div>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Månedligt beløb</p>
+                                  <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                    {billingOverview.subscription.amount.toLocaleString("da-DK")} kr. inkl. moms
+                                  </p>
+                                </div>
+                              )}
+                              {billingOverview.subscription.nextBillingDate && (
+                                <div>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Betalingsdag</p>
+                                  <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                    {new Date(billingOverview.subscription.nextBillingDate).getDate()}. hver måned
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {billingOverview?.subscription?.nextBillingDate && !billingOverview.subscription.cancelAtPeriodEnd && (
-                            <div>
-                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Næste betaling</p>
-                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
-                              </p>
-                            </div>
-                          )}
-                          {billingOverview?.subscription?.cancelAtPeriodEnd && billingOverview.subscription.nextBillingDate && (
-                            <div>
-                              <p className="text-xs mb-1" style={{ color: "#92400E" }}>Adgang til og med</p>
-                              <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
-                                {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
-                              </p>
-                            </div>
-                          )}
-                          {billingOverview?.subscription?.amount != null && (
-                            <div>
-                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Månedligt beløb</p>
-                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                {billingOverview.subscription.amount.toLocaleString("da-DK")} kr. inkl. moms
-                              </p>
-                            </div>
-                          )}
-                          {billingOverview?.subscription?.nextBillingDate && (
-                            <div>
-                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Betalingsdag</p>
-                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                {new Date(billingOverview.subscription.nextBillingDate).getDate()}. hver måned
-                              </p>
-                            </div>
-                          )}
-                        </div>
 
-                        {/* Opsig / cancel */}
-                        {billingOverview?.subscription?.stripeSubscriptionId && !billingOverview.subscription.cancelAtPeriodEnd && (
-                          <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
-                            {!cancelConfirming ? (
-                              <button
-                                onClick={() => setCancelConfirming(true)}
-                                className="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
-                                style={{ color: "#DC2626" }}
-                                data-testid="billing-cancel-button"
-                              >
-                                Opsig abonnement
-                              </button>
-                            ) : (
-                              <div className="flex items-start gap-4 flex-wrap">
-                                <p className="text-sm" style={{ color: "#0F1D2F" }}>
-                                  Er du sikker? Du bevarer adgang til{" "}
+                            {/* Opsig / cancel */}
+                            {billingOverview.subscription.stripeSubscriptionId && !billingOverview.subscription.cancelAtPeriodEnd && (
+                              <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
+                                {!cancelConfirming ? (
+                                  <button
+                                    onClick={() => setCancelConfirming(true)}
+                                    className="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
+                                    style={{ color: "#DC2626" }}
+                                    data-testid="billing-cancel-button"
+                                  >
+                                    Opsig abonnement
+                                  </button>
+                                ) : (
+                                  <div className="flex items-start gap-4 flex-wrap">
+                                    <p className="text-sm" style={{ color: "#0F1D2F" }}>
+                                      Er du sikker? Du bevarer adgang til{" "}
+                                      <span className="font-semibold">
+                                        {billingOverview.subscription.nextBillingDate
+                                          ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
+                                          : "udløbsdatoen"}
+                                      </span>.
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => cancelSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
+                                        disabled={cancelSubscriptionMutation.isPending}
+                                        className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
+                                        style={{ background: "#DC2626", color: "#fff" }}
+                                        data-testid="billing-cancel-confirm"
+                                      >
+                                        {cancelSubscriptionMutation.isPending ? "Opsiger…" : "Opsig alligevel"}
+                                      </button>
+                                      <button
+                                        onClick={() => setCancelConfirming(false)}
+                                        className="px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+                                        style={{ background: "#F0EDE8", color: "#0F1D2F" }}
+                                      >
+                                        Fortryd
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {billingOverview.subscription.cancelAtPeriodEnd && (
+                              <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
+                                <p className="text-sm" style={{ color: "#92400E" }}>
+                                  ⚠ Dit abonnement er opsagt og udløber den{" "}
                                   <span className="font-semibold">
                                     {billingOverview.subscription.nextBillingDate
                                       ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
-                                      : "udløbsdatoen"}
-                                  </span>.
+                                      : "—"}
+                                  </span>. Kontakt os på kontakt@formaestates.com for at genoprette.
                                 </p>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => cancelSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
-                                    disabled={cancelSubscriptionMutation.isPending}
-                                    className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
-                                    style={{ background: "#DC2626", color: "#fff" }}
-                                    data-testid="billing-cancel-confirm"
-                                  >
-                                    {cancelSubscriptionMutation.isPending ? "Opsiger…" : "Opsig alligevel"}
-                                  </button>
-                                  <button
-                                    onClick={() => setCancelConfirming(false)}
-                                    className="px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
-                                    style={{ background: "#F0EDE8", color: "#0F1D2F" }}
-                                  >
-                                    Fortryd
-                                  </button>
-                                </div>
                               </div>
                             )}
-                          </div>
-                        )}
-                        {billingOverview?.subscription?.cancelAtPeriodEnd && (
-                          <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
-                            <p className="text-sm" style={{ color: "#92400E" }}>
-                              ⚠ Dit abonnement er opsagt og udløber den{" "}
-                              <span className="font-semibold">
-                                {billingOverview.subscription.nextBillingDate
-                                  ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
-                                  : "—"}
-                              </span>. Kontakt os på kontakt@formaestates.com for at genoprette.
+                          </>
+                        ) : (
+                          <div className="py-6 text-center">
+                            <p className="text-sm mb-3" style={{ color: "#6B6B6B" }}>
+                              Dit abonnement administreres manuelt eller er endnu ikke tilknyttet et betalingssystem.
+                            </p>
+                            <p className="text-xs" style={{ color: "#9CA3AF" }}>
+                              Kontakt os på <span className="font-semibold">kontakt@formaestates.com</span> for at opsige eller ændre dit abonnement.
                             </p>
                           </div>
                         )}
