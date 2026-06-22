@@ -405,7 +405,7 @@ export class DatabaseStorage implements IStorage {
 
   async getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]> {
     return db.select().from(generatedImages)
-      .where(eq(generatedImages.caseId, caseId))
+      .where(and(eq(generatedImages.caseId, caseId), eq(generatedImages.userId, userId)))
       .orderBy(desc(generatedImages.createdAt));
   }
 

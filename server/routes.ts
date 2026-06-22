@@ -4078,16 +4078,6 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
           quantity: item.quantity,
         });
       }
-      if (calc.totalSavings > 0) {
-        line_items.push({
-          price_data: {
-            currency: "dkk",
-            product_data: { name: "Samlet mængderabat" },
-            unit_amount: -calc.totalSavings * 100,
-          },
-          quantity: 1,
-        });
-      }
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         ...(customerEmail ? { customer_email: customerEmail } : {}),

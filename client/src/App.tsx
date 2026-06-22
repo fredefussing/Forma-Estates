@@ -55,6 +55,7 @@ function BoligComingSoon() {
   const { user } = useAuth();
 
   const handleLogout = async () => {
+    queryClient.clear();
     await signOut(auth);
     window.location.href = "/login";
   };

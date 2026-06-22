@@ -549,7 +549,7 @@ function CaseDetailPanel({
   const liveDays = liveDaysFromISO(caseData.marketDateISO, now);
 
   const { data: images = [], refetch: refetchImages } = useQuery<ApiCaseImage[]>({
-    queryKey: ["/api/bolig/cases", caseData.id, "images"],
+    queryKey: ["/api/bolig/cases", caseData.id, "images", auth.currentUser?.uid],
     queryFn: async () => {
       const token = await auth.currentUser?.getIdToken();
       const res = await fetch(`/api/bolig/cases/${caseData.id}/images`, {
@@ -6680,6 +6680,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
       const r = await fetch("/api/user/account", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error((await r.json()).message ?? "Fejl");
       if (auth.currentUser) await deleteUser(auth.currentUser);
+      queryClient.clear();
       await signOut(auth);
     } catch (err: any) {
       setDeletingAccount(false);
@@ -7041,6 +7042,7 @@ export default function BoligpotentialeDashboard() {
   const showToast = (msg: string) => setToast(msg);
 
   const handleSignOut = async () => {
+    queryClient.clear();
     await signOut(auth);
     setLocation("/boligpotentiale");
   };
@@ -7050,7 +7052,7 @@ export default function BoligpotentialeDashboard() {
 
   // ── Stats query ────────────────────────────────────────────────────────────
   const { data: stats } = useQuery<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>({
-    queryKey: ["/api/bolig/stats"],
+    queryKey: ["/api/bolig/stats", user?.uid],
     queryFn: async () => {
       const token = await user!.getIdToken();
       const res = await fetch("/api/bolig/stats", { headers: { Authorization: `Bearer ${token}` } });
@@ -7062,7 +7064,7 @@ export default function BoligpotentialeDashboard() {
 
   // ── Cases query ───────────────────────────────────────────────────────────
   const { data: cases = [], isLoading: casesLoading } = useQuery<ApiCase[]>({
-    queryKey: ["/api/bolig/cases"],
+    queryKey: ["/api/bolig/cases", user?.uid],
     queryFn: async () => {
       const token = await user!.getIdToken();
       const res = await fetch("/api/bolig/cases", {
@@ -7076,7 +7078,7 @@ export default function BoligpotentialeDashboard() {
 
   // ── Activity query ─────────────────────────────────────────────────────────
   const { data: activity = [], refetch: refetchActivity } = useQuery<Array<{ type: "generation" | "case"; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: string; isDesignAgent?: boolean; promptText?: string }>>({
-    queryKey: ["/api/bolig/activity"],
+    queryKey: ["/api/bolig/activity", user?.uid],
     queryFn: async () => {
       if (!user) return [];
       const token = await user.getIdToken();
@@ -7093,7 +7095,7 @@ export default function BoligpotentialeDashboard() {
 
   // ── Most-used query ────────────────────────────────────────────────────────
   const { data: mostUsed, refetch: refetchMostUsed } = useQuery<{ styles: Array<{ key: string; count: number }>; rooms: Array<{ key: string; count: number }>; tiers: Array<{ key: string; count: number }> }>({
-    queryKey: ["/api/bolig/most-used"],
+    queryKey: ["/api/bolig/most-used", user?.uid],
     queryFn: async () => {
       if (!user) return { styles: [], rooms: [], tiers: [] };
       const token = await user.getIdToken();
@@ -7142,7 +7144,7 @@ export default function BoligpotentialeDashboard() {
 
   // ── Recent images query ────────────────────────────────────────────────────
   const { data: recentImages = [] } = useQuery<Array<{ id: number; imageUrl: string; roomType: string; style: string; budgetTier: string; caseId?: number | null }>>({
-    queryKey: ["/api/bolig/recent-images"],
+    queryKey: ["/api/bolig/recent-images", user?.uid],
     queryFn: async () => {
       if (!user) return [];
       const token = await user.getIdToken();

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Flame, LogOut, Palette, CreditCard, Loader2, Image } from "lucide-react";
@@ -24,6 +25,7 @@ export default function AccountPage() {
 
   const handleLogout = async () => {
     try {
+      queryClient.clear();
       await signOut(auth);
       setLocation("/login");
     } catch (error) {
