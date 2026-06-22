@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowRight, Building2, Zap, Box, Video, Home, Loader2 } from "lucide-react";
+import { ArrowRight, Building2, Zap, Box, Video, Home, Loader2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -309,6 +309,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
   const [result, setResult] = useState<CalcResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasItems = Object.values(quantities).some((q) => q > 0);
@@ -346,6 +347,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
 
   const handleCheckout = async () => {
     if (!hasItems || checkoutLoading) return;
+    setCheckoutError(null);
     setCheckoutLoading(true);
     try {
       const res = await fetch("/api/create-package-checkout", {
@@ -357,7 +359,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
       if (data.url) window.location.href = data.url;
       else throw new Error(data.error ?? "Ukendt fejl");
     } catch (e: any) {
-      alert("Checkout fejlede: " + e.message);
+      setCheckoutError("Checkout fejlede: " + e.message);
     } finally {
       setCheckoutLoading(false);
     }
@@ -387,6 +389,14 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             </p>
             <p className="text-sm font-bold text-white leading-tight">Sammensæt din pakke</p>
           </div>
+          <span
+            className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+            style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}
+            data-testid="badge-one-time-payment"
+          >
+            <ShieldCheck className="w-3 h-3" />
+            ENGANGSBETALING
+          </span>
         </div>
 
         {/* Live discount badge */}
@@ -470,25 +480,41 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             )}
           </div>
 
-          <button
-            onClick={handleCheckout}
-            disabled={!hasItems || checkoutLoading}
-            className="flex-shrink-0 h-12 px-7 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-all"
-            style={{
-              background: hasItems ? "#c9a96e" : "rgba(255,255,255,0.08)",
-              color: hasItems ? "#0F1923" : "rgba(255,255,255,0.2)",
-              cursor: hasItems && !checkoutLoading ? "pointer" : "default",
-              opacity: checkoutLoading ? 0.7 : 1,
-            }}
-            data-testid="button-enterprise-get-quote"
-          >
-            {checkoutLoading ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Henter checkout…</>
-            ) : (
-              <>Vælg din pakke <ArrowRight className="w-4 h-4" /></>
-            )}
-          </button>
+          <div className="flex flex-col items-end gap-1.5">
+            <button
+              onClick={handleCheckout}
+              disabled={!hasItems || checkoutLoading}
+              className="flex-shrink-0 h-12 px-7 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-all"
+              style={{
+                background: hasItems ? "#c9a96e" : "rgba(255,255,255,0.08)",
+                color: hasItems ? "#0F1923" : "rgba(255,255,255,0.2)",
+                cursor: hasItems && !checkoutLoading ? "pointer" : "default",
+                opacity: checkoutLoading ? 0.7 : 1,
+              }}
+              data-testid="button-enterprise-get-quote"
+            >
+              {checkoutLoading ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Henter checkout…</>
+              ) : (
+                <>Betal engang <ArrowRight className="w-4 h-4" /></>
+              )}
+            </button>
+            <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
+              Engangsbetaling · ingen abonnement
+            </p>
+          </div>
         </div>
+
+        {/* Checkout error */}
+        {checkoutError && (
+          <div
+            className="mt-4 p-3 rounded-xl text-xs"
+            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}
+            data-testid="text-enterprise-checkout-error"
+          >
+            {checkoutError}
+          </div>
+        )}
 
         {/* Line items breakdown when active */}
         {hasItems && result && (
