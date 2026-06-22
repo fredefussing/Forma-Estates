@@ -4257,6 +4257,170 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
     }
   });
 
+  // ── Billing overview (subscription info + legal invoices) ─────────────────
+  app.get("/api/billing/overview", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+      // Find Stripe subscription via customer email lookup
+      let stripeSubscription: Stripe.Subscription | null = null;
+      let subscriptionInfo: object | null = null;
+
+      if (user.subscriptionStatus === "active" && user.subscriptionTier !== "custom") {
+        try {
+          const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+          if (customers.data.length > 0) {
+            const customer = customers.data[0];
+            const subs = await stripe.subscriptions.list({ customer: customer.id, limit: 5 });
+            stripeSubscription = subs.data.find(s => s.status === "active") ?? subs.data[0] ?? null;
+          }
+        } catch {}
+      }
+
+      const tierDisplayNames: Record<string, string> = { start: "Start Plan", pro: "Pro Plan", business: "Business Plan", custom: "Tilpasset pakke" };
+
+      if (stripeSubscription) {
+        const price = stripeSubscription.items.data[0]?.price;
+        const amountDkk = price?.unit_amount != null ? Math.round(price.unit_amount / 100) : null;
+        subscriptionInfo = {
+          active: true,
+          tier: user.subscriptionTier || "start",
+          tierName: tierDisplayNames[user.subscriptionTier || "start"] || "Abonnement",
+          startDate: new Date(stripeSubscription.start_date * 1000).toISOString(),
+          nextBillingDate: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
+          amount: amountDkk,
+          currency: "DKK",
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+          cancelAt: stripeSubscription.cancel_at ? new Date(stripeSubscription.cancel_at * 1000).toISOString() : null,
+          stripeSubscriptionId: stripeSubscription.id,
+        };
+      } else if (user.subscriptionStatus === "active") {
+        subscriptionInfo = {
+          active: true,
+          tier: user.subscriptionTier || "custom",
+          tierName: tierDisplayNames[user.subscriptionTier || "custom"] || "Tilpasset pakke",
+          startDate: null,
+          nextBillingDate: null,
+          amount: null,
+          currency: "DKK",
+          cancelAtPeriodEnd: false,
+          cancelAt: null,
+          stripeSubscriptionId: null,
+        };
+      }
+
+      // Fetch all stripe transactions for this user
+      const txResult = await pool.query(
+        `SELECT id, created_at, type, description FROM credit_transactions
+         WHERE user_id=$1 AND type IN ('stripe_subscription','stripe_package')
+         ORDER BY created_at ASC LIMIT 50`,
+        [user.id]
+      );
+
+      // Build invoice list with VAT breakdown (Danish 25% moms)
+      const invoices = await Promise.all(txResult.rows.map(async (row: any, idx: number) => {
+        const txDate = new Date(row.created_at);
+        const year = txDate.getFullYear();
+        const invoiceNumber = `FE-${year}-${String(idx + 1).padStart(3, "0")}`;
+        const sessionId = typeof row.description === "string" ? row.description.replace("stripe:", "") : null;
+
+        let amountTotal = 0;
+        let description = row.type === "stripe_subscription" ? "Abonnement" : "Pakke køb";
+        const period = txDate.toLocaleDateString("da-DK", { month: "long", year: "numeric" });
+        let stripeInvoiceUrl: string | null = null;
+
+        if (sessionId?.startsWith("cs_")) {
+          try {
+            const session = await stripe!.checkout.sessions.retrieve(sessionId, {
+              expand: ["line_items", "line_items.data.price"],
+            });
+            if (session.amount_total) amountTotal = Math.round(session.amount_total / 100);
+            if (row.type === "stripe_subscription") {
+              const priceId = (session.line_items?.data[0]?.price as any)?.id;
+              const tier = priceId ? PRICE_TO_TIER[priceId] : null;
+              const tnames: Record<string, string> = { start: "Start Plan", pro: "Pro Plan", business: "Business Plan" };
+              if (tier) description = tnames[tier] ?? "Abonnement";
+            }
+            // Get Stripe hosted invoice PDF URL
+            if (session.subscription) {
+              const subId = typeof session.subscription === "string" ? session.subscription : (session.subscription as any).id;
+              try {
+                const invList = await stripe!.invoices.list({ subscription: subId, limit: 1 });
+                if (invList.data[0]?.hosted_invoice_url) stripeInvoiceUrl = invList.data[0].hosted_invoice_url;
+              } catch {}
+            }
+          } catch {}
+        }
+
+        // 25% Danish VAT (moms) breakdown
+        const amountExclVat = Math.round((amountTotal / 1.25) * 100) / 100;
+        const vatAmount = Math.round((amountTotal - amountExclVat) * 100) / 100;
+
+        return {
+          invoiceNumber,
+          date: txDate.toISOString(),
+          period,
+          description,
+          type: row.type === "stripe_subscription" ? "subscription" : "package",
+          amountTotal,
+          amountExclVat,
+          vatAmount,
+          vatRate: 25,
+          currency: "DKK",
+          status: "paid",
+          sessionId,
+          stripeInvoiceUrl,
+        };
+      }));
+
+      // Newest first
+      invoices.reverse();
+
+      return res.json({
+        subscription: subscriptionInfo,
+        invoices,
+        customer: {
+          email: user.email,
+          name: user.displayName,
+        },
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Cancel subscription at period end ──────────────────────────────────────
+  app.post("/api/billing/cancel", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+      const { subscriptionId } = req.body;
+      if (!subscriptionId || typeof subscriptionId !== "string") {
+        return res.status(400).json({ error: "subscriptionId påkrævet" });
+      }
+
+      // Verify ownership via customer email
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      const customerId = typeof sub.customer === "string" ? sub.customer : (sub.customer as any).id;
+      const customer = await stripe.customers.retrieve(customerId);
+      if ("deleted" in customer || customer.email?.toLowerCase() !== user.email.toLowerCase()) {
+        return res.status(403).json({ error: "Ingen adgang til dette abonnement" });
+      }
+
+      // Cancel at period end — user keeps access until next billing date
+      await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/create-package-checkout", async (req, res) => {
     if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
     try {

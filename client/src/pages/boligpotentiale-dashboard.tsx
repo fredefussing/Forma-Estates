@@ -30,6 +30,39 @@ type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" 
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
+interface BillingInvoice {
+  invoiceNumber: string;
+  date: string;
+  period: string;
+  description: string;
+  type: "subscription" | "package";
+  amountTotal: number;
+  amountExclVat: number;
+  vatAmount: number;
+  vatRate: number;
+  currency: string;
+  status: string;
+  sessionId: string | null;
+  stripeInvoiceUrl: string | null;
+}
+interface BillingSubscriptionInfo {
+  active: boolean;
+  tier: string;
+  tierName: string;
+  startDate: string | null;
+  nextBillingDate: string | null;
+  amount: number | null;
+  currency: string;
+  cancelAtPeriodEnd: boolean;
+  cancelAt: string | null;
+  stripeSubscriptionId: string | null;
+}
+interface BillingOverview {
+  subscription: BillingSubscriptionInfo | null;
+  invoices: BillingInvoice[];
+  customer: { email: string; name: string | null };
+}
+
 interface ApiCase {
   id: number;
   userId: number;
@@ -7040,6 +7073,8 @@ export default function BoligpotentialeDashboard() {
   const [now, setNow] = useState(Date.now());
   const [pendingCase, setPendingCase] = useState<ApiCase | null>(null);
   const [activityLightbox, setActivityLightbox] = useState<string | null>(null);
+  const [invoiceModal, setInvoiceModal] = useState<BillingInvoice | null>(null);
+  const [cancelConfirming, setCancelConfirming] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -7184,18 +7219,44 @@ export default function BoligpotentialeDashboard() {
     refetchOnMount: "always",
   });
 
-  // ── Billing history query ──────────────────────────────────────────────────
-  const { data: billingHistoryData = [], isLoading: billingHistoryLoading } = useQuery<Array<{ date: string; description: string; amount: string }>>({
-    queryKey: ["/api/stripe/billing-history", user?.uid],
+  // ── Billing overview query ─────────────────────────────────────────────────
+  const { data: billingOverview, isLoading: billingOverviewLoading, refetch: refetchBilling } = useQuery<BillingOverview>({
+    queryKey: ["/api/billing/overview", user?.uid],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user) throw new Error("Ikke logget ind");
       const token = await user.getIdToken();
-      const res = await fetch("/api/stripe/billing-history", { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) return [];
+      const res = await fetch("/api/billing/overview", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Fejl ved hentning af faktureringsdata");
       return res.json();
     },
     enabled: !!user && section === "fakturering",
     staleTime: 60_000,
+  });
+
+  // ── Cancel subscription mutation ───────────────────────────────────────────
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async (subscriptionId: string) => {
+      const token = await user!.getIdToken();
+      const res = await fetch("/api/billing/cancel", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
+        throw new Error(err.error || "Fejl ved opsigelse");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setCancelConfirming(false);
+      refetchBilling();
+      setToast("Abonnement opsagt — du bevarer adgang til udløbsdatoen.");
+    },
+    onError: (err: Error) => {
+      setToast(`Fejl: ${err.message}`);
+      setCancelConfirming(false);
+    },
   });
 
   // ── Create case mutation ───────────────────────────────────────────────────
@@ -8182,171 +8243,361 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {section === "fakturering" && (() => {
-            const usedThisMonth = stats?.totalImages ?? 0;
-            const tierDisplayNames: Record<string, string> = { start: "Start Plan", pro: "Pro Plan", business: "Business Plan", custom: "Tilpasset pakke" };
-            const currentPlan = isAdmin
-              ? { name: "Admin — Ubegrænset", includedText: "Fuld adgang til alle funktioner uden begrænsning", creditsPerMonth: null as number | null }
-              : subscriptionStatus === "active"
-              ? { name: (subscriptionTier && tierDisplayNames[subscriptionTier]) || "Aktiv plan", includedText: "Alle inkluderede funktioner er aktiveret", creditsPerMonth: null as number | null }
-              : { name: "Ingen aktiv plan", includedText: "Opgrader til en plan for at komme i gang", creditsPerMonth: null as number | null };
-            const billingHistory = billingHistoryData;
-            const referencePlans = [
-              { name: "Start", price: "2.999 kr/md", features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md."], highlight: false },
-              { name: "Pro", price: "5.999 kr/md", features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md."], highlight: true },
-              { name: "Business", price: "11.999 kr/md", features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md."], highlight: false },
-              { name: "Enterprise", price: "Kontakt os", features: ["Ubegrænsede billeder", "Custom stile", "Fuld API", "Hvid-label", "Onboarding + SLA"], highlight: false },
-            ];
-            const downloadCsv = () => {
-              const rows = [
-                ["dato", "type", "antal", "beskrivelse"],
-                [new Date().toISOString().slice(0, 10), "forbrug", String(usedThisMonth), "Visualiseringer denne måned"],
-                ...billingHistory.map((b) => [b.date, "betaling", "1", `${b.description} – ${b.amount}`]),
-              ];
-              const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `forbrugsrapport-${new Date().toISOString().slice(0, 10)}.csv`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            };
-            return (
-              <motion.div key="fakturering-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Fakturering</h2>
-                  <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov.</p>
-                </div>
+          {section === "fakturering" && (
+            <motion.div key="fakturering-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F" }}>Fakturering</h2>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>Oversigt over dit abonnement og betalingshistorik.</p>
+              </div>
 
-                {/* ── Current plan ── */}
-                <div className="rounded-2xl border p-6 mb-8" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }} data-testid="billing-current-plan">
-                  <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-                    <div>
-                      <p className="text-xs font-semibold tracking-wider uppercase mb-1" style={{ color: "#C8956C" }}>Din nuværende plan</p>
-                      <h3 className="text-xl font-bold" style={{ color: "#0F1D2F" }}>{currentPlan.name}</h3>
-                    </div>
-                    <button
-                      onClick={() => setSection("pris")}
-                      className="px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-1.5"
-                      style={{ background: "#C8956C", color: "#fff" }}
-                      data-testid="billing-upgrade-button"
-                    >
-                      Opgrader plan
-                    </button>
-                  </div>
-                  <p className="text-sm mb-2" style={{ color: "#6B6B6B" }}>Inkluderet:</p>
-                  <ul className="space-y-1.5">
-                    <li className="flex items-center gap-2 text-sm" style={{ color: "#0F1D2F" }}>
-                      <Check className="w-4 h-4" style={{ color: "#C8956C" }} /> {currentPlan.includedText}
-                    </li>
-                    <li className="flex items-center gap-2 text-sm" style={{ color: "#0F1D2F" }}>
-                      <Check className="w-4 h-4" style={{ color: "#C8956C" }} /> Alle stilarter tilgængelige
-                    </li>
-                  </ul>
-                  <div className="mt-5 pt-5 border-t" style={{ borderColor: "#E5E2DC" }}>
-                    <div className="flex items-center justify-between text-sm" style={{ color: "#6B6B6B" }}>
-                      <span>Brugt denne måned</span>
-                      <span className="font-semibold" style={{ color: "#0F1D2F" }} data-testid="billing-usage-count">{usedThisMonth} {usedThisMonth === 1 ? "billede" : "billeder"}</span>
-                    </div>
-                  </div>
+              {billingOverviewLoading ? (
+                <div className="flex items-center gap-3 py-16 text-sm" style={{ color: "#6B6B6B" }}>
+                  <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  Henter faktureringsdata…
                 </div>
-
-                {/* ── Billing history ── */}
-                <div className="mb-8">
-                  <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                    <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Forbrugshistorik</h3>
-                    <button
-                      onClick={downloadCsv}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-90"
-                      style={{ background: "#0F1D2F", color: "#fff" }}
-                      data-testid="billing-download-csv"
-                    >
-                      <Download className="w-4 h-4" /> Download forbrugsrapport (CSV)
-                    </button>
-                  </div>
-                  {billingHistoryLoading ? (
-                    <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }}>
-                      <p className="text-sm" style={{ color: "#6B6B6B" }}>Henter betalingshistorik…</p>
-                    </div>
-                  ) : billingHistory.length === 0 ? (
-                    <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }} data-testid="billing-history-empty">
-                      <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen registrerede Stripe-betalinger endnu.</p>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border overflow-hidden" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }}>
-                      {billingHistory.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between px-5 py-4 border-b last:border-b-0" style={{ borderColor: "#E5E2DC" }}>
+              ) : (
+                <>
+                  {/* ── Abonnements-kort ── */}
+                  {(billingOverview?.subscription || subscriptionStatus === "active") && (
+                    <div className="rounded-2xl border mb-6 overflow-hidden" style={{ borderColor: "#E5E2DC", background: "#FFFFFF" }} data-testid="billing-current-plan">
+                      <div className="px-6 py-5 border-b" style={{ borderColor: "#E5E2DC", background: "#F8F6F1" }}>
+                        <div className="flex items-center justify-between flex-wrap gap-3">
                           <div>
-                            <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.description}</p>
-                            <p className="text-xs" style={{ color: "#6B6B6B" }}>{item.date}</p>
+                            <p className="text-xs font-semibold tracking-wider uppercase mb-1" style={{ color: "#C8956C" }}>Nuværende abonnement</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-xl font-bold" style={{ color: "#0F1D2F" }}>
+                                {billingOverview?.subscription?.tierName
+                                  ?? (subscriptionTier && ({ start: "Start Plan", pro: "Pro Plan", business: "Business Plan", custom: "Tilpasset pakke" } as Record<string, string>)[subscriptionTier])
+                                  ?? "Aktiv plan"}
+                              </h3>
+                              <span
+                                className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                                style={{
+                                  background: billingOverview?.subscription?.cancelAtPeriodEnd ? "#FEF3C7" : "#DCFCE7",
+                                  color: billingOverview?.subscription?.cancelAtPeriodEnd ? "#92400E" : "#166534",
+                                }}
+                              >
+                                {billingOverview?.subscription?.cancelAtPeriodEnd ? "Opsiges" : "Aktiv ✓"}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.amount}</span>
+                          <button
+                            onClick={() => setSection("pris")}
+                            className="px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+                            style={{ background: "#0F1D2F", color: "#fff" }}
+                            data-testid="billing-upgrade-button"
+                          >
+                            Skift plan
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
 
-                {/* ── Reference plans ── */}
-                <div>
-                  <h3 className="text-lg font-bold mb-1" style={{ color: "#0F1D2F" }}>Prisplaner</h3>
-                  <p className="text-xs mb-5" style={{ color: "#6B6B6B" }}>Vælg en plan nedenfor — du kommer direkte til betaling.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="billing-reference-plans">
-                    {referencePlans.map((plan) => (
-                      <div
-                        key={plan.name}
-                        className="p-5 rounded-2xl border flex flex-col relative"
-                        style={{
-                          background: plan.highlight ? "#0F1D2F" : "#FFFFFF",
-                          borderColor: plan.highlight ? "#0F1D2F" : "#E5E2DC",
-                        }}
-                        data-testid={`billing-plan-${plan.name.toLowerCase()}`}
-                      >
-                        {plan.highlight && (
-                          <div className="text-[10px] font-bold mb-2 px-2 py-0.5 rounded-full self-start tracking-wider" style={{ background: "#C8956C", color: "#fff" }}>
-                            MEST POPULÆR
+                      <div className="px-6 py-5">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
+                          {billingOverview?.subscription?.startDate && (
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Startdato</p>
+                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                {new Date(billingOverview.subscription.startDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                              </p>
+                            </div>
+                          )}
+                          {billingOverview?.subscription?.nextBillingDate && !billingOverview.subscription.cancelAtPeriodEnd && (
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Næste betaling</p>
+                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                              </p>
+                            </div>
+                          )}
+                          {billingOverview?.subscription?.cancelAtPeriodEnd && billingOverview.subscription.nextBillingDate && (
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "#92400E" }}>Adgang til og med</p>
+                              <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                                {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                              </p>
+                            </div>
+                          )}
+                          {billingOverview?.subscription?.amount != null && (
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Månedligt beløb</p>
+                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                {billingOverview.subscription.amount.toLocaleString("da-DK")} kr. inkl. moms
+                              </p>
+                            </div>
+                          )}
+                          {billingOverview?.subscription?.nextBillingDate && (
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Betalingsdag</p>
+                              <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                                {new Date(billingOverview.subscription.nextBillingDate).getDate()}. hver måned
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Opsig / cancel */}
+                        {billingOverview?.subscription?.stripeSubscriptionId && !billingOverview.subscription.cancelAtPeriodEnd && (
+                          <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
+                            {!cancelConfirming ? (
+                              <button
+                                onClick={() => setCancelConfirming(true)}
+                                className="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
+                                style={{ color: "#DC2626" }}
+                                data-testid="billing-cancel-button"
+                              >
+                                Opsig abonnement
+                              </button>
+                            ) : (
+                              <div className="flex items-start gap-4 flex-wrap">
+                                <p className="text-sm" style={{ color: "#0F1D2F" }}>
+                                  Er du sikker? Du bevarer adgang til{" "}
+                                  <span className="font-semibold">
+                                    {billingOverview.subscription.nextBillingDate
+                                      ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
+                                      : "udløbsdatoen"}
+                                  </span>.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => cancelSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
+                                    disabled={cancelSubscriptionMutation.isPending}
+                                    className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
+                                    style={{ background: "#DC2626", color: "#fff" }}
+                                    data-testid="billing-cancel-confirm"
+                                  >
+                                    {cancelSubscriptionMutation.isPending ? "Opsiger…" : "Opsig alligevel"}
+                                  </button>
+                                  <button
+                                    onClick={() => setCancelConfirming(false)}
+                                    className="px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+                                    style={{ background: "#F0EDE8", color: "#0F1D2F" }}
+                                  >
+                                    Fortryd
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
-                        <div className="font-bold text-base mb-1" style={{ color: plan.highlight ? "#C8956C" : "#0F1D2F" }}>{plan.name}</div>
-                        <div className="text-xl font-bold mb-4" style={{ color: plan.highlight ? "#fff" : "#0F1D2F" }}>{plan.price}</div>
-                        <ul className="space-y-1.5 mb-5 flex-1">
-                          {plan.features.map((f) => (
-                            <li key={f} className="flex items-start gap-1.5 text-xs" style={{ color: plan.highlight ? "rgba(255,255,255,0.85)" : "#0F1D2F" }}>
-                              <Check className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
-                              {f}
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          onClick={() => {
-                            if (plan.name === "Enterprise") {
-                              window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
-                            } else {
-                              startPlanCheckout(plan.name);
-                            }
-                          }}
-                          disabled={planCheckoutLoading === plan.name}
-                          className="w-full h-10 rounded-full font-semibold text-xs inline-flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-wait"
-                          style={{
-                            background: plan.highlight ? "#C8956C" : "#0F1D2F",
-                            color: "#fff",
-                          }}
-                          data-testid={`billing-plan-cta-${plan.name.toLowerCase()}`}
-                        >
-                          {planCheckoutLoading === plan.name ? "Åbner Stripe…" : `Vælg ${plan.name}`}
-                        </button>
+                        {billingOverview?.subscription?.cancelAtPeriodEnd && (
+                          <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
+                            <p className="text-sm" style={{ color: "#92400E" }}>
+                              ⚠ Dit abonnement er opsagt og udløber den{" "}
+                              <span className="font-semibold">
+                                {billingOverview.subscription.nextBillingDate
+                                  ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
+                                  : "—"}
+                              </span>. Kontakt os på kontakt@formaestates.com for at genoprette.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {subscriptionStatus !== "active" && !billingOverviewLoading && (
+                    <div className="rounded-2xl border p-8 mb-6 text-center" style={{ borderColor: "#E5E2DC", background: "#F8F6F1" }}>
+                      <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>Du har ikke et aktivt abonnement.</p>
+                      <button
+                        onClick={() => setSection("pris")}
+                        className="px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+                        style={{ background: "#C8956C", color: "#fff" }}
+                      >
+                        Se abonnementer
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Betalingshistorik ── */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-4" style={{ color: "#0F1D2F" }}>Betalingshistorik</h3>
+                    {!billingOverview?.invoices?.length ? (
+                      <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }} data-testid="billing-history-empty">
+                        <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen betalinger registreret endnu.</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border overflow-hidden" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }}>
+                        {/* Tabeloverskrift — kun desktop */}
+                        <div className="hidden md:grid gap-4 px-5 py-3 border-b text-[11px] font-semibold tracking-widest uppercase" style={{ gridTemplateColumns: "1fr 130px 110px 140px 130px", borderColor: "#E5E2DC", color: "#6B6B6B", background: "#F8F6F1" }}>
+                          <span>Beskrivelse</span>
+                          <span className="text-right">Ekskl. moms</span>
+                          <span className="text-right">Moms 25%</span>
+                          <span className="text-right">I alt inkl. moms</span>
+                          <span className="text-right">Kvittering</span>
+                        </div>
+                        {billingOverview.invoices.map((inv) => (
+                          <div key={inv.invoiceNumber} className="border-b last:border-b-0 px-5 py-4" style={{ borderColor: "#E5E2DC" }} data-testid={`billing-invoice-${inv.invoiceNumber}`}>
+                            <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                              {/* Beskrivelse */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{inv.description}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-xs" style={{ color: "#6B6B6B" }}>
+                                    {new Date(inv.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                  </span>
+                                  <span className="text-xs" style={{ color: "#D1CFC9" }}>·</span>
+                                  <span className="text-xs font-mono" style={{ color: "#6B6B6B" }}>{inv.invoiceNumber}</span>
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>BETALT</span>
+                                </div>
+                              </div>
+                              {/* Beløbskolonner — desktop */}
+                              <div className="hidden md:contents text-sm text-right">
+                                <span className="w-[130px] shrink-0" style={{ color: "#0F1D2F" }}>
+                                  {inv.amountExclVat.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                </span>
+                                <span className="w-[110px] shrink-0" style={{ color: "#0F1D2F" }}>
+                                  {inv.vatAmount.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                </span>
+                                <span className="w-[140px] shrink-0 font-bold" style={{ color: "#0F1D2F" }}>
+                                  {inv.amountTotal.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                </span>
+                              </div>
+                              {/* Beløb — mobil */}
+                              <span className="md:hidden text-sm font-bold" style={{ color: "#0F1D2F" }}>
+                                {inv.amountTotal.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                              </span>
+                              {/* Se kvittering */}
+                              <button
+                                onClick={() => setInvoiceModal(inv)}
+                                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+                                style={{ background: "#F0EDE8", color: "#0F1D2F" }}
+                                data-testid={`billing-receipt-${inv.invoiceNumber}`}
+                              >
+                                <FileText className="w-3.5 h-3.5" /> Se kvittering
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </motion.div>
-            );
-          })()}
+                </>
+              )}
+            </motion.div>
+          )}
         </main>
       </div>
+
+      {/* ── INVOICE MODAL ── */}
+      {invoiceModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setInvoiceModal(null); }}
+        >
+          <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{ background: "#FFFFFF", maxHeight: "92vh", overflowY: "auto" }}>
+            {/* ── Invoice header ── */}
+            <div className="flex items-start justify-between px-7 pt-7 pb-5">
+              <div>
+                <p className="text-base font-bold tracking-tight" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>FORMA ESTATES</p>
+                <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>kontakt@formaestates.com</p>
+                <p className="text-xs" style={{ color: "#6B6B6B" }}>formaestates.com</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold tracking-widest uppercase mb-1" style={{ color: "#C8956C" }}>FAKTURA</p>
+                <p className="text-sm font-bold" style={{ color: "#0F1D2F" }}>{invoiceModal.invoiceNumber}</p>
+                <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>
+                  Fakturadato: {new Date(invoiceModal.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+                <p className="text-xs" style={{ color: "#6B6B6B" }}>
+                  Forfaldsdato: {new Date(invoiceModal.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-7">
+              {/* ── Fra / Til ── */}
+              <div className="grid grid-cols-2 gap-6 py-4 border-t border-b" style={{ borderColor: "#E5E2DC" }}>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Fra</p>
+                  <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forma Estates ApS</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>CVR: [Indsæt CVR-nummer]</p>
+                  <p className="text-xs" style={{ color: "#6B6B6B" }}>kontakt@formaestates.com</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Til</p>
+                  <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
+                    {billingOverview?.customer?.name ?? billingOverview?.customer?.email ?? "Kunde"}
+                  </p>
+                  {billingOverview?.customer?.name && (
+                    <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{billingOverview.customer.email}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Linjepost ── */}
+              <div className="mt-5 mb-5">
+                <div className="grid grid-cols-[1fr_auto] gap-4 pb-2 border-b text-[10px] font-semibold uppercase tracking-widest" style={{ borderColor: "#E5E2DC", color: "#6B6B6B" }}>
+                  <span>Ydelse</span>
+                  <span className="text-right">Beløb ekskl. moms</span>
+                </div>
+                <div className="grid grid-cols-[1fr_auto] gap-4 py-3 border-b text-sm" style={{ borderColor: "#E5E2DC" }}>
+                  <div>
+                    <p className="font-medium" style={{ color: "#0F1D2F" }}>{invoiceModal.description}</p>
+                    <p className="text-xs mt-0.5 capitalize" style={{ color: "#6B6B6B" }}>{invoiceModal.period}</p>
+                  </div>
+                  <span className="font-medium text-right" style={{ color: "#0F1D2F" }}>
+                    {invoiceModal.amountExclVat.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Totaler ── */}
+              <div className="space-y-2 mb-5">
+                <div className="flex justify-between text-sm" style={{ color: "#6B6B6B" }}>
+                  <span>Subtotal ekskl. moms</span>
+                  <span>{invoiceModal.amountExclVat.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
+                </div>
+                <div className="flex justify-between text-sm" style={{ color: "#6B6B6B" }}>
+                  <span>Moms ({invoiceModal.vatRate}%)</span>
+                  <span>{invoiceModal.vatAmount.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
+                </div>
+                <div className="flex justify-between text-base font-bold pt-3 border-t" style={{ borderColor: "#E5E2DC", color: "#0F1D2F" }}>
+                  <span>I alt inkl. moms</span>
+                  <span>{invoiceModal.amountTotal.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
+                </div>
+              </div>
+
+              {/* ── Betalt-stempel ── */}
+              <div className="rounded-xl px-4 py-3 mb-6 flex items-center gap-2" style={{ background: "#DCFCE7" }}>
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "#166534" }} />
+                <p className="text-sm font-semibold" style={{ color: "#166534" }}>
+                  Betalt den {new Date(invoiceModal.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              </div>
+            </div>
+
+            {/* ── Handlinger ── */}
+            <div className="flex items-center justify-between gap-3 px-7 pb-7 flex-wrap">
+              {invoiceModal.stripeInvoiceUrl ? (
+                <a
+                  href={invoiceModal.stripeInvoiceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+                  style={{ background: "#0F1D2F", color: "#fff" }}
+                  data-testid="invoice-download-pdf"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
+                </a>
+              ) : (
+                <span className="text-xs" style={{ color: "#6B6B6B" }}>
+                  PDF-faktura genereres af Stripe ved næste fornyelses-betaling
+                </span>
+              )}
+              <button
+                onClick={() => setInvoiceModal(null)}
+                className="px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition-opacity"
+                style={{ background: "#F0EDE8", color: "#0F1D2F" }}
+                data-testid="invoice-modal-close"
+              >
+                Luk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MODALS ── */}
       <AnimatePresence>
