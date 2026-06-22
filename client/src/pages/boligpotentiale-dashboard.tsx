@@ -5611,11 +5611,6 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               )}
             </button>
           </QuotaGate>
-          {quotaData && !quotaData.isAdmin && quotaData.quota.ai.limit !== null && quotaData.quota.ai.limit > 0 && (
-            <p className="text-[11px] mt-2" style={{ color: "#9B9690" }}>
-              Bruger 1 AI Visualisering · {quotaData.quota.ai.used}/{quotaData.quota.ai.limit} brugt denne måned
-            </p>
-          )}
         </div>
 
         {/* Result */}
