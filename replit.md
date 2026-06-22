@@ -1,5 +1,14 @@
 # Nordic Homebuild - AI-Powered Interior Design
 
+**Important:** Always use the `pnpm` package manager for installing dependencies and running scripts in this project. Do not use `npm` or `yarn`. For example, to install all dependencies, run:
+```
+pnpm install
+```
+And to add a new package:
+```
+pnpm add <package-name>
+```
+
 ## Overview
 Nordic Homebuild is a web application that leverages AI to transform room photos into redesigned interiors. Users upload a room photo, select preferences like room type, design style, and budget, and receive an AI-generated redesign that maintains the room's structure while updating its interior aesthetic. The platform integrates budget-specific style recommendations, featuring Danish retailer examples, and includes an administrative quote builder for client proposals. The project aims to provide a unique, AI-driven interior design experience with market potential in personalized home decor.
 
