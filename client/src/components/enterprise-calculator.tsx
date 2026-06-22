@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowRight, Building2, Zap, Box, Video, Home } from "lucide-react";
+import { ArrowRight, Building2, Zap, Box, Video, Home, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ProductKey = "aiVisual" | "plan3d" | "transformVideo" | "showcase";
@@ -300,22 +301,14 @@ function ProductRow({
 // ── Main component ─────────────────────────────────────────────────────────────
 type Props = { dark?: boolean };
 
-export function getUnitPrice(product: { basePrice: number; tiers: { from: number; unitPrice: number }[] }, qty: number): number {
-  if (qty === 0) return product.basePrice;
-  let price = product.tiers[0].unitPrice;
-  for (const tier of product.tiers) {
-    if (qty >= tier.from) price = tier.unitPrice;
-    else break;
-  }
-  return price;
-}
-
 export function EnterpriseCalculator({ dark: _dark = true }: Props) {
+  const { user } = useAuth();
   const [quantities, setQuantities] = useState<Record<ProductKey, number>>({
     aiVisual: 0, plan3d: 0, transformVideo: 0, showcase: 0,
   });
   const [result, setResult] = useState<CalcResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasItems = Object.values(quantities).some((q) => q > 0);
@@ -351,16 +344,23 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
   const savings = result?.totalSavings ?? 0;
   const discountPct = result?.totalDiscountPercent ?? 0;
 
-  const buildMailto = () => {
-    const lines = PRODUCTS
-      .filter((p) => quantities[p.key] > 0)
-      .map((p) => {
-        const item = result?.items.find((i) => i.name === p.label);
-        return `${p.label}: ${quantities[p.key]} stk. à ${fmt(item?.unitPrice ?? p.basePrice)} kr.`;
-      })
-      .join("%0A");
-    const total = `Samlet: ${fmt(grandTotal)} kr. (${discountPct}% rabat)`;
-    return `mailto:kontakt@formaestates.com?subject=Enterprise%20tilbud&body=Hej%2C%20jeg%20er%20interesseret%20i%20f%C3%B8lgende%3A%0A${lines}%0A%0A${total}`;
+  const handleCheckout = async () => {
+    if (!hasItems || checkoutLoading) return;
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/create-package-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...quantities, customerEmail: user?.email }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else throw new Error(data.error ?? "Ukendt fejl");
+    } catch (e: any) {
+      alert("Checkout fejlede: " + e.message);
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   return (
@@ -470,21 +470,24 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             )}
           </div>
 
-          <a
-            href={hasItems ? buildMailto() : undefined}
-            onClick={!hasItems ? (e) => e.preventDefault() : undefined}
+          <button
+            onClick={handleCheckout}
+            disabled={!hasItems || checkoutLoading}
             className="flex-shrink-0 h-12 px-7 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-all"
             style={{
               background: hasItems ? "#c9a96e" : "rgba(255,255,255,0.08)",
               color: hasItems ? "#0F1923" : "rgba(255,255,255,0.2)",
-              cursor: hasItems ? "pointer" : "default",
-              pointerEvents: hasItems ? "auto" : "none",
+              cursor: hasItems && !checkoutLoading ? "pointer" : "default",
+              opacity: checkoutLoading ? 0.7 : 1,
             }}
             data-testid="button-enterprise-get-quote"
           >
-            Vælg din pakke
-            <ArrowRight className="w-4 h-4" />
-          </a>
+            {checkoutLoading ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Henter checkout…</>
+            ) : (
+              <>Vælg din pakke <ArrowRight className="w-4 h-4" /></>
+            )}
+          </button>
         </div>
 
         {/* Line items breakdown when active */}

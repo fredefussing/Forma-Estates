@@ -1,5 +1,6 @@
 import type { Express, Request } from "express";
 import express from "express";
+import Stripe from "stripe";
 import { createServer, type Server } from "http";
 import { spawn } from "child_process";
 import { storage } from "./storage";
@@ -4040,6 +4041,93 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
       log(`Chat error: ${err.message}`);
       return res.status(500).json({ error: "Chatfejl – prøv igen om lidt." });
     }
+  });
+
+  // ── Stripe ────────────────────────────────────────────────────────────────
+  const stripe = process.env.STRIPE_SECRET_KEY
+    ? new Stripe(process.env.STRIPE_SECRET_KEY)
+    : null;
+
+  const STRIPE_PRICES = {
+    aiVisual:         "price_1Tl3d7KDpJP0jg0e7e4gy4SE",
+    plan3d:           "price_1Tl3hUKDpJP0jg0e0vPqClr5",
+    transformVideo:   "price_1Tl3icKDpJP0jg0e5m3mkNJE",
+    showcase:         "price_1Tl3kAKDpJP0jg0eR25vOHQ9",
+    startMonthly:     "price_1Tl2kVKDpJP0jg0e2UqApR5B",
+    startYearly:      "price_1Tl2rVKDpJP0jg0erJ0x7FZs",
+    proMonthly:       "price_1Tl2nYKDpJP0jg0eMbTJQ2jx",
+    proYearly:        "price_1Tl2soKDpJP0jg0eREm8LuB4",
+    businessMonthly:  "price_1Tl2pZKDpJP0jg0etHHBwE52",
+    businessYearly:   "price_1Tl2uiKDpJP0jg0eAXRwj3Al",
+  };
+
+  app.post("/api/create-package-checkout", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const { aiVisual = 0, plan3d = 0, transformVideo = 0, showcase = 0, customerEmail } = req.body;
+      const calc = calcPackage({ aiVisual, plan3d, transformVideo, showcase });
+      const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+      for (const item of calc.items) {
+        if (item.quantity === 0) continue;
+        line_items.push({
+          price_data: {
+            currency: "dkk",
+            product_data: { name: `${item.name} (${item.quantity} stk.)` },
+            unit_amount: item.unitPrice * 100,
+          },
+          quantity: item.quantity,
+        });
+      }
+      if (calc.totalSavings > 0) {
+        line_items.push({
+          price_data: {
+            currency: "dkk",
+            product_data: { name: "Samlet mængderabat" },
+            unit_amount: -calc.totalSavings * 100,
+          },
+          quantity: 1,
+        });
+      }
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        line_items,
+        success_url: "https://formaestates.com/betalt?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://formaestates.com/boligpotentiale#pricing",
+        metadata: { type: "custom_package", ai_visual: String(aiVisual), plan_3d: String(plan3d), transform_video: String(transformVideo), showcase: String(showcase) },
+      });
+      return res.json({ url: session.url });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/create-subscription-checkout", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const { priceId, customerEmail } = req.body;
+      if (!priceId) return res.status(400).json({ error: "priceId påkrævet" });
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: "https://formaestates.com/betalt?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://formaestates.com/boligpotentiale#pricing",
+        metadata: { type: "subscription" },
+      });
+      return res.json({ url: session.url });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.get("/api/session-details/:sessionId", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const session = await stripe.checkout.sessions.retrieve(req.params.sessionId, { expand: ["line_items"] });
+      return res.json({
+        status: session.payment_status,
+        amount_total: session.amount_total,
+        customer_email: session.customer_email,
+        metadata: session.metadata,
+      });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
   // ── Package Calculator ────────────────────────────────────────────────────

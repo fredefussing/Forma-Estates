@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame, User, LogIn, Building2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame, User, LogIn, Building2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
@@ -86,11 +86,19 @@ const packages: Plan[] = [
   },
 ];
 
+const STRIPE_PRICES: Record<string, { monthly: string; yearly: string }> = {
+  starter: { monthly: "price_1Tl2kVKDpJP0jg0e2UqApR5B", yearly: "price_1Tl2rVKDpJP0jg0erJ0x7FZs" },
+  pro:     { monthly: "price_1Tl2nYKDpJP0jg0eMbTJQ2jx", yearly: "price_1Tl2soKDpJP0jg0eREm8LuB4" },
+  business:{ monthly: "price_1Tl2pZKDpJP0jg0etHHBwE52", yearly: "price_1Tl2uiKDpJP0jg0eAXRwj3Al" },
+};
+
 export default function PricingPage() {
   const { user, loading, creditsRemaining } = useAuth();
   const [, setLocation] = useLocation();
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
-  const handleBuy = (pkg: Plan) => {
+  const handleBuy = async (pkg: Plan) => {
     if (pkg.custom) {
       window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
       return;
@@ -99,10 +107,26 @@ export default function PricingPage() {
       setLocation("/login?redirect=/pris");
       return;
     }
-    if (pkg.productUrl) {
-      window.open(pkg.productUrl, "_blank", "noopener,noreferrer");
-    } else {
+    const prices = STRIPE_PRICES[pkg.key];
+    if (!prices) {
       window.location.href = "mailto:kontakt@formaestates.com?subject=Abonnement%3A%20" + encodeURIComponent(pkg.name);
+      return;
+    }
+    setCheckoutLoading(pkg.key);
+    try {
+      const priceId = prices[billingPeriod];
+      const res = await fetch("/api/create-subscription-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, customerEmail: user.email }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else throw new Error(data.error ?? "Ukendt fejl");
+    } catch (e: any) {
+      alert("Checkout fejlede: " + e.message);
+    } finally {
+      setCheckoutLoading(null);
     }
   };
 
@@ -162,7 +186,23 @@ export default function PricingPage() {
 
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" data-testid="text-title">Vælg din plan</h1>
-          <p className="text-muted-foreground" data-testid="text-subtitle">Vælg den plan der passer til dit behov og kom i gang med det samme</p>
+          <p className="text-muted-foreground mb-6" data-testid="text-subtitle">Vælg den plan der passer til dit behov og kom i gang med det samme</p>
+          <div className="inline-flex items-center rounded-full border border-border bg-muted p-1 gap-1" data-testid="toggle-billing-period">
+            <button
+              onClick={() => setBillingPeriod("monthly")}
+              className={`px-5 py-1.5 rounded-full text-sm font-medium transition-all ${billingPeriod === "monthly" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid="button-billing-monthly"
+            >
+              Månedlig
+            </button>
+            <button
+              onClick={() => setBillingPeriod("yearly")}
+              className={`px-5 py-1.5 rounded-full text-sm font-medium transition-all ${billingPeriod === "yearly" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid="button-billing-yearly"
+            >
+              Årlig <span className="text-green-600 dark:text-green-400 font-semibold">–20%</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -227,24 +267,18 @@ export default function PricingPage() {
                       className="w-full h-12 text-sm font-medium"
                       variant={pkg.popular ? "default" : "outline"}
                       size="lg"
+                      disabled={checkoutLoading === pkg.key}
                       onClick={() => handleBuy(pkg)}
                       data-testid={`button-select-${pkg.key}`}
                     >
-                      {pkg.custom ? (
-                        <>
-                          Kontakt os
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
+                      {checkoutLoading === pkg.key ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Henter checkout…</>
+                      ) : pkg.custom ? (
+                        <>Kontakt os <ArrowRight className="w-4 h-4 ml-2" /></>
                       ) : user ? (
-                        <>
-                          Vælg {pkg.name}
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
+                        <>Vælg {pkg.name} <ArrowRight className="w-4 h-4 ml-2" /></>
                       ) : (
-                        <>
-                          <LogIn className="w-4 h-4 mr-2" />
-                          Log ind for at købe
-                        </>
+                        <><LogIn className="w-4 h-4 mr-2" />Log ind for at købe</>
                       )}
                     </Button>
 
