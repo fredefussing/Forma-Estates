@@ -4260,8 +4260,13 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
   // ── Billing overview (subscription info + legal invoices) ─────────────────
   app.get("/api/billing/overview", async (req, res) => {
     if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    let uid: string;
     try {
-      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      ({ uid } = await verifyFirebaseToken(req.headers.authorization));
+    } catch {
+      return res.status(401).json({ error: "Ikke autoriseret" });
+    }
+    try {
       const user = await storage.getUserByFirebaseUid(uid);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -4395,8 +4400,13 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
   // ── Cancel subscription at period end ──────────────────────────────────────
   app.post("/api/billing/cancel", async (req, res) => {
     if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    let uid: string;
     try {
-      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      ({ uid } = await verifyFirebaseToken(req.headers.authorization));
+    } catch {
+      return res.status(401).json({ error: "Ikke autoriseret" });
+    }
+    try {
       const user = await storage.getUserByFirebaseUid(uid);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
 

@@ -92,13 +92,21 @@ const STRIPE_PRICES: Record<string, { monthly: string; yearly: string }> = {
   business:{ monthly: "price_1Tl2pZKDpJP0jg0etHHBwE52", yearly: "price_1Tl2uiKDpJP0jg0eAXRwj3Al" },
 };
 
+const YEARLY_PRICES: Record<string, string> = {
+  starter: "2.399",
+  pro: "4.799",
+  business: "9.599",
+};
+
 export default function PricingPage() {
   const { user, loading, creditsRemaining } = useAuth();
   const [, setLocation] = useLocation();
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const handleBuy = async (pkg: Plan) => {
+    setCheckoutError(null);
     if (pkg.custom) {
       const el = document.getElementById("enterprise-calculator");
       if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -118,7 +126,7 @@ export default function PricingPage() {
       if (data.url) window.location.href = data.url;
       else throw new Error(data.error ?? "Ukendt fejl");
     } catch (e: any) {
-      alert("Checkout fejlede: " + e.message);
+      setCheckoutError("Checkout fejlede: " + e.message);
     } finally {
       setCheckoutLoading(null);
     }
@@ -177,6 +185,12 @@ export default function PricingPage() {
             </span>
           </Link>
         </div>
+
+        {checkoutError && (
+          <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm" data-testid="text-checkout-error">
+            {checkoutError}
+          </div>
+        )}
 
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" data-testid="text-title">Vælg din plan</h1>
@@ -243,8 +257,19 @@ export default function PricingPage() {
                     </div>
 
                     <div className="mb-2">
-                      <span className="text-4xl font-bold" data-testid={`text-price-${pkg.key}`}>{pkg.price}</span>
-                      <span className="text-muted-foreground ml-1">{pkg.period}</span>
+                      {billingPeriod === "yearly" ? (
+                        <>
+                          <span className="text-4xl font-bold" data-testid={`text-price-${pkg.key}`}>{YEARLY_PRICES[pkg.key] ?? pkg.price}</span>
+                          <span className="text-muted-foreground ml-1">kr./ måned</span>
+                          <span className="ml-2 text-xs font-semibold text-green-600 dark:text-green-400">SPAR 20%</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">faktureres {pkg.key === "starter" ? "28.790" : pkg.key === "pro" ? "57.590" : "115.190"} kr. årligt</p>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-4xl font-bold" data-testid={`text-price-${pkg.key}`}>{pkg.price}</span>
+                          <span className="text-muted-foreground ml-1">{pkg.period}</span>
+                        </>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mb-6">{pkg.subtitle}</p>
 

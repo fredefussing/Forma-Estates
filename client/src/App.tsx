@@ -172,6 +172,7 @@ function Router() {
       <Route path="/find-stil" component={FindStylePage} />
       <Route path="/trending" component={TrendingPage} />
       <Route path="/pris" component={() => { useEffect(() => { window.location.replace("/boligpotentiale#pricing"); }, []); return null; }} />
+      <Route path="/priser" component={() => { useEffect(() => { window.location.replace("/boligpotentiale#pricing"); }, []); return null; }} />
       <Route path="/log-ind" component={() => { useEffect(() => { window.location.replace("/login"); }, []); return null; }} />
       <Route path="/design/:id" component={DesignDetailPage} />
       <Route path="/design" component={DesignPage} />

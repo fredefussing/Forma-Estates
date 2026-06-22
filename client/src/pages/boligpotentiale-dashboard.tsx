@@ -8525,7 +8525,7 @@ export default function BoligpotentialeDashboard() {
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Fra</p>
                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forma Estates ApS</p>
-                  <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>CVR: [Indsæt CVR-nummer]</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>CVR: 46551796</p>
                   <p className="text-xs" style={{ color: "#6B6B6B" }}>kontakt@formaestates.com</p>
                 </div>
                 <div>
