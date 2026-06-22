@@ -15,7 +15,7 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails } from "./email";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail } from "./email";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
@@ -4121,11 +4121,16 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
         );
 
         const tierNames: Record<string, string> = { start: "Start", pro: "Pro", business: "Business" };
+        const tierName = tierNames[tier] ?? tier;
+        const customerEmail = session.customer_email ?? user.email ?? "";
+        if (customerEmail) {
+          sendSubscriptionConfirmationEmail({ customerEmail, tierName, quotas }).catch(() => {});
+        }
         return res.json({
           status: "activated",
           mode: "subscription",
           tier,
-          tierName: tierNames[tier] ?? tier,
+          tierName,
           quotas,
         });
       }
@@ -4149,6 +4154,18 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
           `INSERT INTO credit_transactions(user_id, amount, type, description) VALUES($1, 0, $2, $3)`,
           [user.id, "stripe_package", `stripe:${sessionId}`]
         );
+
+        const pkgEmail = session.customer_email ?? user.email ?? "";
+        if (pkgEmail) {
+          const pkgItems = [
+            { name: "AI Visualisering", quantity: aiVisual, unitPrice: 100, total: aiVisual * 100 },
+            { name: "3D Plantegning", quantity: plan3d, unitPrice: 300, total: plan3d * 300 },
+            { name: "Transformering Video", quantity: transformVid, unitPrice: 300, total: transformVid * 300 },
+            { name: "Bolig Showcase Video", quantity: showcase, unitPrice: 500, total: showcase * 500 },
+          ];
+          const pkgTotal = Math.round((session.amount_total ?? 0) / 100);
+          sendPackageConfirmationEmail({ customerEmail: pkgEmail, items: pkgItems, grandTotal: pkgTotal, sessionId }).catch(() => {});
+        }
 
         return res.json({
           status: "activated",

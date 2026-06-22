@@ -181,6 +181,183 @@ export async function sendOrderConfirmationEmail(data: {
   }
 }
 
+export async function sendSubscriptionConfirmationEmail(data: {
+  customerEmail: string;
+  tierName: string;
+  quotas: { ai: number; floorPlans: number; transformVideos: number; showcase: number };
+}) {
+  const tierColors: Record<string, string> = { Start: "#4A90A4", Pro: "#C8956C", Business: "#0F1923" };
+  const color = tierColors[data.tierName] ?? "#0F1923";
+  try {
+    await sendBrevoEmail({
+      to: data.customerEmail,
+      subject: `Velkommen til Forma Estates ${data.tierName} — dit abonnement er aktivt`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:${color};padding:24px 28px;">
+              <div style="color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · ${data.tierName} Plan</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">✅ Dit abonnement er aktivt!</h1>
+            </div>
+            <div style="padding:32px;">
+              <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">
+                Tak for dit køb. Dit <strong style="color:#0F1923;">Forma Estates ${data.tierName}</strong>-abonnement er nu aktiveret og du har adgang til alle funktioner.
+              </p>
+              <div style="background:#FAF6EC;border-radius:8px;padding:20px 24px;margin:20px 0;">
+                <div style="color:#777;font-size:12px;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:14px;font-weight:600;">Din månedlige kvote</div>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr><td style="padding:6px 0;color:#555;font-size:14px;">AI-visualiseringer</td><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;text-align:right;">${data.quotas.ai} stk.</td></tr>
+                  <tr><td style="padding:6px 0;color:#555;font-size:14px;">3D Plantegninger</td><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;text-align:right;">${data.quotas.floorPlans} stk.</td></tr>
+                  <tr><td style="padding:6px 0;color:#555;font-size:14px;">Transformeringsvideoer</td><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;text-align:right;">${data.quotas.transformVideos} stk.</td></tr>
+                  <tr><td style="padding:6px 0;color:#555;font-size:14px;">Bolig Showcase-videoer</td><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;text-align:right;">${data.quotas.showcase} stk.</td></tr>
+                </table>
+              </div>
+              <p style="text-align:center;margin:28px 0;">
+                <a href="https://formaestates.com/boligpotentiale/dashboard"
+                   style="background:${color};color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
+                  Gå til dit dashboard →
+                </a>
+              </p>
+              <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">
+                Spørgsmål? Svar på denne email eller skriv til <a href="mailto:kontakt@formaestates.com" style="color:#C8956C;">kontakt@formaestates.com</a><br/>
+                <strong style="color:#0F1923;">Forma Estates</strong>
+              </p>
+            </div>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+        </div>
+      `,
+    });
+    log(`Subscription confirmation sent to ${data.customerEmail} (${data.tierName})`);
+  } catch (err: any) {
+    log(`Failed to send subscription confirmation to ${data.customerEmail}: ${err.message}`);
+  }
+
+  try {
+    await sendBrevoEmail({
+      to: KONTAKT_EMAIL,
+      subject: `💳 Nyt abonnement — ${data.tierName} · ${data.customerEmail}`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:640px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Nyt salg</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">💳 Nyt abonnement aktiveret</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;width:160px;border-bottom:1px solid #F0EBE1;">Email</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;">${data.customerEmail}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Plan</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:700;border-bottom:1px solid #F0EBE1;">${data.tierName}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;">Kvote</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;">${data.quotas.ai} AI · ${data.quotas.floorPlans} 3D · ${data.quotas.transformVideos} video · ${data.quotas.showcase} showcase</td></tr>
+            </table>
+            <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">Forma Estates · Admin notifikation</div>
+          </div>
+        </div>
+      `,
+    });
+    log(`Admin subscription notification sent for ${data.customerEmail}`);
+  } catch (err: any) {
+    log(`Failed to send admin subscription notification: ${err.message}`);
+  }
+}
+
+export async function sendPackageConfirmationEmail(data: {
+  customerEmail: string;
+  items: { name: string; quantity: number; unitPrice: number; total: number }[];
+  grandTotal: number;
+  sessionId: string;
+}) {
+  const itemRows = data.items
+    .filter(i => i.quantity > 0)
+    .map(i => `<tr>
+      <td style="padding:8px 14px;color:#555;font-size:14px;border-bottom:1px solid #F0EBE1;">${i.name}</td>
+      <td style="padding:8px 14px;color:#0F1923;font-size:14px;text-align:center;border-bottom:1px solid #F0EBE1;">${i.quantity} stk.</td>
+      <td style="padding:8px 14px;color:#0F1923;font-size:14px;font-weight:600;text-align:right;border-bottom:1px solid #F0EBE1;">${i.total} kr</td>
+    </tr>`).join("");
+
+  try {
+    await sendBrevoEmail({
+      to: data.customerEmail,
+      subject: "Kvittering — Forma Estates pakke købt",
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Kvittering</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">✅ Tak for dit køb!</h1>
+            </div>
+            <div style="padding:32px 32px 16px;">
+              <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">
+                Dit køb er gennemført og dine enheder er tilføjet til din konto.
+              </p>
+              <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+                <thead><tr>
+                  <th style="padding:8px 14px;color:#777;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;text-align:left;border-bottom:2px solid #E8DFD0;">Produkt</th>
+                  <th style="padding:8px 14px;color:#777;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;text-align:center;border-bottom:2px solid #E8DFD0;">Antal</th>
+                  <th style="padding:8px 14px;color:#777;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;text-align:right;border-bottom:2px solid #E8DFD0;">Pris</th>
+                </tr></thead>
+                <tbody>${itemRows}</tbody>
+                <tfoot><tr>
+                  <td colspan="2" style="padding:12px 14px;color:#0F1923;font-size:15px;font-weight:700;">Total</td>
+                  <td style="padding:12px 14px;color:#C8956C;font-size:16px;font-weight:700;text-align:right;">${data.grandTotal} kr</td>
+                </tr></tfoot>
+              </table>
+              <p style="color:#999;font-size:12px;margin:4px 14px 24px;">Ordre: ${data.sessionId.slice(0,20)}…</p>
+              <p style="text-align:center;margin:20px 0 28px;">
+                <a href="https://formaestates.com/boligpotentiale/dashboard"
+                   style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
+                  Gå til dit dashboard →
+                </a>
+              </p>
+              <p style="color:#777;font-size:13px;line-height:1.6;margin:0;">
+                Spørgsmål? Skriv til <a href="mailto:kontakt@formaestates.com" style="color:#C8956C;">kontakt@formaestates.com</a><br/>
+                <strong style="color:#0F1923;">Forma Estates</strong>
+              </p>
+            </div>
+          </div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+        </div>
+      `,
+    });
+    log(`Package confirmation sent to ${data.customerEmail}`);
+  } catch (err: any) {
+    log(`Failed to send package confirmation to ${data.customerEmail}: ${err.message}`);
+  }
+
+  try {
+    await sendBrevoEmail({
+      to: KONTAKT_EMAIL,
+      subject: `📦 Ny pakke købt · ${data.customerEmail} · ${data.grandTotal} kr`,
+      senderEmail: KONTAKT_EMAIL,
+      replyTo: KONTAKT_EMAIL,
+      html: `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:640px;margin:0 auto;background:#FAF6EC;padding:32px;">
+          <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
+            <div style="background:#0F1923;padding:24px 28px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Nyt salg</div>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">📦 Ny pakke købt</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;width:160px;border-bottom:1px solid #F0EBE1;">Email</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:500;border-bottom:1px solid #F0EBE1;">${data.customerEmail}</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;border-bottom:1px solid #F0EBE1;">Total</td><td style="padding:10px 14px;color:#0F1923;font-size:14px;font-weight:700;border-bottom:1px solid #F0EBE1;">${data.grandTotal} kr</td></tr>
+              <tr><td style="padding:10px 14px;color:#777;font-size:13px;">Session</td><td style="padding:10px 14px;color:#0F1923;font-size:13px;font-family:monospace;">${data.sessionId}</td></tr>
+            </table>
+            <div style="padding:14px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">Forma Estates · Admin notifikation</div>
+          </div>
+        </div>
+      `,
+    });
+    log(`Admin package notification sent for ${data.customerEmail}`);
+  } catch (err: any) {
+    log(`Failed to send admin package notification: ${err.message}`);
+  }
+}
+
 export async function sendContactFormEmails(data: {
   name: string;
   email: string;
