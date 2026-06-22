@@ -100,14 +100,12 @@ export default function PricingPage() {
 
   const handleBuy = async (pkg: Plan) => {
     if (pkg.custom) {
-      window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
+      const el = document.getElementById("enterprise-calculator");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
       return;
     }
     const prices = STRIPE_PRICES[pkg.key];
-    if (!prices) {
-      window.location.href = "mailto:kontakt@formaestates.com?subject=Abonnement%3A%20" + encodeURIComponent(pkg.name);
-      return;
-    }
+    if (!prices) return;
     setCheckoutLoading(pkg.key);
     try {
       const priceId = prices[billingPeriod];
@@ -307,7 +305,9 @@ export default function PricingPage() {
           <div className="flex-1 h-px bg-border/60" />
         </div>
 
-        <EnterpriseCalculator />
+        <div id="enterprise-calculator">
+          <EnterpriseCalculator />
+        </div>
 
         <div className="mt-16 text-center" data-testid="section-faq">
           <h2 className="text-xl font-semibold mb-6">Ofte stillede spørgsmål</h2>
