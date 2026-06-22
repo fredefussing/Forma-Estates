@@ -6995,7 +6995,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
-  const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus } = useAuth();
+  const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus, subscriptionTier } = useAuth();
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
@@ -7182,6 +7182,20 @@ export default function BoligpotentialeDashboard() {
     enabled: !!user,
     staleTime: 0,
     refetchOnMount: "always",
+  });
+
+  // ── Billing history query ──────────────────────────────────────────────────
+  const { data: billingHistoryData = [], isLoading: billingHistoryLoading } = useQuery<Array<{ date: string; description: string; amount: string }>>({
+    queryKey: ["/api/stripe/billing-history", user?.uid],
+    queryFn: async () => {
+      if (!user) return [];
+      const token = await user.getIdToken();
+      const res = await fetch("/api/stripe/billing-history", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user && section === "fakturering",
+    staleTime: 60_000,
   });
 
   // ── Create case mutation ───────────────────────────────────────────────────
@@ -8170,12 +8184,13 @@ export default function BoligpotentialeDashboard() {
 
           {section === "fakturering" && (() => {
             const usedThisMonth = stats?.totalImages ?? 0;
+            const tierDisplayNames: Record<string, string> = { start: "Start Plan", pro: "Pro Plan", business: "Business Plan", custom: "Tilpasset pakke" };
             const currentPlan = isAdmin
               ? { name: "Admin — Ubegrænset", includedText: "Fuld adgang til alle funktioner uden begrænsning", creditsPerMonth: null as number | null }
               : subscriptionStatus === "active"
-              ? { name: "Aktiv plan", includedText: "Alle inkluderede funktioner er aktiveret", creditsPerMonth: null as number | null }
-              : { name: "Ingen aktiv plan", includedText: "Kontakt os for at vælge en plan", creditsPerMonth: null as number | null };
-            const billingHistory: { date: string; description: string; amount: string }[] = [];
+              ? { name: (subscriptionTier && tierDisplayNames[subscriptionTier]) || "Aktiv plan", includedText: "Alle inkluderede funktioner er aktiveret", creditsPerMonth: null as number | null }
+              : { name: "Ingen aktiv plan", includedText: "Opgrader til en plan for at komme i gang", creditsPerMonth: null as number | null };
+            const billingHistory = billingHistoryData;
             const referencePlans = [
               { name: "Start", price: "2.999 kr/md", features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md."], highlight: false },
               { name: "Pro", price: "5.999 kr/md", features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md."], highlight: true },
@@ -8252,9 +8267,13 @@ export default function BoligpotentialeDashboard() {
                       <Download className="w-4 h-4" /> Download forbrugsrapport (CSV)
                     </button>
                   </div>
-                  {billingHistory.length === 0 ? (
+                  {billingHistoryLoading ? (
+                    <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }}>
+                      <p className="text-sm" style={{ color: "#6B6B6B" }}>Henter betalingshistorik…</p>
+                    </div>
+                  ) : billingHistory.length === 0 ? (
                     <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }} data-testid="billing-history-empty">
-                      <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen betalinger endnu. Gratis prøveperiode.</p>
+                      <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen registrerede Stripe-betalinger endnu.</p>
                     </div>
                   ) : (
                     <div className="rounded-2xl border overflow-hidden" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }}>

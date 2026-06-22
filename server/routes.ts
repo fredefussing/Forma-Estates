@@ -4197,15 +4197,64 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
 
     if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
       const sub = event.data.object as Stripe.Subscription;
-      const email = (sub as any).customer_email ?? null;
-      if (email) {
-        const u = await storage.getUserByEmail(email).catch(() => null);
-        if (u && sub.status !== "active") {
-          await storage.updateUser(u.id, { subscriptionStatus: "none" });
+      try {
+        const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+        if (customerId) {
+          const customer = await stripe.customers.retrieve(customerId);
+          const email = !("deleted" in customer) ? customer.email : null;
+          if (email) {
+            const u = await storage.getUserByEmail(email).catch(() => null);
+            if (u && sub.status !== "active") {
+              await storage.updateUser(u.id, { subscriptionStatus: "none" });
+            }
+          }
         }
-      }
+      } catch {}
     }
     return res.json({ received: true });
+  });
+
+  // ── Stripe billing history ─────────────────────────────────────────────────
+  app.get("/api/stripe/billing-history", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+      const result = await pool.query(
+        `SELECT created_at, type, description FROM credit_transactions WHERE user_id=$1 AND type IN ('stripe_subscription','stripe_package') ORDER BY created_at DESC LIMIT 20`,
+        [user.id]
+      );
+
+      const history = await Promise.all(result.rows.map(async (row: any) => {
+        const date = new Date(row.created_at).toLocaleDateString("da-DK", { year: "numeric", month: "short", day: "numeric" });
+        const sessionId = typeof row.description === "string" ? row.description.replace("stripe:", "") : null;
+        let amount = "—";
+        let description = row.type === "stripe_subscription" ? "Abonnement" : "Pakke køb";
+
+        if (sessionId && sessionId.startsWith("cs_")) {
+          try {
+            const session = await stripe!.checkout.sessions.retrieve(sessionId, { expand: ["line_items", "line_items.data.price"] });
+            if (session.amount_total) {
+              amount = (session.amount_total / 100).toLocaleString("da-DK", { style: "currency", currency: "DKK" });
+            }
+            if (row.type === "stripe_subscription") {
+              const priceId = (session.line_items?.data[0]?.price as any)?.id as string | undefined;
+              const tier = priceId ? PRICE_TO_TIER[priceId] : null;
+              const tierNames: Record<string, string> = { start: "Start Abonnement", pro: "Pro Abonnement", business: "Business Abonnement" };
+              if (tier) description = tierNames[tier] ?? "Abonnement";
+            }
+          } catch {}
+        }
+
+        return { date, description, amount };
+      }));
+
+      return res.json(history);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   app.post("/api/create-package-checkout", async (req, res) => {
