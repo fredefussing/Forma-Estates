@@ -1820,7 +1820,14 @@ export default function BoligpotentialeLanding() {
                     ))}
                   </ul>
                   <button
-                    onClick={() => plan.monthly !== null ? startCheckout(plan.name) : (window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel")}
+                    onClick={() => {
+                      if (plan.monthly !== null) {
+                        startCheckout(plan.name);
+                      } else {
+                        const el = document.getElementById("enterprise-calculator");
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }}
                     disabled={checkoutLoading === plan.name}
                     className="w-full transition-colors"
                     style={{
@@ -1862,7 +1869,9 @@ export default function BoligpotentialeLanding() {
             </div>
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
           </div>
-          <EnterpriseCalculator dark />
+          <div id="enterprise-calculator">
+            <EnterpriseCalculator dark />
+          </div>
         </div>
       </section>
       {/* ── FAQ ── */}
