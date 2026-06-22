@@ -250,10 +250,21 @@ function ProductRow({
           step={1}
           value={qty}
           onChange={(e) => onQtyChange(product.key, Number(e.target.value))}
-          className="flex-1 h-1.5 rounded-full cursor-pointer appearance-none"
-          style={{ accentColor: "#c9a96e" }}
+          className="flex-1 cursor-pointer appearance-none"
+          style={{
+            height: 6,
+            borderRadius: 999,
+            outline: "none",
+            background: `linear-gradient(to right, #c9a96e 0%, #c9a96e ${(qty / product.max) * 100}%, rgba(255,255,255,0.15) ${(qty / product.max) * 100}%, rgba(255,255,255,0.15) 100%)`,
+          }}
           data-testid={`slider-enterprise-${product.key}`}
         />
+        <style>{`
+          input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #c9a96e; cursor: pointer; box-shadow: 0 0 0 3px rgba(201,169,110,0.25); }
+          input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #c9a96e; cursor: pointer; border: none; box-shadow: 0 0 0 3px rgba(201,169,110,0.25); }
+          input[type=range]::-webkit-slider-runnable-track { border-radius: 999px; }
+          input[type=range]::-moz-range-track { border-radius: 999px; }
+        `}</style>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => onQtyChange(product.key, Math.max(0, qty - 1))}
