@@ -78,6 +78,12 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
             draggable={false}
           />
 
+          {/* Dark overlay on the right (after) side */}
+          <div
+            className="absolute top-0 bottom-0 right-0 pointer-events-none z-[1]"
+            style={{ left: `${sliderPos}%`, background: "rgba(0,0,0,0.28)" }}
+          />
+
           <div
             className="absolute top-0 left-0 bottom-0 overflow-hidden bg-white"
             style={{ width: `${sliderPos}%` }}
@@ -92,11 +98,13 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
               }}
               draggable={false}
             />
+            {/* Subtle bright overlay on left (before) side */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: "rgba(255,255,255,0.08)" }} />
           </div>
 
           <div
-            className="absolute top-0 bottom-0 w-px bg-white/90 z-10"
-            style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
+            className="absolute top-0 bottom-0 z-10"
+            style={{ left: `${sliderPos}%`, transform: "translateX(-50%)", width: 2, background: "white", boxShadow: "0 0 8px rgba(255,255,255,0.55)" }}
           >
             <div
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"

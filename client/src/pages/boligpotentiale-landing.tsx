@@ -455,6 +455,11 @@ function HeroStage() {
                     className="absolute inset-0 w-full h-full"
                     style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center" }}
                   />
+                  {/* Dark overlay on right (after) side */}
+                  <div
+                    className="absolute top-0 bottom-0 right-0 pointer-events-none"
+                    style={{ left: `${splitPct}%`, background: "rgba(0,0,0,0.28)" }}
+                  />
                   {/* Before image — same fit, curtain-clipped from the right so it slides cleanly without distorting */}
                   <img
                     src={slide.before}
@@ -462,11 +467,16 @@ function HeroStage() {
                     className="absolute inset-0 w-full h-full"
                     style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
                   />
+                  {/* Bright overlay on left (before) side */}
+                  <div
+                    className="absolute top-0 bottom-0 left-0 pointer-events-none"
+                    style={{ right: `${100 - splitPct}%`, background: "rgba(255,255,255,0.10)" }}
+                  />
                   <div
                     className="absolute top-0 bottom-0 flex items-center"
                     style={{ left: `${splitPct}%`, transform: "translateX(-50%)" }}
                   >
-                    <div className="w-[2px] h-full bg-white/85" />
+                    <div className="w-[2px] h-full bg-white" style={{ boxShadow: "0 0 8px rgba(255,255,255,0.6)" }} />
                     <div className="absolute w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
                       <ChevronLeft className="w-3.5 h-3.5 -mr-0.5" style={{ color: C.navy }} />
                       <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
