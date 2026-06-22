@@ -90,7 +90,7 @@ function SubpageLayout({
         <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div style={{ fontFamily: SERIF, fontSize: 14, letterSpacing: "0.32em" }}>FORMA ESTATES</div>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
-            © {new Date().getFullYear()} Forma Estates · CVR: 46551796 · Visualisering for ejendomsmæglere.
+            © {new Date().getFullYear()} Forma Estates · CVR: 46551796 · AI-visualisering for ejendomsbranchen.
           </div>
         </div>
       </footer>
@@ -566,7 +566,7 @@ export function OmOsPage() {
   const values = [
     {
       title: "Lokal forandring",
-      desc: "Vi er danske, vi kender det danske marked, og vi udvikler specifikt til danske ejendomsmæglere — fra Københavns ejerlejligheder til provinsbyerne og landet.",
+      desc: "Vi er danske, vi kender det danske marked, og vi udvikler specifikt til den danske ejendomsbranche — fra Københavns ejerlejligheder og ejendomsudviklere til boligforeninger og udlejere på landet.",
     },
     {
       title: "Innovation med mening",
@@ -574,15 +574,15 @@ export function OmOsPage() {
     },
     {
       title: "Tilgængelighed",
-      desc: "Avanceret teknologi skal ikke være forbeholdt store kæder med dyre budgetter. Vores priser er designet til alle mæglere — fra den selvstændige til de store kæder.",
+      desc: "Avanceret teknologi skal ikke være forbeholdt store aktører med dyre budgetter. Vores priser er designet til alle — fra den selvstændige mægler til det store ejendomsudviklingsselskab.",
     },
     {
       title: "Kvalitet først",
       desc: "Hvert billede, hver video og hver 3D-model skal leve op til professionelle standarder. Vi går aldrig på kompromis med kvaliteten — for jeres omdømme er også vores.",
     },
     {
-      title: "Mægleren i centrum",
-      desc: "Vores teknologi forstærker mæglerens rolle — den erstatter den aldrig. Den personlige, lokale mægler er uundværlig. Teknologien er værktøjet, mægleren er håndværkeren.",
+      title: "Mennesket i centrum",
+      desc: "Vores teknologi forstærker den professionelles rolle — den erstatter den aldrig. Din ekspertise og dine kunderelationer er uundværlige. Teknologien er værktøjet, du er håndværkeren.",
     },
   ];
 
@@ -590,27 +590,28 @@ export function OmOsPage() {
     <SubpageLayout
       eyebrow="Om os"
       title="Hvem er vi?"
-      intro="Forma Estates er et dansk teknologiselskab grundlagt i København med ét klart mål: at hjælpe lokale ejendomsmæglere med at sælge boliger hurtigere — uden at gå på kompromis med kvaliteten."
+      intro="Forma Estates er et dansk teknologiselskab grundlagt i København med ét klart mål: at hjælpe ejendomsbranchen med at præsentere ejendomme professionelt og effektivt — uden at gå på kompromis med kvaliteten."
     >
       {/* Intro story */}
       <div className="mx-auto" style={{ maxWidth: 760 }}>
         <div className="space-y-5" data-testid="omos-intro">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
             Vi revolutionerer den danske ejendomsbranche gennem kunstig intelligens. Vi udvikler
-            skræddersyede værktøjer, der hjælper lokale ejendomsmæglere med at spare tid, reducere
-            omkostninger og sælge boliger hurtigere — uden at gå på kompromis med kvaliteten.
+            skræddersyede værktøjer, der hjælper mæglere, udviklere, boligforeninger og udlejere med
+            at spare tid, reducere omkostninger og præsentere ejendomme hurtigere og mere professionelt
+            — uden at gå på kompromis med kvaliteten.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
             Vi tror på, at teknologi skal tjene mennesker — ikke erstatte dem. Vores produkter er
-            designet til at forstærke mæglerens ekspertise, ikke erstatte den personlige rådgivning,
-            der er kernen i ethvert vellykket boligsalg. Teknologien håndterer det visuelle og
-            tidskrævende, så mægleren kan fokusere på det, de gør bedst: at rådgive og skabe
-            relationer.
+            designet til at forstærke den professionelles ekspertise og frigøre tid til det, der
+            virkelig betyder noget: rådgivning, relationer og de beslutninger, der kræver et
+            menneskeligt øje.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Forma Estates er ikke en mæglerkæde — vi er jeres teknologipartner. Vi arbejder tæt sammen
-            med ejendomsmæglere på tværs af Danmark for at forstå deres udfordringer og udvikle
-            løsninger, der virker i praksis, ikke kun på papiret.
+            Forma Estates er jeres teknologipartner — uanset om du er selvstændig mægler, del af et
+            stort ejendomsudviklingsselskab, boligforening eller B2B-udlejer. Vi arbejder tæt sammen
+            med aktører på tværs af branchen for at forstå deres udfordringer og udvikle løsninger,
+            der virker i praksis, ikke kun på papiret.
           </p>
         </div>
       </div>
@@ -622,10 +623,10 @@ export function OmOsPage() {
             Vision
           </div>
           <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 15.5, lineHeight: 1.7 }}>
-            At blive Danmarks største og mest betroede AI-platform for ejendomsmæglere — lokalt
+            At blive Danmarks største og mest betroede AI-platform for ejendomsbranchen — lokalt
             udviklet, globalt inspireret. Vi vil sætte standarden for, hvordan teknologi transformerer
-            boligsalg i Norden, og gøre avanceret visualisering tilgængelig for enhver mægler, uanset
-            størrelse eller budget.
+            ejendomspræsentation i Norden, og gøre avanceret visualisering tilgængelig for alle
+            professionelle aktører, uanset størrelse eller budget.
           </p>
         </div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: "34px 32px" }}>
@@ -633,10 +634,10 @@ export function OmOsPage() {
             Mission
           </div>
           <p style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.7 }}>
-            At udvikle innovative produkter, der hjælper den lokale ejendomsmægler med at spare tid,
-            sælge hurtigere og levere en overlegen købsoplevelse. Vi skaber værktøjer, der er
-            intuitive, prisvenlige og designet specifikt til det danske boligmarked — så mæglere kan
-            fokusere på det, de gør bedst.
+            At udvikle innovative produkter, der hjælper professionelle i ejendomsbranchen med at spare
+            tid og levere en overlegen præsentation — hvad enten formålet er salg, udlejning,
+            renovering eller projekter. Vi skaber værktøjer, der er intuitive, prisvenlige og designet
+            specifikt til det danske marked.
           </p>
         </div>
       </div>
@@ -678,18 +679,18 @@ export function OmOsPage() {
             æstetisk eller prismæssigt.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi startede med ét produkt: AI Boligvisualisering. Responsen fra mæglere var
-            overvældende. Behovet var tydeligt — hurtig, professionel og prisvenlig visualisering
-            uden den logistiske hovedpine ved fysisk møblering.
+            Vi startede med ét produkt: AI Boligvisualisering. Responsen var overvældende — ikke bare
+            fra mæglere, men fra udviklere, boligforeninger og udlejere. Behovet var tydeligt: hurtig,
+            professionel og prisvenlig visualisering uden den logistiske hovedpine ved fysisk møblering.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Siden da har vi udvidet med tre produkter: Design Agent til præcise justeringer, 3D
-            plantegning til plantegningsvisualisering, og før/efter-transformationsvideo til sociale
-            medier. Hvert produkt er udviklet i tæt samarbejde med aktive ejendomsmæglere.
+            Siden da har vi udvidet med AI Design Agent til præcise justeringer, 3D plantegning,
+            før/efter-transformationsvideo og cinematiske showcase-videoer til sociale medier. Hvert
+            produkt er udviklet i tæt samarbejde med aktive brugere på tværs af ejendomsbranchen.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
             I dag arbejder vi mod at dække hele Danmark — fra Skagen til Sønderborg — og drømmer om
-            at gøre Forma Estates til synonymet med AI-drevet ejendomsmarkedsføring i Norden.
+            at gøre Forma Estates til synonymet med AI-drevet ejendomspræsentation i Norden.
           </p>
         </div>
         <div className="text-center mt-10">

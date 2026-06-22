@@ -49,7 +49,7 @@ const packages: Plan[] = [
     period: "kr./ måned",
     images: "25 AI Visualiseringer / md.",
     icon: Zap,
-    subtitle: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
+    subtitle: "Til aktive professionelle med løbende behov for professionelle visualiseringer.",
     features: [
       "25 AI Visualiseringer / md.",
       "5 3D Plantegninger / md.",
@@ -70,7 +70,7 @@ const packages: Plan[] = [
     period: "kr./ måned",
     images: "60 AI Visualiseringer / md.",
     icon: Crown,
-    subtitle: "Til bureauer og mæglerkæder med høj volumen.",
+    subtitle: "Til virksomheder og teams med høj volumen og komplekse projekter.",
     features: [
       "60 AI Visualiseringer / md.",
       "12 3D Plantegninger / md.",

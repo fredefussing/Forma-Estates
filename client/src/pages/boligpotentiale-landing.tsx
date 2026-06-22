@@ -172,31 +172,35 @@ const PRICING: Plan[] = [
 const FAQS = [
   {
     q: "Hvad er Forma Estates?",
-    a: "Forma Estates er en AI-platform bygget til ejendomsmæglere. Du uploader billeder af en bolig og får på få sekunder: stilfulde AI-visualiseringer af rummene i op til 8 forskellige designstile, en cinematisk ejendomsvideo med AI-kamerabevægelser og beatsynkroniseret musik, en transformationsvideo der animerer overgangen fra før til efter, en 3D-plantegning ud fra din 2D-grundplan, og professionelle PDF-præsentationer med før/efter-sammenligning — alt klar til annoncen, sociale medier og kundepræsentationer.",
+    a: "Forma Estates er en AI-platform til professionel ejendomsvisualisering. Du uploader billeder af en ejendom og får på få sekunder: stilfulde AI-visualiseringer af rummene i op til 8 designstile, en cinematisk ejendomsvideo med AI-kamerabevægelser og beatsynkroniseret musik, en transformationsvideo der animerer overgangen fra før til efter, en 3D-plantegning ud fra din 2D-grundplan, og professionelle PDF-præsentationer med før/efter-sammenligning — alt klar til annoncer, sociale medier, projektmateriale og kundepræsentationer.",
+  },
+  {
+    q: "Hvem bruger Forma Estates?",
+    a: "Platformen bruges af ejendomsmæglere, ejendomsudviklere, byggefirmaer, ejerforeninger, boligforeninger, B2B-boligudlejere og andre professionelle i ejendomsbranchen. Uanset om du sælger, lejer ud, renoverer eller præsenterer et projekt, giver Forma Estates dig professionelle visualiseringer på sekunder.",
   },
   {
     q: "Hvad er AI-visualiseringer, og hvad er transformationsvideoer?",
-    a: "AI-visualiseringer er stillbilleder, hvor AI'en redesigner rummet i en valgt stil — vægge, gulv og vinduer forbliver uændrede, mens møbler, belysning og overflader skiftes ud. Transformationsvideoer er 5-sekunders videoklip, der animerer selve overgangen fra det originale rum til det redesignede — ideelt til at vise boligens potentiale på Instagram og i annoncen.",
+    a: "AI-visualiseringer er stillbilleder, hvor AI'en redesigner rummet i en valgt stil — vægge, gulv og vinduer forbliver uændrede, mens møbler, belysning og overflader skiftes ud. Transformationsvideoer er 5-sekunders videoklip, der animerer selve overgangen fra det originale rum til det redesignede — ideelt til at vise ejendommens potentiale på Instagram, til projektpræsentationer og i annoncer.",
   },
   {
     q: "Hvad er ejendomsvideoerne (Showcase)?",
-    a: "Showcase-videoen samler dine ejendomsbilleder til en vertikal 9:16-video med AI-genererede kamerabevægelser (dolly, orbit, panorering) og beatsynkroniseret baggrundsmusik. Resultatet er en professionel ejendomsreel klar til Instagram Reels, Facebook og boligportaler — uden kamerahold eller videoredigering.",
+    a: "Showcase-videoen samler dine ejendomsbilleder til en vertikal 9:16-video med AI-genererede kamerabevægelser (dolly, orbit, panorering) og beatsynkroniseret baggrundsmusik. Resultatet er en professionel reel klar til Instagram, Facebook, boligportaler og projektwebsites — uden kamerahold eller videoredigering.",
   },
   {
     q: "Hvad koster det?",
-    a: "Abonnementer starter fra 2.999 kr./md. og giver adgang til alle funktioner: AI-visualiseringer, transformationsvideoer, ejendomsvideoer, 3D-plantegninger og PDF-præsentationer. Kontakt os for et tilbud tilpasset dit team.",
+    a: "Abonnementer starter fra 2.999 kr./md. og giver adgang til alle funktioner: AI-visualiseringer, transformationsvideoer, ejendomsvideoer, 3D-plantegninger og PDF-præsentationer. Kontakt os for et tilbud tilpasset din virksomhed eller dit team.",
   },
   {
     q: "Hvilke filformater kan jeg uploade?",
     a: "Vi understøtter JPG og PNG. For bedste resultat bør billedet minimum være 800×600 pixels og være taget i godt, naturligt lys. Undgå stærkt modlys eller meget mørke rum — jo bedre input, jo bedre output.",
   },
   {
-    q: "Kan jeg bruge materialet i mine boligannoncer?",
-    a: "Ja. Alle genererede visualiseringer, videoer og PDF'er kan downloades og bruges frit i dine annoncer, på sociale medier og i trykte materialer. Vi anbefaler at markere AI-genererede billeder tydeligt i overensstemmelse med branchens retningslinjer.",
+    q: "Kan jeg bruge materialet i markedsføring og præsentationer?",
+    a: "Ja. Alle genererede visualiseringer, videoer og PDF'er kan downloades og bruges frit i annoncer, projektmateriale, sociale medier, tryksager og kundepræsentationer. Vi anbefaler at markere AI-genererede billeder tydeligt i overensstemmelse med branchens retningslinjer.",
   },
   {
     q: "Bevarer AI'en rummets struktur?",
-    a: "Ja. Vægge, vinduer, gulv og rummets proportioner forbliver uændrede. Kun møbler, belysning og overflader redesignes, så resultatet ser realistisk og troværdigt ud for potentielle købere.",
+    a: "Ja. Vægge, vinduer, gulv og rummets proportioner forbliver uændrede. Kun møbler, belysning og overflader redesignes, så resultatet ser realistisk og troværdigt ud for potentielle købere, lejere og investorer.",
   },
   {
     q: "Er mine billeder fortrolige?",
@@ -2001,7 +2005,7 @@ export default function BoligpotentialeLanding() {
                 FORMA ESTATES
               </div>
               <p className="mx-auto md:mx-0 mb-5" style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, lineHeight: 1.6, maxWidth: 280 }}>
-                AI-drevet boligvisualisering, 3D plantegninger og videoer til ejendomsmæglere i Danmark.
+                AI-drevet visualisering, 3D plantegninger og videoer til ejendomsbranchen i Danmark.
               </p>
               <div
                 className="flex items-center justify-center md:justify-start"

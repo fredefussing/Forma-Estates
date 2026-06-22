@@ -8,9 +8,9 @@ interface Message {
 }
 
 const QUICK_QUESTIONS = [
-  "Hvordan virker AI-designet?",
+  "Hvem passer Forma Estates til?",
   "Hvad koster det?",
-  "Hvilke stile er gratis?",
+  "Hvordan virker AI-designet?",
   "Hvad er BoligPotentiale?",
 ];
 
