@@ -1,0 +1,108 @@
+Problemer
+Table
+Problem	Årsag
+Kommer til login, ikke Stripe	Frontend kræver login før checkout
+Skal være i samme vindue	Nu åbnes måske i nyt vindue?
+Efter betaling → dashboard	Skal redirecte automatisk
+Plan vises som aktiv	Kræver webhook eller session-check
+Løsninger
+1. Gæst-checkout (uden login)
+Stripe understøtter gæst-checkout — kunden behøver IKKE være logget ind.
+JavaScript
+// FJERN login-check fra handleBuy
+const handleBuy = async (pkg) => {
+  // FJERN: if (!user) { setLocation("/login..."); return; }
+  
+  const priceId = STRIPE_PRICES[pkg.key][billingPeriod];
+  setCheckoutLoading(pkg.key);
+  
+  const res = await fetch("/api/create-subscription-checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      priceId, 
+      customerEmail: user?.email || "" // tom hvis ikke logget ind
+    }),
+  });
+  
+  const { url } = await res.json();
+  window.location.href = url; // Samme vindue, IKKE target="_blank"
+};
+2. Efter betaling → Dashboard
+JavaScript
+// Backend — success_url
+success_url: "https://formaestates.com/betalt?session_id={CHECKOUT_SESSION_ID}&plan=subscription",
+
+// Eller for pakke:
+success_url: "https://formaestates.com/betalt?session_id={CHECKOUT_SESSION_ID}&type=package",
+3. Hent session og aktiver plan
+JavaScript
+// Frontend — /betalt side
+useEffect(() => {
+  const sessionId = new URLSearchParams(window.location.search).get('session_id');
+  
+  fetch(`/api/session-details/${sessionId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'paid') {
+        // Aktiver plan i database
+        fetch('/api/activate-plan', {
+          method: 'POST',
+          body: JSON.stringify({ 
+            sessionId,
+            email: data.customer_email,
+            metadata: data.metadata
+          })
+        });
+        
+        // Redirect til dashboard
+        window.location.href = '/dashboard';
+      }
+    });
+}, []);
+Prompt til Replit
+plain
+OPGAVE: Fix Stripe checkout flow — gæst-checkout + automatisk aktivering
+
+PROBLEMER:
+1. Bruger sendes til login i stedet for Stripe checkout
+2. Checkout skal ske i SAMME vindue (ikke ny fane)
+3. Efter betaling skal bruger sendes til dashboard med aktiv plan
+4. Plan skal vises som aktiv med det samme
+
+LØSNINGER:
+
+1. FJERN login-krav fra checkout:
+   - I pricing.tsx: fjern "if (!user) redirect til login"
+   - I enterprise-calculator.tsx: fjern login-krav
+   - Send customerEmail: user?.email || "" (tom string hvis gæst)
+
+2. SAMME VINDUE checkout:
+   - Brug window.location.href = url (IKKE window.open)
+   - IKKE target="_blank" på nogen knapper
+
+3. Success-side (/betalt):
+   - Hent session_id fra URL
+   - Kald /api/session-details/:sessionId
+   - Hvis status === 'paid':
+     * Gem ordre/abonnement i database
+     * Hvis gæst: opret konto med email fra Stripe
+     * Redirect til /dashboard
+
+4. Backend endpoints:
+   - POST /api/create-package-checkout: fjern login-krav
+   - POST /api/create-subscription-checkout: fjern login-krav
+   - POST /api/activate-plan: opret/aktiver bruger plan
+   - GET /api/session-details/:sessionId: returner metadata
+
+5. Dashboard:
+   - Vis aktiv plan fra database
+   - Vis forbrug: "Brugt X / Y AI Visualiseringer"
+   - Vis "Opret sag" knap hvis de har købt produkter
+
+STRIPE WEBHOOK (valgfrit men anbefalet):
+   - Endpoint: POST /webhook
+   - Events: checkout.session.completed
+   - Opdater database når betaling bekræftes
+
+IMPLEMENTÉR ALLE ændringer. Returner kun koden, ingen forklaringer.

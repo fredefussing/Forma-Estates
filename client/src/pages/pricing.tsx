@@ -103,10 +103,6 @@ export default function PricingPage() {
       window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
       return;
     }
-    if (!user) {
-      setLocation("/login?redirect=/pris");
-      return;
-    }
     const prices = STRIPE_PRICES[pkg.key];
     if (!prices) {
       window.location.href = "mailto:kontakt@formaestates.com?subject=Abonnement%3A%20" + encodeURIComponent(pkg.name);
@@ -118,7 +114,7 @@ export default function PricingPage() {
       const res = await fetch("/api/create-subscription-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId, customerEmail: user.email }),
+        body: JSON.stringify({ priceId, customerEmail: user?.email ?? "" }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;

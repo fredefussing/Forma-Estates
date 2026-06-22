@@ -20,6 +20,11 @@ export default function SignupPage() {
   const [, setLocation] = useLocation();
 
   const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
+  const prefillEmail = new URLSearchParams(window.location.search).get("email") || "";
+
+  useEffect(() => {
+    if (prefillEmail && !email) setEmail(prefillEmail);
+  }, [prefillEmail]);
 
   useEffect(() => {
     if (!authLoading && user) {
