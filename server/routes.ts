@@ -4061,6 +4061,136 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
     businessYearly:   "price_1Tl2uiKDpJP0jg0eAXRwj3Al",
   };
 
+  const PRICE_TO_TIER: Record<string, string> = {
+    "price_1Tl2kVKDpJP0jg0e2UqApR5B": "start",
+    "price_1Tl2rVKDpJP0jg0erJ0x7FZs": "start",
+    "price_1Tl2nYKDpJP0jg0eMbTJQ2jx": "pro",
+    "price_1Tl2soKDpJP0jg0eREm8LuB4": "pro",
+    "price_1Tl2pZKDpJP0jg0etHHBwE52": "business",
+    "price_1Tl2uiKDpJP0jg0eAXRwj3Al": "business",
+  };
+
+  const TIER_QUOTAS: Record<string, { ai: number; floorPlans: number; transformVideos: number; showcase: number }> = {
+    start:    { ai: 10, floorPlans: 2,  transformVideos: 2,  showcase: 1 },
+    pro:      { ai: 25, floorPlans: 5,  transformVideos: 5,  showcase: 3 },
+    business: { ai: 60, floorPlans: 12, transformVideos: 12, showcase: 8 },
+  };
+
+  // ── Stripe: verify session and activate subscription/quotas ───────────────
+  app.post("/api/stripe/verify-session", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { sessionId } = req.body;
+      if (!sessionId) return res.status(400).json({ error: "sessionId påkrævet" });
+
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["line_items", "line_items.data.price"],
+      });
+
+      // Not paid yet
+      if (session.payment_status !== "paid" && session.status !== "complete") {
+        return res.json({ status: "pending" });
+      }
+
+      // Already processed idempotency check via credit_transactions
+      const existing = await pool.query(
+        `SELECT id FROM credit_transactions WHERE user_id=$1 AND description=$2 LIMIT 1`,
+        [user.id, `stripe:${sessionId}`]
+      );
+      if (existing.rows.length > 0) {
+        // Already activated — just return current state
+        return res.json({ status: "already_activated", mode: session.mode });
+      }
+
+      const resetsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      if (session.mode === "subscription") {
+        const priceId = (session.line_items?.data[0]?.price as any)?.id as string | undefined;
+        const tier = (priceId && PRICE_TO_TIER[priceId]) || "start";
+        const quotas = TIER_QUOTAS[tier] ?? TIER_QUOTAS.start;
+
+        await storage.activateSubscription(user.id, tier);
+        await storage.setUserQuotas(user.id, { ...quotas, resetsAt });
+        await pool.query(
+          `INSERT INTO credit_transactions(user_id, amount, type, description) VALUES($1, 0, $2, $3)`,
+          [user.id, "stripe_subscription", `stripe:${sessionId}`]
+        );
+
+        const tierNames: Record<string, string> = { start: "Start", pro: "Pro", business: "Business" };
+        return res.json({
+          status: "activated",
+          mode: "subscription",
+          tier,
+          tierName: tierNames[tier] ?? tier,
+          quotas,
+        });
+      }
+
+      if (session.mode === "payment") {
+        const aiVisual     = parseInt(session.metadata?.ai_visual       ?? "0", 10) || 0;
+        const plan3d       = parseInt(session.metadata?.plan_3d          ?? "0", 10) || 0;
+        const transformVid = parseInt(session.metadata?.transform_video  ?? "0", 10) || 0;
+        const showcase     = parseInt(session.metadata?.showcase         ?? "0", 10) || 0;
+
+        // Activate account access + add purchased quotas on top of existing
+        await storage.activateSubscription(user.id, "custom");
+        await storage.setUserQuotas(user.id, {
+          ai:             (user.quotaAiVisualizations  ?? 0) + aiVisual,
+          floorPlans:     (user.quotaFloorPlans         ?? 0) + plan3d,
+          transformVideos:(user.quotaTransformVideos    ?? 0) + transformVid,
+          showcase:       (user.quotaShowcaseVideos     ?? 0) + showcase,
+          resetsAt,
+        });
+        await pool.query(
+          `INSERT INTO credit_transactions(user_id, amount, type, description) VALUES($1, 0, $2, $3)`,
+          [user.id, "stripe_package", `stripe:${sessionId}`]
+        );
+
+        return res.json({
+          status: "activated",
+          mode: "payment",
+          aiVisual, plan3d, transformVid, showcase,
+          amountTotal: session.amount_total,
+        });
+      }
+
+      return res.json({ status: "unknown" });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe webhook (subscription renewals / cancellations) ───────────────
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    if (!stripe) return res.status(503).end();
+    const sig = req.headers["stripe-signature"] as string;
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    let event: Stripe.Event;
+    try {
+      event = secret
+        ? stripe.webhooks.constructEvent(req.body, sig, secret)
+        : JSON.parse(req.body.toString()) as Stripe.Event;
+    } catch (err: any) {
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
+      const sub = event.data.object as Stripe.Subscription;
+      const email = (sub as any).customer_email ?? null;
+      if (email) {
+        const u = await storage.getUserByEmail(email).catch(() => null);
+        if (u && sub.status !== "active") {
+          await storage.updateUser(u.id, { subscriptionStatus: "none" });
+        }
+      }
+    }
+    return res.json({ received: true });
+  });
+
   app.post("/api/create-package-checkout", async (req, res) => {
     if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
     try {
