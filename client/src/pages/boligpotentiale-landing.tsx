@@ -1079,12 +1079,39 @@ function H2({ children, light = false, style }: { children: React.ReactNode; lig
   );
 }
 
+const PLAN_PRICE_IDS: Record<string, string> = {
+  Start:    "price_1Tl2kVKDpJP0jg0e2UqApR5B",
+  Pro:      "price_1Tl2nYKDpJP0jg0eMbTJQ2jx",
+  Business: "price_1Tl2pZKDpJP0jg0etHHBwE52",
+};
+
 export default function BoligpotentialeLanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("FORSIDE");
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [openFeature, setOpenFeature] = useState<number | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
+  const startCheckout = async (planName: string) => {
+    const priceId = PLAN_PRICE_IDS[planName];
+    if (!priceId) return;
+    setCheckoutLoading(planName);
+    try {
+      const res = await fetch("/api/create-subscription-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, customerEmail: "" }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert("Checkout fejlede. Prøv igen.");
+    } catch {
+      alert("Checkout fejlede. Prøv igen.");
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -1792,32 +1819,35 @@ export default function BoligpotentialeLanding() {
                       </li>
                     ))}
                   </ul>
-                  <Link href={plan.href}>
-                    <button
-                      className="w-full transition-colors"
-                      style={{
-                        padding: "12px 24px",
-                        borderRadius: 8,
-                        background: isPro ? C.gold : "transparent",
-                        color: isPro ? C.navy : C.gold,
-                        border: `1px solid ${C.gold}`,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        fontFamily: SANS,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = isPro ? C.goldHover : C.gold;
-                        e.currentTarget.style.color = C.navy;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = isPro ? C.gold : "transparent";
-                        e.currentTarget.style.color = isPro ? C.navy : C.gold;
-                      }}
-                      data-testid={`bolig-pricing-cta-${plan.name.toLowerCase()}`}
-                    >
-                      {plan.cta}
-                    </button>
-                  </Link>
+                  <button
+                    onClick={() => plan.monthly !== null ? startCheckout(plan.name) : (window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel")}
+                    disabled={checkoutLoading === plan.name}
+                    className="w-full transition-colors"
+                    style={{
+                      padding: "12px 24px",
+                      borderRadius: 8,
+                      background: isPro ? C.gold : "transparent",
+                      color: isPro ? C.navy : C.gold,
+                      border: `1px solid ${C.gold}`,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      fontFamily: SANS,
+                      opacity: checkoutLoading === plan.name ? 0.6 : 1,
+                      cursor: checkoutLoading === plan.name ? "wait" : "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (checkoutLoading) return;
+                      e.currentTarget.style.background = isPro ? C.goldHover : C.gold;
+                      e.currentTarget.style.color = C.navy;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isPro ? C.gold : "transparent";
+                      e.currentTarget.style.color = isPro ? C.navy : C.gold;
+                    }}
+                    data-testid={`bolig-pricing-cta-${plan.name.toLowerCase()}`}
+                  >
+                    {checkoutLoading === plan.name ? "Åbner Stripe…" : plan.cta}
+                  </button>
                 </motion.div>
               );
             })}

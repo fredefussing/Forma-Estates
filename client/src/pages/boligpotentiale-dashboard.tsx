@@ -7003,6 +7003,33 @@ export default function BoligpotentialeDashboard() {
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
   const [modal, setModal] = useState<Modal>(null);
+  const [planCheckoutLoading, setPlanCheckoutLoading] = useState<string | null>(null);
+
+  const DASH_PLAN_PRICE_IDS: Record<string, string> = {
+    Start:    "price_1Tl2kVKDpJP0jg0e2UqApR5B",
+    Pro:      "price_1Tl2nYKDpJP0jg0eMbTJQ2jx",
+    Business: "price_1Tl2pZKDpJP0jg0etHHBwE52",
+  };
+
+  const startPlanCheckout = async (planName: string) => {
+    const priceId = DASH_PLAN_PRICE_IDS[planName];
+    if (!priceId) return;
+    setPlanCheckoutLoading(planName);
+    try {
+      const res = await fetch("/api/create-subscription-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, customerEmail: user?.email ?? "" }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else showToast("Checkout fejlede. Prøv igen.");
+    } catch {
+      showToast("Checkout fejlede. Prøv igen.");
+    } finally {
+      setPlanCheckoutLoading(null);
+    }
+  };
   const [toast, setToast] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -8111,17 +8138,18 @@ export default function BoligpotentialeDashboard() {
                         if (plan.custom) {
                           window.location.href = "mailto:kontakt@formaestates.com?subject=Enterprise%20plan%20foresp%C3%B8rgsel";
                         } else {
-                          window.location.href = "mailto:kontakt@formaestates.com?subject=Abonnement%3A%20" + encodeURIComponent(plan.name);
+                          startPlanCheckout(plan.name);
                         }
                       }}
-                      className="w-full h-11 rounded-full font-semibold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"
+                      disabled={planCheckoutLoading === plan.name}
+                      className="w-full h-11 rounded-full font-semibold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-wait"
                       style={{
                         background: plan.highlight ? "#C8956C" : "#0F1D2F",
                         color: "#fff",
                       }}
                       data-testid={`settings-pricing-cta-${plan.name.toLowerCase()}`}
                     >
-                      {plan.cta}
+                      {planCheckoutLoading === plan.name ? "Åbner Stripe…" : plan.cta}
                     </button>
                   </div>
                 ))}
