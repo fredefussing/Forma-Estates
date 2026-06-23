@@ -182,7 +182,7 @@ const SILENT_SLIDE_SEC = 0.7;
 const MAX_SLIDES = 48;
 // Roughly how long a photo should hold; snapped to a whole number of beats so a
 // fast track (short period) cuts every beat and a slow one every 2 beats.
-const TARGET_SLIDE_SEC = 0.55;
+const TARGET_SLIDE_SEC = 0.50;
 
 // ── AI path tuning ────────────────────────────────────────────────────────────
 // Each AI clip is a PAID asset, so we never cycle them — one clip per photo. Cap
@@ -369,38 +369,104 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number): 
   // This gives 0 at start, 1 at end, with gentle acceleration + deceleration.
   const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
 
-  const move = i % 4;
-  if (move === 0 || move === 2) {
-    // Dolly in (push toward the room) / dolly out (pull back). The sharp photo
-    // scales one way while the blur scales the other → depth. Zoom range
-    // increased to 1.0→1.15 (was 1.07) so movement reads clearly on mobile.
-    const fgZ = move === 0
-      ? `min(1.15,1.0+0.15*(${easeExpr}))`
-      : `max(1.0,1.15-0.15*(${easeExpr}))`;
-    const bgZ = move === 0
-      ? `max(1.10,1.14-0.04*(${easeExpr}))`
-      : `min(1.14,1.10+0.04*(${easeExpr}))`;
+  // 8 cinematic moves cycling per slide (i % 8):
+  //  0 dolly-in     — push toward room, blur pulls back → clear depth
+  //  1 crab-right   — slide right with parallax counter-drift
+  //  2 dolly-out    — pull back, reveals more of frame
+  //  3 crab-left    — slide left with parallax counter-drift
+  //  4 orbit-right  — zoom IN while drifting right (combined dolly+crab)
+  //  5 drift-up     — gentle upward drift + constant mild zoom
+  //  6 diagonal     — push-in toward bottom-right corner
+  //  7 wide-pull    — start zoomed, reveal wider → inverted dolly
+  const move = i % 8;
+  const easeLinear = `(${easeExpr}*2-1)`;
+
+  // Shared fg color-grade (slightly warmer & more pop than before)
+  const fgGrade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
+
+  if (move === 0) {
+    // Dolly in
+    const fgZ = `min(1.18,1.0+0.18*(${easeExpr}))`;
+    const bgZ = `max(1.10,1.14-0.04*(${easeExpr}))`;
     return (
       bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
-      `[b${i}]scale=${fw}:${fh},eq=brightness=0.03:contrast=1.05:saturation=1.02,setsar=1,` +
+      `[b${i}]scale=${fw}:${fh},${fgGrade},setsar=1,` +
       `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
       `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
     );
   }
-  // Crab right (1) / crab left (3): the sharp photo slides sideways while the blur
-  // drifts the opposite way a little → parallax. Pan amount increased to 6%.
-  const sign = move === 1 ? "+" : "-";
-  const bgSign = move === 1 ? "-" : "+";
-  // Use ease-in-out on the pan as well: map easeExpr (0→1) to (-1→+1) range.
-  const easeLinear = `(${easeExpr}*2-1)`;
-  const panAmt = Math.round(amp * 1.4);
-  const ovx = `min(max(${cx9}${sign}${panAmt}*${easeLinear},0),${W - fw9})`;
-  const bgx = `iw/2-(iw/zoom/2)${bgSign}24*${easeLinear}`;
-  return (
-    bgLayer(`1.06`, bgx) +
-    `[b${i}]scale=${fw9}:${fh9},eq=brightness=0.03:contrast=1.05:saturation=1.02,setsar=1[fg${i}];` +
-    `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
-  );
+  if (move === 2) {
+    // Dolly out
+    const fgZ = `max(1.0,1.18-0.18*(${easeExpr}))`;
+    const bgZ = `min(1.14,1.10+0.04*(${easeExpr}))`;
+    return (
+      bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
+      `[b${i}]scale=${fw}:${fh},${fgGrade},setsar=1,` +
+      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
+    );
+  }
+  if (move === 1 || move === 3) {
+    // Crab right (1) / crab left (3)
+    const sign = move === 1 ? "+" : "-";
+    const bgSign = move === 1 ? "-" : "+";
+    const panAmt = Math.round(amp * 1.5);
+    const ovx = `min(max(${cx9}${sign}${panAmt}*${easeLinear},0),${W - fw9})`;
+    const bgx = `iw/2-(iw/zoom/2)${bgSign}28*${easeLinear}`;
+    return (
+      bgLayer(`1.06`, bgx) +
+      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+    );
+  }
+  if (move === 4) {
+    // Orbit right — dolly-in combined with rightward drift (cinematic arc)
+    const fgZ = `min(1.14,1.02+0.12*(${easeExpr}))`;
+    const panAmt = Math.round(amp * 1.2);
+    const ovx = `min(max(${cx9}+${panAmt}*${easeLinear},0),${W - fw9})`;
+    const bgx = `iw/2-(iw/zoom/2)-18*${easeLinear}`;
+    return (
+      bgLayer(`1.08`, bgx) +
+      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1,` +
+      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw9}x${fh9}:fps=${FPS},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+    );
+  }
+  if (move === 5) {
+    // Drift up — gentle upward float + constant mild zoom
+    const fgZ = `min(1.08,1.03+0.05*(${easeExpr}))`;
+    const ovy = `min(max(${cy9}-${Math.round(amp * 0.5)}*${easeLinear},0),${H - fh9})`;
+    return (
+      bgLayer(`1.05`, `iw/2-(iw/zoom/2)`) +
+      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1,` +
+      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw9}x${fh9}:fps=${FPS},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x=${cx9}:y='${ovy}':eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+    );
+  }
+  if (move === 6) {
+    // Diagonal push — zoom in while drifting toward bottom-right
+    const fgZ = `min(1.16,1.0+0.16*(${easeExpr}))`;
+    const panAmt = Math.round(amp * 0.8);
+    const ovx = `min(max(${cx9}+${panAmt}*${easeExpr},0),${W - fw9})`;
+    const ovy = `min(max(${cy9}+${Math.round(amp * 0.4)}*${easeExpr},0),${H - fh9})`;
+    return (
+      bgLayer(`max(1.10,1.14-0.04*(${easeExpr}))`, `iw/2-(iw/zoom/2)`) +
+      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1,` +
+      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw9}x${fh9}:fps=${FPS},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x='${ovx}':y='${ovy}':eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+    );
+  }
+  // move === 7: Wide pull — start zoomed in, pull back to reveal full frame
+  {
+    const fgZ = `max(1.0,1.18-0.18*(${easeExpr}))`;
+    const bgZ = `min(1.13,1.09+0.04*(${easeExpr}))`;
+    return (
+      bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
+      `[b${i}]scale=${fw}:${fh},${fgGrade},setsar=1,` +
+      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
+    );
+  }
 }
 
 // Build chained xfade transitions between slide labels [v0]..[vN-1].
@@ -519,29 +585,28 @@ function buildFilterVideoCleanLandscape(n: number, durations: number[], sizes: A
   return parts.join(";");
 }
 
-// "Clean" slide for a LOCAL PHOTO — crop-to-fill 9:16 with a gentle dolly/crab move.
+// "Clean" slide for a LOCAL PHOTO — crop-to-fill 9:16 with 8 cinematic moves.
 function buildSlideClean(i: number, dims: { w: number; h: number }, frames: number): string {
   const fm1 = Math.max(1, frames - 1);
   const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
-  const move = i % 4;
-  const bigW = even(Math.ceil(W * 1.15));
-  const bigH = even(Math.ceil(H * 1.15));
-  let z: string, panX: string;
-  if (move === 0) {
-    z = `min(1.10,1.0+0.10*(${easeExpr}))`;
-    panX = `iw/2-(iw/zoom/2)`;
-  } else if (move === 2) {
-    z = `max(1.0,1.10-0.10*(${easeExpr}))`;
-    panX = `iw/2-(iw/zoom/2)`;
-  } else {
-    z = `1.06`;
-    const sign = move === 1 ? `+` : `-`;
-    panX = `iw/2-(iw/zoom/2)${sign}28*(${easeExpr}*2-1)`;
-  }
+  const easeLinear = `(${easeExpr}*2-1)`;
+  const move = i % 8;
+  const bigW = even(Math.ceil(W * 1.20));
+  const bigH = even(Math.ceil(H * 1.20));
+  const grade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
+  let z: string, panX: string, panY = `ih/2-(ih/zoom/2)`;
+  if (move === 0) { z = `min(1.18,1.0+0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  else if (move === 2) { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  else if (move === 1) { z = `1.10`; panX = `iw/2-(iw/zoom/2)+38*${easeLinear}`; }
+  else if (move === 3) { z = `1.10`; panX = `iw/2-(iw/zoom/2)-38*${easeLinear}`; }
+  else if (move === 4) { z = `min(1.14,1.02+0.12*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+30*${easeLinear}`; }
+  else if (move === 5) { z = `min(1.08,1.03+0.05*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; panY = `ih/2-(ih/zoom/2)-20*${easeLinear}`; }
+  else if (move === 6) { z = `min(1.16,1.0+0.16*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+22*${easeExpr}`; panY = `ih/2-(ih/zoom/2)+12*${easeExpr}`; }
+  else { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
   return (
     `[${i}:v]scale=${bigW}:${bigH}:force_original_aspect_ratio=increase,setsar=1,` +
-    `eq=brightness=0.03:contrast=1.05:saturation=1.02,` +
-    `zoompan=z='${z}':d=${frames}:x='${panX}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},` +
+    `${grade},` +
+    `zoompan=z='${z}':d=${frames}:x='${panX}':y='${panY}':s=${W}x${H}:fps=${FPS},` +
     `format=yuv420p,setsar=1[v${i}]`
   );
 }
@@ -559,29 +624,28 @@ function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: numb
   return parts.join(";");
 }
 
-// Landscape (1920×1080) "Original" slide for a LOCAL PHOTO — crop-to-fill 16:9.
+// Landscape (1920×1080) "Original" slide for a LOCAL PHOTO — crop-to-fill 16:9 with 8 cinematic moves.
 function buildSlideCleanLandscape(i: number, dims: { w: number; h: number }, frames: number): string {
   const fm1 = Math.max(1, frames - 1);
   const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
-  const move = i % 4;
-  const bigW = even(Math.ceil(WL * 1.15));
-  const bigH = even(Math.ceil(HL * 1.15));
-  let z: string, panX: string;
-  if (move === 0) {
-    z = `min(1.10,1.0+0.10*(${easeExpr}))`;
-    panX = `iw/2-(iw/zoom/2)`;
-  } else if (move === 2) {
-    z = `max(1.0,1.10-0.10*(${easeExpr}))`;
-    panX = `iw/2-(iw/zoom/2)`;
-  } else {
-    z = `1.06`;
-    const sign = move === 1 ? `+` : `-`;
-    panX = `iw/2-(iw/zoom/2)${sign}28*(${easeExpr}*2-1)`;
-  }
+  const easeLinear = `(${easeExpr}*2-1)`;
+  const move = i % 8;
+  const bigW = even(Math.ceil(WL * 1.20));
+  const bigH = even(Math.ceil(HL * 1.20));
+  const grade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
+  let z: string, panX: string, panY = `ih/2-(ih/zoom/2)`;
+  if (move === 0) { z = `min(1.18,1.0+0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  else if (move === 2) { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  else if (move === 1) { z = `1.10`; panX = `iw/2-(iw/zoom/2)+38*${easeLinear}`; }
+  else if (move === 3) { z = `1.10`; panX = `iw/2-(iw/zoom/2)-38*${easeLinear}`; }
+  else if (move === 4) { z = `min(1.14,1.02+0.12*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+30*${easeLinear}`; }
+  else if (move === 5) { z = `min(1.08,1.03+0.05*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; panY = `ih/2-(ih/zoom/2)-20*${easeLinear}`; }
+  else if (move === 6) { z = `min(1.16,1.0+0.16*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+22*${easeExpr}`; panY = `ih/2-(ih/zoom/2)+12*${easeExpr}`; }
+  else { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
   return (
     `[${i}:v]scale=${bigW}:${bigH}:force_original_aspect_ratio=increase,setsar=1,` +
-    `eq=brightness=0.03:contrast=1.05:saturation=1.02,` +
-    `zoompan=z='${z}':d=${frames}:x='${panX}':y='ih/2-(ih/zoom/2)':s=${WL}x${HL}:fps=${FPS},` +
+    `${grade},` +
+    `zoompan=z='${z}':d=${frames}:x='${panX}':y='${panY}':s=${WL}x${HL}:fps=${FPS},` +
     `format=yuv420p,setsar=1[v${i}]`
   );
 }
@@ -1004,10 +1068,16 @@ async function assembleVideo(
     args.push("-stream_loop", "-1");
     if (musicSeek > 0) args.push("-ss", String(musicSeek));
     args.push("-i", musicPath);
-    const fadeOutStart = Math.max(0.1, videoTotal - 3).toFixed(2);
+    const fadeOutStart = Math.max(0.1, videoTotal - 2.5).toFixed(2);
+    // Increase volume significantly, add light compression and a warm bass boost for
+    // a punchy, professional sound. dynaudnorm keeps levels consistent across tracks.
     const audioChain =
-      `[${slideCount}:a]volume=0.32,afade=t=in:st=0:d=2,` +
-      `afade=t=out:st=${fadeOutStart}:d=3[aout]`;
+      `[${slideCount}:a]volume=0.82,` +
+      `acompressor=threshold=0.089:ratio=4:attack=200:release=1000:makeup=1.2,` +
+      `equalizer=f=90:width_type=o:width=2:g=4,` +
+      `dynaudnorm=f=150:g=15,` +
+      `afade=t=in:st=0:d=1,` +
+      `afade=t=out:st=${fadeOutStart}:d=2.5[aout]`;
     finalFilter = `${finalFilter};${audioChain}`;
   }
 
@@ -1070,8 +1140,12 @@ async function render(
     // clip. Images[2+] use the normal interior gimbal prompts.
     const droneMode = !!(startText || endText) && imagePaths.length >= 2;
 
+    // LOCAL-FIRST: For regular showcase reels, always use the free Ken Burns FFmpeg
+    // path — it renders in seconds, costs $0, and closely matches Rendy.io quality.
+    // AI generation is only activated in droneMode (explicit start/end text supplied)
+    // where the AI transition clip genuinely adds value the Ken Burns path can't match.
     let clipData: AIClipData | null = null;
-    if (isFalConfigured()) {
+    if (droneMode && isFalConfigured()) {
       try {
         clipData = await buildAIClips(imagePaths, outDir, droneMode, emit);
       } catch (e: any) {
@@ -1079,9 +1153,7 @@ async function render(
         clipData = null;
       }
     }
-    if (!clipData) {
-      emit({ stage: "compositing", currentClip: 0, totalClips: imagePaths.length, message: "Bruger lokal motor (ingen AI)…" });
-    }
+    emit({ stage: "compositing", currentClip: 0, totalClips: imagePaths.length, message: "Sammensætter video…" });
 
     const n = clipData ? clipData.clipPaths.length : Math.min(imagePaths.length, MAX_AI_CLIPS);
     const videoUrls: Record<string, string> = {};
