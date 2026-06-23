@@ -573,9 +573,12 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number, m
     `zoompan=z='${z}':d=${frames}:x='${x}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},setsar=1[bg${i}];`;
 
   // Ease-in-out via cosine: smooth = (1 - cos(PI * on/fm1)) / 2
-  const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
+  // NOTE: `on` is valid in zoompan; overlay filters require `n` instead.
+  const easeExpr    = `(1-cos(3.14159265*on/${fm1}))/2`;   // zoompan variable
+  const easeExprOvl = `(1-cos(3.14159265*n/${fm1}))/2`;    // overlay variable
   // Linear ease centred on 0: -1 at start → +1 at end
-  const easeLinear = `(${easeExpr}*2-1)`;
+  const easeLinear    = `(${easeExpr}*2-1)`;
+  const easeLinearOvl = `(${easeExprOvl}*2-1)`;
 
   // Shared fg color-grade (warm Nordic pop)
   const fgGrade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
@@ -597,7 +600,7 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number, m
   // Clean lateral pan right; bg drifts slightly left (subtle parallax).
   if (moveType === "slide_right") {
     const panAmt = Math.round(amp * 1.5);
-    const ovx = `min(max(${cx9}+${panAmt}*${easeLinear},0),${W - fw9})`;
+    const ovx = `min(max(${cx9}+${panAmt}*${easeLinearOvl},0),${W - fw9})`;
     const bgx = `iw/2-(iw/zoom/2)-28*${easeLinear}`;
     return (
       bgLayer(`1.06`, bgx) +
@@ -610,7 +613,7 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number, m
   // Clean lateral pan left; bg drifts slightly right (subtle parallax).
   if (moveType === "slide_left") {
     const panAmt = Math.round(amp * 1.5);
-    const ovx = `min(max(${cx9}-${panAmt}*${easeLinear},0),${W - fw9})`;
+    const ovx = `min(max(${cx9}-${panAmt}*${easeLinearOvl},0),${W - fw9})`;
     const bgx = `iw/2-(iw/zoom/2)+28*${easeLinear}`;
     return (
       bgLayer(`1.06`, bgx) +
@@ -623,7 +626,7 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number, m
   // Stronger BG counter-drift (50px vs 28px) = pronounced depth separation.
   if (moveType === "parallax_right") {
     const panAmt = Math.round(amp * 1.5);
-    const ovx = `min(max(${cx9}+${panAmt}*${easeLinear},0),${W - fw9})`;
+    const ovx = `min(max(${cx9}+${panAmt}*${easeLinearOvl},0),${W - fw9})`;
     const bgx = `iw/2-(iw/zoom/2)-50*${easeLinear}`;
     return (
       bgLayer(`1.08`, bgx) +
@@ -635,7 +638,7 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number, m
   // ── Parallax Left (default) ──────────────────────────────────────────────────
   // Mirror of Parallax Right — strongest counter-drift of all moves.
   const panAmt = Math.round(amp * 1.5);
-  const ovx = `min(max(${cx9}-${panAmt}*${easeLinear},0),${W - fw9})`;
+  const ovx = `min(max(${cx9}-${panAmt}*${easeLinearOvl},0),${W - fw9})`;
   const bgx = `iw/2-(iw/zoom/2)+50*${easeLinear}`;
   return (
     bgLayer(`1.08`, bgx) +
