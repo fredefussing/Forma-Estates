@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, downloadToFile } from "./fal";
+import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, downloadToFile } from "./fal";
 import { r2UploadFile } from "./r2";
 
 // ===== BOLIG SHOWCASE VIDEO =====
@@ -1099,6 +1099,164 @@ async function render(
   } finally {
     releaseSlot();
   }
+}
+
+// ===== CINEMATISK WALKTHROUGH VIDEO =====
+// Multi-photo professional property walkthrough — same pipeline as Showcase but
+// uses walkthrough-specific camera prompts (Prompt 2 aesthetic) and no drone mode.
+
+async function buildWalkthroughClips(
+  imagePaths: string[],
+  outDir: string,
+  onProgress?: (p: ShowcaseProgress) => void,
+): Promise<AIClipData | null> {
+  const allPhotos = imagePaths.slice(0, MAX_AI_CLIPS);
+  const totalClips = allPhotos.length;
+
+  onProgress?.({ stage: "uploading", currentClip: 0, totalClips, message: `Uploader ${allPhotos.length} billeder…` });
+
+  const allUploads = await Promise.all(
+    allPhotos.map((p) =>
+      uploadToFal(p)
+        .then((url) => url)
+        .catch((e: any) => {
+          console.warn("[walkthrough] upload failed:", e?.message || e);
+          return null;
+        }),
+    ),
+  );
+
+  let done = 0;
+  onProgress?.({ stage: "generating", currentClip: 0, totalClips, message: `Laver AI-klip 0/${totalClips}…` });
+
+  const clips = await mapLimit(allUploads, AI_CLIP_CONCURRENCY, async (url, i) => {
+    if (!url) return null;
+    try {
+      const { videoUrl } = await generateWalkthroughClip(url, i);
+      const dest = path.join(outDir, `wt-clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`);
+      await downloadToFile(videoUrl, dest);
+      done++;
+      onProgress?.({ stage: "generating", currentClip: done, totalClips, message: `Laver AI-klip ${done}/${totalClips}…` });
+      return dest;
+    } catch (e: any) {
+      console.warn(`[walkthrough] clip ${i} failed:`, e?.message || e);
+      done++;
+      onProgress?.({ stage: "generating", currentClip: done, totalClips, message: `Laver AI-klip ${done}/${totalClips}… (et klip fejlede)` });
+      return null;
+    }
+  });
+
+  const clipPaths = clips.filter((c): c is string => !!c);
+  if (clipPaths.length === 0) return null;
+
+  try {
+    const sizes: Array<{ w: number; h: number }> = [];
+    for (const c of clipPaths) sizes.push(await ffprobeSize(c));
+    return { clipPaths, sizes };
+  } catch (e) {
+    for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
+    throw e;
+  }
+}
+
+async function renderWalkthrough(
+  jobId: string,
+  imagePaths: string[],
+  outDir: string,
+  address?: string,
+): Promise<void> {
+  await acquireSlot();
+  try {
+    const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
+
+    let clipData: AIClipData | null = null;
+    if (isFalConfigured()) {
+      try {
+        clipData = await buildWalkthroughClips(imagePaths, outDir, emit);
+      } catch (e: any) {
+        console.warn("[walkthrough] AI path failed, falling back to local:", e?.message || e);
+        clipData = null;
+      }
+    }
+    if (!clipData) {
+      emit({ stage: "compositing", currentClip: 0, totalClips: imagePaths.length, message: "Bruger lokal motor (ingen AI)…" });
+    }
+
+    const n = clipData ? clipData.clipPaths.length : Math.min(imagePaths.length, MAX_AI_CLIPS);
+    const videoUrls: Record<string, string> = {};
+    const cleanVideoUrls: Record<string, string> = {};
+
+    for (const mood of ALL_MOODS) {
+      emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[mood]}…` });
+      let inputs: RenderInputs;
+      if (clipData) {
+        inputs = makeRenderInputsAI(clipData, mood);
+      } else {
+        inputs = await buildLocalInputs(imagePaths, mood);
+      }
+      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, undefined, undefined);
+
+      let cleanInputs: RenderInputs;
+      if (clipData) {
+        cleanInputs = makeRenderInputsAICleanLandscape(clipData, mood);
+      } else {
+        cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, mood);
+      }
+      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`, undefined, undefined);
+    }
+
+    if (clipData) {
+      for (const c of clipData.clipPaths) fs.promises.unlink(c).catch(() => {});
+    }
+
+    emit({ stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls, cleanVideoUrls });
+    jobs.set(jobId, {
+      status: "completed",
+      videoUrls,
+      cleanVideoUrls,
+      createdAt: Date.now(),
+      progress: { stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls, cleanVideoUrls },
+    });
+  } finally {
+    releaseSlot();
+  }
+}
+
+export function startWalkthroughVideo(
+  imagePaths: string[],
+  outDir: string,
+  address?: string,
+): string | null {
+  pruneJobs();
+  if (activeRenders + waiters.length >= MAX_BACKLOG) return null;
+  const jobId = randomUUID();
+  const totalClips = Math.min(imagePaths.length, MAX_AI_CLIPS);
+  jobs.set(jobId, {
+    status: "processing",
+    createdAt: Date.now(),
+    progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
+  });
+
+  renderWalkthrough(jobId, imagePaths, outDir, address)
+    .catch((err: any) => {
+      const cur = jobs.get(jobId);
+      jobs.set(jobId, {
+        status: "failed",
+        error: err?.message || "Render mislykkedes",
+        createdAt: Date.now(),
+        progress: {
+          stage: "failed",
+          currentClip: cur?.progress?.currentClip ?? 0,
+          totalClips: cur?.progress?.totalClips ?? totalClips,
+          message: err?.message || "Generering mislykkedes",
+        },
+      });
+    })
+    .finally(() => {
+      for (const p of imagePaths) fs.promises.unlink(p).catch(() => {});
+    });
+
+  return jobId;
 }
 
 // Kick off an async render. Returns immediately with a jobId the client polls.

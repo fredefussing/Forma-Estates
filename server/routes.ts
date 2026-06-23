@@ -19,13 +19,14 @@ import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, se
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
-import { startShowcaseVideo, getShowcaseJob } from "./showcase";
+import { startShowcaseVideo, startWalkthroughVideo, getShowcaseJob } from "./showcase";
 
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
 // showcase job registry; a server restart simply forfeits a pending refund.
 const transformVideoRefunds = new Map<string, number>();
 const showcaseVideoRefunds = new Map<string, number>();
+const walkthroughVideoRefunds = new Map<string, number>();
 
 function refundTransformVideo(requestId: string) {
   const uid = transformVideoRefunds.get(requestId);
@@ -38,6 +39,13 @@ function refundShowcaseVideo(jobId: string) {
   const uid = showcaseVideoRefunds.get(jobId);
   if (uid == null) return;
   showcaseVideoRefunds.delete(jobId);
+  storage.refundQuota(uid, "showcase").catch(() => {});
+}
+
+function refundWalkthroughVideo(jobId: string) {
+  const uid = walkthroughVideoRefunds.get(jobId);
+  if (uid == null) return;
+  walkthroughVideoRefunds.delete(jobId);
   storage.refundQuota(uid, "showcase").catch(() => {});
 }
 
@@ -2713,6 +2721,101 @@ export async function registerRoutes(
     }
     if (job.status === "failed") {
       refundShowcaseVideo(req.params.jobId);
+      return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
+    }
+    return res.json({ success: true, status: "IN_PROGRESS" });
+  });
+
+  // ── Cinematisk Walkthrough Video (multi-photo professional property tour) ──
+  // Accepts 5-20 photos, generates one Seedance 2.0 clip per photo with
+  // professional walkthrough camera prompts, then stitches with music.
+  // Reuses the showcase job registry (getShowcaseJob) for SSE progress.
+  app.post("/api/bolig/walkthrough-video", upload.array("images", 20), async (req, res) => {
+    let walkthroughUserId: number | null = null;
+    try {
+      const files = (req.files as Express.Multer.File[] | undefined) || [];
+      if (files.length < 2) {
+        return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
+      }
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (u) {
+          walkthroughUserId = u.id;
+          const q = await storage.checkAndIncrementQuota(u.id, "showcase");
+          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        }
+      } catch { /* allow if no token */ }
+      const paths = files.map((f) => path.join(uploadDir, f.filename));
+      const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
+      const jobId = startWalkthroughVideo(paths, uploadDir, address);
+      if (!jobId) {
+        if (walkthroughUserId) storage.refundQuota(walkthroughUserId, "showcase").catch(() => {});
+        for (const p of paths) fs.promises.unlink(p).catch(() => {});
+        return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
+      }
+      if (walkthroughUserId) walkthroughVideoRefunds.set(jobId, walkthroughUserId);
+      log(`[Walkthrough] started job=${jobId} images=${files.length}`);
+      if (walkthroughUserId) storage.logCrmActivity(walkthroughUserId, "video", `Cinematisk walkthrough · ${files.length} billeder`).catch(() => {});
+      return res.json({ success: true, job_id: jobId });
+    } catch (err: any) {
+      log(`[Walkthrough] submit error: ${err.message}`);
+      if (walkthroughUserId) storage.refundQuota(walkthroughUserId, "showcase").catch(() => {});
+      return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
+    }
+  });
+
+  app.get("/api/bolig/walkthrough-video/progress/:jobId", (req, res) => {
+    const { jobId } = req.params;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    const send = (data: object) => {
+      try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
+    };
+
+    const job = getShowcaseJob(jobId);
+    if (!job) {
+      send({ stage: "failed", currentClip: 0, totalClips: 0, message: "Job ikke fundet" });
+      res.end();
+      return;
+    }
+    send(job.progress);
+    if (job.status !== "processing") {
+      if (job.status === "failed") refundWalkthroughVideo(jobId);
+      else if (job.status === "completed") walkthroughVideoRefunds.delete(jobId);
+      res.end();
+      return;
+    }
+
+    const iv = setInterval(() => {
+      const j = getShowcaseJob(jobId);
+      if (!j) { clearInterval(iv); try { res.end(); } catch {} return; }
+      send(j.progress);
+      if (j.status === "completed" || j.status === "failed") {
+        if (j.status === "failed") refundWalkthroughVideo(jobId);
+        else walkthroughVideoRefunds.delete(jobId);
+        clearInterval(iv);
+        try { res.end(); } catch {}
+      }
+    }, 1500);
+
+    req.on("close", () => clearInterval(iv));
+  });
+
+  app.get("/api/bolig/walkthrough-video/status/:jobId", (req, res) => {
+    const job = getShowcaseJob(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
+    }
+    if (job.status === "completed" && job.videoUrls) {
+      walkthroughVideoRefunds.delete(req.params.jobId);
+      return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls, clean_video_urls: job.cleanVideoUrls });
+    }
+    if (job.status === "failed") {
+      refundWalkthroughVideo(req.params.jobId);
       return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
     }
     return res.json({ success: true, status: "IN_PROGRESS" });

@@ -537,6 +537,49 @@ export function showcaseMovePrompt(i: number): string {
   return SHOWCASE_MOVE_PROMPTS[i % SHOWCASE_MOVE_PROMPTS.length] + SHOWCASE_VISUAL_SUFFIX;
 }
 
+// ── Walkthrough per-clip prompts (Prompt 2 visual style) ──────────────────
+// Samme 4 kamerabevægelser som showcase, men med Prompt 2's professionelle
+// ejendomsmægler-æstetik (luxury real estate, 24fps cinema, ikke social media).
+const WALKTHROUGH_VISUAL_SUFFIX =
+  " Photorealistic quality indistinguishable from professional real estate videography (Sony A7S III / RED camera, cinema lenses). Natural daylight as primary source with soft volumetric god rays. Realistic bounce light on ceilings and walls. Warm 4000K-5000K color temperature. True-to-life materials: visible wood grain, stone texture, fabric detail, glass reflections, metallic sheen. Photorealistic shadows with soft penumbra. Subtle chromatic aberration at frame edges, micro lens flare when facing windows, natural vignetting. Shallow depth of field. Vertical 9:16 format, 24fps cinematic.";
+
+const WALKTHROUGH_MOVE_PROMPTS = [
+  "Slow smooth cinematic dolly-in: camera glides steadily forward into the room at walking pace (1.2m height), revealing depth and interior details.",
+  "Gentle orbit right: camera smoothly arcs around the right side of the space at waist height, keeping the room centered, revealing spatial volume and furniture placement.",
+  "Slow cinematic dolly-out: camera pulls back smoothly to reveal more of the space, ending with a wide establishing shot.",
+  "Slow pan left-to-right: smooth horizontal sweep across the full width of the room, capturing materials, furniture, and natural light from windows.",
+];
+
+export function walkthroughMovePrompt(i: number): string {
+  return WALKTHROUGH_MOVE_PROMPTS[i % WALKTHROUGH_MOVE_PROMPTS.length] + WALKTHROUGH_VISUAL_SUFFIX;
+}
+
+// Generér ét walkthrough-klip fra ét billede (Seedance 2.0) — professionel
+// ejendomsmæglervideo-æstetik (Prompt 2 visual style).
+export async function generateWalkthroughClip(
+  imageUrl: string,
+  moveIndex: number,
+): Promise<{ videoUrl: string }> {
+  const result = await Promise.race([
+    fal.subscribe(SHOWCASE_ENDPOINT, {
+      input: {
+        prompt: walkthroughMovePrompt(moveIndex),
+        image_url: imageUrl,
+        aspect_ratio: "9:16" as const,
+        duration: "5" as const,
+        generate_audio: false,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Walkthrough clip timeout (3 min)")), 180_000),
+    ),
+  ]);
+  const videoUrl = (result.data as any).video?.url;
+  if (!videoUrl) throw new Error("No walkthrough clip generated");
+  console.log(`[Walkthrough] clip ${moveIndex} done (Seedance 2.0 Standard)`);
+  return { videoUrl };
+}
+
 // Generér ét showcase-klip fra ét billede (Seedance 2.0).
 // fal.subscribe poller selv til klippet er færdigt (~1-3 min).
 export async function generateShowcaseClip(
