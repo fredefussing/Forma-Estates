@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, downloadToFile } from "./fal";
+import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, downloadToFile, selectCameraMove, CameraMove } from "./fal";
 import { r2UploadFile } from "./r2";
 
 // ===== BOLIG SHOWCASE VIDEO =====
@@ -546,16 +546,18 @@ const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
 // background move by DIFFERENT amounts, which reads as real depth/parallax — the
 // "shot on a gimbal" look. Moves cycle per slide: dolly-in, crab-right, dolly-out,
 // crab-left.
-function buildSlide(i: number, dims: { w: number; h: number }, frames: number): string {
+// Rendy-matched 5-move vocabulary for the local Ken Burns fallback path.
+// `moveType` is pre-computed by selectCameraMove() based on each image's
+// aspect ratio — same logic as the Kling AI path.
+function buildSlide(i: number, dims: { w: number; h: number }, frames: number, moveType: CameraMove): string {
   const fm1 = Math.max(1, frames - 1);
-  const D = ((frames - 1) / FPS).toFixed(4); // clip length in seconds (for overlay `t`)
   const f = Math.min(W / dims.w, H / dims.h); // fit-whole factor
   const fw = even(dims.w * f);
   const fh = even(dims.h * f);
   const cx = even((W - fw) / 2);
   const cy = even((H - fh) / 2);
-  // Crab moves inset the photo to 90% so it can slide sideways and still stay fully
-  // on screen (the freed margin reveals the blurred fill).
+  // Slide/parallax moves inset the photo to 90% so it can travel sideways and
+  // still stay fully on screen — the freed margin reveals the blurred fill.
   const f9 = f * 0.9;
   const fw9 = even(dims.w * f9);
   const fh9 = even(dims.h * f9);
@@ -563,8 +565,7 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number): 
   const cy9 = even((H - fh9) / 2);
   const amp = Math.max(2, cx9); // horizontal travel kept inside the margin
 
-  // Blurred-fill background: scale to COVER the frame, blur + darken, then a gentle
-  // move of its own.
+  // Blurred-fill background: scale to COVER the frame, blur + darken, gentle drift.
   const bgLayer = (z: string, x: string) =>
     `[${i}:v]split=2[a${i}][b${i}];` +
     `[a${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
@@ -572,26 +573,16 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number): 
     `zoompan=z='${z}':d=${frames}:x='${x}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},setsar=1[bg${i}];`;
 
   // Ease-in-out via cosine: smooth = (1 - cos(PI * on/fm1)) / 2
-  // This gives 0 at start, 1 at end, with gentle acceleration + deceleration.
   const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
-
-  // 8 cinematic moves cycling per slide (i % 8):
-  //  0 dolly-in     — push toward room, blur pulls back → clear depth
-  //  1 crab-right   — slide right with parallax counter-drift
-  //  2 dolly-out    — pull back, reveals more of frame
-  //  3 crab-left    — slide left with parallax counter-drift
-  //  4 orbit-right  — zoom IN while drifting right (combined dolly+crab)
-  //  5 drift-up     — gentle upward drift + constant mild zoom
-  //  6 diagonal     — push-in toward bottom-right corner
-  //  7 wide-pull    — start zoomed, reveal wider → inverted dolly
-  const move = i % 8;
+  // Linear ease centred on 0: -1 at start → +1 at end
   const easeLinear = `(${easeExpr}*2-1)`;
 
-  // Shared fg color-grade (slightly warmer & more pop than before)
+  // Shared fg color-grade (warm Nordic pop)
   const fgGrade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
 
-  if (move === 0) {
-    // Dolly in
+  // ── Push In ──────────────────────────────────────────────────────────────────
+  // Camera glides forward; bg gently pulls back → strong depth sensation.
+  if (moveType === "push_in") {
     const fgZ = `min(1.18,1.0+0.18*(${easeExpr}))`;
     const bgZ = `max(1.10,1.14-0.04*(${easeExpr}))`;
     return (
@@ -601,78 +592,56 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number): 
       `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
     );
   }
-  if (move === 2) {
-    // Dolly out
-    const fgZ = `max(1.0,1.18-0.18*(${easeExpr}))`;
-    const bgZ = `min(1.14,1.10+0.04*(${easeExpr}))`;
-    return (
-      bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
-      `[b${i}]scale=${fw}:${fh},${fgGrade},setsar=1,` +
-      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
-      `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
-    );
-  }
-  if (move === 1 || move === 3) {
-    // Crab right (1) / crab left (3)
-    const sign = move === 1 ? "+" : "-";
-    const bgSign = move === 1 ? "-" : "+";
+
+  // ── Slide Right ──────────────────────────────────────────────────────────────
+  // Clean lateral pan right; bg drifts slightly left (subtle parallax).
+  if (moveType === "slide_right") {
     const panAmt = Math.round(amp * 1.5);
-    const ovx = `min(max(${cx9}${sign}${panAmt}*${easeLinear},0),${W - fw9})`;
-    const bgx = `iw/2-(iw/zoom/2)${bgSign}28*${easeLinear}`;
+    const ovx = `min(max(${cx9}+${panAmt}*${easeLinear},0),${W - fw9})`;
+    const bgx = `iw/2-(iw/zoom/2)-28*${easeLinear}`;
     return (
       bgLayer(`1.06`, bgx) +
       `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1[fg${i}];` +
       `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
     );
   }
-  if (move === 4) {
-    // Orbit right — dolly-in combined with rightward drift (cinematic arc)
-    const fgZ = `min(1.14,1.02+0.12*(${easeExpr}))`;
-    const panAmt = Math.round(amp * 1.2);
-    const ovx = `min(max(${cx9}+${panAmt}*${easeLinear},0),${W - fw9})`;
-    const bgx = `iw/2-(iw/zoom/2)-18*${easeLinear}`;
+
+  // ── Slide Left ───────────────────────────────────────────────────────────────
+  // Clean lateral pan left; bg drifts slightly right (subtle parallax).
+  if (moveType === "slide_left") {
+    const panAmt = Math.round(amp * 1.5);
+    const ovx = `min(max(${cx9}-${panAmt}*${easeLinear},0),${W - fw9})`;
+    const bgx = `iw/2-(iw/zoom/2)+28*${easeLinear}`;
     return (
-      bgLayer(`1.08`, bgx) +
-      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1,` +
-      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw9}x${fh9}:fps=${FPS},setsar=1[fg${i}];` +
+      bgLayer(`1.06`, bgx) +
+      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1[fg${i}];` +
       `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
     );
   }
-  if (move === 5) {
-    // Drift up — gentle upward float + constant mild zoom
-    const fgZ = `min(1.08,1.03+0.05*(${easeExpr}))`;
-    const ovy = `min(max(${cy9}-${Math.round(amp * 0.5)}*${easeLinear},0),${H - fh9})`;
+
+  // ── Parallax Right ───────────────────────────────────────────────────────────
+  // Stronger BG counter-drift (50px vs 28px) = pronounced depth separation.
+  if (moveType === "parallax_right") {
+    const panAmt = Math.round(amp * 1.5);
+    const ovx = `min(max(${cx9}+${panAmt}*${easeLinear},0),${W - fw9})`;
+    const bgx = `iw/2-(iw/zoom/2)-50*${easeLinear}`;
     return (
-      bgLayer(`1.05`, `iw/2-(iw/zoom/2)`) +
-      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1,` +
-      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw9}x${fh9}:fps=${FPS},setsar=1[fg${i}];` +
-      `[bg${i}][fg${i}]overlay=x=${cx9}:y='${ovy}':eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+      bgLayer(`1.08`, bgx) +
+      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1[fg${i}];` +
+      `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
     );
   }
-  if (move === 6) {
-    // Diagonal push — zoom in while drifting toward bottom-right
-    const fgZ = `min(1.16,1.0+0.16*(${easeExpr}))`;
-    const panAmt = Math.round(amp * 0.8);
-    const ovx = `min(max(${cx9}+${panAmt}*${easeExpr},0),${W - fw9})`;
-    const ovy = `min(max(${cy9}+${Math.round(amp * 0.4)}*${easeExpr},0),${H - fh9})`;
-    return (
-      bgLayer(`max(1.10,1.14-0.04*(${easeExpr}))`, `iw/2-(iw/zoom/2)`) +
-      `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1,` +
-      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw9}x${fh9}:fps=${FPS},setsar=1[fg${i}];` +
-      `[bg${i}][fg${i}]overlay=x='${ovx}':y='${ovy}':eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
-    );
-  }
-  // move === 7: Wide pull — start zoomed in, pull back to reveal full frame
-  {
-    const fgZ = `max(1.0,1.18-0.18*(${easeExpr}))`;
-    const bgZ = `min(1.13,1.09+0.04*(${easeExpr}))`;
-    return (
-      bgLayer(bgZ, `iw/2-(iw/zoom/2)`) +
-      `[b${i}]scale=${fw}:${fh},${fgGrade},setsar=1,` +
-      `zoompan=z='${fgZ}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${fw}x${fh}:fps=${FPS},setsar=1[fg${i}];` +
-      `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
-    );
-  }
+
+  // ── Parallax Left (default) ──────────────────────────────────────────────────
+  // Mirror of Parallax Right — strongest counter-drift of all moves.
+  const panAmt = Math.round(amp * 1.5);
+  const ovx = `min(max(${cx9}-${panAmt}*${easeLinear},0),${W - fw9})`;
+  const bgx = `iw/2-(iw/zoom/2)+50*${easeLinear}`;
+  return (
+    bgLayer(`1.08`, bgx) +
+    `[b${i}]scale=${fw9}:${fh9},${fgGrade},setsar=1[fg${i}];` +
+    `[bg${i}][fg${i}]overlay=x='${ovx}':y=${cy9}:eof_action=repeat:repeatlast=1,format=yuv420p,setsar=1[v${i}]`
+  );
 }
 
 // Build chained xfade transitions between slide labels [v0]..[vN-1].
@@ -694,11 +663,12 @@ function buildXfadeConcat(n: number, durations: number[], fadeDur: number): stri
 
 // Build the filter_complex graph: one gimbal slide per photo joined with smooth
 // xfade crossfades. `durations[i]` is each slide's length in seconds.
-function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+// `moves[i]` is the pre-selected CameraMove for each slide (Rendy vocabulary).
+function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[]): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const frames = Math.max(2, Math.round(durations[i] * FPS));
-    parts.push(buildSlide(i, sizes[i], frames));
+    parts.push(buildSlide(i, sizes[i], frames, moves[i] ?? "push_in"));
   }
 
   if (n === 1) {
@@ -802,24 +772,20 @@ function buildFilterVideoCleanLandscape(n: number, durations: number[], sizes: A
   return parts.join(";");
 }
 
-// "Clean" slide for a LOCAL PHOTO — crop-to-fill 9:16 with 8 cinematic moves.
-function buildSlideClean(i: number, dims: { w: number; h: number }, frames: number): string {
+// "Clean" slide for a LOCAL PHOTO — crop-to-fill 9:16, Rendy 5-move vocabulary.
+function buildSlideClean(i: number, dims: { w: number; h: number }, frames: number, moveType: CameraMove): string {
   const fm1 = Math.max(1, frames - 1);
   const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
   const easeLinear = `(${easeExpr}*2-1)`;
-  const move = i % 8;
   const bigW = even(Math.ceil(W * 1.20));
   const bigH = even(Math.ceil(H * 1.20));
   const grade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
   let z: string, panX: string, panY = `ih/2-(ih/zoom/2)`;
-  if (move === 0) { z = `min(1.18,1.0+0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
-  else if (move === 2) { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
-  else if (move === 1) { z = `1.10`; panX = `iw/2-(iw/zoom/2)+38*${easeLinear}`; }
-  else if (move === 3) { z = `1.10`; panX = `iw/2-(iw/zoom/2)-38*${easeLinear}`; }
-  else if (move === 4) { z = `min(1.14,1.02+0.12*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+30*${easeLinear}`; }
-  else if (move === 5) { z = `min(1.08,1.03+0.05*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; panY = `ih/2-(ih/zoom/2)-20*${easeLinear}`; }
-  else if (move === 6) { z = `min(1.16,1.0+0.16*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+22*${easeExpr}`; panY = `ih/2-(ih/zoom/2)+12*${easeExpr}`; }
-  else { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  if (moveType === "push_in")        { z = `min(1.18,1.0+0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  else if (moveType === "slide_right"){ z = `1.10`; panX = `iw/2-(iw/zoom/2)+38*${easeLinear}`; }
+  else if (moveType === "slide_left") { z = `1.10`; panX = `iw/2-(iw/zoom/2)-38*${easeLinear}`; }
+  else if (moveType === "parallax_right") { z = `1.12`; panX = `iw/2-(iw/zoom/2)+50*${easeLinear}`; }
+  else                               { z = `1.12`; panX = `iw/2-(iw/zoom/2)-50*${easeLinear}`; } // parallax_left
   return (
     `[${i}:v]scale=${bigW}:${bigH}:force_original_aspect_ratio=increase,setsar=1,` +
     `${grade},` +
@@ -828,11 +794,11 @@ function buildSlideClean(i: number, dims: { w: number; h: number }, frames: numb
   );
 }
 
-function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[]): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const frames = Math.max(2, Math.round(durations[i] * FPS));
-    parts.push(buildSlideClean(i, sizes[i], frames));
+    parts.push(buildSlideClean(i, sizes[i], frames, moves[i] ?? "push_in"));
   }
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
@@ -841,24 +807,20 @@ function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: numb
   return parts.join(";");
 }
 
-// Landscape (1920×1080) "Original" slide for a LOCAL PHOTO — crop-to-fill 16:9 with 8 cinematic moves.
-function buildSlideCleanLandscape(i: number, dims: { w: number; h: number }, frames: number): string {
+// Landscape (1920×1080) "Original" slide for a LOCAL PHOTO — crop-to-fill 16:9, Rendy 5-move vocabulary.
+function buildSlideCleanLandscape(i: number, dims: { w: number; h: number }, frames: number, moveType: CameraMove): string {
   const fm1 = Math.max(1, frames - 1);
   const easeExpr = `(1-cos(3.14159265*on/${fm1}))/2`;
   const easeLinear = `(${easeExpr}*2-1)`;
-  const move = i % 8;
   const bigW = even(Math.ceil(WL * 1.20));
   const bigH = even(Math.ceil(HL * 1.20));
   const grade = `eq=brightness=0.04:contrast=1.08:saturation=1.06:gamma_r=1.03:gamma_b=0.97`;
   let z: string, panX: string, panY = `ih/2-(ih/zoom/2)`;
-  if (move === 0) { z = `min(1.18,1.0+0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
-  else if (move === 2) { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
-  else if (move === 1) { z = `1.10`; panX = `iw/2-(iw/zoom/2)+38*${easeLinear}`; }
-  else if (move === 3) { z = `1.10`; panX = `iw/2-(iw/zoom/2)-38*${easeLinear}`; }
-  else if (move === 4) { z = `min(1.14,1.02+0.12*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+30*${easeLinear}`; }
-  else if (move === 5) { z = `min(1.08,1.03+0.05*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; panY = `ih/2-(ih/zoom/2)-20*${easeLinear}`; }
-  else if (move === 6) { z = `min(1.16,1.0+0.16*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)+22*${easeExpr}`; panY = `ih/2-(ih/zoom/2)+12*${easeExpr}`; }
-  else { z = `max(1.0,1.18-0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  if (moveType === "push_in")        { z = `min(1.18,1.0+0.18*(${easeExpr}))`; panX = `iw/2-(iw/zoom/2)`; }
+  else if (moveType === "slide_right"){ z = `1.10`; panX = `iw/2-(iw/zoom/2)+38*${easeLinear}`; }
+  else if (moveType === "slide_left") { z = `1.10`; panX = `iw/2-(iw/zoom/2)-38*${easeLinear}`; }
+  else if (moveType === "parallax_right") { z = `1.12`; panX = `iw/2-(iw/zoom/2)+50*${easeLinear}`; }
+  else                               { z = `1.12`; panX = `iw/2-(iw/zoom/2)-50*${easeLinear}`; } // parallax_left
   return (
     `[${i}:v]scale=${bigW}:${bigH}:force_original_aspect_ratio=increase,setsar=1,` +
     `${grade},` +
@@ -867,11 +829,11 @@ function buildSlideCleanLandscape(i: number, dims: { w: number; h: number }, fra
   );
 }
 
-function buildFilterCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+function buildFilterCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[]): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const frames = Math.max(2, Math.round(durations[i] * FPS));
-    parts.push(buildSlideCleanLandscape(i, sizes[i], frames));
+    parts.push(buildSlideCleanLandscape(i, sizes[i], frames, moves[i] ?? "push_in"));
   }
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
@@ -1009,8 +971,12 @@ async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promis
     if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
     sizes.push(s);
   }
+  // Select per-slide camera move based on image aspect ratio (Rendy approach)
+  const moves: CameraMove[] = sizes.map((s, idx) =>
+    selectCameraMove(s.w / s.h, idx, sizes.length)
+  );
   const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
-  const filter = buildFilter(slideCount, durations, sizes);
+  const filter = buildFilter(slideCount, durations, sizes, moves);
   return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
@@ -1088,11 +1054,23 @@ async function buildAIClips(
   // gimbal clip index offset so prompt variety isn't always "slot 0"
   const idxOffset = dronePhotos.length >= 2 ? 1 : 0;
 
+  // Pre-probe each gimbal photo's dimensions to select the best camera move
+  // per image — same logic as Rendy.io's AI analysis (perspective, aspect ratio).
+  const gimbalSizes = await Promise.all(
+    gimbalPhotos.map((p) =>
+      ffprobeSize(p).catch(() => ({ w: 1, h: 1 }))
+    )
+  );
+  const gimbalTotal = gimbalPhotos.length;
+
   const gimbalClips = await mapLimit(gimbalUploads, AI_CLIP_CONCURRENCY, async (url, j) => {
     if (!url) return null;
     const i = j + idxOffset;
+    const ar = gimbalSizes[j] ? gimbalSizes[j].w / gimbalSizes[j].h : 1.0;
+    const move = selectCameraMove(ar, j, gimbalTotal);
     try {
-      const { videoUrl } = await generateShowcaseClip(url, i);
+      console.log(`[showcase] gimbal clip ${i} (${move}, ar=${ar.toFixed(2)})…`);
+      const { videoUrl } = await generateShowcaseClip(url, move);
       const dest = path.join(
         outDir,
         `clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`,
@@ -1102,7 +1080,7 @@ async function buildAIClips(
       onProgress?.({ stage: "generating", currentClip: done, totalClips: totalClips, message: `Laver AI-klip ${done}/${totalClips}…` });
       return dest;
     } catch (e: any) {
-      console.warn(`[showcase] gimbal clip ${i} failed:`, e?.message || e);
+      console.warn(`[showcase] gimbal clip ${i} (${move}) failed:`, e?.message || e);
       done++;
       onProgress?.({ stage: "generating", currentClip: done, totalClips: totalClips, message: `Laver AI-klip ${done}/${totalClips}… (et klip fejlede)` });
       return null;
@@ -1188,8 +1166,11 @@ async function buildLocalInputsClean(imagePaths: string[], musicKey?: string): P
     if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
     sizes.push(s);
   }
+  const moves: CameraMove[] = sizes.map((s, idx) =>
+    selectCameraMove(s.w / s.h, idx, sizes.length)
+  );
   const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
-  const filter = buildFilterClean(slideCount, durations, sizes);
+  const filter = buildFilterClean(slideCount, durations, sizes, moves);
   return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
@@ -1212,8 +1193,11 @@ async function buildLocalInputsCleanLandscape(imagePaths: string[], musicKey?: s
     if (!s) { s = await ffprobeSize(p); sizeCache.set(p, s); }
     sizes.push(s);
   }
+  const moves: CameraMove[] = sizes.map((s, idx) =>
+    selectCameraMove(s.w / s.h, idx, sizes.length)
+  );
   const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
-  const filter = buildFilterCleanLandscape(slideCount, durations, sizes);
+  const filter = buildFilterCleanLandscape(slideCount, durations, sizes, moves);
   return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 

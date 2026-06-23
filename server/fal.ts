@@ -526,19 +526,76 @@ const SHOWCASE_COST_PER_CLIP_USD = 0.28; // Kling v1.6 Pro, ~5-sec clip
 const SHOWCASE_VISUAL_SUFFIX =
   " Indistinguishable from professional real estate footage shot on a Sony A7S III with a cinema gimbal. Natural Scandinavian daylight through large windows — bright, clean, airy. Warm white walls, oak wood flooring, soft textile furniture. Subtle lens breathing at 24mm focal length. Photorealistic materials: visible wood grain on floors and furniture, soft fabric weave on sofas and cushions, crisp glass reflections. Natural shadows with soft penumbra. Nordic interior — cozy-luxury, aspirational yet livable. Vertical 9:16, 24fps cinematic motion, no jump cuts.";
 
-// 6 kamerabevægelser der cykler pr. klip (i % 6).
-// Valgt for at maksimere variation og dynamik i det færdige reel.
-const SHOWCASE_MOVE_PROMPTS = [
-  "Slow cinematic dolly-in: camera glides steadily forward into the room from the doorway, revealing depth and interior details. Smooth gimbal motion, no shake.",
-  "Gentle orbit right: camera arcs smoothly around the right side of the space at waist height, keeping the room centered, revealing furniture placement and spatial volume.",
-  "Slow pull-back reveal: camera starts tight on a key detail (lamp, plant, artwork) then slowly pulls back and rises to reveal the full room. Cinematic reveal shot.",
-  "Smooth pan left-to-right: camera sweeps horizontally across the full width of the room, capturing materials, natural light from windows, and architectural details.",
-  "Rising crane shot: camera starts low near the floor and slowly rises while moving forward, dramatic architectural reveal of the room's height and ceiling.",
-  "Cinematic dolly-out: camera pulls back slowly from a close-up composition to reveal the entire space, ending with a wide establishing shot of the room.",
-];
+// ── 5 kamerabevægelser som matcher Rendy.io's vocabulary ─────────────────────
+// Navnene og beskrivelserne er bevidst holdt til de samme 5 typer som Rendy
+// bruger: Push In, Slide Left, Slide Right, Parallax Left, Parallax Right.
+// Kling v1.6 Pro gengiver alle 5 pålideligt fra et enkelt stillbillede.
+export type CameraMove =
+  | "push_in"
+  | "slide_left"
+  | "slide_right"
+  | "parallax_left"
+  | "parallax_right";
 
-export function showcaseMovePrompt(i: number): string {
-  return SHOWCASE_MOVE_PROMPTS[i % SHOWCASE_MOVE_PROMPTS.length] + SHOWCASE_VISUAL_SUFFIX;
+const SHOWCASE_MOVE_PROMPTS: Record<CameraMove, string> = {
+  // Push In — kameraet glider langsomt fremad ind i rummet, afslører dybde.
+  // Ideel til første klip og rum med stærk perspektivflugt (stue, entre, gang).
+  push_in:
+    "Push In: camera glides smoothly and steadily forward into the room at eye height, revealing spatial depth and interior details from the doorway. Natural, confident pace — like a cinematographer walking into the space. Single continuous movement, no hesitation.",
+
+  // Slide Left — kameraet bevæger sig horisontalt til venstre.
+  // Bedst til brede rum (stuer, køkkener) med horisontale elementer.
+  slide_left:
+    "Slide Left: camera moves smoothly from right to left across the room at a consistent height. The movement is lateral and fluid — a clean horizontal translation that reveals the full width of the space. No zoom change, pure slide motion.",
+
+  // Slide Right — kameraet bevæger sig horisontalt til højre.
+  // Bedst til brede rum — kontrast til Slide Left i redigeringen.
+  slide_right:
+    "Slide Right: camera moves smoothly from left to right across the room at a consistent height. The movement is lateral and fluid — a clean horizontal translation that reveals the full width of the space. No zoom change, pure slide motion.",
+
+  // Parallax Left — kameraet bevæger sig til venstre med dybde-separation.
+  // Forgrundselementer bevæger sig hurtigere end baggrunden — skaber 3D-dybde.
+  parallax_left:
+    "Parallax Left: camera moves left with strong foreground-background depth separation. Foreground objects (furniture, pillars, doorframes) move noticeably faster than the background wall — creating a compelling 3D parallax effect that reveals the room's depth. Smooth gimbal motion.",
+
+  // Parallax Right — kameraet bevæger sig til højre med dybde-separation.
+  // Modsat Parallax Left — optimal variation i reelens midte.
+  parallax_right:
+    "Parallax Right: camera moves right with strong foreground-background depth separation. Foreground objects (furniture, pillars, doorframes) move noticeably faster than the background wall — creating a compelling 3D parallax effect that reveals the room's depth. Smooth gimbal motion.",
+};
+
+// Select the best camera move for a single image based on its aspect ratio
+// and position in the sequence. This mimics Rendy.io's per-image AI analysis:
+// perspective, depth, and room orientation all influence the choice.
+//
+// Rules (derived from Rendy editorial patterns):
+//  • First clip   → Push In (always; establishes the property)
+//  • Wide rooms   (ar > 1.35): Slide Left / Slide Right — horizontal travel
+//  • Portrait     (ar < 0.80): Push In / Parallax — depth moves for tall rooms
+//  • Square-ish   (0.80-1.35): Parallax Left / Parallax Right — maximum depth
+//  • Last clip    → Slide Right (clean forward-momentum ending)
+export function selectCameraMove(
+  aspectRatio: number,
+  clipIndex: number,
+  totalClips: number,
+): CameraMove {
+  if (clipIndex === 0) return "push_in";
+  if (clipIndex === totalClips - 1) return "slide_right";
+
+  // Wide landscape rooms → slide moves to sweep the full width
+  if (aspectRatio > 1.35) {
+    return clipIndex % 2 === 0 ? "slide_left" : "slide_right";
+  }
+  // Tall/portrait rooms → depth-emphasising moves
+  if (aspectRatio < 0.80) {
+    return clipIndex % 2 === 0 ? "push_in" : "parallax_right";
+  }
+  // Square-ish rooms → parallax for maximum depth illusion
+  return clipIndex % 2 === 0 ? "parallax_left" : "parallax_right";
+}
+
+export function showcaseMovePrompt(move: CameraMove): string {
+  return SHOWCASE_MOVE_PROMPTS[move] + SHOWCASE_VISUAL_SUFFIX;
 }
 
 // ── Walkthrough per-clip prompts (Prompt 2 visual style) ──────────────────
@@ -583,15 +640,16 @@ export async function generateWalkthroughClip(
 }
 
 // Generér ét showcase-klip fra ét billede (Kling v1.6 Pro).
+// `move` er pre-valgt af selectCameraMove() baseret på billedets aspect ratio.
 // fal.subscribe poller selv til klippet er færdigt (~1-3 min).
 export async function generateShowcaseClip(
   imageUrl: string,
-  moveIndex: number,
+  move: CameraMove,
 ): Promise<{ videoUrl: string }> {
   const result = await Promise.race([
     fal.subscribe(SHOWCASE_ENDPOINT, {
       input: {
-        prompt: showcaseMovePrompt(moveIndex),
+        prompt: showcaseMovePrompt(move),
         image_url: imageUrl,
         aspect_ratio: "9:16" as const,
         duration: "5" as const,
@@ -603,7 +661,7 @@ export async function generateShowcaseClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No showcase clip generated");
-  console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling v1.6 Pro)`);
+  console.log(`[Showcase] clip (${move}) done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling v1.6 Pro)`);
   return { videoUrl };
 }
 
