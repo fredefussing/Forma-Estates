@@ -1,0 +1,190 @@
+Du har ramt et problem alle AI-SaaS-virksomheder kæmper med. Lad mig give dig den ærlige løsning — ingen af dem er perfekte, men én af dem er rigtig.
+Problemet: Pure AI-video er for dyr i skala
+Table
+Metode	Pris per video (7 billeder)	Kvalitet	Realistisk?
+Runway 7 generations	$10.92	God	Nej — for dyr
+fal.ai 7 video calls	~$7-10	God	Nej — for dyr
+Hybrid (AI + FFmpeg)	$0.50-1.50	Meget god	✅ Ja
+Pure FFmpeg (Ken Burns)	$0.01	God	✅ Ja, men ikke så imponerende
+Sandheden: For at tjene penge skal din omkostning per video være under 10% af salgsprisen. Sælger du en video for 99 kr. (~$14), skal den koste max $1.40 at producere. Med Runway koster den $10.92. Du taber penge på hver video.
+Løsning: Hybrid-modellen (den rigtige vej)
+80% traditionel video-håndværk (gratis/billigt) + 20% AI (til nøgle-øjeblikke)
+Del 1: Ken Burns + Morphing (gratis, ser professionelt ud)
+I stedet for at lave AI-video af hvert billede, gør du dette:
+plain
+1. Tag dit højtopløselige billede
+2. Langsom zoom (Ken Burns) - 3-5 sekunder
+3. Langsom pan til venstre/højre - 3-5 sekunder  
+4. Cross-dissolve til næste billede - 1 sekund
+5. Repeat
+Resultat: Ser ud som en professionel dokumentarfilm. Ingen AI-omkostning. 100% forudsigelig kvalitet.
+Teknisk: FFmpeg gør dette. Gratis. 1 video per sekund at rendere.
+Del 2: AI-transitions (hvor du bruger pengene)
+Brug AI-video kun til overgange mellem rum — ikke til hele videoen:
+plain
+Billede 1 (stue) → AI transition (går gennem dør) → Billede 2 (køkken)
+3-4 AI-generationer per video i stedet for 7. Pris: $4-6 i stedet for $10.92.
+Del 3: Professionel sammensætning (FFmpeg pipeline)
+plain
+TEKNISK PIPELINE:
+
+1. For hvert billede:
+   - Generer Ken Burns (zoom + pan) med FFmpeg
+   - Varighed: 4 sekunder per billede
+   
+2. For overgange mellem rum:
+   - Brug Runway/fal.ai med prompt: 
+     "Smooth cinematic walk from living room to kitchen, 
+      camera moves through doorway, photorealistic, 2 seconds"
+   
+3. Sammensæt alt med FFmpeg:
+   - Billede 1 (4s) + AI transition (2s) + Billede 2 (4s) + ...
+   - Tilføj musik, color grade, tekst overlays
+   - Output: MP4, 1080p, 30fps
+Total omkostning per video: $4-6 (AI) + $0 (FFmpeg) = under 30 kr.
+Du sælger for 99-499 kr. Margin: 85-95%.
+Bolig Showcase som Rendy.io
+Hvad Rendy.io faktisk gør (de er ikke så avancerede som de ser ud)
+Table
+Feature	Rendy.io	Hvordan du gør det billigere
+Smooth billed-overgange	Ken Burns + morphing	FFmpeg (gratis)
+Cinematic color grading	LUT presets	FFmpeg + preset (gratis)
+Musik overlay	Stock music	Epidemic Sound API ($15/md.)
+Tekst overlays	Premade templates	Dine egne templates
+Drone-intro	De har det	Du har ikke drone, men AI kan simulere
+Total pris for dem	$50-200 per video	$1-5 per video
+Din Bolig Showcase skal se sådan ud:
+Struktur (60-90 sekunder):
+plain
+0:00-0:03   AI-generated aerial view (fal.ai: "drone shot of suburban house, 
+             golden hour, cinematic")
+0:03-0:05   Fade to black
+0:05-0:12   Exterior front (Ken Burns zoom in) + tekst: "Hovedindgang"
+0:12-0:14   AI transition: går ind ad dør
+0:14-0:22   Entré/gang (Ken Burns pan) + tekst: "Entré"
+0:22-0:24   AI transition: går ind til stue
+0:24-0:36   Stue (Ken Burns, langsommere, fokus på pejs/vindue)
+0:36-0:38   AI transition: går til køkken
+0:38-0:50   Køkken (Ken Burns) + tekst: "Køkken/alrum"
+0:50-0:52   AI transition: går til soveværelse
+0:52-1:04   Soveværelse (Ken Burns)
+1:04-1:06   AI transition: går til badeværelse
+1:06-1:15   Badeværelse (Ken Burns)
+1:15-1:18   Fade to exterior
+1:18-1:25   AI: drone pull-back + tekst: "Kontakt os for fremvisning"
+AI-generationer: 5 (aerial, 4 transitions) = $6-8 total
+FFmpeg sammensætning: Gratis
+Teknisk implementering
+Trin 1: Ken Burns generator (FFmpeg)
+bash
+# Zoom ind på billede over 4 sekunder
+ffmpeg -i image1.jpg -vf "zoompan=z='min(zoom+0.0015,1.5)':d=125:s=1920x1080" -t 4 -c:v libx264 out1.mp4
+
+# Pan til højre
+ffmpeg -i image2.jpg -vf "zoompan=z=1.3:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=125:s=1920x1080" -t 4 out2.mp4
+Trin 2: AI transitions (fal.ai/Runway)
+Python
+# Kun 3-4 calls per video
+for i in range(len(images)-1):
+    transition = fal_ai_video(
+        image_start=images[i],
+        image_end=images[i+1],
+        prompt="Smooth cinematic walkthrough, camera moves naturally 
+                from one room to next through doorway, photorealistic,
+                architectural cinematography, 2 seconds"
+    )
+Trin 3: Sammensætning (FFmpeg concat)
+bash
+# Læg alle klips sammen
+ffmpeg -f concat -i clips.txt -i music.mp3 -c:v libx264 -c:a aac -shortest final_video.mp4
+Reel-video (15-30 sekunder)
+Endnu simplere — ingen AI-video nødvendig:
+plain
+1. Tag 5-8 billeder
+2. Ken Burns på hvert (2 sekunder)
+3. Hurtige cuts (cross-dissolve, 0.3 sek)
+4. Tilføj trending lyd fra TikTok/Instagram
+5. Tekst overlay: "Før → Efter" eller rumnavne
+Pris: $0. FFmpeg gør det hele. Kvalitet: Professionel.
+Din nye prisstruktur (med hybrid-model)
+Table
+Produkt	Før (pure AI)	Nu (hybrid)	Din pris	Din margin
+Reel-video (15-30s)	$10.92	$0	49 kr.	100%
+Bolig Showcase (60-90s)	$10.92	$1.50	299 kr.	95%
+Cinematisk gennemgang	$10.92	$3-5	499 kr.	93%
+Transformationsvideo	$15+	$5-8	799 kr.	90%
+Ærlig konklusion
+Drop pure AI-video til sammensætning. Det er for dyrt og uforudsigeligt. Brug FFmpeg + Ken Burns til 80% af videoen, og AI kun til de 3-4 transitions der gør forskellen. Du går fra at tabe penge på hver video til at tjene 90%+ margin.
+Vil du have mig til at:
+Skrive den fulde FFmpeg-pipeline (klar til implementering)?
+Lave en prototype der viser Ken Burns vs. AI-video side om side?
+Skrive fal.ai-promptet specifikt til transitions (den eneste del du betaler for)?
+forkalre mere kort disse om rendy.io også efter cinematisk gennemgang, tænker der kan komme en anden ai ind over en billigere, en, goså laver den hvert klip, også til sidst sætter den alle klips ind i seedance der sammensætter dem med musik, og tempo og gør den lækker at se på kan man dette?
+Copy
+Share
+Think
+Hvad Rendy.io faktisk gør
+Rendy.io er en AI-ejendomsvideogenerator. Du uploader billeder af et hus, vælger en stil, og den laver en "cinematisk" video automatisk.
+Deres hemmelighed: De bruger ikke ren AI-video. De bruger:
+70% Ken Burns (zoom/pan på stillbilleder — gratis)
+20% Pre-made transitions (cross-dissolve, fade — gratis)
+10% AI-sløring/bokeh-effekter (billigt)
+Musik fra bibliotek (licenseret)
+Tekst overlays (automatisk fra billedmetadata)
+Det ser dyrere ud end det er. Deres "cinematic walkthrough" er i virkeligheden stillbilleder der bevæger sig langsomt — ikke rigtig video.
+Dit forslag: To-AI setup
+Ja, det kan fungere. Her er hvordan:
+plain
+TRIN 1 (Billig AI): Lave individuelle klip
+└── Hvert billede → 3-5 sekunders AI-video
+└── Pris: ~$0.20-0.50 per klip (f.eks. Kling AI, Haiper, eller Stable Video Diffusion)
+└── Prompt: "Slow cinematic camera pan, photorealistic interior"
+
+TRIN 2 (Seedance): Sammensætning
+└── Upload alle klip til Seedance
+└── Prompt: "Assemble into professional real estate walkthrough, 
+    add music, smooth transitions, 60 seconds, cinematic pacing"
+└── Pris: ~$2-5 per video
+Total pris for 10 klip + sammensætning: $4-10 per video
+Hvilken billig AI til trin 1?
+Table
+AI	Pris per video	Kvalitet	Bedst til
+Kling AI	~$0.30	God	Cinematic pans
+Haiper	~$0.25	OK	Simple bevægelser
+Stable Video Diffusion	~$0.10 (self-hostet)	OK	Langsom bevægelse
+Luma Dream Machine	~$0.32	Meget god	Realistisk kamera
+fal.ai (kun keyframes)	~$0.15	God	Hvis du allerede bruger dem
+Min anbefaling: Start med Luma Dream Machine eller Kling AI til klip. De er billige og giver pæn cinematic bevægelse.
+⚠️ Ærlig advarsel
+Table
+Problem	Hvad det betyder
+To AI'er = to fejlkilder	Hvis billig-AI laver dårlige klip, redder Seedance det ikke
+Seedance kan ikke "rette" dårlige klip	Den sammensætter, den forbedrer ikke indholdet
+Timing er svær	Seedance ved ikke hvornår man skal "holde" på et rum vs. gå videre
+Musik-licens	Seedance's musik er måske ikke kommercielt licenseret
+Bedre alternativ: Hybrid du kontrollerer
+plain
+DIN PIPELINE (billigere + bedre kontrol):
+
+1. 5-10 billeder fra huset
+   ↓
+2. FFmpeg: Ken Burns på hvert billede (4 sek, gratis)
+   ↓
+3. Luma/Kling: KUN 3 AI-transitions 
+   (gang→stue, stue→køkken, køkken→soveværelse)
+   Pris: 3 × $0.30 = $0.90
+   ↓
+4. FFmpeg: Sammensæt alt med musik, fade, tekst
+   (gratis, 100% kontrol over tempo og rækkefølge)
+   ↓
+5. Output: Professionel video, $0.90 i AI-omkostning
+Du får samme resultat som Rendy.io for 10x mindre penge, og du kontrollerer præcis hvad der sker.
+Konklusion
+Table
+To-AI (dit forslag)	Hybrid (mit forslag)
+Pris per video	$4-10	$0.90-3
+Kvalitet	God	Lige så god
+Kontrol	Lav (Seedance bestemmer)	Høj (du bestemmer tempo, musik, tekst)
+Skalerbarhed	OK (API-baseret)	Bedst (FFmpeg er gratis ubegrænset)
+Fejlkilder	2 (billig AI + Seedance)	1 (kun billig AI)
+Mit råd: Start med To-AI til prototype og test. Når du skal skalere, skift til Hybrid (FFmpeg + kun 3 AI-transitions).
