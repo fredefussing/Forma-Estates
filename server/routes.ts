@@ -2651,7 +2651,9 @@ export async function registerRoutes(
       const VALID_MOODS = ["calm", "uplifting", "modern", "tension"];
       const rawMood = typeof req.query.mood === "string" ? req.query.mood : (typeof req.body?.mood === "string" ? req.body.mood : undefined);
       const mood = rawMood && VALID_MOODS.includes(rawMood) ? rawMood : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood);
+      const rawCutStyle = typeof req.body?.cutStyle === "string" ? req.body.cutStyle : undefined;
+      const cutStyle: "clean" | "cinematic" | undefined = rawCutStyle === "clean" || rawCutStyle === "cinematic" ? rawCutStyle : undefined;
+      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood, cutStyle);
       if (!jobId) {
         // Server saturated — no work started, so refund the charged credit.
         if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});

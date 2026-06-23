@@ -3160,6 +3160,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [droneEnabled, setDroneEnabled] = useState(false);
   const [startText, setStartText] = useState("");
   const [endText, setEndText] = useState("");
+  const [cutStyle, setCutStyle] = useState<"clean" | "cinematic">("cinematic");
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -3230,6 +3231,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (address.trim()) fd.append("address", address.trim());
       if (droneEnabled && startText.trim()) fd.append("startText", startText.trim());
       if (droneEnabled && endText.trim()) fd.append("endText", endText.trim());
+      fd.append("cutStyle", cutStyle);
       const res = await fetch(`/api/bolig/showcase-video?mood=${encodeURIComponent(selectedMood)}`, {
         method: "POST",
         body: fd,
@@ -3605,6 +3607,32 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   </div>
                   <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
                   <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Cut style selector */}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Klipstil</span>
+          <div className="flex gap-2">
+            {(["clean", "cinematic"] as const).map((s) => {
+              const label = s === "clean" ? "Rene klip" : "Cinematisk";
+              const desc  = s === "clean" ? "~0.06 s overgang" : "0.20–0.30 s dissolve";
+              const active = cutStyle === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => { if (!isGenerating) { setCutStyle(s); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
+                  disabled={isGenerating}
+                  className="flex-1 flex flex-col items-start gap-1 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
+                  style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
+                  data-testid={`button-cutstyle-${s}`}
+                >
+                  <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{label}</span>
+                  <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{desc}</span>
                 </button>
               );
             })}

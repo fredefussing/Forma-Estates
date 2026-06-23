@@ -644,6 +644,17 @@ function buildSlide(i: number, dims: { w: number; h: number }, frames: number, m
   );
 }
 
+// ── CutStyle ──────────────────────────────────────────────────────────────────
+// Bruges af brugeren til at vælge sammenklipningsstil:
+//  "clean"     — ultra-korte dissolves (0.06 s) der føles som rene klip à la Rendy
+//  "cinematic" — bløde dissolves (12-20% af kliplængde, maks 0.30 s), vores standard
+export type CutStyle = "clean" | "cinematic";
+
+function computeFadeDur(minDur: number, cutStyle?: CutStyle): number {
+  if (cutStyle === "clean") return 0.06;
+  return parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+}
+
 // Build chained xfade transitions between slide labels [v0]..[vN-1].
 // offset for step i = sum(durations[0..i]) - (i+1)*fadeDur — keeps every
 // transition starting at the END-fadeDur point of each slide in stream time.
@@ -664,7 +675,7 @@ function buildXfadeConcat(n: number, durations: number[], fadeDur: number): stri
 // Build the filter_complex graph: one gimbal slide per photo joined with smooth
 // xfade crossfades. `durations[i]` is each slide's length in seconds.
 // `moves[i]` is the pre-selected CameraMove for each slide (Rendy vocabulary).
-function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[]): string {
+function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[], cutStyle?: CutStyle): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const frames = Math.max(2, Math.round(durations[i] * FPS));
@@ -677,7 +688,7 @@ function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h
   }
 
   const minDur = Math.min(...durations);
-  const fadeDur = parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
+  const fadeDur = cutStyle === "clean" ? 0.06 : parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
   parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
@@ -715,12 +726,12 @@ function buildSlideVideo(i: number, dims: { w: number; h: number }, slideDur: nu
 
 // Filter graph for the AI path: one trimmed clip per slide, joined with smooth
 // xfade crossfades so scene changes feel cinematic rather than abrupt.
-function buildFilterVideo(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+function buildFilterVideo(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, cutStyle?: CutStyle): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) parts.push(buildSlideVideo(i, sizes[i], durations[i]));
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
-  const fadeDur = parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+  const fadeDur = computeFadeDur(minDur, cutStyle);
   parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
@@ -741,12 +752,12 @@ function buildSlideVideoClean(i: number, dims: { w: number; h: number }, slideDu
   );
 }
 
-function buildFilterVideoClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+function buildFilterVideoClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, cutStyle?: CutStyle): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) parts.push(buildSlideVideoClean(i, sizes[i], durations[i]));
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
-  const fadeDur = parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+  const fadeDur = computeFadeDur(minDur, cutStyle);
   parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
@@ -762,12 +773,12 @@ function buildSlideVideoCleanLandscape(i: number, dims: { w: number; h: number }
   );
 }
 
-function buildFilterVideoCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
+function buildFilterVideoCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, cutStyle?: CutStyle): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) parts.push(buildSlideVideoCleanLandscape(i, sizes[i], durations[i]));
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
-  const fadeDur = parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+  const fadeDur = computeFadeDur(minDur, cutStyle);
   parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
@@ -794,7 +805,7 @@ function buildSlideClean(i: number, dims: { w: number; h: number }, frames: numb
   );
 }
 
-function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[]): string {
+function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[], cutStyle?: CutStyle): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const frames = Math.max(2, Math.round(durations[i] * FPS));
@@ -802,7 +813,7 @@ function buildFilterClean(n: number, durations: number[], sizes: Array<{ w: numb
   }
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
-  const fadeDur = parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
+  const fadeDur = cutStyle === "clean" ? 0.06 : parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
   parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
@@ -829,7 +840,7 @@ function buildSlideCleanLandscape(i: number, dims: { w: number; h: number }, fra
   );
 }
 
-function buildFilterCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[]): string {
+function buildFilterCleanLandscape(n: number, durations: number[], sizes: Array<{ w: number; h: number }>, moves: CameraMove[], cutStyle?: CutStyle): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const frames = Math.max(2, Math.round(durations[i] * FPS));
@@ -837,7 +848,7 @@ function buildFilterCleanLandscape(n: number, durations: number[], sizes: Array<
   }
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
   const minDur = Math.min(...durations);
-  const fadeDur = parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
+  const fadeDur = cutStyle === "clean" ? 0.06 : parseFloat(Math.min(0.25, minDur * 0.2).toFixed(3));
   parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
@@ -953,7 +964,7 @@ function localEnergyPlan(musicKey: string | undefined, n: number): { durations: 
 // FALLBACK (free, local): cycle the photos to fill a punchy reel and fake the
 // gimbal move with split-layer zoompan on each still. Variable clip lengths
 // follow the mood's energy sequence; transitions use xfade crossfades.
-async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
+async function buildLocalInputs(imagePaths: string[], musicKey?: string, cutStyle?: CutStyle): Promise<RenderInputs> {
   const n = imagePaths.length;
   const { durations: baseDurations, musicSeek } = localEnergyPlan(musicKey, n);
   const avgBase = baseDurations.reduce((a, b) => a + b, 0) / n;
@@ -976,7 +987,7 @@ async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promis
     selectCameraMove(s.w / s.h, idx, sizes.length)
   );
   const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
-  const filter = buildFilter(slideCount, durations, sizes, moves);
+  const filter = buildFilter(slideCount, durations, sizes, moves, cutStyle);
   return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
@@ -1121,34 +1132,34 @@ function _aiDurations(clips: AIClipData, musicKey: string): { durations: number[
   return { durations, musicSeek };
 }
 
-function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
+function makeRenderInputsAI(clips: AIClipData, musicKey: string, cutStyle?: CutStyle): RenderInputs {
   const n = clips.clipPaths.length;
   const { durations, musicSeek } = _aiDurations(clips, musicKey);
-  const filter = buildFilterVideo(n, durations, clips.sizes);
+  const filter = buildFilterVideo(n, durations, clips.sizes, cutStyle);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clips.clipPaths };
 }
 
 // Same as above but uses the "clean" (crop-to-fill 9:16, no blurred bg) filter.
-function makeRenderInputsAIClean(clips: AIClipData, musicKey: string): RenderInputs {
+function makeRenderInputsAIClean(clips: AIClipData, musicKey: string, cutStyle?: CutStyle): RenderInputs {
   const n = clips.clipPaths.length;
   const { durations, musicSeek } = _aiDurations(clips, musicKey);
-  const filter = buildFilterVideoClean(n, durations, clips.sizes);
+  const filter = buildFilterVideoClean(n, durations, clips.sizes, cutStyle);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
 }
 
 // Landscape (1920×1080) "Original" variant — same clips, 16:9 crop-to-fill.
-function makeRenderInputsAICleanLandscape(clips: AIClipData, musicKey: string): RenderInputs {
+function makeRenderInputsAICleanLandscape(clips: AIClipData, musicKey: string, cutStyle?: CutStyle): RenderInputs {
   const n = clips.clipPaths.length;
   const { durations, musicSeek } = _aiDurations(clips, musicKey);
-  const filter = buildFilterVideoCleanLandscape(n, durations, clips.sizes);
+  const filter = buildFilterVideoCleanLandscape(n, durations, clips.sizes, cutStyle);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
 }
 
 // FALLBACK clean 9:16 version.
-async function buildLocalInputsClean(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
+async function buildLocalInputsClean(imagePaths: string[], musicKey?: string, cutStyle?: CutStyle): Promise<RenderInputs> {
   const n = imagePaths.length;
   const { durations: baseDurations, musicSeek } = localEnergyPlan(musicKey, n);
   const avgBase = baseDurations.reduce((a, b) => a + b, 0) / n;
@@ -1170,12 +1181,12 @@ async function buildLocalInputsClean(imagePaths: string[], musicKey?: string): P
     selectCameraMove(s.w / s.h, idx, sizes.length)
   );
   const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
-  const filter = buildFilterClean(slideCount, durations, sizes, moves);
+  const filter = buildFilterClean(slideCount, durations, sizes, moves, cutStyle);
   return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
 // FALLBACK landscape (1920×1080) "Original" version.
-async function buildLocalInputsCleanLandscape(imagePaths: string[], musicKey?: string): Promise<RenderInputs> {
+async function buildLocalInputsCleanLandscape(imagePaths: string[], musicKey?: string, cutStyle?: CutStyle): Promise<RenderInputs> {
   const n = imagePaths.length;
   const { durations: baseDurations, musicSeek } = localEnergyPlan(musicKey, n);
   const avgBase = baseDurations.reduce((a, b) => a + b, 0) / n;
@@ -1197,7 +1208,7 @@ async function buildLocalInputsCleanLandscape(imagePaths: string[], musicKey?: s
     selectCameraMove(s.w / s.h, idx, sizes.length)
   );
   const avgSlide = +(durations.reduce((a, b) => a + b, 0) / slideCount).toFixed(3);
-  const filter = buildFilterCleanLandscape(slideCount, durations, sizes, moves);
+  const filter = buildFilterCleanLandscape(slideCount, durations, sizes, moves, cutStyle);
   return { inputPaths, slideCount, slideDur: avgSlide, durations, musicSeek, filter, tmpClips: [] };
 }
 
@@ -1365,6 +1376,7 @@ async function render(
   startText?: string,
   endText?: string,
   mood?: string,
+  cutStyle?: CutStyle,
 ): Promise<void> {
   await acquireSlot();
   try {
@@ -1405,18 +1417,18 @@ async function render(
       emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[m]}…` });
       let inputs: RenderInputs;
       if (clipData) {
-        inputs = makeRenderInputsAI(clipData, m);
+        inputs = makeRenderInputsAI(clipData, m, cutStyle);
       } else {
-        inputs = await buildLocalInputs(imagePaths, m);
+        inputs = await buildLocalInputs(imagePaths, m, cutStyle);
       }
       videoUrls[m] = await assembleVideo(inputs, outDir, address, m, startText, endText);
 
       // "Original" variant — landscape 1920×1080, same music/text, crop-to-fill.
       let cleanInputs: RenderInputs;
       if (clipData) {
-        cleanInputs = makeRenderInputsAICleanLandscape(clipData, m);
+        cleanInputs = makeRenderInputsAICleanLandscape(clipData, m, cutStyle);
       } else {
-        cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, m);
+        cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, m, cutStyle);
       }
       cleanVideoUrls[m] = await assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText);
     }
@@ -1610,6 +1622,7 @@ export function startShowcaseVideo(
   startText?: string,
   endText?: string,
   mood?: string,
+  cutStyle?: CutStyle,
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) {
@@ -1623,7 +1636,7 @@ export function startShowcaseVideo(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  render(jobId, imagePaths, outDir, address, startText, endText, mood)
+  render(jobId, imagePaths, outDir, address, startText, endText, mood, cutStyle)
     .catch((err: any) => {
       const cur = jobs.get(jobId);
       jobs.set(jobId, {
