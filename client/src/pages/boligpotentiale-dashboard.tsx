@@ -3148,6 +3148,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [selectedMood, setSelectedMood] = useState<"calm" | "uplifting" | "modern" | "tension">("uplifting");
   const [droneEnabled, setDroneEnabled] = useState(false);
   const [startText, setStartText] = useState("");
   const [endText, setEndText] = useState("");
@@ -3158,7 +3159,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const esRef = useRef<EventSource | null>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
 
-  const hasUnsaved = videoUrls !== null && Object.keys(videoUrls).length > 0 && saveCaseId === null;
+  const hasUnsaved = videoUrls !== null && !!videoUrls[selectedMood] && saveCaseId === null;
   useUnsavedExitGuard(hasUnsaved);
 
   useEffect(() => {
@@ -3218,6 +3219,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
+      fd.append("mood", selectedMood);
       if (address.trim()) fd.append("address", address.trim());
       if (droneEnabled && startText.trim()) fd.append("startText", startText.trim());
       if (droneEnabled && endText.trim()) fd.append("endText", endText.trim());
@@ -3315,7 +3317,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   const saveToCase = async (c: ApiCase) => {
-    if (!videoUrls) return;
+    if (!videoUrls?.[selectedMood]) return;
     setShowCaseDropdown(false);
     setSaveCaseId(c.id);
     try {
@@ -3324,28 +3326,24 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
-      const MOOD_LABEL_MAP: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
-      const moods = (["calm", "uplifting", "modern", "tension"] as const).filter((m) => videoUrls[m]);
-      for (const mood of moods) {
-        const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            imageUrl: videoUrls[mood],
-            originalImageUrl: cleanVideoUrls?.[mood] ?? null,
-            roomType: "showcase-video",
-            style: `showcase-video-${mood}`,
-            budgetTier: "tier2",
-            promptText: `Bolig showcase video — ${MOOD_LABEL_MAP[mood]} stemning`,
-            isDesignAgent: true,
-          }),
-        });
-        if (!r.ok) {
-          setSaveCaseId(null);
-          const msg = await r.text().catch(() => "");
-          alert(`Kunne ikke gemme ${MOOD_LABEL_MAP[mood]}-video til mappen. ${msg}`);
-          return;
-        }
+      const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          imageUrl: videoUrls[selectedMood],
+          originalImageUrl: cleanVideoUrls?.[selectedMood] ?? null,
+          roomType: "showcase-video",
+          style: `showcase-video-${selectedMood}`,
+          budgetTier: "tier2",
+          promptText: `Bolig showcase video — ${MOOD_LABELS[selectedMood]} stemning`,
+          isDesignAgent: true,
+        }),
+      });
+      if (!r.ok) {
+        setSaveCaseId(null);
+        const msg = await r.text().catch(() => "");
+        alert(`Kunne ikke gemme videoen til mappen. ${msg}`);
+        return;
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
@@ -3546,6 +3544,37 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           />
         </div>
 
+        {/* Mood selector */}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Vælg stemning</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(["calm", "uplifting", "modern", "tension"] as const).map((m) => {
+              const meta: Record<string, { emoji: string; desc: string }> = {
+                calm:     { emoji: "🌿", desc: "Stille, rolig stemning" },
+                uplifting:{ emoji: "☀️", desc: "Glad, positiv energi" },
+                modern:   { emoji: "⚡", desc: "Moderne, dynamisk rytme" },
+                tension:  { emoji: "🎬", desc: "Dramatisk, cinematic" },
+              };
+              const active = selectedMood === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { if (!isGenerating) { setSelectedMood(m); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
+                  disabled={isGenerating}
+                  className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border transition-all disabled:opacity-50 text-center"
+                  style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
+                  data-testid={`button-mood-${m}`}
+                >
+                  <span className="text-xl leading-none">{meta[m].emoji}</span>
+                  <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
+                  <span className="text-[10px]" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <QuotaGate feature="showcase">
           <button
             onClick={handleGenerate}
@@ -3562,7 +3591,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             ) : (
               <>
                 <Film className="w-4 h-4" />
-                Generér alle 4 stemninger
+                Generér {MOOD_LABELS[selectedMood]} showcase
               </>
             )}
           </button>
@@ -3574,59 +3603,57 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         )}
 
-        {videoUrls && Object.keys(videoUrls).length > 0 && (
+        {videoUrls && videoUrls[selectedMood] && (
           <>
-            <div className="space-y-4">
-              {ALL_MOODS.filter((mood) => videoUrls[mood]).map((mood) => (
-                <div key={mood} className="rounded-xl overflow-hidden border border-[#E8E4DE]" data-testid={`card-showcase-${mood}`}>
-                  <div className="bg-[#0F1D2F] px-4 py-2 flex items-center justify-between">
-                    <span className="text-white text-xs font-semibold tracking-wide uppercase">{MOOD_LABELS[mood]}</span>
-                    <span className="text-[#9B9690] text-xs">9:16 · Reels / TikTok / Shorts</span>
+            <div>
+              <div className="rounded-xl overflow-hidden border border-[#E8E4DE]" data-testid={`card-showcase-${selectedMood}`}>
+                <div className="bg-[#0F1D2F] px-4 py-2 flex items-center justify-between">
+                  <span className="text-white text-xs font-semibold tracking-wide uppercase">{MOOD_LABELS[selectedMood]} stemning</span>
+                  <span className="text-[#9B9690] text-xs">9:16 · Reels / TikTok / Shorts</span>
+                </div>
+                <div className="bg-[#0F1D2F] flex justify-center py-4">
+                  <video
+                    src={videoUrls[selectedMood]}
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="h-[60vh] max-h-[560px] w-auto aspect-[9/16] object-cover rounded-2xl shadow-2xl bg-black"
+                    data-testid={`video-showcase-${selectedMood}`}
+                  />
+                </div>
+                <div className="p-3 bg-[#F8F6F3]">
+                  <div className="flex items-center gap-2 text-xs mb-2.5" style={{ color: "#6B6B6B" }}>
+                    <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
+                    {MOOD_LABELS[selectedMood]} stemning — klar til download
                   </div>
-                  <div className="bg-[#0F1D2F] flex justify-center py-4">
-                    <video
-                      src={videoUrls[mood]}
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="h-[60vh] max-h-[560px] w-auto aspect-[9/16] object-cover rounded-2xl shadow-2xl bg-black"
-                      data-testid={`video-showcase-${mood}`}
-                    />
-                  </div>
-                  <div className="p-3 bg-[#F8F6F3]">
-                    <div className="flex items-center gap-2 text-xs mb-2.5" style={{ color: "#6B6B6B" }}>
-                      <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
-                      {MOOD_LABELS[mood]} stemning — klar til download
-                    </div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDownloadMood(videoUrls[selectedMood], selectedMood)}
+                      disabled={downloading}
+                      className="flex-1 h-8 px-3 rounded-full font-semibold text-xs text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      style={{ background: "#0F1D2F" }}
+                      data-testid={`button-download-showcase-${selectedMood}`}
+                      title="Postklar med sløret baggrund — anbefalet til sociale medier"
+                    >
+                      <Download className="w-3 h-3" /> {downloading ? "Henter…" : "Postklar ↓"}
+                    </button>
+                    {cleanVideoUrls?.[selectedMood] && (
                       <button
-                        onClick={() => handleDownloadMood(videoUrls[mood], mood)}
+                        onClick={() => handleDownloadMood(cleanVideoUrls[selectedMood], `${selectedMood}-original`)}
                         disabled={downloading}
-                        className="flex-1 h-8 px-3 rounded-full font-semibold text-xs text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        style={{ background: "#0F1D2F" }}
-                        data-testid={`button-download-showcase-${mood}`}
-                        title="Postklar med sløret baggrund — anbefalet til sociale medier"
+                        className="flex-1 h-8 px-3 rounded-full font-semibold text-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-50 border"
+                        style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                        data-testid={`button-download-showcase-${selectedMood}-clean`}
+                        title="Original billedformat uden sløret baggrund"
                       >
-                        <Download className="w-3 h-3" /> {downloading ? "Henter…" : "Postklar ↓"}
+                        <Download className="w-3 h-3" /> Original ↓
                       </button>
-                      {cleanVideoUrls?.[mood] && (
-                        <button
-                          onClick={() => handleDownloadMood(cleanVideoUrls[mood], `${mood}-original`)}
-                          disabled={downloading}
-                          className="flex-1 h-8 px-3 rounded-full font-semibold text-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-50 border"
-                          style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
-                          data-testid={`button-download-showcase-${mood}-clean`}
-                          title="Original billedformat uden sløret baggrund"
-                        >
-                          <Download className="w-3 h-3" /> Original ↓
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">

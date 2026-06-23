@@ -1034,6 +1034,7 @@ async function render(
   address?: string,
   startText?: string,
   endText?: string,
+  mood?: string,
 ): Promise<void> {
   await acquireSlot();
   try {
@@ -1061,34 +1062,39 @@ async function render(
     const videoUrls: Record<string, string> = {};
     const cleanVideoUrls: Record<string, string> = {};
 
-    // Assemble 4 mood variants sequentially, each in two passes (postklar + original).
+    // Assemble only the requested mood (or all 4 if none specified for backward compat).
     // FFmpeg is CPU-bound so sequential avoids overloading the box; each pass is ~5-20s.
-    for (const mood of ALL_MOODS) {
-      emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[mood]}…` });
+    const moodsToRender = (mood && (ALL_MOODS as readonly string[]).includes(mood))
+      ? [mood as typeof ALL_MOODS[number]]
+      : [...ALL_MOODS];
+
+    for (const m of moodsToRender) {
+      emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[m]}…` });
       let inputs: RenderInputs;
       if (clipData) {
-        inputs = makeRenderInputsAI(clipData, mood);
+        inputs = makeRenderInputsAI(clipData, m);
       } else {
-        inputs = await buildLocalInputs(imagePaths, mood);
+        inputs = await buildLocalInputs(imagePaths, m);
       }
-      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, startText, endText);
+      videoUrls[m] = await assembleVideo(inputs, outDir, address, m, startText, endText);
 
       // "Original" variant — landscape 1920×1080, same music/text, crop-to-fill.
       let cleanInputs: RenderInputs;
       if (clipData) {
-        cleanInputs = makeRenderInputsAICleanLandscape(clipData, mood);
+        cleanInputs = makeRenderInputsAICleanLandscape(clipData, m);
       } else {
-        cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, mood);
+        cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, m);
       }
-      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`, startText, endText);
+      cleanVideoUrls[m] = await assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText);
     }
 
-    // Clean up downloaded AI clips — every mood + clean variant is now done.
+    // Clean up downloaded AI clips — every assembled variant is now done.
     if (clipData) {
       for (const c of clipData.clipPaths) fs.promises.unlink(c).catch(() => {});
     }
 
-    emit({ stage: "complete", currentClip: n, totalClips: n, message: "4 videoer klar!", videoUrls, cleanVideoUrls });
+    const doneLabel = moodsToRender.length === 1 ? `${MOOD_LABELS[moodsToRender[0]]} video klar!` : "4 videoer klar!";
+    emit({ stage: "complete", currentClip: n, totalClips: n, message: doneLabel, videoUrls, cleanVideoUrls });
     jobs.set(jobId, {
       status: "completed",
       videoUrls,
@@ -1266,6 +1272,7 @@ export function startShowcaseVideo(
   address?: string,
   startText?: string,
   endText?: string,
+  mood?: string,
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) {
@@ -1279,7 +1286,7 @@ export function startShowcaseVideo(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  render(jobId, imagePaths, outDir, address, startText, endText)
+  render(jobId, imagePaths, outDir, address, startText, endText, mood)
     .catch((err: any) => {
       const cur = jobs.get(jobId);
       jobs.set(jobId, {

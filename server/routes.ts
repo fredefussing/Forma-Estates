@@ -2648,7 +2648,10 @@ export async function registerRoutes(
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
       const startText = typeof req.body?.startText === "string" ? req.body.startText.slice(0, 80) : undefined;
       const endText = typeof req.body?.endText === "string" ? req.body.endText.slice(0, 80) : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText);
+      const VALID_MOODS = ["calm", "uplifting", "modern", "tension"];
+      const rawMood = typeof req.body?.mood === "string" ? req.body.mood : undefined;
+      const mood = rawMood && VALID_MOODS.includes(rawMood) ? rawMood : undefined;
+      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood);
       if (!jobId) {
         // Server saturated — no work started, so refund the charged credit.
         if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
