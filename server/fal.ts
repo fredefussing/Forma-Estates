@@ -4,19 +4,31 @@ import path from "path";
 import { Jimp, JimpMime } from "jimp";
 import { r2UploadFile } from "./r2";
 
+// ⛔ FAL.AI EMERGENCY LOCKDOWN — alle udgående kald er blokeret.
+// Fjern denne linje og genaktiver FAL_KEY når kontoen er sikret igen.
+const FAL_LOCKED_DOWN = true;
+
 const FAL_KEY = process.env.FAL_KEY;
-if (FAL_KEY) {
+if (FAL_KEY && !FAL_LOCKED_DOWN) {
   fal.config({ credentials: FAL_KEY });
 }
 
 export function isFalConfigured(): boolean {
+  if (FAL_LOCKED_DOWN) return false;
   return !!FAL_KEY;
+}
+
+// ⛔ Hard block — alle udgående fal.ai-kald fejler øjeblikkeligt uanset om
+// FAL_KEY er sat. Fjern denne funktion og FAL_LOCKED_DOWN når kontoen er sikret.
+function assertNotLockedDown() {
+  if (FAL_LOCKED_DOWN) throw new Error("fal.ai er midlertidigt deaktiveret (kontosikkerhed)");
 }
 
 // Upload a local file to fal.ai storage and return the public URL.
 // fal cannot fetch from localhost / private hosts, so anything we feed it
 // as image_url must first be uploaded here.
 export async function uploadToFal(localFilePath: string, mimeType?: string): Promise<string> {
+  assertNotLockedDown();
   // Saner filnavnet til ren ASCII (non-ASCII havner ellers som `?` i URL'en
   // og knækker downstream fetch) og down-scale til max 1920px på længste
   // led — Luma og flere andre fal-modeller afviser med 422 over det.
@@ -367,6 +379,7 @@ export async function generate360Panorama(
   styleLabel: string,
   archFacts?: string,
 ): Promise<{ imageUrl: string }> {
+  assertNotLockedDown();
   const urls = Array.isArray(afterImageUrls) ? afterImageUrls : [afterImageUrls];
   const hasTwo = urls.length >= 2;
   const refDesc = hasTwo
@@ -469,6 +482,7 @@ export async function generateAnimationVideo(
   afterImageUrl: string,
   mode: VideoMode = "cinematic",
 ): Promise<{ videoUrl: string }> {
+  assertNotLockedDown();
   const result = await fal.subscribe(VIDEO_ENDPOINT, {
     input: buildVideoInput(beforeImageUrl, afterImageUrl, mode),
   });
@@ -487,6 +501,7 @@ export async function submitAnimationVideo(
   afterImageUrl: string,
   mode: VideoMode = "cinematic",
 ): Promise<{ requestId: string }> {
+  assertNotLockedDown();
   const { request_id } = await fal.queue.submit(VIDEO_ENDPOINT, {
     input: buildVideoInput(beforeImageUrl, afterImageUrl, mode),
   });
@@ -620,6 +635,7 @@ export async function generateWalkthroughClip(
   imageUrl: string,
   moveIndex: number,
 ): Promise<{ videoUrl: string }> {
+  assertNotLockedDown();
   const result = await Promise.race([
     fal.subscribe(SHOWCASE_ENDPOINT, {
       input: {
@@ -646,6 +662,7 @@ export async function generateShowcaseClip(
   imageUrl: string,
   move: CameraMove,
 ): Promise<{ videoUrl: string }> {
+  assertNotLockedDown();
   const result = await Promise.race([
     fal.subscribe(SHOWCASE_ENDPOINT, {
       input: {
@@ -678,6 +695,7 @@ export async function generateDroneClip(
   startImageUrl: string,
   endImageUrl: string,
 ): Promise<{ videoUrl: string }> {
+  assertNotLockedDown();
   const result = await Promise.race([
     fal.subscribe(DRONE_ENDPOINT, {
       input: {
