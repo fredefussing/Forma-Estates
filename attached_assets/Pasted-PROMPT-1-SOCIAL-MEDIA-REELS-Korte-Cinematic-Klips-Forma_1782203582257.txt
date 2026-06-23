@@ -1,0 +1,75 @@
+PROMPT 1: SOCIAL MEDIA REELS (Korte Cinematic Klips)
+Formaal: Korte, catchy klips til Instagram Reels / TikTok. Brugeren uploader 5-20 billeder og AI laver resten. Kamerabevaegelser som en professionel kameramaend.
+Seedance 2.0 Prompt:
+plain
+Create a hyper-realistic cinematic real estate short-form video for social media (Instagram Reels / TikTok vertical 9:16 format). 
+
+The video consists of rapid, seamlessly-cut clips transitioning on every 2nd beat of an upbeat, modern lo-fi house track with subtle bass drops and rhythmic snaps. Each clip should feel like it was filmed by a professional camera operator using high-end cinema equipment.
+
+CAMERA MOVEMENTS (alternate between these for each room/clip):
+- Slow orbit right: camera smoothly arcs around the right side of the room at waist height, revealing spatial depth and furniture details
+- Cinematic dolly in: slow, steady push forward into the room with subtle handheld micro-shake for realism
+- Gentle dolly out: slowly pulling back to reveal more of the space
+- Slow pan left-to-right: smooth horizontal sweep capturing the full width of the room
+
+Each clip must be 2 to 3.5 seconds long. Hard cuts on the beat. No fades, no dissolves.
+
+VISUAL REQUIREMENTS:
+- Photorealistic quality, indistinguishable from real camera footage
+- Natural daylight streaming through windows with soft volumetric light rays
+- Realistic shadows and ambient occlusion
+- Sharp architectural details: wood grain texture on floors, fabric weave on furniture, marble veining, tile reflections
+- Slight lens breathing and natural distortion at frame edges (subtle 24mm lens character)
+- Shallow depth of field where foreground elements softly blur
+- Natural color grading: warm highlights, slightly cool shadows, high-end real estate aesthetic
+- Tiny realistic imperfections: dust particles in light beams, slight reflection variations, natural fabric creases
+
+ATMOSPHERE: Modern, aspirational, cozy-luxury. The kind of content that makes viewers stop scrolling. Bright and inviting with golden-hour warmth.
+
+AUDIO: Upbeat modern house/lo-fi track with rhythmic beat drops perfect for sync-cuts. Include subtle ambient room tone (very faint) underneath the music.
+
+OUTPUT: Vertical 9:16, 30-60 seconds total, 24fps cinematic motion.
+PROMPT 2: PROFESSIONEL WALKTHROUGH VIDEO
+Formaal: Professionel, cinematic walkthrough video sammensat fra billeder af et hus. Som en high-end ejendomsmæglervideo der tager seeren gennem hver rum.
+Seedance 2.0 Prompt:
+plain
+Create a premium cinematic real estate walkthrough video in vertical 9:16 format. The video guides the viewer through a beautiful home as if following a professional cinematographer filming a luxury property listing. The sequence flows naturally from room to room with seamless transitions that feel like continuous camera movement.
+
+STRUCTURE & FLOW:
+The video opens with a slow, elegant dolly-in through the main entrance or into the primary living space, establishing the home's character. It then transitions room-by-room using smooth match-cut movements where the camera motion direction carries into the next clip. Each room receives 3-5 seconds of screen time. The pacing is calm and confident, never rushed.
+
+CAMERA LANGUAGE:
+- Primary: Slow dolly in / dolly out movements at steady walking pace (1.2m height)
+- Secondary: Gentle orbit right revealing 180-degree room views
+- Transitions: Match-direction cuts (if camera moves right in clip A, clip B continues moving right)
+- Occasional: Slow tilt up from floor details to full room reveal
+- Subtle handheld realism: micro-movements suggesting a skilled operator with a gimbal stabilizer, not robotic or AI-perfect
+
+LIGHTING & REALISM:
+- Natural daylight from windows as primary light source
+- Soft volumetric god rays in bright rooms
+- Realistic bounce light on ceilings and walls
+- Warm 4000K-5000K color temperature
+- True-to-life materials: visible wood grain, stone texture, fabric detail, glass reflections, metallic sheen on fixtures
+- Photorealistic shadows with soft penumbra
+- Lens characteristics: subtle chromatic aberration at edges, micro lens flare when facing windows, natural vignetting
+- Atmospheric depth: light haze in sunbeams, subtle particle motes
+
+TRANSITIONS:
+- Seamless hard cuts timed to the music's gentle downbeats
+- No jarring jumps; each cut feels like the camera naturally walked into the next room
+- Cross-fade only when shifting between interior and exterior spaces (balcony/garden)
+
+MUSIC & AUDIO:
+- Cinematic ambient track: soft piano motifs, subtle strings, gentle electronic pads
+- Slow, relaxing tempo at 85-95 BPM
+- Clean, unobtrusive, emotionally uplifting
+- Music builds slightly during kitchen/living room reveals, softens for bedroom/bathroom moments
+- Include ultra-subtle ambient audio: faint natural reverb suggesting real room acoustics
+
+FINAL SEQUENCE:
+The video concludes with a slow pull-back shot revealing the most impressive room (living room or master bedroom), holding for a moment so the viewer can absorb the space, then a gentle fade to soft white.
+
+OVERALL QUALITY: Indistinguishable from footage shot by a professional real estate videographer using a Sony A7S III or RED camera with cinema lenses. Every frame should feel expensive, warm, and inviting.
+
+OUTPUT: Vertical 9:16, 45-90 seconds total, 24fps cinematic, seamless room-to-room flow.

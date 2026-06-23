@@ -394,68 +394,74 @@ export async function generate360Panorama(
 // hvor mægleren vil bevise "før→efter" konkret.
 const TRANSFORM_VIDEO_MORPH_PROMPT = `A cinematic room renovation. The scene transforms smoothly from the original interior to the beautifully renovated interior. All architectural structure remains completely fixed and untouched — walls, windows, doors, flooring layout, ceiling, and room geometry never move or warp. Only the interior styling, furniture, materials, and decor change. Each element transforms in a natural, believable sequence one after another — cabinetry and storage units first, then surfaces and countertops, then lighting fixtures, then seating and tables, then textiles and decor last. Nothing appears magically or spawns from nowhere — each change is a smooth, organic morph. Warm golden daylight floods through the windows, soft natural shadows, cozy inviting atmosphere. Ultra-smooth slow motion throughout, no abrupt jumps, no warping, no stretching, no deformation of any element. Photorealistic architectural visualization quality, 1080p, cinematic.`;
 
-// "Cinematisk gennemgang": kameraet bevæger sig FREM igennem rummet fra
-// før-tilstanden (gammelt/uistandsat) til efter-tilstanden (renoveret).
-// Begge billeder (start_image_url + end_image_url) fastlåser arkitekturen
-// — vægge, vinduer, døre, gulvplan forbliver uændret. Kun overflader,
-// møbler og finish ændrer sig i takt med, at kameraet avancerer.
-const CINEMATIC_WALKTHROUGH_PROMPT = `A single continuous cinematic walkthrough of a real room undergoing renovation, captured as one uninterrupted camera move from the "before" state to the "after" state.
+// "Cinematisk gennemgang": Prompt 2 — Professionel Walkthrough Video (Seedance 2.0).
+// Kameraet bevæger sig jævnt igennem boligen, rum for rum, som en high-end
+// ejendomsmæglervideo. Første frame = før-tilstand, sidste frame = efter-tilstand.
+const CINEMATIC_WALKTHROUGH_PROMPT = `Create a premium cinematic real estate walkthrough video in vertical 9:16 format. The video guides the viewer through a beautiful home as if following a professional cinematographer filming a luxury property listing. The sequence flows naturally from room to room with seamless transitions that feel like continuous camera movement.
 
-FIRST FRAME — "before" state: the room in its original, unrenovated condition. Old surfaces, empty or dated, unfinished.
-FINAL FRAME — "after" state: the exact same room, fully renovated. New materials, furnished, clean, modern.
+STRUCTURE & FLOW:
+The video opens with a slow, elegant dolly-in through the main entrance or into the primary living space, establishing the home's character. It then transitions room-by-room using smooth match-cut movements where the camera motion direction carries into the next clip. Each room receives 3-5 seconds of screen time. The pacing is calm and confident, never rushed.
 
-PHYSICAL REALITY — LOCKED. These NEVER change between start and end:
-- Every wall stays in its exact position. No walls appear, disappear, or move.
-- Every window stays on the same wall in the same position. No new windows added.
-- Every door opening stays exactly where it is. No doors added or removed.
-- Ceiling height and room proportions are fixed throughout.
-- Room geometry, floor plan, and all structural elements are identical from first to last frame.
+CAMERA LANGUAGE:
+- Primary: Slow dolly in / dolly out movements at steady walking pace (1.2m height)
+- Secondary: Gentle orbit right revealing 180-degree room views
+- Transitions: Match-direction cuts (if camera moves right in clip A, clip B continues moving right)
+- Occasional: Slow tilt up from floor details to full room reveal
+- Subtle handheld realism: micro-movements suggesting a skilled operator with a gimbal stabilizer, not robotic or AI-perfect
 
-CAMERA MOVEMENT:
-- One single, smooth, continuous forward path through the space — a slow steadicam walk-through.
-- No cuts, no jump edits, no angle changes, no reverse movement.
-- The camera enters from the "before" side and arrives at the "after" side.
+LIGHTING & REALISM:
+- Natural daylight from windows as primary light source
+- Soft volumetric god rays in bright rooms
+- Realistic bounce light on ceilings and walls
+- Warm 4000K-5000K color temperature
+- True-to-life materials: visible wood grain, stone texture, fabric detail, glass reflections, metallic sheen on fixtures
+- Photorealistic shadows with soft penumbra
+- Lens characteristics: subtle chromatic aberration at edges, micro lens flare when facing windows, natural vignetting
+- Atmospheric depth: light haze in sunbeams, subtle particle motes
 
-RENOVATION REVEAL: as the camera moves forward, the renovation reveals itself naturally — the space behind the camera is already transformed, the space ahead is still old. The transition boundary follows architectural lines: a door frame, a wall corner, or a floor seam.
+TRANSITIONS:
+- Seamless hard cuts timed to the music's gentle downbeats
+- No jarring jumps; each cut feels like the camera naturally walked into the next room
+- Cross-fade only when shifting between interior and exterior spaces (balcony/garden)
 
-What CHANGES between first and last frame: wall paint and finishes, floor material, furniture and decor, lighting fixtures.
-What NEVER changes: number and placement of doors, windows, walls, ceiling, and all fixed structural elements.
+MUSIC & AUDIO:
+- Cinematic ambient track: soft piano motifs, subtle strings, gentle electronic pads
+- Slow, relaxing tempo at 85-95 BPM
+- Clean, unobtrusive, emotionally uplifting
+- Music builds slightly during kitchen/living room reveals, softens for bedroom/bathroom moments
+- Include ultra-subtle ambient audio: faint natural reverb suggesting real room acoustics
 
-Slow, deliberate, smooth camera motion. No shakiness. Photorealistic, architecturally faithful, interior real-estate visualization quality.`;
+FINAL SEQUENCE:
+The video concludes with a slow pull-back shot revealing the most impressive room (living room or master bedroom), holding for a moment so the viewer can absorb the space, then a gentle fade to soft white.
+
+OVERALL QUALITY: Indistinguishable from footage shot by a professional real estate videographer using a Sony A7S III or RED camera with cinema lenses. Every frame should feel expensive, warm, and inviting.
+
+OUTPUT: Vertical 9:16, 45-90 seconds total, 24fps cinematic, seamless room-to-room flow.`;
 
 export type VideoMode = "cinematic" | "morph";
 
-const VIDEO_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
+// Seedance 2.0 (ByteDance) — image-to-video. Understøtter image_url +
+// end_image_url (start→slut frame), aspect_ratio og generate_audio.
+const VIDEO_ENDPOINT = "bytedance/seedance-2.0/image-to-video";
 
-// To forskellige opførsler — begge bruger image_url + tail_image_url (kling
-// v1.6 to-frame interpolation). Kun prompten er forskellig:
-//  • morph ("Forvandling"): statisk kamera, rummet forvandler sig i billedet.
-//  • cinematic ("Cinematisk gennemgang"): kameraet avancerer fremad igennem
-//    rummet; renoveringen afsløres, efterhånden som kameraet bevæger sig.
+// To forskellige opførsler — begge bruger image_url + end_image_url (Seedance 2.0
+// start→slut frame interpolation). Kun prompten er forskellig:
+//  • cinematic ("Cinematisk gennemgang"): Prompt 2 — professionel walkthrough,
+//    kameraet bevæger sig fremad igennem rummet, rum for rum.
+//  • morph ("Forvandling"): statisk kamera, rummet transformerer sig fra
+//    gammelt til renoveret på fladen.
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
-  if (mode === "cinematic") {
-    // Kling v1.6/pro/image-to-video to-frame interpolation:
-    //   image_url     = startframe (før-billede)
-    //   tail_image_url = slutframe (efter-billede)
-    // VIGTIGT: start_image_url/end_image_url er IKKE gyldige feltnavne for
-    // denne endpoint — brug image_url + tail_image_url. Forkerte feltnavne
-    // giver 422 "image_url Field required" fra workeren.
-    return {
-      prompt: CINEMATIC_WALKTHROUGH_PROMPT,
-      image_url: beforeImageUrl,
-      tail_image_url: afterImageUrl,
-      duration: "5" as const,
-    };
-  }
-  // Morph bruger SAMME gyldige kling-feltnavne som cinematic (image_url +
-  // tail_image_url). start_image_url/end_image_url + duration "8" er IKKE
-  // gyldige for denne endpoint og giver 422 hos workeren — kun prompten skifter.
-  return {
-    prompt: TRANSFORM_VIDEO_MORPH_PROMPT,
+  const base = {
     image_url: beforeImageUrl,
-    tail_image_url: afterImageUrl,
+    end_image_url: afterImageUrl,
+    aspect_ratio: "9:16" as const,
     duration: "5" as const,
+    generate_audio: false,
   };
+  if (mode === "cinematic") {
+    return { ...base, prompt: CINEMATIC_WALKTHROUGH_PROMPT };
+  }
+  return { ...base, prompt: TRANSFORM_VIDEO_MORPH_PROMPT };
 }
 
 export async function generateAnimationVideo(
@@ -507,37 +513,32 @@ export async function getAnimationVideoStatus(
   }
 }
 
-// ===== 3. BOLIG SHOWCASE-KLIP (Kling 2.1 image-to-video) =====
-// Hver ejendomsfoto bliver til ét rent AI-klip med ÉN ægte, jævn kamera-
-// bevægelse (dolly ind/ud, truck venstre/højre) — det "gimbal/steadicam"-look
-// referencevideoerne har, som FFmpeg-fake-parallax aldrig kan ramme. Selve
-// rummet må ALDRIG forandre sig; kun kameraet bevæger sig. Klippene klippes
+// ===== 3. BOLIG SHOWCASE-KLIP (Seedance 2.0 image-to-video) =====
+// Prompt 1: Social Media Reels — korte, catchy cinematic klips til Instagram
+// Reels / TikTok (9:16 vertical). Hver ejendomsfoto → ét AI-klip med ÉN
+// ægte kamerabevægelse (orbit, dolly-in, dolly-out, pan). Klippene klippes
 // bagefter til musikkens beat i showcase.ts.
-const SHOWCASE_ENDPOINT = "fal-ai/kling-video/v2.1/standard/image-to-video";
-const SHOWCASE_COST_PER_CLIP_USD = 0.14; // Kling 2.1 Standard, 5-sec clip
+const SHOWCASE_ENDPOINT = "bytedance/seedance-2.0/image-to-video";
+const SHOWCASE_COST_PER_CLIP_USD = 1.52; // Seedance 2.0 Standard, ~5-sec clip (est.)
 
-// Cykles pr. klip (i % 8): 8 distinct cinematic camera moves.
+// Prompt 1 visual suffix — gælder for alle klip.
+const SHOWCASE_VISUAL_SUFFIX =
+  " Photorealistic quality, indistinguishable from real camera footage. Natural daylight streaming through windows with soft volumetric light rays. Realistic shadows and ambient occlusion. Sharp architectural details: wood grain texture on floors, fabric weave on furniture, marble veining, tile reflections. Slight lens breathing and natural distortion at frame edges (subtle 24mm lens character). Shallow depth of field where foreground elements softly blur. Natural color grading: warm highlights, slightly cool shadows, high-end real estate aesthetic. Modern, aspirational, cozy-luxury atmosphere. Bright and inviting with golden-hour warmth. Vertical 9:16 format, 24fps cinematic motion.";
+
+// Cykles pr. klip (i % 4): 4 kamerabevægelser fra Prompt 1.
 const SHOWCASE_MOVE_PROMPTS = [
-  "slow smooth cinematic dolly-in: the camera glides gently and steadily forward, deeper into the room",
-  "slow smooth cinematic orbit right: the camera arcs smoothly around the subject in a wide circular arc to the right, keeping the subject centered, like a drone orbiting",
-  "slow smooth cinematic dolly-out: the camera glides gently and steadily backward, slowly revealing more of the room",
-  "slow smooth cinematic orbit left: the camera arcs smoothly around the subject in a wide circular arc to the left, keeping the subject centered, like a drone orbiting",
-  "slow smooth cinematic crane up: the camera rises steadily upward from a low angle, slowly revealing the full height of the space",
-  "slow smooth cinematic truck right: the camera slides steadily to the right, like on a gimbal dolly rail",
-  "slow smooth cinematic crane down: the camera descends steadily downward from a high angle, slowly settling to eye level",
-  "slow smooth cinematic truck left: the camera slides steadily to the left, like on a gimbal dolly rail",
+  "Slow orbit right: camera smoothly arcs around the right side of the room at waist height, revealing spatial depth and furniture details. Hard cut on the beat, 2 to 3.5 seconds long.",
+  "Cinematic dolly in: slow, steady push forward into the room with subtle handheld micro-shake for realism. Hard cut on the beat, 2 to 3.5 seconds long.",
+  "Gentle dolly out: slowly pulling back to reveal more of the space. Hard cut on the beat, 2 to 3.5 seconds long.",
+  "Slow pan left-to-right: smooth horizontal sweep capturing the full width of the room. Hard cut on the beat, 2 to 3.5 seconds long.",
 ];
-const SHOWCASE_PROMPT_SUFFIX =
-  " The room and everything in it — furniture, walls, windows, floor, materials, colors and lighting — stays EXACTLY as shown and never changes, morphs, appears or disappears. Only the camera moves. No warping, no distortion, no deformation; the architecture keeps a stable, correct perspective throughout. Photorealistic real-estate interior, soft natural lighting, ultra-smooth steady continuous motion, cinematic.";
-const SHOWCASE_NEGATIVE_PROMPT =
-  "warping, distortion, morphing, deformation, changing furniture, moving walls, melting, flicker, blur, low quality, text, watermark";
 
 export function showcaseMovePrompt(i: number): string {
-  return SHOWCASE_MOVE_PROMPTS[i % SHOWCASE_MOVE_PROMPTS.length] + SHOWCASE_PROMPT_SUFFIX;
+  return SHOWCASE_MOVE_PROMPTS[i % SHOWCASE_MOVE_PROMPTS.length] + SHOWCASE_VISUAL_SUFFIX;
 }
 
-// Generér ét showcase-klip fra ét billede. fal.subscribe poller selv til klippet
-// er færdigt (~1-3 min); kald flere parallelt via Promise.all for fart.
+// Generér ét showcase-klip fra ét billede (Seedance 2.0).
+// fal.subscribe poller selv til klippet er færdigt (~1-3 min).
 export async function generateShowcaseClip(
   imageUrl: string,
   moveIndex: number,
@@ -547,8 +548,9 @@ export async function generateShowcaseClip(
       input: {
         prompt: showcaseMovePrompt(moveIndex),
         image_url: imageUrl,
+        aspect_ratio: "9:16" as const,
         duration: "5" as const,
-        negative_prompt: SHOWCASE_NEGATIVE_PROMPT,
+        generate_audio: false,
       },
     }),
     new Promise<never>((_, reject) =>
@@ -557,22 +559,16 @@ export async function generateShowcaseClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No showcase clip generated");
-  console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
+  console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Seedance 2.0 Standard)`);
   return { videoUrl };
 }
 
-// Drone intro / outro clip — cinematic exterior flyover for the first and last
-// frames of a showcase reel. Same Kling 2.1 Standard endpoint as normal gimbal
-// clips but with an outdoor aerial-motion prompt instead of an interior one.
-// Drone transition clip — Kling "start frame + end frame" mode (image-to-image).
-// Image 1 is the starting scene, image 2 is the target/destination scene. Kling
-// generates the cinematic motion between them (drone flyover, reveal, etc.).
+// Drone intro / outro clip — cinematic transition fra ét billede til et andet.
+// Seedance 2.0 start-frame + end-frame mode (image_url + end_image_url).
 const DRONE_TRANSITION_PROMPT =
   "Single continuous uninterrupted drone flythrough, camera moves forward the entire time without stopping, drone starts at the first scene and smoothly flies all the way forward until it arrives at the second scene, seamless one-shot motion, no cuts no transitions no dissolves, the drone keeps flying forward the whole clip, smooth forward momentum from start to finish, cinematic real-estate drone shot, golden hour warm light, photorealistic 4K.";
-const DRONE_NEGATIVE_PROMPT =
-  "static, freeze, pause, cut, transition, crossfade, dissolve, jump, teleport, image switch, blurry, shaky, distorted, people, interior shot, dark";
 
-// Generate ONE transition clip using Kling's start-frame + end-frame feature.
+// Generate ONE transition clip using Seedance 2.0 start-frame + end-frame.
 // The result is a smooth cinematic move FROM startImageUrl TO endImageUrl.
 export async function generateDroneClip(
   startImageUrl: string,
@@ -584,8 +580,9 @@ export async function generateDroneClip(
         prompt: DRONE_TRANSITION_PROMPT,
         image_url: startImageUrl,
         end_image_url: endImageUrl,
+        aspect_ratio: "9:16" as const,
         duration: "5" as const,
-        negative_prompt: DRONE_NEGATIVE_PROMPT,
+        generate_audio: false,
       } as any,
     }),
     new Promise<never>((_, reject) =>
@@ -594,7 +591,7 @@ export async function generateDroneClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No drone clip generated");
-  console.log(`[Showcase] drone transition clip done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling 2.1 Standard)`);
+  console.log(`[Showcase] drone clip done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Seedance 2.0 Standard)`);
   return { videoUrl };
 }
 
