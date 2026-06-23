@@ -2649,7 +2649,7 @@ export async function registerRoutes(
       const startText = typeof req.body?.startText === "string" ? req.body.startText.slice(0, 80) : undefined;
       const endText = typeof req.body?.endText === "string" ? req.body.endText.slice(0, 80) : undefined;
       const VALID_MOODS = ["calm", "uplifting", "modern", "tension"];
-      const rawMood = typeof req.body?.mood === "string" ? req.body.mood : undefined;
+      const rawMood = typeof req.query.mood === "string" ? req.query.mood : (typeof req.body?.mood === "string" ? req.body.mood : undefined);
       const mood = rawMood && VALID_MOODS.includes(rawMood) ? rawMood : undefined;
       const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood);
       if (!jobId) {

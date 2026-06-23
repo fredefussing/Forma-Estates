@@ -3219,11 +3219,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
-      fd.append("mood", selectedMood);
       if (address.trim()) fd.append("address", address.trim());
       if (droneEnabled && startText.trim()) fd.append("startText", startText.trim());
       if (droneEnabled && endText.trim()) fd.append("endText", endText.trim());
-      const res = await fetch("/api/bolig/showcase-video", {
+      const res = await fetch(`/api/bolig/showcase-video?mood=${encodeURIComponent(selectedMood)}`, {
         method: "POST",
         body: fd,
         headers: token ? { Authorization: `Bearer ${token}` } : {},

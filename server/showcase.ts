@@ -124,6 +124,22 @@ function ffprobeSize(p: string): Promise<{ w: number; h: number }> {
   });
 }
 
+function ffprobeDuration(p: string): Promise<number> {
+  return new Promise((resolve) => {
+    const proc = spawn("ffprobe", [
+      "-v", "error", "-select_streams", "v:0",
+      "-show_entries", "stream=duration", "-of", "default=noprint_wrappers=1:nokey=1", p,
+    ]);
+    let out = "";
+    proc.stdout.on("data", (d) => (out += d.toString()));
+    proc.on("error", () => resolve(5.0));
+    proc.on("close", () => {
+      const d = parseFloat(out.trim());
+      resolve(isFinite(d) && d > 0 ? +d.toFixed(4) : 5.0);
+    });
+  });
+}
+
 // Background music: a few pre-generated, royalty-free instrumental beds that ship
 // with the app. Rendering stays $0 per video because we reuse these local files
 // (no per-render AI/audio cost). Key "none" / undefined = silent.
@@ -171,7 +187,7 @@ const TARGET_SLIDE_SEC = 0.55;
 // ── AI path tuning ────────────────────────────────────────────────────────────
 // Each AI clip is a PAID asset, so we never cycle them — one clip per photo. Cap
 // the count so a giant upload can't run up a huge bill / render time.
-const MAX_AI_CLIPS = 12;
+const MAX_AI_CLIPS = 8;
 // AI clips carry their OWN visible camera move, so slides hold longer than the
 // fast local cuts (a 0.5s window would hide the dolly). Aim for ~this total and
 // keep each slide between MIN/MAX (MAX must stay under the 5s source clip).
@@ -312,7 +328,7 @@ async function mapLimit<T, R>(
 
 // Most Kling generations a single job runs concurrently. Each is a paid call, so
 // we trickle them rather than firing all MAX_AI_CLIPS at once.
-const AI_CLIP_CONCURRENCY = 3;
+const AI_CLIP_CONCURRENCY = 6;
 
 // Even-rounded value — x264/yuv420p needs even pixel dimensions and offsets.
 const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
@@ -700,6 +716,7 @@ async function buildLocalInputs(imagePaths: string[], musicKey?: string): Promis
 interface AIClipData {
   clipPaths: string[];
   sizes: Array<{ w: number; h: number }>;
+  durations: number[]; // actual Seedance clip lengths from ffprobe
 }
 
 // PRIMARY (paid AI): turn each photo (capped) into one real Kling 2.1 i2v clip
@@ -793,19 +810,25 @@ async function buildAIClips(
 
   try {
     const sizes: Array<{ w: number; h: number }> = [];
-    for (const c of clipPaths) sizes.push(await ffprobeSize(c));
-    return { clipPaths, sizes };
+    const durations: number[] = [];
+    for (const c of clipPaths) {
+      sizes.push(await ffprobeSize(c));
+      durations.push(await ffprobeDuration(c));
+    }
+    return { clipPaths, sizes, durations };
   } catch (e) {
     for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
     throw e;
   }
 }
 
-// Build mood-specific RenderInputs from raw AI clips. Energy plan (timing)
-// varies per mood so every assembled video has different cut rhythm.
+// Build RenderInputs from raw AI clips using the ACTUAL clip durations from ffprobe.
+// We no longer artificially retime Seedance clips — each plays at its natural length.
+// Music seek is still beat-aligned using the energy plan so cuts land on the beat.
 function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
   const n = clips.clipPaths.length;
-  const { durations, musicSeek } = energyPlanAI(musicKey, n);
+  const durations = clips.durations;
+  const { musicSeek } = energyPlanAI(musicKey, n);
   const filter = buildFilterVideo(n, durations, clips.sizes);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clips.clipPaths };
@@ -814,7 +837,8 @@ function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
 // Same as above but uses the "clean" (crop-to-fill 9:16, no blurred bg) filter.
 function makeRenderInputsAIClean(clips: AIClipData, musicKey: string): RenderInputs {
   const n = clips.clipPaths.length;
-  const { durations, musicSeek } = energyPlanAI(musicKey, n);
+  const durations = clips.durations;
+  const { musicSeek } = energyPlanAI(musicKey, n);
   const filter = buildFilterVideoClean(n, durations, clips.sizes);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
@@ -823,7 +847,8 @@ function makeRenderInputsAIClean(clips: AIClipData, musicKey: string): RenderInp
 // Landscape (1920×1080) "Original" variant — same clips, 16:9 crop-to-fill.
 function makeRenderInputsAICleanLandscape(clips: AIClipData, musicKey: string): RenderInputs {
   const n = clips.clipPaths.length;
-  const { durations, musicSeek } = energyPlanAI(musicKey, n);
+  const durations = clips.durations;
+  const { musicSeek } = energyPlanAI(musicKey, n);
   const filter = buildFilterVideoCleanLandscape(n, durations, clips.sizes);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
@@ -1157,8 +1182,12 @@ async function buildWalkthroughClips(
 
   try {
     const sizes: Array<{ w: number; h: number }> = [];
-    for (const c of clipPaths) sizes.push(await ffprobeSize(c));
-    return { clipPaths, sizes };
+    const durations: number[] = [];
+    for (const c of clipPaths) {
+      sizes.push(await ffprobeSize(c));
+      durations.push(await ffprobeDuration(c));
+    }
+    return { clipPaths, sizes, durations };
   } catch (e) {
     for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
     throw e;
