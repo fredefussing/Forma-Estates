@@ -3215,8 +3215,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setSaveCaseId(null);
   };
 
-  const handleGenerate = async () => {
-    if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
+  const RENDY_MOODS_LIST = ["every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"] as const;
+  const RENDY_MOOD_LABELS: Record<string, string> = {
+    every_day: "Every Day", old_days: "Old Days", on_my_way: "On My Way",
+    open_air: "Open Air", renegade: "Renegade", afterdusk: "Afterdusk",
+  };
+
+  const runShowcase = async (extraFields: Record<string, string>, fetchUrl: string) => {
     setIsGenerating(true);
     setError(null);
     setVideoUrls(null);
@@ -3232,7 +3237,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (droneEnabled && startText.trim()) fd.append("startText", startText.trim());
       if (droneEnabled && endText.trim()) fd.append("endText", endText.trim());
       fd.append("cutStyle", cutStyle);
-      const res = await fetch(`/api/bolig/showcase-video?mood=${encodeURIComponent(selectedMood)}`, {
+      for (const [k, v] of Object.entries(extraFields)) fd.append(k, v);
+      const res = await fetch(fetchUrl, {
         method: "POST",
         body: fd,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -3284,37 +3290,46 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 es.close();
                 esRef.current = null;
                 if (!settled) { settled = true; reject(new Error(p.message || "Generering mislykkedes")); }
+              } else {
+                resetDeadline();
               }
-            } catch {}
+            } catch { /* ignore parse err */ }
           };
 
           es.onerror = () => {
             es.close();
             esRef.current = null;
             if (settled) return;
-            if (retries >= MAX_RETRIES) {
-              clearTimeout(deadlineTimer);
-              settled = true;
-              reject(new Error("Forbindelsesfejl efter flere forsøg. Prøv igen."));
-              return;
-            }
             retries++;
-            const delay = Math.min(2000 * retries, 10000);
-            setProgressMsg(`Genforbinder… (forsøg ${retries}/${MAX_RETRIES})`);
-            setTimeout(connect, delay);
+            if (retries >= MAX_RETRIES) { settled = true; reject(new Error("Mistede forbindelsen til serveren.")); return; }
+            setTimeout(connect, 2000 * retries);
           };
+
+          resetDeadline();
         };
 
-        resetDeadline();
         connect();
       });
-    } catch (err: any) {
-      setError(err.message || "Noget gik galt");
+    } catch (e: any) {
+      setError(e.message || "Noget gik galt");
     } finally {
       setIsGenerating(false);
-      setProgressMsg("");
     }
   };
+
+  const handleGenerate = async () => {
+    if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
+    await runShowcase({}, `/api/bolig/showcase-video?mood=${encodeURIComponent(selectedMood)}`);
+  };
+
+  const handleGenerateAllRendy = async () => {
+    if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
+    await runShowcase(
+      { moods: RENDY_MOODS_LIST.join(",") },
+      `/api/bolig/showcase-video`
+    );
+  };
+
 
   const handleReset = () => {
     if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme videoerne?")) return;
@@ -3640,30 +3655,92 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         </div>
 
         <QuotaGate feature="showcase">
-          <button
-            onClick={handleGenerate}
-            disabled={images.length < 2 || isGenerating}
-            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-            style={{ background: "#C8956C" }}
-            data-testid="button-generate-showcase"
-          >
-            {isGenerating ? (
-              <>
-                <RotateCcw className="w-4 h-4 animate-spin" />
-                {progressMsg || "Laver AI-kameraklip…"}
-              </>
-            ) : (
-              <>
-                <Film className="w-4 h-4" />
-                Generér {MOOD_LABELS[selectedMood]} showcase
-              </>
-            )}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={images.length < 2 || isGenerating}
+              className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+              style={{ background: "#C8956C" }}
+              data-testid="button-generate-showcase"
+            >
+              {isGenerating ? (
+                <>
+                  <RotateCcw className="w-4 h-4 animate-spin" />
+                  {progressMsg || "Laver AI-kameraklip…"}
+                </>
+              ) : (
+                <>
+                  <Film className="w-4 h-4" />
+                  Generér {MOOD_LABELS[selectedMood]} showcase
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleGenerateAllRendy}
+              disabled={images.length < 2 || isGenerating}
+              className="w-full h-11 rounded-full font-semibold text-sm inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50 border"
+              style={{ borderColor: "#C8956C", color: "#C8956C", background: "#FDF8F4" }}
+              data-testid="button-generate-all-rendy"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generér alle 6 Rendy stemninger
+            </button>
+          </div>
         </QuotaGate>
 
         {error && (
           <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-showcase-error">
             {error}
+          </div>
+        )}
+
+        {/* Alle 6 Rendy stemninger — grid visning */}
+        {videoUrls && RENDY_MOODS_LIST.some(m => videoUrls[m]) && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
+              <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Alle 6 Rendy stemninger</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {RENDY_MOODS_LIST.filter(m => videoUrls[m]).map((m) => (
+                <div key={m} className="rounded-xl overflow-hidden border border-[#E8E4DE]" data-testid={`card-rendy-${m}`}>
+                  <div className="bg-[#0F1D2F] px-3 py-1.5 flex items-center justify-between">
+                    <span className="text-white text-[11px] font-semibold uppercase tracking-wide">{RENDY_MOOD_LABELS[m]}</span>
+                  </div>
+                  <video
+                    src={videoUrls[m]}
+                    controls
+                    loop
+                    muted
+                    playsInline
+                    className="w-full aspect-[9/16] object-cover bg-black"
+                    data-testid={`video-rendy-${m}`}
+                  />
+                  <div className="p-2 bg-[#F8F6F3] flex gap-1.5">
+                    <button
+                      onClick={() => handleDownloadMood(videoUrls[m], m)}
+                      disabled={downloading}
+                      className="flex-1 h-7 px-2 rounded-full font-semibold text-[11px] text-white inline-flex items-center justify-center gap-1 disabled:opacity-50"
+                      style={{ background: "#0F1D2F" }}
+                      data-testid={`button-download-rendy-${m}`}
+                    >
+                      <Download className="w-3 h-3" /> Postklar
+                    </button>
+                    {cleanVideoUrls?.[m] && (
+                      <button
+                        onClick={() => handleDownloadMood(cleanVideoUrls[m], `${m}-original`)}
+                        disabled={downloading}
+                        className="flex-1 h-7 px-2 rounded-full font-semibold text-[11px] inline-flex items-center justify-center gap-1 disabled:opacity-50 border"
+                        style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                        data-testid={`button-download-rendy-${m}-clean`}
+                      >
+                        <Download className="w-3 h-3" /> Original
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

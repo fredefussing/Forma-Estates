@@ -1366,9 +1366,12 @@ async function assembleVideo(
 
 // Four music moods rendered for every job — the AI clips are generated ONCE,
 // then FFmpeg assembles a separate video per mood at zero extra AI cost.
-const ALL_MOODS = ["calm", "uplifting", "modern", "tension"] as const;
+const ALL_MOODS = ["calm", "uplifting", "modern", "tension", "every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"] as const;
+const RENDY_MOODS = ["every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"] as const;
 const MOOD_LABELS: Record<string, string> = {
   calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt",
+  every_day: "Every Day", old_days: "Old Days", on_my_way: "On My Way",
+  open_air: "Open Air", renegade: "Renegade", afterdusk: "Afterdusk",
 };
 
 async function render(
@@ -1380,6 +1383,7 @@ async function render(
   endText?: string,
   mood?: string,
   cutStyle?: CutStyle,
+  moods?: string[],
 ): Promise<void> {
   await acquireSlot();
   try {
@@ -1410,11 +1414,14 @@ async function render(
     const videoUrls: Record<string, string> = {};
     const cleanVideoUrls: Record<string, string> = {};
 
-    // Assemble only the requested mood (or all 4 if none specified for backward compat).
+    // Assemble only the requested mood(s). Priority: explicit moods[] > single mood > all 4 originals.
     // FFmpeg is CPU-bound so sequential avoids overloading the box; each pass is ~5-20s.
-    const moodsToRender = (mood && (ALL_MOODS as readonly string[]).includes(mood))
-      ? [mood as typeof ALL_MOODS[number]]
-      : [...ALL_MOODS];
+    const VALID_MOOD_SET = new Set(ALL_MOODS as readonly string[]);
+    const moodsToRender: string[] = moods && moods.length > 0
+      ? moods.filter(m => VALID_MOOD_SET.has(m))
+      : mood && VALID_MOOD_SET.has(mood)
+        ? [mood]
+        : ["calm", "uplifting", "modern", "tension"];
 
     for (const m of moodsToRender) {
       emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[m]}…` });
@@ -1441,7 +1448,7 @@ async function render(
       for (const c of clipData.clipPaths) fs.promises.unlink(c).catch(() => {});
     }
 
-    const doneLabel = moodsToRender.length === 1 ? `${MOOD_LABELS[moodsToRender[0]]} video klar!` : "4 videoer klar!";
+    const doneLabel = moodsToRender.length === 1 ? `${MOOD_LABELS[moodsToRender[0]]} video klar!` : `${moodsToRender.length} videoer klar!`;
     emit({ stage: "complete", currentClip: n, totalClips: n, message: doneLabel, videoUrls, cleanVideoUrls });
     jobs.set(jobId, {
       status: "completed",
@@ -1626,6 +1633,7 @@ export function startShowcaseVideo(
   endText?: string,
   mood?: string,
   cutStyle?: CutStyle,
+  moods?: string[],
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) {
@@ -1639,7 +1647,7 @@ export function startShowcaseVideo(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  render(jobId, imagePaths, outDir, address, startText, endText, mood, cutStyle)
+  render(jobId, imagePaths, outDir, address, startText, endText, mood, cutStyle, moods)
     .catch((err: any) => {
       const cur = jobs.get(jobId);
       jobs.set(jobId, {

@@ -2648,12 +2648,17 @@ export async function registerRoutes(
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
       const startText = typeof req.body?.startText === "string" ? req.body.startText.slice(0, 80) : undefined;
       const endText = typeof req.body?.endText === "string" ? req.body.endText.slice(0, 80) : undefined;
-      const VALID_MOODS = ["calm", "uplifting", "modern", "tension"];
+      const VALID_MOODS = ["calm", "uplifting", "modern", "tension", "every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"];
       const rawMood = typeof req.query.mood === "string" ? req.query.mood : (typeof req.body?.mood === "string" ? req.body.mood : undefined);
       const mood = rawMood && VALID_MOODS.includes(rawMood) ? rawMood : undefined;
       const rawCutStyle = typeof req.body?.cutStyle === "string" ? req.body.cutStyle : undefined;
       const cutStyle: "clean" | "cinematic" | undefined = rawCutStyle === "clean" || rawCutStyle === "cinematic" ? rawCutStyle : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood, cutStyle);
+      // Optional explicit moods list (e.g. all 6 Rendy moods at once)
+      const rawMoodsStr = typeof req.body?.moods === "string" ? req.body.moods : undefined;
+      const moods: string[] | undefined = rawMoodsStr
+        ? rawMoodsStr.split(",").map(m => m.trim()).filter(m => VALID_MOODS.includes(m))
+        : undefined;
+      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood, cutStyle, moods);
       if (!jobId) {
         // Server saturated — no work started, so refund the charged credit.
         if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
