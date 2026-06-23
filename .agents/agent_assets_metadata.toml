@@ -48,3 +48,9 @@ id = "p5jt75fV8wV9jjPSNtA7W"
 uri = "file://client/public/test-watermark.jpg"
 type = "image"
 title = "Test: AI-redigeret watermark"
+
+[[outputs]]
+id = "TML-BEvBn2PzUyR9wAeXC"
+uri = "file://uploads/jake_showcase_uplifting_test.mp4"
+type = "video"
+title = "Jake showcase — Opløftende stemning (23s reel)"
