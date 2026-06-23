@@ -21,3 +21,5 @@ attached_assets/vectors_part_17_of_20_1777317781919.csv filter=lfs diff=lfs merg
 attached_assets/vectors_part_18_of_20_1777317901418.csv filter=lfs diff=lfs merge=lfs -text
 attached_assets/vectors_part_19_of_20_1777318042431.csv filter=lfs diff=lfs merge=lfs -text
 attached_assets/vectors_part_20_of_20_1777318172258.csv filter=lfs diff=lfs merge=lfs -text
+attached_assets/Every_Day_1782217194229.mp4 filter=lfs diff=lfs merge=lfs -text
+attached_assets/Renegade_1782217194233.mp4 filter=lfs diff=lfs merge=lfs -text

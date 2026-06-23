@@ -566,6 +566,16 @@ function buildFilter(n: number, durations: number[], sizes: Array<{ w: number; h
   return parts.join(";");
 }
 
+// How many seconds to skip at the START of each Kling clip.
+// Kling v1.6 Pro has a short ramp-up (~0.15s) before the camera starts moving.
+// Skipping it means every cut opens with the shot already in motion.
+const KLING_RAMPUP = 0.15;
+
+// Nordic color grade for AI clips: slightly cool, airy, professional.
+// gamma_r/b shift the white balance toward daylight; mild desaturation keeps
+// it clean without looking over-processed.
+const NORDIC_GRADE = `eq=brightness=0.04:contrast=1.06:saturation=0.92:gamma_r=0.96:gamma_g=0.98:gamma_b=1.06`;
+
 // Build ONE slide from an AI VIDEO clip (input `i`). The real camera move already
 // lives in the footage, so we add NO zoompan here — we only trim the clip to the
 // beat length and fit it WHOLE (no crop) onto a blurred fill of itself so the 9:16
@@ -576,29 +586,26 @@ function buildSlideVideo(i: number, dims: { w: number; h: number }, slideDur: nu
   const fh = even(dims.h * f);
   const cx = even((W - fw) / 2);
   const cy = even((H - fh) / 2);
-  const dur = slideDur.toFixed(4);
+  const start = KLING_RAMPUP.toFixed(4);
+  const end   = (slideDur + KLING_RAMPUP).toFixed(4);
   return (
-    `[${i}:v]trim=0:${dur},setpts=PTS-STARTPTS,fps=${FPS},split=2[a${i}][b${i}];` +
+    `[${i}:v]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,fps=${FPS},split=2[a${i}][b${i}];` +
     `[a${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
     `boxblur=26:2,eq=brightness=-0.05,setsar=1[bg${i}];` +
-    `[b${i}]scale=${fw}:${fh},eq=brightness=0.03:contrast=1.05:saturation=1.02,setsar=1[fg${i}];` +
+    `[b${i}]scale=${fw}:${fh},${NORDIC_GRADE},setsar=1[fg${i}];` +
     `[bg${i}][fg${i}]overlay=x=${cx}:y=${cy},format=yuv420p,setsar=1[v${i}]`
   );
 }
 
-// Filter graph for the AI path: one trimmed clip per slide, joined with HARD CUTS
-// on the beat. `n` is the clip/slide count (never cycled); `sizes[i]` is clip i's
-// pixel size.
+// Filter graph for the AI path: one trimmed clip per slide, joined with smooth
+// xfade crossfades so scene changes feel cinematic rather than abrupt.
 function buildFilterVideo(n: number, durations: number[], sizes: Array<{ w: number; h: number }>): string {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) parts.push(buildSlideVideo(i, sizes[i], durations[i]));
-
-  if (n === 1) {
-    parts.push(`[v0]null[vbase]`);
-    return parts.join(";");
-  }
-  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
-  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
+  const minDur = Math.min(...durations);
+  const fadeDur = parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+  parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
 
@@ -607,13 +614,14 @@ const WL = 1920;
 const HL = 1080;
 
 // "Clean" (no blurred fill) slide for an AI VIDEO clip — 9:16 crop-to-fill.
-// Used for the POSTKLAR variant (kept as-is, just different visual frame from blurred).
+// Skips the Kling ramp-up, applies Nordic grade, and crop-fills the frame.
 function buildSlideVideoClean(i: number, dims: { w: number; h: number }, slideDur: number): string {
-  const dur = slideDur.toFixed(4);
+  const start = KLING_RAMPUP.toFixed(4);
+  const end   = (slideDur + KLING_RAMPUP).toFixed(4);
   return (
-    `[${i}:v]trim=0:${dur},setpts=PTS-STARTPTS,fps=${FPS},` +
+    `[${i}:v]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,fps=${FPS},` +
     `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},` +
-    `eq=brightness=0.02:contrast=1.03:saturation=1.02,format=yuv420p,setsar=1[v${i}]`
+    `${NORDIC_GRADE},format=yuv420p,setsar=1[v${i}]`
   );
 }
 
@@ -621,18 +629,20 @@ function buildFilterVideoClean(n: number, durations: number[], sizes: Array<{ w:
   const parts: string[] = [];
   for (let i = 0; i < n; i++) parts.push(buildSlideVideoClean(i, sizes[i], durations[i]));
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
-  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
-  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  const minDur = Math.min(...durations);
+  const fadeDur = parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+  parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
 
 // Landscape (1920×1080) "Original" slide for an AI VIDEO clip — crop-to-fill 16:9.
 function buildSlideVideoCleanLandscape(i: number, dims: { w: number; h: number }, slideDur: number): string {
-  const dur = slideDur.toFixed(4);
+  const start = KLING_RAMPUP.toFixed(4);
+  const end   = (slideDur + KLING_RAMPUP).toFixed(4);
   return (
-    `[${i}:v]trim=0:${dur},setpts=PTS-STARTPTS,fps=${FPS},` +
+    `[${i}:v]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,fps=${FPS},` +
     `scale=${WL}:${HL}:force_original_aspect_ratio=increase,crop=${WL}:${HL},` +
-    `eq=brightness=0.02:contrast=1.03:saturation=1.02,format=yuv420p,setsar=1[v${i}]`
+    `${NORDIC_GRADE},format=yuv420p,setsar=1[v${i}]`
   );
 }
 
@@ -640,8 +650,9 @@ function buildFilterVideoCleanLandscape(n: number, durations: number[], sizes: A
   const parts: string[] = [];
   for (let i = 0; i < n; i++) parts.push(buildSlideVideoCleanLandscape(i, sizes[i], durations[i]));
   if (n === 1) { parts.push(`[v0]null[vbase]`); return parts.join(";"); }
-  const inputs = Array.from({ length: n }, (_, i) => `[v${i}]`).join("");
-  parts.push(`${inputs}concat=n=${n}:v=1:a=0[vbase]`);
+  const minDur = Math.min(...durations);
+  const fadeDur = parseFloat(Math.min(0.30, minDur * 0.12).toFixed(3));
+  parts.push(buildXfadeConcat(n, durations, fadeDur));
   return parts.join(";");
 }
 
@@ -950,13 +961,25 @@ async function buildAIClips(
   }
 }
 
-// Build RenderInputs from raw AI clips using the ACTUAL clip durations from ffprobe.
-// We no longer artificially retime Seedance clips — each plays at its natural length.
-// Music seek is still beat-aligned using the energy plan so cuts land on the beat.
+// Build RenderInputs for the AI path.
+// Uses the beat-energy durations for trimming each Kling clip so cuts happen at
+// the right musical moment. Raw clip lengths from ffprobe are used only as an
+// upper bound — we never trim past the actual footage.
+function _aiDurations(clips: AIClipData, musicKey: string): { durations: number[]; musicSeek: number } {
+  const n = clips.clipPaths.length;
+  const { durations: planned, musicSeek } = energyPlanAI(musicKey, n);
+  // Clamp each planned duration to what's actually available (accounting for
+  // the ramp-up offset so we always have enough footage).
+  const durations = planned.map((d, i) => {
+    const maxAvail = Math.max(0, clips.durations[i] - KLING_RAMPUP - 0.05);
+    return +Math.min(d, maxAvail).toFixed(4);
+  });
+  return { durations, musicSeek };
+}
+
 function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
   const n = clips.clipPaths.length;
-  const durations = clips.durations;
-  const { musicSeek } = energyPlanAI(musicKey, n);
+  const { durations, musicSeek } = _aiDurations(clips, musicKey);
   const filter = buildFilterVideo(n, durations, clips.sizes);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: clips.clipPaths };
@@ -965,8 +988,7 @@ function makeRenderInputsAI(clips: AIClipData, musicKey: string): RenderInputs {
 // Same as above but uses the "clean" (crop-to-fill 9:16, no blurred bg) filter.
 function makeRenderInputsAIClean(clips: AIClipData, musicKey: string): RenderInputs {
   const n = clips.clipPaths.length;
-  const durations = clips.durations;
-  const { musicSeek } = energyPlanAI(musicKey, n);
+  const { durations, musicSeek } = _aiDurations(clips, musicKey);
   const filter = buildFilterVideoClean(n, durations, clips.sizes);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
@@ -975,8 +997,7 @@ function makeRenderInputsAIClean(clips: AIClipData, musicKey: string): RenderInp
 // Landscape (1920×1080) "Original" variant — same clips, 16:9 crop-to-fill.
 function makeRenderInputsAICleanLandscape(clips: AIClipData, musicKey: string): RenderInputs {
   const n = clips.clipPaths.length;
-  const durations = clips.durations;
-  const { musicSeek } = energyPlanAI(musicKey, n);
+  const { durations, musicSeek } = _aiDurations(clips, musicKey);
   const filter = buildFilterVideoCleanLandscape(n, durations, clips.sizes);
   const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
   return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek, filter, tmpClips: [] };
