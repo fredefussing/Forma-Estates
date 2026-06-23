@@ -158,22 +158,100 @@ function resolveMusic(key?: string): string | null {
   return fs.existsSync(p) ? p : null;
 }
 
-// Beat-synced cuts: each music bed has a steady pulse measured via ffmpeg+
-// autocorrelation (period = seconds per beat, phase = time of first strong onset).
-// At render time we lock every image switch to a whole number of beats so the
-// cuts land on the rhythm. Seek = phase % period aligns the track's pulse with t=0.
-//
-// Measured BPM (new tracks, June 2026):
-//   calm:      80 BPM  → period=0.7500s  phase=10.728s
-//   modern:   127 BPM  → period=0.4724s  phase=0.650s
-//   uplifting: 96 BPM  → period=0.6250s  phase=1.602s  (detected 192; halved)
-//   tension:   69 BPM  → period=0.8696s  phase=0.000s
+// ── Beat grid (period + seek anchor) — used for clip-duration arithmetic ────
+// Period = seconds between beats (BPM⁻¹). Seek = music offset so the first
+// beat lands at reel t=0.  These are the verified values from manual timing.
+//   calm:      80 BPM → 0.750s   modern: 127 BPM → 0.4724s
+//   uplifting: 96 BPM → 0.625s   tension: 69 BPM → 0.8696s
 const BEAT_GRID: Record<string, { period: number; phase: number }> = {
   calm:      { period: 0.7500, phase: 10.728 },
   modern:    { period: 0.4724, phase: 0.650  },
   uplifting: { period: 0.6250, phase: 1.602  },
   tension:   { period: 0.8696, phase: 0.000  },
 };
+
+// ── Pre-analyzed beat maps (from ffmpeg PCM onset-detection, June 2026) ──────
+// Each entry is { t: seconds_from_track_start, e: RMS_energy_0_to_1 }.
+// Used by energyPlanAI to make every clip's hold-duration respond to the
+// ACTUAL loudness of the music at that moment instead of a fixed position curve.
+// High energy → short clip (fast cut). Low energy → long clip (room to breathe).
+// The track durations are 22s — looping is handled modulo track length.
+interface BeatPoint { t: number; e: number }
+const BEAT_MAPS: Record<string, { duration: number; beats: BeatPoint[] }> = {
+  calm: {
+    duration: 22,
+    beats: [
+      {t:0.11,e:0.08},{t:0.55,e:0.36},{t:1.22,e:0.61},{t:1.77,e:0.88},
+      {t:2.35,e:0.76},{t:2.96,e:0.88},{t:3.59,e:0.67},{t:4.16,e:0.48},
+      {t:4.74,e:0.49},{t:5.27,e:0.72},{t:5.96,e:0.86},{t:6.41,e:0.87},
+      {t:7.10,e:0.65},{t:7.76,e:0.86},{t:8.35,e:0.73},{t:8.86,e:0.85},
+      {t:9.44,e:0.64},{t:9.95,e:0.41},{t:10.72,e:1.00},{t:11.21,e:0.56},
+      {t:11.93,e:0.70},{t:12.32,e:0.68},{t:13.06,e:0.56},{t:13.55,e:0.77},
+      {t:14.30,e:0.71},{t:14.81,e:0.53},{t:15.26,e:0.82},{t:16.04,e:0.49},
+      {t:16.53,e:0.71},{t:17.27,e:1.00},{t:17.72,e:0.86},{t:18.36,e:0.70},
+      {t:18.95,e:0.65},{t:19.62,e:0.71},{t:20.05,e:0.83},{t:20.59,e:0.72},
+      {t:21.33,e:0.60},{t:21.86,e:0.50},
+    ],
+  },
+  modern: {
+    duration: 22,
+    beats: [
+      {t:0.17,e:0.63},{t:1.57,e:0.61},{t:2.98,e:0.54},{t:4.39,e:0.66},
+      {t:5.81,e:0.99},{t:7.20,e:0.49},{t:8.14,e:0.67},{t:10.01,e:0.66},
+      {t:10.94,e:0.35},{t:12.38,e:1.00},{t:13.76,e:0.57},{t:15.64,e:0.56},
+      {t:16.58,e:0.69},{t:18.45,e:0.69},{t:19.38,e:0.54},{t:21.26,e:0.48},
+    ],
+  },
+  uplifting: {
+    duration: 22,
+    beats: [
+      {t:0.09,e:0.32},{t:0.84,e:0.52},{t:1.59,e:0.58},{t:2.20,e:0.61},
+      {t:3.10,e:0.66},{t:3.70,e:0.68},{t:4.60,e:0.51},{t:5.36,e:0.74},
+      {t:6.10,e:0.46},{t:6.72,e:0.64},{t:7.45,e:0.82},{t:8.35,e:0.90},
+      {t:8.95,e:0.71},{t:9.70,e:0.89},{t:10.59,e:0.68},{t:11.35,e:0.62},
+      {t:11.88,e:0.97},{t:12.64,e:1.00},{t:13.44,e:0.88},{t:14.41,e:0.48},
+      {t:14.88,e:0.28},{t:15.75,e:0.14},{t:16.40,e:0.06},{t:17.18,e:0.02},
+      {t:17.97,e:0.01},{t:18.82,e:0.01},{t:19.39,e:0.01},{t:20.19,e:0.00},
+      {t:21.20,e:0.00},{t:21.94,e:0.00},
+    ],
+  },
+  tension: {
+    duration: 22,
+    beats: [
+      {t:0.03,e:0.84},{t:0.57,e:0.79},{t:1.14,e:0.94},{t:1.71,e:0.69},
+      {t:2.29,e:0.61},{t:2.86,e:0.46},{t:3.43,e:0.53},{t:4.00,e:0.48},
+      {t:4.57,e:0.66},{t:5.14,e:0.68},{t:5.71,e:0.66},{t:6.28,e:0.37},
+      {t:6.87,e:0.68},{t:7.43,e:0.51},{t:8.00,e:0.67},{t:8.57,e:0.38},
+      {t:9.14,e:0.86},{t:9.72,e:0.53},{t:10.29,e:0.74},{t:10.85,e:0.47},
+      {t:11.43,e:0.49},{t:12.00,e:0.35},{t:12.58,e:0.78},{t:13.14,e:0.40},
+      {t:13.71,e:0.34},{t:14.29,e:1.00},{t:14.85,e:0.52},{t:15.46,e:0.48},
+      {t:16.00,e:0.68},{t:16.57,e:0.52},{t:17.14,e:0.64},{t:17.71,e:0.45},
+      {t:18.28,e:0.09},{t:18.85,e:0.04},{t:19.34,e:0.01},{t:20.00,e:0.01},
+      {t:20.57,e:0.00},{t:21.03,e:0.00},{t:21.79,e:0.00},
+    ],
+  },
+};
+
+// Interpolate the normalized RMS energy at a given music timestamp.
+// Handles looping by wrapping t modulo the track's duration.
+// Returns 0.5 (medium) if the track has no map or is in its silent tail.
+function beatEnergyAt(key: string, musicT: number): number {
+  const map = BEAT_MAPS[key];
+  if (!map || map.beats.length === 0) return 0.5;
+  const dur = map.duration;
+  const t = ((musicT % dur) + dur) % dur;
+  const beats = map.beats;
+  // Linear interpolation between surrounding beat points
+  for (let i = 0; i < beats.length - 1; i++) {
+    if (beats[i].t <= t && beats[i + 1].t >= t) {
+      const lo = beats[i], hi = beats[i + 1];
+      if (hi.t === lo.t) return lo.e;
+      return lo.e + ((t - lo.t) / (hi.t - lo.t)) * (hi.e - lo.e);
+    }
+  }
+  return beats[beats.length - 1].e;
+}
+
 // Aim for a punchy ~16s reel; the fast beat cuts fill it by cycling the photos.
 const TARGET_TOTAL_SEC = 16;
 // No music => no beat to follow, so cut at this snappy fixed pace.
@@ -195,14 +273,13 @@ const AI_TARGET_TOTAL_SEC = 15;
 const AI_MIN_SLIDE_SEC = 1.6;
 const AI_MAX_SLIDE_SEC = 4.6;
 
-// Energy-aware beat plan for the AI path. Beat counts chosen so every duration
-// stays inside [AI_MIN=1.6s, AI_MAX=4.6s] with the new measured periods:
-//   calm      (0.75s):  short=3→2.25s  medium=4→3.00s  long=5→3.75s
-//   modern    (0.4724s):short=4→1.89s  medium=6→2.83s  long=9→4.25s
-//   uplifting (0.625s): short=3→1.88s  medium=5→3.13s  long=7→4.38s
-//   tension   (0.8696s):short=2→1.74s  medium=3→2.61s  long=5→4.35s
+// Beat counts per energy level — determines how many beats each clip holds.
+// Durations must land in [AI_MIN, AI_MAX] for all track periods:
+//   calm(0.75s):  short=3→2.25  medium=4→3.00  long=5→3.75
+//   modern(0.47s):short=4→1.89  medium=6→2.83  long=9→4.25
+//   uplifting(0.625s):short=3→1.88 medium=5→3.13 long=7→4.38
+//   tension(0.87s):short=2→1.74 medium=3→2.61  long=5→4.35
 type EnergyLevel = "short" | "medium" | "long";
-
 const ENERGY_BEATS: Record<string, Record<EnergyLevel, number>> = {
   calm:      { short: 3, medium: 4, long: 5 },
   modern:    { short: 4, medium: 6, long: 9 },
@@ -210,42 +287,14 @@ const ENERGY_BEATS: Record<string, Record<EnergyLevel, number>> = {
   tension:   { short: 2, medium: 3, long: 5 },
 };
 
-// Map normalised reel position (0=first clip, 1=last) to an energy level.
-const ENERGY_SEQUENCE: Record<string, (pos: number) => EnergyLevel> = {
-  // Calm: slow, contemplative — long breathes throughout, gentle dip mid-reel.
-  calm: (pos) => {
-    if (pos < 0.15) return "long";
-    if (pos < 0.42) return "medium";
-    if (pos < 0.62) return "long";
-    if (pos < 0.82) return "medium";
-    return "long";
-  },
-  // Modern: punchy editorial — hook/chorus hits hard, verses breathe.
-  modern: (pos) => {
-    if (pos < 0.10) return "medium";
-    if (pos < 0.32) return "short";
-    if (pos < 0.52) return "medium";
-    if (pos < 0.72) return "short";
-    return "medium";
-  },
-  // Uplifting: breath → build → peak → settle → close.
-  uplifting: (pos) => {
-    if (pos < 0.12) return "long";
-    if (pos < 0.32) return "medium";
-    if (pos < 0.58) return "short";
-    if (pos < 0.78) return "medium";
-    return "long";
-  },
-  // Tension: dark Nordic noir — opens heavy, builds in middle, closes heavy.
-  tension: (pos) => {
-    if (pos < 0.20) return "long";
-    if (pos < 0.45) return "medium";
-    if (pos < 0.65) return "short";
-    if (pos < 0.82) return "medium";
-    return "long";
-  },
-};
+// Energy thresholds: these control how the actual audio energy maps to cut speed.
+// High energy (loud beat) → cut sooner. Low energy (quiet) → hold longer.
+const ENERGY_HIGH = 0.72;
+const ENERGY_MED  = 0.45;
 
+// Compute per-clip durations driven by ACTUAL audio energy at each music position.
+// Each clip holds for N beats; N is determined by the music's loudness at that
+// exact moment — making every reel feel uniquely alive and dynamically edited.
 function energyPlanAI(
   musicKey: string | undefined,
   n: number,
@@ -253,25 +302,36 @@ function energyPlanAI(
   const key = !musicKey || musicKey === "none" ? null : musicKey;
   const grid = key ? BEAT_GRID[key] : undefined;
   const beatMap = key ? ENERGY_BEATS[key] : undefined;
-  const seq = key ? ENERGY_SEQUENCE[key] : undefined;
 
-  if (!grid || !beatMap || !seq) {
+  if (!grid || !beatMap) {
     const dur = +(Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n)).toFixed(3));
     return { durations: Array(n).fill(dur), musicSeek: 0 };
   }
 
-  const durations = Array.from({ length: n }, (_, i) => {
-    const pos = n > 1 ? i / (n - 1) : 0.5;
-    const level = seq(pos);
-    let beats = beatMap[level];
-    let dur = beats * grid.period;
-    while (dur > AI_MAX_SLIDE_SEC && beats > 1) { beats--; dur = beats * grid.period; }
-    while (dur < AI_MIN_SLIDE_SEC) { beats++; dur = beats * grid.period; }
-    return +dur.toFixed(4);
-  });
-
+  // Music seek: phase % period gives the offset into the track so beat 0 = reel t=0.
   let seek = grid.phase % grid.period;
   if (seek < 0) seek += grid.period;
+
+  // Walk forward through the reel, sampling audio energy at each clip's start.
+  let reelT = 0;
+  const durations: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const musicT = reelT + seek;
+    const energy = beatEnergyAt(key, musicT);
+
+    // Map energy → beat count
+    let beats = energy > ENERGY_HIGH ? beatMap.short
+              : energy > ENERGY_MED  ? beatMap.medium
+              :                        beatMap.long;
+
+    let dur = beats * grid.period;
+    // Clamp to AI clip limits
+    while (dur > AI_MAX_SLIDE_SEC && beats > 1) { beats--; dur = beats * grid.period; }
+    while (dur < AI_MIN_SLIDE_SEC)               { beats++; dur = beats * grid.period; }
+
+    durations.push(+dur.toFixed(4));
+    reelT += dur;
+  }
 
   const total = durations.reduce((a, b) => a + b, 0);
   console.log(`[showcase] energy plan (${key}, ${n} clips): [${durations.join(", ")}]s = ${total.toFixed(2)}s total`);
@@ -714,33 +774,37 @@ interface RenderInputs {
   tmpClips: string[];
 }
 
-// Position-aware variable durations for the LOCAL (still-image) path, reusing
-// the same ENERGY_BEATS / ENERGY_SEQUENCE tables as the AI path so both paths
-// share the same cinematic rhythm logic.
+// Variable durations for the LOCAL (still-image / Ken Burns fallback) path.
+// Uses the same beat-energy system as energyPlanAI — actual audio loudness
+// determines how long each slide holds, not just its position in the reel.
 function localEnergyPlan(musicKey: string | undefined, n: number): { durations: number[]; musicSeek: number } {
   const key = !musicKey || musicKey === "none" ? null : musicKey;
-  const grid  = key ? BEAT_GRID[key]      : undefined;
+  const grid    = key ? BEAT_GRID[key]    : undefined;
   const beatMap = key ? ENERGY_BEATS[key] : undefined;
-  const seq   = key ? ENERGY_SEQUENCE[key]: undefined;
 
-  if (!grid || !beatMap || !seq) {
+  if (!grid || !beatMap) {
     return { durations: Array(n).fill(SILENT_SLIDE_SEC), musicSeek: 0 };
   }
 
   const MIN_LOCAL = 0.5;
   const MAX_LOCAL = 4.0;
-  const durations = Array.from({ length: n }, (_, i) => {
-    const pos = n > 1 ? i / (n - 1) : 0.5;
-    const level = seq(pos);
-    let beats = beatMap[level];
-    let dur = beats * grid.period;
-    while (dur > MAX_LOCAL && beats > 1) { beats--; dur = beats * grid.period; }
-    while (dur < MIN_LOCAL)              { beats++; dur = beats * grid.period; }
-    return +dur.toFixed(4);
-  });
 
   let seek = grid.phase % grid.period;
   if (seek < 0) seek += grid.period;
+
+  let reelT = 0;
+  const durations: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const energy = beatEnergyAt(key, reelT + seek);
+    let beats = energy > ENERGY_HIGH ? beatMap.short
+              : energy > ENERGY_MED  ? beatMap.medium
+              :                        beatMap.long;
+    let dur = beats * grid.period;
+    while (dur > MAX_LOCAL && beats > 1) { beats--; dur = beats * grid.period; }
+    while (dur < MIN_LOCAL)              { beats++; dur = beats * grid.period; }
+    durations.push(+dur.toFixed(4));
+    reelT += dur;
+  }
 
   const total = durations.reduce((a, b) => a + b, 0);
   console.log(`[showcase] local energy plan (${key}, ${n} slides): [${durations.join(", ")}]s = ${total.toFixed(2)}s`);
