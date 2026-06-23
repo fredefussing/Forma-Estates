@@ -164,10 +164,24 @@ function resolveMusic(key?: string): string | null {
 //   calm:      80 BPM → 0.750s   modern: 127 BPM → 0.4724s
 //   uplifting: 96 BPM → 0.625s   tension: 69 BPM → 0.8696s
 const BEAT_GRID: Record<string, { period: number; phase: number }> = {
+  // ── Original 4 tracks (manually timed) ────────────────────────────────────
   calm:      { period: 0.7500, phase: 10.728 },
   modern:    { period: 0.4724, phase: 0.650  },
   uplifting: { period: 0.6250, phase: 1.602  },
   tension:   { period: 0.8696, phase: 0.000  },
+  // ── 6 Rendy-style tracks (periods derived from actual clip analysis) ───────
+  // every_day:  clips are 1.167s (×1), 2.4s (×2), 3.53s (×3) → period≈1.167s
+  every_day: { period: 1.1667, phase: 0.100  },
+  // old_days:   clip pairs (2.53+0.80=3.33s) → 4 beats → period≈0.833s
+  old_days:  { period: 0.8333, phase: 0.120  },
+  // on_my_way:  all clips ~1.167s → 1 beat each → period≈1.167s
+  on_my_way: { period: 1.1667, phase: 0.241  },
+  // open_air:   clips 1.3s (×1) and 2.6s (×2) → period≈1.300s
+  open_air:  { period: 1.3000, phase: 0.100  },
+  // renegade:   intro clips exactly 4.733s ≈ 8 beats → period≈0.601s (99.7 BPM)
+  renegade:  { period: 0.6014, phase: 0.090  },
+  // afterdusk:  clips ~1.03s throughout → 1 beat each → period≈1.032s
+  afterdusk: { period: 1.0323, phase: 0.060  },
 };
 
 // ── Pre-analyzed beat maps (from ffmpeg PCM onset-detection, June 2026) ──────
@@ -230,6 +244,79 @@ const BEAT_MAPS: Record<string, { duration: number; beats: BeatPoint[] }> = {
       {t:20.57,e:0.00},{t:21.03,e:0.00},{t:21.79,e:0.00},
     ],
   },
+  // ── 6 Rendy-style tracks (PCM onset-detection, June 2026) ─────────────────
+  every_day: {
+    duration: 38.68,
+    beats: [
+      {t:0.10,e:0.15},{t:0.74,e:0.05},{t:1.63,e:0.22},{t:2.48,e:0.29},
+      {t:3.72,e:0.18},{t:4.60,e:0.13},{t:5.14,e:0.06},{t:6.06,e:0.25},
+      {t:7.22,e:0.21},{t:7.85,e:0.26},{t:8.74,e:0.31},{t:9.61,e:0.85},
+      {t:10.53,e:0.46},{t:11.78,e:0.58},{t:12.45,e:0.94},{t:13.46,e:0.85},
+      {t:14.36,e:0.94},{t:14.94,e:0.35},{t:15.94,e:0.56},{t:16.78,e:0.83},
+      {t:17.92,e:0.46},{t:18.94,e:0.61},{t:19.56,e:0.84},{t:20.60,e:0.86},
+      {t:21.48,e:0.82},{t:22.08,e:0.51},{t:22.97,e:1.00},{t:23.87,e:0.81},
+      {t:24.76,e:0.43},{t:26.06,e:0.55},{t:26.76,e:0.95},{t:27.72,e:0.69},
+      {t:28.62,e:0.65},{t:29.51,e:0.39},{t:30.17,e:1.00},{t:31.00,e:0.85},
+      {t:32.33,e:0.64},{t:33.19,e:0.40},{t:33.82,e:0.69},{t:34.71,e:0.89},
+      {t:35.88,e:0.43},{t:36.64,e:0.24},{t:37.28,e:0.34},{t:38.19,e:0.10},
+    ],
+  },
+  old_days: {
+    duration: 26.62,
+    beats: [
+      {t:0.12,e:0.47},{t:1.83,e:0.90},{t:3.28,e:0.75},{t:5.07,e:1.00},
+      {t:6.58,e:0.81},{t:8.29,e:0.95},{t:9.75,e:0.80},{t:12.21,e:0.53},
+      {t:13.81,e:0.56},{t:14.90,e:0.54},{t:17.01,e:0.52},{t:18.61,e:0.58},
+      {t:20.21,e:0.49},{t:21.81,e:0.52},{t:23.40,e:0.38},{t:25.01,e:0.31},
+    ],
+  },
+  on_my_way: {
+    duration: 9.39,
+    beats: [
+      {t:0.24,e:1.00},{t:1.40,e:0.84},{t:2.74,e:0.95},{t:4.07,e:0.92},
+      {t:5.40,e:0.93},{t:6.74,e:0.75},{t:8.07,e:0.83},{t:9.02,e:0.11},
+    ],
+  },
+  open_air: {
+    duration: 22.95,
+    beats: [
+      {t:0.10,e:0.11},{t:1.39,e:0.18},{t:2.60,e:0.23},{t:3.84,e:0.24},
+      {t:4.74,e:0.32},{t:6.13,e:0.30},{t:7.34,e:0.35},{t:8.58,e:0.73},
+      {t:9.39,e:0.77},{t:10.98,e:0.50},{t:12.18,e:0.66},{t:13.38,e:0.73},
+      {t:14.20,e:0.93},{t:15.74,e:0.34},{t:16.98,e:0.68},{t:18.18,e:0.76},
+      {t:19.02,e:1.00},{t:20.58,e:0.56},{t:21.78,e:0.39},{t:22.68,e:0.01},
+    ],
+  },
+  renegade: {
+    duration: 37.85,
+    beats: [
+      {t:0.09,e:0.37},{t:0.51,e:0.58},{t:1.09,e:0.59},{t:1.66,e:0.45},
+      {t:2.42,e:0.42},{t:3.09,e:0.48},{t:3.48,e:0.53},{t:4.36,e:0.59},
+      {t:4.90,e:0.61},{t:5.28,e:0.56},{t:6.08,e:0.41},{t:6.52,e:0.58},
+      {t:7.11,e:0.54},{t:7.71,e:0.54},{t:8.31,e:0.64},{t:8.87,e:0.52},
+      {t:9.55,e:0.45},{t:10.23,e:0.27},{t:10.90,e:0.24},{t:11.50,e:0.14},
+      {t:11.94,e:0.14},{t:12.53,e:0.05},{t:13.15,e:0.03},{t:13.81,e:0.02},
+      {t:14.43,e:0.61},{t:15.18,e:0.77},{t:15.67,e:1.00},{t:16.17,e:0.63},
+      {t:16.85,e:0.93},{t:17.46,e:0.94},{t:18.01,e:0.75},{t:18.61,e:0.71},
+      {t:19.24,e:0.87},{t:19.85,e:0.83},{t:20.44,e:0.71},{t:21.05,e:0.93},
+      {t:21.63,e:0.59},{t:22.12,e:0.69},{t:22.84,e:0.73},{t:23.43,e:0.58},
+      {t:24.04,e:0.87},{t:24.66,e:0.94},{t:25.25,e:0.87},{t:25.85,e:0.88},
+      {t:26.46,e:0.93},{t:27.03,e:0.57},{t:27.65,e:0.91},{t:28.12,e:0.60},
+      {t:28.86,e:0.94},{t:29.45,e:0.83},{t:30.05,e:0.78},{t:30.65,e:0.85},
+      {t:31.26,e:0.92},{t:31.72,e:0.76},{t:32.35,e:0.54},{t:32.94,e:0.37},
+      {t:33.64,e:0.73},{t:34.25,e:0.74},{t:34.73,e:0.58},{t:35.36,e:0.50},
+      {t:36.03,e:0.27},{t:36.63,e:0.21},{t:37.24,e:0.13},
+    ],
+  },
+  afterdusk: {
+    duration: 15.45,
+    beats: [
+      {t:0.06,e:0.33},{t:0.95,e:0.46},{t:1.86,e:1.00},{t:3.25,e:0.61},
+      {t:4.32,e:0.49},{t:4.94,e:0.57},{t:5.97,e:0.53},{t:7.42,e:0.59},
+      {t:8.33,e:0.70},{t:9.39,e:0.58},{t:10.33,e:0.67},{t:11.11,e:0.61},
+      {t:12.14,e:0.36},{t:13.19,e:0.47},{t:14.32,e:0.66},
+    ],
+  },
 };
 
 // Interpolate the normalized RMS energy at a given music timestamp.
@@ -281,10 +368,44 @@ const AI_MAX_SLIDE_SEC = 4.6;
 //   tension(0.87s):short=2→1.74 medium=3→2.61  long=5→4.35
 type EnergyLevel = "short" | "medium" | "long";
 const ENERGY_BEATS: Record<string, Record<EnergyLevel, number>> = {
+  // Original 4 tracks — energy-based (section structure varies per energy level)
   calm:      { short: 3, medium: 4, long: 5 },
   modern:    { short: 4, medium: 6, long: 9 },
   uplifting: { short: 3, medium: 5, long: 7 },
   tension:   { short: 2, medium: 3, long: 5 },
+  // Rendy-style tracks — used as fallback only (section plan takes priority)
+  // period 1.1667s: short=2→2.33s, medium=3→3.50s, long=3→3.50s
+  every_day: { short: 2, medium: 3, long: 3 },
+  // period 0.8333s: short=2→1.67s, medium=3→2.50s, long=4→3.33s
+  old_days:  { short: 2, medium: 3, long: 4 },
+  // period 1.1667s: short=2→2.33s, medium=2→2.33s, long=3→3.50s
+  on_my_way: { short: 2, medium: 2, long: 3 },
+  // period 1.3000s: short=2→2.60s, medium=2→2.60s, long=3→3.90s
+  open_air:  { short: 2, medium: 2, long: 3 },
+  // period 0.6014s: short=3→1.80s, medium=5→3.01s, long=7→4.21s
+  renegade:  { short: 3, medium: 5, long: 7 },
+  // period 1.0323s: short=2→2.06s, medium=2→2.06s, long=3→3.10s
+  afterdusk: { short: 2, medium: 2, long: 3 },
+};
+
+// ── Section-based composition plans for Rendy-style tracks ────────────────────
+// Instead of pure energy-reactive cuts, these tracks use PREDETERMINED section
+// structures copied from reverse-engineering Rendy.io's editorial style.
+// The function receives (clipIndex, totalClips) and returns beats-per-clip.
+//
+//  renegade:   cinematic slow open (3 clips × 7 beats = 4.21s), then rapid drop
+//  old_days:   perfect heartbeat — alternating 3/2 beats (long-short-long-short)
+//  every_day:  medium open, broader mid, medium close  (2-3-2 beat arc)
+//  on_my_way:  fast and consistent throughout (all 2 beats)
+//  open_air:   short-short open, long airy mid, short close
+//  afterdusk:  dark and hypnotic, consistent 2-beat throughout
+const SECTION_PLANS: Record<string, (i: number, n: number) => number> = {
+  renegade:  (i, n) => i < Math.min(3, Math.ceil(n * 0.4)) ? 7 : 3,
+  old_days:  (i)    => i % 2 === 0 ? 3 : 2,
+  every_day: (i, n) => (i >= 2 && i <= n - 3) ? 3 : 2,
+  on_my_way: ()     => 2,
+  open_air:  (i, n) => (i >= 2 && i <= n - 3) ? 3 : 2,
+  afterdusk: ()     => 2,
 };
 
 // Energy thresholds: these control how the actual audio energy maps to cut speed.
@@ -301,9 +422,8 @@ function energyPlanAI(
 ): { durations: number[]; musicSeek: number } {
   const key = !musicKey || musicKey === "none" ? null : musicKey;
   const grid = key ? BEAT_GRID[key] : undefined;
-  const beatMap = key ? ENERGY_BEATS[key] : undefined;
 
-  if (!grid || !beatMap) {
+  if (!grid) {
     const dur = +(Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n)).toFixed(3));
     return { durations: Array(n).fill(dur), musicSeek: 0 };
   }
@@ -312,7 +432,33 @@ function energyPlanAI(
   let seek = grid.phase % grid.period;
   if (seek < 0) seek += grid.period;
 
+  // ── Section-based plan (Rendy-style tracks) ──────────────────────────────
+  // These tracks have a PREDETERMINED editorial structure (slow intro → fast drop,
+  // alternating heartbeat, etc.). We follow that structure exactly rather than
+  // reacting to per-beat energy — it's how professional editors actually work.
+  const sectionFn = SECTION_PLANS[key];
+  if (sectionFn) {
+    const durations = Array.from({ length: n }, (_, i) => {
+      let beats = sectionFn(i, n);
+      let dur = beats * grid.period;
+      // Hard-clamp to AI limits without losing the beat rhythm
+      while (dur > AI_MAX_SLIDE_SEC && beats > 1) { beats--; dur = beats * grid.period; }
+      while (dur < AI_MIN_SLIDE_SEC)               { beats++; dur = beats * grid.period; }
+      return +dur.toFixed(4);
+    });
+    const total = durations.reduce((a, b) => a + b, 0);
+    console.log(`[showcase] section plan (${key}, ${n} clips): [${durations.join(", ")}]s = ${total.toFixed(2)}s total`);
+    return { durations, musicSeek: +seek.toFixed(3) };
+  }
+
+  // ── Energy-reactive plan (original 4 tracks) ──────────────────────────────
   // Walk forward through the reel, sampling audio energy at each clip's start.
+  const beatMap = ENERGY_BEATS[key];
+  if (!beatMap) {
+    const dur = +(Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n)).toFixed(3));
+    return { durations: Array(n).fill(dur), musicSeek: +seek.toFixed(3) };
+  }
+
   let reelT = 0;
   const durations: number[] = [];
   for (let i = 0; i < n; i++) {
@@ -790,10 +936,9 @@ interface RenderInputs {
 // determines how long each slide holds, not just its position in the reel.
 function localEnergyPlan(musicKey: string | undefined, n: number): { durations: number[]; musicSeek: number } {
   const key = !musicKey || musicKey === "none" ? null : musicKey;
-  const grid    = key ? BEAT_GRID[key]    : undefined;
-  const beatMap = key ? ENERGY_BEATS[key] : undefined;
+  const grid = key ? BEAT_GRID[key] : undefined;
 
-  if (!grid || !beatMap) {
+  if (!grid) {
     return { durations: Array(n).fill(SILENT_SLIDE_SEC), musicSeek: 0 };
   }
 
@@ -802,6 +947,27 @@ function localEnergyPlan(musicKey: string | undefined, n: number): { durations: 
 
   let seek = grid.phase % grid.period;
   if (seek < 0) seek += grid.period;
+
+  // Section-based plan (same logic as AI path — Ken Burns clips follow same arc)
+  const sectionFn = SECTION_PLANS[key];
+  if (sectionFn) {
+    const durations = Array.from({ length: n }, (_, i) => {
+      let beats = sectionFn(i, n);
+      let dur = beats * grid.period;
+      while (dur > MAX_LOCAL && beats > 1) { beats--; dur = beats * grid.period; }
+      while (dur < MIN_LOCAL)              { beats++; dur = beats * grid.period; }
+      return +dur.toFixed(4);
+    });
+    const total = durations.reduce((a, b) => a + b, 0);
+    console.log(`[showcase] local section plan (${key}, ${n} slides): [${durations.join(", ")}]s = ${total.toFixed(2)}s`);
+    return { durations, musicSeek: +seek.toFixed(3) };
+  }
+
+  // Energy-reactive plan (original 4 tracks)
+  const beatMap = ENERGY_BEATS[key];
+  if (!beatMap) {
+    return { durations: Array(n).fill(SILENT_SLIDE_SEC), musicSeek: +seek.toFixed(3) };
+  }
 
   let reelT = 0;
   const durations: number[] = [];

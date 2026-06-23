@@ -3139,8 +3139,16 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [address, setAddress] = useState("");
-  const MOOD_LABELS: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
-  const ALL_MOODS = ["calm", "uplifting", "modern", "tension"] as const;
+  const MOOD_LABELS: Record<string, string> = {
+    calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt",
+    every_day: "Every Day", old_days: "Old Days", on_my_way: "On My Way",
+    open_air: "Open Air", renegade: "Renegade", afterdusk: "Afterdusk",
+  };
+  const ALL_MOODS = [
+    "calm", "uplifting", "modern", "tension",
+    "every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk",
+  ] as const;
+  type MoodKey = typeof ALL_MOODS[number];
   const [videoUrls, setVideoUrls] = useState<Record<string, string> | null>(null);
   const [cleanVideoUrls, setCleanVideoUrls] = useState<Record<string, string> | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -3148,7 +3156,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [selectedMood, setSelectedMood] = useState<"calm" | "uplifting" | "modern" | "tension">("uplifting");
+  const [selectedMood, setSelectedMood] = useState<MoodKey>("uplifting");
   const [droneEnabled, setDroneEnabled] = useState(false);
   const [startText, setStartText] = useState("");
   const [endText, setEndText] = useState("");
@@ -3545,20 +3553,19 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
         {/* Mood selector */}
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Vælg stemning</span>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Vælg musik</span>
+          {/* Original 4 tracks */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
             {(["calm", "uplifting", "modern", "tension"] as const).map((m) => {
               const meta: Record<string, { color: string; desc: string }> = {
-                calm:     { color: "#6B8F71", desc: "Stille, afdæmpet musik" },
+                calm:     { color: "#6B8F71", desc: "Stille, afdæmpet" },
                 uplifting:{ color: "#C8956C", desc: "Lys, positiv energi" },
                 modern:   { color: "#3B5A8A", desc: "Dynamisk, rytmisk" },
                 tension:  { color: "#2C2C2C", desc: "Dramatisk, cinematic" },
               };
               const active = selectedMood === m;
               return (
-                <button
-                  key={m}
-                  type="button"
+                <button key={m} type="button"
                   onClick={() => { if (!isGenerating) { setSelectedMood(m); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
                   disabled={isGenerating}
                   className="flex flex-col items-start gap-1.5 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
@@ -3566,6 +3573,36 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   data-testid={`button-mood-${m}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: meta[m].color }} />
+                  <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
+                  <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
+                </button>
+              );
+            })}
+          </div>
+          {/* 6 Rendy-style tracks */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {(["every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"] as const).map((m) => {
+              const meta: Record<string, { color: string; desc: string; tempo: string }> = {
+                every_day: { color: "#A8916B", desc: "Rolig midtempo", tempo: "51 BPM" },
+                old_days:  { color: "#7C9E8B", desc: "Hjerteslag-rytme", tempo: "72 BPM" },
+                on_my_way: { color: "#C8956C", desc: "Fast & energisk", tempo: "51 BPM" },
+                open_air:  { color: "#6B8BAF", desc: "Luftig & åben", tempo: "46 BPM" },
+                renegade:  { color: "#1A1A2E", desc: "Slow intro → drop", tempo: "100 BPM" },
+                afterdusk: { color: "#4A3F6B", desc: "Mørk & hypnotisk", tempo: "58 BPM" },
+              };
+              const active = selectedMood === m;
+              return (
+                <button key={m} type="button"
+                  onClick={() => { if (!isGenerating) { setSelectedMood(m); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
+                  disabled={isGenerating}
+                  className="flex flex-col items-start gap-1.5 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
+                  style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
+                  data-testid={`button-mood-${m}`}
+                >
+                  <div className="flex items-center gap-1.5 w-full">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: meta[m].color }} />
+                    <span className="text-[10px] font-mono ml-auto" style={{ color: "#9B9690" }}>{meta[m].tempo}</span>
+                  </div>
                   <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
                   <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
                 </button>
