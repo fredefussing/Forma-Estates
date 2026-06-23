@@ -1385,9 +1385,15 @@ async function render(
   cutStyle?: CutStyle,
   moods?: string[],
 ): Promise<void> {
+  // If the slot isn't free yet, tell the client we're queued so they don't
+  // think it's frozen. acquireSlot resolves as soon as a slot opens up.
+  if (activeRenders >= MAX_CONCURRENT) {
+    setProgress(jobId, { stage: "uploading", currentClip: 0, totalClips: imagePaths.length, message: "Venter på ledig plads… (1-2 job kører allerede)" });
+  }
   await acquireSlot();
   try {
     const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
+    emit({ stage: "uploading", currentClip: 0, totalClips: imagePaths.length, message: `Uploader ${imagePaths.length} billeder…` });
 
     // Drone mode: activated when the caller supplies startText or endText.
     // Image[0] and image[1] are paired as Kling start+end-frame → ONE transition
@@ -1649,7 +1655,7 @@ export function startShowcaseVideo(
   jobs.set(jobId, {
     status: "processing",
     createdAt: Date.now(),
-    progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
+    progress: { stage: "uploading", currentClip: 0, totalClips, message: "Klargjør job…" },
   });
 
   render(jobId, imagePaths, outDir, address, startText, endText, mood, cutStyle, moods)
