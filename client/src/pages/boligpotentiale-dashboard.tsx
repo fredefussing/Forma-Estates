@@ -2772,8 +2772,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || "Indsendelse mislykkedes");
       const jobId = data.job_id as string;
       await new Promise<void>((resolve, reject) => {
-        const TIMEOUT_MS = 15 * 60 * 1000;
-        const MAX_RETRIES = 8;
+        const TIMEOUT_MS = 60 * 60 * 1000;
+        const MAX_RETRIES = 12;
         let retries = 0; let settled = false; let deadlineTimer: ReturnType<typeof setTimeout>;
         const resetDeadline = () => {
           clearTimeout(deadlineTimer);
@@ -3234,8 +3234,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       const jobId = data.job_id as string;
 
       await new Promise<void>((resolve, reject) => {
-        const TIMEOUT_MS = 12 * 60 * 1000;
-        const MAX_RETRIES = 8;
+        const TIMEOUT_MS = 60 * 60 * 1000;
+        const MAX_RETRIES = 12;
         let retries = 0;
         let settled = false;
         let deadlineTimer: ReturnType<typeof setTimeout>;

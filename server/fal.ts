@@ -571,7 +571,7 @@ export async function generateWalkthroughClip(
       },
     }),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Walkthrough clip timeout (3 min)")), 180_000),
+      setTimeout(() => reject(new Error("Walkthrough clip timeout (10 min)")), 600_000),
     ),
   ]);
   const videoUrl = (result.data as any).video?.url;
@@ -597,7 +597,7 @@ export async function generateShowcaseClip(
       },
     }),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Clip generation timeout (3 min)")), 180_000),
+      setTimeout(() => reject(new Error("Clip generation timeout (10 min)")), 600_000),
     ),
   ]);
   const videoUrl = (result.data as any).video?.url;
@@ -629,7 +629,7 @@ export async function generateDroneClip(
       } as any,
     }),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Drone clip timeout (3 min)")), 180_000),
+      setTimeout(() => reject(new Error("Drone clip timeout (10 min)")), 600_000),
     ),
   ]);
   const videoUrl = (result.data as any).video?.url;

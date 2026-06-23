@@ -2680,6 +2680,7 @@ export async function registerRoutes(
     const send = (data: object) => {
       try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
     };
+    const ping = () => { try { res.write(":\n\n"); } catch {} };
 
     const job = getShowcaseJob(jobId);
     if (!job) {
@@ -2697,17 +2698,21 @@ export async function registerRoutes(
 
     const iv = setInterval(() => {
       const j = getShowcaseJob(jobId);
-      if (!j) { clearInterval(iv); try { res.end(); } catch {} return; }
+      if (!j) { clearInterval(iv); clearInterval(hb); try { res.end(); } catch {} return; }
       send(j.progress);
       if (j.status === "completed" || j.status === "failed") {
         if (j.status === "failed") refundShowcaseVideo(jobId);
         else showcaseVideoRefunds.delete(jobId);
         clearInterval(iv);
+        clearInterval(hb);
         try { res.end(); } catch {}
       }
     }, 1500);
 
-    req.on("close", () => clearInterval(iv));
+    // Keepalive heartbeat — prevents proxy/nginx from closing idle SSE connections
+    const hb = setInterval(ping, 20_000);
+
+    req.on("close", () => { clearInterval(iv); clearInterval(hb); });
   });
 
   app.get("/api/bolig/showcase-video/status/:jobId", async (req, res) => {
@@ -2775,6 +2780,7 @@ export async function registerRoutes(
     const send = (data: object) => {
       try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
     };
+    const ping = () => { try { res.write(":\n\n"); } catch {} };
 
     const job = getShowcaseJob(jobId);
     if (!job) {
@@ -2792,17 +2798,21 @@ export async function registerRoutes(
 
     const iv = setInterval(() => {
       const j = getShowcaseJob(jobId);
-      if (!j) { clearInterval(iv); try { res.end(); } catch {} return; }
+      if (!j) { clearInterval(iv); clearInterval(hb); try { res.end(); } catch {} return; }
       send(j.progress);
       if (j.status === "completed" || j.status === "failed") {
         if (j.status === "failed") refundWalkthroughVideo(jobId);
         else walkthroughVideoRefunds.delete(jobId);
         clearInterval(iv);
+        clearInterval(hb);
         try { res.end(); } catch {}
       }
     }, 1500);
 
-    req.on("close", () => clearInterval(iv));
+    // Keepalive heartbeat — prevents proxy/nginx from closing idle SSE connections
+    const hb = setInterval(ping, 20_000);
+
+    req.on("close", () => { clearInterval(iv); clearInterval(hb); });
   });
 
   app.get("/api/bolig/walkthrough-video/status/:jobId", (req, res) => {
