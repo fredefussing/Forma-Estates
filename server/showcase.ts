@@ -1415,7 +1415,9 @@ async function render(
     const cleanVideoUrls: Record<string, string> = {};
 
     // Assemble only the requested mood(s). Priority: explicit moods[] > single mood > all 4 originals.
-    // FFmpeg is CPU-bound so sequential avoids overloading the box; each pass is ~5-20s.
+    // For each mood, the 9:16 (postklar) and landscape (original) FFmpeg passes are independent
+    // reads on the same clip files, so they run in parallel. Moods themselves are batched 2 at a
+    // time — 4 concurrent FFmpeg processes max — to avoid saturating the CPU on a single job.
     const VALID_MOOD_SET = new Set(ALL_MOODS as readonly string[]);
     const moodsToRender: string[] = moods && moods.length > 0
       ? moods.filter(m => VALID_MOOD_SET.has(m))
@@ -1423,25 +1425,28 @@ async function render(
         ? [mood]
         : ["calm", "uplifting", "modern", "tension"];
 
-    for (const m of moodsToRender) {
+    const MOOD_CONCURRENCY = moodsToRender.length > 1 ? 2 : 1;
+    await mapLimit(moodsToRender, MOOD_CONCURRENCY, async (m) => {
       emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[m]}…` });
       let inputs: RenderInputs;
-      if (clipData) {
-        inputs = makeRenderInputsAI(clipData, m, cutStyle);
-      } else {
-        inputs = await buildLocalInputs(imagePaths, m, cutStyle);
-      }
-      videoUrls[m] = await assembleVideo(inputs, outDir, address, m, startText, endText);
-
-      // "Original" variant — landscape 1920×1080, same music/text, crop-to-fill.
       let cleanInputs: RenderInputs;
       if (clipData) {
+        inputs = makeRenderInputsAI(clipData, m, cutStyle);
         cleanInputs = makeRenderInputsAICleanLandscape(clipData, m, cutStyle);
       } else {
-        cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, m, cutStyle);
+        [inputs, cleanInputs] = await Promise.all([
+          buildLocalInputs(imagePaths, m, cutStyle),
+          buildLocalInputsCleanLandscape(imagePaths, m, cutStyle),
+        ]);
       }
-      cleanVideoUrls[m] = await assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText);
-    }
+      // Both variants for this mood run concurrently — they read the same clips independently.
+      const [main, clean] = await Promise.all([
+        assembleVideo(inputs, outDir, address, m, startText, endText),
+        assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText),
+      ]);
+      videoUrls[m] = main;
+      cleanVideoUrls[m] = clean;
+    });
 
     // Clean up downloaded AI clips — every assembled variant is now done.
     if (clipData) {
