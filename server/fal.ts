@@ -513,24 +513,28 @@ export async function getAnimationVideoStatus(
   }
 }
 
-// ===== 3. BOLIG SHOWCASE-KLIP (Seedance 2.0 image-to-video) =====
-// Prompt 1: Social Media Reels — korte, catchy cinematic klips til Instagram
-// Reels / TikTok (9:16 vertical). Hver ejendomsfoto → ét AI-klip med ÉN
-// ægte kamerabevægelse (orbit, dolly-in, dolly-out, pan). Klippene klippes
-// bagefter til musikkens beat i showcase.ts.
-const SHOWCASE_ENDPOINT = "bytedance/seedance-2.0/image-to-video";
-const SHOWCASE_COST_PER_CLIP_USD = 1.52; // Seedance 2.0 Standard, ~5-sec clip (est.)
+// ===== 3. BOLIG SHOWCASE-KLIP (Kling v1.6 Pro image-to-video) =====
+// Hvert ejendomsfoto → ét AI-klip med ÉN ægte kamerabevægelse (orbit, dolly,
+// pan, tilt). Klippene klippes bagefter til musikkens beat i showcase.ts.
+// Kling v1.6 Pro leverer den bedste balance af qualitet og hastighed til
+// property showcase — genuine gimbal moves, depth, parallax.
+const SHOWCASE_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
+const SHOWCASE_COST_PER_CLIP_USD = 0.28; // Kling v1.6 Pro, ~5-sec clip
 
-// Prompt 1 visual suffix — gælder for alle klip.
+// Visual quality suffix — gælder for alle showcase-klip.
+// Fokuserer på nordisk ejendomsæstetik: lyst, varmt, cinematisk.
 const SHOWCASE_VISUAL_SUFFIX =
-  " Photorealistic quality, indistinguishable from real camera footage. Natural daylight streaming through windows with soft volumetric light rays. Realistic shadows and ambient occlusion. Sharp architectural details: wood grain texture on floors, fabric weave on furniture, marble veining, tile reflections. Slight lens breathing and natural distortion at frame edges (subtle 24mm lens character). Shallow depth of field where foreground elements softly blur. Natural color grading: warm highlights, slightly cool shadows, high-end real estate aesthetic. Modern, aspirational, cozy-luxury atmosphere. Bright and inviting with golden-hour warmth. Vertical 9:16 format, 24fps cinematic motion.";
+  " Indistinguishable from professional real estate footage shot on a Sony A7S III with a cinema gimbal. Natural Scandinavian daylight through large windows — bright, clean, airy. Warm white walls, oak wood flooring, soft textile furniture. Subtle lens breathing at 24mm focal length. Photorealistic materials: visible wood grain on floors and furniture, soft fabric weave on sofas and cushions, crisp glass reflections. Natural shadows with soft penumbra. Nordic interior — cozy-luxury, aspirational yet livable. Vertical 9:16, 24fps cinematic motion, no jump cuts.";
 
-// Cykles pr. klip (i % 4): 4 kamerabevægelser fra Prompt 1.
+// 6 kamerabevægelser der cykler pr. klip (i % 6).
+// Valgt for at maksimere variation og dynamik i det færdige reel.
 const SHOWCASE_MOVE_PROMPTS = [
-  "Slow orbit right: camera smoothly arcs around the right side of the room at waist height, revealing spatial depth and furniture details. Hard cut on the beat, 2 to 3.5 seconds long.",
-  "Cinematic dolly in: slow, steady push forward into the room with subtle handheld micro-shake for realism. Hard cut on the beat, 2 to 3.5 seconds long.",
-  "Gentle dolly out: slowly pulling back to reveal more of the space. Hard cut on the beat, 2 to 3.5 seconds long.",
-  "Slow pan left-to-right: smooth horizontal sweep capturing the full width of the room. Hard cut on the beat, 2 to 3.5 seconds long.",
+  "Slow cinematic dolly-in: camera glides steadily forward into the room from the doorway, revealing depth and interior details. Smooth gimbal motion, no shake.",
+  "Gentle orbit right: camera arcs smoothly around the right side of the space at waist height, keeping the room centered, revealing furniture placement and spatial volume.",
+  "Slow pull-back reveal: camera starts tight on a key detail (lamp, plant, artwork) then slowly pulls back and rises to reveal the full room. Cinematic reveal shot.",
+  "Smooth pan left-to-right: camera sweeps horizontally across the full width of the room, capturing materials, natural light from windows, and architectural details.",
+  "Rising crane shot: camera starts low near the floor and slowly rises while moving forward, dramatic architectural reveal of the room's height and ceiling.",
+  "Cinematic dolly-out: camera pulls back slowly from a close-up composition to reveal the entire space, ending with a wide establishing shot of the room.",
 ];
 
 export function showcaseMovePrompt(i: number): string {
@@ -554,8 +558,7 @@ export function walkthroughMovePrompt(i: number): string {
   return WALKTHROUGH_MOVE_PROMPTS[i % WALKTHROUGH_MOVE_PROMPTS.length] + WALKTHROUGH_VISUAL_SUFFIX;
 }
 
-// Generér ét walkthrough-klip fra ét billede (Seedance 2.0) — professionel
-// ejendomsmæglervideo-æstetik (Prompt 2 visual style).
+// Generér ét walkthrough-klip fra ét billede (Kling v1.6 Pro).
 export async function generateWalkthroughClip(
   imageUrl: string,
   moveIndex: number,
@@ -567,7 +570,6 @@ export async function generateWalkthroughClip(
         image_url: imageUrl,
         aspect_ratio: "9:16" as const,
         duration: "5" as const,
-        generate_audio: false,
       },
     }),
     new Promise<never>((_, reject) =>
@@ -576,11 +578,11 @@ export async function generateWalkthroughClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No walkthrough clip generated");
-  console.log(`[Walkthrough] clip ${moveIndex} done (Seedance 2.0 Standard)`);
+  console.log(`[Walkthrough] clip ${moveIndex} done (Kling v1.6 Pro)`);
   return { videoUrl };
 }
 
-// Generér ét showcase-klip fra ét billede (Seedance 2.0).
+// Generér ét showcase-klip fra ét billede (Kling v1.6 Pro).
 // fal.subscribe poller selv til klippet er færdigt (~1-3 min).
 export async function generateShowcaseClip(
   imageUrl: string,
@@ -593,7 +595,6 @@ export async function generateShowcaseClip(
         image_url: imageUrl,
         aspect_ratio: "9:16" as const,
         duration: "5" as const,
-        generate_audio: false,
       },
     }),
     new Promise<never>((_, reject) =>
@@ -602,23 +603,25 @@ export async function generateShowcaseClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No showcase clip generated");
-  console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Seedance 2.0 Standard)`);
+  console.log(`[Showcase] clip ${moveIndex} done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Kling v1.6 Pro)`);
   return { videoUrl };
 }
 
-// Drone intro / outro clip — cinematic transition fra ét billede til et andet.
-// Seedance 2.0 start-frame + end-frame mode (image_url + end_image_url).
+// Drone intro/outro clip — Seedance 2.0 two-frame interpolation (start → end).
+// Bruges kun når startText/endText er angivet (droneMode). Seedance 2.0
+// bevarer here fordi den understøtter end_image_url start→slut interpolation
+// bedre end Kling v1.6 (som bruger tail_image_url og er mere uforudsigelig).
+const DRONE_ENDPOINT = "bytedance/seedance-2.0/image-to-video";
 const DRONE_TRANSITION_PROMPT =
-  "Single continuous uninterrupted drone flythrough, camera moves forward the entire time without stopping, drone starts at the first scene and smoothly flies all the way forward until it arrives at the second scene, seamless one-shot motion, no cuts no transitions no dissolves, the drone keeps flying forward the whole clip, smooth forward momentum from start to finish, cinematic real-estate drone shot, golden hour warm light, photorealistic 4K.";
+  "Single continuous uninterrupted cinematic camera move. Camera starts at the first scene and smoothly glides forward, revealing the second scene seamlessly. No cuts, no transitions, no dissolves — one continuous shot from start to finish. Premium real estate cinematography, smooth gimbal movement, warm natural light, photorealistic 4K quality.";
 
 // Generate ONE transition clip using Seedance 2.0 start-frame + end-frame.
-// The result is a smooth cinematic move FROM startImageUrl TO endImageUrl.
 export async function generateDroneClip(
   startImageUrl: string,
   endImageUrl: string,
 ): Promise<{ videoUrl: string }> {
   const result = await Promise.race([
-    fal.subscribe(SHOWCASE_ENDPOINT, {
+    fal.subscribe(DRONE_ENDPOINT, {
       input: {
         prompt: DRONE_TRANSITION_PROMPT,
         image_url: startImageUrl,
@@ -634,7 +637,7 @@ export async function generateDroneClip(
   ]);
   const videoUrl = (result.data as any).video?.url;
   if (!videoUrl) throw new Error("No drone clip generated");
-  console.log(`[Showcase] drone clip done — cost ~$${SHOWCASE_COST_PER_CLIP_USD.toFixed(2)} (Seedance 2.0 Standard)`);
+  console.log(`[Showcase] drone clip done (Seedance 2.0)`);
   return { videoUrl };
 }
 

@@ -1140,12 +1140,13 @@ async function render(
     // clip. Images[2+] use the normal interior gimbal prompts.
     const droneMode = !!(startText || endText) && imagePaths.length >= 2;
 
-    // LOCAL-FIRST: For regular showcase reels, always use the free Ken Burns FFmpeg
-    // path — it renders in seconds, costs $0, and closely matches Rendy.io quality.
-    // AI generation is only activated in droneMode (explicit start/end text supplied)
-    // where the AI transition clip genuinely adds value the Ken Burns path can't match.
+    // AI-FIRST: Use Kling image-to-video for every showcase reel when FAL_KEY is
+    // available — each photo becomes a real 5-second cinematic camera-move clip.
+    // Ken Burns FFmpeg is the FALLBACK only when every AI clip fails or FAL_KEY
+    // is missing. Quality difference is significant: AI gives genuine gimbal moves,
+    // proper depth and parallax; Ken Burns is flat zoom.
     let clipData: AIClipData | null = null;
-    if (droneMode && isFalConfigured()) {
+    if (isFalConfigured()) {
       try {
         clipData = await buildAIClips(imagePaths, outDir, droneMode, emit);
       } catch (e: any) {
