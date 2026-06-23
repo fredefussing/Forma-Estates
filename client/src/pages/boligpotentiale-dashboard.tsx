@@ -3549,11 +3549,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Vælg stemning</span>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {(["calm", "uplifting", "modern", "tension"] as const).map((m) => {
-              const meta: Record<string, { emoji: string; desc: string }> = {
-                calm:     { emoji: "🌿", desc: "Stille, rolig stemning" },
-                uplifting:{ emoji: "☀️", desc: "Glad, positiv energi" },
-                modern:   { emoji: "⚡", desc: "Moderne, dynamisk rytme" },
-                tension:  { emoji: "🎬", desc: "Dramatisk, cinematic" },
+              const meta: Record<string, { color: string; desc: string }> = {
+                calm:     { color: "#6B8F71", desc: "Stille, afdæmpet musik" },
+                uplifting:{ color: "#C8956C", desc: "Lys, positiv energi" },
+                modern:   { color: "#3B5A8A", desc: "Dynamisk, rytmisk" },
+                tension:  { color: "#2C2C2C", desc: "Dramatisk, cinematic" },
               };
               const active = selectedMood === m;
               return (
@@ -3562,13 +3562,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   type="button"
                   onClick={() => { if (!isGenerating) { setSelectedMood(m); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
                   disabled={isGenerating}
-                  className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border transition-all disabled:opacity-50 text-center"
+                  className="flex flex-col items-start gap-1.5 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
                   style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
                   data-testid={`button-mood-${m}`}
                 >
-                  <span className="text-xl leading-none">{meta[m].emoji}</span>
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: meta[m].color }} />
                   <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
-                  <span className="text-[10px]" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
+                  <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
                 </button>
               );
             })}
