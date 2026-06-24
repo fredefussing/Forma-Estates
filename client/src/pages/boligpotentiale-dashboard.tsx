@@ -3127,11 +3127,30 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   );
 }
 
-// ── Bolig Showcase Video Flow (FFmpeg Ken Burns reel — no AI, no audio) ──────
+// ── Bolig Showcase Video Flow (powered by Rendy.io) ───────────────────────────
 interface ShowcaseImg {
   id: string;
   file: File;
   url: string;
+  presetKey: string;
+}
+
+interface RendyPreset {
+  key: string;
+  name: string | null;
+  description: string | null;
+  sampleVideoUrl: string | null;
+  iconUrl: string | null;
+  order: number;
+}
+
+interface RendyVideo {
+  id: string;
+  url: string | null;
+  templateId: string;
+  status: "rendering" | "success" | "error" | null;
+  progress: number;
+  clips: string[];
 }
 
 function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
@@ -3139,67 +3158,46 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [address, setAddress] = useState("");
-  const MOOD_LABELS: Record<string, string> = {
-    calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt",
-    every_day: "Every Day", old_days: "Old Days", on_my_way: "On My Way",
-    open_air: "Open Air", renegade: "Renegade", afterdusk: "Afterdusk",
-  };
-  const ALL_MOODS = [
-    "calm", "uplifting", "modern", "tension",
-    "every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk",
-  ] as const;
-  type MoodKey = typeof ALL_MOODS[number];
-  const [videoUrls, setVideoUrls] = useState<Record<string, string> | null>(null);
-  const [cleanVideoUrls, setCleanVideoUrls] = useState<Record<string, string> | null>(null);
+  const [ratio, setRatio] = useState<"portrait" | "landscape">("portrait");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progressPct, setProgressPct] = useState(0);
   const [progressMsg, setProgressMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [selectedMood, setSelectedMood] = useState<MoodKey>("uplifting");
-  const [droneEnabled, setDroneEnabled] = useState(false);
-  const [startText, setStartText] = useState("");
-  const [endText, setEndText] = useState("");
-  const [cutStyle, setCutStyle] = useState<"clean" | "cinematic">("cinematic");
-  const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
-  const [showCaseDropdown, setShowCaseDropdown] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [resultVideos, setResultVideos] = useState<RendyVideo[]>([]);
+  const [listingId, setListingId] = useState<string | null>(null);
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
-  const activeCases = cases.filter((c) => c.status !== "sold");
 
-  const hasUnsaved = videoUrls !== null && !!videoUrls[selectedMood] && saveCaseId === null;
-  useUnsavedExitGuard(hasUnsaved);
-
-  useEffect(() => {
-    if (!showCaseDropdown) return;
-    const onDown = (e: globalThis.MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowCaseDropdown(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [showCaseDropdown]);
+  const { data: presetsData } = useQuery<{ success: boolean; presets: RendyPreset[] }>({
+    queryKey: ["/api/bolig/rendy/presets"],
+  });
+  const presets = presetsData?.presets ?? [];
 
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (arr.length === 0) { setError("Vælg venligst billedfiler"); return; }
     setError(null);
-    setVideoUrls(null);
-    setCleanVideoUrls(null);
-    setSaveCaseId(null);
+    setResultVideos([]);
+    setListingId(null);
+    setExportUrl(null);
     const next = arr.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       file,
       url: URL.createObjectURL(file),
+      presetKey: "DEFAULT",
     }));
-    setImages((prev) => [...prev, ...next].slice(0, 30));
+    setImages((prev) => [...prev, ...next].slice(0, 20));
   };
 
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((i) => i.id !== id));
-    setVideoUrls(null);
-    setCleanVideoUrls(null);
-    setSaveCaseId(null);
+    setResultVideos([]);
+    setListingId(null);
   };
 
   const moveImage = (from: number, to: number) => {
@@ -3210,35 +3208,31 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       copy.splice(to, 0, moved);
       return copy;
     });
-    setVideoUrls(null);
-    setCleanVideoUrls(null);
-    setSaveCaseId(null);
   };
 
-  const RENDY_MOODS_LIST = ["every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"] as const;
-  const RENDY_MOOD_LABELS: Record<string, string> = {
-    every_day: "Every Day", old_days: "Old Days", on_my_way: "On My Way",
-    open_air: "Open Air", renegade: "Renegade", afterdusk: "Afterdusk",
+  const setPresetForImage = (id: string, key: string) => {
+    setImages((prev) => prev.map((img) => img.id === id ? { ...img, presetKey: key } : img));
   };
 
-  const runShowcase = async (extraFields: Record<string, string>, fetchUrl: string) => {
+  const handleGenerate = async () => {
+    if (images.length < 1) { setError("Upload mindst 1 billede"); return; }
     setIsGenerating(true);
     setError(null);
-    setVideoUrls(null);
-    setCleanVideoUrls(null);
-    setSaveCaseId(null);
-    setProgressMsg("Forbereder…");
+    setResultVideos([]);
+    setListingId(null);
+    setExportUrl(null);
+    setExportJobId(null);
+    setProgressPct(0);
+    setProgressMsg("Forbereder upload…");
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
       images.forEach((img) => fd.append("images", img.file));
-      if (address.trim()) fd.append("address", address.trim());
-      if (droneEnabled && startText.trim()) fd.append("startText", startText.trim());
-      if (droneEnabled && endText.trim()) fd.append("endText", endText.trim());
-      fd.append("cutStyle", cutStyle);
-      for (const [k, v] of Object.entries(extraFields)) fd.append(k, v);
-      const res = await fetch(fetchUrl, {
+      fd.append("address", address.trim());
+      fd.append("ratio", ratio);
+      fd.append("presetKeys", JSON.stringify(images.map((img) => img.presetKey || "DEFAULT")));
+      const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
         body: fd,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -3247,67 +3241,53 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
       const data = await res.json();
       if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || "Indsendelse mislykkedes");
-
       const jobId = data.job_id as string;
 
       await new Promise<void>((resolve, reject) => {
-        const TIMEOUT_MS = 60 * 60 * 1000;
+        const TIMEOUT_MS = 45 * 60 * 1000;
         const MAX_RETRIES = 12;
         let retries = 0;
         let settled = false;
         let deadlineTimer: ReturnType<typeof setTimeout>;
-
         const resetDeadline = () => {
           clearTimeout(deadlineTimer);
           deadlineTimer = setTimeout(() => {
-            esRef.current?.close();
-            esRef.current = null;
+            esRef.current?.close(); esRef.current = null;
             if (!settled) { settled = true; reject(new Error("Generering tog for lang tid. Prøv igen.")); }
           }, TIMEOUT_MS);
         };
-
         const connect = () => {
           const es = new EventSource(`/api/bolig/showcase-video/progress/${jobId}`);
           esRef.current = es;
-
           es.onmessage = (e) => {
             retries = 0;
             try {
-              const p = JSON.parse(e.data) as { stage: string; message?: string; videoUrls?: Record<string, string>; cleanVideoUrls?: Record<string, string> };
+              const p = JSON.parse(e.data) as { stage: string; progress?: number; message?: string; videos?: any[]; listingId?: string };
               if (p.message) setProgressMsg(p.message);
-              if (p.stage === "complete" && p.videoUrls) {
-                clearTimeout(deadlineTimer);
-                es.close();
-                esRef.current = null;
+              if (typeof p.progress === "number") setProgressPct(p.progress);
+              if (p.stage === "complete" && p.videos) {
+                clearTimeout(deadlineTimer); es.close(); esRef.current = null;
                 if (!settled) {
                   settled = true;
-                  setVideoUrls(p.videoUrls);
-                  if (p.cleanVideoUrls) setCleanVideoUrls(p.cleanVideoUrls);
+                  setResultVideos(p.videos as RendyVideo[]);
+                  if (p.listingId) setListingId(p.listingId);
                   resolve();
                 }
               } else if (p.stage === "failed") {
-                clearTimeout(deadlineTimer);
-                es.close();
-                esRef.current = null;
+                clearTimeout(deadlineTimer); es.close(); esRef.current = null;
                 if (!settled) { settled = true; reject(new Error(p.message || "Generering mislykkedes")); }
-              } else {
-                resetDeadline();
-              }
-            } catch { /* ignore parse err */ }
+              } else { resetDeadline(); }
+            } catch { /* ignore */ }
           };
-
           es.onerror = () => {
-            es.close();
-            esRef.current = null;
+            es.close(); esRef.current = null;
             if (settled) return;
             retries++;
             if (retries >= MAX_RETRIES) { settled = true; reject(new Error("Mistede forbindelsen til serveren.")); return; }
             setTimeout(connect, 2000 * retries);
           };
-
           resetDeadline();
         };
-
         connect();
       });
     } catch (e: any) {
@@ -3317,141 +3297,88 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     }
   };
 
-  const handleGenerate = async () => {
-    if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
-    await runShowcase({}, `/api/bolig/showcase-video?mood=${encodeURIComponent(selectedMood)}`);
+  const handleExport = async () => {
+    if (!listingId) return;
+    setIsExporting(true);
+    setExportUrl(null);
+    try {
+      const res = await fetch(`/api/bolig/showcase-video/${listingId}/export`, { method: "POST" });
+      const data = await res.json();
+      if (data.downloadUrl) { setExportUrl(data.downloadUrl); setIsExporting(false); return; }
+      const ej = data.jobId as string;
+      setExportJobId(ej);
+      while (true) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const sr = await fetch(`/api/bolig/rendy/export/${ej}`);
+        const sd = await sr.json();
+        if (sd.status === "ready" && sd.downloadUrl) { setExportUrl(sd.downloadUrl); break; }
+        if (sd.status === "error") throw new Error(sd.error || "Export fejlede");
+      }
+    } catch (e: any) {
+      setError(e.message || "Export fejlede");
+    } finally {
+      setIsExporting(false);
+    }
   };
-
-  const handleGenerateAllRendy = async () => {
-    if (images.length < 3) { setError("Upload mindst 3 billeder"); return; }
-    await runShowcase(
-      { moods: RENDY_MOODS_LIST.join(",") },
-      `/api/bolig/showcase-video`
-    );
-  };
-
 
   const handleReset = () => {
-    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme videoerne?")) return;
+    if (resultVideos.length > 0 && !window.confirm("Nulstil showcase og miste de genererede videoer?")) return;
     setImages([]);
-    setVideoUrls(null);
-    setCleanVideoUrls(null);
-    setSaveCaseId(null);
+    setResultVideos([]);
+    setListingId(null);
+    setExportUrl(null);
+    setExportJobId(null);
     setError(null);
+    setProgressPct(0);
+    setProgressMsg("");
   };
 
-  const saveToCase = async (c: ApiCase) => {
-    if (!videoUrls?.[selectedMood]) return;
-    setShowCaseDropdown(false);
-    setSaveCaseId(c.id);
-    try {
-      const token = await user?.getIdToken();
-      const headers = {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-      const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          imageUrl: videoUrls[selectedMood],
-          originalImageUrl: cleanVideoUrls?.[selectedMood] ?? null,
-          roomType: "showcase-video",
-          style: `showcase-video-${selectedMood}`,
-          budgetTier: "tier2",
-          promptText: `Bolig showcase video — ${MOOD_LABELS[selectedMood]} stemning`,
-          isDesignAgent: true,
-        }),
-      });
-      if (!r.ok) {
-        setSaveCaseId(null);
-        const msg = await r.text().catch(() => "");
-        alert(`Kunne ikke gemme videoen til mappen. ${msg}`);
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-    } catch {
-      setSaveCaseId(null);
-      alert("Kunne ikke gemme til mappen. Prøv igen.");
-    }
-  };
-
-  const handleDownloadMood = async (url: string, mood: string) => {
-    setDownloading(true);
-    try {
-      const ts = new Date().toISOString().slice(0, 10);
-      await downloadFromUrl(url, `bolig-showcase-${mood}-${ts}.mp4`);
-    } finally {
-      setDownloading(false);
-    }
+  const handleDownload = async (url: string, name: string) => {
+    setDownloading(name);
+    try { await downloadFromUrl(url, name); } finally { setDownloading(null); }
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig showcase</h1>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload boligbilleder, og få automatisk en lodret showcase-video (9:16) med ægte AI-kamerabevægelse klippet til musikkens beat. Aktivér drone intro/outro ved at udfylde start- og sluttekst — <strong>billede 1</strong> og <strong>det sidste billede</strong> genereres som cinematic drone-klips.</p>
-      </div>
-
-      {/* Eksempel */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
-        <p className="text-[11px] font-medium mb-2" style={{ color: "#9B9690" }}>Dine boligbilleder → professionel showcase-video</p>
-        <div className="grid grid-cols-3 gap-2">
-          <img src="/bolig-images/facade-after.jpg" alt="Facade" className="w-full rounded-xl object-cover" style={{ aspectRatio: "9/16" }} />
-          <img src="/bolig-images/living-modern-after.jpg" alt="Stue" className="w-full rounded-xl object-cover" style={{ aspectRatio: "9/16" }} />
-          <img src="/bolig-images/dining-after.jpg" alt="Spisestue" className="w-full rounded-xl object-cover" style={{ aspectRatio: "9/16" }} />
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig Showcase</h1>
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: "#0F1D2F", color: "#fff" }}>powered by Rendy</span>
         </div>
-        <p className="text-[11px] mt-2" style={{ color: "#9B9690" }}>AI tilføjer ægte kamerabevægelse til hvert billede og syr det hele sammen til én flydende 9:16 video med musik.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Rendy genererer professionelle AI-videoer med ægte kamerabevægelse — automatisk eller med dit valgte kameraeffekt per billede.</p>
       </div>
 
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-6">
         {/* Upload zone */}
         <label
           onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
           onDragLeave={() => setIsDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragOver(false);
-            if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
-          }}
+          onDrop={(e) => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}
           className="block cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors"
           style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
           data-testid="dropzone-showcase"
         >
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
+          <input type="file" accept="image/*" multiple className="hidden"
             onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
             data-testid="input-showcase-images"
           />
           <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
           <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
-          <p className="text-xs" style={{ color: "#6B6B6B" }}>Anbefalet 15–25 billeder · JPG, PNG · maks 30</p>
+          <p className="text-xs" style={{ color: "#6B6B6B" }}>Op til 20 billeder · JPG, PNG, WebP</p>
         </label>
 
-        {/* Thumbnails + reorder */}
+        {/* Thumbnails grid with per-image preset selector */}
         {images.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>
-                {images.length} billede{images.length === 1 ? "" : "r"} · træk for at omarrangere
+                {images.length}/20 billeder · træk for at omarrangere
               </span>
-              <button
-                onClick={() => setImages([])}
-                className="text-xs font-medium hover:opacity-70"
-                style={{ color: "#B91C1C" }}
-                data-testid="button-showcase-clear-all"
-              >
+              <button onClick={() => { setImages([]); setResultVideos([]); }} className="text-xs font-medium hover:opacity-70" style={{ color: "#B91C1C" }} data-testid="button-showcase-clear-all">
                 Ryd alle
               </button>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
               {images.map((img, idx) => (
                 <div
                   key={img.id}
@@ -3460,385 +3387,210 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
                   onDragEnd={() => setDragIndex(null)}
-                  className="relative rounded-lg overflow-hidden border group cursor-move"
+                  className="relative rounded-lg overflow-hidden border group cursor-move flex flex-col"
                   style={{ borderColor: dragIndex === idx ? "#C8956C" : "#E8E4DE" }}
                   data-testid={`thumb-showcase-${idx}`}
                 >
-                  <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-auto block" />
-                  <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
-                    {idx + 1}
+                  <div className="relative">
+                    <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full aspect-square object-cover block" />
+                    <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
+                      {idx + 1}
+                    </div>
+                    <button
+                      onClick={() => removeImage(img.id)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                      data-testid={`button-showcase-remove-${idx}`}
+                    >
+                      <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
+                    </button>
                   </div>
-                  {droneEnabled && idx === 0 && (
-                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#C8956C", color: "#fff" }}>START FRAME</div>
+                  {/* Per-image preset selector */}
+                  {presets.length > 0 && (
+                    <div className="bg-[#F8F6F3] px-1 py-1 border-t border-[#E8E4DE]">
+                      <select
+                        value={img.presetKey}
+                        onChange={(e) => setPresetForImage(img.id, e.target.value)}
+                        disabled={isGenerating}
+                        className="w-full text-[9px] rounded border border-[#E8E4DE] px-1 py-0.5 bg-white outline-none cursor-pointer disabled:opacity-50"
+                        style={{ color: "#0F1D2F" }}
+                        data-testid={`select-preset-${idx}`}
+                      >
+                        <option value="DEFAULT">Auto</option>
+                        {presets.map((p) => (
+                          <option key={p.key} value={p.key}>{p.name || p.key}</option>
+                        ))}
+                      </select>
+                    </div>
                   )}
-                  {droneEnabled && idx === 1 && images.length >= 2 && (
-                    <div className="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#0F1D2F", color: "#fff" }}>END FRAME</div>
-                  )}
-                  <button
-                    onClick={() => removeImage(img.id)}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    data-testid={`button-showcase-remove-${idx}`}
-                  >
-                    <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
-                  </button>
-                  <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <GripVertical className="w-4 h-4 text-white drop-shadow" />
-                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Drone transition toggle — shown when 2+ images are uploaded */}
-        {images.length >= 2 && (
-          <div className="rounded-xl border p-4 space-y-3 transition-colors" style={{ borderColor: droneEnabled ? "#C8956C" : "#E8E4DE", background: droneEnabled ? "#FDF8F4" : "#F8F6F3" }}>
-            {/* Toggle row */}
-            <button
-              type="button"
-              onClick={() => { if (!isGenerating) setDroneEnabled((v) => !v); }}
+        {/* Settings */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Boligadresse</span>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
               disabled={isGenerating}
-              className="w-full flex items-center justify-between gap-3 disabled:opacity-50"
-              data-testid="button-toggle-drone"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Drone overgang (start → slut frame)</span>
-                <span className="text-xs hidden sm:inline" style={{ color: "#9B9690" }}>Billede 1 + 2 genereres som ét sammenhængende klip</span>
-              </div>
-              {/* Toggle pill */}
-              <div className="relative flex-shrink-0 w-11 h-6 rounded-full transition-colors" style={{ background: droneEnabled ? "#C8956C" : "#D1CBC3" }}>
-                <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform" style={{ transform: droneEnabled ? "translateX(20px)" : "translateX(0)" }} />
-              </div>
-            </button>
+              placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
+              maxLength={120}
+              className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
+              style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
+              data-testid="input-showcase-address"
+            />
+          </div>
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Format</span>
+            <div className="flex gap-2 h-10">
+              {(["portrait", "landscape"] as const).map((r) => {
+                const active = ratio === r;
+                const label = r === "portrait" ? "Lodret 9:16" : "Landskab 16:9";
+                return (
+                  <button key={r} type="button"
+                    onClick={() => { if (!isGenerating) setRatio(r); }}
+                    disabled={isGenerating}
+                    className="flex-1 rounded-lg border text-sm font-semibold transition-all disabled:opacity-50"
+                    style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", color: active ? "#C8956C" : "#0F1D2F" }}
+                    data-testid={`button-ratio-${r}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-            {/* Expanded content — only when enabled */}
-            {droneEnabled && (
-              <>
-                <p className="text-[11px]" style={{ color: "#9B9690" }}>
-                  Kling bruger <strong>billede 1 som startframe</strong> og <strong>billede 2 som slutframe</strong> og genererer ét glidende drone-klip hele vejen fra scene 1 til scene 2 — ingen klip, ingen overgang, bare ren kontinuerlig bevægelse. Billeder 3+ bruger normale gimbal-klips.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#C8956C" }}>Tekst over start-klip (valgfri)</span>
-                    <input
-                      type="text"
-                      value={startText}
-                      onChange={(e) => setStartText(e.target.value)}
-                      disabled={isGenerating}
-                      placeholder="F.eks. Strandvejen 12 · Hellerup"
-                      maxLength={60}
-                      className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
-                      style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
-                      data-testid="input-showcase-start-text"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide block mb-1.5" style={{ color: "#0F1D2F" }}>Tekst over slut-klip (valgfri)</span>
-                    <input
-                      type="text"
-                      value={endText}
-                      onChange={(e) => setEndText(e.target.value)}
-                      disabled={isGenerating}
-                      placeholder="F.eks. Ring til os · +45 70 70 70 70"
-                      maxLength={60}
-                      className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
-                      style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
-                      data-testid="input-showcase-end-text"
-                    />
-                  </div>
-                </div>
-              </>
+        {/* Generate button */}
+        <QuotaGate feature="showcase">
+          <button
+            onClick={handleGenerate}
+            disabled={images.length < 1 || isGenerating}
+            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+            style={{ background: "#C8956C" }}
+            data-testid="button-generate-showcase"
+          >
+            {isGenerating ? (
+              <><RotateCcw className="w-4 h-4 animate-spin" />{progressMsg || "Genererer…"}</>
+            ) : (
+              <><Film className="w-4 h-4" />Generér Showcase{images.length > 0 ? ` (${images.length} billeder)` : ""}</>
             )}
+          </button>
+        </QuotaGate>
+
+        {/* Progress bar */}
+        {isGenerating && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs" style={{ color: "#6B6B6B" }}>
+              <span>{progressMsg}</span>
+              <span>{progressPct}%</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "#E8E4DE" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%`, background: "#C8956C" }}
+              />
+            </div>
           </div>
         )}
 
-        {/* Optional address — shown as a text overlay at the start of the video */}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Boligadresse <span style={{ color: "#9B9690", textTransform: "none", fontWeight: 500 }}>(valgfri – vises i starten)</span></span>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => { setAddress(e.target.value); setVideoUrls(null); setSaveCaseId(null); }}
-            disabled={isGenerating}
-            placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
-            maxLength={80}
-            className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
-            style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
-            data-testid="input-showcase-address"
-          />
-        </div>
-
-        {/* Mood selector */}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Vælg musik</span>
-          {/* Original 4 tracks */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-            {(["calm", "uplifting", "modern", "tension"] as const).map((m) => {
-              const meta: Record<string, { color: string; desc: string }> = {
-                calm:     { color: "#6B8F71", desc: "Stille, afdæmpet" },
-                uplifting:{ color: "#C8956C", desc: "Lys, positiv energi" },
-                modern:   { color: "#3B5A8A", desc: "Dynamisk, rytmisk" },
-                tension:  { color: "#2C2C2C", desc: "Dramatisk, cinematic" },
-              };
-              const active = selectedMood === m;
-              return (
-                <button key={m} type="button"
-                  onClick={() => { if (!isGenerating) { setSelectedMood(m); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
-                  disabled={isGenerating}
-                  className="flex flex-col items-start gap-1.5 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
-                  style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
-                  data-testid={`button-mood-${m}`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: meta[m].color }} />
-                  <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
-                  <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
-                </button>
-              );
-            })}
-          </div>
-          {/* 6 Rendy-style tracks */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {(["every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"] as const).map((m) => {
-              const meta: Record<string, { color: string; desc: string; tempo: string }> = {
-                every_day: { color: "#A8916B", desc: "Rolig midtempo", tempo: "51 BPM" },
-                old_days:  { color: "#7C9E8B", desc: "Hjerteslag-rytme", tempo: "72 BPM" },
-                on_my_way: { color: "#C8956C", desc: "Fast & energisk", tempo: "51 BPM" },
-                open_air:  { color: "#6B8BAF", desc: "Luftig & åben", tempo: "46 BPM" },
-                renegade:  { color: "#1A1A2E", desc: "Slow intro → drop", tempo: "100 BPM" },
-                afterdusk: { color: "#4A3F6B", desc: "Mørk & hypnotisk", tempo: "58 BPM" },
-              };
-              const active = selectedMood === m;
-              return (
-                <button key={m} type="button"
-                  onClick={() => { if (!isGenerating) { setSelectedMood(m); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
-                  disabled={isGenerating}
-                  className="flex flex-col items-start gap-1.5 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
-                  style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
-                  data-testid={`button-mood-${m}`}
-                >
-                  <div className="flex items-center gap-1.5 w-full">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: meta[m].color }} />
-                    <span className="text-[10px] font-mono ml-auto" style={{ color: "#9B9690" }}>{meta[m].tempo}</span>
-                  </div>
-                  <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{MOOD_LABELS[m]}</span>
-                  <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{meta[m].desc}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Cut style selector */}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Klipstil</span>
-          <div className="flex gap-2">
-            {(["clean", "cinematic"] as const).map((s) => {
-              const label = s === "clean" ? "Rene klip" : "Cinematisk";
-              const desc  = s === "clean" ? "~0.06 s overgang" : "0.20–0.30 s dissolve";
-              const active = cutStyle === s;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => { if (!isGenerating) { setCutStyle(s); setVideoUrls(null); setCleanVideoUrls(null); setSaveCaseId(null); } }}
-                  disabled={isGenerating}
-                  className="flex-1 flex flex-col items-start gap-1 py-3 px-3 rounded-xl border transition-all disabled:opacity-50 text-left"
-                  style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", boxShadow: active ? "0 0 0 2px #C8956C33" : "none" }}
-                  data-testid={`button-cutstyle-${s}`}
-                >
-                  <span className="text-[11px] font-bold" style={{ color: active ? "#C8956C" : "#0F1D2F" }}>{label}</span>
-                  <span className="text-[10px] leading-snug" style={{ color: "#9B9690" }}>{desc}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <QuotaGate feature="showcase">
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={handleGenerate}
-              disabled={images.length < 2 || isGenerating}
-              className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-              style={{ background: "#C8956C" }}
-              data-testid="button-generate-showcase"
-            >
-              {isGenerating ? (
-                <>
-                  <RotateCcw className="w-4 h-4 animate-spin" />
-                  {progressMsg || "Laver AI-kameraklip…"}
-                </>
-              ) : (
-                <>
-                  <Film className="w-4 h-4" />
-                  Generér {MOOD_LABELS[selectedMood]} showcase
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleGenerateAllRendy}
-              disabled={images.length < 2 || isGenerating}
-              className="w-full h-11 rounded-full font-semibold text-sm inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50 border"
-              style={{ borderColor: "#C8956C", color: "#C8956C", background: "#FDF8F4" }}
-              data-testid="button-generate-all-rendy"
-            >
-              <Sparkles className="w-4 h-4" />
-              Generér alle 6 Rendy stemninger
-            </button>
-          </div>
-        </QuotaGate>
-
+        {/* Error */}
         {error && (
           <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-showcase-error">
             {error}
           </div>
         )}
 
-        {/* Alle 6 Rendy stemninger — grid visning */}
-        {videoUrls && RENDY_MOODS_LIST.some(m => videoUrls[m]) && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
-              <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Alle 6 Rendy stemninger</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {RENDY_MOODS_LIST.filter(m => videoUrls[m]).map((m) => (
-                <div key={m} className="rounded-xl overflow-hidden border border-[#E8E4DE]" data-testid={`card-rendy-${m}`}>
-                  <div className="bg-[#0F1D2F] px-3 py-1.5 flex items-center justify-between">
-                    <span className="text-white text-[11px] font-semibold uppercase tracking-wide">{RENDY_MOOD_LABELS[m]}</span>
-                  </div>
-                  <video
-                    src={videoUrls[m]}
-                    controls
-                    loop
-                    muted
-                    playsInline
-                    className="w-full aspect-[9/16] object-cover bg-black"
-                    data-testid={`video-rendy-${m}`}
-                  />
-                  <div className="p-2 bg-[#F8F6F3] flex gap-1.5">
-                    <button
-                      onClick={() => handleDownloadMood(videoUrls[m], m)}
-                      disabled={downloading}
-                      className="flex-1 h-7 px-2 rounded-full font-semibold text-[11px] text-white inline-flex items-center justify-center gap-1 disabled:opacity-50"
-                      style={{ background: "#0F1D2F" }}
-                      data-testid={`button-download-rendy-${m}`}
-                    >
-                      <Download className="w-3 h-3" /> Postklar
-                    </button>
-                    {cleanVideoUrls?.[m] && (
-                      <button
-                        onClick={() => handleDownloadMood(cleanVideoUrls[m], `${m}-original`)}
-                        disabled={downloading}
-                        className="flex-1 h-7 px-2 rounded-full font-semibold text-[11px] inline-flex items-center justify-center gap-1 disabled:opacity-50 border"
-                        style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
-                        data-testid={`button-download-rendy-${m}-clean`}
-                      >
-                        <Download className="w-3 h-3" /> Original
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {videoUrls && videoUrls[selectedMood] && (
-          <>
-            <div>
-              <div className="rounded-xl overflow-hidden border border-[#E8E4DE]" data-testid={`card-showcase-${selectedMood}`}>
-                <div className="bg-[#0F1D2F] px-4 py-2 flex items-center justify-between">
-                  <span className="text-white text-xs font-semibold tracking-wide uppercase">{MOOD_LABELS[selectedMood]} stemning</span>
-                  <span className="text-[#9B9690] text-xs">9:16 · Reels / TikTok / Shorts</span>
-                </div>
-                <div className="bg-[#0F1D2F] flex justify-center py-4">
-                  <video
-                    src={videoUrls[selectedMood]}
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="h-[60vh] max-h-[560px] w-auto aspect-[9/16] object-cover rounded-2xl shadow-2xl bg-black"
-                    data-testid={`video-showcase-${selectedMood}`}
-                  />
-                </div>
-                <div className="p-3 bg-[#F8F6F3]">
-                  <div className="flex items-center gap-2 text-xs mb-2.5" style={{ color: "#6B6B6B" }}>
-                    <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
-                    {MOOD_LABELS[selectedMood]} stemning — klar til download
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDownloadMood(videoUrls[selectedMood], selectedMood)}
-                      disabled={downloading}
-                      className="flex-1 h-8 px-3 rounded-full font-semibold text-xs text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-                      style={{ background: "#0F1D2F" }}
-                      data-testid={`button-download-showcase-${selectedMood}`}
-                      title="Postklar med sløret baggrund — anbefalet til sociale medier"
-                    >
-                      <Download className="w-3 h-3" /> {downloading ? "Henter…" : "Postklar ↓"}
-                    </button>
-                    {cleanVideoUrls?.[selectedMood] && (
-                      <button
-                        onClick={() => handleDownloadMood(cleanVideoUrls[selectedMood], `${selectedMood}-original`)}
-                        disabled={downloading}
-                        className="flex-1 h-8 px-3 rounded-full font-semibold text-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-50 border"
-                        style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
-                        data-testid={`button-download-showcase-${selectedMood}-clean`}
-                        title="Original billedformat uden sløret baggrund"
-                      >
-                        <Download className="w-3 h-3" /> Original ↓
-                      </button>
-                    )}
-                  </div>
-                </div>
+        {/* Results */}
+        {resultVideos.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
+                <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{resultVideos.length} video{resultVideos.length === 1 ? "" : "er"} genereret</span>
+              </div>
+              <div className="flex gap-2">
+                {listingId && (
+                  <button
+                    onClick={handleExport}
+                    disabled={isExporting}
+                    className="h-8 px-4 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 transition-opacity disabled:opacity-50"
+                    style={{ borderColor: "#0F1D2F", color: "#0F1D2F", background: "#fff" }}
+                    data-testid="button-export-zip"
+                  >
+                    {isExporting ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                    {isExporting ? "Pakker…" : "Download alle"}
+                  </button>
+                )}
+                {exportUrl && (
+                  <a
+                    href={exportUrl}
+                    download
+                    className="h-8 px-4 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 text-white"
+                    style={{ background: "#C8956C" }}
+                    data-testid="link-download-zip"
+                  >
+                    <Download className="w-3 h-3" /> Hent zip
+                  </a>
+                )}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {activeCases.length > 0 && (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setShowCaseDropdown((v) => !v)}
-                    className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
-                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
-                    data-testid="button-showcase-save-case"
-                  >
-                    <Film className="w-4 h-4" />
-                    {saveCaseId ? "Gemt til mappe" : "Gem til mappe"}
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                  {showCaseDropdown && (
-                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
-                      {activeCases.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => saveToCase(c)}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
-                          style={{ color: "#1A1A1A" }}
-                          data-testid={`button-showcase-save-case-${c.id}`}
-                        >
-                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
-                          <span className="truncate">{c.address}</span>
-                        </button>
-                      ))}
+            <div className={`grid gap-4 ${ratio === "portrait" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+              {resultVideos.map((video, idx) => (
+                <div key={video.id} className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]" data-testid={`card-rendy-video-${idx}`}>
+                  <div className="bg-[#0F1D2F] px-3 py-2 flex items-center justify-between">
+                    <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
+                    <span className="text-[10px] font-mono" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
+                  </div>
+                  {video.url ? (
+                    <video
+                      src={video.url}
+                      controls
+                      loop
+                      muted
+                      playsInline
+                      className={`w-full object-cover bg-black ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
+                      data-testid={`video-rendy-${idx}`}
+                    />
+                  ) : (
+                    <div className={`w-full flex items-center justify-center ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`} style={{ background: "#1A1A2E", color: "#fff" }}>
+                      <span className="text-xs">Video ikke klar</span>
+                    </div>
+                  )}
+                  {video.url && (
+                    <div className="p-2">
+                      <button
+                        onClick={() => { const ts = new Date().toISOString().slice(0, 10); handleDownload(video.url!, `rendy-video-${idx + 1}-${ts}.mp4`); }}
+                        disabled={downloading === `rendy-video-${idx + 1}`}
+                        className="w-full h-8 rounded-full text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        style={{ background: "#0F1D2F" }}
+                        data-testid={`button-download-video-${idx}`}
+                      >
+                        <Download className="w-3 h-3" /> Download
+                      </button>
                     </div>
                   )}
                 </div>
-              )}
+              ))}
+            </div>
 
+            <div className="flex justify-end">
               <button
                 onClick={handleReset}
-                className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                className="h-9 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
                 style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
                 data-testid="button-showcase-reset"
               >
-                <RotateCcw className="w-4 h-4" /> Prøv igen
+                <RotateCcw className="w-4 h-4" /> Ny showcase
               </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -6917,6 +6669,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
   isAdmin: boolean;
   showToast: (msg: string) => void;
 }) {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<SettingsTab>("profil");
 
   // ── Profil ──

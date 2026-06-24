@@ -1,0 +1,271 @@
+API REFERENCE
+
+Endpoints
+
+Authentication
+Include your API key in every request using one of these headers:
+
+x-api-key: YOUR_API_KEY
+
+# Or as a Bearer token:
+Authorization: Bearer YOUR_API_KEY
+API keys are organization-scoped. All resources created through the API belong to the organization that owns the key. Keys have configurable scopes that restrict which endpoints can be called.
+
+Available Scopes
+
+Scope	Access
+listings:read	Read listing data and poll status
+listings:write	Create listings and trigger generation
+exports:read	Poll export job status
+exports:write	Start zip export jobs
+POST
+Upload image
+Copy for LLMs
+/images/upload
+listings:write
+Upload a single image to get a hosted URL you can pass in the imageUrls array when creating a listing. Send the file as multipart/form-data with the field name "image". Images are optimized to WebP automatically. Max 20 MB.
+
+Request Body
+
+Field	Type	Required	Description
+image	file (multipart)	yes	Image file (JPEG, PNG, WebP, etc.).
+Response
+
+200 OK
+{
+  "url": "https://...supabase.co/.../public-api/uuid.webp"
+}
+cURL
+Node.js
+Python
+Copy
+curl -X POST https://api.rendy.io/api/public/v1/images/upload \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image=@/path/to/photo.jpg"
+GET
+List Presets
+Copy for LLMs
+/presets
+listings:read
+List all active effect presets usable as imageUrls[].presetKey when creating a listing. Returns descriptive data only: name, description, a sample video, and good/bad input image examples.
+
+Response
+
+200 OK
+{
+  "presets": [
+    {
+      "key": "DEFAULT",
+      "name": "string | null",
+      "description": "string | null",
+      "sampleVideoUrl": "string | null",
+      "goodImageExampleUrl": "string | null",
+      "badImageExampleUrl": "string | null",
+      "iconUrl": "string | null",
+      "order": 0
+    }
+  ]
+}
+cURL
+Node.js
+Python
+Copy
+curl https://api.rendy.io/api/public/v1/presets \
+  -H "x-api-key: YOUR_API_KEY"
+POST
+Create listing and generate
+Copy for LLMs
+/listings
+listings:write
+Creates a listing, saves your image URLs, and starts generation in the background. Returns immediately with listingId (HTTP 202). Poll GET /listings/:id/status until done, then GET /listings/:id for video URLs.
+
+Request Body
+
+Field	Type	Required	Description
+address	string	yes	Property street address.
+ratio	"portrait" | "landscape"	yes	Aspect ratio and output resolution for generated videos (single field; no separate resolution).
+imageUrls	array of objects	yes	Array of images to generate videos from.
+imageUrls[].url	string (URL)	yes	Public URL of the source image (JPEG/PNG/WebP).
+imageUrls[].presetKey	string	no	Effect preset key. Default: "DEFAULT". Controls the camera movement/effect style. List available keys with GET /presets.
+imageUrls[].crop	object	no	Crop rectangle: { x: number, y: number, width: number, height: number }. All values are pixel coordinates relative to the original image (top-left origin), and the rect must fit inside the image. If omitted, a centered crop matching the listing ratio is applied automatically — same behavior as the web app.
+imageUrls[].originalImageWidth	integer	no	Original image width in pixels (after EXIF rotation). Recommended when sending crop; if omitted, the server downloads the image to measure it.
+imageUrls[].originalImageHeight	integer	no	Original image height in pixels (after EXIF rotation). Recommended when sending crop; if omitted, the server downloads the image to measure it.
+Response
+
+202 Accepted
+{
+  "listingId": "uuid",
+  "message": "Generation started. Poll GET /listings/:id/status ..."
+}
+
+400 — invalid body, no credits, etc.
+{ "error": "..." }
+cURL
+Node.js
+Python
+Copy
+curl -X POST https://api.rendy.io/api/public/v1/listings \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address": "123 Main St, Los Angeles, CA",
+    "ratio": "portrait",
+    "imageUrls": [
+      { "url": "https://example.com/photo1.jpg", "presetKey": "DEFAULT" },
+      { "url": "https://example.com/photo2.jpg", "presetKey": "DEFAULT" }
+    ]
+  }'
+GET
+Get Listing
+Copy for LLMs
+/listings/:id
+listings:read
+Fetch listing details and all generated videos. Each video includes the final render URL and a flat list of per-clip playback URLs (source clips before template assembly).
+
+Response
+
+200 OK
+{
+  "listing": {
+    "id": "uuid",
+    "address": "string",
+    "ratio": "string",
+    "status": "generating" | "success" | "error" | "regenerating" | null,
+    "progress": 0-100,
+    "thumbnailUrl": "string | null",
+    "createdAt": "ISO8601",
+    "updatedAt": "ISO8601",
+    ...
+  },
+  "videos": [
+    {
+      "id": "uuid",
+      "url": "string | null",
+      "templateId": "uuid",
+      "status": "rendering" | "success" | "error" | null,
+      "progress": 100,
+      "createdAt": "ISO8601",
+      "updatedAt": "ISO8601",
+      "clips": ["https://...", "https://..."]
+    }
+  ]
+}
+cURL
+Node.js
+Python
+Copy
+const res = await fetch(
+  `https://api.rendy.io/api/public/v1/listings/${listingId}`,
+  { headers: { "x-api-key": "YOUR_API_KEY" } }
+);
+const data = await res.json();
+// data.videos[0].url — first rendered video URL
+GET
+Get Listing Status
+Copy for LLMs
+/listings/:id/status
+listings:read
+Lightweight polling endpoint that returns only progress, status, and last updated time. Use this for efficient polling during generation instead of fetching the full listing.
+
+Response
+
+200 OK
+{
+  "progress": 0-100,                 // percentage complete
+  "status": "generating" | "success" | "error" | "regenerating" | null,
+  "updatedAt": "ISO8601"             // last modified timestamp
+}
+cURL
+Node.js
+Python
+Copy
+// Poll every 3 seconds until done
+const poll = async (listingId: string) => {
+  while (true) {
+    const res = await fetch(
+      `https://api.rendy.io/api/public/v1/listings/${listingId}/status`,
+      { headers: { "x-api-key": "YOUR_API_KEY" } }
+    );
+    const data = await res.json();
+    console.log(`Progress: ${data.progress}%`);
+    if (data.status === "success" || data.status === "error") return data;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+};
+POST
+Export listing (zip)
+Copy for LLMs
+/listings/:id/export
+exports:write
+Start an async zip job with a fixed layout: every final render under final/video-{order}-{template}.mp4 and every active clip under clips/video-{order}-clip-{clipOrder}.mp4. No request body. If an identical export was recently built, returns the cached download URL immediately.
+
+Response
+
+202 Accepted (job started):
+{ "jobId": "string" }
+
+200 OK (cached export available):
+{
+  "jobId": "string",
+  "downloadUrl": "https://..."
+}
+cURL
+Node.js
+Python
+Copy
+const res = await fetch(
+  `https://api.rendy.io/api/public/v1/listings/${listingId}/export`,
+  {
+    method: "POST",
+    headers: { "x-api-key": "YOUR_API_KEY" },
+  }
+);
+const data = await res.json();
+// If 202: poll GET /exports/{data.jobId}
+// If 200: data.downloadUrl is ready
+GET
+Get Export Status
+Copy for LLMs
+/exports/:jobId
+exports:read
+Poll the status of a zip export job. When status is 'ready', use the downloadUrl to retrieve the zip file. The download link is temporary and expires after a short period.
+
+Response
+
+200 OK
+{
+  "status": "pending" | "building" | "ready" | "error",
+  "progress": 0,                     // files processed so far
+  "total": 6,                        // total files in the zip
+  "downloadToken": "string | undefined",
+  "downloadUrl": "string | undefined",  // full URL when ready
+  "filename": "string | undefined",
+  "error": "string | undefined"         // error message if failed
+}
+cURL
+Node.js
+Python
+Copy
+const pollExport = async (jobId: string) => {
+  while (true) {
+    const res = await fetch(
+      `https://api.rendy.io/api/public/v1/exports/${jobId}`,
+      { headers: { "x-api-key": "YOUR_API_KEY" } }
+    );
+    const data = await res.json();
+    if (data.status === "ready") return data.downloadUrl;
+    if (data.status === "error") throw new Error(data.error);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+};
+Error Responses
+All error responses follow a consistent format:
+
+{ "error": "Human-readable error message" }
+Code	Meaning
+400	Invalid request body or parameters
+401	Missing or invalid API key
+403	Insufficient scope or wrong organization
+404	Resource not found or unauthorized
+429	Rate limit exceeded (300 req/min per key)
+500	Internal server error

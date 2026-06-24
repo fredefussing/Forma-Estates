@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "postgresql-16"]
+modules = ["nodejs-20", "postgresql-16", "python-3.11"]
 
 [workflows]
 runButton = "Project"
@@ -37,3 +37,4 @@ externalPort = 80
 R2_ACCOUNT_ID = "16c92edc2dbe403856f79dd71b88235b"
 R2_BUCKET_NAME = "forma-billeder"
 R2_ENDPOINT = "https://16c92edc2dbe403856f79dd71b88235b.r2.cloudflarestorage.com"
+RENDY_API_KEY = "rpk_JVSVVjrVmMItnQnlwEnTEeIoxlXQRMWGxTAYUqnEnQeLeVvgjCnlbpJFnyUwcnbB"

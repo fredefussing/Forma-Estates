@@ -19,7 +19,8 @@ import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, se
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
-import { startShowcaseVideo, startWalkthroughVideo, getShowcaseJob } from "./showcase";
+import { startWalkthroughVideo, getShowcaseJob } from "./showcase";
+import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, exportRendyListing, getRendyExportStatus } from "./rendy";
 
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
@@ -2623,16 +2624,23 @@ export async function registerRoutes(
     }
   });
 
-  // ── Bolig Showcase Video (FFmpeg Ken Burns reel — no AI, no audio) ────────
-  // Accepts up to 30 photos and renders a vertical 9:16 slideshow with smooth
-  // Ken Burns motion + crossfades. Runs async (own in-memory job registry) and
-  // the client polls the status endpoint.
-  app.post("/api/bolig/showcase-video", upload.array("images", 30), async (req, res) => {
+  // ── Rendy Presets ─────────────────────────────────────────────────────────
+  app.get("/api/bolig/rendy/presets", async (_req, res) => {
+    try {
+      const presets = await getRendyPresets();
+      return res.json({ success: true, presets });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  // ── Bolig Showcase Video (powered by Rendy.io) ────────────────────────────
+  app.post("/api/bolig/showcase-video", upload.array("images", 20), async (req, res) => {
     let showcaseUserId: number | null = null;
     try {
       const files = (req.files as Express.Multer.File[] | undefined) || [];
-      if (files.length < 2) {
-        return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
+      if (files.length < 1) {
+        return res.status(400).json({ success: false, message: "Upload mindst 1 billede" });
       }
       // Auth + quota check
       try {
@@ -2641,45 +2649,36 @@ export async function registerRoutes(
         if (u) {
           showcaseUserId = u.id;
           const q = await storage.checkAndIncrementQuota(u.id, "showcase");
-          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+          if (!q.allowed) {
+            for (const f of files) fs.promises.unlink(path.join(uploadDir, f.filename)).catch(() => {});
+            return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+          }
         }
-      } catch { /* allow if no token */ }
-      const paths = files.map((f) => path.join(uploadDir, f.filename));
-      const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
-      const startText = typeof req.body?.startText === "string" ? req.body.startText.slice(0, 80) : undefined;
-      const endText = typeof req.body?.endText === "string" ? req.body.endText.slice(0, 80) : undefined;
-      const VALID_MOODS = ["calm", "uplifting", "modern", "tension", "every_day", "old_days", "on_my_way", "open_air", "renegade", "afterdusk"];
-      const rawMood = typeof req.query.mood === "string" ? req.query.mood : (typeof req.body?.mood === "string" ? req.body.mood : undefined);
-      const mood = rawMood && VALID_MOODS.includes(rawMood) ? rawMood : undefined;
-      const rawCutStyle = typeof req.body?.cutStyle === "string" ? req.body.cutStyle : undefined;
-      const cutStyle: "clean" | "cinematic" | undefined = rawCutStyle === "clean" || rawCutStyle === "cinematic" ? rawCutStyle : undefined;
-      // Optional explicit moods list (e.g. all 6 Rendy moods at once)
-      const rawMoodsStr = typeof req.body?.moods === "string" ? req.body.moods : undefined;
-      const moods: string[] | undefined = rawMoodsStr
-        ? rawMoodsStr.split(",").map(m => m.trim()).filter(m => VALID_MOODS.includes(m))
-        : undefined;
-      const jobId = startShowcaseVideo(paths, uploadDir, address, startText, endText, mood, cutStyle, moods);
-      if (!jobId) {
-        // Server saturated — no work started, so refund the charged credit.
-        if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
-        for (const p of paths) fs.promises.unlink(p).catch(() => {});
-        return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
-      }
-      // Track for a quota refund if the render later fails.
+      } catch { /* allow unauthenticated */ }
+
+      const filePaths = files.map((f) => path.join(uploadDir, f.filename));
+      const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 120) : "";
+      const ratio: "portrait" | "landscape" = req.body?.ratio === "landscape" ? "landscape" : "portrait";
+
+      let presetKeys: (string | undefined)[] = new Array(files.length).fill(undefined);
+      try {
+        const raw = typeof req.body?.presetKeys === "string" ? JSON.parse(req.body.presetKeys) : undefined;
+        if (Array.isArray(raw)) presetKeys = raw.map((k) => (typeof k === "string" && k ? k : undefined));
+      } catch { /* ignore malformed */ }
+
+      const jobId = startRendyShowcase(filePaths, address, ratio, presetKeys);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
-      log(`[Showcase] started job=${jobId} images=${files.length}`);
-      if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase · ${files.length} billeder`).catch(() => {});
+      log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
+      if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase (Rendy) · ${files.length} billeder`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
     } catch (err: any) {
-      log(`[Showcase] submit error: ${err.message}`);
-      // Quota was charged before the job started — refund it on failure.
+      log(`[Rendy] submit error: ${err.message}`);
       if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
       return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
     }
   });
 
-  // SSE progress stream — replaces the old blind 4s poll loop. Client opens an
-  // EventSource here and receives progress events every 1.5s until complete/failed.
+  // SSE progress stream for Rendy jobs
   app.get("/api/bolig/showcase-video/progress/:jobId", (req, res) => {
     const { jobId } = req.params;
     res.setHeader("Content-Type", "text/event-stream");
@@ -2687,58 +2686,58 @@ export async function registerRoutes(
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
 
-    const send = (data: object) => {
-      try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
-    };
+    const send = (data: object) => { try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {} };
     const ping = () => { try { res.write(":\n\n"); } catch {} };
 
-    const job = getShowcaseJob(jobId);
+    const job = getRendyJob(jobId);
     if (!job) {
-      send({ stage: "failed", currentClip: 0, totalClips: 0, message: "Job ikke fundet" });
+      send({ stage: "failed", progress: 0, message: "Job ikke fundet" });
       res.end();
       return;
     }
     send(job.progress);
     if (job.status !== "processing") {
       if (job.status === "failed") refundShowcaseVideo(jobId);
-      else if (job.status === "completed") showcaseVideoRefunds.delete(jobId);
+      else showcaseVideoRefunds.delete(jobId);
       res.end();
       return;
     }
 
     const iv = setInterval(() => {
-      const j = getShowcaseJob(jobId);
+      const j = getRendyJob(jobId);
       if (!j) { clearInterval(iv); clearInterval(hb); try { res.end(); } catch {} return; }
       send(j.progress);
       if (j.status === "completed" || j.status === "failed") {
         if (j.status === "failed") refundShowcaseVideo(jobId);
         else showcaseVideoRefunds.delete(jobId);
-        clearInterval(iv);
-        clearInterval(hb);
+        clearInterval(iv); clearInterval(hb);
         try { res.end(); } catch {}
       }
-    }, 1500);
+    }, 2000);
 
-    // Keepalive heartbeat — prevents proxy/nginx from closing idle SSE connections
     const hb = setInterval(ping, 20_000);
-
     req.on("close", () => { clearInterval(iv); clearInterval(hb); });
   });
 
-  app.get("/api/bolig/showcase-video/status/:jobId", async (req, res) => {
-    const job = getShowcaseJob(req.params.jobId);
-    if (!job) {
-      return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
+  // Trigger zip export of a completed Rendy listing
+  app.post("/api/bolig/showcase-video/:listingId/export", async (req, res) => {
+    try {
+      const { listingId } = req.params;
+      const result = await exportRendyListing(listingId);
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err.message });
     }
-    if (job.status === "completed" && job.videoUrls) {
-      showcaseVideoRefunds.delete(req.params.jobId);
-      return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls, clean_video_urls: job.cleanVideoUrls });
+  });
+
+  // Poll zip export status
+  app.get("/api/bolig/rendy/export/:exportJobId", async (req, res) => {
+    try {
+      const data = await getRendyExportStatus(req.params.exportJobId);
+      return res.json({ success: true, ...data });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err.message });
     }
-    if (job.status === "failed") {
-      refundShowcaseVideo(req.params.jobId);
-      return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
-    }
-    return res.json({ success: true, status: "IN_PROGRESS" });
   });
 
   // ── Cinematisk Walkthrough Video (multi-photo professional property tour) ──
