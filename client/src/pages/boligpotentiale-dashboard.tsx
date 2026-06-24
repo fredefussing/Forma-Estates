@@ -3186,19 +3186,34 @@ const VFX_STAGING = [
   { key: "earth-zoom",       name: "Earth Zoom",           sampleVideoUrl: `${BASE}/assets/presets/video/1773231403159-i4e019.mp4` },
 ];
 
-const CAMERA_PRESETS: { key: string; name: string; icon: string }[] = [
-  { key: "slide_left",     name: "Slide Left",     icon: "M19 12H5M12 5l-7 7 7 7" },
-  { key: "orbit_left",     name: "Orbit Left",     icon: "M2.5 12C2.5 6.75 6.75 2.5 12 2.5a9.5 9.5 0 0 1 6.6 2.66M21.5 12c0 5.25-4.25 9.5-9.5 9.5a9.5 9.5 0 0 1-6.6-2.66M2 8l.5 4.5 4-2M22 16l-.5-4.5-4 2" },
-  { key: "push_in",        name: "Push-In",        icon: "M5 12h14M12 5l7 7-7 7" },
-  { key: "orbit_right",    name: "Orbit Right",    icon: "M21.5 12C21.5 6.75 17.25 2.5 12 2.5a9.5 9.5 0 0 0-6.6 2.66M2.5 12c0 5.25 4.25 9.5 9.5 9.5a9.5 9.5 0 0 0 6.6-2.66M22 8l-.5 4.5-4-2M2 16l.5-4.5 4 2" },
-  { key: "slide_right",    name: "Slide Right",    icon: "M5 12h14M12 5l7 7-7 7" },
-  { key: "crane_down",     name: "Crane Down",     icon: "M12 5v14M5 12l7 7 7-7" },
-  { key: "crane_up",       name: "Crane Up",       icon: "M12 19V5M5 12l7-7 7 7" },
-  { key: "pedestal_down",  name: "Pedestal Down",  icon: "M12 5v14M5 16l7 7 7-7" },
-  { key: "pedestal_up",    name: "Pedestal Up",    icon: "M12 19V5M5 8l7-7 7 7" },
-  { key: "pull_out",       name: "Pull-Out",       icon: "M19 12H5M12 5l-7 7 7 7M3 3l18 18" },
-  { key: "static",         name: "Static",         icon: "M8 6h8M8 10h8M8 14h8M8 18h8" },
+const CAMERA_PRESETS: { key: string; name: string; icon: string; animName: string }[] = [
+  { key: "slide_left",     name: "Slide Left",     icon: "M19 12H5M12 5l-7 7 7 7",                                                                                                                                                                                                          animName: "cam-slide-left" },
+  { key: "orbit_left",     name: "Orbit Left",     icon: "M2.5 12C2.5 6.75 6.75 2.5 12 2.5a9.5 9.5 0 0 1 6.6 2.66M21.5 12c0 5.25-4.25 9.5-9.5 9.5a9.5 9.5 0 0 1-6.6-2.66M2 8l.5 4.5 4-2M22 16l-.5-4.5-4 2",                                                                             animName: "cam-orbit-left" },
+  { key: "push_in",        name: "Push-In",        icon: "M5 12h14M12 5l7 7-7 7",                                                                                                                                                                                                          animName: "cam-push-in" },
+  { key: "orbit_right",    name: "Orbit Right",    icon: "M21.5 12C21.5 6.75 17.25 2.5 12 2.5a9.5 9.5 0 0 0-6.6 2.66M2.5 12c0 5.25 4.25 9.5 9.5 9.5a9.5 9.5 0 0 0 6.6-2.66M22 8l-.5 4.5-4-2M2 16l.5-4.5 4 2",                                                                           animName: "cam-orbit-right" },
+  { key: "slide_right",    name: "Slide Right",    icon: "M5 12h14M12 5l7 7-7 7",                                                                                                                                                                                                          animName: "cam-slide-right" },
+  { key: "crane_down",     name: "Crane Down",     icon: "M12 5v14M5 12l7 7 7-7",                                                                                                                                                                                                          animName: "cam-crane-down" },
+  { key: "crane_up",       name: "Crane Up",       icon: "M12 19V5M5 12l7-7 7 7",                                                                                                                                                                                                          animName: "cam-crane-up" },
+  { key: "pedestal_down",  name: "Pedestal Down",  icon: "M12 5v14M5 16l7 7 7-7",                                                                                                                                                                                                          animName: "cam-pedestal-down" },
+  { key: "pedestal_up",    name: "Pedestal Up",    icon: "M12 19V5M5 8l7-7 7 7",                                                                                                                                                                                                           animName: "cam-pedestal-up" },
+  { key: "pull_out",       name: "Pull-Out",       icon: "M19 12H5M12 5l-7 7 7 7M3 3l18 18",                                                                                                                                                                                               animName: "cam-pull-out" },
+  { key: "static",         name: "Static",         icon: "M8 6h8M8 10h8M8 14h8M8 18h8",                                                                                                                                                                                                   animName: "cam-static" },
 ];
+
+const CAM_PREVIEW_CSS = `
+@keyframes cam-slide-left    { 0%,100%{transform:translateX(15%)} 50%{transform:translateX(-15%)} }
+@keyframes cam-slide-right   { 0%,100%{transform:translateX(-15%)} 50%{transform:translateX(15%)} }
+@keyframes cam-push-in       { 0%,100%{transform:scale(1)} 50%{transform:scale(1.45)} }
+@keyframes cam-pull-out      { 0%,100%{transform:scale(1.4)} 50%{transform:scale(0.9)} }
+@keyframes cam-orbit-left    { 0%,100%{transform:translateX(10%) rotate(0deg)} 50%{transform:translateX(-12%) rotate(-6deg)} }
+@keyframes cam-orbit-right   { 0%,100%{transform:translateX(-10%) rotate(0deg)} 50%{transform:translateX(12%) rotate(6deg)} }
+@keyframes cam-crane-down    { 0%,100%{transform:translateY(-15%)} 50%{transform:translateY(15%)} }
+@keyframes cam-crane-up      { 0%,100%{transform:translateY(15%)} 50%{transform:translateY(-15%)} }
+@keyframes cam-pedestal-down { 0%,100%{transform:translateY(-10%) scale(1.05)} 50%{transform:translateY(10%) scale(1.05)} }
+@keyframes cam-pedestal-up   { 0%,100%{transform:translateY(10%) scale(1.05)} 50%{transform:translateY(-10%) scale(1.05)} }
+@keyframes cam-static        { 0%,100%{transform:scale(1)} }
+.cam-preview-scene { width:130%; height:130%; transition:none; animation-timing-function:ease-in-out; animation-iteration-count:infinite; animation-direction:alternate; animation-duration:2.4s; }
+`;
 
 async function cropImageToFile(file: File, cropBox: { x: number; y: number; w: number; h: number }): Promise<File> {
   return new Promise((resolve) => {
@@ -3846,39 +3861,66 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     </button>
                   </div>
                   <div className="flex gap-2 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    <style dangerouslySetInnerHTML={{ __html: CAM_PREVIEW_CSS }} />
                     {/* Auto */}
                     <button
                       type="button"
                       onClick={() => setPresetForImage(img.id, "DEFAULT")}
                       className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
-                      style={{ width: 88, borderColor: img.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: img.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
+                      style={{ width: 96, borderColor: img.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: img.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
                       data-testid="cam-preset-auto"
                     >
-                      <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "4/3", background: img.presetKey === "DEFAULT" ? "#FDF0E6" : "#F0EDE9" }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={img.presetKey === "DEFAULT" ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-                        </svg>
+                      <div className="w-full rounded-lg overflow-hidden relative" style={{ aspectRatio: "16/9" }}>
+                        <div className="cam-preview-scene" style={{ animationName: "cam-push-in", position:"absolute", inset:0, width:"130%", height:"130%", left:"-15%", top:"-15%", background:"linear-gradient(180deg,#87CEEB 0%,#87CEEB 55%,#4A7C59 55%,#4A7C59 100%)" }}>
+                          <svg viewBox="0 0 80 50" style={{ position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)", width:"70%", height:"auto" }}>
+                            <polygon points="8,28 40,8 72,28" fill="#2D3A2E" opacity="0.9"/>
+                            <rect x="18" y="28" width="44" height="22" fill="#3D4F3E" opacity="0.9"/>
+                            <rect x="32" y="36" width="16" height="14" fill="#C8956C" opacity="0.7"/>
+                          </svg>
+                        </div>
+                        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <span style={{ fontSize:9, fontWeight:700, color:"#fff", background:"rgba(200,149,108,0.85)", borderRadius:4, padding:"1px 5px", letterSpacing:"0.02em" }}>AUTO</span>
+                        </div>
                       </div>
                       <span className="text-[11px] font-semibold" style={{ color: img.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
                     </button>
-                    {/* Hardcoded camera presets */}
-                    {CAMERA_PRESETS.map((p) => (
-                      <button
-                        key={p.key}
-                        type="button"
-                        onClick={() => setPresetForImage(img.id, p.key)}
-                        className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
-                        style={{ width: 88, borderColor: img.presetKey === p.key ? "#C8956C" : "#E8E4DE", background: img.presetKey === p.key ? "#FDF8F4" : "#F8F6F3" }}
-                        data-testid={`cam-preset-${p.key}`}
-                      >
-                        <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "4/3", background: img.presetKey === p.key ? "#FDF0E6" : "#F0EDE9" }}>
-                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={img.presetKey === p.key ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d={p.icon} />
-                          </svg>
-                        </div>
-                        <span className="text-[11px] font-semibold text-center leading-tight" style={{ color: img.presetKey === p.key ? "#C8956C" : "#0F1D2F" }}>{p.name}</span>
-                      </button>
-                    ))}
+                    {/* Hardcoded camera presets with animated scene */}
+                    {CAMERA_PRESETS.map((p) => {
+                      const isSelected = img.presetKey === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => setPresetForImage(img.id, p.key)}
+                          className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
+                          style={{ width: 96, borderColor: isSelected ? "#C8956C" : "#E8E4DE", background: isSelected ? "#FDF8F4" : "#F8F6F3" }}
+                          data-testid={`cam-preset-${p.key}`}
+                        >
+                          <div className="w-full rounded-lg overflow-hidden relative" style={{ aspectRatio: "16/9" }}>
+                            {/* Animated scene */}
+                            <div
+                              className="cam-preview-scene"
+                              style={{ animationName: p.animName, position:"absolute", left:"-15%", top:"-15%", background:"linear-gradient(180deg,#87CEEB 0%,#87CEEB 55%,#4A7C59 55%,#4A7C59 100%)" }}
+                            >
+                              <svg viewBox="0 0 80 50" style={{ position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)", width:"70%", height:"auto" }}>
+                                <polygon points="8,28 40,8 72,28" fill="#2D3A2E" opacity="0.9"/>
+                                <rect x="18" y="28" width="44" height="22" fill="#3D4F3E" opacity="0.9"/>
+                                <rect x="32" y="36" width="16" height="14" fill={isSelected ? "#C8956C" : "#7A6A5A"} opacity="0.8"/>
+                              </svg>
+                            </div>
+                            {/* Direction arrow overlay */}
+                            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              <div style={{ background:"rgba(15,29,47,0.55)", borderRadius:"50%", width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d={p.icon} />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-semibold text-center leading-tight" style={{ color: isSelected ? "#C8956C" : "#0F1D2F" }}>{p.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               ) : (
