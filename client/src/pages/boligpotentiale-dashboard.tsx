@@ -22,7 +22,7 @@ import {
   PenTool, Sparkles, RotateCcw, ChevronDown, Mail, Copy, CheckCheck,
   Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
-  FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical,
+  FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -3166,12 +3166,17 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [resultVideos, setResultVideos] = useState<RendyVideo[]>([]);
+  const [renderingVideos, setRenderingVideos] = useState<RendyVideo[]>([]);
   const [listingId, setListingId] = useState<string | null>(null);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [openPresetId, setOpenPresetId] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const presetPopoverRef = useRef<HTMLDivElement | null>(null);
+
+  const effectsAdded = images.filter((i) => i.presetKey && i.presetKey !== "DEFAULT").length;
 
   const { data: presetsData } = useQuery<{ success: boolean; presets: RendyPreset[] }>({
     queryKey: ["/api/bolig/rendy/presets"],
@@ -3265,11 +3270,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               const p = JSON.parse(e.data) as { stage: string; progress?: number; message?: string; videos?: any[]; listingId?: string };
               if (p.message) setProgressMsg(p.message);
               if (typeof p.progress === "number") setProgressPct(p.progress);
+              if (p.videos && Array.isArray(p.videos)) setRenderingVideos(p.videos as RendyVideo[]);
               if (p.stage === "complete" && p.videos) {
                 clearTimeout(deadlineTimer); es.close(); esRef.current = null;
                 if (!settled) {
                   settled = true;
                   setResultVideos(p.videos as RendyVideo[]);
+                  setRenderingVideos([]);
                   if (p.listingId) setListingId(p.listingId);
                   resolve();
                 }
@@ -3339,126 +3346,59 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
+    <div className="max-w-4xl" onClick={() => { if (openPresetId) setOpenPresetId(null); }}>
+      <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig Showcase</h1>
           <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: "#0F1D2F", color: "#fff" }}>powered by Rendy</span>
         </div>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Rendy genererer professionelle AI-videoer med ægte kamerabevægelse — automatisk eller med dit valgte kameraeffekt per billede.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Rendy genererer professionelle AI-videoer med kamerabevægelse — vælg kameraeffekt per billede eller lad systemet vælge automatisk.</p>
       </div>
 
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-6">
-        {/* Upload zone */}
-        <label
-          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}
-          className="block cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors"
-          style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
-          data-testid="dropzone-showcase"
-        >
-          <input type="file" accept="image/*" multiple className="hidden"
-            onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
-            data-testid="input-showcase-images"
-          />
-          <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
-          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
-          <p className="text-xs" style={{ color: "#6B6B6B" }}>Op til 20 billeder · JPG, PNG, WebP</p>
-        </label>
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden">
 
-        {/* Thumbnails grid with per-image preset selector */}
-        {images.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B6B6B" }}>
-                {images.length}/20 billeder · træk for at omarrangere
-              </span>
-              <button onClick={() => { setImages([]); setResultVideos([]); }} className="text-xs font-medium hover:opacity-70" style={{ color: "#B91C1C" }} data-testid="button-showcase-clear-all">
-                Ryd alle
-              </button>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-              {images.map((img, idx) => (
-                <div
-                  key={img.id}
-                  draggable
-                  onDragStart={() => setDragIndex(idx)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
-                  onDragEnd={() => setDragIndex(null)}
-                  className="relative rounded-lg overflow-hidden border group cursor-move flex flex-col"
-                  style={{ borderColor: dragIndex === idx ? "#C8956C" : "#E8E4DE" }}
-                  data-testid={`thumb-showcase-${idx}`}
-                >
-                  <div className="relative">
-                    <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full aspect-square object-cover block" />
-                    <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">
-                      {idx + 1}
-                    </div>
-                    <button
-                      onClick={() => removeImage(img.id)}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                      data-testid={`button-showcase-remove-${idx}`}
-                    >
-                      <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
-                    </button>
-                  </div>
-                  {/* Per-image preset selector */}
-                  {presets.length > 0 && (
-                    <div className="bg-[#F8F6F3] px-1 py-1 border-t border-[#E8E4DE]">
-                      <select
-                        value={img.presetKey}
-                        onChange={(e) => setPresetForImage(img.id, e.target.value)}
-                        disabled={isGenerating}
-                        className="w-full text-[9px] rounded border border-[#E8E4DE] px-1 py-0.5 bg-white outline-none cursor-pointer disabled:opacity-50"
-                        style={{ color: "#0F1D2F" }}
-                        data-testid={`select-preset-${idx}`}
-                      >
-                        <option value="DEFAULT">Auto</option>
-                        {presets.map((p) => (
-                          <option key={p.key} value={p.key}>{p.name || p.key}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              ))}
+        {/* ── Top bar: Address + Format ── */}
+        <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>Boligadresse</span>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#C8956C" }} />
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={isGenerating}
+                placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
+                maxLength={120}
+                className="w-full h-9 rounded-lg border pl-8 pr-3 text-sm outline-none disabled:opacity-50"
+                style={{ borderColor: "#E8E4DE", background: "#F8F6F3", color: "#0F1D2F" }}
+                data-testid="input-showcase-address"
+              />
             </div>
           </div>
-        )}
-
-        {/* Settings */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Boligadresse</span>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              disabled={isGenerating}
-              placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
-              maxLength={120}
-              className="w-full h-10 rounded-lg border px-3 text-sm outline-none disabled:opacity-50"
-              style={{ borderColor: "#E8E4DE", background: "#fff", color: "#0F1D2F" }}
-              data-testid="input-showcase-address"
-            />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide block mb-2" style={{ color: "#6B6B6B" }}>Format</span>
-            <div className="flex gap-2 h-10">
+          <div className="shrink-0">
+            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>Video Format</span>
+            <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>
               {(["portrait", "landscape"] as const).map((r) => {
                 const active = ratio === r;
-                const label = r === "portrait" ? "Lodret 9:16" : "Landskab 16:9";
                 return (
                   <button key={r} type="button"
                     onClick={() => { if (!isGenerating) setRatio(r); }}
                     disabled={isGenerating}
-                    className="flex-1 rounded-lg border text-sm font-semibold transition-all disabled:opacity-50"
-                    style={{ borderColor: active ? "#C8956C" : "#E8E4DE", background: active ? "#FDF8F4" : "#F8F6F3", color: active ? "#C8956C" : "#0F1D2F" }}
+                    className="flex items-center gap-2 px-4 h-9 text-sm font-semibold transition-all disabled:opacity-50"
+                    style={{
+                      background: active ? "#0F1D2F" : "#fff",
+                      color: active ? "#fff" : "#6B6B6B",
+                      borderRight: r === "portrait" ? "1px solid #E8E4DE" : undefined,
+                    }}
                     data-testid={`button-ratio-${r}`}
                   >
-                    {label}
+                    {r === "portrait" ? (
+                      <svg width="10" height="14" viewBox="0 0 10 14" fill="none"><rect x="0.5" y="0.5" width="9" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill={active ? "currentColor" : "none"} opacity={active ? 0.25 : 1} /><rect x="0.5" y="0.5" width="9" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" /></svg>
+                    ) : (
+                      <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0.5" y="0.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill={active ? "currentColor" : "none"} opacity={active ? 0.25 : 1} /><rect x="0.5" y="0.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" /></svg>
+                    )}
+                    {r === "portrait" ? "Lodret" : "Landskab"}
                   </button>
                 );
               })}
@@ -3466,29 +3406,202 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         </div>
 
-        {/* Generate button */}
-        <QuotaGate feature="showcase">
-          <button
-            onClick={handleGenerate}
-            disabled={images.length < 1 || isGenerating}
-            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-            style={{ background: "#C8956C" }}
-            data-testid="button-generate-showcase"
+        {/* ── Upload zone (when no images) ── */}
+        {images.length === 0 && (
+          <label
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}
+            className="block cursor-pointer p-12 text-center transition-colors m-5 rounded-xl border-2 border-dashed"
+            style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
+            data-testid="dropzone-showcase"
           >
-            {isGenerating ? (
-              <><RotateCcw className="w-4 h-4 animate-spin" />{progressMsg || "Genererer…"}</>
-            ) : (
-              <><Film className="w-4 h-4" />Generér Showcase{images.length > 0 ? ` (${images.length} billeder)` : ""}</>
-            )}
-          </button>
-        </QuotaGate>
+            <input type="file" accept="image/*" multiple className="hidden"
+              onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
+              data-testid="input-showcase-images"
+            />
+            <Upload className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
+            <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
+            <p className="text-xs" style={{ color: "#9B9690" }}>Op til 20 billeder · JPG, PNG, WebP</p>
+          </label>
+        )}
 
-        {/* Progress bar */}
+        {/* ── Thumbnails grid ── */}
+        {images.length > 0 && (
+          <div className="p-4">
+            <div
+              className={`grid gap-2 ${
+                ratio === "portrait"
+                  ? "grid-cols-4 sm:grid-cols-5"
+                  : "grid-cols-2 sm:grid-cols-3"
+              }`}
+            >
+              {images.map((img, idx) => {
+                const vidProgress = renderingVideos[idx]?.progress ?? null;
+                const hasCustomPreset = img.presetKey && img.presetKey !== "DEFAULT";
+                const presetLabel = hasCustomPreset
+                  ? (presets.find((p) => p.key === img.presetKey)?.name || img.presetKey)
+                  : null;
+
+                return (
+                  <div
+                    key={img.id}
+                    draggable={!isGenerating}
+                    onDragStart={() => setDragIndex(idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
+                    onDragEnd={() => setDragIndex(null)}
+                    className="relative rounded-xl overflow-hidden group cursor-move"
+                    style={{
+                      border: dragIndex === idx ? "2px solid #C8956C" : "2px solid transparent",
+                      background: "#F0EDE9",
+                    }}
+                    data-testid={`thumb-showcase-${idx}`}
+                  >
+                    {/* Image with dynamic aspect ratio */}
+                    <div className={`relative w-full overflow-hidden ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}>
+                      <img
+                        src={img.url}
+                        alt={`Billede ${idx + 1}`}
+                        className="w-full h-full object-cover block"
+                      />
+
+                      {/* Number badge */}
+                      <div className="absolute top-2 left-2 w-6 h-6 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold flex items-center justify-center">
+                        {idx + 1}
+                      </div>
+
+                      {/* Custom preset badge */}
+                      {hasCustomPreset && (
+                        <div className="absolute top-2 right-2 max-w-[60%]">
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md truncate block" style={{ background: "#C8956C", color: "#fff" }}>
+                            {presetLabel}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Progress overlay during generation */}
+                      {isGenerating && vidProgress !== null && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: "rgba(15,29,47,0.65)" }}>
+                          <span className="text-white font-bold text-lg leading-none">{Math.round(vidProgress)}%</span>
+                          <div className="w-3/4 mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.25)" }}>
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${vidProgress}%`, background: "#C8956C" }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Generating spinner (no per-video data yet) */}
+                      {isGenerating && vidProgress === null && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(15,29,47,0.45)" }}>
+                          <RotateCcw className="w-5 h-5 text-white animate-spin opacity-80" />
+                        </div>
+                      )}
+
+                      {/* Hover toolbar (camera preset) */}
+                      {!isGenerating && presets.length > 0 && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenPresetId(openPresetId === img.id ? null : img.id);
+                              }}
+                              className="flex items-center gap-1.5 px-3 h-8 rounded-full shadow-lg text-xs font-semibold transition-all"
+                              style={{
+                                background: hasCustomPreset ? "#C8956C" : "#fff",
+                                color: hasCustomPreset ? "#fff" : "#0F1D2F",
+                              }}
+                              data-testid={`button-preset-open-${idx}`}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12C2 12 5 5 12 5s10 7 10 7-3 7-10 7S2 12 2 12z"/></svg>
+                              {hasCustomPreset ? presetLabel : "Kameraeffekt"}
+                            </button>
+
+                            {/* Preset popover */}
+                            {openPresetId === img.id && (
+                              <div
+                                ref={presetPopoverRef}
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 rounded-xl shadow-xl border overflow-hidden z-20"
+                                style={{ background: "#fff", borderColor: "#E8E4DE", minWidth: "160px", maxHeight: "240px", overflowY: "auto" }}
+                                data-testid={`popover-preset-${idx}`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => { setPresetForImage(img.id, "DEFAULT"); setOpenPresetId(null); }}
+                                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-[#F8F6F3]"
+                                  style={{ color: img.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F", fontWeight: img.presetKey === "DEFAULT" ? 700 : 500 }}
+                                >
+                                  Auto (lad Rendy vælge)
+                                </button>
+                                <div className="h-px" style={{ background: "#F0EDE9" }} />
+                                {presets.map((p) => (
+                                  <button
+                                    key={p.key}
+                                    type="button"
+                                    onClick={() => { setPresetForImage(img.id, p.key); setOpenPresetId(null); }}
+                                    className="w-full text-left px-3 py-2 text-xs transition-colors hover:bg-[#F8F6F3]"
+                                    style={{ color: img.presetKey === p.key ? "#C8956C" : "#0F1D2F", fontWeight: img.presetKey === p.key ? 700 : 500 }}
+                                    data-testid={`option-preset-${p.key}-${idx}`}
+                                  >
+                                    {p.name || p.key}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Remove button */}
+                      {!isGenerating && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ display: hasCustomPreset ? "none" : undefined }}
+                          data-testid={`button-showcase-remove-${idx}`}
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add more button */}
+              {images.length < 20 && !isGenerating && (
+                <label
+                  className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
+                  style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
+                  data-testid="add-more-images"
+                >
+                  <input type="file" accept="image/*" multiple className="hidden"
+                    onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
+                  />
+                  <Upload className="w-5 h-5 mb-1" style={{ color: "#C8956C" }} />
+                  <span className="text-[10px] font-semibold" style={{ color: "#9B9690" }}>Tilføj</span>
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mx-5 mb-4 p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-showcase-error">
+            {error}
+          </div>
+        )}
+
+        {/* ── Progress bar (during generation) ── */}
         {isGenerating && (
-          <div className="space-y-2">
+          <div className="mx-5 mb-4 space-y-1.5">
             <div className="flex justify-between text-xs" style={{ color: "#6B6B6B" }}>
-              <span>{progressMsg}</span>
-              <span>{progressPct}%</span>
+              <span>{progressMsg || "Genererer videoer…"}</span>
+              <span className="font-semibold tabular-nums">{progressPct}%</span>
             </div>
             <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "#E8E4DE" }}>
               <div
@@ -3499,100 +3612,145 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         )}
 
-        {/* Error */}
-        {error && (
-          <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-showcase-error">
-            {error}
+        {/* ── Bottom status bar ── */}
+        {images.length > 0 && (
+          <div className="px-5 pb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-[#F0EDE9] pt-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#0F1D2F" }}>
+                  <ImageIcon className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{images.length}/20 billeder</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: effectsAdded > 0 ? "#C8956C" : "#F0EDE9" }}>
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: effectsAdded > 0 ? "#fff" : "#9B9690" }} />
+                </div>
+                <span className="text-sm font-semibold" style={{ color: effectsAdded > 0 ? "#C8956C" : "#9B9690" }}>
+                  {effectsAdded}/{images.length} effekter valgt
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setImages([]); setResultVideos([]); setError(null); }}
+                disabled={isGenerating}
+                className="h-10 px-4 rounded-full text-sm font-semibold border transition-all disabled:opacity-40"
+                style={{ borderColor: "#D9D5CF", color: "#6B6B6B", background: "#fff" }}
+                data-testid="button-showcase-clear-all"
+              >
+                Annuller
+              </button>
+              <QuotaGate feature="showcase">
+                <button
+                  onClick={handleGenerate}
+                  disabled={images.length < 1 || isGenerating}
+                  className="h-10 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 transition-opacity disabled:opacity-50"
+                  style={{ background: "#0F1D2F" }}
+                  data-testid="button-generate-showcase"
+                >
+                  {isGenerating ? (
+                    <><RotateCcw className="w-4 h-4 animate-spin" />Genererer…</>
+                  ) : (
+                    <><Film className="w-4 h-4" />Generér listing</>
+                  )}
+                </button>
+              </QuotaGate>
+            </div>
           </div>
         )}
 
-        {/* Results */}
-        {resultVideos.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
-                <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{resultVideos.length} video{resultVideos.length === 1 ? "" : "er"} genereret</span>
-              </div>
-              <div className="flex gap-2">
-                {listingId && (
-                  <button
-                    onClick={handleExport}
-                    disabled={isExporting}
-                    className="h-8 px-4 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 transition-opacity disabled:opacity-50"
-                    style={{ borderColor: "#0F1D2F", color: "#0F1D2F", background: "#fff" }}
-                    data-testid="button-export-zip"
-                  >
-                    {isExporting ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                    {isExporting ? "Pakker…" : "Download alle"}
-                  </button>
-                )}
-                {exportUrl && (
-                  <a
-                    href={exportUrl}
-                    download
-                    className="h-8 px-4 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 text-white"
-                    style={{ background: "#C8956C" }}
-                    data-testid="link-download-zip"
-                  >
-                    <Download className="w-3 h-3" /> Hent zip
-                  </a>
-                )}
-              </div>
-            </div>
+        {/* ── No images yet: show generate button placeholder ── */}
+        {images.length === 0 && (
+          <div className="px-5 pb-5" />
+        )}
+      </div>
 
-            <div className={`grid gap-4 ${ratio === "portrait" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
-              {resultVideos.map((video, idx) => (
-                <div key={video.id} className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]" data-testid={`card-rendy-video-${idx}`}>
-                  <div className="bg-[#0F1D2F] px-3 py-2 flex items-center justify-between">
-                    <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
-                    <span className="text-[10px] font-mono" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
-                  </div>
-                  {video.url ? (
-                    <video
-                      src={video.url}
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      className={`w-full object-cover bg-black ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
-                      data-testid={`video-rendy-${idx}`}
-                    />
-                  ) : (
-                    <div className={`w-full flex items-center justify-center ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`} style={{ background: "#1A1A2E", color: "#fff" }}>
-                      <span className="text-xs">Video ikke klar</span>
-                    </div>
-                  )}
-                  {video.url && (
-                    <div className="p-2">
-                      <button
-                        onClick={() => { const ts = new Date().toISOString().slice(0, 10); handleDownload(video.url!, `rendy-video-${idx + 1}-${ts}.mp4`); }}
-                        disabled={downloading === `rendy-video-${idx + 1}`}
-                        className="w-full h-8 rounded-full text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        style={{ background: "#0F1D2F" }}
-                        data-testid={`button-download-video-${idx}`}
-                      >
-                        <Download className="w-3 h-3" /> Download
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+      {/* ── Results ── */}
+      {resultVideos.length > 0 && (
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
+              <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{resultVideos.length} video{resultVideos.length === 1 ? "" : "er"} genereret</span>
             </div>
-
-            <div className="flex justify-end">
+            <div className="flex gap-2">
+              {listingId && (
+                <button
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  className="h-9 px-4 rounded-full text-sm font-semibold border inline-flex items-center gap-1.5 transition-opacity disabled:opacity-50"
+                  style={{ borderColor: "#0F1D2F", color: "#0F1D2F", background: "#fff" }}
+                  data-testid="button-export-zip"
+                >
+                  {isExporting ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  {isExporting ? "Pakker…" : "Download alle"}
+                </button>
+              )}
+              {exportUrl && (
+                <a
+                  href={exportUrl}
+                  download
+                  className="h-9 px-4 rounded-full text-sm font-semibold inline-flex items-center gap-1.5 text-white"
+                  style={{ background: "#C8956C" }}
+                  data-testid="link-download-zip"
+                >
+                  <Download className="w-3.5 h-3.5" /> Hent zip
+                </a>
+              )}
               <button
                 onClick={handleReset}
-                className="h-9 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                className="h-9 px-4 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
                 style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
                 data-testid="button-showcase-reset"
               >
-                <RotateCcw className="w-4 h-4" /> Ny showcase
+                <RotateCcw className="w-3.5 h-3.5" /> Ny showcase
               </button>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className={`grid gap-4 ${ratio === "portrait" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+            {resultVideos.map((video, idx) => (
+              <div key={video.id} className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]" data-testid={`card-rendy-video-${idx}`}>
+                <div className="bg-[#0F1D2F] px-3 py-2 flex items-center justify-between">
+                  <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
+                  <span className="text-[10px] font-mono" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
+                </div>
+                {video.url ? (
+                  <video
+                    src={video.url}
+                    controls
+                    loop
+                    muted
+                    playsInline
+                    className={`w-full object-cover bg-black ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
+                    data-testid={`video-rendy-${idx}`}
+                  />
+                ) : (
+                  <div className={`w-full flex items-center justify-center ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`} style={{ background: "#1A1A2E", color: "#fff" }}>
+                    <span className="text-xs">Video ikke klar</span>
+                  </div>
+                )}
+                {video.url && (
+                  <div className="p-2">
+                    <button
+                      onClick={() => { const ts = new Date().toISOString().slice(0, 10); handleDownload(video.url!, `rendy-video-${idx + 1}-${ts}.mp4`); }}
+                      disabled={!!downloading}
+                      className="w-full h-8 rounded-full text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      style={{ background: "#0F1D2F" }}
+                      data-testid={`button-download-video-${idx}`}
+                    >
+                      <Download className="w-3 h-3" /> Download
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
