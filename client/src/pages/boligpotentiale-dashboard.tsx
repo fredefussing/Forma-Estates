@@ -3185,6 +3185,20 @@ const VFX_STAGING = [
   { key: "earth-zoom", name: "Earth Zoom" },
 ];
 
+const CAMERA_PRESETS: { key: string; name: string; icon: string }[] = [
+  { key: "slide_left",     name: "Slide Left",     icon: "M19 12H5M12 5l-7 7 7 7" },
+  { key: "orbit_left",     name: "Orbit Left",     icon: "M2.5 12C2.5 6.75 6.75 2.5 12 2.5a9.5 9.5 0 0 1 6.6 2.66M21.5 12c0 5.25-4.25 9.5-9.5 9.5a9.5 9.5 0 0 1-6.6-2.66M2 8l.5 4.5 4-2M22 16l-.5-4.5-4 2" },
+  { key: "push_in",        name: "Push-In",        icon: "M5 12h14M12 5l7 7-7 7" },
+  { key: "orbit_right",    name: "Orbit Right",    icon: "M21.5 12C21.5 6.75 17.25 2.5 12 2.5a9.5 9.5 0 0 0-6.6 2.66M2.5 12c0 5.25 4.25 9.5 9.5 9.5a9.5 9.5 0 0 0 6.6-2.66M22 8l-.5 4.5-4-2M2 16l.5-4.5 4 2" },
+  { key: "slide_right",    name: "Slide Right",    icon: "M5 12h14M12 5l7 7-7 7" },
+  { key: "crane_down",     name: "Crane Down",     icon: "M12 5v14M5 12l7 7 7-7" },
+  { key: "crane_up",       name: "Crane Up",       icon: "M12 19V5M5 12l7-7 7 7" },
+  { key: "pedestal_down",  name: "Pedestal Down",  icon: "M12 5v14M5 16l7 7 7-7" },
+  { key: "pedestal_up",    name: "Pedestal Up",    icon: "M12 19V5M5 8l7-7 7 7" },
+  { key: "pull_out",       name: "Pull-Out",       icon: "M19 12H5M12 5l-7 7 7 7M3 3l18 18" },
+  { key: "static",         name: "Static",         icon: "M8 6h8M8 10h8M8 14h8M8 18h8" },
+];
+
 async function cropImageToFile(file: File, cropBox: { x: number; y: number; w: number; h: number }): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -3302,10 +3316,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const setPresetForImage = (id: string, key: string) => {
     setImages((prev) => prev.map((img) => img.id === id ? { ...img, presetKey: key } : img));
+    setOpenPanelId(null);
   };
 
   const setVfxForImage = (id: string, key: string | null) => {
     setImages((prev) => prev.map((img) => img.id === id ? { ...img, vfxKey: key } : img));
+    setOpenPanelId(null);
   };
 
   const setCropForImage = (id: string, box: { x: number; y: number; w: number; h: number } | null) => {
@@ -3681,11 +3697,43 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     {idx + 1}
                   </div>
 
-                  {/* Badges row (camera / VFX / crop) */}
-                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-                    {hasCamera && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate max-w-[64px]" style={{ background: "#C8956C", color: "#fff" }}>{cameraLabel}</span>}
-                    {hasVfx && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate max-w-[64px]" style={{ background: "#7C3AED", color: "#fff" }}>{vfxLabel}</span>}
-                    {hasCrop && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "#1D6BC8", color: "#fff" }}>Afskåret</span>}
+                  {/* Mini preview badges (camera / VFX / crop) */}
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end max-w-[72px]">
+                    {hasCamera && (() => {
+                      const cp = CAMERA_PRESETS.find((p) => p.key === img.presetKey);
+                      return (
+                        <div className="rounded-lg overflow-hidden shadow-md" style={{ background: "#0F1D2F", width: 64 }}>
+                          <div className="flex items-center justify-center" style={{ height: 36, background: "#1A2D42" }}>
+                            {cp ? (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8956C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d={cp.icon} />
+                              </svg>
+                            ) : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C8956C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                            )}
+                          </div>
+                          <div className="px-1.5 py-1 text-center">
+                            <span className="text-[8px] font-bold leading-none block truncate" style={{ color: "#C8956C" }}>{cameraLabel}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {hasVfx && (
+                      <div className="rounded-lg overflow-hidden shadow-md" style={{ background: "#2D1B69", width: 64 }}>
+                        <div className="flex items-center justify-center" style={{ height: 36, background: "#3D2580" }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                        </div>
+                        <div className="px-1.5 py-1 text-center">
+                          <span className="text-[8px] font-bold leading-none block truncate" style={{ color: "#A78BFA" }}>{vfxLabel}</span>
+                        </div>
+                      </div>
+                    )}
+                    {hasCrop && (
+                      <div className="rounded-lg shadow-md px-1.5 py-1 flex items-center gap-1" style={{ background: "#1D3A6B" }}>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#93C5FD" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/></svg>
+                        <span className="text-[8px] font-bold" style={{ color: "#93C5FD" }}>Afskåret</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Progress overlay during generation */}
@@ -3796,37 +3844,38 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
                     </button>
                   </div>
-                  <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                  <div className="flex gap-2 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    {/* Auto */}
                     <button
                       type="button"
                       onClick={() => setPresetForImage(img.id, "DEFAULT")}
                       className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
-                      style={{ width: 100, borderColor: img.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: img.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
+                      style={{ width: 88, borderColor: img.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: img.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
+                      data-testid="cam-preset-auto"
                     >
-                      <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: img.presetKey === "DEFAULT" ? "#FDF0E6" : "#F0EDE9" }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={img.presetKey === "DEFAULT" ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                      <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "4/3", background: img.presetKey === "DEFAULT" ? "#FDF0E6" : "#F0EDE9" }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={img.presetKey === "DEFAULT" ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                        </svg>
                       </div>
-                      <span className="text-xs font-semibold" style={{ color: img.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
+                      <span className="text-[11px] font-semibold" style={{ color: img.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
                     </button>
-                    {presets.map((p) => (
+                    {/* Hardcoded camera presets */}
+                    {CAMERA_PRESETS.map((p) => (
                       <button
                         key={p.key}
                         type="button"
                         onClick={() => setPresetForImage(img.id, p.key)}
                         className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
-                        style={{ width: 100, borderColor: img.presetKey === p.key ? "#C8956C" : "#E8E4DE", background: img.presetKey === p.key ? "#FDF8F4" : "#F8F6F3" }}
+                        style={{ width: 88, borderColor: img.presetKey === p.key ? "#C8956C" : "#E8E4DE", background: img.presetKey === p.key ? "#FDF8F4" : "#F8F6F3" }}
                         data-testid={`cam-preset-${p.key}`}
                       >
-                        <div className="w-full rounded-lg overflow-hidden bg-[#F0EDE9]" style={{ aspectRatio: "16/9" }}>
-                          {p.sampleVideoUrl ? (
-                            <video src={p.sampleVideoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9B9690" strokeWidth="1.8"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                            </div>
-                          )}
+                        <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "4/3", background: img.presetKey === p.key ? "#FDF0E6" : "#F0EDE9" }}>
+                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={img.presetKey === p.key ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d={p.icon} />
+                          </svg>
                         </div>
-                        <span className="text-xs font-semibold text-center leading-tight" style={{ color: img.presetKey === p.key ? "#C8956C" : "#0F1D2F" }}>{p.name || p.key}</span>
+                        <span className="text-[11px] font-semibold text-center leading-tight" style={{ color: img.presetKey === p.key ? "#C8956C" : "#0F1D2F" }}>{p.name}</span>
                       </button>
                     ))}
                   </div>
