@@ -3137,52 +3137,53 @@ interface ShowcaseImg {
   cropBox: { x: number; y: number; w: number; h: number } | null;
 }
 
+const BASE = "https://tcsffqhaqxggamwqimka.supabase.co/storage/v1/object/public";
 const VFX_TRANSITIONS = [
-  { key: "construction", name: "Construction" },
-  { key: "renovate", name: "Renovate" },
-  { key: "lens-flare", name: "Lens Flare" },
-  { key: "implosion", name: "Implosion" },
-  { key: "house-drop", name: "House Drop" },
-  { key: "fix-landscape", name: "Fix Landscape" },
-  { key: "day-to-twilight", name: "Day To Twilight" },
-  { key: "sketch", name: "Sketch" },
-  { key: "sunrise", name: "Sunrise" },
-  { key: "lighting-strike", name: "Lighting Strike" },
-  { key: "money-rain", name: "Money Rain" },
-  { key: "helicopter-reveal", name: "Helicopter Reveal" },
-  { key: "snow-removal", name: "Snow Removal" },
-  { key: "shadows", name: "Shadows" },
-  { key: "car-drive", name: "Car Drive" },
-  { key: "fireworks", name: "Fireworks" },
-  { key: "day-to-night", name: "Day to Night" },
-  { key: "build", name: "Build" },
+  { key: "construction",      name: "Construction",       sampleVideoUrl: `${BASE}/assets/presets/video/1773231257553-or6bek.mp4` },
+  { key: "renovate",          name: "Renovate",           sampleVideoUrl: `${BASE}/assets/presets/video/1778643690924-ag42oc.mp4` },
+  { key: "lens-flare",        name: "Lens Flare",         sampleVideoUrl: `${BASE}/assets/presets/video/1773093349980-3mwrdk.mp4` },
+  { key: "implosion",         name: "Implosion",          sampleVideoUrl: `${BASE}/assets/presets/video/1773231376986-jk4x5.mp4` },
+  { key: "house-drop",        name: "House Drop",         sampleVideoUrl: `${BASE}/assets/presets/video/1782302974133-pdjr65.mp4` },
+  { key: "fix-landscape",     name: "Fix Landscape",      sampleVideoUrl: `${BASE}/assets/presets/video/1773088735685-yju28w.mp4` },
+  { key: "day-to-twilight",   name: "Day To Twilight",    sampleVideoUrl: `${BASE}/assets/presets/video/1773231349807-9wkdc.mp4` },
+  { key: "sketch",            name: "Sketch",             sampleVideoUrl: `${BASE}/assets/presets/video/1773231276395-hs8j2w.mp4` },
+  { key: "sunrise",           name: "Sunrise",            sampleVideoUrl: `${BASE}/assets/presets/video/1781521963146-4o5r7m.mp4` },
+  { key: "lighting-strike",   name: "Lighting Strike",    sampleVideoUrl: `${BASE}/assets/presets/video/1780601989678-4wz0p.mp4` },
+  { key: "money-rain",        name: "Money Rain",         sampleVideoUrl: `${BASE}/assets/presets/video/1773231390714-b8agpp.mp4` },
+  { key: "helicopter-reveal", name: "Helicopter Reveal",  sampleVideoUrl: `${BASE}/assets/presets/video/1773231319219-rxr1uj.mp4` },
+  { key: "snow-removal",      name: "Snow Removal",       sampleVideoUrl: `${BASE}/assets/presets/video/1773231240994-nkvhsu.mp4` },
+  { key: "shadows",           name: "Shadows",            sampleVideoUrl: `${BASE}/assets/presets/video/1769730534229-iek4m.mp4` },
+  { key: "car-drive",         name: "Car Drive",          sampleVideoUrl: `${BASE}/assets/presets/video/1781034542659-nrykc.mp4` },
+  { key: "fireworks",         name: "Fireworks",          sampleVideoUrl: `${BASE}/assets/presets/video/1772387944096-u4n7ss.mp4` },
+  { key: "day-to-night",      name: "Day to Night",       sampleVideoUrl: `${BASE}/assets/presets/video/1768136123246-lzhqhd.mp4` },
+  { key: "build",             name: "Build",              sampleVideoUrl: `${BASE}/assets/presets/video/1768136134495-mj3zf.mp4` },
 ];
 const VFX_ACTORS = [
-  { key: "family", name: "Family" },
-  { key: "man", name: "Man" },
-  { key: "woman", name: "Woman" },
-  { key: "kids", name: "Kids" },
-  { key: "couple", name: "Couple" },
+  { key: "family", name: "Family", sampleVideoUrl: `${BASE}/actors/previews/family.mp4` },
+  { key: "man",    name: "Man",    sampleVideoUrl: `${BASE}/actors/previews/man.mp4` },
+  { key: "woman",  name: "Woman",  sampleVideoUrl: `${BASE}/actors/previews/woman.mp4` },
+  { key: "kids",   name: "Kids",   sampleVideoUrl: `${BASE}/actors/previews/kids.mp4` },
+  { key: "couple", name: "Couple", sampleVideoUrl: `${BASE}/actors/previews/couple.mp4` },
 ];
 const VFX_STAGING = [
-  { key: "2d-3d-floorplan", name: "2D > 3D Floor Plan" },
-  { key: "3d-miniature", name: "3D Miniature" },
-  { key: "starry-night", name: "Starry Night" },
-  { key: "watercolor", name: "Watercolor" },
-  { key: "light-dance", name: "Light Dance" },
-  { key: "balloons", name: "Balloons" },
-  { key: "timelapse", name: "Timelapse" },
-  { key: "electricity", name: "Electricity" },
-  { key: "glass-house", name: "Glass House" },
-  { key: "magazine", name: "Magazine" },
-  { key: "add-pool", name: "Add Pool" },
-  { key: "open-door", name: "Open Door" },
-  { key: "concept-board", name: "Concept Board" },
-  { key: "move-that-bus", name: "Move that bus!" },
-  { key: "just-listed-sign", name: "Just Listed Sign" },
-  { key: "draw-lot-line", name: "Draw Lot Line" },
-  { key: "sketch-artist", name: "Sketch Artist" },
-  { key: "earth-zoom", name: "Earth Zoom" },
+  { key: "2d-3d-floorplan",  name: "2D > 3D Floor Plan",  sampleVideoUrl: `${BASE}/assets/presets/video/1775532692161-16w0je.mp4` },
+  { key: "3d-miniature",     name: "3D Miniature",         sampleVideoUrl: `${BASE}/assets/presets/video/1775531632403-7j6qs.mp4` },
+  { key: "starry-night",     name: "Starry Night",         sampleVideoUrl: `${BASE}/assets/presets/video/1778520552694-1l8qh5.mp4` },
+  { key: "watercolor",       name: "Watercolor",           sampleVideoUrl: `${BASE}/assets/presets/video/1769732315811-t40lj.mp4` },
+  { key: "light-dance",      name: "Light Dance",          sampleVideoUrl: `${BASE}/assets/presets/video/1773093250947-y0w04c.mp4` },
+  { key: "balloons",         name: "Balloons",             sampleVideoUrl: `${BASE}/assets/presets/video/1773231334887-23v81m.mp4` },
+  { key: "timelapse",        name: "Timelapse",            sampleVideoUrl: `${BASE}/assets/presets/video/1773231362851-1tx3vl.mp4` },
+  { key: "electricity",      name: "Electricity",          sampleVideoUrl: `${BASE}/assets/presets/video/1773231295451-zf7bb.mp4` },
+  { key: "glass-house",      name: "Glass House",          sampleVideoUrl: `${BASE}/assets/presets/video/1769200308900-4z6w09.mp4` },
+  { key: "magazine",         name: "Magazine",             sampleVideoUrl: `${BASE}/assets/presets/video/1771961816109-ub00zs.mp4` },
+  { key: "add-pool",         name: "Add Pool",             sampleVideoUrl: `${BASE}/assets/presets/video/1772391417442-vo4hk.mp4` },
+  { key: "open-door",        name: "Open Door",            sampleVideoUrl: `${BASE}/assets/presets/video/1773089176614-gyo9ae.mp4` },
+  { key: "concept-board",    name: "Concept Board",        sampleVideoUrl: `${BASE}/assets/presets/video/1773087324382-8ekhmt.mp4` },
+  { key: "move-that-bus",    name: "Move that bus!",       sampleVideoUrl: `${BASE}/assets/presets/video/1772390400888-t7qtmh.mp4` },
+  { key: "just-listed-sign", name: "Just Listed Sign",     sampleVideoUrl: `${BASE}/assets/presets/video/1772390537995-0uwkqo.mp4` },
+  { key: "draw-lot-line",    name: "Draw Lot Line",        sampleVideoUrl: `${BASE}/assets/presets/video/1771024170103-kvqoqq.mp4` },
+  { key: "sketch-artist",    name: "Sketch Artist",        sampleVideoUrl: `${BASE}/assets/presets/video/1775532088810-zq90b7.mp4` },
+  { key: "earth-zoom",       name: "Earth Zoom",           sampleVideoUrl: `${BASE}/assets/presets/video/1773231403159-i4e019.mp4` },
 ];
 
 const CAMERA_PRESETS: { key: string; name: string; icon: string }[] = [
@@ -3909,33 +3910,52 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
                     </button>
                   </div>
-                  <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                  <div className="flex gap-2 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    {/* Ingen / None */}
                     <button
                       type="button"
                       onClick={() => setVfxForImage(img.id, null)}
                       className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
-                      style={{ width: 100, borderColor: !img.vfxKey ? "#7C3AED" : "#E8E4DE", background: !img.vfxKey ? "#F5F0FD" : "#F8F6F3" }}
+                      style={{ width: 96, borderColor: !img.vfxKey ? "#7C3AED" : "#E8E4DE", background: !img.vfxKey ? "#F5F0FD" : "#F8F6F3" }}
+                      data-testid="vfx-none"
                     >
                       <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: !img.vfxKey ? "#EDE8FA" : "#F0EDE9" }}>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={!img.vfxKey ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
                       </div>
-                      <span className="text-xs font-semibold" style={{ color: !img.vfxKey ? "#7C3AED" : "#0F1D2F" }}>Ingen</span>
+                      <span className="text-[11px] font-semibold" style={{ color: !img.vfxKey ? "#7C3AED" : "#0F1D2F" }}>Ingen</span>
                     </button>
-                    {vfxSubList.map((v) => (
-                      <button
-                        key={v.key}
-                        type="button"
-                        onClick={() => setVfxForImage(img.id, v.key)}
-                        className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
-                        style={{ width: 100, borderColor: img.vfxKey === v.key ? "#7C3AED" : "#E8E4DE", background: img.vfxKey === v.key ? "#F5F0FD" : "#F8F6F3" }}
-                        data-testid={`vfx-${v.key}`}
-                      >
-                        <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: img.vfxKey === v.key ? "#EDE8FA" : "#F0EDE9" }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={img.vfxKey === v.key ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
-                        </div>
-                        <span className="text-xs font-semibold text-center leading-tight" style={{ color: img.vfxKey === v.key ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
-                      </button>
-                    ))}
+                    {/* VFX items with looping video previews */}
+                    {vfxSubList.map((v) => {
+                      const isSelected = img.vfxKey === v.key;
+                      return (
+                        <button
+                          key={v.key}
+                          type="button"
+                          onClick={() => setVfxForImage(img.id, v.key)}
+                          className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
+                          style={{ width: 96, borderColor: isSelected ? "#7C3AED" : "#E8E4DE", background: isSelected ? "#F5F0FD" : "#F8F6F3" }}
+                          data-testid={`vfx-${v.key}`}
+                        >
+                          <div className="w-full rounded-lg overflow-hidden" style={{ aspectRatio: "16/9", background: isSelected ? "#EDE8FA" : "#F0EDE9" }}>
+                            {v.sampleVideoUrl ? (
+                              <video
+                                src={v.sampleVideoUrl}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isSelected ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[11px] font-semibold text-center leading-tight" style={{ color: isSelected ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               )}
