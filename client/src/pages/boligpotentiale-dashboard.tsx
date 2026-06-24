@@ -3496,10 +3496,15 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <div className="flex items-center justify-between px-6 py-4 shrink-0">
             <button
               type="button"
-              onClick={() => { setCropModalImg(null); setCropDraft(null); setCropDragStart(null); }}
+              onClick={() => {
+                if (cropModalImg) {
+                  setImages((prev) => prev.map((i) => i.id === cropModalImg.id ? { ...i, cropBox: null } : i));
+                }
+                setCropModalImg(null); setCropDraft(null); setCropDragStart(null);
+              }}
               className="h-9 px-4 rounded-full text-sm font-semibold border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-all"
             >
-              Annuller
+              Fjern afskæring
             </button>
             <span className="text-white font-semibold text-sm">Afskær billede</span>
             <button
@@ -3634,282 +3639,293 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           </label>
         )}
 
-        {/* ── Thumbnails grid ── */}
-        {images.length > 0 && (
-          <div className="px-4 pt-4">
-            <div
-              className={`grid gap-2 ${
-                ratio === "portrait"
-                  ? "grid-cols-4 sm:grid-cols-5"
-                  : "grid-cols-2 sm:grid-cols-3"
-              }`}
-            >
-              {images.map((img, idx) => {
-                const vidProgress = renderingVideos[idx]?.progress ?? null;
-                const hasCamera = img.presetKey && img.presetKey !== "DEFAULT";
-                const hasVfx = !!img.vfxKey;
-                const hasCrop = !!img.cropBox;
-                const cameraLabel = hasCamera ? (presets.find((p) => p.key === img.presetKey)?.name || img.presetKey) : null;
-                const vfxLabel = hasVfx ? ([...VFX_TRANSITIONS, ...VFX_ACTORS, ...VFX_STAGING].find((v) => v.key === img.vfxKey)?.name || img.vfxKey) : null;
-                const isSelected = openPanelId === img.id;
-                const panelOpen = openPanelId !== null;
+        {/* ── Thumbnails grid (row-grouped so panel appears directly under image) ── */}
+        {images.length > 0 && (() => {
+          const COLS = ratio === "portrait" ? 5 : 3;
+          const selectedIdx = openPanelId ? images.findIndex((i) => i.id === openPanelId) : -1;
+          const totalRows = Math.ceil(images.length / COLS);
+
+          const renderThumb = (img: ShowcaseImg, idx: number) => {
+            const vidProgress = renderingVideos[idx]?.progress ?? null;
+            const hasCamera = img.presetKey && img.presetKey !== "DEFAULT";
+            const hasVfx = !!img.vfxKey;
+            const hasCrop = !!img.cropBox;
+            const cameraLabel = hasCamera ? (presets.find((p) => p.key === img.presetKey)?.name || img.presetKey) : null;
+            const vfxLabel = hasVfx ? ([...VFX_TRANSITIONS, ...VFX_ACTORS, ...VFX_STAGING].find((v) => v.key === img.vfxKey)?.name || img.vfxKey) : null;
+            const isSelected = openPanelId === img.id;
+            const panelOpen = openPanelId !== null;
+
+            return (
+              <div
+                key={img.id}
+                draggable={!isGenerating}
+                onDragStart={() => setDragIndex(idx)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
+                onDragEnd={() => setDragIndex(null)}
+                className="relative rounded-xl overflow-hidden group cursor-move"
+                style={{
+                  border: isSelected ? "2px solid #C8956C" : dragIndex === idx ? "2px solid #C8956C" : "2px solid transparent",
+                  background: "#F0EDE9",
+                  transition: "filter 0.2s, opacity 0.2s, transform 0.2s",
+                  filter: panelOpen && !isSelected ? "blur(2px) brightness(0.75)" : "none",
+                  transform: isSelected ? "scale(1.02)" : "scale(1)",
+                }}
+                data-testid={`thumb-showcase-${idx}`}
+              >
+                <div className={`relative w-full overflow-hidden ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}>
+                  <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover block" />
+
+                  {/* Number badge */}
+                  <div className="absolute top-2 left-2 w-6 h-6 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold flex items-center justify-center">
+                    {idx + 1}
+                  </div>
+
+                  {/* Badges row (camera / VFX / crop) */}
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                    {hasCamera && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate max-w-[64px]" style={{ background: "#C8956C", color: "#fff" }}>{cameraLabel}</span>}
+                    {hasVfx && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate max-w-[64px]" style={{ background: "#7C3AED", color: "#fff" }}>{vfxLabel}</span>}
+                    {hasCrop && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "#1D6BC8", color: "#fff" }}>Afskåret</span>}
+                  </div>
+
+                  {/* Progress overlay during generation */}
+                  {isGenerating && vidProgress !== null && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: "rgba(15,29,47,0.65)" }}>
+                      <span className="text-white font-bold text-lg leading-none">{Math.round(vidProgress)}%</span>
+                      <div className="w-3/4 mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.25)" }}>
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${vidProgress}%`, background: "#C8956C" }} />
+                      </div>
+                    </div>
+                  )}
+                  {isGenerating && vidProgress === null && (
+                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(15,29,47,0.45)" }}>
+                      <RotateCcw className="w-5 h-5 text-white animate-spin opacity-80" />
+                    </div>
+                  )}
+
+                  {/* 3-icon hover toolbar */}
+                  {!isGenerating && (
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <div className="flex items-center gap-1 px-3 h-9 rounded-2xl shadow-xl" style={{ background: "#fff" }}>
+                        {/* Crop */}
+                        <div className="relative group/crop">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setCropModalImg(img); setCropDraft(img.cropBox ?? null); setCropDragStart(null); }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
+                            style={{ color: hasCrop ? "#1D6BC8" : "#0F1D2F" }}
+                            data-testid={`button-crop-${idx}`}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/></svg>
+                          </button>
+                          <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/crop:opacity-100 transition-opacity pointer-events-none">Afskær</span>
+                        </div>
+
+                        <div className="w-px h-5 bg-[#E8E4DE]" />
+
+                        {/* VFX */}
+                        <div className="relative group/vfx">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isSelected && panelTab === "vfx") { setOpenPanelId(null); }
+                              else { setOpenPanelId(img.id); setPanelTab("vfx"); }
+                            }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
+                            style={{ color: hasVfx || (isSelected && panelTab === "vfx") ? "#7C3AED" : "#0F1D2F" }}
+                            data-testid={`button-vfx-${idx}`}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                          </button>
+                          <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/vfx:opacity-100 transition-opacity pointer-events-none">VFX</span>
+                        </div>
+
+                        <div className="w-px h-5 bg-[#E8E4DE]" />
+
+                        {/* Camera */}
+                        <div className="relative group/cam">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isSelected && panelTab === "camera") { setOpenPanelId(null); }
+                              else { setOpenPanelId(img.id); setPanelTab("camera"); }
+                            }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
+                            style={{ color: hasCamera || (isSelected && panelTab === "camera") ? "#C8956C" : "#0F1D2F" }}
+                            data-testid={`button-camera-${idx}`}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                          </button>
+                          <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/cam:opacity-100 transition-opacity pointer-events-none">Kamera</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remove button */}
+                  {!isGenerating && !hasCamera && !hasVfx && !hasCrop && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      data-testid={`button-showcase-remove-${idx}`}
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          };
+
+          const renderPanel = (img: ShowcaseImg) => (
+            <div key={`panel-${img.id}`} className="col-span-full mt-1 rounded-2xl border overflow-hidden shadow-lg" style={{ borderColor: "#E8E4DE", background: "#fff" }}>
+              {panelTab === "camera" ? (
+                <>
+                  <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9", background: "#F8F6F3" }}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#0F1D2F" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Kamerabevægelse</span>
+                      <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(img) + 1}</span>
+                    </div>
+                    <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                      <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
+                    </button>
+                  </div>
+                  <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    <button
+                      type="button"
+                      onClick={() => setPresetForImage(img.id, "DEFAULT")}
+                      className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
+                      style={{ width: 100, borderColor: img.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: img.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
+                    >
+                      <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: img.presetKey === "DEFAULT" ? "#FDF0E6" : "#F0EDE9" }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={img.presetKey === "DEFAULT" ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ color: img.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
+                    </button>
+                    {presets.map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => setPresetForImage(img.id, p.key)}
+                        className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
+                        style={{ width: 100, borderColor: img.presetKey === p.key ? "#C8956C" : "#E8E4DE", background: img.presetKey === p.key ? "#FDF8F4" : "#F8F6F3" }}
+                        data-testid={`cam-preset-${p.key}`}
+                      >
+                        <div className="w-full rounded-lg overflow-hidden bg-[#F0EDE9]" style={{ aspectRatio: "16/9" }}>
+                          {p.sampleVideoUrl ? (
+                            <video src={p.sampleVideoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9B9690" strokeWidth="1.8"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs font-semibold text-center leading-tight" style={{ color: img.presetKey === p.key ? "#C8956C" : "#0F1D2F" }}>{p.name || p.key}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9", background: "#F8F6F3" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#7C3AED" }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                        </div>
+                        <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Visuelle effekter</span>
+                        <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(img) + 1}</span>
+                      </div>
+                      <div className="flex items-center rounded-xl overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>
+                        {(["transitions", "actors", "staging"] as const).map((tab) => (
+                          <button
+                            key={tab}
+                            type="button"
+                            onClick={() => setVfxSubTab(tab)}
+                            className="px-3 h-7 text-xs font-semibold transition-all"
+                            style={{ background: vfxSubTab === tab ? "#7C3AED" : "#fff", color: vfxSubTab === tab ? "#fff" : "#6B6B6B" }}
+                          >
+                            {tab === "transitions" ? "Transitions" : tab === "actors" ? "Actors" : "Staging"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                      <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
+                    </button>
+                  </div>
+                  <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    <button
+                      type="button"
+                      onClick={() => setVfxForImage(img.id, null)}
+                      className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
+                      style={{ width: 100, borderColor: !img.vfxKey ? "#7C3AED" : "#E8E4DE", background: !img.vfxKey ? "#F5F0FD" : "#F8F6F3" }}
+                    >
+                      <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: !img.vfxKey ? "#EDE8FA" : "#F0EDE9" }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={!img.vfxKey ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ color: !img.vfxKey ? "#7C3AED" : "#0F1D2F" }}>Ingen</span>
+                    </button>
+                    {vfxSubList.map((v) => (
+                      <button
+                        key={v.key}
+                        type="button"
+                        onClick={() => setVfxForImage(img.id, v.key)}
+                        className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all"
+                        style={{ width: 100, borderColor: img.vfxKey === v.key ? "#7C3AED" : "#E8E4DE", background: img.vfxKey === v.key ? "#F5F0FD" : "#F8F6F3" }}
+                        data-testid={`vfx-${v.key}`}
+                      >
+                        <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: img.vfxKey === v.key ? "#EDE8FA" : "#F0EDE9" }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={img.vfxKey === v.key ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                        </div>
+                        <span className="text-xs font-semibold text-center leading-tight" style={{ color: img.vfxKey === v.key ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+
+          return (
+            <div className="px-4 pt-4 space-y-2">
+              {Array.from({ length: totalRows }, (_, rowIdx) => {
+                const start = rowIdx * COLS;
+                const rowImgs = images.slice(start, Math.min(start + COLS, images.length));
+                const isLastRow = rowIdx === totalRows - 1;
+                const isSelectedRow = selectedIdx >= start && selectedIdx < start + COLS;
 
                 return (
-                  <div
-                    key={img.id}
-                    draggable={!isGenerating}
-                    onDragStart={() => setDragIndex(idx)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => { if (dragIndex !== null) moveImage(dragIndex, idx); setDragIndex(null); }}
-                    onDragEnd={() => setDragIndex(null)}
-                    className="relative rounded-xl overflow-hidden group cursor-move transition-opacity duration-200"
-                    style={{
-                      border: isSelected ? "2px solid #C8956C" : dragIndex === idx ? "2px solid #C8956C" : "2px solid transparent",
-                      background: "#F0EDE9",
-                      opacity: panelOpen && !isSelected ? 0.45 : 1,
-                    }}
-                    data-testid={`thumb-showcase-${idx}`}
-                  >
-                    <div className={`relative w-full overflow-hidden ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}>
-                      <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover block" />
-
-                      {/* Number badge */}
-                      <div className="absolute top-2 left-2 w-6 h-6 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold flex items-center justify-center">
-                        {idx + 1}
-                      </div>
-
-                      {/* Badges row (camera / VFX / crop) */}
-                      <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-                        {hasCamera && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate max-w-[64px]" style={{ background: "#C8956C", color: "#fff" }}>{cameraLabel}</span>}
-                        {hasVfx && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate max-w-[64px]" style={{ background: "#7C3AED", color: "#fff" }}>{vfxLabel}</span>}
-                        {hasCrop && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "#1D6BC8", color: "#fff" }}>Afskåret</span>}
-                      </div>
-
-                      {/* Progress overlay during generation */}
-                      {isGenerating && vidProgress !== null && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: "rgba(15,29,47,0.65)" }}>
-                          <span className="text-white font-bold text-lg leading-none">{Math.round(vidProgress)}%</span>
-                          <div className="w-3/4 mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.25)" }}>
-                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${vidProgress}%`, background: "#C8956C" }} />
-                          </div>
-                        </div>
-                      )}
-                      {isGenerating && vidProgress === null && (
-                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(15,29,47,0.45)" }}>
-                          <RotateCcw className="w-5 h-5 text-white animate-spin opacity-80" />
-                        </div>
-                      )}
-
-                      {/* 3-icon hover toolbar */}
-                      {!isGenerating && (
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex flex-col items-center gap-1">
-                          {/* Tooltip label */}
-                          <div className="bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full pointer-events-none select-none whitespace-nowrap hidden group-hover:flex items-center" id={`label-${img.id}`} />
-                          {/* Icon bar */}
-                          <div className="flex items-center gap-1 px-3 h-9 rounded-2xl shadow-xl" style={{ background: "#fff" }}>
-                            {/* Crop */}
-                            <div className="relative group/crop">
-                              <button
-                                type="button"
-                                title="Afskær billede"
-                                onClick={(e) => { e.stopPropagation(); setCropModalImg(img); setCropDraft(img.cropBox); setCropDragStart(null); }}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
-                                style={{ color: hasCrop ? "#1D6BC8" : "#0F1D2F" }}
-                                data-testid={`button-crop-${idx}`}
-                              >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/></svg>
-                              </button>
-                              <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/crop:opacity-100 transition-opacity pointer-events-none">Afskær</span>
-                            </div>
-
-                            <div className="w-px h-5 bg-[#E8E4DE]" />
-
-                            {/* VFX */}
-                            <div className="relative group/vfx">
-                              <button
-                                type="button"
-                                title="Visuelle effekter"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isSelected && panelTab === "vfx") { setOpenPanelId(null); }
-                                  else { setOpenPanelId(img.id); setPanelTab("vfx"); }
-                                }}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
-                                style={{ color: hasVfx || (isSelected && panelTab === "vfx") ? "#7C3AED" : "#0F1D2F" }}
-                                data-testid={`button-vfx-${idx}`}
-                              >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
-                              </button>
-                              <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/vfx:opacity-100 transition-opacity pointer-events-none">VFX</span>
-                            </div>
-
-                            <div className="w-px h-5 bg-[#E8E4DE]" />
-
-                            {/* Camera movements */}
-                            <div className="relative group/cam">
-                              <button
-                                type="button"
-                                title="Kamerabevægelse"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isSelected && panelTab === "camera") { setOpenPanelId(null); }
-                                  else { setOpenPanelId(img.id); setPanelTab("camera"); }
-                                }}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
-                                style={{ color: hasCamera || (isSelected && panelTab === "camera") ? "#C8956C" : "#0F1D2F" }}
-                                data-testid={`button-camera-${idx}`}
-                              >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                              </button>
-                              <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/cam:opacity-100 transition-opacity pointer-events-none">Kamera</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Remove button (top-right, shown when no badges) */}
-                      {!isGenerating && !hasCamera && !hasVfx && !hasCrop && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
-                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          data-testid={`button-showcase-remove-${idx}`}
+                  <div key={rowIdx}>
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 8 }}>
+                      {rowImgs.map((img, relIdx) => renderThumb(img, start + relIdx))}
+                      {isLastRow && images.length < 20 && !isGenerating && (
+                        <label
+                          className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
+                          style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
+                          data-testid="add-more-images"
                         >
-                          <X className="w-3 h-3 text-white" />
-                        </button>
+                          <input type="file" accept="image/*" multiple className="hidden"
+                            onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
+                          />
+                          <Upload className="w-5 h-5 mb-1" style={{ color: "#C8956C" }} />
+                          <span className="text-[10px] font-semibold" style={{ color: "#9B9690" }}>Tilføj</span>
+                        </label>
                       )}
                     </div>
+                    {isSelectedRow && panelImg && !isGenerating && renderPanel(panelImg)}
                   </div>
                 );
               })}
-
-              {/* Add more button */}
-              {images.length < 20 && !isGenerating && (
-                <label
-                  className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
-                  style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
-                  data-testid="add-more-images"
-                >
-                  <input type="file" accept="image/*" multiple className="hidden"
-                    onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
-                  />
-                  <Upload className="w-5 h-5 mb-1" style={{ color: "#C8956C" }} />
-                  <span className="text-[10px] font-semibold" style={{ color: "#9B9690" }}>Tilføj</span>
-                </label>
-              )}
             </div>
-          </div>
-        )}
-
-        {/* ── Camera Movements Panel ── */}
-        {openPanelId && panelTab === "camera" && panelImg && !isGenerating && (
-          <div className="mx-4 mt-3 rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE", background: "#fff" }}>
-            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9" }}>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-white"
-                  style={{ background: "#0F1D2F" }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                  Camera Movements
-                </button>
-              </div>
-              <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#F0EDE9] transition-colors">
-                <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
-              </button>
-            </div>
-            <div className="flex gap-3 p-4 overflow-x-auto">
-              {/* Auto */}
-              <button
-                type="button"
-                onClick={() => setPresetForImage(panelImg.id, "DEFAULT")}
-                className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all w-24"
-                style={{ borderColor: panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: panelImg.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
-              >
-                <div className="w-full aspect-video rounded-lg flex items-center justify-center" style={{ background: panelImg.presetKey === "DEFAULT" ? "#FDF0E6" : "#F0EDE9" }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#9B9690"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                </div>
-                <span className="text-[11px] font-semibold" style={{ color: panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
-              </button>
-              {/* Presets from Rendy API */}
-              {presets.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  onClick={() => setPresetForImage(panelImg.id, p.key)}
-                  className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all w-24"
-                  style={{ borderColor: panelImg.presetKey === p.key ? "#C8956C" : "#E8E4DE", background: panelImg.presetKey === p.key ? "#FDF8F4" : "#F8F6F3" }}
-                  data-testid={`cam-preset-${p.key}`}
-                >
-                  <div className="w-full aspect-video rounded-lg overflow-hidden bg-[#F0EDE9]">
-                    {p.sampleVideoUrl ? (
-                      <video src={p.sampleVideoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9B9690" strokeWidth="1.8"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-semibold text-center leading-tight" style={{ color: panelImg.presetKey === p.key ? "#C8956C" : "#0F1D2F" }}>{p.name || p.key}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── VFX Panel ── */}
-        {openPanelId && panelTab === "vfx" && panelImg && !isGenerating && (
-          <div className="mx-4 mt-3 rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE", background: "#fff" }}>
-            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9" }}>
-              <div className="flex items-center gap-2">
-                {(["transitions", "actors", "staging"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setVfxSubTab(tab)}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold transition-all"
-                    style={{ background: vfxSubTab === tab ? "#0F1D2F" : "transparent", color: vfxSubTab === tab ? "#fff" : "#6B6B6B" }}
-                  >
-                    {tab === "transitions" ? "Transitions" : tab === "actors" ? "Actors" : "Staging"}
-                  </button>
-                ))}
-              </div>
-              <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#F0EDE9] transition-colors">
-                <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
-              </button>
-            </div>
-            <div className="flex gap-3 p-4 overflow-x-auto">
-              {/* None option */}
-              <button
-                type="button"
-                onClick={() => setVfxForImage(panelImg.id, null)}
-                className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all w-24"
-                style={{ borderColor: !panelImg.vfxKey ? "#7C3AED" : "#E8E4DE", background: !panelImg.vfxKey ? "#F5F0FD" : "#F8F6F3" }}
-              >
-                <div className="w-full aspect-video rounded-lg flex items-center justify-center" style={{ background: !panelImg.vfxKey ? "#EDE8FA" : "#F0EDE9" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={!panelImg.vfxKey ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
-                </div>
-                <span className="text-[11px] font-semibold" style={{ color: !panelImg.vfxKey ? "#7C3AED" : "#0F1D2F" }}>Ingen</span>
-              </button>
-              {vfxSubList.map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => setVfxForImage(panelImg.id, v.key)}
-                  className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all w-24"
-                  style={{ borderColor: panelImg.vfxKey === v.key ? "#7C3AED" : "#E8E4DE", background: panelImg.vfxKey === v.key ? "#F5F0FD" : "#F8F6F3" }}
-                  data-testid={`vfx-${v.key}`}
-                >
-                  <div className="w-full aspect-video rounded-lg flex items-center justify-center" style={{ background: panelImg.vfxKey === v.key ? "#EDE8FA" : "#F0EDE9" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={panelImg.vfxKey === v.key ? "#7C3AED" : "#9B9690"} strokeWidth="1.8"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
-                  </div>
-                  <span className="text-[11px] font-semibold text-center leading-tight" style={{ color: panelImg.vfxKey === v.key ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Error */}
         {error && (
