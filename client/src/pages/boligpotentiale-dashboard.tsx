@@ -3521,10 +3521,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const panelImg = images.find((i) => i.id === openPanelId) ?? null;
 
   return (
-    <div style={{ zoom: 1.04, paddingLeft: "3.5%" }}>
+    <div style={{ paddingLeft: "3.5%" }}>
       {/* ── Crop Modal ── */}
       {cropModalImg && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.88)", zoom: 1/1.04 }}>
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.88)" }}>
           <div className="flex items-center justify-between px-6 py-4 shrink-0">
             <button
               type="button"
@@ -3595,9 +3595,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig Showcase</h1>
-          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: "#0F1D2F", color: "#fff" }}>powered by Rendy</span>
         </div>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Rendy genererer professionelle AI-videoer med kamerabevægelse — vælg kameraeffekt per billede eller lad systemet vælge automatisk.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. AI genererer professionelle videoer med kamerabevægelse — vælg kameraeffekt per billede eller lad systemet vælge automatisk.</p>
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden">
@@ -3845,7 +3844,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           };
 
           const renderPanel = (img: ShowcaseImg) => (
-            <div key={`panel-${img.id}`} className="col-span-full mt-1 rounded-2xl border overflow-hidden shadow-lg" style={{ borderColor: "#E8E4DE", background: "#fff", zoom: 1/1.04 }}>
+            <div key={`panel-${img.id}`} className="col-span-full mt-1 rounded-2xl border overflow-hidden shadow-lg" style={{ borderColor: "#E8E4DE", background: "#fff" }}>
               {panelTab === "camera" ? (
                 <>
                   <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9", background: "#F8F6F3" }}>
