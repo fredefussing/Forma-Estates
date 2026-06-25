@@ -3521,7 +3521,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const panelImg = images.find((i) => i.id === openPanelId) ?? null;
 
   return (
-    <div style={{ zoom: 1.15, paddingLeft: "10%" }}>
+    <div style={{ zoom: 1.15, paddingLeft: "4%" }}>
       {/* ── Crop Modal ── */}
       {cropModalImg && (
         <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.88)" }}>
