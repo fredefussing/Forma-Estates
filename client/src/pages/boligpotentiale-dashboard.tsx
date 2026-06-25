@@ -3524,7 +3524,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     <div style={{ zoom: 1.04, paddingLeft: "3.5%" }}>
       {/* ── Crop Modal ── */}
       {cropModalImg && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.88)" }}>
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.88)", zoom: 1/1.04 }}>
           <div className="flex items-center justify-between px-6 py-4 shrink-0">
             <button
               type="button"
