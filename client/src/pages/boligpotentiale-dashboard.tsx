@@ -3845,7 +3845,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           };
 
           const renderPanel = (img: ShowcaseImg) => (
-            <div key={`panel-${img.id}`} className="col-span-full mt-1 rounded-2xl border overflow-hidden shadow-lg" style={{ borderColor: "#E8E4DE", background: "#fff" }}>
+            <div key={`panel-${img.id}`} className="col-span-full mt-1 rounded-2xl border overflow-hidden shadow-lg" style={{ borderColor: "#E8E4DE", background: "#fff", zoom: 1/1.04 }}>
               {panelTab === "camera" ? (
                 <>
                   <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9", background: "#F8F6F3" }}>
