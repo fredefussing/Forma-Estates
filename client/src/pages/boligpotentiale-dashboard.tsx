@@ -4047,7 +4047,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             />
             {/* Panel */}
             <div
-              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl shadow-2xl border-t overflow-hidden"
+              className="fixed bottom-0 left-0 md:left-56 right-0 z-50 rounded-t-2xl shadow-2xl border-t overflow-hidden"
               style={{ borderColor: "#E8E4DE", background: "#fff" }}
             >
               {panelTab === "camera" ? (
