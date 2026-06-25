@@ -4029,13 +4029,149 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         </label>
                       )}
                     </div>
-                    {isSelectedRow && panelImg && !isGenerating && renderPanel(panelImg)}
                   </div>
                 );
               })}
             </div>
           );
         })()}
+
+        {/* ── Fixed bottom panel for VFX / Camera selection ── */}
+        {panelImg && !isGenerating && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-40"
+              style={{ background: "rgba(0,0,0,0.25)" }}
+              onClick={() => setOpenPanelId(null)}
+            />
+            {/* Panel */}
+            <div
+              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl shadow-2xl border-t overflow-hidden"
+              style={{ borderColor: "#E8E4DE", background: "#fff" }}
+            >
+              {panelTab === "camera" ? (
+                <>
+                  <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9", background: "#F8F6F3" }}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#0F1D2F" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Kamerabevægelse</span>
+                      <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(panelImg) + 1}</span>
+                    </div>
+                    <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                      <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
+                    </button>
+                  </div>
+                  <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    <style dangerouslySetInnerHTML={{ __html: CAM_PREVIEW_CSS }} />
+                    <button type="button" onClick={() => setPresetForImage(panelImg.id, "DEFAULT")}
+                      className="flex-shrink-0 flex flex-col items-center gap-2 p-2.5 rounded-xl border-2 transition-all"
+                      style={{ width: 200, borderColor: panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#E8E4DE", background: panelImg.presetKey === "DEFAULT" ? "#FDF8F4" : "#F8F6F3" }}
+                      data-testid="cam-preset-auto-bottom">
+                      <div className="w-full rounded-lg overflow-hidden relative" style={{ aspectRatio: "16/9" }}>
+                        <div className="cam-preview-scene" style={{ animationName: "cam-push-in", position:"absolute", left:"-15%", top:"-15%", background:"linear-gradient(180deg,#87CEEB 0%,#87CEEB 55%,#4A7C59 55%,#4A7C59 100%)" }}>
+                          <svg viewBox="0 0 80 50" style={{ position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)", width:"70%", height:"auto" }}>
+                            <polygon points="8,28 40,8 72,28" fill="#2D3A2E" opacity="0.9"/>
+                            <rect x="18" y="28" width="44" height="22" fill="#3D4F3E" opacity="0.9"/>
+                            <rect x="32" y="36" width="16" height="14" fill="#C8956C" opacity="0.7"/>
+                          </svg>
+                        </div>
+                        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <span style={{ fontSize:11, fontWeight:700, color:"#fff", background:"rgba(200,149,108,0.85)", borderRadius:4, padding:"2px 8px", letterSpacing:"0.04em" }}>AUTO</span>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
+                    </button>
+                    {CAMERA_PRESETS.map((p) => {
+                      const isSelected = panelImg.presetKey === p.key;
+                      return (
+                        <button key={p.key} type="button" onClick={() => setPresetForImage(panelImg.id, p.key)}
+                          className="flex-shrink-0 flex flex-col items-center gap-2 p-2.5 rounded-xl border-2 transition-all"
+                          style={{ width: 200, borderColor: isSelected ? "#C8956C" : "#E8E4DE", background: isSelected ? "#FDF8F4" : "#F8F6F3" }}
+                          data-testid={`cam-preset-bottom-${p.key}`}>
+                          <div className="w-full rounded-lg overflow-hidden relative" style={{ aspectRatio: "16/9" }}>
+                            <div className="cam-preview-scene" style={{ animationName: p.animName, position:"absolute", left:"-15%", top:"-15%", background:"linear-gradient(180deg,#87CEEB 0%,#87CEEB 55%,#4A7C59 55%,#4A7C59 100%)" }}>
+                              <svg viewBox="0 0 80 50" style={{ position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)", width:"70%", height:"auto" }}>
+                                <polygon points="8,28 40,8 72,28" fill="#2D3A2E" opacity="0.9"/>
+                                <rect x="18" y="28" width="44" height="22" fill="#3D4F3E" opacity="0.9"/>
+                                <rect x="32" y="36" width="16" height="14" fill={isSelected ? "#C8956C" : "#7A6A5A"} opacity="0.8"/>
+                              </svg>
+                            </div>
+                            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              <div style={{ background:"rgba(15,29,47,0.55)", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d={p.icon} />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-sm font-semibold text-center leading-tight" style={{ color: isSelected ? "#C8956C" : "#0F1D2F" }}>{p.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EDE9", background: "#F8F6F3" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#7C3AED" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>VFX Effekter</span>
+                      <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(panelImg) + 1}</span>
+                      <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>
+                        {(["transitions","actors","staging"] as const).map((tab) => (
+                          <button key={tab} type="button" onClick={() => setVfxSubTab(tab)}
+                            className="px-3 h-7 text-xs font-semibold transition-all"
+                            style={{ background: vfxSubTab === tab ? "#7C3AED" : "#fff", color: vfxSubTab === tab ? "#fff" : "#6B6B6B" }}>
+                            {tab === "transitions" ? "Transitions" : tab === "actors" ? "Actors" : "Staging"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                      <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
+                    </button>
+                  </div>
+                  <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                    <button type="button" onClick={() => setVfxForImage(panelImg.id, null)}
+                      className="flex-shrink-0 flex flex-col items-center gap-2 p-2.5 rounded-xl border-2 transition-all"
+                      style={{ width: 200, borderColor: !panelImg.vfxKey ? "#7C3AED" : "#E8E4DE", background: !panelImg.vfxKey ? "#F5F0FD" : "#F8F6F3" }}
+                      data-testid="vfx-none-bottom">
+                      <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: !panelImg.vfxKey ? "#EDE8FA" : "#F0EDE9" }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={!panelImg.vfxKey ? "#7C3AED" : "#9B9690"} strokeWidth="1.5"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: !panelImg.vfxKey ? "#7C3AED" : "#0F1D2F" }}>Ingen</span>
+                    </button>
+                    {vfxSubList.map((v) => {
+                      const isSelected = panelImg.vfxKey === v.key;
+                      return (
+                        <button key={v.key} type="button" onClick={() => setVfxForImage(panelImg.id, v.key)}
+                          className="flex-shrink-0 flex flex-col items-center gap-2 p-2.5 rounded-xl border-2 transition-all"
+                          style={{ width: 200, borderColor: isSelected ? "#7C3AED" : "#E8E4DE", background: isSelected ? "#F5F0FD" : "#F8F6F3" }}
+                          data-testid={`vfx-bottom-${v.key}`}>
+                          <div className="w-full rounded-lg overflow-hidden" style={{ aspectRatio: "16/9", background: isSelected ? "#EDE8FA" : "#F0EDE9" }}>
+                            {v.sampleVideoUrl ? (
+                              <video src={v.sampleVideoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={isSelected ? "#7C3AED" : "#9B9690"} strokeWidth="1.5"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold text-center leading-tight" style={{ color: isSelected ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Error */}
         {error && (
