@@ -2666,7 +2666,18 @@ export async function registerRoutes(
         if (Array.isArray(raw)) presetKeys = raw.map((k) => (typeof k === "string" && k ? k : undefined));
       } catch { /* ignore malformed */ }
 
-      const jobId = startRendyShowcase(filePaths, address, ratio, presetKeys);
+      // VFX keys override camera preset keys (both are Rendy presetKey values)
+      let vfxKeys: (string | null)[] = new Array(files.length).fill(null);
+      try {
+        const rawVfx = typeof req.body?.vfxKeys === "string" ? JSON.parse(req.body.vfxKeys) : undefined;
+        if (Array.isArray(rawVfx)) vfxKeys = rawVfx.map((k) => (typeof k === "string" && k ? k : null));
+      } catch { /* ignore malformed */ }
+
+      // Merge: VFX takes priority over camera preset when both are set
+      const mergedPresetKeys = presetKeys.map((cam, i) => vfxKeys[i] || cam || undefined);
+
+      log(`[Rendy] presets=${JSON.stringify(mergedPresetKeys)}`);
+      const jobId = startRendyShowcase(filePaths, address, ratio, mergedPresetKeys);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
       if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase (Rendy) · ${files.length} billeder`).catch(() => {});
