@@ -509,7 +509,7 @@ export async function registerRoutes(
       }
 
       // Pre-configured users: specific accounts get fixed tier + feature locks on every login
-      type PreConfigEntry = { tier: string; lockedFeatures: ("transformVideos" | "showcase" | "ai" | "floorPlans")[] };
+      type PreConfigEntry = { tier: keyof typeof SUBSCRIPTION_QUOTAS; lockedFeatures: ("transformVideos" | "showcase" | "ai" | "floorPlans")[] };
       const PRE_CONFIGURED_USERS: Record<string, PreConfigEntry> = {
         "jove@atp-ejendomme.dk": { tier: "pro", lockedFeatures: ["transformVideos", "showcase"] },
       };
@@ -519,13 +519,20 @@ export async function registerRoutes(
           await storage.updateUser(user.id, { subscriptionTier: preConfig.tier, subscriptionStatus: "active" });
           user = { ...user, subscriptionTier: preConfig.tier, subscriptionStatus: "active" };
         }
-        const quotaUpdate: Record<string, number> = {};
-        if (preConfig.lockedFeatures.includes("transformVideos")) quotaUpdate.transformVideos = 0;
-        if (preConfig.lockedFeatures.includes("showcase")) quotaUpdate.showcase = 0;
-        if (preConfig.lockedFeatures.includes("ai")) quotaUpdate.ai = 0;
-        if (preConfig.lockedFeatures.includes("floorPlans")) quotaUpdate.floorPlans = 0;
-        if (Object.keys(quotaUpdate).length > 0) await storage.setUserQuotas(user.id, quotaUpdate);
-        log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}`);
+        const tierQuotas = SUBSCRIPTION_QUOTAS[preConfig.tier];
+        const nextMonth = new Date();
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        nextMonth.setDate(1);
+        nextMonth.setHours(0, 0, 0, 0);
+        const quotaUpdate: Record<string, number | null | Date> = {
+          ai: preConfig.lockedFeatures.includes("ai") ? 0 : (tierQuotas.ai as number | null),
+          floorPlans: preConfig.lockedFeatures.includes("floorPlans") ? 0 : (tierQuotas.floorPlans as number | null),
+          transformVideos: preConfig.lockedFeatures.includes("transformVideos") ? 0 : (tierQuotas.transformVideos as number | null),
+          showcase: preConfig.lockedFeatures.includes("showcase") ? 0 : (tierQuotas.showcase as number | null),
+          resetsAt: nextMonth,
+        };
+        await storage.setUserQuotas(user.id, quotaUpdate as any);
+        log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}, ai=${quotaUpdate.ai}`);
       }
 
       return res.json({
