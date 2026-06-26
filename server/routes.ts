@@ -508,6 +508,26 @@ export async function registerRoutes(
         log(`[auth] Auto-elevated super-admin: ${user.email}`);
       }
 
+      // Pre-configured users: specific accounts get fixed tier + feature locks on every login
+      type PreConfigEntry = { tier: string; lockedFeatures: ("transformVideos" | "showcase" | "ai" | "floorPlans")[] };
+      const PRE_CONFIGURED_USERS: Record<string, PreConfigEntry> = {
+        "jove@atp-ejendomme.dk": { tier: "pro", lockedFeatures: ["transformVideos", "showcase"] },
+      };
+      const preConfig = PRE_CONFIGURED_USERS[user.email?.toLowerCase() ?? ""];
+      if (preConfig) {
+        if (user.subscriptionTier !== preConfig.tier || user.subscriptionStatus !== "active") {
+          await storage.updateUser(user.id, { subscriptionTier: preConfig.tier, subscriptionStatus: "active" });
+          user = { ...user, subscriptionTier: preConfig.tier, subscriptionStatus: "active" };
+        }
+        const quotaUpdate: Record<string, number> = {};
+        if (preConfig.lockedFeatures.includes("transformVideos")) quotaUpdate.transformVideos = 0;
+        if (preConfig.lockedFeatures.includes("showcase")) quotaUpdate.showcase = 0;
+        if (preConfig.lockedFeatures.includes("ai")) quotaUpdate.ai = 0;
+        if (preConfig.lockedFeatures.includes("floorPlans")) quotaUpdate.floorPlans = 0;
+        if (Object.keys(quotaUpdate).length > 0) await storage.setUserQuotas(user.id, quotaUpdate);
+        log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}`);
+      }
+
       return res.json({
         user: {
           id: user.id,

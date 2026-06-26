@@ -7786,6 +7786,9 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
   const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus, subscriptionTier } = useAuth();
+  const quotaData = useQuotaData();
+  const lockedTV = !isAdmin && quotaData != null && quotaData.quota.transformVideo.limit === 0;
+  const lockedSV = !isAdmin && quotaData != null && quotaData.quota.showcase.limit === 0;
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
@@ -8084,9 +8087,9 @@ export default function BoligpotentialeDashboard() {
     { id: "solgte" as Section, label: "Solgte sager", icon: <PackageCheck className="w-[18px] h-[18px]" />, badge: soldCount > 0 ? soldCount : null },
     { id: "ai-design-agent" as Section, label: "AI Design Agent", icon: <PenTool className="w-[18px] h-[18px]" /> },
     { id: "3d-plantegning" as Section, label: "3D plantegning", icon: <Box className="w-[18px] h-[18px]" /> },
-    { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" /> },
+    { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" />, locked: lockedTV },
     ...(isOwner ? [{ id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> }] : []),
-    { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" /> },
+    { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" />, locked: lockedSV },
     { id: "historik" as Section, label: "Historik", icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: "Team", icon: <Users className="w-[18px] h-[18px]" /> },
     ...(isAdmin ? [{ id: "crm" as Section, label: "CRM", icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
@@ -8114,16 +8117,26 @@ export default function BoligpotentialeDashboard() {
       <nav className="space-y-0.5 flex-1 overflow-y-auto min-h-0" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
         {NAV.map((item) => {
           const isActive = section === item.id || (section === "sag-detail" && item.id === "sager");
+          const isLocked = "locked" in item && item.locked;
           return (
             <button key={item.id}
-              onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+              onClick={() => {
+                if (isLocked) return;
+                setSection(item.id); setSidebarOpen(false);
+              }}
               className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all"
-              style={{ background: isActive ? "rgba(200,149,108,0.18)" : "transparent", color: isActive ? "#C8956C" : "rgba(245,243,239,0.7)" }}
+              style={{
+                background: isActive ? "rgba(200,149,108,0.18)" : "transparent",
+                color: isLocked ? "rgba(245,243,239,0.3)" : isActive ? "#C8956C" : "rgba(245,243,239,0.7)",
+                cursor: isLocked ? "default" : "pointer",
+              }}
               data-testid={`bolig-nav-${item.id}`}
+              title={isLocked ? "Denne funktion er ikke inkluderet i din pakke" : undefined}
             >
               {item.icon}
               <span className="md:inline flex-1">{item.label}</span>
-              {"badge" in item && item.badge != null && (
+              {isLocked && <Lock className="w-3.5 h-3.5 opacity-50" />}
+              {"badge" in item && item.badge != null && !isLocked && (
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.25)", color: "#86efac" }}>{item.badge}</span>
               )}
             </button>
