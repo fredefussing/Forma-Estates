@@ -103,8 +103,12 @@ export function QuotaWidget() {
     ? `${TIER_LABELS[quota.teamPlan] ?? quota.teamPlan} plan`
     : null;
 
-  const resetDate = quota.resetsAt
-    ? new Date(quota.resetsAt).toLocaleDateString("da-DK", { day: "numeric", month: "long" })
+  const resetsAtDate = quota.resetsAt ? new Date(quota.resetsAt) : null;
+  const resetDate = resetsAtDate
+    ? resetsAtDate.toLocaleDateString("da-DK", { day: "numeric", month: "long" })
+    : null;
+  const daysRemaining = resetsAtDate
+    ? Math.max(0, Math.ceil((resetsAtDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : null;
 
   return (
@@ -123,17 +127,29 @@ export function QuotaWidget() {
           </div>
         </div>
         <div className="text-right">
-          {resetDate && !isUnlimitedUser && (
-            <span className="text-[11px] block" style={{ color: "#9B9690" }}>Nulstilles {resetDate}</span>
-          )}
           {quota.teamName && quota.memberCount !== null && quota.maxMembers !== null && (
-            <div className="flex items-center gap-1 mt-0.5 justify-end">
+            <div className="flex items-center gap-1 mb-1 justify-end">
               <Users className="w-3 h-3" style={{ color: "#9B9690" }} />
               <span className="text-[11px]" style={{ color: "#9B9690" }}>{quota.memberCount}/{quota.maxMembers} medl.</span>
             </div>
           )}
         </div>
       </div>
+
+      {/* Reset countdown — prominent pill */}
+      {resetDate && !isUnlimitedUser && daysRemaining !== null && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl" style={{ background: daysRemaining <= 5 ? "rgba(239,68,68,0.06)" : "rgba(200,149,108,0.07)" }}>
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0" style={{ background: daysRemaining <= 5 ? "rgba(239,68,68,0.12)" : "rgba(200,149,108,0.12)" }}>
+            <span className="text-sm font-bold" style={{ color: daysRemaining <= 5 ? "#EF4444" : "#C8956C" }}>{daysRemaining}</span>
+          </div>
+          <div>
+            <p className="text-xs font-semibold leading-tight" style={{ color: daysRemaining <= 5 ? "#EF4444" : "#1A1A1A" }}>
+              {daysRemaining === 1 ? "1 dag tilbage" : `${daysRemaining} dage tilbage`}
+            </p>
+            <p className="text-[11px] leading-tight" style={{ color: "#9B9690" }}>Kvota nulstilles {resetDate}</p>
+          </div>
+        </div>
+      )}
 
       {/* Feature rows */}
       <div className="space-y-3.5">

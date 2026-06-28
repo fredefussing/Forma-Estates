@@ -258,7 +258,17 @@ export function startRendyShowcase(
         }
 
         if (st.status === "error") {
-          throw new Error("Rendy generering fejlede på serveren");
+          // Fetch full listing to surface any error details from Rendy
+          let detail = "";
+          try {
+            const full = await getRendyListing(listingId);
+            const failedVideos = full.videos.filter((v) => v.status === "error");
+            if (failedVideos.length) detail = ` (${failedVideos.length} video(er) fejlede)`;
+            console.error(`[Rendy] listing ${listingId} error – full response:`, JSON.stringify(full.listing));
+          } catch (detailErr) {
+            console.error(`[Rendy] kunne ikke hente listing detaljer:`, detailErr);
+          }
+          throw new Error(`Rendy generering fejlede på serveren${detail}. Tjek at billederne er skarpe og velbelyste (min. 800×600px).`);
         }
       }
     } catch (err: any) {
