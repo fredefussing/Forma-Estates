@@ -20,7 +20,7 @@ import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startWalkthroughVideo, getShowcaseJob } from "./showcase";
-import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, exportRendyListing, getRendyExportStatus } from "./rendy";
+import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
 
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
@@ -2717,7 +2717,7 @@ export async function registerRoutes(
   });
 
   // SSE progress stream for Rendy jobs
-  app.get("/api/bolig/showcase-video/progress/:jobId", (req, res) => {
+  app.get("/api/bolig/showcase-video/progress/:jobId", async (req, res) => {
     const { jobId } = req.params;
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -2728,33 +2728,102 @@ export async function registerRoutes(
     const ping = () => { try { res.write(":\n\n"); } catch {} };
 
     const job = getRendyJob(jobId);
-    if (!job) {
-      send({ stage: "failed", progress: 0, message: "Job ikke fundet" });
-      res.end();
+
+    // ── Fast path: job is in memory ───────────────────────────────────────────
+    if (job) {
+      send(job.progress);
+      if (job.status !== "processing") {
+        if (job.status === "failed") refundShowcaseVideo(jobId);
+        else showcaseVideoRefunds.delete(jobId);
+        res.end();
+        return;
+      }
+      const iv = setInterval(() => {
+        const j = getRendyJob(jobId);
+        if (!j) { clearInterval(iv); clearInterval(hb); try { res.end(); } catch {} return; }
+        send(j.progress);
+        if (j.status === "completed" || j.status === "failed") {
+          if (j.status === "failed") refundShowcaseVideo(jobId);
+          else showcaseVideoRefunds.delete(jobId);
+          clearInterval(iv); clearInterval(hb);
+          try { res.end(); } catch {}
+        }
+      }, 2000);
+      const hb = setInterval(ping, 20_000);
+      req.on("close", () => { clearInterval(iv); clearInterval(hb); });
       return;
     }
-    send(job.progress);
-    if (job.status !== "processing") {
-      if (job.status === "failed") refundShowcaseVideo(jobId);
-      else showcaseVideoRefunds.delete(jobId);
+
+    // ── Recovery path: server restarted — look up listingId from DB and poll Rendy directly ──
+    log(`[Rendy] job ${jobId} not in memory — checking DB for listingId`);
+    const listingId = await getRendyListingIdForJob(jobId);
+    if (!listingId) {
+      send({ stage: "failed", progress: 0, message: "Job ikke fundet — serveren er genstartet. Upload venligst billederne igen." });
       res.end();
       return;
     }
 
-    const iv = setInterval(() => {
-      const j = getRendyJob(jobId);
-      if (!j) { clearInterval(iv); clearInterval(hb); try { res.end(); } catch {} return; }
-      send(j.progress);
-      if (j.status === "completed" || j.status === "failed") {
-        if (j.status === "failed") refundShowcaseVideo(jobId);
-        else showcaseVideoRefunds.delete(jobId);
-        clearInterval(iv); clearInterval(hb);
-        try { res.end(); } catch {}
-      }
-    }, 2000);
+    log(`[Rendy] recovered listingId=${listingId} from DB for job ${jobId} — polling Rendy directly`);
+    send({ stage: "generating", progress: 40, message: "Gendanner forbindelse til Rendy…", listingId });
 
     const hb = setInterval(ping, 20_000);
-    req.on("close", () => { clearInterval(iv); clearInterval(hb); });
+    let closed = false;
+    req.on("close", () => { closed = true; clearInterval(hb); });
+
+    // Poll Rendy status directly (same logic as startRendyShowcase polling loop)
+    let consecutiveErrors = 0;
+    const MAX_ERRORS = 4;
+    while (!closed) {
+      await new Promise((r) => setTimeout(r, 3000));
+      if (closed) break;
+      let st: { progress: number; status: string };
+      try {
+        st = await getRendyListingStatus(listingId);
+      } catch (err: any) {
+        consecutiveErrors++;
+        log(`[Rendy] recovery poll error (${consecutiveErrors}/${MAX_ERRORS}): ${err.message}`);
+        if (consecutiveErrors >= MAX_ERRORS) {
+          send({ stage: "failed", progress: 0, message: "Forbindelsen til Rendy mislykkedes. Prøv igen." });
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 5000));
+        continue;
+      }
+
+      const pct = typeof st.progress === "number" ? st.progress : 0;
+      const mapped = 32 + Math.round(pct * 0.63);
+
+      if (st.status === "error") {
+        consecutiveErrors++;
+        if (consecutiveErrors < MAX_ERRORS) {
+          send({ stage: "generating", progress: mapped, message: `Rendy fejl — prøver igen (${consecutiveErrors}/${MAX_ERRORS})…`, listingId });
+          await new Promise((r) => setTimeout(r, 10_000));
+          continue;
+        }
+        send({ stage: "failed", progress: 0, message: "Rendy generering fejlede. Prøv med bedre billeder (min. 800×600px)." });
+        break;
+      }
+
+      consecutiveErrors = 0;
+
+      if (st.status === "success") {
+        try {
+          const full = await getRendyListing(listingId);
+          const videos = full.videos.filter((v) => v.status === "success" && v.url);
+          send({ stage: "complete", progress: 100, message: `${videos.length} video${videos.length === 1 ? "" : "er"} klar!`, videos, listingId });
+        } catch {
+          send({ stage: "failed", progress: 0, message: "Kunne ikke hente færdige videoer fra Rendy." });
+        }
+        break;
+      }
+
+      // Still generating
+      send({ stage: "generating", progress: mapped, message: `Rendy genererer videoer… ${pct}%`, listingId });
+      ping();
+    }
+
+    clearInterval(hb);
+    try { res.end(); } catch {}
   });
 
   // Trigger zip export of a completed Rendy listing

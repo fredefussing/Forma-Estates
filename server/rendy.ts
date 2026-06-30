@@ -1,7 +1,48 @@
 import fs from "fs";
 import { randomUUID } from "crypto";
+import { pool } from "./db";
 
 const RENDY_BASE = "https://api.rendy.io/api/public/v1";
+
+// ── DB-backed job registry (survives server restarts) ─────────────────────────
+export async function ensureRendyJobsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rendy_jobs (
+      job_id   TEXT PRIMARY KEY,
+      listing_id TEXT,
+      status   TEXT NOT NULL DEFAULT 'processing',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  // Clean up jobs older than 24 h
+  await pool.query(`DELETE FROM rendy_jobs WHERE created_at < NOW() - INTERVAL '24 hours'`);
+}
+
+async function dbUpsertJob(jobId: string, listingId?: string, status?: string) {
+  try {
+    await pool.query(
+      `INSERT INTO rendy_jobs (job_id, listing_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (job_id) DO UPDATE
+         SET listing_id = COALESCE($2, rendy_jobs.listing_id),
+             status     = COALESCE($3, rendy_jobs.status)`,
+      [jobId, listingId ?? null, status ?? "processing"]
+    );
+  } catch (err: any) {
+    console.error("[Rendy] dbUpsertJob failed:", err.message);
+  }
+}
+
+export async function getRendyListingIdForJob(jobId: string): Promise<string | null> {
+  try {
+    const res = await pool.query<{ listing_id: string }>(
+      `SELECT listing_id FROM rendy_jobs WHERE job_id = $1`, [jobId]
+    );
+    return res.rows[0]?.listing_id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface RendyPreset {
@@ -239,6 +280,8 @@ export function startRendyShowcase(
       const listingId = await createRendyListing(address || "Boligfremvisning", ratio, imageUrls);
       const cur = jobs.get(jobId)!;
       jobs.set(jobId, { ...cur, listingId });
+      // Persist listingId to DB so SSE can recover after a server restart
+      dbUpsertJob(jobId, listingId);
 
       // Step 3: Poll until done — with retry on transient Rendy errors
       let consecutiveErrors = 0;

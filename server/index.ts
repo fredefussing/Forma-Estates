@@ -5,6 +5,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startTracker } from "./tracker";
 import { storage } from "./storage";
+import { ensureRendyJobsTable } from "./rendy";
 
 const app = express();
 const httpServer = createServer(app);
@@ -82,6 +83,9 @@ app.use((req, res, next) => {
       }
     } catch { /* non-fatal — will be fixed on next login via /api/auth/verify */ }
   }
+
+  // Ensure Rendy job tracking table exists (survives server restarts)
+  try { await ensureRendyJobsTable(); } catch (e: any) { console.error("[init] ensureRendyJobsTable:", e.message); }
 
   await registerRoutes(httpServer, app);
 
