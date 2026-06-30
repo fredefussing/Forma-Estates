@@ -508,10 +508,15 @@ export async function registerRoutes(
         log(`[auth] Auto-elevated super-admin: ${user.email}`);
       }
 
-      // Pre-configured users: specific accounts get fixed tier + feature locks on every login
-      type PreConfigEntry = { tier: keyof typeof SUBSCRIPTION_QUOTAS; lockedFeatures: ("transformVideos" | "showcase" | "ai" | "floorPlans")[] };
+      // Pre-configured users: specific accounts get fixed tier + feature locks on every login.
+      // overrideQuotas: custom lifetime caps that are NEVER re-inflated after use (take min of DB vs cap).
+      type PreConfigEntry = {
+        tier: keyof typeof SUBSCRIPTION_QUOTAS;
+        lockedFeatures: ("transformVideos" | "showcase" | "ai" | "floorPlans")[];
+        overrideQuotas?: Partial<Record<"ai" | "floorPlans" | "transformVideos" | "showcase", number>>;
+      };
       const PRE_CONFIGURED_USERS: Record<string, PreConfigEntry> = {
-        "jove@atp-ejendomme.dk": { tier: "pro", lockedFeatures: ["transformVideos", "showcase"] },
+        "jove@atp-ejendomme.dk": { tier: "pro", lockedFeatures: ["transformVideos"], overrideQuotas: { showcase: 1 } },
       };
       const preConfig = PRE_CONFIGURED_USERS[user.email?.toLowerCase() ?? ""];
       if (preConfig) {
@@ -524,15 +529,31 @@ export async function registerRoutes(
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         nextMonth.setDate(1);
         nextMonth.setHours(0, 0, 0, 0);
+
+        // For overrideQuotas fields: read current DB value and never re-inflate past the cap.
+        // null in DB = first login → set to cap. number in DB → use min(current, cap).
+        const currentDbQuota = preConfig.overrideQuotas ? await storage.getUserQuota(user.id) : null;
+
+        const resolveField = (field: "ai" | "floorPlans" | "transformVideos" | "showcase", tierVal: number | null): number | null => {
+          const locked = preConfig.lockedFeatures.includes(field);
+          if (locked) return 0;
+          const cap = preConfig.overrideQuotas?.[field];
+          if (cap !== undefined && currentDbQuota) {
+            const dbLimit = currentDbQuota[field === "floorPlans" ? "floorPlan" : field === "transformVideos" ? "transformVideo" : field].limit;
+            return dbLimit === null ? cap : Math.min(dbLimit, cap);
+          }
+          return tierVal;
+        };
+
         const quotaUpdate: Record<string, number | null | Date> = {
-          ai: preConfig.lockedFeatures.includes("ai") ? 0 : (tierQuotas.ai as number | null),
-          floorPlans: preConfig.lockedFeatures.includes("floorPlans") ? 0 : (tierQuotas.floorPlans as number | null),
-          transformVideos: preConfig.lockedFeatures.includes("transformVideos") ? 0 : (tierQuotas.transformVideos as number | null),
-          showcase: preConfig.lockedFeatures.includes("showcase") ? 0 : (tierQuotas.showcase as number | null),
+          ai:             resolveField("ai",             tierQuotas.ai as number | null),
+          floorPlans:     resolveField("floorPlans",     tierQuotas.floorPlans as number | null),
+          transformVideos:resolveField("transformVideos",tierQuotas.transformVideos as number | null),
+          showcase:       resolveField("showcase",       tierQuotas.showcase as number | null),
           resetsAt: nextMonth,
         };
         await storage.setUserQuotas(user.id, quotaUpdate as any);
-        log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}, ai=${quotaUpdate.ai}`);
+        log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}, showcase=${quotaUpdate.showcase}`);
       }
 
       return res.json({
