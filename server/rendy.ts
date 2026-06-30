@@ -189,17 +189,24 @@ export async function createRendyListing(
   ratio: "portrait" | "landscape",
   imageUrls: Array<{ url: string; presetKey?: string }>
 ): Promise<string> {
+  const requestBody = { address, ratio, imageUrls };
+  console.log("[Rendy] createListing request:", JSON.stringify(requestBody));
   const res = await rendyFetch("/listings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address, ratio, imageUrls }),
+    body: JSON.stringify(requestBody),
   });
+  const responseText = await res.text().catch(() => "");
+  console.log(`[Rendy] createListing response (${res.status}):`, responseText.slice(0, 500));
   if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`Rendy listing fejlede (${res.status}): ${err}`);
+    throw new Error(`Rendy listing fejlede (${res.status}): ${responseText}`);
   }
-  const data = await res.json() as { listingId: string };
-  return data.listingId;
+  let data: any;
+  try { data = JSON.parse(responseText); } catch { throw new Error("Rendy listing: ugyldigt JSON svar"); }
+  // Rendy may return { listingId } or { id }
+  const listingId = data.listingId || data.id;
+  if (!listingId) throw new Error(`Rendy listing: intet listingId i svar: ${responseText.slice(0, 200)}`);
+  return listingId;
 }
 
 export async function getRendyListingStatus(listingId: string): Promise<{ progress: number; status: string }> {

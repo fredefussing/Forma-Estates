@@ -2700,10 +2700,75 @@ export async function registerRoutes(
         if (Array.isArray(rawVfx)) vfxKeys = rawVfx.map((k) => (typeof k === "string" && k ? k : null));
       } catch { /* ignore malformed */ }
 
-      // Merge: VFX takes priority over camera preset when both are set
-      const mergedPresetKeys = presetKeys.map((cam, i) => vfxKeys[i] || cam || undefined);
+      // ── Rendy API key normalisation ──────────────────────────────────────────
+      // Frontend stores human-readable keys (lowercase-with-dashes).
+      // Rendy's /listings API validates against its own preset key format.
+      // Any unrecognised presetKey causes the entire listing to fail immediately.
+      const VFX_KEY_MAP: Record<string, string> = {
+        // Transitions
+        "construction":      "CONSTRUCTION",
+        "renovate":          "RENOVATE",
+        "lens-flare":        "LENS_FLARE",
+        "implosion":         "IMPLOSION",
+        "house-drop":        "HOUSE_DROP",
+        "fix-landscape":     "FIX_LANDSCAPE",
+        "day-to-twilight":   "DAY_TO_DUSK",        // Rendy uses DAY_TO_DUSK
+        "sketch":            "SKETCH",
+        "sunrise":           "SUNRISE",
+        "lighting-strike":   "LIGHTNING STRIKE",   // Rendy key has a space
+        "money-rain":        "MONEY_RAIN",
+        "helicopter-reveal": "HELICOPTER_REVEAL",
+        "snow-removal":      "SNOW_REMOVAL",
+        "shadows":           "SHADOWS",
+        "car-drive":         "CAR_DRIVE",
+        "fireworks":         "FIREWORKS",
+        "day-to-night":      "DAY_TO_NIGHT",
+        "build":             "BUILD",
+        // Actors
+        "family":            "ACTOR_FAMILY",
+        "man":               "ACTOR_MAN",
+        "woman":             "ACTOR_WOMAN",
+        "kids":              "ACTOR_KIDS",
+        "couple":            "ACTOR_COUPLE",
+        // Staging / creative
+        "2d-3d-floorplan":   "2D_3D_FLOOR_PLAN",
+        "3d-miniature":      "3D_MINIATURE",
+        "starry-night":      "STARRY_NIGHT",
+        "watercolor":        "WATERCOLOR",
+        "light-dance":       "LIGHT_DANCE",
+        "balloons":          "BALLOONS",
+        "timelapse":         "TIMELAPSE",
+        "electricity":       "ELECTRICITY",
+        "glass-house":       "GLASS_HOUSE",
+        "magazine":          "MAGAZINE",
+        "add-pool":          "ADD_POOL",
+        "open-door":         "OPEN_DOOR",
+        "concept-board":     "CONCEPT_BOARD",
+        "move-that-bus":     "MOVE_THAT_BUS",
+        "just-listed-sign":  "JUST_LISTED",         // Rendy uses JUST_LISTED
+        "draw-lot-line":     "LOTLINE",              // Rendy uses LOTLINE
+        "sketch-artist":     "SKETCH_ARTIST",
+        "earth-zoom":        "EARTH_ZOOM",
+      };
+      // Camera presets are NOT in Rendy's VFX preset list — sending them as
+      // presetKey causes immediate listing validation failure. We strip them here
+      // so Rendy uses its default multi-angle templates automatically.
+      const RENDY_VFX_KEYS = new Set(Object.values(VFX_KEY_MAP));
 
-      log(`[Rendy] presets=${JSON.stringify(mergedPresetKeys)}`);
+      function normalizeRendyPresetKey(key: string | undefined): string | undefined {
+        if (!key || key === "DEFAULT") return undefined;
+        if (VFX_KEY_MAP[key]) return VFX_KEY_MAP[key];           // frontend → API format
+        if (RENDY_VFX_KEYS.has(key)) return key;                  // already in API format
+        // Not a known VFX key — likely a camera preset (PUSH-IN, PULL-OUT, etc.)
+        // which Rendy does NOT accept as presetKey. Drop it silently.
+        log(`[Rendy] unknown preset key "${key}" — stripped (not a valid Rendy VFX key)`);
+        return undefined;
+      }
+
+      // Merge: VFX takes priority over camera preset when both are set
+      const mergedPresetKeys = presetKeys.map((cam, i) => normalizeRendyPresetKey(vfxKeys[i] || cam || undefined));
+
+      log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedPresetKeys)}`);
       const jobId = startRendyShowcase(filePaths, address, ratio, mergedPresetKeys);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
