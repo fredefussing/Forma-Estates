@@ -3287,6 +3287,48 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [cropDragStart, setCropDragStart] = useState<{ px: number; py: number } | null>(null);
   const cropImgRef = useRef<HTMLImageElement | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const [showcaseSaveCaseId, setShowcaseSaveCaseId] = useState<number | null>(null);
+  const [showcaseShowCaseDropdown, setShowcaseShowCaseDropdown] = useState(false);
+  const showcaseDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (showcaseDropdownRef.current && !showcaseDropdownRef.current.contains(e.target as Node))
+        setShowcaseShowCaseDropdown(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const showcaseSaveToCase = async (c: ApiCase) => {
+    if (!resultVideos.length) return;
+    setShowcaseShowCaseDropdown(false);
+    setShowcaseSaveCaseId(c.id);
+    try {
+      const token = await user?.getIdToken();
+      const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      for (const [idx, video] of resultVideos.entries()) {
+        if (!video.url) continue;
+        const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+          method: "POST", headers,
+          body: JSON.stringify({
+            imageUrl: video.url,
+            originalImageUrl: video.url,
+            roomType: "showcase-video",
+            style: `showcase-video-${idx + 1}`,
+            budgetTier: "tier2",
+            promptText: `Bolig showcase video ${idx + 1}${address ? ` — ${address}` : ""}`,
+            isDesignAgent: true,
+          }),
+        });
+        if (!r.ok) { setShowcaseSaveCaseId(null); alert("Kunne ikke gemme video til mappen."); return; }
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+    } catch { setShowcaseSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
+  };
 
   const effectsAdded = images.filter((i) => (i.presetKey && i.presetKey !== "DEFAULT") || i.vfxKey).length;
 
@@ -3510,6 +3552,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setError(null);
     setProgressPct(0);
     setProgressMsg("");
+    setShowcaseSaveCaseId(null);
+    setShowcaseShowCaseDropdown(false);
   };
 
   const handleDownload = async (url: string, name: string) => {
@@ -4260,7 +4304,30 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
               <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{resultVideos.length} video{resultVideos.length === 1 ? "" : "er"} genereret</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {cases.length > 0 && (
+                <div className="relative" ref={showcaseDropdownRef}>
+                  <button
+                    onClick={() => setShowcaseShowCaseDropdown((v) => !v)}
+                    className="h-9 px-4 rounded-full text-sm font-semibold border inline-flex items-center gap-1.5 transition-opacity hover:opacity-80"
+                    style={{ borderColor: showcaseSaveCaseId ? "#C8956C" : "#0F1D2F", color: showcaseSaveCaseId ? "#C8956C" : "#0F1D2F", background: "#fff" }}
+                    data-testid="button-showcase-save-case"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    {showcaseSaveCaseId ? "Gemt til mappe" : "Gem til mappe"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {showcaseShowCaseDropdown && (
+                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
+                      {cases.map((c) => (
+                        <button key={c.id} onClick={() => showcaseSaveToCase(c)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left" style={{ color: "#1A1A1A" }} data-testid={`button-showcase-save-case-${c.id}`}>
+                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} /><span className="truncate">{c.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {listingId && (
                 <button
                   onClick={handleExport}
@@ -4270,7 +4337,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   data-testid="button-export-zip"
                 >
                   {isExporting ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                  {isExporting ? "Pakker…" : "Download alle"}
+                  {isExporting ? "Pakker…" : "Download alle (.zip)"}
                 </button>
               )}
               {exportUrl && (

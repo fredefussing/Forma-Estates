@@ -320,7 +320,7 @@ export function startRendyShowcase(
             setProgress(jobId, {
               stage: "generating",
               progress: mapped,
-              message: `Rendy behandler… prøver igen (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS})`,
+              message: `AI behandler video… prøver igen (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS})`,
               listingId,
             });
             await new Promise((r) => setTimeout(r, 10_000));
@@ -355,7 +355,7 @@ export function startRendyShowcase(
           } catch (detailErr) {
             console.error(`[Rendy] kunne ikke hente listing detaljer:`, detailErr);
           }
-          throw new Error(`Rendy generering fejlede efter ${MAX_CONSECUTIVE_ERRORS} forsøg${detail}. Prøv med færre eller bedre billeder (min. 800×600px, god belysning).`);
+          throw new Error(`Videogenerering fejlede${detail}. Prøv med bedre billeder (min. 800×600px, god belysning).`);
         }
 
         // Successful status poll — reset error counter
@@ -364,7 +364,7 @@ export function startRendyShowcase(
         setProgress(jobId, {
           stage: "generating",
           progress: mapped,
-          message: `Rendy genererer videoer… ${rendyPct}%`,
+          message: `Genererer videoer… ${rendyPct}%`,
           listingId,
         });
 

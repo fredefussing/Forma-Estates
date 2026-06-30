@@ -2829,7 +2829,7 @@ export async function registerRoutes(
     }
 
     log(`[Rendy] recovered listingId=${listingId} from DB for job ${jobId} — polling Rendy directly`);
-    send({ stage: "generating", progress: 40, message: "Gendanner forbindelse til Rendy…", listingId });
+    send({ stage: "generating", progress: 40, message: "Gendanner videogenerering…", listingId });
 
     const hb = setInterval(ping, 20_000);
     let closed = false;
@@ -2861,11 +2861,11 @@ export async function registerRoutes(
       if (st.status === "error") {
         consecutiveErrors++;
         if (consecutiveErrors < MAX_ERRORS) {
-          send({ stage: "generating", progress: mapped, message: `Rendy fejl — prøver igen (${consecutiveErrors}/${MAX_ERRORS})…`, listingId });
+          send({ stage: "generating", progress: mapped, message: `AI behandler video… prøver igen (${consecutiveErrors}/${MAX_ERRORS})`, listingId });
           await new Promise((r) => setTimeout(r, 10_000));
           continue;
         }
-        send({ stage: "failed", progress: 0, message: "Rendy generering fejlede. Prøv med bedre billeder (min. 800×600px)." });
+        send({ stage: "failed", progress: 0, message: "Videogenerering fejlede. Prøv med bedre billeder (min. 800×600px)." });
         break;
       }
 
@@ -2883,7 +2883,7 @@ export async function registerRoutes(
       }
 
       // Still generating
-      send({ stage: "generating", progress: mapped, message: `Rendy genererer videoer… ${pct}%`, listingId });
+      send({ stage: "generating", progress: mapped, message: `Genererer videoer… ${pct}%`, listingId });
       ping();
     }
 
