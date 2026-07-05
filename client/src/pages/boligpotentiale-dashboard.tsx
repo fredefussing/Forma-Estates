@@ -2279,11 +2279,14 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
     action();
   };
 
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
       setError("Vælg venligst en billedfil");
       return;
     }
+    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setImageFile(file);
     setResultUrl(null);
     setOriginalUrl(null);
@@ -2295,6 +2298,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleGenerate = async () => {
     if (!imageFile) return;
+    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setIsGenerating(true);
     setError(null);
     setResultUrl(null);
@@ -2518,6 +2522,12 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+                              if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+                              resetTimerRef.current = setTimeout(() => {
+                                resetTimerRef.current = null;
+                                setImageFile(null); setImagePreview(null); setOriginalUrl(null);
+                                setShowDollhouse(false); setResultUrl(null); setError(null); setSaveCaseId(null);
+                              }, 1500);
                             } catch (err) {
                               setSaveCaseId(null);
                               alert("Kunne ikke gemme til mappen. Prøv igen.");
@@ -2639,8 +2649,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [wtShowCaseDropdown]);
 
   // ── Morph handlers ──────────────────────────────────────────────────────────
+  const morphResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wtResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (morphResetTimerRef.current) clearTimeout(morphResetTimerRef.current); if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current); }, []);
   const handleFile = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMorphError("Vælg venligst en billedfil"); return; }
+    if (morphResetTimerRef.current) { clearTimeout(morphResetTimerRef.current); morphResetTimerRef.current = null; }
     setMorphError(null);
     setMorphVideoUrl(null);
     setMorphSaveCaseId(null);
@@ -2657,6 +2671,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   // ── Morph: generate ─────────────────────────────────────────────────────────
   const handleMorphGenerate = async () => {
     if (!beforeFile || !afterFile) return;
+    if (morphResetTimerRef.current) { clearTimeout(morphResetTimerRef.current); morphResetTimerRef.current = null; }
     setMorphGenerating(true);
     setMorphProgressStep(1);
     setMorphError(null);
@@ -2726,6 +2741,13 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      if (morphResetTimerRef.current) clearTimeout(morphResetTimerRef.current);
+      morphResetTimerRef.current = setTimeout(() => {
+        morphResetTimerRef.current = null;
+        setBeforeFile(null); setBeforePreview(null);
+        setAfterFile(null); setAfterPreview(null);
+        setMorphVideoUrl(null); setMorphSaveCaseId(null); setMorphError(null);
+      }, 1500);
     } catch { setMorphSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
   };
 
@@ -2740,6 +2762,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const wtAddFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (arr.length === 0) { setWtError("Vælg venligst billedfiler"); return; }
+    if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
     setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null);
     const next = arr.map((file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, file, url: URL.createObjectURL(file) }));
     setWtImages((prev) => [...prev, ...next].slice(0, 20));
@@ -2758,6 +2781,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleWtGenerate = async () => {
     if (wtImages.length < 2) { setWtError("Upload mindst 2 billeder"); return; }
+    if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
     setWtGenerating(true); setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtProgressMsg("Forbereder…");
     if (wtEsRef.current) { wtEsRef.current.close(); wtEsRef.current = null; }
     try {
@@ -2830,6 +2854,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current);
+      wtResetTimerRef.current = setTimeout(() => {
+        wtResetTimerRef.current = null;
+        setWtImages([]); setWtAddress(""); setWtVideoUrls(null); setWtCleanVideoUrls(null);
+        setWtSaveCaseId(null); setWtError(null);
+      }, 1500);
     } catch { setWtSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
   };
 
@@ -3290,6 +3320,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [showcaseSaveCaseId, setShowcaseSaveCaseId] = useState<number | null>(null);
   const [showcaseShowCaseDropdown, setShowcaseShowCaseDropdown] = useState(false);
   const showcaseDropdownRef = useRef<HTMLDivElement>(null);
+  const showcaseResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (showcaseResetTimerRef.current) clearTimeout(showcaseResetTimerRef.current); }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -3327,6 +3359,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      if (showcaseResetTimerRef.current) clearTimeout(showcaseResetTimerRef.current);
+      showcaseResetTimerRef.current = setTimeout(() => {
+        showcaseResetTimerRef.current = null;
+        setImages([]); setResultVideos([]); setListingId(null); setExportUrl(null);
+        setExportJobId(null); setError(null); setProgressPct(0); setProgressMsg("");
+        setShowcaseSaveCaseId(null); setShowcaseShowCaseDropdown(false);
+      }, 1500);
     } catch { setShowcaseSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
   };
 
@@ -3340,6 +3379,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (arr.length === 0) { setError("Vælg venligst billedfiler"); return; }
+    if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setError(null);
     setResultVideos([]);
     setListingId(null);
@@ -3430,6 +3470,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleGenerate = async () => {
     if (images.length < 1) { setError("Upload mindst 1 billede"); return; }
+    if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setIsGenerating(true);
     setOpenPanelId(null);
     setError(null);
@@ -6220,8 +6261,11 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setError(null);
@@ -6235,6 +6279,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
   const handleGenerate = async () => {
     if (!imageFile || !promptText.trim()) return;
+    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setStage("loading"); setError(null);
     try {
       const token = await user?.getIdToken();
@@ -6510,6 +6555,12 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+                              if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+                              resetTimerRef.current = setTimeout(() => {
+                                resetTimerRef.current = null;
+                                setImageFile(null); setImagePreview(null); setPromptText("");
+                                setStage("idle"); setResultUrl(null); setOriginalUrl(null); setError(null); setSaveCaseId(null);
+                              }, 1500);
                             } catch {
                               setSaveCaseId(null);
                               alert("Kunne ikke gemme til sag. Prøv igen.");
@@ -8733,32 +8784,25 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {/* AI Design Agent section */}
-          {section === "ai-design-agent" && (
-            <motion.div key="ai-design-agent-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <PaywallPage>
-                <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
-              </PaywallPage>
-            </motion.div>
-          )}
+          {/* ── Generation flows: kept mounted so in-progress & completed generations
+                survive switching functions. Only the active one is visible. ── */}
+          <div className={section === "ai-design-agent" ? "" : "hidden"} aria-hidden={section !== "ai-design-agent"}>
+            <PaywallPage>
+              <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
+            </PaywallPage>
+          </div>
 
-          {/* 3D plantegning section */}
-          {section === "3d-plantegning" && (
-            <motion.div key="3d-plantegning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <PaywallPage>
-                <Floorplan3DFlow cases={cases} />
-              </PaywallPage>
-            </motion.div>
-          )}
+          <div className={section === "3d-plantegning" ? "" : "hidden"} aria-hidden={section !== "3d-plantegning"}>
+            <PaywallPage>
+              <Floorplan3DFlow cases={cases} />
+            </PaywallPage>
+          </div>
 
-          {/* Transformering video section */}
-          {section === "transformering-video" && (
-            <motion.div key="transformering-video-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <PaywallPage>
-                <TransformVideoFlow cases={cases} />
-              </PaywallPage>
-            </motion.div>
-          )}
+          <div className={section === "transformering-video" ? "" : "hidden"} aria-hidden={section !== "transformering-video"}>
+            <PaywallPage>
+              <TransformVideoFlow cases={cases} />
+            </PaywallPage>
+          </div>
 
           {/* AI boligfremvisning section — owner only */}
           {section === "ai-boligfremvisning" && isOwner && (
@@ -8767,21 +8811,15 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {/* Upload section */}
-          {section === "upload" && (
-            <motion.div key="upload-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <UploadFlow onBack={() => setSection("dashboard")} />
-            </motion.div>
-          )}
+          <div className={section === "upload" ? "" : "hidden"} aria-hidden={section !== "upload"}>
+            <UploadFlow onBack={() => setSection("dashboard")} />
+          </div>
 
-          {/* Bolig showcase video section */}
-          {section === "showcase-video" && (
-            <motion.div key="showcase-video-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="-mx-6 md:-mx-8">
-              <PaywallPage>
-                <ShowcaseVideoFlow cases={cases} />
-              </PaywallPage>
-            </motion.div>
-          )}
+          <div className={`-mx-6 md:-mx-8 ${section === "showcase-video" ? "" : "hidden"}`} aria-hidden={section !== "showcase-video"}>
+            <PaywallPage>
+              <ShowcaseVideoFlow cases={cases} />
+            </PaywallPage>
+          </div>
 
           {section === "historik" && (
             <HistoryView
