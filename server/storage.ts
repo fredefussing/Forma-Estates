@@ -801,10 +801,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserAccount(userId: number): Promise<void> {
+    await pool.query(`DELETE FROM crm_activities WHERE contact_id IN (SELECT id FROM crm_contacts WHERE linked_user_id = $1)`, [userId]);
+    await pool.query(`DELETE FROM crm_interactions WHERE contact_id IN (SELECT id FROM crm_contacts WHERE linked_user_id = $1)`, [userId]);
+    await pool.query(`DELETE FROM crm_user_overrides WHERE contact_id IN (SELECT id FROM crm_contacts WHERE linked_user_id = $1)`, [userId]);
     await pool.query(`UPDATE crm_contacts SET linked_user_id = NULL WHERE linked_user_id = $1`, [userId]);
-    await db.delete(crmActivities).where(eq(crmActivities.userId, userId));
-    await db.delete(crmInteractions).where(eq(crmInteractions.userId, userId));
-    await db.delete(crmUserOverrides).where(eq(crmUserOverrides.userId, userId));
     await db.delete(teamMembers).where(eq(teamMembers.userId, userId));
     const ownedTeams = await db.select({ id: teams.id }).from(teams).where(eq(teams.ownerUserId, userId));
     for (const t of ownedTeams) {
@@ -824,11 +824,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(boligCases).where(eq(boligCases.userId, userId));
     await db.delete(generatedImages).where(eq(generatedImages.userId, userId));
     await db.delete(agentDesigns).where(eq(agentDesigns.userId, userId));
+    await pool.query(`DELETE FROM special_requests WHERE design_id IN (SELECT id FROM designs WHERE user_id = $1)`, [userId]);
+    await pool.query(`DELETE FROM quote_requests WHERE design_id IN (SELECT id FROM designs WHERE user_id = $1)`, [userId]);
+    await pool.query(`DELETE FROM quotes WHERE design_id IN (SELECT id FROM designs WHERE user_id = $1)`, [userId]);
     await db.delete(designs).where(eq(designs.userId, userId));
     await db.delete(creditTransactions).where(eq(creditTransactions.userId, userId));
-    await db.delete(specialRequests).where(eq(specialRequests.userId, userId));
-    await db.delete(quoteRequests).where(eq(quoteRequests.userId, userId));
-    await db.delete(quotes).where(eq(quotes.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
   }
 

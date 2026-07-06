@@ -4611,12 +4611,15 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
       if (stripeSubscription) {
         const price = stripeSubscription.items.data[0]?.price;
         const amountDkk = price?.unit_amount != null ? Math.round(price.unit_amount / 100) : null;
+        const periodEnd = (stripeSubscription as any).current_period_end
+          ?? (stripeSubscription.items.data[0] as any)?.current_period_end
+          ?? null;
         subscriptionInfo = {
           active: true,
           tier: user.subscriptionTier || "start",
           tierName: tierDisplayNames[user.subscriptionTier || "start"] || "Abonnement",
           startDate: new Date(stripeSubscription.start_date * 1000).toISOString(),
-          nextBillingDate: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
+          nextBillingDate: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
           amount: amountDkk,
           currency: "DKK",
           cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
