@@ -2295,11 +2295,11 @@ export async function registerRoutes(
       if (tier && tier in SUBSCRIPTION_QUOTAS) {
         const q = SUBSCRIPTION_QUOTAS[tier as keyof typeof SUBSCRIPTION_QUOTAS];
         const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1); nextMonth.setDate(1); nextMonth.setHours(0,0,0,0);
-        await storage.setUserQuotas(userId, { ai: q.ai, floorPlans: q.floorPlans, transformVideos: q.transformVideos, showcase: q.showcase, resetsAt: nextMonth });
+        await storage.setUserQuotas(userId, { ai: q.ai, floorPlans: q.floorPlans, transformVideos: q.transformVideos, showcase: q.showcase, resetsAt: nextMonth, resetUsage: true });
         await storage.updateUser(userId, { subscriptionStatus: "active", subscriptionTier: tier });
       } else {
         const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1); nextMonth.setDate(1); nextMonth.setHours(0,0,0,0);
-        await storage.setUserQuotas(userId, { ai, floorPlans, transformVideos, showcase, resetsAt: nextMonth });
+        await storage.setUserQuotas(userId, { ai, floorPlans, transformVideos, showcase, resetsAt: nextMonth, resetUsage: true });
         await storage.updateUser(userId, { subscriptionStatus: "active" });
       }
       return res.json({ success: true });
@@ -4435,7 +4435,7 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
         const quotas = TIER_QUOTAS[tier] ?? TIER_QUOTAS.start;
 
         await storage.activateSubscription(user.id, tier);
-        await storage.setUserQuotas(user.id, { ...quotas, resetsAt });
+        await storage.setUserQuotas(user.id, { ...quotas, resetsAt, resetUsage: true });
         await pool.query(
           `INSERT INTO credit_transactions(user_id, amount, type, description) VALUES($1, 0, $2, $3)`,
           [user.id, "stripe_subscription", `stripe:${sessionId}`]

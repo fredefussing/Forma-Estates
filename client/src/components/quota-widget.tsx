@@ -16,6 +16,7 @@ interface QuotaData {
     teamName:      string | null;
     memberCount:   number | null;
     maxMembers:    number | null;
+    isFreeTrial?:  boolean;
   };
 }
 
@@ -85,7 +86,11 @@ export function useQuotaData(): QuotaData | null {
     };
     load();
     const interval = setInterval(load, 30_000);
-    return () => { cancelled = true; clearInterval(interval); };
+    // Refetch immediately after a generation so gates/counters update without
+    // waiting for the next poll.
+    const onRefresh = () => { load(); };
+    window.addEventListener("quota:refresh", onRefresh);
+    return () => { cancelled = true; clearInterval(interval); window.removeEventListener("quota:refresh", onRefresh); };
   }, [user]);
   return data;
 }
@@ -97,6 +102,7 @@ export function QuotaWidget() {
 
   const { quota, isAdmin, inviteLink } = data;
   const isUnlimitedUser = isAdmin || quota.teamPlan === "unlimited";
+  const isFreeTrial = !!quota.isFreeTrial && !isAdmin;
   const planLabel = isAdmin
     ? "Admin · Ubegrænset"
     : quota.teamPlan
@@ -118,8 +124,12 @@ export function QuotaWidget() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
-            <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>Månedlig kvota</h3>
-            {planLabel && (
+            <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>{isFreeTrial ? "Gratis prøve" : "Månedlig kvota"}</h3>
+            {isFreeTrial ? (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
+                Gratis
+              </span>
+            ) : planLabel && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>
                 {planLabel}
               </span>
@@ -156,22 +166,26 @@ export function QuotaWidget() {
         {FEATURES.map(({ key, label, icon: Icon }) => {
           const f = (quota as any)[key] as { limit: number | null; used: number };
           const unlimited = isUnlimitedUser || f.limit === null;
+          // "locked" = free-trial user, feature not part of the trial (limit 0).
+          const locked = isFreeTrial && !unlimited && (f.limit ?? 0) === 0;
           const remaining = unlimited ? null : Math.max(0, (f.limit ?? 0) - f.used);
-          const exhausted = !unlimited && remaining === 0;
+          const danger = !unlimited && !locked && remaining === 0;
 
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
-                  <Icon className="w-3.5 h-3.5" style={{ color: exhausted ? "#EF4444" : "#9B9690" }} />
-                  <span className="text-xs font-medium" style={{ color: exhausted ? "#EF4444" : "#1A1A1A" }}>{label}</span>
+                  {locked
+                    ? <Lock className="w-3.5 h-3.5" style={{ color: "#B0ABA5" }} />
+                    : <Icon className="w-3.5 h-3.5" style={{ color: danger ? "#EF4444" : "#9B9690" }} />}
+                  <span className="text-xs font-medium" style={{ color: danger ? "#EF4444" : locked ? "#9B9690" : "#1A1A1A" }}>{label}</span>
                 </div>
-                <span className="text-[11px] font-semibold" style={{ color: exhausted ? "#EF4444" : "#6B6B6B" }}>
-                  {unlimited ? "Ubegrænset" : exhausted ? "Brugt op" : `${remaining} tilbage`}
+                <span className="text-[11px] font-semibold" style={{ color: danger ? "#EF4444" : locked ? "#B0ABA5" : "#6B6B6B" }}>
+                  {unlimited ? "Ubegrænset" : locked ? "Kun i pakker" : danger ? "Brugt op" : `${remaining} tilbage`}
                 </span>
               </div>
-              <QuotaBar used={f.used} limit={unlimited ? null : f.limit} color={exhausted ? "#EF4444" : "#C8956C"} />
-              {!unlimited && (
+              <QuotaBar used={locked ? 0 : f.used} limit={unlimited ? null : (locked ? 0 : f.limit)} color={danger ? "#EF4444" : "#C8956C"} />
+              {!unlimited && !locked && (
                 <div className="flex justify-between mt-0.5">
                   <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{f.used} brugt</span>
                   <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{f.limit ?? 0} i alt</span>
@@ -181,6 +195,23 @@ export function QuotaWidget() {
           );
         })}
       </div>
+
+      {/* Free-trial upgrade CTA */}
+      {isFreeTrial && (
+        <div className="mt-4 pt-4 border-t border-[#F0EDE8]">
+          <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: "#6B6B6B" }}>
+            Du er på en gratis prøve med {quota.ai.limit ?? 2} AI-visualiseringer. Opgradér for at låse 3D-plantegninger, videoer og mere op.
+          </p>
+          <a
+            href="/pris"
+            data-testid="link-upgrade-quota"
+            className="inline-flex items-center justify-center gap-1.5 w-full px-4 py-2 rounded-full text-xs font-semibold text-white transition-all hover:opacity-90"
+            style={{ background: "#C8956C" }}
+          >
+            Opgradér nu →
+          </a>
+        </div>
+      )}
 
       {/* Invite link — only for team owners */}
       {inviteLink && (
@@ -230,25 +261,38 @@ export function QuotaGate({
   const exhausted = f.limit !== null && f.used >= f.limit;
   if (!exhausted) return <>{children}</>;
 
+  const isFreeTrial = !!quota.isFreeTrial;
+  // Feature the free plan never included (limit 0) vs. an allowance that ran out.
+  const locked = (f.limit ?? 0) === 0;
+
+  const title = locked
+    ? `${QUOTA_GATE_LABELS[feature]} kræver et abonnement`
+    : isFreeTrial
+    ? `Du har brugt dine ${f.limit} gratis AI-visualiseringer`
+    : `Alle dine ${QUOTA_GATE_LABELS[feature]} er brugt op`;
+
+  const subtitle = locked
+    ? "Lås denne funktion op ved at vælge en pakke"
+    : isFreeTrial
+    ? "Opgradér for at fortsætte — og lås alle funktioner op"
+    : "Opgradér din pakke for at generere flere";
+
   return (
-    <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col items-center gap-3 text-center">
+    <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col items-center gap-3 text-center" data-testid={`quota-gate-${feature}`}>
       <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
         <Lock className="w-5 h-5 text-amber-600" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-amber-900">
-          Alle dine {QUOTA_GATE_LABELS[feature]} er brugt op
-        </p>
-        <p className="text-xs text-amber-700 mt-1">
-          Opgradér din pakke for at generere flere
-        </p>
+        <p className="text-sm font-semibold text-amber-900">{title}</p>
+        <p className="text-xs text-amber-700 mt-1">{subtitle}</p>
       </div>
       <a
         href="/pris"
+        data-testid={`button-upgrade-${feature}`}
         className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
         style={{ background: "#C8956C" }}
       >
-        Se pakker →
+        Opgradér nu →
       </a>
     </div>
   );

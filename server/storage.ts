@@ -18,7 +18,7 @@ import {
   type CrmActivity, type InsertCrmActivity, crmActivities,
   type CrmInteraction, type InsertCrmInteraction, crmInteractions,
   type CrmUserOverride, crmUserOverrides,
-  SUBSCRIPTION_QUOTAS,
+  SUBSCRIPTION_QUOTAS, FREE_TRIAL_QUOTAS,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
@@ -78,7 +78,7 @@ export interface IStorage {
   getUserQuota(userId: number): Promise<{ ai: { limit: number | null; used: number }; floorPlan: { limit: number | null; used: number }; transformVideo: { limit: number | null; used: number }; showcase: { limit: number | null; used: number }; resetsAt: Date | null }>;
   checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<{ allowed: boolean; remaining: number | null; feature: string }>;
   refundQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<void>;
-  setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date }): Promise<void>;
+  setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date; resetUsage?: boolean }): Promise<void>;
   resetMonthlyUsage(userId: number): Promise<void>;
   createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage>;
   getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]>;
@@ -1114,12 +1114,24 @@ export class DatabaseStorage implements IStorage {
     const resolveLimit = (raw: number | null): number | null =>
       raw !== null ? raw : (nullMeansUnlimited ? null : 0);
 
-    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: usedAi       } : { limit: resolveLimit(r.quota_ai_visualizations),  used: usedAi       };
-    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: usedFloor    } : { limit: resolveLimit(r.quota_floor_plans),        used: usedFloor    };
-    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: usedVideo    } : { limit: resolveLimit(r.quota_transform_videos),   used: usedVideo    };
-    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: usedShowcase } : { limit: resolveLimit(r.quota_showcase_videos),    used: usedShowcase };
+    // Free trial: a standalone, non-admin user with no purchased plan and not
+    // drawing from any team pool gets a small AI-visualiser allowance (før/efter)
+    // while every other feature stays locked at 0.
+    const isFreeTrial = !r.is_admin && !hasOwnQuotas && effectiveLimits === null && ownerUsedCounts === null && !teamName;
+    const trialLimit = (feat: keyof typeof FREE_TRIAL_QUOTAS): number | null =>
+      isFreeTrial ? FREE_TRIAL_QUOTAS[feat] : null;
 
-    return { ai, floorPlan, transformVideo, showcase, resetsAt: r.quota_resets_at, teamPlan, teamName, memberCount, maxMembers };
+    const resolveOwn = (raw: number | null, feat: keyof typeof FREE_TRIAL_QUOTAS): number | null => {
+      const trial = trialLimit(feat);
+      return trial !== null ? trial : resolveLimit(raw);
+    };
+
+    const ai            = effectiveLimits ? { limit: effectiveLimits.ai,            used: usedAi       } : { limit: resolveOwn(r.quota_ai_visualizations, "ai"),           used: usedAi       };
+    const floorPlan     = effectiveLimits ? { limit: effectiveLimits.floorPlan,      used: usedFloor    } : { limit: resolveOwn(r.quota_floor_plans, "floorPlans"),          used: usedFloor    };
+    const transformVideo= effectiveLimits ? { limit: effectiveLimits.transformVideo, used: usedVideo    } : { limit: resolveOwn(r.quota_transform_videos, "transformVideos"), used: usedVideo    };
+    const showcase      = effectiveLimits ? { limit: effectiveLimits.showcase,       used: usedShowcase } : { limit: resolveOwn(r.quota_showcase_videos, "showcase"),        used: usedShowcase };
+
+    return { ai, floorPlan, transformVideo, showcase, resetsAt: r.quota_resets_at, teamPlan, teamName, memberCount, maxMembers, isFreeTrial };
   }
 
   async checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase") {
@@ -1196,7 +1208,23 @@ export class DatabaseStorage implements IStorage {
           return { allowed: false, remaining: 0, feature: label };
         }
       }
-      // Not in a team and no explicit quota set → block (no plan purchased)
+      // Not in a team and no explicit quota set → free-trial user.
+      // Grant a limited number of AI visualisations (før/efter); block everything else.
+      const trialCap = feature === "ai" ? FREE_TRIAL_QUOTAS.ai : 0;
+      if (trialCap > 0) {
+        // Atomic increment only under the cap — prevents concurrent over-spend.
+        const atomicRes = await pool.query<{ new_used: number }>(
+          `UPDATE users SET used_${col} = used_${col} + 1
+           WHERE id=$1 AND used_${col} < $2
+           RETURNING used_${col} AS new_used`,
+          [userId, trialCap]
+        );
+        if ((atomicRes.rowCount ?? 0) === 0) {
+          return { allowed: false, remaining: 0, feature: label };
+        }
+        return { allowed: true, remaining: trialCap - atomicRes.rows[0].new_used, feature: label };
+      }
+      // No plan purchased and feature not part of the free trial → block.
       return { allowed: false, remaining: 0, feature: label };
     }
 
@@ -1241,7 +1269,7 @@ export class DatabaseStorage implements IStorage {
     await pool.query(`UPDATE users SET used_${col} = GREATEST(used_${col} - 1, 0) WHERE id=$1`, [targetId]);
   }
 
-  async setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date }) {
+  async setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date; resetUsage?: boolean }) {
     const sets: string[] = [];
     const vals: any[] = [];
     let i = 1;
@@ -1250,6 +1278,11 @@ export class DatabaseStorage implements IStorage {
     if ("transformVideos" in quotas){ sets.push(`quota_transform_videos=$${i++}`);   vals.push(quotas.transformVideos); }
     if ("showcase" in quotas)       { sets.push(`quota_showcase_videos=$${i++}`);    vals.push(quotas.showcase); }
     if ("resetsAt" in quotas)       { sets.push(`quota_resets_at=$${i++}`);          vals.push(quotas.resetsAt); }
+    // Opt-in: only when a plan is (re)activated do we start a fresh period and
+    // clear usage carried over (e.g. free-trial AI visualisations already spent).
+    // Must NOT fire on per-login reconfig or one-time top-ups, or spent quota
+    // would be handed back for free.
+    if (quotas.resetUsage) { sets.push(`used_ai_visualizations=0`, `used_floor_plans=0`, `used_transform_videos=0`, `used_showcase_videos=0`); }
     if (!sets.length) return;
     vals.push(userId);
     await pool.query(`UPDATE users SET ${sets.join(",")} WHERE id=$${i}`, vals);

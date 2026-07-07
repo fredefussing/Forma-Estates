@@ -7,5 +7,6 @@
 - [Floorplan wall detection](floorplan-wall-detection.md) — paper-white-relative threshold + dilate + keep-large-components beats Otsu+absolute-minArea for thin grey walls.
 - [Screenshot tool has no WebGL](screenshot-no-webgl.md) — app_preview headless browser can't create a WebGL context; 3D/Three.js scenes never render in screenshots.
 - [Depth-displacement diorama viewer](depth-displacement-diorama.md) — single-plane depth viewer is 2.5D relief; lay flat + constrain polar angle so users never see the torn edge-on view.
+- [Quota usage-counter reset must be opt-in](quota-usage-reset.md) — setUserQuotas is shared by login/top-up/activation; reset used_* via explicit resetUsage flag, never off resetsAt, or you regress lifetime caps & hand back paid quota.
 - [Stripe current_period_end moved](stripe-current-period-end.md) — Stripe SDK v22/API 2025+ dropped current_period_end from top-level Subscription (now on items); read defensively or the billing date throws Invalid time value.
 - [Boligpotentiale flow persistence](boligpotentiale-flow-persistence.md) — 5 generation flows stay always-mounted (CSS-hidden) so in-flight work survives tab switches; reset-after-save must use cancellable ref timers.

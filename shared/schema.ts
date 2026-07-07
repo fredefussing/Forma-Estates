@@ -76,6 +76,12 @@ export const SUBSCRIPTION_QUOTAS = {
   unlimited: { ai: null as number | null, floorPlans: null as number | null, transformVideos: null as number | null, showcase: null as number | null },
 } as const;
 
+// Free trial for brand-new users without a plan: a taste of the AI visualiser
+// (før/efter) only. All other features stay locked until they upgrade.
+// This is a *lifetime* allowance — free users have no quota_resets_at so their
+// used_ai_visualizations counter never resets.
+export const FREE_TRIAL_QUOTAS = { ai: 2, floorPlans: 0, transformVideos: 0, showcase: 0 } as const;
+
 export type QuotaFeature = "ai" | "floorPlan" | "transformVideo" | "showcase";
 
 export const creditTransactions = pgTable("credit_transactions", {

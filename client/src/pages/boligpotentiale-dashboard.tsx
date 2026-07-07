@@ -685,6 +685,7 @@ function CaseDetailPanel({
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      window.dispatchEvent(new Event("quota:refresh"));
       setGenStep(3);
     } catch (err: any) {
       setError(err.message || "Noget gik galt. Prøv igen.");
@@ -1618,6 +1619,7 @@ function HistoryView({
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || "Regenerering mislykkedes");
       setRegenResult({ url: data.image_url, id: data.generation_id ?? null });
+      window.dispatchEvent(new Event("quota:refresh"));
       queryClient.invalidateQueries({ queryKey: ["/api/generations/all"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
@@ -2077,6 +2079,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      window.dispatchEvent(new Event("quota:refresh"));
       setStage("result");
     } catch (err: any) {
       setError(err.message || "Noget gik galt. Prøv igen.");

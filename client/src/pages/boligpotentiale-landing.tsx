@@ -570,6 +570,9 @@ function HeroStage() {
                   </button>
                 </Link>
               </div>
+              <p style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.65)", fontFamily: SANS }} data-testid="bolig-hero-trial-note">
+                2 gratis AI-visualiseringer · intet kreditkort
+              </p>
             </div>
           </div>
 
