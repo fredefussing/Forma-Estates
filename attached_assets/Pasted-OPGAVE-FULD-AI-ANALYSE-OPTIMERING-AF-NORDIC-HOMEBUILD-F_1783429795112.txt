@@ -1,0 +1,57 @@
+OPGAVE: FULD AI-ANALYSE & OPTIMERING AF NORDIC HOMEBUILD / FORMA ESTATES
+
+Du er en senior full-stack udvikler, UX/CRO-specialist og AI-produktarkitekt. 
+Jeg vil have en æRLIG, kritisk analyse – ikke pæne ord for at please mig.
+
+ANALYSER FØLGENDE I MIN KODEBASE:
+
+1. TEKNISK ARKITEKTUR
+   - Gennemgå hele projektstrukturen. Hvilke filer er overflødige? Hvilke mangler?
+   - Tjek om Collov AI API-integrationen er robust (error handling, retries, rate limits)
+   - Tjek om billedgenerering faktisk bruger de rigtige parametre (style, room_type, budget_tier)
+   - Er der memory leaks, unødvendige re-renders, eller langsomme queries?
+   - Tjek database-schema: er der redundans, manglende indexes, eller dårlige relationer?
+
+2. BRUGERFLOW & KONVERTERING
+   - Tjek landing page → upload billede → vælg stil → se resultat → betal flowet
+   - Hvor falder brugere af? Hvor mange steps er der? Kan vi reducere til MINDRE end 5 klik fra start til resultat?
+   - Er CTA-knapper placeret korrekt efter eye-tracking principper?
+   - Tjek load times: billeder, API-kald, database queries. Alt over 2 sekunder = død.
+
+3. BILLEDKVALITET & AI-OUTPUT
+   - Tjek om Collov AI prompts er optimeret (er der negative prompts? seed control? aspect ratio?)
+   - Hvorfor bliver nogle billeder grumsete? Er det API-parametre eller vores preprocessing?
+   - Kan vi tilføje post-processing (sharpening, color grading) for bedre før/efter-virkning?
+   - Tjek om "før"-billedet vises korrekt ved siden af "efter" – er det samme vinkel, belysning, perspektiv?
+
+4. BETALING & PRICING
+   - Tjek Stripe-integration: er der abandoned cart recovery? Kan brugere gemme design uden at betale?
+   - Er prisstrukturen (Basic/Pro/Premium) klar nok? Hvad med en "gratis prøve" for at få leads?
+   - Tjek om vi fanger bruger-email FØR de betaler, så vi kan retarget dem.
+
+5. SEO & TRAFIK
+   - Tjek meta tags, Schema.org, sitemap, robots.txt
+   - Er der shareable URLs per genereret design? (brugere deler = gratis marketing)
+   - Kan vi tilføje "before/after" galleri som social proof?
+   - Tjek om siden er mobiloptimeret (70% af trafikken kommer fra mobil)
+
+6. DATA & ANALYTICS
+   - Tracker vi konverterings-events? Hvor mange starter vs. fuldfører?
+   - Er der A/B test framework? Hvis nej, foreslå hvordan vi implementerer det.
+   - Hvilke metrics skal vi følge? (CAC, LTV, churn, NPS)
+
+KRAV TIL DIT SVAR:
+- Vær ÆRLIG. Hvis noget er lort, sig det.
+- Kom med KONKRETE kode-ændringer, ikke bare "du burde overveje..."
+- Prioriter efter impact/effort: Hvad giver mest konvertering for mindst arbejde?
+- Hvis du ser en bedre teknisk løsning end vores nuværende (fx Render vs Railway, anden AI-provider, andet DB), argumenter for det.
+- Inkluder estimeret tid for hver ændring.
+
+OUTPUT FORMAT:
+1. 🔴 KRITISKE FEJL (fix nu – blokerer konvertering)
+2. 🟡 HURTIGE VINDERE (1-2 timers arbejde, stor impact)
+3. 🟢 LANGSIGTEDE OPTIMERINGER (strategiske ændringer)
+4. 📊 KONVERTERINGSFUNNEL ANALYSE (hvor taber vi brugere?)
+5. 🛠️ KODE-ÆNDRINGER (med filnavne og linjenumre)
+
+Start analysen NU. Gå i dybden. Jeg vil have noget jeg kan handle på i dag.
