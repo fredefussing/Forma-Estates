@@ -2903,8 +2903,10 @@ export async function registerRoutes(
         break;
       }
 
-      // Still generating
-      send({ stage: "generating", progress: mapped, message: `Genererer videoer… ${pct}%`, listingId });
+      // Still generating. Percentage is shown once, on the right, from `progress`
+      // (mapped 0-100 int) — don't embed raw pct in the message too (it produced a
+      // second, different number, sometimes with decimals). Mirrors server/rendy.ts.
+      send({ stage: "generating", progress: mapped, message: "Genererer videoer…", listingId });
       ping();
     }
 

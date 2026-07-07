@@ -3527,7 +3527,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             try {
               const p = JSON.parse(e.data) as { stage: string; progress?: number; message?: string; videos?: any[]; listingId?: string };
               if (p.message) setProgressMsg(p.message);
-              if (typeof p.progress === "number") setProgressPct(p.progress);
+              if (typeof p.progress === "number") setProgressPct(Math.round(p.progress));
               if (p.videos && Array.isArray(p.videos)) setRenderingVideos(p.videos as RendyVideo[]);
               if (p.stage === "complete" && p.videos) {
                 clearTimeout(deadlineTimer); es.close(); esRef.current = null;

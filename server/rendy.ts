@@ -364,7 +364,10 @@ export function startRendyShowcase(
         setProgress(jobId, {
           stage: "generating",
           progress: mapped,
-          message: `Genererer videoer… ${rendyPct}%`,
+          // Percentage is shown once, on the right, from `progress` (mapped 0-100
+          // int). Don't embed rendyPct here too — it produced a second, different
+          // number (and sometimes decimals) next to the bar.
+          message: "Genererer videoer…",
           listingId,
         });
 
