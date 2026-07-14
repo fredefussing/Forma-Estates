@@ -1986,6 +1986,56 @@ export async function registerRoutes(
     }
   });
 
+  // Download a remote video (Rendy/fal-hosted) to our own storage so saved case
+  // videos never break if the provider deletes them. Saves to uploads/ and queues
+  // an R2 upload (same pattern as design images). Returns the local /uploads/ URL,
+  // or null if the download failed (caller falls back to storing the remote URL).
+  // Uses spawn("curl") because Node.js fetch is intercepted in the Replit dev env.
+  // SSRF guard: only fetch from the video providers we actually use. Anything
+  // else keeps its remote URL untouched.
+  const TRUSTED_VIDEO_HOSTS = [/(^|\.)rendy\.io$/i, /(^|\.)fal\.media$/i, /(^|\.)fal\.ai$/i, /(^|\.)fal\.run$/i];
+  function isTrustedVideoHost(url: string): boolean {
+    try {
+      const { protocol, hostname } = new URL(url);
+      if (protocol !== "https:") return false;
+      return TRUSTED_VIDEO_HOSTS.some((re) => re.test(hostname));
+    } catch { return false; }
+  }
+
+  async function localizeRemoteVideo(url: string): Promise<string | null> {
+    if (!isTrustedVideoHost(url)) {
+      console.error(`[case-video] afvist: ikke-godkendt videovært — ${url.slice(0, 120)}`);
+      return null;
+    }
+    const filename = `case-video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
+    const localFilePath = path.join(uploadDir, filename);
+    try {
+      const contentType = await new Promise<string>((resolve, reject) => {
+        const curl = spawn("curl", ["-sL", "--fail", "--max-time", "120", "--max-filesize", "524288000", "--proto", "=https", "-o", localFilePath, "-w", "%{content_type}", url]);
+        const out: Buffer[] = [];
+        curl.stdout.on("data", (d: Buffer) => out.push(d));
+        curl.on("close", (code: number) => code === 0 ? resolve(Buffer.concat(out).toString().trim()) : reject(new Error(`curl exit ${code}`)));
+        curl.on("error", reject);
+      });
+      if (contentType && !/^(video\/|application\/octet-stream|binary\/)/i.test(contentType)) {
+        throw new Error(`unexpected content-type: ${contentType}`);
+      }
+      const size = fs.statSync(localFilePath).size;
+      if (size < 10_000) throw new Error(`downloaded file too small (${size} bytes)`);
+      log(`[case-video] localized ${url.slice(0, 80)}… → /uploads/${filename} (${Math.round(size / 1024)} KB)`);
+      r2UploadFile(localFilePath).catch((e: any) => log(`[R2] Upload failed for ${filename}: ${e?.message}`));
+      return `/uploads/${filename}`;
+    } catch (e: any) {
+      try { fs.unlinkSync(localFilePath); } catch {}
+      console.error(`[case-video] kunne ikke downloade video (gemmer eksternt link i stedet): ${e?.message} — ${url.slice(0, 120)}`);
+      return null;
+    }
+  }
+
+  const isRemoteVideoUrl = (u: unknown, roomType?: string): u is string =>
+    typeof u === "string" && /^https?:\/\//i.test(u) &&
+    (/\.mp4(\?|$)/i.test(u) || /video/i.test(roomType || ""));
+
   app.post("/api/bolig/cases/:id/images", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
@@ -2001,11 +2051,28 @@ export async function registerRoutes(
         promptText, isDesignAgent,
       } = req.body || {};
       if (!imageUrl) return res.status(400).json({ message: "imageUrl required" });
+
+      // Persist provider-hosted videos (Rendy/fal) on our own storage so they
+      // remain playable in the case folder even if the provider deletes them.
+      let finalImageUrl: string = imageUrl;
+      let finalOriginalUrl: string | null = originalImageUrl || null;
+      if (isRemoteVideoUrl(imageUrl, roomType)) {
+        const local = await localizeRemoteVideo(imageUrl);
+        if (local) {
+          finalImageUrl = local;
+          if (finalOriginalUrl === imageUrl) finalOriginalUrl = local;
+        }
+      }
+      if (finalOriginalUrl && finalOriginalUrl !== finalImageUrl && isRemoteVideoUrl(finalOriginalUrl, roomType)) {
+        const localOrig = await localizeRemoteVideo(finalOriginalUrl);
+        if (localOrig) finalOriginalUrl = localOrig;
+      }
+
       const img = await storage.createGeneratedImage({
         userId: user.id,
         caseId,
-        imageUrl,
-        originalImageUrl: originalImageUrl || null,
+        imageUrl: finalImageUrl,
+        originalImageUrl: finalOriginalUrl,
         roomType: roomType || "other",
         style: style || "custom",
         budgetTier: budgetTier || "tier2",
