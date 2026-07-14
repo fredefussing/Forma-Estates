@@ -4,9 +4,9 @@ import path from "path";
 import { Jimp, JimpMime } from "jimp";
 import { r2UploadFile } from "./r2";
 
-// ⛔ FAL.AI EMERGENCY LOCKDOWN — alle udgående kald er blokeret.
-// Fjern denne linje og genaktiver FAL_KEY når kontoen er sikret igen.
-const FAL_LOCKED_DOWN = true;
+// FAL.AI lockdown-kontakt — sæt til true for øjeblikkeligt at blokere alle
+// udgående fal.ai-kald (bruges ved kontosikkerhedshændelser).
+const FAL_LOCKED_DOWN = false;
 
 const FAL_KEY = process.env.FAL_KEY;
 if (FAL_KEY && !FAL_LOCKED_DOWN) {
