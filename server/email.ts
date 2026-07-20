@@ -22,6 +22,11 @@ function createTransporter() {
       pass: process.env.SMTP_PASSWORD,
     },
     tls: { rejectUnauthorized: false },
+    // Fail fast when the host blocks outbound SMTP (e.g. Render) instead of
+    // hanging for nodemailer's 2-minute default and stalling API requests.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
 }
 
