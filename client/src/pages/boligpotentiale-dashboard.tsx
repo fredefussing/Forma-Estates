@@ -3786,17 +3786,17 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       {/* Eksempel */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-8 shadow-sm max-w-4xl">
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
-        <div className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#0F1D2F]">
+        <div className="rounded-xl overflow-hidden border border-[#E8E4DE] flex justify-center" style={{ background: "#0F1D2F" }}>
           <video
             ref={exampleVideoRef}
-            src="/videos/transformation-kling-v16-pro.mp4"
-            poster="/bolig-images/video-poster.jpg"
+            src="/videos/eksempel-bolig-showcase.mp4"
+            poster="/bolig-images/showcase-eksempel-poster.jpg"
             preload="none"
             muted
             loop
             playsInline
-            className="w-full h-auto"
-            style={{ aspectRatio: "1764/1176" }}
+            className="h-auto"
+            style={{ aspectRatio: "9/16", maxHeight: 480 }}
             data-testid="showcase-example-video"
           />
         </div>
@@ -7994,7 +7994,7 @@ export default function BoligpotentialeDashboard() {
   const [prevSection, setPrevSection] = useState<Section>("dashboard");
   const [now, setNow] = useState(Date.now());
   const [pendingCase, setPendingCase] = useState<ApiCase | null>(null);
-  const [activityLightbox, setActivityLightbox] = useState<string | null>(null);
+  const [activityLightbox, setActivityLightbox] = useState<{ src: string; beforeSrc: string | null } | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<BillingInvoice | null>(null);
   const [cancelConfirming, setCancelConfirming] = useState(false);
 
@@ -8061,7 +8061,7 @@ export default function BoligpotentialeDashboard() {
   });
 
   // ── Activity query ─────────────────────────────────────────────────────────
-  const { data: activity = [], refetch: refetchActivity } = useQuery<Array<{ type: "generation" | "case"; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: string; isDesignAgent?: boolean; promptText?: string }>>({
+  const { data: activity = [], refetch: refetchActivity } = useQuery<Array<{ type: "generation" | "case"; imageUrl?: string; beforeImageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: string; isDesignAgent?: boolean; promptText?: string }>>({
     queryKey: ["/api/bolig/activity", user?.uid],
     queryFn: async () => {
       if (!user) return [];
@@ -8732,7 +8732,7 @@ export default function BoligpotentialeDashboard() {
                           ) : item.type === "generation" ? (
                             <button
                               key={i}
-                              onClick={() => item.imageUrl && setActivityLightbox(item.imageUrl)}
+                              onClick={() => item.imageUrl && setActivityLightbox({ src: item.imageUrl, beforeSrc: item.beforeImageUrl && item.beforeImageUrl !== item.imageUrl ? item.beforeImageUrl : null })}
                               className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#F5F3EF] transition-colors text-left"
                               data-testid={`bolig-activity-item-${i}`}
                             >
@@ -9555,12 +9555,18 @@ export default function BoligpotentialeDashboard() {
             onClick={() => setActivityLightbox(null)}
             data-testid="dashboard-activity-lightbox"
           >
-            <img
-              src={activityLightbox}
-              alt="Genereret billede"
-              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {activityLightbox.beforeSrc && !isVideoUrl(activityLightbox.src) ? (
+              <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+                <BeforeAfterSlider beforeSrc={activityLightbox.beforeSrc} afterSrc={activityLightbox.src} />
+              </div>
+            ) : (
+              <img
+                src={activityLightbox.src}
+                alt="Genereret billede"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
             <button
               onClick={() => setActivityLightbox(null)}
               className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"

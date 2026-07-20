@@ -117,7 +117,7 @@ export interface IStorage {
   getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]>;
   getAllGeneratedImages(userId: number, limit?: number): Promise<GeneratedImage[]>;
   deleteGeneratedImage(id: number, userId: number): Promise<void>;
-  getBoligActivity(userId: number): Promise<Array<{ type: "generation" | "case"; label: string; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: Date }>>;
+  getBoligActivity(userId: number): Promise<Array<{ type: "generation" | "case"; label: string; imageUrl?: string; beforeImageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: Date; isDesignAgent?: boolean; promptText?: string }>>;
   getTeamActivity(teamId: number): Promise<Array<{ type: "generation" | "case"; userName: string; userEmail: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; imageUrl?: string; createdAt: Date }>>;
   getBoligMostUsed(userId: number): Promise<{ styles: Array<{ key: string; count: number }>; rooms: Array<{ key: string; count: number }>; tiers: Array<{ key: string; count: number }> }>;
 
@@ -455,15 +455,15 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getBoligActivity(userId: number): Promise<Array<{ type: "generation" | "case"; label: string; imageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: Date; isDesignAgent?: boolean; promptText?: string }>> {
+  async getBoligActivity(userId: number): Promise<Array<{ type: "generation" | "case"; label: string; imageUrl?: string; beforeImageUrl?: string; roomType?: string; style?: string; tier?: string; address?: string; caseId?: number | null; createdAt: Date; isDesignAgent?: boolean; promptText?: string }>> {
     const [gens, cases] = await Promise.all([
-      db.select({ imageUrl: generatedImages.imageUrl, roomType: generatedImages.roomType, style: generatedImages.style, tier: generatedImages.budgetTier, caseId: generatedImages.caseId, createdAt: generatedImages.createdAt, isDesignAgent: generatedImages.isDesignAgent, promptText: generatedImages.promptText })
+      db.select({ imageUrl: generatedImages.imageUrl, originalImageUrl: generatedImages.originalImageUrl, roomType: generatedImages.roomType, style: generatedImages.style, tier: generatedImages.budgetTier, caseId: generatedImages.caseId, createdAt: generatedImages.createdAt, isDesignAgent: generatedImages.isDesignAgent, promptText: generatedImages.promptText })
         .from(generatedImages).where(eq(generatedImages.userId, userId)).orderBy(desc(generatedImages.createdAt)).limit(8),
       db.select({ id: boligCases.id, address: boligCases.address, createdAt: boligCases.createdAt })
         .from(boligCases).where(eq(boligCases.userId, userId)).orderBy(desc(boligCases.createdAt)).limit(5),
     ]);
     const items = [
-      ...gens.map(g => ({ type: "generation" as const, label: "", imageUrl: g.imageUrl, roomType: g.roomType, style: g.style, tier: g.tier, caseId: g.caseId, createdAt: g.createdAt, isDesignAgent: g.isDesignAgent ?? false, promptText: g.promptText ?? undefined })),
+      ...gens.map(g => ({ type: "generation" as const, label: "", imageUrl: g.imageUrl, beforeImageUrl: g.originalImageUrl ?? undefined, roomType: g.roomType, style: g.style, tier: g.tier, caseId: g.caseId, createdAt: g.createdAt, isDesignAgent: g.isDesignAgent ?? false, promptText: g.promptText ?? undefined })),
       ...cases.map(c => ({ type: "case" as const, label: c.address, address: c.address, caseId: c.id, createdAt: c.createdAt })),
     ];
     return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 8);
