@@ -1,5 +1,11 @@
-import { log } from "./index";
 import nodemailer from "nodemailer";
+
+// Local logger — deliberately NOT imported from ./index so this module can be
+// loaded standalone (tests, scripts) without booting the whole server.
+function log(message: string) {
+  const t = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
+  console.log(`${t} [express] ${message}`);
+}
 
 const KONTAKT_EMAIL = "kontakt@formaestates.com";
 const SENDER_NAME = "Forma Estates";

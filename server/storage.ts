@@ -18,12 +18,42 @@ import {
   type CrmActivity, type InsertCrmActivity, crmActivities,
   type CrmInteraction, type InsertCrmInteraction, crmInteractions,
   type CrmUserOverride, crmUserOverrides,
+  type PendingPurchase, pendingPurchases,
   SUBSCRIPTION_QUOTAS, FREE_TRIAL_QUOTAS,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
 import { eq, desc, sql, or, ilike, and } from "drizzle-orm";
 import { BOLIG_STYLE_LABELS, BOLIG_ROOM_LABELS } from "@shared/boligPrompts";
+
+// ── Monthly quota-period reset SQL ────────────────────────────────────────────
+// When a quota period rolls over we must hand back ONLY the subscription's own
+// monthly allowance — never re-inflate one-time package top-ups. New quota =
+// tier base + whatever part of the top-up is still unused. NULL quotas
+// (admins / unconfigured) are left untouched.
+const QUOTA_TIER_BASE: Record<string, [number, number, number]> = {
+  // column: [start, pro, business]
+  quota_ai_visualizations: [10, 25, 60],
+  quota_floor_plans: [2, 5, 12],
+  quota_transform_videos: [2, 5, 12],
+  quota_showcase_videos: [1, 3, 8],
+};
+
+function quotaPeriodResetSets(): string {
+  const pairs: Array<[string, string]> = [
+    ["quota_ai_visualizations", "used_ai_visualizations"],
+    ["quota_floor_plans", "used_floor_plans"],
+    ["quota_transform_videos", "used_transform_videos"],
+    ["quota_showcase_videos", "used_showcase_videos"],
+  ];
+  const quotaSets = pairs.map(([q, u]) => {
+    const [s, p, b] = QUOTA_TIER_BASE[q];
+    const base = `(CASE subscription_tier WHEN 'start' THEN ${s} WHEN 'pro' THEN ${p} WHEN 'business' THEN ${b} ELSE 0 END)`;
+    return `${q} = CASE WHEN ${q} IS NULL THEN NULL ELSE ${base} + LEAST(GREATEST(${q} - ${base}, 0), GREATEST(${q} - ${u}, 0)) END`;
+  });
+  const usedSets = pairs.map(([, u]) => `${u} = 0`);
+  return [...quotaSets, ...usedSets].join(", ");
+}
 
 export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
@@ -76,6 +106,9 @@ export interface IStorage {
   getBoligCaseImages(caseId: number): Promise<BoligCaseImage[]>;
   getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>;
   getUserQuota(userId: number): Promise<{ ai: { limit: number | null; used: number }; floorPlan: { limit: number | null; used: number }; transformVideo: { limit: number | null; used: number }; showcase: { limit: number | null; used: number }; resetsAt: Date | null }>;
+  upsertPendingPurchase(p: { provider: string; externalId: string; email: string | null; kind: string; payload: unknown }): Promise<{ inserted: boolean }>;
+  claimPendingPurchase(externalId: string, userId: number): Promise<PendingPurchase | null>;
+  getPendingPurchasesByEmail(email: string): Promise<PendingPurchase[]>;
   checkAndIncrementQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<{ allowed: boolean; remaining: number | null; feature: string }>;
   refundQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase"): Promise<void>;
   setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date; resetUsage?: boolean }): Promise<void>;
@@ -1050,13 +1083,18 @@ export class DatabaseStorage implements IStorage {
       const teamRes = await pool.query<{
         team_name: string; subscription_tier: string | null; owner_is_admin: boolean; member_cnt: string;
         owner_used_ai: number; owner_used_floor: number; owner_used_video: number; owner_used_showcase: number;
+        owner_quota_ai: number | null; owner_quota_floor: number | null; owner_quota_video: number | null; owner_quota_showcase: number | null;
       }>(
         `SELECT t.name AS team_name, ou.subscription_tier, ou.is_admin AS owner_is_admin,
                 (SELECT COUNT(*) FROM team_members WHERE team_id = t.id)::text AS member_cnt,
                 ou.used_ai_visualizations AS owner_used_ai,
                 ou.used_floor_plans AS owner_used_floor,
                 ou.used_transform_videos AS owner_used_video,
-                ou.used_showcase_videos AS owner_used_showcase
+                ou.used_showcase_videos AS owner_used_showcase,
+                ou.quota_ai_visualizations AS owner_quota_ai,
+                ou.quota_floor_plans AS owner_quota_floor,
+                ou.quota_transform_videos AS owner_quota_video,
+                ou.quota_showcase_videos AS owner_quota_showcase
          FROM team_members tm
          JOIN teams t ON t.id = tm.team_id
          JOIN users ou ON ou.id = t.owner_user_id
@@ -1080,7 +1118,18 @@ export class DatabaseStorage implements IStorage {
           teamPlan = "unlimited";
         } else {
           teamPlan = tr.subscription_tier ?? null;
-          if (teamPlan && teamPlan in SUBSCRIPTION_QUOTAS) {
+          const ownerHasQuotas = tr.owner_quota_ai !== null || tr.owner_quota_floor !== null || tr.owner_quota_video !== null || tr.owner_quota_showcase !== null;
+          if (ownerHasQuotas) {
+            // Members share exactly what the owner bought (subscription and/or
+            // custom package). A NULL column while others are set → 0.
+            effectiveLimits = {
+              ai: tr.owner_quota_ai ?? 0,
+              floorPlan: tr.owner_quota_floor ?? 0,
+              transformVideo: tr.owner_quota_video ?? 0,
+              showcase: tr.owner_quota_showcase ?? 0,
+            };
+          } else if (teamPlan && teamPlan in SUBSCRIPTION_QUOTAS) {
+            // Legacy fallback: owner has a tier but no quota columns configured
             const q = SUBSCRIPTION_QUOTAS[teamPlan as keyof typeof SUBSCRIPTION_QUOTAS];
             effectiveLimits = { ai: q.ai as number | null, floorPlan: q.floorPlans as number | null, transformVideo: q.transformVideos as number | null, showcase: q.showcase as number | null };
           }
@@ -1138,9 +1187,10 @@ export class DatabaseStorage implements IStorage {
     const col = feature === "ai" ? "ai_visualizations" : feature === "floorPlan" ? "floor_plans" : feature === "transformVideo" ? "transform_videos" : "showcase_videos";
     const label = feature === "ai" ? "AI Visualiseringer" : feature === "floorPlan" ? "3D Floor Plans" : feature === "transformVideo" ? "Transformering Videoer" : "Bolig Showcase";
 
-    // Auto-reset if past reset date (for this user)
+    // Auto-reset if past reset date (for this user) — restores the tier's base
+    // allowance and carries over only unused one-time top-ups.
     await pool.query(
-      `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0,
+      `UPDATE users SET ${quotaPeriodResetSets()},
        quota_resets_at = NOW() + INTERVAL '1 month'
        WHERE id=$1 AND quota_resets_at IS NOT NULL AND quota_resets_at < NOW()`,
       [userId]
@@ -1174,39 +1224,54 @@ export class DatabaseStorage implements IStorage {
         if (tr.owner_is_admin) {
           return { allowed: true, remaining: null, feature: label };
         }
-        const tier = tr.subscription_tier;
-        if (tier && tier in SUBSCRIPTION_QUOTAS) {
-          const q = SUBSCRIPTION_QUOTAS[tier as keyof typeof SUBSCRIPTION_QUOTAS];
-          const tierLimit = feature === "ai" ? q.ai : feature === "floorPlan" ? q.floorPlans : feature === "transformVideo" ? q.transformVideos : q.showcase;
-          limit = tierLimit as number | null;
+        // ── Shared pool: auto-reset owner if needed, then read the owner's
+        // ACTUAL purchased quotas (subscription and/or custom package) ──
+        await pool.query(
+          `UPDATE users SET ${quotaPeriodResetSets()},
+           quota_resets_at = NOW() + INTERVAL '1 month'
+           WHERE id=$1 AND quota_resets_at IS NOT NULL AND quota_resets_at < NOW()`,
+          [tr.owner_id]
+        );
+        const ownerQ = await pool.query(
+          `SELECT quota_ai_visualizations, quota_floor_plans, quota_transform_videos, quota_showcase_videos FROM users WHERE id=$1`,
+          [tr.owner_id]
+        );
+        const oq = ownerQ.rows[0] ?? {};
+        const ownerHasQuotas = oq.quota_ai_visualizations !== null || oq.quota_floor_plans !== null || oq.quota_transform_videos !== null || oq.quota_showcase_videos !== null;
 
-          // ── Shared pool: auto-reset owner if needed, then atomically claim one slot ──
-          await pool.query(
-            `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0,
-             quota_resets_at = NOW() + INTERVAL '1 month'
-             WHERE id=$1 AND quota_resets_at IS NOT NULL AND quota_resets_at < NOW()`,
-            [tr.owner_id]
-          );
-          if (limit !== null) {
-            // Atomic increment only if under the cap — prevents concurrent over-spend
-            const atomicRes = await pool.query<{ new_used: number }>(
-              `UPDATE users SET used_${col} = used_${col} + 1
-               WHERE id=$1 AND used_${col} < $2
-               RETURNING used_${col} AS new_used`,
-              [tr.owner_id, limit]
-            );
-            if ((atomicRes.rowCount ?? 0) === 0) {
-              return { allowed: false, remaining: 0, feature: label };
-            }
-            const newUsed: number = atomicRes.rows[0].new_used;
-            return { allowed: true, remaining: limit - newUsed, feature: label };
-          }
-          // Unlimited owner (no cap) — just increment
-          await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [tr.owner_id]);
-          return { allowed: true, remaining: null, feature: label };
+        if (ownerHasQuotas) {
+          // Members share exactly what the owner bought — a NULL column while
+          // others are set means that feature was never purchased → 0.
+          limit = (oq[`quota_${col}`] as number | null) ?? 0;
         } else {
-          return { allowed: false, remaining: 0, feature: label };
+          // Legacy fallback: owner has a tier but no quota columns configured
+          const tier = tr.subscription_tier;
+          if (tier && tier in SUBSCRIPTION_QUOTAS) {
+            const q = SUBSCRIPTION_QUOTAS[tier as keyof typeof SUBSCRIPTION_QUOTAS];
+            const tierLimit = feature === "ai" ? q.ai : feature === "floorPlan" ? q.floorPlans : feature === "transformVideo" ? q.transformVideos : q.showcase;
+            limit = tierLimit as number | null;
+          } else {
+            return { allowed: false, remaining: 0, feature: label };
+          }
         }
+
+        if (limit !== null) {
+          // Atomic increment only if under the cap — prevents concurrent over-spend
+          const atomicRes = await pool.query<{ new_used: number }>(
+            `UPDATE users SET used_${col} = used_${col} + 1
+             WHERE id=$1 AND used_${col} < $2
+             RETURNING used_${col} AS new_used`,
+            [tr.owner_id, limit]
+          );
+          if ((atomicRes.rowCount ?? 0) === 0) {
+            return { allowed: false, remaining: 0, feature: label };
+          }
+          const newUsed: number = atomicRes.rows[0].new_used;
+          return { allowed: true, remaining: limit - newUsed, feature: label };
+        }
+        // Unlimited owner (no cap) — just increment
+        await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [tr.owner_id]);
+        return { allowed: true, remaining: null, feature: label };
       }
       // Not in a team and no explicit quota set → free-trial user.
       // Grant a limited number of AI visualisations (før/efter); block everything else.
@@ -1294,9 +1359,48 @@ export class DatabaseStorage implements IStorage {
     nextMonth.setDate(1);
     nextMonth.setHours(0, 0, 0, 0);
     await pool.query(
-      `UPDATE users SET used_ai_visualizations=0, used_floor_plans=0, used_transform_videos=0, used_showcase_videos=0, quota_resets_at=$2 WHERE id=$1`,
+      `UPDATE users SET ${quotaPeriodResetSets()}, quota_resets_at=$2 WHERE id=$1`,
       [userId, nextMonth]
     );
+  }
+
+  // ── Pending purchases (idempotency ledger + unclaimed-purchase inbox) ──────
+  async upsertPendingPurchase(p: { provider: string; externalId: string; email: string | null; kind: string; payload: unknown }): Promise<{ inserted: boolean }> {
+    const res = await pool.query(
+      `INSERT INTO pending_purchases (provider, external_id, email, kind, payload)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (external_id) DO NOTHING
+       RETURNING id`,
+      [p.provider, p.externalId, p.email ? p.email.toLowerCase() : null, p.kind, JSON.stringify(p.payload ?? {})]
+    );
+    return { inserted: (res.rowCount ?? 0) > 0 };
+  }
+
+  // Atomic claim: only ONE caller ever gets the row back — this is the global
+  // idempotency guarantee (a paid session can never be granted twice, not even
+  // to two different accounts racing each other).
+  async claimPendingPurchase(externalId: string, userId: number): Promise<PendingPurchase | null> {
+    const res = await pool.query(
+      `UPDATE pending_purchases
+       SET status='claimed', claimed_by_user_id=$2, claimed_at=NOW()
+       WHERE external_id=$1 AND status='pending'
+       RETURNING id, provider, external_id AS "externalId", email, kind, payload, status,
+                 claimed_by_user_id AS "claimedByUserId", created_at AS "createdAt", claimed_at AS "claimedAt"`,
+      [externalId, userId]
+    );
+    return (res.rows[0] as PendingPurchase | undefined) ?? null;
+  }
+
+  async getPendingPurchasesByEmail(email: string): Promise<PendingPurchase[]> {
+    const res = await pool.query(
+      `SELECT id, provider, external_id AS "externalId", email, kind, payload, status,
+              claimed_by_user_id AS "claimedByUserId", created_at AS "createdAt", claimed_at AS "claimedAt"
+       FROM pending_purchases
+       WHERE status='pending' AND LOWER(email)=LOWER($1)
+       ORDER BY created_at ASC`,
+      [email]
+    );
+    return res.rows as PendingPurchase[];
   }
 }
 

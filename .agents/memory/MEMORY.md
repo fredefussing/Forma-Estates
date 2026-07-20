@@ -10,3 +10,4 @@
 - [Quota usage-counter reset must be opt-in](quota-usage-reset.md) — setUserQuotas is shared by login/top-up/activation; reset used_* via explicit resetUsage flag, never off resetsAt, or you regress lifetime caps & hand back paid quota.
 - [Stripe current_period_end moved](stripe-current-period-end.md) — Stripe SDK v22/API 2025+ dropped current_period_end from top-level Subscription (now on items); read defensively or the billing date throws Invalid time value.
 - [Boligpotentiale flow persistence](boligpotentiale-flow-persistence.md) — 5 generation flows stay always-mounted (CSS-hidden) so in-flight work survives tab switches; reset-after-save must use cancellable ref timers.
+- [Server modules must not import ./index](server-modules-standalone.md) — importing server/index.ts boots Express (EADDRINUSE in test scripts); leaf modules use a local logger.

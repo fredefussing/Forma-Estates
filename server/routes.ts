@@ -3,6 +3,7 @@ import express from "express";
 import Stripe from "stripe";
 import { createServer, type Server } from "http";
 import { spawn } from "child_process";
+import crypto from "crypto";
 import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
@@ -16,6 +17,7 @@ import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail } from "./email";
+import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
@@ -556,6 +558,19 @@ export async function registerRoutes(
         log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}, showcase=${quotaUpdate.showcase}`);
       }
 
+      // Auto-claim purchases made BEFORE the account existed (e.g. paid via
+      // Stripe as guest, then signed up). Atomic claim → can never double-grant.
+      try {
+        const granted = await claimPendingPurchasesForUser({ id: user.id, email: user.email });
+        if (granted.length > 0) {
+          log(`[auth] Auto-claimed ${granted.length} pending purchase(s) for ${user.email}`);
+          const refreshed = await storage.getUserByFirebaseUid(uid);
+          if (refreshed) user = refreshed;
+        }
+      } catch (err: any) {
+        log(`[auth] Pending-purchase claim failed for ${user.email}: ${err.message}`);
+      }
+
       return res.json({
         user: {
           id: user.id,
@@ -1028,6 +1043,28 @@ export async function registerRoutes(
 
   app.post("/api/shopify/webhook", express.json(), async (req, res) => {
     try {
+      // ── HMAC verification: Shopify signs every webhook with the shop's
+      // webhook secret (X-Shopify-Hmac-Sha256 over the raw body). Without this
+      // check anyone could POST a forged order and mint credits.
+      const shopifySecret = process.env.SHOPIFY_WEBHOOK_SECRET;
+      if (shopifySecret) {
+        const hmacHeader = req.headers["x-shopify-hmac-sha256"] as string | undefined;
+        const rawBody = (req as any).rawBody as Buffer | undefined;
+        let valid = false;
+        if (hmacHeader && rawBody) {
+          const digest = crypto.createHmac("sha256", shopifySecret).update(rawBody).digest("base64");
+          const a = Buffer.from(digest);
+          const b = Buffer.from(hmacHeader);
+          valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+        }
+        if (!valid) {
+          log(`Shopify webhook rejected: HMAC verification failed`);
+          return res.status(401).json({ error: "Invalid webhook signature" });
+        }
+      } else {
+        log(`ADVARSEL: SHOPIFY_WEBHOOK_SECRET er ikke sat — Shopify webhook kører UVERIFICERET`);
+      }
+
       const order = req.body;
       log(`Shopify webhook received: order #${order.order_number || order.id || "unknown"}`);
 
@@ -1035,7 +1072,14 @@ export async function registerRoutes(
       const customerName = order.customer?.first_name
         ? `${order.customer.first_name} ${order.customer.last_name || ""}`.trim()
         : order.billing_address?.name || "Kunde";
-      const orderId = String(order.order_number || order.id || Date.now());
+      // A real order id is REQUIRED for idempotency — without one we cannot
+      // dedupe redeliveries, so the event is acknowledged but not processed.
+      const orderIdRaw = order.order_number ?? order.id;
+      if (orderIdRaw === undefined || orderIdRaw === null) {
+        log(`Shopify webhook missing order id — ignored`);
+        return res.status(200).json({ success: true });
+      }
+      const orderId = String(orderIdRaw);
 
       let matchedPackage = null;
       const lineItems = order.line_items || [];
@@ -1054,6 +1098,26 @@ export async function registerRoutes(
         else matchedPackage = packageMap["52707296543062"];
       }
 
+      // Idempotency: Shopify retries webhooks — the ledger's unique order id
+      // guarantees a re-delivered order never grants credits twice.
+      const externalId = `shopify:${orderId}`;
+      const { inserted } = await storage.upsertPendingPurchase({
+        provider: "shopify",
+        externalId,
+        email: customerEmail ?? null,
+        kind: "shopify_credits",
+        payload: {
+          packageName: matchedPackage.name,
+          images: matchedPackage.images,
+          price: matchedPackage.price,
+          tierKey: matchedPackage.name.toLowerCase(),
+        },
+      });
+      if (!inserted) {
+        log(`Shopify webhook duplicate ignored: order #${orderId}`);
+        return res.status(200).json({ success: true, duplicate: true });
+      }
+
       let targetUser = null;
 
       if (customerEmail) {
@@ -1061,17 +1125,17 @@ export async function registerRoutes(
         if (targetUser) {
           log(`User resolved via email (${customerEmail}) → ${targetUser.email}`);
         } else {
-          log(`No user found for email: ${customerEmail}`);
+          log(`No user found for email: ${customerEmail} — purchase stays pending until signup`);
         }
       }
 
       if (targetUser) {
-        await storage.addCredits(targetUser.id, matchedPackage.images, `Købt: ${matchedPackage.name} pakke (${matchedPackage.images} billeder)`);
-        const tierKey = matchedPackage.name.toLowerCase();
-        await storage.activateSubscription(targetUser.id, tierKey);
-        log(`Credits added: ${matchedPackage.images} + subscription activated (${tierKey}) → ${targetUser.email}`);
+        const granted = await claimAndGrant(externalId, targetUser.id);
+        if (granted) {
+          log(`Credits added: ${matchedPackage.images} + subscription activated → ${targetUser.email}`);
+        }
       } else {
-        log(`Shopify purchase could not be matched to any user — customerEmail: ${customerEmail}`);
+        log(`Shopify purchase pending — customerEmail: ${customerEmail}`);
       }
 
       if (customerEmail) {
@@ -4451,20 +4515,7 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
     businessYearly:   "price_1Tl2uiKDpJP0jg0eAXRwj3Al",
   };
 
-  const PRICE_TO_TIER: Record<string, string> = {
-    "price_1Tl2kVKDpJP0jg0e2UqApR5B": "start",
-    "price_1Tl2rVKDpJP0jg0erJ0x7FZs": "start",
-    "price_1Tl2nYKDpJP0jg0eMbTJQ2jx": "pro",
-    "price_1Tl2soKDpJP0jg0eREm8LuB4": "pro",
-    "price_1Tl2pZKDpJP0jg0etHHBwE52": "business",
-    "price_1Tl2uiKDpJP0jg0eAXRwj3Al": "business",
-  };
-
-  const TIER_QUOTAS: Record<string, { ai: number; floorPlans: number; transformVideos: number; showcase: number }> = {
-    start:    { ai: 10, floorPlans: 2,  transformVideos: 2,  showcase: 1 },
-    pro:      { ai: 25, floorPlans: 5,  transformVideos: 5,  showcase: 3 },
-    business: { ai: 60, floorPlans: 12, transformVideos: 12, showcase: 8 },
-  };
+  // PRICE_TO_TIER and TIER_QUOTAS live in server/purchases.ts (single source of truth)
 
   // ── Stripe: verify session and activate subscription/quotas ───────────────
   app.post("/api/stripe/verify-session", async (req, res) => {
@@ -4486,85 +4537,44 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
         return res.json({ status: "pending" });
       }
 
-      // Already processed idempotency check via credit_transactions
-      const existing = await pool.query(
-        `SELECT id FROM credit_transactions WHERE user_id=$1 AND description=$2 LIMIT 1`,
-        [user.id, `stripe:${sessionId}`]
-      );
-      if (existing.rows.length > 0) {
-        // Already activated — just return current state
+      // Global idempotency: has this session already been granted to ANY
+      // account (legacy transactions included)? One payment = one activation.
+      if (await isStripeSessionProcessed(sessionId)) {
         return res.json({ status: "already_activated", mode: session.mode });
       }
 
-      const resetsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const pending = buildStripePending(session);
+      if (!pending) return res.json({ status: "unknown" });
 
-      if (session.mode === "subscription") {
-        const priceId = (session.line_items?.data[0]?.price as any)?.id as string | undefined;
-        const tier = (priceId && PRICE_TO_TIER[priceId]) || "start";
-        const quotas = TIER_QUOTAS[tier] ?? TIER_QUOTAS.start;
+      // Record in the ledger, then atomically claim for the logged-in user.
+      // If the webhook (or another device) already claimed it, claim returns
+      // null and nothing is granted twice.
+      await storage.upsertPendingPurchase({ provider: "stripe", ...pending });
+      const result = await claimAndGrant(pending.externalId, user.id);
+      if (!result) {
+        return res.json({ status: "already_activated", mode: session.mode });
+      }
 
-        await storage.activateSubscription(user.id, tier);
-        await storage.setUserQuotas(user.id, { ...quotas, resetsAt, resetUsage: true });
-        await pool.query(
-          `INSERT INTO credit_transactions(user_id, amount, type, description) VALUES($1, 0, $2, $3)`,
-          [user.id, "stripe_subscription", `stripe:${sessionId}`]
-        );
-
-        const tierNames: Record<string, string> = { start: "Start", pro: "Pro", business: "Business" };
-        const tierName = tierNames[tier] ?? tier;
-        const customerEmail = session.customer_email ?? user.email ?? "";
-        if (customerEmail) {
-          sendSubscriptionConfirmationEmail({ customerEmail, tierName, quotas }).catch(() => {});
-        }
+      if (result.kind === "subscription") {
         return res.json({
           status: "activated",
           mode: "subscription",
-          tier,
-          tierName,
-          quotas,
+          tier: result.tier,
+          tierName: result.tierName,
+          quotas: result.quotas,
         });
       }
-
-      if (session.mode === "payment") {
-        const aiVisual     = parseInt(session.metadata?.ai_visual       ?? "0", 10) || 0;
-        const plan3d       = parseInt(session.metadata?.plan_3d          ?? "0", 10) || 0;
-        const transformVid = parseInt(session.metadata?.transform_video  ?? "0", 10) || 0;
-        const showcase     = parseInt(session.metadata?.showcase         ?? "0", 10) || 0;
-
-        // Activate account access + add purchased quotas on top of existing
-        await storage.activateSubscription(user.id, "custom");
-        await storage.setUserQuotas(user.id, {
-          ai:             (user.quotaAiVisualizations  ?? 0) + aiVisual,
-          floorPlans:     (user.quotaFloorPlans         ?? 0) + plan3d,
-          transformVideos:(user.quotaTransformVideos    ?? 0) + transformVid,
-          showcase:       (user.quotaShowcaseVideos     ?? 0) + showcase,
-          resetsAt,
-        });
-        await pool.query(
-          `INSERT INTO credit_transactions(user_id, amount, type, description) VALUES($1, 0, $2, $3)`,
-          [user.id, "stripe_package", `stripe:${sessionId}`]
-        );
-
-        const pkgEmail = session.customer_email ?? user.email ?? "";
-        if (pkgEmail) {
-          const pkgItems = [
-            { name: "AI Visualisering", quantity: aiVisual, unitPrice: 100, total: aiVisual * 100 },
-            { name: "3D Plantegning", quantity: plan3d, unitPrice: 300, total: plan3d * 300 },
-            { name: "Transformering Video", quantity: transformVid, unitPrice: 300, total: transformVid * 300 },
-            { name: "Bolig Showcase Video", quantity: showcase, unitPrice: 500, total: showcase * 500 },
-          ];
-          const pkgTotal = Math.round((session.amount_total ?? 0) / 100);
-          sendPackageConfirmationEmail({ customerEmail: pkgEmail, items: pkgItems, grandTotal: pkgTotal, sessionId }).catch(() => {});
-        }
-
+      if (result.kind === "package") {
         return res.json({
           status: "activated",
           mode: "payment",
-          aiVisual, plan3d, transformVid, showcase,
-          amountTotal: session.amount_total,
+          aiVisual: result.aiVisual,
+          plan3d: result.plan3d,
+          transformVid: result.transformVid,
+          showcase: result.showcase,
+          amountTotal: result.amountTotal,
         });
       }
-
       return res.json({ status: "unknown" });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -4576,6 +4586,13 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
     if (!stripe) return res.status(503).end();
     const sig = req.headers["stripe-signature"] as string;
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    // In production, NEVER process unsigned webhooks — without the signature
+    // check anyone could POST forged events. (Dev keeps the JSON fallback so
+    // the flow can be tested without a Stripe CLI tunnel.)
+    if (!secret && process.env.NODE_ENV === "production") {
+      log(`[stripe] Webhook rejected: STRIPE_WEBHOOK_SECRET er ikke sat i produktion`);
+      return res.status(400).send("Webhook secret not configured");
+    }
     let event: Stripe.Event;
     try {
       event = secret
@@ -4583,6 +4600,36 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
         : JSON.parse(req.body.toString()) as Stripe.Event;
     } catch (err: any) {
       return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Server-side fulfillment: activates the purchase even when the buyer
+    // never returns to the /betalt success page (closed tab, lost connection).
+    // If no account matches the email yet, the purchase stays 'pending' and is
+    // auto-claimed the moment the buyer signs up with that email.
+    if (event.type === "checkout.session.completed") {
+      const s = event.data.object as Stripe.Checkout.Session;
+      try {
+        if (s.payment_status === "paid" || s.status === "complete") {
+          if (!(await isStripeSessionProcessed(s.id))) {
+            const full = await stripe.checkout.sessions.retrieve(s.id, {
+              expand: ["line_items", "line_items.data.price"],
+            });
+            const pending = buildStripePending(full);
+            if (pending) {
+              await storage.upsertPendingPurchase({ provider: "stripe", ...pending });
+              const buyer = pending.email ? await storage.getUserByEmail(pending.email).catch(() => null) : null;
+              if (buyer) {
+                const granted = await claimAndGrant(pending.externalId, buyer.id);
+                if (granted) log(`[stripe] Webhook fulfilled ${pending.kind} for ${pending.email}`);
+              } else {
+                log(`[stripe] Purchase stored as pending for ${pending.email ?? "unknown email"} — no account yet`);
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        log(`[stripe] checkout.session.completed fulfillment error: ${err.message}`);
+      }
     }
 
     if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
@@ -4596,6 +4643,10 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
             const u = await storage.getUserByEmail(email).catch(() => null);
             if (u && sub.status !== "active") {
               await storage.updateUser(u.id, { subscriptionStatus: "none" });
+              // Stop the monthly quota refill: whatever balance remains stays
+              // usable, but a canceled subscription must never refill again.
+              await pool.query(`UPDATE users SET quota_resets_at=NULL WHERE id=$1`, [u.id]);
+              log(`[stripe] Subscription ended for ${email} — status=none, monthly refill stopped`);
             }
           }
         }

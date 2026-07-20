@@ -427,6 +427,25 @@ export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type TeamInvite = typeof teamInvites.$inferSelect;
 export type InsertTeamInvite = z.infer<typeof insertTeamInviteSchema>;
 
+// ── Pending purchases (paid but not yet linked to a user account) ────────────
+// Every fulfilled payment claims a row here first (atomic) — this is the
+// idempotency ledger. A purchase whose email has no account yet stays
+// 'pending' and is auto-claimed on first login/signup with that email.
+export const pendingPurchases = pgTable("pending_purchases", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  provider: text("provider").notNull(), // 'stripe' | 'shopify'
+  externalId: text("external_id").notNull().unique(), // 'stripe:<sessionId>' | 'shopify:<orderId>'
+  email: text("email"),
+  kind: text("kind").notNull(), // 'subscription' | 'package' | 'shopify_credits'
+  payload: jsonb("payload").notNull().default({}),
+  status: text("status").notNull().default("pending"), // 'pending' | 'claimed'
+  claimedByUserId: integer("claimed_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  claimedAt: timestamp("claimed_at"),
+});
+
+export type PendingPurchase = typeof pendingPurchases.$inferSelect;
+
 // ── CRM ───────────────────────────────────────────────────────────────────────
 export const crmContacts = pgTable("crm_contacts", {
   id: text("id").primaryKey(),
