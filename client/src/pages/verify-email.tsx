@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MailCheck } from "lucide-react";
+import { MailCheck, ArrowLeft } from "lucide-react";
 
 export default function VerifyEmailPage() {
   const { user, loading: authLoading, emailVerified, refreshVerification } = useAuth();
@@ -13,12 +15,14 @@ export default function VerifyEmailPage() {
   const [verifying, setVerifying] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const sentRef = useRef(false);
+  const leavingRef = useRef(false);
   const [, setLocation] = useLocation();
 
   const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
 
   // Not logged in → login. Already verified → onwards.
   useEffect(() => {
+    if (leavingRef.current) return;
     if (!authLoading && !user) setLocation("/login?redirect=/boligpotentiale/dashboard");
     if (!authLoading && user && emailVerified === true) setLocation(redirect);
   }, [user, authLoading, emailVerified, setLocation, redirect]);
@@ -157,6 +161,20 @@ export default function VerifyEmailPage() {
           )}
         </p>
         <p className="text-center mt-2 text-xs text-muted-foreground">Tjek også din spam-mappe. Koden er gyldig i 15 minutter.</p>
+
+        <button
+          type="button"
+          onClick={async () => {
+            leavingRef.current = true;
+            try { await signOut(auth); } catch {}
+            setLocation("/opret");
+          }}
+          className="flex items-center justify-center gap-1.5 mt-5 w-full text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+          data-testid="button-back-to-signup"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Tilbage til opret (skrev du forkert email?)
+        </button>
       </div>
     </div>
   );
