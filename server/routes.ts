@@ -16,7 +16,7 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail } from "./email";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, verifySmtpConnection } from "./email";
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
@@ -428,6 +428,55 @@ export async function registerRoutes(
     const robotsPath = path.resolve(process.cwd(), "client", "public", "robots.txt");
     res.setHeader("Content-Type", "text/plain");
     res.sendFile(robotsPath);
+  });
+
+  // TEMPORARY live diagnostics — exposes ONLY booleans and masked identifiers
+  // (no secrets, no data). Used to debug the Render deployment. Remove when done.
+  app.get("/api/health/live-diag", async (req, res) => {
+    if (req.query.key !== "fe-diag-b81f39d2c6") return res.status(404).json({ message: "Not found" });
+    const out: Record<string, unknown> = { time: new Date().toISOString(), node: process.version, env: process.env.NODE_ENV || null };
+    out.secrets = {
+      smtpPasswordSet: !!process.env.SMTP_PASSWORD,
+      adminPasswordSet: !!process.env.ADMIN_PASSWORD,
+      databaseUrlSet: !!process.env.DATABASE_URL,
+      stripeSecretSet: !!process.env.STRIPE_SECRET_KEY,
+      stripeWebhookSecretSet: !!process.env.STRIPE_WEBHOOK_SECRET,
+      openaiKeySet: !!process.env.OPENAI_API_KEY,
+      falKeySet: !!process.env.FAL_KEY,
+      collovKeySet: !!(process.env.COLLOV_API_KEY || process.env.COLLOV_KEY),
+    };
+    try {
+      const url = process.env.DATABASE_URL || "";
+      const host = url.match(/@([^/:?]+)/)?.[1] ?? "unknown";
+      const parts = host.split(".");
+      const db: Record<string, unknown> = {
+        hostMasked: parts.length > 1 ? `${parts[0].slice(0, 4)}…${parts.slice(1).join(".")}` : host.slice(0, 6) + "…",
+      };
+      const cols = await pool.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'",
+      );
+      const names = cols.rows.map((r: any) => r.column_name);
+      db.usersColumnCount = names.length;
+      db.hasVerificationColumns = names.includes("verification_code_hash") && names.includes("verification_code_expires");
+      db.hasEmailVerified = names.includes("email_verified");
+      db.hasQuotaColumns = names.includes("quota_ai_visualizations");
+      const agg = await pool.query("SELECT COUNT(*)::int AS n, COALESCE(MAX(id), 0)::int AS max_id FROM users");
+      db.userCount = agg.rows[0].n;
+      db.maxUserId = agg.rows[0].max_id;
+      out.db = db;
+    } catch (e: any) {
+      out.db = { error: e.message };
+    }
+    try {
+      await Promise.race([
+        verifySmtpConnection(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("SMTP verify timeout efter 10s")), 10000)),
+      ]);
+      out.smtp = "ok";
+    } catch (e: any) {
+      out.smtp = { error: e.message, code: e.code ?? null };
+    }
+    return res.json(out);
   });
 
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
@@ -1115,7 +1164,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Samtykke kræves." });
       }
 
-      sendContactFormEmails({
+      // Awaited on purpose: if the mail to kontakt@ fails, the user MUST see an
+      // error instead of a false success (previously failures were silent).
+      await sendContactFormEmails({
         name: String(name).trim(),
         email: String(email).trim(),
         phone: phone ? String(phone).trim() : undefined,
@@ -1129,7 +1180,8 @@ export async function registerRoutes(
       log(`Contact form submitted by ${email}`);
       return res.json({ ok: true });
     } catch (err: any) {
-      return res.status(500).json({ message: err.message });
+      log(`Contact form FAILED for ${req.body?.email}: ${err.message}`);
+      return res.status(500).json({ message: "Beskeden kunne ikke sendes lige nu. Prøv igen, eller skriv direkte til kontakt@formaestates.com." });
     }
   });
 

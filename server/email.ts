@@ -27,6 +27,14 @@ function createTransporter() {
 
 const transporter = createTransporter();
 
+// Tests SMTP connectivity + login without sending a mail (used by live diagnostics).
+export async function verifySmtpConnection(): Promise<void> {
+  if (!process.env.SMTP_PASSWORD) {
+    throw new Error("SMTP_PASSWORD not configured");
+  }
+  await transporter.verify();
+}
+
 interface EmailOptions {
   to: string;
   subject: string;
@@ -421,6 +429,10 @@ export async function sendContactFormEmails(data: {
       ? `<tr><td style="padding:8px 14px;color:#777;font-size:13px;width:160px;vertical-align:top;">${label}</td><td style="padding:8px 14px;color:#0F1923;font-size:14px;font-weight:500;">${value.replace(/\n/g, "<br/>")}</td></tr>`
       : "";
 
+  // If the notification to kontakt@ fails, the whole submission has failed —
+  // the caller must know, so we rethrow at the end (confirmation mail is best-effort).
+  let adminEmailError: Error | null = null;
+
   try {
     await sendBrevoEmail({
       to: KONTAKT_EMAIL,
@@ -456,6 +468,7 @@ export async function sendContactFormEmails(data: {
     log(`Contact form email sent to ${KONTAKT_EMAIL} (from ${data.email})`);
   } catch (err: any) {
     log(`Failed to send contact form admin email: ${err.message}`);
+    adminEmailError = err;
   }
 
   try {
@@ -489,6 +502,8 @@ export async function sendContactFormEmails(data: {
   } catch (err: any) {
     log(`Failed to send contact confirmation: ${err.message}`);
   }
+
+  if (adminEmailError) throw adminEmailError;
 }
 
 export async function sendPasswordResetToUser(toEmail: string, name: string) {
