@@ -2,6 +2,7 @@ import type { Express, Request } from "express";
 import express from "express";
 import Stripe from "stripe";
 import { createServer, type Server } from "http";
+import net from "net";
 import { spawn } from "child_process";
 import crypto from "crypto";
 import { storage } from "./storage";
@@ -437,6 +438,7 @@ export async function registerRoutes(
     const out: Record<string, unknown> = { time: new Date().toISOString(), node: process.version, env: process.env.NODE_ENV || null };
     out.secrets = {
       smtpPasswordSet: !!process.env.SMTP_PASSWORD,
+      brevoApiKeySet: !!process.env.BREVO_API_KEY,
       adminPasswordSet: !!process.env.ADMIN_PASSWORD,
       databaseUrlSet: !!process.env.DATABASE_URL,
       stripeSecretSet: !!process.env.STRIPE_SECRET_KEY,
@@ -463,10 +465,28 @@ export async function registerRoutes(
       const agg = await pool.query("SELECT COUNT(*)::int AS n, COALESCE(MAX(id), 0)::int AS max_id FROM users");
       db.userCount = agg.rows[0].n;
       db.maxUserId = agg.rows[0].max_id;
+      const tbls = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1");
+      db.tables = tbls.rows.map((r: any) => r.table_name);
       out.db = db;
     } catch (e: any) {
       out.db = { error: e.message };
     }
+    // Raw TCP reachability — tells us whether the host blocks outbound SMTP
+    // at the network level (connect ok vs timeout) independent of auth.
+    const tcpCheck = (host: string, port: number, timeoutMs = 6000) =>
+      new Promise<string>((resolve) => {
+        const started = Date.now();
+        const sock = net.connect({ host, port });
+        const finish = (msg: string) => { sock.destroy(); resolve(msg); };
+        const timer = setTimeout(() => finish("timeout"), timeoutMs);
+        sock.once("connect", () => { clearTimeout(timer); finish(`ok ${Date.now() - started}ms`); });
+        sock.once("error", (e: any) => { clearTimeout(timer); finish(`error ${e.code || e.message}`); });
+      });
+    out.net = {
+      office365_587: await tcpCheck("smtp.office365.com", 587),
+      office365_465: await tcpCheck("smtp.office365.com", 465),
+      brevoApi_443: await tcpCheck("api.brevo.com", 443),
+    };
     try {
       await Promise.race([
         verifySmtpConnection(),
@@ -477,6 +497,63 @@ export async function registerRoutes(
       out.smtp = { error: e.message, code: e.code ?? null };
     }
     return res.json(out);
+  });
+
+  // TEMPORARY one-time schema repair for the live (Render-hosted) database.
+  // Applies the dev schema ADDITIVELY: creates missing tables, adds missing
+  // columns/constraints. Never drops or alters existing data. Idempotent —
+  // running it twice is a no-op. Protected by the same diagnostics key.
+  app.post("/api/health/live-migrate", async (req, res) => {
+    if (req.query.key !== "fe-diag-b81f39d2c6") return res.status(404).json({ message: "Not found" });
+    let manifest: { tables: Array<{ name: string; createSql: string; columns: Array<{ name: string; addSql: string }>; constraints: Array<{ name: string; addSql: string }> }> };
+    try {
+      manifest = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "server", "render-sync.json"), "utf-8"));
+    } catch (e: any) {
+      return res.status(500).json({ message: `Kunne ikke læse render-sync.json: ${e.message}` });
+    }
+    const results: Array<{ step: string; status: "ok" | "error"; detail?: string }> = [];
+    const run = async (step: string, sql: string) => {
+      try {
+        await pool.query(sql);
+        results.push({ step, status: "ok" });
+      } catch (e: any) {
+        results.push({ step, status: "error", detail: e.message });
+      }
+    };
+    await run("extension pgcrypto", "CREATE EXTENSION IF NOT EXISTS pgcrypto");
+    await run("extension vector", "CREATE EXTENSION IF NOT EXISTS vector");
+    for (const t of manifest.tables) {
+      try {
+        const { rows } = await pool.query(
+          "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
+          [t.name],
+        );
+        if (rows.length === 0) {
+          await run(`create table ${t.name}`, t.createSql);
+          continue;
+        }
+        const { rows: existingCols } = await pool.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
+          [t.name],
+        );
+        const have = new Set(existingCols.map((r: any) => r.column_name));
+        for (const c of t.columns) {
+          if (!have.has(c.name)) await run(`add ${t.name}.${c.name}`, c.addSql);
+        }
+        const { rows: existingCons } = await pool.query(
+          "SELECT conname FROM pg_constraint con JOIN pg_class cl ON cl.oid = con.conrelid JOIN pg_namespace n ON n.oid = cl.relnamespace WHERE n.nspname = 'public' AND cl.relname = $1",
+          [t.name],
+        );
+        const haveCons = new Set(existingCons.map((r: any) => r.conname));
+        for (const con of t.constraints) {
+          if (!haveCons.has(con.name)) await run(`constraint ${t.name}.${con.name}`, con.addSql);
+        }
+      } catch (e: any) {
+        results.push({ step: `table ${t.name}`, status: "error", detail: e.message });
+      }
+    }
+    const errors = results.filter((r) => r.status === "error");
+    return res.json({ appliedOk: results.filter((r) => r.status === "ok").length, errorCount: errors.length, results });
   });
 
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in

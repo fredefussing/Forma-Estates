@@ -45,7 +45,39 @@ interface EmailOptions {
   bcc?: string;
 }
 
+// HTTPS-based sending via Brevo's API (port 443 — works on hosts that block
+// outbound SMTP, e.g. Render). Used automatically when BREVO_API_KEY is set.
+async function sendViaBrevoApi(options: EmailOptions) {
+  const payload: Record<string, unknown> = {
+    sender: { name: options.senderName || SENDER_NAME, email: KONTAKT_EMAIL },
+    to: [{ email: options.to }],
+    subject: options.subject,
+    htmlContent: options.html,
+    replyTo: { email: options.replyTo || KONTAKT_EMAIL },
+  };
+  if (options.bcc) payload.bcc = [{ email: options.bcc }];
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": process.env.BREVO_API_KEY!,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Brevo API ${res.status}: ${body.slice(0, 300)}`);
+  }
+}
+
 async function sendBrevoEmail(options: EmailOptions) {
+  if (process.env.BREVO_API_KEY) {
+    await sendViaBrevoApi(options);
+    return;
+  }
+
   if (!process.env.SMTP_PASSWORD) {
     throw new Error("SMTP_PASSWORD not configured");
   }
