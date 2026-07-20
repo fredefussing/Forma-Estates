@@ -8339,7 +8339,7 @@ export default function BoligpotentialeDashboard() {
     <div className="min-h-screen flex flex-col font-sans" style={{ background: "#F5F3EF", color: "#1A1A1A" }}>
 
       {/* ── TOPBAR ── */}
-      <header className="fixed top-0 left-0 right-0 z-40 h-32 flex items-center px-6 gap-5 border-b" style={{ background: "#0F1D2F", borderColor: "rgba(245,243,239,0.1)" }}>
+      <header className="fixed top-0 left-0 right-0 z-40 h-20 md:h-32 flex items-center px-4 md:px-6 gap-3 md:gap-5 border-b" style={{ background: "#0F1D2F", borderColor: "rgba(245,243,239,0.1)" }}>
         <button className="md:hidden flex flex-col gap-[5px] mr-1" onClick={() => setSidebarOpen((o) => !o)} data-testid="bolig-topbar-hamburger">
           <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
           <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
@@ -8351,7 +8351,7 @@ export default function BoligpotentialeDashboard() {
             src={formaEstatesLogo}
             alt="Forma Estates – tilbage til forsiden"
             title="Tilbage til forsiden"
-            className="h-24 w-auto select-none cursor-pointer"
+            className="h-14 md:h-24 w-auto select-none cursor-pointer"
             style={{ filter: "brightness(0) invert(1)", minWidth: "fit-content" }}
             data-testid="bolig-topbar-logo"
           />
@@ -8477,9 +8477,11 @@ export default function BoligpotentialeDashboard() {
         </div>
       </header>
 
-      <PaywallBanner />
+      <div className="pt-20 md:pt-32 md:pl-56">
+        <PaywallBanner />
+      </div>
 
-      <div className="flex flex-1 pt-32">
+      <div className="flex flex-1 -mt-20 md:-mt-32 pt-20 md:pt-32">
         {/* ── DESKTOP SIDEBAR ── */}
         <aside className="hidden md:flex flex-col w-56 flex-shrink-0 fixed left-0 top-32 bottom-0 px-4 py-5" style={{ background: "#0F1D2F" }} data-testid="bolig-sidebar">
           <SidebarContent />
@@ -8778,7 +8780,7 @@ export default function BoligpotentialeDashboard() {
               <div className="rounded-2xl p-6 border border-[#E8E4DE] mt-4" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
                 <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>Dine standardvalg</h2>
                 {!mostUsed ? (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[0, 1, 2].map((i) => (
                       <div key={i} className="space-y-3">
                         <div className="h-2.5 w-12 rounded-full bg-[#E8E4DE] animate-pulse" />
@@ -8794,7 +8796,7 @@ export default function BoligpotentialeDashboard() {
                 ) : mostUsed.styles.length === 0 && mostUsed.rooms.length === 0 && mostUsed.tiers.length === 0 ? (
                   <p className="text-sm" style={{ color: "#9B9690" }}>Generer dit første billede for at se statistik her.</p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[
                       { title: "Stil", items: mostUsed.styles, labelFn: (k: string) => BOLIG_STYLE_LABELS[k] ?? k },
                       { title: "Rum", items: mostUsed.rooms, labelFn: (k: string) => BOLIG_ROOM_LABELS[k] ?? k },
@@ -9440,12 +9442,12 @@ export default function BoligpotentialeDashboard() {
 
             <div className="px-7">
               {/* ── Fra / Til ── */}
-              <div className="grid grid-cols-2 gap-6 py-4 border-t border-b" style={{ borderColor: "#E5E2DC" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 py-4 border-t border-b" style={{ borderColor: "#E5E2DC" }}>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Fra</p>
                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forma Estates ApS</p>
                   <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>CVR: 46551796</p>
-                  <p className="text-xs" style={{ color: "#6B6B6B" }}>kontakt@formaestates.com</p>
+                  <p className="text-xs break-all" style={{ color: "#6B6B6B" }}>kontakt@formaestates.com</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Til</p>

@@ -144,9 +144,14 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
 
 export function PaywallBanner() {
   const isSubscribed = useIsSubscribed();
+  const { user, loading, creditsRemaining } = useAuth();
   const [, setLocation] = useLocation();
 
   if (isSubscribed) return null;
+  // Wait until the backend verify call has completed (creditsRemaining is
+  // null until then) — otherwise paying subscribers see a brief "gratis
+  // konto" flash + layout jump on every dashboard load.
+  if (loading || !user || creditsRemaining === null) return null;
 
   return (
     <div
