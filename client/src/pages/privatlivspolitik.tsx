@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -50,6 +51,7 @@ function InfoBox({ children }: { children: React.ReactNode }) {
 }
 
 export default function PrivatlivspolitikPage() {
+  usePageTitle("Privatlivspolitik", "Læs hvordan Forma Estates behandler og beskytter dine personoplysninger.");
   return (
     <div style={{ background: C.warm, minHeight: "100vh", fontFamily: SANS }}>
       <header className="border-b" style={{ background: C.white, borderColor: C.border }}>

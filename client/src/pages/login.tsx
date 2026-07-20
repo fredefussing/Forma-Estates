@@ -3,12 +3,14 @@ import { Link, useLocation } from "wouter";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, LogIn, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
+  usePageTitle("Log ind", "Log ind på din Forma Estates-konto og fortsæt arbejdet med dine boligvisualiseringer.");
   const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -6,6 +6,7 @@ import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Crown, Flame, User, LogIn,
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 type Plan = {
   name: string;
@@ -100,6 +101,7 @@ const YEARLY_PRICES: Record<string, string> = {
 };
 
 export default function PricingPage() {
+  usePageTitle("Priser", "Se priser på AI-boligvisualisering, 3D plantegninger og salgsvideoer — vælg den pakke der passer din forretning.");
   const { user, loading, creditsRemaining } = useAuth();
   const [, setLocation] = useLocation();
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");

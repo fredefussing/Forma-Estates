@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Phone, MapPin, Clock, CheckCircle2, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { usePageTitle } from "@/hooks/use-page-title";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -39,6 +40,7 @@ const ROLES = [
 ];
 
 export default function KontaktPage() {
+  usePageTitle("Kontakt os", "Kontakt Forma Estates — vi svarer typisk inden for 24 timer på hverdage.");
   const [form, setForm] = useState({
     name: "",
     email: "",

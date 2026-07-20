@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -54,6 +55,7 @@ function InfoBox({ children, variant = "gold" }: { children: React.ReactNode; va
 }
 
 export default function HandelsbetingelserPage() {
+  usePageTitle("Handelsbetingelser", "Læs handelsbetingelserne for brug af Forma Estates' AI-værktøjer og abonnementer.");
   return (
     <div style={{ background: C.warm, minHeight: "100vh", fontFamily: SANS }}>
       <header className="border-b" style={{ background: C.white, borderColor: C.border }}>

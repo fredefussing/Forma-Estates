@@ -7282,7 +7282,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 <div className="flex items-center gap-4 flex-shrink-0">
                   <div className="text-center">
                     <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{p.visuals}</div>
-                    <div className="text-[10px]" style={{ color: "#9B9690" }}>visuals</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>visualiseringer</div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{p.activeCases}</div>
@@ -8573,7 +8573,7 @@ export default function BoligpotentialeDashboard() {
                         <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ background: "#F5F3EF" }} data-testid={`bolig-case-card-${c.id}`}>
                           <div className="relative h-36">
                             <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
-                            <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
+                            <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visualisering" : "visualiseringer"}</span>
                           </div>
                           <div className="p-3">
                             <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
@@ -8915,7 +8915,7 @@ export default function BoligpotentialeDashboard() {
                           <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white" data-testid={`bolig-case-card-${c.id}`}>
                             <div className="relative h-40">
                               <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
-                              <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
+                              <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visualisering" : "visualiseringer"}</span>
                             </div>
                             <div className="p-4">
                               <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
@@ -9034,7 +9034,7 @@ export default function BoligpotentialeDashboard() {
                         <p className="text-xs mb-2" style={{ color: "#9B9690" }}>{c.soldDateISO ? `Solgt ${c.soldDateISO}` : "Solgt"}</p>
                         <div className="flex items-center justify-between">
                           <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>Solgt</span>
-                          <span className="text-[11px]" style={{ color: "#9B9690" }}>{c.imageCount} {c.imageCount === 1 ? "visual" : "visuals"}</span>
+                          <span className="text-[11px]" style={{ color: "#9B9690" }}>{c.imageCount} {c.imageCount === 1 ? "visualisering" : "visualiseringer"}</span>
                         </div>
                       </div>
                     </div>

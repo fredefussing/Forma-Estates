@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Link } from "wouter";
 import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -291,6 +292,7 @@ function BenefitRow({ items }: { items: { title: string; desc: string }[] }) {
 }
 
 export function EksemplerPage() {
+  usePageTitle("Eksempler på AI-boligvisualisering", "Se før/efter-eksempler på AI-genereret boligstyling og iscenesættelse fra Forma Estates.");
   const pairs = [
     { before: "/bolig-images/eks1-before.jpg", after: "/bolig-images/eks1-after.jpg", title: "Entre — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
     { before: "/bolig-images/eks2-before.jpg", after: "/bolig-images/eks2-after.jpg", title: "Spisestue — skandinavisk", desc: "Rene linjer, varme træmøbler og naturligt lys." },
@@ -314,6 +316,7 @@ export function EksemplerPage() {
 }
 
 export function ForEfterPage() {
+  usePageTitle("Før & efter — AI-iscenesættelse", "Se hvordan AI forvandler tomme og slidte rum til indbydende boliger på få sekunder.");
   const pairs = [
     { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", title: "Tom stue → moderne look", desc: "Samme rum, samme dag — moderne indretning med fokus på linjer og lys." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Slidt køkken → frisk indretning", desc: "Iscenesat med nye farver, planter og en levende stemning." },
@@ -451,6 +454,7 @@ export function ForEfterPage() {
 }
 
 export function PlantegningPage() {
+  usePageTitle("3D Plantegninger", "Forvandl 2D plantegninger til fotorealistiske 3D-visualiseringer, der hjælper købere med at forstå boligen.");
   return (
     <SubpageLayout
       eyebrow="3D Plantegning"
@@ -491,6 +495,7 @@ export function PlantegningPage() {
 }
 
 export function BranchevideoPage() {
+  usePageTitle("Salgsvideoer", "AI-genererede salgsvideoer til boligannoncer — skab levende præsentationer af boligen på få minutter.");
   return (
     <SubpageLayout
       eyebrow="Branchevideo"
@@ -563,6 +568,7 @@ export function BranchevideoPage() {
 }
 
 export function OmOsPage() {
+  usePageTitle("Om os", "Mød Forma Estates — vi hjælper ejendomsmæglere med AI-boligvisualisering, 3D plantegninger og salgsvideoer.");
   const values = [
     {
       title: "Lokal forandring",
@@ -715,6 +721,7 @@ export function OmOsPage() {
 
 
 export function BoligShowcasePage() {
+  usePageTitle("Bolig-showcase", "Se eksempler på komplette AI-producerede bolig-showcases med billeder og video fra Forma Estates.");
   const examples = [
     {
       src: "/bolig-images/living-scandi-after.jpg",
@@ -823,6 +830,7 @@ export function BoligShowcasePage() {
 }
 
 export function AIDesignAgentPage() {
+  usePageTitle("AI Design Agent", "Beskriv ændringer med dine egne ord — AI Design Agenten redigerer boligbilleder efter dine ønsker.");
   return (
     <SubpageLayout
       eyebrow="AI Design Agent"

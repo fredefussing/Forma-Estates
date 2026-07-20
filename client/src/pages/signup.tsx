@@ -3,12 +3,14 @@ import { Link, useLocation } from "wouter";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
 
 export default function SignupPage() {
+  usePageTitle("Opret konto", "Opret en gratis konto hos Forma Estates og få 2 gratis AI-boligvisualiseringer — intet kreditkort.");
   const { user, loading: authLoading } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
