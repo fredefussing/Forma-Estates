@@ -2103,7 +2103,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
             <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Upload et rumfoto</h1>
             <p className="text-sm mb-8" style={{ color: "#6B6B6B" }}>Vælg et foto af rummet du vil visualisere</p>
             <div
-              className="rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center p-16 cursor-pointer"
+              className="rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-16 cursor-pointer group hover:bg-[#C8956C]/[0.02]"
               style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#fff" }}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
@@ -2112,10 +2112,10 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
               data-testid="bolig-upload-zone"
             >
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#F0EDE7" }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
                 <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
               </div>
-              <p className="font-semibold mb-1" style={{ color: "#0F1D2F" }}>Klik eller træk et billede hertil</p>
+              <p className="font-semibold mb-1 text-base" style={{ color: "#0F1D2F" }}>Klik eller træk et billede hertil</p>
               <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG eller HEIC · Max 10 MB</p>
             </div>
             {error && <div className="mt-4 text-sm text-red-600 text-center">{error}</div>}
@@ -2134,59 +2134,61 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 
         {stage === "config" && (
           <motion.div key="config" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
-            <div className="grid lg:grid-cols-2 gap-10 items-start">
+            <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
               <div>
-                <div className="relative rounded-2xl overflow-hidden" style={{ aspectRatio: "4/3" }}>
-                  <img src={imagePreview!} alt="Preview" className="w-full h-full object-cover" />
-                  <button onClick={reset} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70"><X className="w-4 h-4" /></button>
+                <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]" style={{ aspectRatio: "4/3" }}>
+                  <img src={imagePreview!} alt="Preview" className="w-full h-full object-contain" />
+                  <button onClick={reset} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
                 </div>
-                <p className="text-xs mt-2 text-center" style={{ color: "#6B6B6B" }}>{imageFile?.name}</p>
+                <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>{imageFile?.name}</p>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-8 rounded-2xl border border-[#E8E4DE] bg-white p-6 shadow-sm">
                 <div>
-                  <h2 className="text-xl font-bold mb-1" style={{ color: "#0F1D2F" }}>Konfigurer visualisering</h2>
+                  <h2 className="text-xl font-bold mb-1.5" style={{ color: "#0F1D2F" }}>Konfigurer visualisering</h2>
                   <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg rumtype og designstil</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: "#0F1D2F" }}>Rumtype</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ROOM_TYPES.map((r) => (
-                      <button key={r.value} onClick={() => setRoomType(r.value)}
-                        className="h-10 px-4 rounded-xl text-sm font-medium border-2 transition-all text-left"
-                        style={{ background: roomType === r.value ? "#0F1D2F" : "#fff", borderColor: roomType === r.value ? "#0F1D2F" : "#D9D5CF", color: roomType === r.value ? "#fff" : "#1A1A1A" }}>
-                        {r.label}
-                      </button>
-                    ))}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Rumtype</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ROOM_TYPES.map((r) => (
+                        <button key={r.value} onClick={() => setRoomType(r.value)}
+                          className="h-10 px-3.5 rounded-xl text-xs font-semibold border transition-all hover:border-[#0F1D2F] text-left truncate"
+                          style={{ background: roomType === r.value ? "#0F1D2F" : "#F8F6F3", borderColor: roomType === r.value ? "#0F1D2F" : "transparent", color: roomType === r.value ? "#fff" : "#1A1A1A" }}>
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Designstil</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {STYLES.map((s) => (
+                        <button key={s.value} onClick={() => setStyle(s.value)}
+                          className="h-10 px-3.5 rounded-xl text-xs font-semibold border transition-all hover:border-[#C8956C] text-left truncate"
+                          style={{ background: style === s.value ? "#C8956C" : "#F8F6F3", borderColor: style === s.value ? "#C8956C" : "transparent", color: style === s.value ? "#fff" : "#1A1A1A" }}>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Budget niveau</label>
+                    <div className="flex flex-col gap-2">
+                      {BUDGET_TIERS.map((t) => (
+                        <button key={t.value} onClick={() => setTier(t.value)}
+                          className="flex items-center justify-between px-4 py-3 rounded-xl border transition-all hover:border-[#0F1D2F]"
+                          style={{ background: tier === t.value ? "#0F1D2F" : "#F8F6F3", borderColor: tier === t.value ? "#0F1D2F" : "transparent", color: tier === t.value ? "#fff" : "#1A1A1A" }}>
+                          <span className="text-sm font-semibold">{t.label}</span>
+                          <span className="text-xs" style={{ opacity: tier === t.value ? 0.8 : 0.6 }}>{t.sub}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: "#0F1D2F" }}>Designstil</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {STYLES.map((s) => (
-                      <button key={s.value} onClick={() => setStyle(s.value)}
-                        className="h-10 px-4 rounded-xl text-sm font-medium border-2 transition-all text-left"
-                        style={{ background: style === s.value ? "#C8956C" : "#fff", borderColor: style === s.value ? "#C8956C" : "#D9D5CF", color: style === s.value ? "#fff" : "#1A1A1A" }}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: "#0F1D2F" }}>Budget</label>
-                  <div className="flex flex-col gap-2">
-                    {BUDGET_TIERS.map((t) => (
-                      <button key={t.value} onClick={() => setTier(t.value)}
-                        className="flex items-center justify-between px-4 py-2.5 rounded-xl border-2 text-sm transition-all"
-                        style={{ background: tier === t.value ? "#0F1D2F" : "#fff", borderColor: tier === t.value ? "#0F1D2F" : "#D9D5CF", color: tier === t.value ? "#fff" : "#1A1A1A" }}>
-                        <span className="font-medium">{t.label}</span>
-                        <span className="text-xs opacity-60">{t.sub}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {error && <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50">{error}</div>}
+                {error && <div className="text-sm text-[#B91C1C] p-3 rounded-xl bg-[#FEF2F2] font-medium">{error}</div>}
                 <QuotaGate feature="ai">
-                  <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}>
+                  <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 14px rgba(15,29,47,0.15)" }}>
                     Generer visualisering →
                   </button>
                 </QuotaGate>
@@ -2353,47 +2355,49 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
-        <div>
-          <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Plantegning (2D)</label>
-          {!imagePreview ? (
-            <label
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                const f = e.dataTransfer.files?.[0];
-                if (f) handleFile(f);
-              }}
-              className="block cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors"
-              style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
-              data-testid="dropzone-floorplan-image"
-            >
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-                data-testid="input-floorplan-image"
-              />
-              <Upload className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
-              <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
-              <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
-            </label>
-          ) : (
-            <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE]">
-              <img src={imagePreview} alt="Plantegning" className="w-full max-h-96 object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
-              <button
-                onClick={() => confirmDiscardOr(() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setSaveCaseId(null); })}
-                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white"
-                data-testid="button-clear-floorplan-image"
+        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm">
+          <div>
+            <label className="text-xs font-semibold tracking-wider uppercase mb-3 block" style={{ color: "#0F1D2F" }}>Plantegning (2D)</label>
+            {!imagePreview ? (
+              <label
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFile(f);
+                }}
+                className="block cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-300 group hover:bg-[#C8956C]/[0.02]"
+                style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
+                data-testid="dropzone-floorplan-image"
               >
-                <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
-              </button>
-            </div>
-          )}
-        </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                  data-testid="input-floorplan-image"
+                />
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
+                  <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
+                </div>
+                <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
+              </label>
+            ) : (
+              <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm">
+                <img src={imagePreview} alt="Plantegning" className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
+                <button
+                  onClick={() => confirmDiscardOr(() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setSaveCaseId(null); })}
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 flex items-center justify-center shadow-md hover:bg-white transition-transform hover:scale-105"
+                  data-testid="button-clear-floorplan-image"
+                >
+                  <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
+                </button>
+              </div>
+            )}
+          </div>
 
         <QuotaGate feature="floorPlan">
           <button
@@ -2910,21 +2914,21 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       </div>
 
       {/* Mode picker */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
-        <div className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "#6B6B6B" }}>Videostil</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <button type="button" onClick={() => setVideoMode("cinematic")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "cinematic" ? "#0F1D2F" : "white", color: videoMode === "cinematic" ? "white" : "#0F1D2F" }} data-testid="button-video-mode-cinematic">
-            <div className="text-sm font-semibold">Cinematisk gennemgang</div>
-            <div className="text-xs mt-0.5" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Upload 5–20 billeder · AI genererer klip per rum · professionel ejendomsmæglervideo</div>
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 mb-8 shadow-sm">
+        <div className="text-[11px] font-bold uppercase tracking-wider mb-4 block" style={{ color: "#9B9690" }}>Videostil</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button type="button" onClick={() => setVideoMode("cinematic")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "cinematic" ? "#0F1D2F" : "white", color: videoMode === "cinematic" ? "white" : "#0F1D2F", boxShadow: videoMode === "cinematic" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-cinematic">
+            <div className="text-sm font-semibold mb-1">Cinematisk gennemgang</div>
+            <div className="text-xs leading-relaxed" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Upload 5–20 billeder · AI genererer klip per rum · professionel ejendomsmæglervideo</div>
           </button>
-          <button type="button" onClick={() => setVideoMode("morph")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "morph" ? "#0F1D2F" : "white", color: videoMode === "morph" ? "white" : "#0F1D2F" }} data-testid="button-video-mode-morph">
-            <div className="text-sm font-semibold">Forvandling</div>
-            <div className="text-xs mt-0.5" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>1 før + 1 efter · statisk kamera · rummet ombygger sig på stedet</div>
+          <button type="button" onClick={() => setVideoMode("morph")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "morph" ? "#0F1D2F" : "white", color: videoMode === "morph" ? "white" : "#0F1D2F", boxShadow: videoMode === "morph" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-morph">
+            <div className="text-sm font-semibold mb-1">Forvandling</div>
+            <div className="text-xs leading-relaxed" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>1 før + 1 efter · statisk kamera · rummet ombygger sig på stedet</div>
           </button>
         </div>
         {videoMode === "morph" && (
-          <button type="button" onClick={(e) => { e.stopPropagation(); setShowTransformEksempel(true); }} className="flex items-center gap-1 text-xs mt-2 transition-opacity hover:opacity-70" style={{ color: "#C8956C" }} data-testid="button-transform-eksempel">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+          <button type="button" onClick={(e) => { e.stopPropagation(); setShowTransformEksempel(true); }} className="inline-flex items-center gap-1.5 text-xs font-semibold mt-4 px-3 py-1.5 rounded-full transition-all hover:bg-[#C8956C]/10" style={{ color: "#C8956C", background: "rgba(200,149,108,0.05)" }} data-testid="button-transform-eksempel">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
             Se eksempel
           </button>
         )}
@@ -2932,39 +2936,42 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
       {/* ── Cinematisk Walkthrough UI ── */}
       {videoMode === "cinematic" && (
-        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
+        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-8 shadow-sm">
           {/* Image upload grid */}
           <div>
+            <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Billeder til walkthrough</label>
             <label
               onDragOver={(e) => { e.preventDefault(); setWtDragOver(true); }}
               onDragLeave={() => setWtDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setWtDragOver(false); wtAddFiles(e.dataTransfer.files); }}
-              className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors"
-              style={{ borderColor: wtDragOver ? "#C8956C" : "#D9D5CF", background: wtDragOver ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
+              className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-300 group hover:bg-[#C8956C]/[0.02]"
+              style={{ borderColor: wtDragOver ? "#C8956C" : "#D9D5CF", background: wtDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
               data-testid="dropzone-walkthrough"
             >
               <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files) wtAddFiles(e.target.files); }} data-testid="input-walkthrough-images" />
-              <Upload className="w-7 h-7 mb-2" style={{ color: "#C8956C" }} />
-              <p className="text-sm font-medium mb-0.5" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
-              <p className="text-xs" style={{ color: "#6B6B6B" }}>2–20 billeder · JPG, PNG · ét AI-klip per billede</p>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
+                <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
+              </div>
+              <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>2–20 billeder · JPG, PNG · ét AI-klip per billede</p>
             </label>
           </div>
 
           {wtImages.length > 0 && (
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#6B6B6B" }}>{wtImages.length} billede{wtImages.length !== 1 ? "r" : ""} valgt — træk for at ændre rækkefølge</div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "#9B9690" }}>{wtImages.length} billede{wtImages.length !== 1 ? "r" : ""} valgt — træk for at ændre rækkefølge</div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
                 {wtImages.map((img, idx) => (
-                  <div key={img.id} className="relative group rounded-lg overflow-hidden border border-[#E8E4DE]" data-testid={`img-walkthrough-${idx}`}>
+                  <div key={img.id} className="relative group rounded-xl overflow-hidden border border-[#E8E4DE] shadow-sm" data-testid={`img-walkthrough-${idx}`}>
                     <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                    <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center text-[10px] font-bold text-white">{idx + 1}</div>
-                    <button onClick={() => wtRemoveImage(img.id)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`button-remove-walkthrough-${idx}`}>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                    <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-[10px] font-bold text-white backdrop-blur-sm">{idx + 1}</div>
+                    <button onClick={() => wtRemoveImage(img.id)} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" data-testid={`button-remove-walkthrough-${idx}`}>
                       <X className="w-3 h-3" style={{ color: "#0F1D2F" }} />
                     </button>
-                    <div className="absolute bottom-1 left-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {idx > 0 && <button onClick={() => wtMoveImage(idx, idx - 1)} className="w-5 h-5 rounded bg-white/90 flex items-center justify-center text-[10px]">←</button>}
-                      {idx < wtImages.length - 1 && <button onClick={() => wtMoveImage(idx, idx + 1)} className="w-5 h-5 rounded bg-white/90 flex items-center justify-center text-[10px]">→</button>}
+                    <div className="absolute bottom-2 inset-x-2 flex justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {idx > 0 ? <button onClick={() => wtMoveImage(idx, idx - 1)} className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[10px] hover:bg-white font-bold transition-transform hover:scale-110 shadow-sm">←</button> : <div />}
+                      {idx < wtImages.length - 1 && <button onClick={() => wtMoveImage(idx, idx + 1)} className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[10px] hover:bg-white font-bold transition-transform hover:scale-110 shadow-sm">→</button>}
                     </div>
                   </div>
                 ))}
@@ -2973,12 +2980,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           )}
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide mb-1.5 block" style={{ color: "#6B6B6B" }}>Adresse (valgfri)</label>
-            <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder="fx Strandvejen 42, 2900 Hellerup" className="w-full h-10 px-3 rounded-lg border text-sm outline-none focus:ring-2" style={{ borderColor: "#E8E4DE", background: "#F8F6F3", color: "#0F1D2F" }} data-testid="input-walkthrough-address" maxLength={80} />
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Adresse (valgfri)</label>
+            <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder="fx Strandvejen 42, 2900 Hellerup" className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white" style={{ borderColor: "transparent", color: "#0F1D2F" }} data-testid="input-walkthrough-address" maxLength={80} />
           </div>
 
           <QuotaGate feature="showcase">
-            <button onClick={handleWtGenerate} disabled={wtImages.length < 2 || wtGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50" style={{ background: "#C8956C" }} data-testid="button-generate-walkthrough">
+            <button onClick={handleWtGenerate} disabled={wtImages.length < 2 || wtGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0" style={{ background: "#C8956C", boxShadow: "0 4px 14px rgba(200,149,108,0.25)" }} data-testid="button-generate-walkthrough">
               {wtGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{wtProgressMsg || "Genererer…"}</>) : (<><Video className="w-4 h-4" />Generér cinematisk walkthrough</>)}
             </button>
           </QuotaGate>
@@ -3325,6 +3332,21 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const showcaseDropdownRef = useRef<HTMLDivElement>(null);
   const showcaseResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (showcaseResetTimerRef.current) clearTimeout(showcaseResetTimerRef.current); }, []);
+
+  // Example video: only play while actually visible. The flow is always-mounted
+  // (CSS-hidden by the parent), so an unconditional autoPlay would download and
+  // loop the video from dashboard mount even when this tab is never opened.
+  const exampleVideoRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const el = exampleVideoRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) el.play().catch(() => {});
+      else el.pause();
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -3685,6 +3707,24 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig Showcase</h1>
         </div>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. AI genererer professionelle videoer med kamerabevægelse — vælg kameraeffekt per billede eller lad systemet vælge automatisk.</p>
+      </div>
+
+      {/* Eksempel */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-8 shadow-sm">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <div className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#0F1D2F]">
+          <video
+            ref={exampleVideoRef}
+            src="/videos/transformation-kling-v16-pro.mp4"
+            poster="/bolig-images/video-poster.jpg"
+            preload="none"
+            muted
+            loop
+            playsInline
+            className="w-full h-[300px] object-cover"
+            data-testid="showcase-example-video"
+          />
+        </div>
       </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden">
@@ -4614,76 +4654,79 @@ function PropertyTourFlow() {
           <p className="text-sm" style={{ color: "#6B6B6B" }}>Giv projektet et navn og upload plantegningen. Næste skridt bliver at markere rummene.</p>
         </div>
 
-        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
-          <div>
-            <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Projektnavn</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="f.eks. Strandvejen 12"
-              className="w-full h-11 px-4 rounded-lg border border-[#E8E4DE] text-sm outline-none focus:border-[#C8956C]"
-              data-testid="input-tour-name"
-            />
-          </div>
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm">
+        <div>
+          <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Projektnavn</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="f.eks. Strandvejen 12"
+            className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white"
+            style={{ borderColor: "transparent", color: "#0F1D2F" }}
+            data-testid="input-tour-name"
+          />
+        </div>
 
-          <div>
-            <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Plantegning</label>
-            {!preview ? (
-              <label
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) handleFile(f);
-                }}
-                className="block cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors"
-                style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.05)" : "#F8F6F3" }}
-                data-testid="dropzone-tour-floorplan"
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-                  data-testid="input-tour-floorplan"
-                />
-                <Upload className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
-                <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
-                <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
-              </label>
-            ) : (
-              <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE]">
-                <img src={preview} alt="Plantegning" className="w-full max-h-96 object-contain bg-[#F8F6F3]" data-testid="img-tour-floorplan-preview" />
-                <button
-                  onClick={() => { setFile(null); setPreview(null); }}
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white"
-                  data-testid="button-clear-tour-floorplan"
-                >
-                  <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
-                </button>
+        <div>
+          <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Plantegning</label>
+          {!preview ? (
+            <label
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) handleFile(f);
+              }}
+              className="block cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-300 group hover:bg-[#C8956C]/[0.02]"
+              style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
+              data-testid="dropzone-tour-floorplan"
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                data-testid="input-tour-floorplan"
+              />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
+                <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
               </div>
-            )}
-          </div>
-
-          <button
-            onClick={handleCreate}
-            disabled={!name.trim() || !file || submitting}
-            className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-            style={{ background: "#C8956C" }}
-            data-testid="button-create-tour-project"
-          >
-            {submitting ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Opretter...</>) : (<>Opret projekt</>)}
-          </button>
-
-          {error && (
-            <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-tour-error">
-              {error}
+              <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
+            </label>
+          ) : (
+            <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm">
+              <img src={preview} alt="Plantegning" className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-tour-floorplan-preview" />
+              <button
+                onClick={() => { setFile(null); setPreview(null); }}
+                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 flex items-center justify-center shadow-md hover:bg-white transition-transform hover:scale-105"
+                data-testid="button-clear-tour-floorplan"
+              >
+                <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
+              </button>
             </div>
           )}
         </div>
+
+        <button
+          onClick={handleCreate}
+          disabled={!name.trim() || !file || submitting}
+          className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
+          style={{ background: "#C8956C" }}
+          data-testid="button-create-tour-project"
+        >
+          {submitting ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Opretter...</>) : (<>Opret projekt</>)}
+        </button>
+
+        {error && (
+          <div className="p-3 rounded-xl text-sm font-medium" style={{ background: "#FEF2F2", color: "#B91C1C" }} data-testid="text-tour-error">
+            {error}
+          </div>
+        )}
+      </div>
       </div>
     );
   }
@@ -4697,7 +4740,7 @@ function PropertyTourFlow() {
         </div>
         <button
           onClick={() => setMode("create")}
-          className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 flex-shrink-0"
+          className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 flex-shrink-0 transition-transform hover:-translate-y-0.5 shadow-sm"
           style={{ background: "#C8956C" }}
           data-testid="button-new-tour-project"
         >
@@ -4706,52 +4749,59 @@ function PropertyTourFlow() {
       </div>
 
       {isLoading ? (
-        <div className="text-sm" style={{ color: "#6B6B6B" }}>Indlæser projekter...</div>
+        <div className="text-sm font-medium animate-pulse" style={{ color: "#9B9690" }}>Indlæser projekter...</div>
       ) : properties.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#D9D5CF] bg-[#F8F6F3] p-12 text-center">
-          <Home className="w-10 h-10 mx-auto mb-3" style={{ color: "#C8956C" }} />
-          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Ingen projekter endnu</p>
-          <p className="text-xs mb-5" style={{ color: "#6B6B6B" }}>Start dit første boligfremvisnings-projekt ved at uploade en plantegning.</p>
+        <div className="rounded-3xl border border-dashed p-16 text-center" style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "white", boxShadow: "0 4px 14px rgba(15,29,47,0.05)" }}>
+            <Home className="w-8 h-8" style={{ color: "#C8956C" }} />
+          </div>
+          <p className="text-base font-semibold mb-2" style={{ color: "#0F1D2F" }}>Ingen projekter endnu</p>
+          <p className="text-sm max-w-sm mx-auto mb-6 leading-relaxed" style={{ color: "#6B6B6B" }}>Start dit første boligfremvisnings-projekt ved at uploade en plantegning. Det tager kun få minutter at opsætte.</p>
           <button
             onClick={() => setMode("create")}
-            className="h-10 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2"
-            style={{ background: "#C8956C" }}
+            className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 transition-transform hover:-translate-y-0.5 shadow-sm"
+            style={{ background: "#0F1D2F" }}
             data-testid="button-empty-new-tour-project"
           >
-            <Upload className="w-4 h-4" /> Opret projekt
+            <Upload className="w-4 h-4" /> Opret dit første projekt
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {properties.map((p) => (
             <div
               key={p.id}
               onClick={() => { setCurrentId(p.id); setMode("detail"); }}
-              className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden flex flex-col cursor-pointer hover:border-[#C8956C] transition-colors"
+              className="group rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden flex flex-col cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg"
               data-testid={`card-tour-project-${p.id}`}
             >
-              <div className="aspect-[4/3] bg-[#F8F6F3] overflow-hidden">
-                <img src={p.floorplanUrl} alt={p.name} className="w-full h-full object-contain" />
+              <div className="aspect-[4/3] bg-[#F8F6F3] overflow-hidden relative p-4">
+                <img src={p.floorplanUrl} alt={p.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
               </div>
-              <div className="p-4 flex-1 flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold truncate" style={{ color: "#0F1D2F" }} data-testid={`text-tour-name-${p.id}`}>{p.name}</h3>
+              <div className="p-5 flex-1 flex flex-col gap-3 border-t" style={{ borderColor: "#E8E4DE" }}>
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-semibold truncate group-hover:text-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }} data-testid={`text-tour-name-${p.id}`}>{p.name}</h3>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                    className="p-1 rounded hover:bg-[#F8F6F3] flex-shrink-0"
+                    className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-[#FEF2F2] hover:text-[#B91C1C] transition-all flex-shrink-0 -mr-1 -mt-1"
                     data-testid={`button-delete-tour-${p.id}`}
                     aria-label="Slet projekt"
                   >
-                    <X className="w-4 h-4" style={{ color: "#9B9690" }} />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <span
-                  className="inline-flex w-fit text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}
-                  data-testid={`text-tour-status-${p.id}`}
-                >
-                  {p.status === "mapping" ? "Klar til rum-markering" : p.status}
-                </span>
+                <div className="flex items-center mt-auto">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md"
+                    style={{ background: p.status === "mapping" ? "#F5F3EF" : "rgba(200,149,108,0.08)", color: p.status === "mapping" ? "#6B6B6B" : "#C8956C" }}
+                    data-testid={`text-tour-status-${p.id}`}
+                  >
+                    {p.status === "mapping" && <div className="w-1.5 h-1.5 rounded-full bg-[#9B9690]" />}
+                    {p.status !== "mapping" && <div className="w-1.5 h-1.5 rounded-full bg-[#C8956C]" />}
+                    {p.status === "mapping" ? "Klar til rum" : p.status}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
@@ -5187,34 +5237,31 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
 
   return (
     <div className="max-w-6xl">
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <button
             onClick={onBack}
-            className="text-xs font-semibold tracking-wider uppercase mb-3 inline-flex items-center gap-1"
-            style={{ color: "#6B6B6B" }}
+            className="text-[11px] font-bold tracking-wider uppercase mb-3 inline-flex items-center gap-1.5 hover:text-[#0F1D2F] transition-colors"
+            style={{ color: "#9B9690" }}
             data-testid="button-back-to-tour-list-from-detail"
           >
             <ChevronLeft className="w-3.5 h-3.5" /> Tilbage til projekter
           </button>
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-tour-detail">
+          <h1 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-tour-detail">
             {property?.name || "Indlæser..."}
           </h1>
-          <p className="text-sm" style={{ color: "#6B6B6B" }}>Træk på plantegningen for at markere rum. Klik et rum for at omdøbe det.</p>
+          <p className="text-sm leading-relaxed max-w-2xl" style={{ color: "#6B6B6B" }}>Træk på plantegningen for at markere rum. Klik et rum for at omdøbe det. Når rummene er markeret, kan du uploade billeder og vælge stil.</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <button
             onClick={() => void handleSave()}
             disabled={saving}
-            className="h-11 px-5 rounded-full font-semibold text-sm inline-flex items-center gap-2 disabled:opacity-50 border"
-            style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
+            className="h-11 px-6 rounded-full font-semibold text-sm inline-flex items-center gap-2 disabled:opacity-50 transition-all hover:bg-[#F8F6F3]"
+            style={{ borderColor: "#C8956C", color: "#C8956C", background: "white", borderWidth: "1.5px" }}
             data-testid="button-save-tour-rooms"
           >
             {saving ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Gemmer...</>) : saved ? (<>Gemt</>) : (<>Gem rum ({rooms.length})</>)}
           </button>
-          {/* "Færdig" advances to the final view (3D plan + 360° rooms). Only
-              meaningful once at least one room has an after-image — otherwise
-              there's nothing to show in the rundvisning yet. */}
           {/* Færdig: only meaningful once every *included* room has an after-
               image, so the rundvisning has something to show in each hotspot. */}
           <button
@@ -5223,7 +5270,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
               const included = rooms.filter((r) => r.included);
               return included.length === 0 || included.some((r) => !r.afterImageUrl);
             })()}
-            className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-40"
+            className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-40 transition-transform hover:-translate-y-0.5 shadow-sm"
             style={{ background: "#0F1D2F" }}
             data-testid="button-tour-finish"
           >
@@ -5233,15 +5280,15 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       </div>
 
       {isLoading || !property ? (
-        <div className="text-sm" style={{ color: "#6B6B6B" }}>Indlæser plantegning...</div>
+        <div className="text-sm font-medium animate-pulse" style={{ color: "#9B9690" }}>Indlæser plantegning...</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3] select-none">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 flex flex-col">
+            <div className="relative rounded-2xl overflow-hidden border bg-[#F8F6F3] select-none shadow-sm flex-1 min-h-[500px]" style={{ borderColor: "#E8E4DE" }}>
               <img
                 src={property.floorplanUrl}
                 alt={property.name}
-                className="w-full block pointer-events-none"
+                className="w-full h-full object-contain pointer-events-none"
                 draggable={false}
                 data-testid="img-tour-floorplan-detail"
               />
@@ -5273,10 +5320,10 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                         boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 4px ${r.color}` : undefined,
                         cursor: "pointer",
                       }}
-                      className="flex items-center justify-center"
+                      className="flex items-center justify-center transition-all hover:bg-opacity-40"
                     >
                       <span
-                        className="text-xs font-semibold px-2 py-0.5 rounded"
+                        className="text-xs font-bold px-2.5 py-1 rounded-md shadow-sm"
                         style={{ background: r.color, color: "white" }}
                       >
                         {r.name}
@@ -5319,272 +5366,333 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                 )}
               </div>
             </div>
-            <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>
-              Tip: Træk for at tegne et rektangel rundt om et rum. Brug rumlisten til højre for at omdøbe eller slette.
-            </p>
+            <div className="mt-4 flex items-start gap-3 bg-[#F8F6F3] p-4 rounded-xl border border-[#E8E4DE]">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm flex-shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#C8956C" }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Tip til markering</p>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#6B6B6B" }}>
+                  Træk for at tegne et rektangel rundt om et rum. Brug rumlisten til højre for at omdøbe eller slette.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div>
-            {/* 3D plantegning status pill — auto-generated in the background as
-                soon as the user opens the project. */}
-            <div
-              className="mb-4 p-3 rounded-xl border text-xs flex items-center gap-2"
-              style={{
-                background: property.threedPlanUrl ? "#F0F5EE" : "#FFF7ED",
-                borderColor: property.threedPlanUrl ? "#A8C4A2" : "#FBD38D",
-                color: "#0F1D2F",
-              }}
-              data-testid="status-3d-plan"
-            >
-              {property.threedPlanUrl ? (
-                <><Check className="w-3.5 h-3.5" /> 3D plantegning klar</>
-              ) : (
-                <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> 3D plantegning genereres i baggrunden…</>
-              )}
-            </div>
-
-            {property.threedPlanUrl && (
-              <button
-                onClick={handleRegenerate3D}
-                disabled={regenerating3D}
-                className="w-full mb-4 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ background: "white", color: "#0F1D2F", borderColor: "#E8E4DE" }}
-                data-testid="button-regenerate-3d-plan"
+          <div className="flex flex-col gap-6">
+            <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 shadow-sm">
+              {/* 3D plantegning status pill — auto-generated in the background as
+                  soon as the user opens the project. */}
+              <div
+                className="mb-6 p-4 rounded-xl border flex flex-col gap-3"
+                style={{
+                  background: property.threedPlanUrl ? "#F0F5EE" : "#FFF7ED",
+                  borderColor: property.threedPlanUrl ? "#A8C4A2" : "#FBD38D",
+                }}
+                data-testid="status-3d-plan"
               >
-                <RotateCcw className={`w-3.5 h-3.5 ${regenerating3D ? "animate-spin" : ""}`} />
-                {regenerating3D ? "Genererer ny 3D plan…" : "Regenerér 3D plan"}
-              </button>
-            )}
-
-            {/* Global style picker — applies to every room when generating after-images */}
-            <h3 className="text-xs font-semibold tracking-wider uppercase mb-2" style={{ color: "#0F1D2F" }}>Stil til hele boligen</h3>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {TOUR_STYLE_OPTIONS.map((opt) => {
-                const active = styleKey === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    onClick={() => handleStyleChange(opt.key)}
-                    className="h-10 rounded-lg text-xs font-semibold border transition-colors"
-                    style={{
-                      background: active ? "#C8956C" : "white",
-                      color: active ? "white" : "#0F1D2F",
-                      borderColor: active ? "#C8956C" : "#E8E4DE",
-                    }}
-                    data-testid={`button-tour-style-${opt.key}`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Kvalitets-/budget-vælger. Maps internt til Bolig-prompt tier1/2/3. */}
-            <h3 className="text-xs font-semibold tracking-wider uppercase mb-2" style={{ color: "#0F1D2F" }}>Kvalitet</h3>
-            <div className="grid grid-cols-3 gap-2 mb-5">
-              {TOUR_TIER_OPTIONS.map((opt) => {
-                const active = tierKey === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    onClick={() => handleTierChange(opt.key)}
-                    className="h-14 rounded-lg text-[11px] font-semibold border transition-colors flex flex-col items-center justify-center leading-tight px-1"
-                    style={{
-                      background: active ? "#0F1D2F" : "white",
-                      color: active ? "white" : "#0F1D2F",
-                      borderColor: active ? "#0F1D2F" : "#E8E4DE",
-                    }}
-                    data-testid={`button-tour-tier-${opt.key}`}
-                  >
-                    <span>{opt.label}</span>
-                    <span className="text-[9px] font-normal opacity-75 mt-0.5">{opt.sub}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Batch generate — primary action so the user doesn't need to
-                click Generér on every single room individually. */}
-            {(() => {
-              const included = rooms.filter((r) => r.included);
-              const ready = included.filter((r) => r.id > 0 && r.roomPhotoUrl && !r.afterImageUrl);
-              const totalIncluded = included.length;
-              const withAfter = included.filter((r) => r.afterImageUrl).length;
-              const allDone = totalIncluded > 0 && withAfter === totalIncluded;
-              return (
-                <div className="mb-5">
-                  <button
-                    onClick={handleBatchGenerate}
-                    disabled={batchRunning || !styleKey || ready.length === 0}
-                    className="w-full h-11 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-40"
-                    style={{ background: "#C8956C" }}
-                    data-testid="button-tour-batch-generate"
-                  >
-                    {batchRunning ? (
-                      <><RotateCcw className="w-4 h-4 animate-spin" /> Genererer {ready.length} rum…</>
-                    ) : allDone ? (
-                      <>Alle valgte rum klar ({withAfter}/{totalIncluded})</>
-                    ) : (
-                      <><Sparkles className="w-4 h-4" /> Generér alle valgte rum ({ready.length})</>
-                    )}
-                  </button>
-                  {totalIncluded > 0 && (
-                    <p className="text-[11px] mt-2 text-center" style={{ color: "#6B6B6B" }}>
-                      {withAfter} af {totalIncluded} valgte rum har efter-billede
-                    </p>
+                <div className="flex items-center gap-2" style={{ color: "#0F1D2F" }}>
+                  {property.threedPlanUrl ? (
+                    <><div className="w-6 h-6 rounded-full bg-[#A8C4A2]/20 flex items-center justify-center text-[#A8C4A2]"><Check className="w-3.5 h-3.5" /></div> <span className="text-sm font-semibold">3D plantegning klar</span></>
+                  ) : (
+                    <><div className="w-6 h-6 rounded-full bg-[#FBD38D]/20 flex items-center justify-center text-[#E6A23C]"><RotateCcw className="w-3.5 h-3.5 animate-spin" /></div> <span className="text-sm font-semibold">Genererer 3D plan…</span></>
                   )}
                 </div>
-              );
-            })()}
-
-            <h3 className="text-xs font-semibold tracking-wider uppercase mb-3" style={{ color: "#0F1D2F" }}>Rum ({rooms.length})</h3>
-            {rooms.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#D9D5CF] bg-[#F8F6F3] p-6 text-center text-xs" style={{ color: "#6B6B6B" }}>
-                Ingen rum markeret endnu. Træk på plantegningen for at starte.
+                {property.threedPlanUrl && (
+                  <button
+                    onClick={handleRegenerate3D}
+                    disabled={regenerating3D}
+                    className="w-full h-9 rounded-lg text-xs font-semibold border transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-white/50"
+                    style={{ background: "white", color: "#0F1D2F", borderColor: "#A8C4A2" }}
+                    data-testid="button-regenerate-3d-plan"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${regenerating3D ? "animate-spin" : ""}`} />
+                    {regenerating3D ? "Genererer ny 3D plan…" : "Regenerér 3D plan"}
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="space-y-2">
-                {rooms.map((r) => {
-                  const isSelected = r.id === selectedId;
-                  const isPersisted = r.id > 0;
-                  const canGenerate = isPersisted && !!r.roomPhotoUrl && !!styleKey && !r.generating;
+
+              {/* Global style picker — applies to every room when generating after-images */}
+              <h3 className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Stil til hele boligen</h3>
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                {TOUR_STYLE_OPTIONS.map((opt) => {
+                  const active = styleKey === opt.key;
                   return (
-                    <div
-                      key={r.id}
-                      onClick={() => setSelectedId(r.id)}
-                      className="rounded-xl border bg-white p-3 cursor-pointer"
-                      style={{ borderColor: isSelected ? r.color : "#E8E4DE" }}
-                      data-testid={`row-tour-room-${r.id}`}
+                    <button
+                      key={opt.key}
+                      onClick={() => handleStyleChange(opt.key)}
+                      className="h-10 rounded-lg text-xs font-semibold border transition-all"
+                      style={{
+                        background: active ? "#C8956C" : "white",
+                        color: active ? "white" : "#0F1D2F",
+                        borderColor: active ? "#C8956C" : "#E8E4DE",
+                      }}
+                      data-testid={`button-tour-style-${opt.key}`}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        {/* Include-in-tour checkbox. Hides upload + generate UI
-                            below when unchecked so the user only sees the rum
-                            de faktisk vil bruge. */}
-                        <input
-                          type="checkbox"
-                          checked={r.included}
-                          onChange={(e) => { e.stopPropagation(); updateRoom(r.id, { included: e.target.checked }); }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 accent-[#C8956C] flex-shrink-0"
-                          aria-label="Inkludér rum i rundvisning"
-                          data-testid={`checkbox-tour-include-${r.id}`}
-                        />
-                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: r.color }} />
-                        <input
-                          type="text"
-                          value={r.name}
-                          onChange={(e) => updateRoom(r.id, { name: e.target.value })}
-                          className="flex-1 text-sm font-medium outline-none bg-transparent min-w-0"
-                          style={{ color: r.included ? "#0F1D2F" : "#9B9690" }}
-                          onClick={(e) => e.stopPropagation()}
-                          data-testid={`input-tour-room-name-${r.id}`}
-                        />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
-                          className="p-1 rounded hover:bg-[#F8F6F3] flex-shrink-0"
-                          data-testid={`button-delete-tour-room-${r.id}`}
-                          aria-label="Slet rum"
-                        >
-                          <X className="w-3.5 h-3.5" style={{ color: "#9B9690" }} />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-1 mb-3">
-                        {ROOM_COLORS.map((c) => (
-                          <button
-                            key={c}
-                            onClick={(e) => { e.stopPropagation(); updateRoom(r.id, { color: c }); }}
-                            className="w-5 h-5 rounded-full border-2"
-                            style={{ background: c, borderColor: r.color === c ? "#0F1D2F" : "transparent" }}
-                            aria-label={`Farve ${c}`}
-                            data-testid={`button-tour-room-color-${r.id}-${c.slice(1)}`}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Before-photo upload + after-image preview. Only shown
-                          for included rooms — others stay collapsed so the
-                          sidebar reflects "kun ☑️ rum viser upload-zone". */}
-                      {!r.included ? (
-                        <p className="text-[10px]" style={{ color: "#9B9690" }}>Sæt kryds for at inkludere og uploade billede.</p>
-                      ) : (
-                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                        {/* Strategy B — 2 angle slots. Vinkel 1 is required;
-                            Vinkel 2 unlocks a real stitched 360° panorama. */}
-                        <div className="grid grid-cols-2 gap-2">
-                          {[1, 2].map((angle) => {
-                            const url = angle === 1 ? r.roomPhotoUrl : r.roomPhotoUrl2;
-                            const label = angle === 1 ? "Vinkel 1" : "Vinkel 2 (360°)";
-                            return (
-                              <div key={angle}>
-                                <div className="text-[10px] font-semibold tracking-wider uppercase mb-1" style={{ color: angle === 2 ? "#C8956C" : "#6B6B6B" }}>
-                                  {label}
-                                </div>
-                                {url ? (
-                                  <img src={url} alt={label} className="w-full h-20 object-cover rounded-md border border-[#E8E4DE]" data-testid={`img-tour-before-${angle}-${r.id}`} />
-                                ) : (
-                                  <label
-                                    className={`flex items-center justify-center h-20 rounded-md border border-dashed text-[11px] ${isPersisted ? "cursor-pointer hover:bg-[#F8F6F3]" : "opacity-40 cursor-not-allowed"}`}
-                                    style={{ borderColor: angle === 2 ? "#E8C9A8" : "#D9D5CF", color: "#6B6B6B" }}
-                                  >
-                                    <Upload className="w-3.5 h-3.5 mr-1" /> {angle === 2 ? "Valgfri" : "Upload"}
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="hidden"
-                                      disabled={!isPersisted}
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
-                                      data-testid={`input-tour-before-${angle}-${r.id}`}
-                                    />
-                                  </label>
-                                )}
-                                {url && (
-                                  <label className="text-[10px] mt-1 inline-block cursor-pointer underline" style={{ color: "#6B6B6B" }}>
-                                    Skift
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="hidden"
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
-                                    />
-                                  </label>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[10px] italic" style={{ color: "#9B9690" }}>
-                          Tip: Tag vinkel 2 fra den modsatte ende af rummet for et ægte 360° resultat.
-                        </p>
-                        <div>
-                          <div className="text-[10px] font-semibold tracking-wider uppercase mb-1" style={{ color: "#6B6B6B" }}>Efter</div>
-                          {r.afterImageUrl ? (
-                            <img src={r.afterImageUrl} alt="Efter" className="w-full h-20 object-cover rounded-md border border-[#E8E4DE]" data-testid={`img-tour-after-${r.id}`} />
-                          ) : (
-                            <div className="flex items-center justify-center h-20 rounded-md border border-dashed text-[11px]" style={{ borderColor: "#D9D5CF", color: "#9B9690" }}>
-                              {r.generating ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : "—"}
-                            </div>
-                          )}
-                          <button
-                            onClick={() => handleGenerate(r.id)}
-                            disabled={!canGenerate}
-                            className="w-full mt-1 h-7 rounded-md text-[11px] font-semibold text-white disabled:opacity-40"
-                            style={{ background: "#0F1D2F" }}
-                            data-testid={`button-tour-generate-${r.id}`}
-                          >
-                            {r.generating ? "Genererer..." : r.afterImageUrl ? "Generér igen" : "Generér"}
-                          </button>
-                        </div>
-                      </div>
-                      )}
-
-                      {r.included && !isPersisted && (
-                        <p className="text-[10px] mt-2" style={{ color: "#9B9690" }}>Gem rummet for at uploade billede.</p>
-                      )}
-                    </div>
+                      {opt.label}
+                    </button>
                   );
                 })}
               </div>
-            )}
+
+              {/* Kvalitets-/budget-vælger. Maps internt til Bolig-prompt tier1/2/3. */}
+              <h3 className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Kvalitet</h3>
+              <div className="grid grid-cols-3 gap-2 mb-6">
+                {TOUR_TIER_OPTIONS.map((opt) => {
+                  const active = tierKey === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => handleTierChange(opt.key)}
+                      className="h-16 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center justify-center px-1"
+                      style={{
+                        background: active ? "#0F1D2F" : "white",
+                        color: active ? "white" : "#0F1D2F",
+                        borderColor: active ? "#0F1D2F" : "#E8E4DE",
+                        boxShadow: active ? "0 4px 14px rgba(15,29,47,0.15)" : "none"
+                      }}
+                      data-testid={`button-tour-tier-${opt.key}`}
+                    >
+                      <span className="mb-0.5">{opt.label}</span>
+                      <span className="text-[9px] font-normal" style={{ color: active ? "rgba(255,255,255,0.7)" : "#9B9690" }}>{opt.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Batch generate — primary action so the user doesn't need to
+                  click Generér on every single room individually. */}
+              {(() => {
+                const included = rooms.filter((r) => r.included);
+                const ready = included.filter((r) => r.id > 0 && r.roomPhotoUrl && !r.afterImageUrl);
+                const totalIncluded = included.length;
+                const withAfter = included.filter((r) => r.afterImageUrl).length;
+                const allDone = totalIncluded > 0 && withAfter === totalIncluded;
+                return (
+                  <div>
+                    <button
+                      onClick={handleBatchGenerate}
+                      disabled={batchRunning || !styleKey || ready.length === 0}
+                      className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-50 transition-transform hover:-translate-y-0.5 shadow-sm"
+                      style={{ background: "#C8956C" }}
+                      data-testid="button-tour-batch-generate"
+                    >
+                      {batchRunning ? (
+                        <><RotateCcw className="w-4 h-4 animate-spin" /> Genererer {ready.length} rum…</>
+                      ) : allDone ? (
+                        <><Check className="w-4 h-4" /> Alle valgte rum klar ({withAfter}/{totalIncluded})</>
+                      ) : (
+                        <><Sparkles className="w-4 h-4" /> Generér alle valgte rum ({ready.length})</>
+                      )}
+                    </button>
+                    {totalIncluded > 0 && (
+                      <p className="text-xs mt-3 text-center" style={{ color: "#6B6B6B" }}>
+                        {withAfter} af {totalIncluded} valgte rum har efter-billede
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="rounded-2xl border border-[#E8E4DE] bg-[#F8F6F3] p-6 shadow-inner-sm min-h-[300px]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "#0F1D2F" }}>Rum ({rooms.length})</h3>
+                {rooms.length > 0 && (
+                  <span className="text-xs font-medium" style={{ color: "#6B6B6B" }}>Marker af for at inkludere</span>
+                )}
+              </div>
+              
+              {rooms.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#D9D5CF] bg-white p-8 text-center flex flex-col items-center justify-center h-[200px]">
+                  <div className="w-12 h-12 rounded-full bg-[#F8F6F3] flex items-center justify-center mb-3">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#C8956C" }}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>
+                  </div>
+                  <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen rum markeret</p>
+                  <p className="text-xs max-w-[200px]" style={{ color: "#6B6B6B" }}>Træk på plantegningen for at markere et rum.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {rooms.map((r) => {
+                    const isSelected = r.id === selectedId;
+                    const isPersisted = r.id > 0;
+                    const canGenerate = isPersisted && !!r.roomPhotoUrl && !!styleKey && !r.generating;
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={() => setSelectedId(r.id)}
+                        className="rounded-xl border bg-white p-4 cursor-pointer transition-all hover:shadow-sm"
+                        style={{ borderColor: isSelected ? r.color : "#E8E4DE", boxShadow: isSelected ? `0 0 0 1px ${r.color}` : "none" }}
+                        data-testid={`row-tour-room-${r.id}`}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          {/* Include-in-tour checkbox. Hides upload + generate UI
+                              below when unchecked so the user only sees the rum
+                              de faktisk vil bruge. */}
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={r.included}
+                              onChange={(e) => { e.stopPropagation(); updateRoom(r.id, { included: e.target.checked }); }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-5 h-5 accent-[#C8956C] cursor-pointer rounded border-[#D9D5CF]"
+                              aria-label="Inkludér rum i rundvisning"
+                              data-testid={`checkbox-tour-include-${r.id}`}
+                            />
+                          </div>
+                          <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" style={{ background: r.color }} />
+                          <input
+                            type="text"
+                            value={r.name}
+                            onChange={(e) => updateRoom(r.id, { name: e.target.value })}
+                            className="flex-1 text-sm font-bold outline-none bg-transparent min-w-0 transition-colors focus:text-[#C8956C]"
+                            style={{ color: r.included ? "#0F1D2F" : "#9B9690", textDecoration: r.included ? "none" : "line-through" }}
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`input-tour-room-name-${r.id}`}
+                          />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
+                            className="p-1.5 rounded-md hover:bg-[#FEF2F2] flex-shrink-0 transition-colors group/del"
+                            data-testid={`button-delete-tour-room-${r.id}`}
+                            aria-label="Slet rum"
+                          >
+                            <X className="w-3.5 h-3.5 group-hover/del:text-[#B91C1C]" style={{ color: "#9B9690" }} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1.5 mb-4 pl-8">
+                          {ROOM_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              onClick={(e) => { e.stopPropagation(); updateRoom(r.id, { color: c }); }}
+                              className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                              style={{ background: c, borderColor: r.color === c ? "#0F1D2F" : "transparent" }}
+                              aria-label={`Farve ${c}`}
+                              data-testid={`button-tour-room-color-${r.id}-${c.slice(1)}`}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Before-photo upload + after-image preview. Only shown
+                            for included rooms — others stay collapsed so the
+                            sidebar reflects "kun ☑️ rum viser upload-zone". */}
+                        {!r.included ? (
+                          <div className="pl-8">
+                            <p className="text-[11px] bg-[#F8F6F3] p-2 rounded-lg" style={{ color: "#9B9690" }}>Sæt kryds for at inkludere og uploade billede.</p>
+                          </div>
+                        ) : (
+                        <div className="space-y-4 pl-8" onClick={(e) => e.stopPropagation()}>
+                          {/* Strategy B — 2 angle slots. Vinkel 1 is required;
+                              Vinkel 2 unlocks a real stitched 360° panorama. */}
+                          <div className="grid grid-cols-2 gap-3">
+                            {[1, 2].map((angle) => {
+                              const url = angle === 1 ? r.roomPhotoUrl : r.roomPhotoUrl2;
+                              const label = angle === 1 ? "Vinkel 1" : "Vinkel 2 (360°)";
+                              return (
+                                <div key={angle} className="flex flex-col h-full">
+                                  <div className="text-[10px] font-bold tracking-wider uppercase mb-1.5" style={{ color: angle === 2 ? "#C8956C" : "#9B9690" }}>
+                                    {label}
+                                  </div>
+                                  <div className="flex-1 flex flex-col justify-end">
+                                    {url ? (
+                                      <div className="relative group/img rounded-lg overflow-hidden border shadow-sm h-[90px]" style={{ borderColor: "#E8E4DE" }}>
+                                        <img src={url} alt={label} className="w-full h-full object-cover" data-testid={`img-tour-before-${angle}-${r.id}`} />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                          <label className="text-[10px] font-semibold text-white px-2 py-1 rounded bg-black/60 cursor-pointer hover:bg-black/80">
+                                            Skift
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              className="hidden"
+                                              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
+                                            />
+                                          </label>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label
+                                        className={`flex flex-col items-center justify-center h-[90px] rounded-lg border-2 border-dashed transition-colors ${isPersisted ? "cursor-pointer hover:bg-[#F8F6F3]" : "opacity-40 cursor-not-allowed"}`}
+                                        style={{ borderColor: angle === 2 ? "rgba(200,149,108,0.3)" : "#D9D5CF" }}
+                                      >
+                                        <Upload className="w-4 h-4 mb-1" style={{ color: angle === 2 ? "#C8956C" : "#9B9690" }} />
+                                        <span className="text-[11px] font-medium" style={{ color: angle === 2 ? "#C8956C" : "#6B6B6B" }}>
+                                          {angle === 2 ? "Valgfri" : "Upload"}
+                                        </span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          disabled={!isPersisted}
+                                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
+                                          data-testid={`input-tour-before-${angle}-${r.id}`}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[11px] leading-relaxed bg-[#F8F6F3] p-2.5 rounded-lg" style={{ color: "#6B6B6B" }}>
+                            <span className="font-semibold text-[#0F1D2F]">Tip:</span> Tag vinkel 2 fra den modsatte ende af rummet for et ægte 360° resultat.
+                          </p>
+                          
+                          <div className="pt-2 border-t" style={{ borderColor: "#F0EDE7" }}>
+                            <div className="text-[10px] font-bold tracking-wider uppercase mb-2 flex items-center justify-between" style={{ color: "#9B9690" }}>
+                              <span>Efter</span>
+                              {r.afterImageUrl && <span className="text-[#A8C4A2] flex items-center gap-1"><Check className="w-3 h-3" /> Færdig</span>}
+                            </div>
+                            {r.afterImageUrl ? (
+                              <div className="relative rounded-lg overflow-hidden border shadow-sm h-[120px]" style={{ borderColor: "#E8E4DE" }}>
+                                <img src={r.afterImageUrl} alt="Efter" className="w-full h-full object-cover" data-testid={`img-tour-after-${r.id}`} />
+                                <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                                  <button
+                                    onClick={() => handleGenerate(r.id)}
+                                    disabled={!canGenerate}
+                                    className="w-full h-8 rounded-md text-[11px] font-semibold text-white bg-white/20 backdrop-blur-md hover:bg-white/30 transition-colors disabled:opacity-40"
+                                    data-testid={`button-tour-generate-${r.id}`}
+                                  >
+                                    {r.generating ? "Genererer..." : "Generér ny version"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-center h-[90px] rounded-lg border border-dashed bg-[#F8F6F3]" style={{ borderColor: "#D9D5CF", color: "#9B9690" }}>
+                                  {r.generating ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                      <RotateCcw className="w-5 h-5 animate-spin" style={{ color: "#C8956C" }} />
+                                      <span className="text-[11px]">Bygger design...</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-[11px]">Venter på generering</div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => handleGenerate(r.id)}
+                                  disabled={!canGenerate}
+                                  className="w-full h-10 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-colors hover:opacity-90"
+                                  style={{ background: "#0F1D2F" }}
+                                  data-testid={`button-tour-generate-${r.id}`}
+                                >
+                                  {r.generating ? "Genererer..." : "Generér dette rum"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        )}
+
+                        {r.included && !isPersisted && (
+                          <p className="text-[11px] mt-3 bg-[#FFF7ED] p-2 rounded-lg text-[#C8956C] font-medium border border-[#FBD38D]">
+                            Gem rummet for at uploade billede.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -5596,61 +5704,64 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           rammen. */}
       {pendingRoom && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(15,29,47,0.45)" }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ background: "rgba(15,29,47,0.6)" }}
           onClick={() => { setPendingRoom(null); setPendingCustomName(""); }}
           data-testid="modal-pending-room"
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white border shadow-2xl p-5"
+            className="w-full max-w-sm rounded-3xl bg-white border shadow-2xl p-6 md:p-8"
             style={{ borderColor: "#E8E4DE" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Hvilket rum er det?</div>
-            <p className="text-xs mb-4" style={{ color: "#6B6B6B" }}>Vælg et forslag eller skriv dit eget navn.</p>
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="text-xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.01em" }}>Hvilket rum er det?</div>
+            <p className="text-sm mb-6" style={{ color: "#6B6B6B" }}>Vælg et forslag eller skriv dit eget navn.</p>
+            <div className="grid grid-cols-2 gap-2.5 mb-5">
               {ROOM_NAME_SUGGESTIONS.map((n) => (
                 <button
                   key={n}
                   onClick={() => commitPendingRoom(n)}
-                  className="h-10 rounded-lg text-sm font-medium border hover:bg-[#F8F6F3] transition-colors"
-                  style={{ borderColor: "#E8E4DE", color: "#0F1D2F" }}
+                  className="h-11 rounded-xl text-sm font-semibold border transition-all hover:-translate-y-0.5"
+                  style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white", boxShadow: "0 2px 8px rgba(15,29,47,0.04)" }}
                   data-testid={`button-pick-room-${n.toLowerCase()}`}
                 >
                   {n}
                 </button>
               ))}
             </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={pendingCustomName}
-                onChange={(e) => setPendingCustomName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && pendingCustomName.trim()) {
-                    commitPendingRoom(pendingCustomName);
-                    setPendingCustomName("");
-                  }
-                }}
-                autoFocus
-                placeholder="Andet navn…"
-                className="flex-1 h-10 px-3 rounded-lg border text-sm outline-none"
-                style={{ borderColor: "#E8E4DE", color: "#0F1D2F" }}
-                data-testid="input-pending-room-custom"
-              />
-              <button
-                onClick={() => { if (pendingCustomName.trim()) { commitPendingRoom(pendingCustomName); setPendingCustomName(""); } }}
-                disabled={!pendingCustomName.trim()}
-                className="h-10 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-40"
-                style={{ background: "#C8956C" }}
-                data-testid="button-pending-room-add"
-              >
-                Tilføj
-              </button>
+            <div className="relative mt-2 pt-5 border-t" style={{ borderColor: "#F0EDE7" }}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9B9690" }}>Eller</div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pendingCustomName}
+                  onChange={(e) => setPendingCustomName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && pendingCustomName.trim()) {
+                      commitPendingRoom(pendingCustomName);
+                      setPendingCustomName("");
+                    }
+                  }}
+                  autoFocus
+                  placeholder="Skriv andet navn…"
+                  className="flex-1 h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-colors focus:border-[#C8956C] focus:bg-white"
+                  style={{ borderColor: "transparent", color: "#0F1D2F" }}
+                  data-testid="input-pending-room-custom"
+                />
+                <button
+                  onClick={() => { if (pendingCustomName.trim()) { commitPendingRoom(pendingCustomName); setPendingCustomName(""); } }}
+                  disabled={!pendingCustomName.trim()}
+                  className="h-12 px-5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-transform hover:-translate-y-0.5"
+                  style={{ background: "#C8956C" }}
+                  data-testid="button-pending-room-add"
+                >
+                  Tilføj
+                </button>
+              </div>
             </div>
             <button
               onClick={() => { setPendingRoom(null); setPendingCustomName(""); }}
-              className="mt-4 w-full h-9 text-xs font-medium rounded-lg hover:bg-[#F8F6F3]"
+              className="mt-4 w-full h-10 text-sm font-medium rounded-xl hover:bg-[#F8F6F3] transition-colors"
               style={{ color: "#6B6B6B" }}
               data-testid="button-pending-room-cancel"
             >
@@ -6597,27 +6708,29 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
         {/* Right column: prompt library */}
         <div className="lg:sticky lg:top-6">
-          <div className="rounded-2xl border border-[#E8E4DE] overflow-hidden" style={{ background: "#fff" }}>
-            <div className="px-4 py-3.5 border-b border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
-              <div className="flex items-center gap-2 mb-0.5">
-                <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
-                <p className="text-xs font-bold tracking-[0.08em] uppercase" style={{ color: "#9B9690" }}>Promptbibliotek</p>
+          <div className="rounded-2xl border border-[#E8E4DE] overflow-hidden shadow-sm" style={{ background: "#fff" }}>
+            <div className="px-5 py-4 border-b border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <div className="w-6 h-6 rounded-md bg-[#0F1D2F] flex items-center justify-center">
+                  <Sparkles className="w-3 h-3 text-white" />
+                </div>
+                <h3 className="text-sm font-bold tracking-[0.04em] uppercase" style={{ color: "#0F1D2F" }}>Promptbibliotek</h3>
               </div>
               <p className="text-xs" style={{ color: "#6B6B6B" }}>Klik på en prompt for at indsætte den i feltet.</p>
             </div>
 
-            <div className="px-4 pt-3.5">
-              <div className="flex flex-wrap gap-1.5">
+            <div className="p-5">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {AGENT_PROMPT_CATEGORIES.map((cat) => {
                   const active = cat.id === activeCat;
                   return (
                     <button
                       key={cat.id}
                       onClick={() => setActiveCat(cat.id)}
-                      className="px-3 py-1 rounded-full text-[11px] font-medium border transition-all"
+                      className="px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all hover:-translate-y-px"
                       style={active
-                        ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F" }
-                        : { background: "#fff", color: "#6B6B6B", borderColor: "#E5E1D8" }}
+                        ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F", boxShadow: "0 2px 8px rgba(15,29,47,0.15)" }
+                        : { background: "#fff", color: "#6B6B6B", borderColor: "#D9D5CF" }}
                       data-testid={`bolig-agent-cat-${cat.id}`}
                     >
                       {cat.label}
@@ -6625,31 +6738,34 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                   );
                 })}
               </div>
-              <p className="text-[11px] mt-3 mb-1" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
-            </div>
+              <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
 
-            <div className="px-4 pb-4 pt-1 space-y-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
-              {activeCategory.items.map((item) => (
-                <button
-                  key={item.title}
-                  onClick={() => handlePickPrompt(item)}
-                  className="w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm"
-                  style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
-                  data-testid={`bolig-agent-prompt-${item.title}`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
-                    {justAdded === item.title ? (
-                      <span className="flex items-center gap-1 text-[11px] font-medium flex-shrink-0" style={{ color: "#C8956C" }}>
-                        <Check className="w-3.5 h-3.5" /> Tilføjet
-                      </span>
-                    ) : (
-                      <Plus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C8956C" }} />
-                    )}
-                  </div>
-                  <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "#6B6B6B" }}>{item.text}</p>
-                </button>
-              ))}
+              <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 340px)" }}>
+                {activeCategory.items.map((item) => (
+                  <button
+                    key={item.title}
+                    onClick={() => handlePickPrompt(item)}
+                    className="w-full text-left p-4 rounded-xl border transition-all group hover:shadow-md hover:-translate-y-0.5 relative overflow-hidden"
+                    style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
+                    data-testid={`bolig-agent-prompt-${item.title}`}
+                  >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300" style={{ background: "linear-gradient(120deg, transparent, rgba(200,149,108,0.03), transparent)" }} />
+                    <div className="flex items-center justify-between gap-3 mb-2 relative z-10">
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
+                      {justAdded === item.title ? (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-[#C8956C]/10 flex-shrink-0" style={{ color: "#C8956C" }}>
+                          <Check className="w-3 h-3" /> Tilføjet
+                        </span>
+                      ) : (
+                        <div className="w-6 h-6 rounded-full border border-[#D9D5CF] flex items-center justify-center group-hover:border-[#C8956C] group-hover:bg-[#C8956C] transition-colors flex-shrink-0">
+                          <Plus className="w-3 h-3 text-[#9B9690] group-hover:text-white transition-colors" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed line-clamp-3 relative z-10" style={{ color: "#6B6B6B" }}>{item.text}</p>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
