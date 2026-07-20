@@ -1840,6 +1840,17 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: "Unauthorized" });
       const { address, caseNo, notes, marketDateISO } = req.body;
       if (!address?.trim()) return res.status(400).json({ message: "address er påkrævet" });
+      // Free-trial gate: users without a plan may create cases only while they
+      // still have free AI-visualisation credits left. Subscribers/teams/admins pass.
+      if (!user.isAdmin) {
+        const q = await storage.getUserQuota(user.id);
+        if (q.isFreeTrial) {
+          const remaining = (q.ai.limit ?? 0) - q.ai.used;
+          if (remaining <= 0) {
+            return res.status(403).json({ requiresSubscription: true, message: "Du har brugt dine gratis AI-visualiseringer. Opgrader for at oprette flere sager." });
+          }
+        }
+      }
       const newCase = await storage.createBoligCase({
         userId: user.id, address: address.trim(),
         caseNo: caseNo?.trim() || null, notes: notes?.trim() || null,

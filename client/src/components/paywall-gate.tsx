@@ -1,6 +1,7 @@
 import { Lock, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuotaData } from "@/components/quota-widget";
 
 const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
 
@@ -10,17 +11,31 @@ export function useIsSubscribed() {
   return isSuperAdmin || isAdmin || subscriptionStatus === "active";
 }
 
+// Free-trial users get a small AI allowance (see FREE_TRIAL_QUOTAS on the
+// server). Returns true while they still have trial generations left.
+// Fails closed: while quota data is loading (or the fetch fails) access is
+// NOT granted — the server enforces the real limit regardless.
+export function useHasFreeTrialCredits() {
+  const quotaData = useQuotaData();
+  if (quotaData == null) return false;
+  if (quotaData.isAdmin) return true;
+  const ai = quotaData.quota.ai;
+  if (ai.limit === null) return true;
+  return ai.limit - ai.used > 0;
+}
+
 const EXAMPLE_PAIRS = [
   { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", label: "Stue · Skandinavisk" },
   { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", label: "Køkken · Moderne" },
   { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", label: "Badeværelse · Moderne" },
 ];
 
-export function PaywallPage({ children }: { children: React.ReactNode }) {
+export function PaywallPage({ children, allowFreeTrial = false }: { children: React.ReactNode; allowFreeTrial?: boolean }) {
   const isSubscribed = useIsSubscribed();
+  const hasFreeTrialCredits = useHasFreeTrialCredits();
   const [, setLocation] = useLocation();
 
-  if (isSubscribed) return <>{children}</>;
+  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits)) return <>{children}</>;
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center px-4 pt-10 pb-16" style={{ background: "#FAF7F2" }}>
@@ -138,14 +153,17 @@ export function PaywallBanner() {
 export function PaywallAction({
   children,
   className,
+  allowFreeTrial = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  allowFreeTrial?: boolean;
 }) {
   const isSubscribed = useIsSubscribed();
+  const hasFreeTrialCredits = useHasFreeTrialCredits();
   const [, setLocation] = useLocation();
 
-  if (isSubscribed) return <div className={className}>{children}</div>;
+  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits)) return <div className={className}>{children}</div>;
 
   return (
     <div

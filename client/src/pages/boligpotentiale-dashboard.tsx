@@ -8265,7 +8265,7 @@ export default function BoligpotentialeDashboard() {
 
   const SidebarContent = () => (
     <>
-      <PaywallAction>
+      <PaywallAction allowFreeTrial>
         <button
           onClick={() => { setModal("newSag"); setSidebarOpen(false); }}
           className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold text-sm text-white mb-5 transition-all hover:opacity-90 active:scale-95"
@@ -8580,7 +8580,7 @@ export default function BoligpotentialeDashboard() {
                         </div>
                       );
                     })}
-                    <PaywallAction>
+                    <PaywallAction allowFreeTrial>
                       <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[180px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)] w-full h-full" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-add-case">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE7" }}><Plus className="w-5 h-5" style={{ color: "#C8956C" }} /></div>
                         <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>
@@ -8831,7 +8831,7 @@ export default function BoligpotentialeDashboard() {
           {/* ── Generation flows: kept mounted so in-progress & completed generations
                 survive switching functions. Only the active one is visible. ── */}
           <div className={section === "ai-design-agent" ? "" : "hidden"} aria-hidden={section !== "ai-design-agent"}>
-            <PaywallPage>
+            <PaywallPage allowFreeTrial>
               <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
             </PaywallPage>
           </div>
@@ -8922,7 +8922,7 @@ export default function BoligpotentialeDashboard() {
                           </div>
                         );
                       })}
-                      <PaywallAction>
+                      <PaywallAction allowFreeTrial>
                         <button onClick={() => setModal("newSag")} className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center min-h-[200px] gap-2 transition-all hover:border-[#C8956C] hover:bg-[rgba(200,149,108,0.04)] w-full h-full" style={{ borderColor: "#D9D5CF" }} data-testid="bolig-sager-add">
                           <Plus className="w-6 h-6" style={{ color: "#C8956C" }} />
                           <span className="text-xs font-medium" style={{ color: "#C8956C" }}>Opret ny sag</span>

@@ -105,7 +105,7 @@ export interface IStorage {
   addBoligCaseImage(data: InsertBoligCaseImage): Promise<BoligCaseImage>;
   getBoligCaseImages(caseId: number): Promise<BoligCaseImage[]>;
   getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }>;
-  getUserQuota(userId: number): Promise<{ ai: { limit: number | null; used: number }; floorPlan: { limit: number | null; used: number }; transformVideo: { limit: number | null; used: number }; showcase: { limit: number | null; used: number }; resetsAt: Date | null }>;
+  getUserQuota(userId: number): Promise<{ ai: { limit: number | null; used: number }; floorPlan: { limit: number | null; used: number }; transformVideo: { limit: number | null; used: number }; showcase: { limit: number | null; used: number }; resetsAt: Date | null; isFreeTrial?: boolean }>;
   upsertPendingPurchase(p: { provider: string; externalId: string; email: string | null; kind: string; payload: unknown }): Promise<{ inserted: boolean }>;
   claimPendingPurchase(externalId: string, userId: number): Promise<PendingPurchase | null>;
   getPendingPurchasesByEmail(email: string): Promise<PendingPurchase[]>;
