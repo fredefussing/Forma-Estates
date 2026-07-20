@@ -2906,27 +2906,29 @@ export async function registerRoutes(
         "sketch-artist":     "SKETCH_ARTIST",
         "earth-zoom":        "EARTH_ZOOM",
       };
-      // Rendy's "camera control" (beta) accepts camera-movement keys (PUSH-IN,
-      // SLIDER_LEFT, …) as presetKey — validated against the live
-      // GET /camera-movements endpoint. Unknown keys are still stripped so a
+      // Camera-movement keys (PUSH-IN, SLIDER_LEFT, …) are validated against the
+      // live GET /camera-movements endpoint. Unknown keys are stripped so a
       // stale client can never break the render.
       const RENDY_VFX_KEYS = new Set(Object.values(VFX_KEY_MAP));
       const RENDY_CAMERA_KEYS = await getRendyCameraMovementKeys();
 
-      function normalizeRendyPresetKey(key: string | undefined): string | undefined {
-        if (!key || key === "DEFAULT") return undefined;
-        if (VFX_KEY_MAP[key]) return VFX_KEY_MAP[key];           // frontend → API format
-        if (RENDY_VFX_KEYS.has(key)) return key;                  // already in API format
-        if (RENDY_CAMERA_KEYS.has(key)) return key;               // camera movement (beta)
+      // VFX presets go in `presetKey`; camera movements go in `cameraActionKey`.
+      // Sending a camera key as presetKey makes Rendy fail the ENTIRE listing
+      // with status=error/progress=0 (verified July 2026).
+      const normalizeRendyKeys = (key: string | undefined): { presetKey?: string; cameraActionKey?: string } => {
+        if (!key || key === "DEFAULT") return {};
+        const mapped = VFX_KEY_MAP[key] ?? key;
+        if (RENDY_VFX_KEYS.has(mapped)) return { presetKey: mapped };
+        if (RENDY_CAMERA_KEYS.has(mapped)) return { cameraActionKey: mapped };
         log(`[Rendy] unknown preset key "${key}" — stripped (not a valid Rendy key)`);
-        return undefined;
-      }
+        return {};
+      };
 
       // Merge: VFX takes priority over camera preset when both are set
-      const mergedPresetKeys = presetKeys.map((cam, i) => normalizeRendyPresetKey(vfxKeys[i] || cam || undefined));
+      const mergedKeys = presetKeys.map((cam, i) => normalizeRendyKeys(vfxKeys[i] || cam || undefined));
 
-      log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedPresetKeys)}`);
-      const jobId = startRendyShowcase(filePaths, address, ratio, mergedPresetKeys);
+      log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
+      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
       if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase (Rendy) · ${files.length} billeder`).catch(() => {});

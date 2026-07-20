@@ -1,5 +1,6 @@
 import fs from "fs";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import { pool } from "./db";
 
 const RENDY_BASE = "https://api.rendy.io/api/public/v1";
@@ -139,35 +140,67 @@ async function rendyFetch(path: string, opts: RequestInit = {}): Promise<Respons
   return fetch(`${RENDY_BASE}${path}`, { ...opts, headers });
 }
 
-export async function uploadImageToRendy(filePath: string): Promise<string> {
-  const buffer = fs.readFileSync(filePath);
+export interface RendyUploadedImage {
+  url: string;
+  width: number;
+  height: number;
+}
 
-  // Validate file size — Rendy rejects images under ~10 KB or over ~20 MB
-  if (buffer.length < 5000) throw new Error(`Billede er for lille (${Math.round(buffer.length / 1024)} KB). Brug mindst 800×600px.`);
-  if (buffer.length > 20 * 1024 * 1024) throw new Error(`Billede er for stort (${Math.round(buffer.length / 1024 / 1024)} MB). Maks 20 MB.`);
+export async function uploadImageToRendy(filePath: string): Promise<RendyUploadedImage> {
+  const original = fs.readFileSync(filePath);
+  if (original.length > 40 * 1024 * 1024) throw new Error(`Billede er for stort (${Math.round(original.length / 1024 / 1024)} MB). Maks 40 MB.`);
 
-  const filename = filePath.split("/").pop() || "image.jpg";
-  const ext = (filename.split(".").pop() || "jpg").toLowerCase();
-  const mimeMap: Record<string, string> = {
-    jpg: "image/jpeg", jpeg: "image/jpeg",
-    png: "image/png", webp: "image/webp",
-  };
-  const mimetype = mimeMap[ext] || "image/jpeg";
+  // Normalise to REAL JPEG bytes before upload. Browser uploads are often
+  // WebP/PNG with a .jpeg filename — Rendy's upload endpoint accepts those,
+  // but the video engine then fails the whole listing with progress=0.
+  // Also EXIF-rotate and upscale below Rendy's 800×600 minimum.
+  let data: Buffer;
+  let width: number;
+  let height: number;
+  try {
+    let out = await sharp(original, { failOn: "none" })
+      .rotate()
+      .jpeg({ quality: 92 })
+      .toBuffer({ resolveWithObject: true });
+    if (out.info.width < 800 || out.info.height < 600) {
+      out = await sharp(out.data)
+        .resize(800, 600, { fit: "outside" })
+        .jpeg({ quality: 92 })
+        .toBuffer({ resolveWithObject: true });
+    }
+    if (out.data.length > 20 * 1024 * 1024) {
+      out = await sharp(out.data)
+        .resize(3840, 3840, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer({ resolveWithObject: true });
+    }
+    data = out.data;
+    width = out.info.width;
+    height = out.info.height;
+  } catch (err: any) {
+    console.error("[Rendy] billede kunne ikke konverteres til JPEG:", err.message);
+    throw new Error("Billedet kunne ikke læses som et gyldigt billede. Prøv at gemme det som JPEG og upload igen.");
+  }
+
+  if (data.length < 5000) throw new Error(`Billede er for lille (${Math.round(data.length / 1024)} KB). Brug mindst 800×600px.`);
+
+  const base = (filePath.split("/").pop() || "image").replace(/\.[^.]*$/, "");
+  const filename = `${base}.jpg`;
 
   // Retry upload up to 3 times on transient errors
   let lastErr: Error | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const form = new FormData();
-      const blob = new Blob([buffer], { type: mimetype });
+      const blob = new Blob([data], { type: "image/jpeg" });
       form.append("image", blob, filename);
       const res = await rendyFetch("/images/upload", { method: "POST", body: form as any });
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
         throw new Error(`Rendy upload fejlede (${res.status}): ${errText}`);
       }
-      const data = await res.json() as { url: string };
-      return data.url;
+      const resp = await res.json() as { url: string };
+      return { url: resp.url, width, height };
     } catch (err: any) {
       lastErr = err;
       console.error(`[Rendy] upload forsøg ${attempt}/3 fejlede:`, err.message);
@@ -221,7 +254,7 @@ export async function getRendyCameraMovementKeys(): Promise<Set<string>> {
 export async function createRendyListing(
   address: string,
   ratio: "portrait" | "landscape",
-  imageUrls: Array<{ url: string; presetKey?: string }>
+  imageUrls: Array<{ url: string; presetKey?: string; cameraActionKey?: string; originalImageWidth?: number; originalImageHeight?: number }>
 ): Promise<string> {
   const requestBody = { address, ratio, imageUrls };
   console.log("[Rendy] createListing request:", JSON.stringify(requestBody));
@@ -268,11 +301,16 @@ export async function getRendyExportStatus(jobId: string): Promise<{ status: str
 }
 
 // ── Job starter ───────────────────────────────────────────────────────────────
+export interface RendyImageKeys {
+  presetKey?: string;
+  cameraActionKey?: string;
+}
+
 export function startRendyShowcase(
   filePaths: string[],
   address: string,
   ratio: "portrait" | "landscape",
-  presetKeys: (string | undefined)[]
+  imageKeys: RendyImageKeys[]
 ): string {
   pruneJobs();
   const jobId = randomUUID();
@@ -290,13 +328,13 @@ export function startRendyShowcase(
   (async () => {
     try {
       // Step 1: Upload all images concurrently
-      const uploadedUrls: string[] = new Array(filePaths.length);
+      const uploadedImages: RendyUploadedImage[] = new Array(filePaths.length);
       let uploaded = 0;
 
       await Promise.all(
         filePaths.map(async (fp, i) => {
-          const url = await uploadImageToRendy(fp);
-          uploadedUrls[i] = url;
+          const img = await uploadImageToRendy(fp);
+          uploadedImages[i] = img;
           uploaded++;
           setProgress(jobId, {
             stage: "uploading",
@@ -313,9 +351,12 @@ export function startRendyShowcase(
         message: "Sender til Rendy og starter AI-generering…",
       });
 
-      const imageUrls = uploadedUrls.map((url, i) => ({
-        url,
-        ...(presetKeys[i] && presetKeys[i] !== "DEFAULT" ? { presetKey: presetKeys[i] } : {}),
+      const imageUrls = uploadedImages.map((img, i) => ({
+        url: img.url,
+        originalImageWidth: img.width,
+        originalImageHeight: img.height,
+        ...(imageKeys[i]?.presetKey ? { presetKey: imageKeys[i].presetKey } : {}),
+        ...(imageKeys[i]?.cameraActionKey ? { cameraActionKey: imageKeys[i].cameraActionKey } : {}),
       }));
 
       const listingId = await createRendyListing(address || "Boligfremvisning", ratio, imageUrls);
