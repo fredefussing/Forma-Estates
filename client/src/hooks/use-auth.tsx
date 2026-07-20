@@ -9,10 +9,12 @@ interface AuthContextType {
   isAdmin: boolean;
   subscriptionStatus: string;
   subscriptionTier: string | null;
+  emailVerified: boolean | null;
   refreshCredits: () => Promise<void>;
+  refreshVerification: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, subscriptionStatus: "none", subscriptionTier: null, refreshCredits: async () => {} });
+const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, subscriptionStatus: "none", subscriptionTier: null, emailVerified: null, refreshCredits: async () => {}, refreshVerification: async () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState("none");
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
   const verifyWithBackend = useCallback(async (firebaseUser: User) => {
     try {
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(data.user.isAdmin || false);
         setSubscriptionStatus(data.user.subscriptionStatus || "none");
         setSubscriptionTier(data.user.subscriptionTier || null);
+        setEmailVerified(data.user.emailVerified === true);
       } else {
         // If verify fails, retry once with a fresh token
         const freshToken = await firebaseUser.getIdToken(true);
@@ -52,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(data.user.isAdmin || false);
           setSubscriptionStatus(data.user.subscriptionStatus || "none");
           setSubscriptionTier(data.user.subscriptionTier || null);
+          setEmailVerified(data.user.emailVerified === true);
         }
       }
     } catch {}
@@ -73,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {}
   }, [user]);
+
+  const refreshVerification = useCallback(async () => {
+    if (auth.currentUser) await verifyWithBackend(auth.currentUser);
+  }, [verifyWithBackend]);
 
   useEffect(() => {
     let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -101,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(false);
         setSubscriptionStatus("none");
         setSubscriptionTier(null);
+        setEmailVerified(null);
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
       }
       setLoading(false);
@@ -113,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [verifyWithBackend]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, subscriptionStatus, subscriptionTier, refreshCredits }}>
+    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, subscriptionStatus, subscriptionTier, emailVerified, refreshCredits, refreshVerification }}>
       {children}
     </AuthContext.Provider>
   );

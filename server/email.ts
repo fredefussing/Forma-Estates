@@ -52,6 +52,30 @@ async function sendBrevoEmail(options: EmailOptions) {
   });
 }
 
+export async function sendVerificationCodeEmail(email: string, code: string) {
+  await sendBrevoEmail({
+    to: email,
+    subject: `${code} er din aktiveringskode — Forma Estates`,
+    senderEmail: KONTAKT_EMAIL,
+    replyTo: KONTAKT_EMAIL,
+    html: `
+      <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+        <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
+          <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
+          <h1 style="color:#0F1923;font-size:24px;margin:10px 0 18px;font-weight:500;">Bekræft din email</h1>
+          <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Indtast denne kode for at aktivere din konto:</p>
+          <div style="text-align:center;margin:24px 0;">
+            <span style="display:inline-block;background:#0F1923;color:#fff;font-size:32px;letter-spacing:0.3em;font-weight:700;padding:16px 28px 16px 36px;border-radius:10px;">${code}</span>
+          </div>
+          <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;">Koden er gyldig i 15 minutter. Har du ikke oprettet en konto hos Forma Estates, kan du ignorere denne mail.</p>
+        </div>
+        <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+      </div>
+    `,
+  });
+  log(`Verification code email sent to ${email}`);
+}
+
 export async function sendWelcomeEmail(email: string, source?: string) {
   const now = new Date();
   const timestamp = now.toLocaleDateString("da-DK", {

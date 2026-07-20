@@ -17,7 +17,7 @@ function getOrCreateApp(projectId: string): App {
 
 export async function verifyFirebaseToken(
   authHeader: string | undefined
-): Promise<{ uid: string; email: string; name?: string }> {
+): Promise<{ uid: string; email: string; name?: string; emailVerified?: boolean }> {
   if (!authHeader?.startsWith("Bearer ")) {
     throw new Error("Ingen token");
   }
@@ -29,7 +29,7 @@ export async function verifyFirebaseToken(
       const app = getOrCreateApp(projectId);
       const decoded = await getAuth(app).verifyIdToken(token);
       if (!decoded.email) throw new Error("Ingen email i token");
-      return { uid: decoded.uid, email: decoded.email, name: decoded.name ?? undefined };
+      return { uid: decoded.uid, email: decoded.email, name: decoded.name ?? undefined, emailVerified: decoded.email_verified === true };
     } catch (err) {
       lastError = err;
     }

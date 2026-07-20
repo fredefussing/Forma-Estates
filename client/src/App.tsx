@@ -20,6 +20,7 @@ import TrendingPage from "@/pages/trending";
 import PricingPage from "@/pages/pricing";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
+import VerifyEmailPage from "@/pages/verify-email";
 import AccountPage from "@/pages/account";
 import MyDesignsPage from "@/pages/my-designs";
 import AgentDesignDetailPage from "@/pages/agent-design-detail";
@@ -101,17 +102,20 @@ function BoligComingSoon() {
 }
 
 function BoligGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, emailVerified } = useAuth();
   const [, setLocation] = useLocation();
   useEffect(() => {
     if (!loading && !user) {
       setLocation("/login?redirect=/boligpotentiale/dashboard");
     }
-  }, [user, loading, setLocation]);
+    if (!loading && user && emailVerified === false) {
+      setLocation("/verificer-email?redirect=/boligpotentiale/dashboard");
+    }
+  }, [user, loading, emailVerified, setLocation]);
   if (loading) {
     return <div className="min-h-screen" style={{ background: "#FAF7F2" }} />;
   }
-  if (!user) {
+  if (!user || emailVerified === false) {
     return null;
   }
   return <>{children}</>;
@@ -178,6 +182,7 @@ function Router() {
       <Route path="/design" component={DesignPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/opret" component={SignupPage} />
+      <Route path="/verificer-email" component={VerifyEmailPage} />
       <Route path="/min-konto" component={AccountPage} />
       <Route path="/mine-designs" component={MyDesignsPage} />
       <Route path="/betalt" component={PaymentSuccessPage} />

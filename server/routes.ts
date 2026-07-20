@@ -16,7 +16,7 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail } from "./email";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail } from "./email";
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
@@ -459,7 +459,7 @@ export async function registerRoutes(
 
   app.post("/api/auth/verify", async (req, res) => {
     try {
-      const { uid, email, name } = await verifyFirebaseToken(req.headers.authorization);
+      const { uid, email, name, emailVerified: tokenEmailVerified } = await verifyFirebaseToken(req.headers.authorization);
 
       let user = await storage.getUserByFirebaseUid(uid);
 
@@ -485,6 +485,14 @@ export async function registerRoutes(
           log(`New user created: ${email} (uid: ${uid})`);
           sendWelcomeEmail(email, "Server-side oprettelse (Firebase verify)");
         }
+      }
+
+      // Auto-verify: Google sign-in (and other providers) supply a token where
+      // email_verified is true — no activation code needed for a real, verified email.
+      if (tokenEmailVerified && !user.emailVerified) {
+        await storage.updateUser(user.id, { emailVerified: true });
+        user = { ...user, emailVerified: true };
+        log(`[auth] Auto-verified email via provider claim: ${user.email}`);
       }
 
       // Sync displayName from Firebase token to DB if it has changed
@@ -580,11 +588,102 @@ export async function registerRoutes(
           isAdmin: user.isAdmin,
           subscriptionStatus: user.subscriptionStatus,
           subscriptionTier: user.subscriptionTier,
+          emailVerified: user.emailVerified,
         },
       });
     } catch (err: any) {
       log(`Auth verify failed: ${err.message}`);
       return res.status(401).json({ error: "Ugyldig token" });
+    }
+  });
+
+  // ── Email verification (6-digit activation code) ──────────────────────────
+  const VERIFICATION_CODE_TTL_MS = 15 * 60 * 1000; // 15 min
+  const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000; // 60 s between sends
+  const VERIFICATION_MAX_ATTEMPTS = 5;
+  const hashVerificationCode = (code: string, userId: number) =>
+    crypto.createHash("sha256").update(`${userId}:${code}`).digest("hex");
+
+  app.post("/api/auth/send-verification-code", async (req, res) => {
+    let uid: string;
+    try {
+      ({ uid } = await verifyFirebaseToken(req.headers.authorization));
+    } catch {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      if (user.emailVerified) return res.json({ success: true, alreadyVerified: true });
+
+      // Resend cooldown: code expiry minus TTL = last send time
+      if (user.verificationCodeExpires) {
+        const lastSent = new Date(user.verificationCodeExpires).getTime() - VERIFICATION_CODE_TTL_MS;
+        const waitMs = lastSent + VERIFICATION_RESEND_COOLDOWN_MS - Date.now();
+        if (waitMs > 0) {
+          return res.status(429).json({ message: `Vent ${Math.ceil(waitMs / 1000)} sekunder før du beder om en ny kode.`, retryAfterSeconds: Math.ceil(waitMs / 1000) });
+        }
+      }
+
+      const code = crypto.randomInt(100000, 1000000).toString();
+      await storage.updateUser(user.id, {
+        verificationCodeHash: hashVerificationCode(code, user.id),
+        verificationCodeExpires: new Date(Date.now() + VERIFICATION_CODE_TTL_MS),
+        verificationAttempts: 0,
+      });
+      await sendVerificationCodeEmail(user.email, code);
+      return res.json({ success: true });
+    } catch (err: any) {
+      log(`[auth] send-verification-code failed: ${err.message}`);
+      return res.status(500).json({ message: "Kunne ikke sende aktiveringskoden. Prøv igen." });
+    }
+  });
+
+  app.post("/api/auth/verify-code", async (req, res) => {
+    let uid: string;
+    try {
+      ({ uid } = await verifyFirebaseToken(req.headers.authorization));
+    } catch {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      if (user.emailVerified) return res.json({ success: true, alreadyVerified: true });
+
+      const code = String(req.body?.code ?? "").trim();
+      if (!/^\d{6}$/.test(code)) return res.status(400).json({ message: "Indtast den 6-cifrede kode fra din mail." });
+      if (!user.verificationCodeHash || !user.verificationCodeExpires) {
+        return res.status(400).json({ message: "Ingen aktiv kode. Bed om en ny kode.", needsNewCode: true });
+      }
+      if (new Date(user.verificationCodeExpires).getTime() < Date.now()) {
+        return res.status(400).json({ message: "Koden er udløbet. Bed om en ny kode.", needsNewCode: true });
+      }
+      if (user.verificationAttempts >= VERIFICATION_MAX_ATTEMPTS) {
+        return res.status(429).json({ message: "For mange forsøg. Bed om en ny kode.", needsNewCode: true });
+      }
+
+      const match = crypto.timingSafeEqual(
+        Buffer.from(hashVerificationCode(code, user.id)),
+        Buffer.from(user.verificationCodeHash),
+      );
+      if (!match) {
+        await storage.updateUser(user.id, { verificationAttempts: user.verificationAttempts + 1 });
+        const left = VERIFICATION_MAX_ATTEMPTS - user.verificationAttempts - 1;
+        return res.status(400).json({ message: left > 0 ? `Forkert kode. ${left} forsøg tilbage.` : "Forkert kode. Bed om en ny kode.", needsNewCode: left <= 0 });
+      }
+
+      await storage.updateUser(user.id, {
+        emailVerified: true,
+        verificationCodeHash: null,
+        verificationCodeExpires: null,
+        verificationAttempts: 0,
+      });
+      log(`[auth] Email verified via code: ${user.email}`);
+      return res.json({ success: true });
+    } catch (err: any) {
+      log(`[auth] verify-code failed: ${err.message}`);
+      return res.status(500).json({ message: "Kunne ikke bekræfte koden. Prøv igen." });
     }
   });
 
@@ -1840,6 +1939,10 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: "Unauthorized" });
       const { address, caseNo, notes, marketDateISO } = req.body;
       if (!address?.trim()) return res.status(400).json({ message: "address er påkrævet" });
+      // Email must be verified before any usage (existing users grandfathered as verified)
+      if (!user.isAdmin && !user.emailVerified) {
+        return res.status(403).json({ emailVerificationRequired: true, message: "Bekræft din email med aktiveringskoden, før du kan oprette sager." });
+      }
       // Free-trial gate: users without a plan may create cases only while they
       // still have free AI-visualisation credits left. Subscribers/teams/admins pass.
       if (!user.isAdmin) {
@@ -2457,7 +2560,9 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Intet billede uploadet" });
       }
 
-      // Auth — try Firebase token first, then fall back to case-owner lookup
+      // Auth — a valid Firebase token is required. The old caseId-owner fallback
+      // allowed unauthenticated generation under someone else's account/quota
+      // (IDOR) and would let unverified users bypass email verification.
       let authedUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
@@ -2465,15 +2570,10 @@ export async function registerRoutes(
         if (u) authedUserId = u.id;
         else log(`[BoligPotentiale] auth: uid ${uid} not found in DB`);
       } catch (authErr: any) {
-        log(`[BoligPotentiale] auth fallback (${authErr?.message})`);
+        log(`[BoligPotentiale] auth failed (${authErr?.message})`);
       }
-      // Secondary fallback: if a caseId was supplied, resolve owner from the case
-      if (!authedUserId && req.body.caseId) {
-        const rawCid = parseInt(req.body.caseId as string);
-        if (!isNaN(rawCid)) {
-          const fallbackCase = await storage.getBoligCase(rawCid);
-          if (fallbackCase) { authedUserId = fallbackCase.userId; log(`[BoligPotentiale] auth resolved from caseId ${rawCid} → userId ${authedUserId}`); }
-        }
+      if (!authedUserId) {
+        return res.status(401).json({ success: false, message: "Log ind for at generere billeder." });
       }
 
       const isDesignAgent = req.body.isDesignAgent === "true" || req.body.isDesignAgent === true;
@@ -2484,6 +2584,14 @@ export async function registerRoutes(
       const caseId = req.body.caseId ? parseInt(req.body.caseId as string) : null;
       const isQuickGeneration = req.body.isQuick === "true" || req.body.isQuick === true;
       const customPromptText = (req.body.promptText as string) || "";
+
+      // Email must be verified before generating (existing users grandfathered as verified)
+      if (authedUserId) {
+        const authedUser = await storage.getUserById(authedUserId);
+        if (authedUser && !authedUser.isAdmin && !authedUser.emailVerified) {
+          return res.status(403).json({ success: false, emailVerificationRequired: true, message: "Bekræft din email med aktiveringskoden, før du kan generere billeder." });
+        }
+      }
 
       // Quota check — blocks non-admin users who have exhausted their AI visualization quota
       if (authedUserId) {

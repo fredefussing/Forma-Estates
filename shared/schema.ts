@@ -66,6 +66,12 @@ export const users = pgTable("users", {
   usedTransformVideos: integer("used_transform_videos").notNull().default(0),
   usedShowcaseVideos: integer("used_showcase_videos").notNull().default(0),
   quotaResetsAt: timestamp("quota_resets_at"),
+  // Email verification: new accounts must confirm their email with a 6-digit
+  // code before they can use the app. Existing users are grandfathered (true).
+  emailVerified: boolean("email_verified").notNull().default(false),
+  verificationCodeHash: varchar("verification_code_hash", { length: 128 }),
+  verificationCodeExpires: timestamp("verification_code_expires"),
+  verificationAttempts: integer("verification_attempts").notNull().default(0),
 });
 
 // Monthly quotas per subscription tier

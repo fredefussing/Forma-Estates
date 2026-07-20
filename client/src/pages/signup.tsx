@@ -26,11 +26,16 @@ export default function SignupPage() {
     if (prefillEmail && !email) setEmail(prefillEmail);
   }, [prefillEmail]);
 
+  const { emailVerified } = useAuth();
+
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && emailVerified === true) {
       setLocation(redirect);
     }
-  }, [user, authLoading, setLocation, redirect]);
+    if (!authLoading && user && emailVerified === false) {
+      setLocation(`/verificer-email?redirect=${encodeURIComponent(redirect)}`);
+    }
+  }, [user, authLoading, emailVerified, setLocation, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,10 +67,10 @@ export default function SignupPage() {
         body: JSON.stringify({ email: userCredential.user.email, source: signupSource }),
       }).catch(() => {});
 
-      setSuccess("Bruger oprettet! Sender dig videre...");
+      setSuccess("Bruger oprettet! Bekræft din email med koden vi har sendt...");
       setTimeout(() => {
-        setLocation(redirect);
-      }, 1500);
+        setLocation(`/verificer-email?redirect=${encodeURIComponent(redirect)}`);
+      }, 1200);
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {
         setError("Email er allerede i brug. Prøv at logge ind.");
