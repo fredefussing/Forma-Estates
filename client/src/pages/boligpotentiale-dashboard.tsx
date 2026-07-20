@@ -3150,6 +3150,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             <video
               src="/eksempel-transformering.mp4"
               autoPlay
+              muted
               loop
               controls
               className="w-full block"
