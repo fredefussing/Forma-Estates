@@ -22,7 +22,7 @@ import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startWalkthroughVideo, getShowcaseJob } from "./showcase";
-import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
+import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
 
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
@@ -2902,18 +2902,19 @@ export async function registerRoutes(
         "sketch-artist":     "SKETCH_ARTIST",
         "earth-zoom":        "EARTH_ZOOM",
       };
-      // Camera presets are NOT in Rendy's VFX preset list — sending them as
-      // presetKey causes immediate listing validation failure. We strip them here
-      // so Rendy uses its default multi-angle templates automatically.
+      // Rendy's "camera control" (beta) accepts camera-movement keys (PUSH-IN,
+      // SLIDER_LEFT, …) as presetKey — validated against the live
+      // GET /camera-movements endpoint. Unknown keys are still stripped so a
+      // stale client can never break the render.
       const RENDY_VFX_KEYS = new Set(Object.values(VFX_KEY_MAP));
+      const RENDY_CAMERA_KEYS = await getRendyCameraMovementKeys();
 
       function normalizeRendyPresetKey(key: string | undefined): string | undefined {
         if (!key || key === "DEFAULT") return undefined;
         if (VFX_KEY_MAP[key]) return VFX_KEY_MAP[key];           // frontend → API format
         if (RENDY_VFX_KEYS.has(key)) return key;                  // already in API format
-        // Not a known VFX key — likely a camera preset (PUSH-IN, PULL-OUT, etc.)
-        // which Rendy does NOT accept as presetKey. Drop it silently.
-        log(`[Rendy] unknown preset key "${key}" — stripped (not a valid Rendy VFX key)`);
+        if (RENDY_CAMERA_KEYS.has(key)) return key;               // camera movement (beta)
+        log(`[Rendy] unknown preset key "${key}" — stripped (not a valid Rendy key)`);
         return undefined;
       }
 

@@ -184,6 +184,40 @@ export async function getRendyPresets(): Promise<RendyPreset[]> {
   return data.presets ?? [];
 }
 
+// Camera movement keys verified against GET /camera-movements (July 2026).
+// Used as fallback if the live endpoint is unreachable.
+const FALLBACK_CAMERA_MOVEMENT_KEYS = [
+  "SLIDER_LEFT", "SLIDER_RIGHT", "PARALLAX_LEFT", "PARALLAX_RIGHT",
+  "PUSH-IN", "CRANE-DOWN", "CRANE-UP", "PEDESTAL-DOWN", "PEDESTAL-UP",
+  "PULL-OUT", "STATIC",
+];
+
+let cameraKeysCache: { keys: Set<string>; fetchedAt: number } | null = null;
+
+/** Live list of valid camera-movement keys (cached 6 h, falls back to the verified hardcoded list). */
+export async function getRendyCameraMovementKeys(): Promise<Set<string>> {
+  if (cameraKeysCache && Date.now() - cameraKeysCache.fetchedAt < 6 * 60 * 60 * 1000) {
+    return cameraKeysCache.keys;
+  }
+  try {
+    const res = await rendyFetch("/camera-movements", { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json() as { cameraMovements?: Array<{ key: string }> };
+      const keys = new Set((data.cameraMovements ?? []).map((m) => m.key).filter(Boolean));
+      if (keys.size > 0) {
+        cameraKeysCache = { keys, fetchedAt: Date.now() };
+        return keys;
+      }
+    }
+  } catch (err: any) {
+    console.error("[Rendy] camera-movements fetch fejlede:", err.message);
+  }
+  // Cache the fallback briefly (5 min) so a down endpoint isn't re-fetched on every submit
+  const fallback = new Set(FALLBACK_CAMERA_MOVEMENT_KEYS);
+  cameraKeysCache = { keys: fallback, fetchedAt: Date.now() - 6 * 60 * 60 * 1000 + 5 * 60 * 1000 };
+  return fallback;
+}
+
 export async function createRendyListing(
   address: string,
   ratio: "portrait" | "landscape",
