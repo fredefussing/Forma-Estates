@@ -2876,6 +2876,10 @@ export async function registerRoutes(
         "fireworks":         "FIREWORKS",
         "day-to-night":      "DAY_TO_NIGHT",
         "build":             "BUILD",
+        "3d-text-just-sold":   "3D_Text_Just_Sold",   // Rendy key uses mixed case
+        "3d-text-open-house":  "3D_Text_Open_House",
+        "3d-text-just-listed": "3D_Text_Just_Listed",
+        "helicopter-drop-off": "Helicopter_Drop_Off",
         // Actors
         "family":            "ACTOR_FAMILY",
         "man":               "ACTOR_MAN",

@@ -3197,6 +3197,10 @@ const VFX_TRANSITIONS = [
   { key: "fireworks",         name: "Fireworks",          sampleVideoUrl: `${BASE}/assets/presets/video/1772387944096-u4n7ss.mp4` },
   { key: "day-to-night",      name: "Day to Night",       sampleVideoUrl: `${BASE}/assets/presets/video/1768136123246-lzhqhd.mp4` },
   { key: "build",             name: "Build",              sampleVideoUrl: `${BASE}/assets/presets/video/1768136134495-mj3zf.mp4` },
+  { key: "3d-text-just-sold",    name: "3D Tekst: Just Sold",   sampleVideoUrl: `${BASE}/assets/presets/video/1782301716806-guceci.mp4` },
+  { key: "3d-text-open-house",   name: "3D Tekst: Open House",  sampleVideoUrl: `${BASE}/assets/presets/video/1782302001187-6a022i.mp4` },
+  { key: "3d-text-just-listed",  name: "3D Tekst: Just Listed", sampleVideoUrl: `${BASE}/assets/presets/video/1782301341756-ox8aft.mp4` },
+  { key: "helicopter-drop-off",  name: "Helicopter Drop Off",   sampleVideoUrl: `${BASE}/assets/presets/video/1782302625157-mscc9h.mp4` },
 ];
 const VFX_ACTORS = [
   { key: "family", name: "Family", sampleVideoUrl: `${BASE}/actors/previews/family.mp4` },
@@ -3241,18 +3245,18 @@ const CAMERA_PRESETS: { key: string; name: string; icon: string; animName: strin
 ];
 
 const CAM_PREVIEW_CSS = `
-@keyframes cam-slide-left    { 0%,100%{transform:translateX(15%)} 50%{transform:translateX(-15%)} }
-@keyframes cam-slide-right   { 0%,100%{transform:translateX(-15%)} 50%{transform:translateX(15%)} }
-@keyframes cam-push-in       { 0%,100%{transform:scale(1)} 50%{transform:scale(1.45)} }
-@keyframes cam-pull-out      { 0%,100%{transform:scale(1.4)} 50%{transform:scale(0.9)} }
-@keyframes cam-orbit-left    { 0%,100%{transform:translateX(10%) rotate(0deg)} 50%{transform:translateX(-12%) rotate(-6deg)} }
-@keyframes cam-orbit-right   { 0%,100%{transform:translateX(-10%) rotate(0deg)} 50%{transform:translateX(12%) rotate(6deg)} }
-@keyframes cam-crane-down    { 0%,100%{transform:translateY(-15%)} 50%{transform:translateY(15%)} }
-@keyframes cam-crane-up      { 0%,100%{transform:translateY(15%)} 50%{transform:translateY(-15%)} }
-@keyframes cam-pedestal-down { 0%,100%{transform:translateY(-10%) scale(1.05)} 50%{transform:translateY(10%) scale(1.05)} }
-@keyframes cam-pedestal-up   { 0%,100%{transform:translateY(10%) scale(1.05)} 50%{transform:translateY(-10%) scale(1.05)} }
+@keyframes cam-slide-left    { 0%{transform:translateX(6%)} 100%{transform:translateX(-6%)} }
+@keyframes cam-slide-right   { 0%{transform:translateX(-6%)} 100%{transform:translateX(6%)} }
+@keyframes cam-push-in       { 0%{transform:scale(1)} 100%{transform:scale(1.18)} }
+@keyframes cam-pull-out      { 0%{transform:scale(1.18)} 100%{transform:scale(1)} }
+@keyframes cam-orbit-left    { 0%{transform:translateX(5%) scale(1.04) rotate(1.5deg)} 100%{transform:translateX(-5%) scale(1.04) rotate(-1.5deg)} }
+@keyframes cam-orbit-right   { 0%{transform:translateX(-5%) scale(1.04) rotate(-1.5deg)} 100%{transform:translateX(5%) scale(1.04) rotate(1.5deg)} }
+@keyframes cam-crane-down    { 0%{transform:translateY(-6%)} 100%{transform:translateY(6%)} }
+@keyframes cam-crane-up      { 0%{transform:translateY(6%)} 100%{transform:translateY(-6%)} }
+@keyframes cam-pedestal-down { 0%{transform:translateY(-5%) scale(1.03)} 100%{transform:translateY(5%) scale(1.03)} }
+@keyframes cam-pedestal-up   { 0%{transform:translateY(5%) scale(1.03)} 100%{transform:translateY(-5%) scale(1.03)} }
 @keyframes cam-static        { 0%,100%{transform:scale(1)} }
-.cam-preview-scene { width:145%; height:145%; transition:none; animation-timing-function:ease-in-out; animation-iteration-count:infinite; animation-direction:alternate; animation-duration:2.4s; }
+.cam-preview-scene { width:145%; height:145%; transition:none; animation-timing-function:ease-in-out; animation-iteration-count:infinite; animation-direction:alternate; animation-duration:6s; }
 `;
 
 async function cropImageToFile(file: File, cropBox: { x: number; y: number; w: number; h: number }): Promise<File> {
