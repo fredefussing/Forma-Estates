@@ -11,3 +11,4 @@
 - [Stripe current_period_end moved](stripe-current-period-end.md) — Stripe SDK v22/API 2025+ dropped current_period_end from top-level Subscription (now on items); read defensively or the billing date throws Invalid time value.
 - [Boligpotentiale flow persistence](boligpotentiale-flow-persistence.md) — 5 generation flows stay always-mounted (CSS-hidden) so in-flight work survives tab switches; reset-after-save must use cancellable ref timers.
 - [Server modules must not import ./index](server-modules-standalone.md) — importing server/index.ts boots Express (EADDRINUSE in test scripts); leaf modules use a local logger.
+- [Showcase crop frames are aspect-locked](showcase-crop-aspect-lock.md) — pre-made rendy-style frame (h=k·w normalized); ratio switch clears crops; progress always integer.

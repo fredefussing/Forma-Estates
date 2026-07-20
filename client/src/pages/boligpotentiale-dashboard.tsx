@@ -3324,7 +3324,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   // Crop modal
   const [cropModalImg, setCropModalImg] = useState<ShowcaseImg | null>(null);
   const [cropDraft, setCropDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const [cropDragStart, setCropDragStart] = useState<{ px: number; py: number } | null>(null);
+  const [cropK, setCropK] = useState<number | null>(null);
+  const cropDragRef = useRef<{ mode: "move" | "nw" | "ne" | "sw" | "se"; px: number; py: number; orig: { x: number; y: number; w: number; h: number } } | null>(null);
   const cropImgRef = useRef<HTMLImageElement | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const [showcaseSaveCaseId, setShowcaseSaveCaseId] = useState<number | null>(null);
@@ -3447,14 +3448,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setOpenPanelId(null);
   };
 
-  const setCropForImage = (id: string, box: { x: number; y: number; w: number; h: number } | null) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, cropBox: box } : img));
-    const updated = images.find((i) => i.id === id);
-    if (updated) setCropModalImg({ ...updated, cropBox: box });
-  };
+  // ── Rendy-style crop: a pre-made frame locked to the output format (9:16 / 16:9).
+  //    The user drags the frame to position it, or resizes it via corner handles —
+  //    the frame always keeps the video's aspect ratio. Coordinates are normalized 0-1.
+  const cropAspect = ratio === "portrait" ? 9 / 16 : 16 / 9; // output pixel aspect (w/h)
 
-  // Crop modal drag helpers (normalized 0-1 coords)
-  const getCropNorm = (e: React.MouseEvent, imgEl: HTMLImageElement): { px: number; py: number } => {
+  const getCropNorm = (e: { clientX: number; clientY: number }, imgEl: HTMLImageElement): { px: number; py: number } => {
     const rect = imgEl.getBoundingClientRect();
     return {
       px: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
@@ -3462,35 +3461,83 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     };
   };
 
-  const handleCropMouseDown = (e: React.MouseEvent) => {
-    if (!cropImgRef.current) return;
+  const initCropFrame = (el: HTMLImageElement) => {
+    if (!el.naturalWidth || !el.naturalHeight) return;
+    // In normalized coords the frame must satisfy h = k·w to match the output aspect
+    const k = el.naturalWidth / (cropAspect * el.naturalHeight);
+    setCropK(k);
+    const existing = cropModalImg?.cropBox;
+    if (existing) {
+      const boxAspect = (existing.w * el.naturalWidth) / (existing.h * el.naturalHeight);
+      if (Math.abs(boxAspect - cropAspect) / cropAspect < 0.02) { setCropDraft(existing); return; }
+    }
+    // Default: the largest possible frame, centered
+    if (k <= 1) setCropDraft({ x: 0, y: (1 - k) / 2, w: 1, h: k });
+    else setCropDraft({ x: (1 - 1 / k) / 2, y: 0, w: 1 / k, h: 1 });
+  };
+
+  useEffect(() => {
+    if (!cropModalImg) { setCropK(null); return; }
+    const el = cropImgRef.current;
+    if (el && el.complete && el.naturalWidth) initCropFrame(el);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropModalImg?.id]);
+
+  const startCropDrag = (e: React.PointerEvent, mode: "move" | "nw" | "ne" | "sw" | "se") => {
+    if (!cropImgRef.current || !cropDraft) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pt = getCropNorm(e, cropImgRef.current);
+    cropDragRef.current = { mode, px: pt.px, py: pt.py, orig: cropDraft };
+  };
+
+  const CROP_MIN_W = 0.12;
+  const handleCropPointerMove = (e: React.PointerEvent) => {
+    const drag = cropDragRef.current;
+    if (!drag || !cropImgRef.current || !cropK) return;
     e.preventDefault();
     const pt = getCropNorm(e, cropImgRef.current);
-    setCropDragStart(pt);
-    setCropDraft({ x: pt.px, y: pt.py, w: 0, h: 0 });
+    const dx = pt.px - drag.px;
+    const dy = pt.py - drag.py;
+    const o = drag.orig;
+    const k = cropK;
+    if (drag.mode === "move") {
+      const x = Math.max(0, Math.min(1 - o.w, o.x + dx));
+      const y = Math.max(0, Math.min(1 - o.h, o.y + dy));
+      setCropDraft({ ...o, x, y });
+      return;
+    }
+    let w: number;
+    if (drag.mode === "se") {
+      const maxW = Math.min(1 - o.x, (1 - o.y) / k);
+      w = Math.min(maxW, Math.max(CROP_MIN_W, Math.max(o.w + dx, (o.h + dy) / k)));
+      setCropDraft({ x: o.x, y: o.y, w, h: k * w });
+    } else if (drag.mode === "ne") {
+      const x1 = o.x, y2 = o.y + o.h;
+      const maxW = Math.min(1 - x1, y2 / k);
+      w = Math.min(maxW, Math.max(CROP_MIN_W, Math.max(o.w + dx, (o.h - dy) / k)));
+      setCropDraft({ x: x1, y: y2 - k * w, w, h: k * w });
+    } else if (drag.mode === "sw") {
+      const x2 = o.x + o.w, y1 = o.y;
+      const maxW = Math.min(x2, (1 - y1) / k);
+      w = Math.min(maxW, Math.max(CROP_MIN_W, Math.max(o.w - dx, (o.h + dy) / k)));
+      setCropDraft({ x: x2 - w, y: y1, w, h: k * w });
+    } else {
+      const x2 = o.x + o.w, y2 = o.y + o.h;
+      const maxW = Math.min(x2, y2 / k);
+      w = Math.min(maxW, Math.max(CROP_MIN_W, Math.max(o.w - dx, (o.h - dy) / k)));
+      setCropDraft({ x: x2 - w, y: y2 - k * w, w, h: k * w });
+    }
   };
 
-  const handleCropMouseMove = (e: React.MouseEvent) => {
-    if (!cropDragStart || !cropImgRef.current) return;
-    const pt = getCropNorm(e, cropImgRef.current);
-    const x = Math.min(cropDragStart.px, pt.px);
-    const y = Math.min(cropDragStart.py, pt.py);
-    const w = Math.abs(pt.px - cropDragStart.px);
-    const h = Math.abs(pt.py - cropDragStart.py);
-    setCropDraft({ x, y, w, h });
-  };
-
-  const handleCropMouseUp = () => { setCropDragStart(null); };
+  const endCropDrag = () => { cropDragRef.current = null; };
 
   const applyCrop = () => {
-    if (!cropModalImg || !cropDraft || cropDraft.w < 0.02 || cropDraft.h < 0.02) return;
+    if (!cropModalImg || !cropDraft) return;
     setImages((prev) => prev.map((img) => img.id === cropModalImg.id ? { ...img, cropBox: cropDraft } : img));
     setCropModalImg(null);
     setCropDraft(null);
-  };
-
-  const clearCrop = (id: string) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, cropBox: null } : img));
+    setCropK(null);
   };
 
   const handleGenerate = async () => {
@@ -3550,7 +3597,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               const p = JSON.parse(e.data) as { stage: string; progress?: number; message?: string; videos?: any[]; listingId?: string };
               if (p.message) setProgressMsg(p.message);
               if (typeof p.progress === "number") setProgressPct(Math.round(p.progress));
-              if (p.videos && Array.isArray(p.videos)) setRenderingVideos(p.videos as RendyVideo[]);
+              if (p.videos && Array.isArray(p.videos)) setRenderingVideos((p.videos as RendyVideo[]).map((v) => (typeof v.progress === "number" ? { ...v, progress: Math.round(v.progress) } : v)));
               if (p.stage === "complete" && p.videos) {
                 clearTimeout(deadlineTimer); es.close(); esRef.current = null;
                 if (!settled) {
@@ -3634,7 +3681,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     <div style={{ paddingLeft: "3.5%" }}>
       {/* ── Crop Modal ── */}
       {cropModalImg && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.88)" }}>
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ background: "rgba(0,0,0,0.88)" }}
+          onPointerMove={handleCropPointerMove}
+          onPointerUp={endCropDrag}
+          onPointerLeave={endCropDrag}
+        >
           <div className="flex items-center justify-between px-6 py-4 shrink-0">
             <button
               type="button"
@@ -3642,62 +3695,77 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 if (cropModalImg) {
                   setImages((prev) => prev.map((i) => i.id === cropModalImg.id ? { ...i, cropBox: null } : i));
                 }
-                setCropModalImg(null); setCropDraft(null); setCropDragStart(null);
+                setCropModalImg(null); setCropDraft(null); setCropK(null); cropDragRef.current = null;
               }}
               className="h-9 px-4 rounded-full text-sm font-semibold border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-all"
+              data-testid="button-crop-remove"
             >
               Fjern afskæring
             </button>
-            <span className="text-white font-semibold text-sm">Afskær billede</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-white font-semibold text-sm">Afskær billede</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.2)", color: "#C8956C" }}>
+                {ratio === "portrait" ? "9:16 · Lodret" : "16:9 · Vandret"}
+              </span>
+            </div>
             <button
               type="button"
               onClick={applyCrop}
-              disabled={!cropDraft || cropDraft.w < 0.02 || cropDraft.h < 0.02}
+              disabled={!cropDraft}
               className="h-9 px-4 rounded-full text-sm font-semibold text-white transition-all disabled:opacity-40"
               style={{ background: "#C8956C" }}
+              data-testid="button-crop-save"
             >
               Gem afskæring
             </button>
           </div>
-          <div
-            className="flex-1 flex items-center justify-center p-6 select-none"
-            style={{ cursor: cropDragStart ? "crosshair" : "crosshair" }}
-          >
-            <div
-              className="relative inline-block"
-              onMouseDown={handleCropMouseDown}
-              onMouseMove={handleCropMouseMove}
-              onMouseUp={handleCropMouseUp}
-              onMouseLeave={handleCropMouseUp}
-            >
+          <div className="flex-1 flex items-center justify-center p-6 select-none">
+            <div className="relative inline-block touch-none">
               <img
                 ref={cropImgRef}
                 src={cropModalImg.url}
                 alt="Afskær"
                 className="max-h-[70vh] max-w-full rounded-lg block"
                 draggable={false}
+                onLoad={(e) => initCropFrame(e.currentTarget)}
               />
-              {cropDraft && cropDraft.w > 0.005 && cropDraft.h > 0.005 && (
-                <>
-                  <div className="absolute inset-0 pointer-events-none" style={{ background: "rgba(0,0,0,0.5)" }} />
-                  <div
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: `${cropDraft.x * 100}%`,
-                      top: `${cropDraft.y * 100}%`,
-                      width: `${cropDraft.w * 100}%`,
-                      height: `${cropDraft.h * 100}%`,
-                      boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
-                      border: "2px solid #C8956C",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </>
+              {cropDraft && (
+                <div
+                  className="absolute cursor-move"
+                  onPointerDown={(e) => startCropDrag(e, "move")}
+                  style={{
+                    left: `${cropDraft.x * 100}%`,
+                    top: `${cropDraft.y * 100}%`,
+                    width: `${cropDraft.w * 100}%`,
+                    height: `${cropDraft.h * 100}%`,
+                    boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)",
+                    border: "2px solid #C8956C",
+                    boxSizing: "border-box",
+                    borderRadius: 4,
+                  }}
+                  data-testid="crop-frame"
+                >
+                  {/* Rule-of-thirds guides */}
+                  <div className="absolute inset-y-0 pointer-events-none" style={{ left: "33.33%", width: 1, background: "rgba(255,255,255,0.25)" }} />
+                  <div className="absolute inset-y-0 pointer-events-none" style={{ left: "66.66%", width: 1, background: "rgba(255,255,255,0.25)" }} />
+                  <div className="absolute inset-x-0 pointer-events-none" style={{ top: "33.33%", height: 1, background: "rgba(255,255,255,0.25)" }} />
+                  <div className="absolute inset-x-0 pointer-events-none" style={{ top: "66.66%", height: 1, background: "rgba(255,255,255,0.25)" }} />
+                  {/* Corner resize handles */}
+                  {([["nw", "top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize"], ["ne", "top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize"], ["sw", "bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize"], ["se", "bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize"]] as const).map(([corner, cls]) => (
+                    <div
+                      key={corner}
+                      onPointerDown={(e) => startCropDrag(e, corner)}
+                      className={`absolute w-3.5 h-3.5 rounded-full transform ${cls}`}
+                      style={{ background: "#C8956C", border: "2px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+                      data-testid={`crop-handle-${corner}`}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>
           <p className="text-center pb-5 shrink-0 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-            Træk for at vælge hvilken del af billedet der skal med i videoen
+            Flyt rammen for at vælge hvad der kommer med i videoen — træk i hjørnerne for at ændre størrelsen
           </p>
         </div>
       )}
@@ -3756,7 +3824,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 const active = ratio === r;
                 return (
                   <button key={r} type="button"
-                    onClick={() => { if (!isGenerating) setRatio(r); }}
+                    onClick={() => {
+                      if (isGenerating || ratio === r) return;
+                      setRatio(r);
+                      // Crops are locked to the output aspect — clear them when the format changes
+                      setImages((prev) => prev.map((img) => img.cropBox ? { ...img, cropBox: null } : img));
+                    }}
                     disabled={isGenerating}
                     className="flex items-center gap-2 px-4 h-9 text-sm font-semibold transition-all disabled:opacity-50"
                     style={{
@@ -3834,7 +3907,21 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 data-testid={`thumb-showcase-${idx}`}
               >
                 <div className={`relative w-full overflow-hidden ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}>
-                  <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover block" />
+                  {img.cropBox ? (
+                    <img
+                      src={img.url}
+                      alt={`Billede ${idx + 1}`}
+                      className="absolute block max-w-none"
+                      style={{
+                        width: `${(100 / img.cropBox.w)}%`,
+                        height: `${(100 / img.cropBox.h)}%`,
+                        left: `${(-img.cropBox.x / img.cropBox.w) * 100}%`,
+                        top: `${(-img.cropBox.y / img.cropBox.h) * 100}%`,
+                      }}
+                    />
+                  ) : (
+                    <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover block" />
+                  )}
 
                   {/* Number badge */}
                   <div className="absolute top-2 left-2 w-6 h-6 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold flex items-center justify-center">
@@ -3903,7 +3990,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         <div className="relative group/crop">
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setCropModalImg(img); setCropDraft(img.cropBox ?? null); setCropDragStart(null); }}
+                            onClick={(e) => { e.stopPropagation(); setCropModalImg(img); setCropDraft(null); setCropK(null); cropDragRef.current = null; }}
                             className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[#F0EDE9]"
                             style={{ color: hasCrop ? "#1D6BC8" : "#0F1D2F" }}
                             data-testid={`button-crop-${idx}`}
