@@ -58,15 +58,6 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: displayName.trim() });
 
-      const signupSource = redirect !== "/boligpotentiale/dashboard"
-        ? `Signup via ${redirect} redirect`
-        : `Direkte signup (/opret)`;
-      fetch("/api/auth/welcome-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userCredential.user.email, source: signupSource }),
-      }).catch(() => {});
-
       setSuccess("Bruger oprettet! Bekræft din email med koden vi har sendt...");
       setTimeout(() => {
         setLocation(`/verificer-email?redirect=${encodeURIComponent(redirect)}`);

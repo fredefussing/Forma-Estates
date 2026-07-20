@@ -99,21 +99,34 @@ export async function sendWelcomeEmail(email: string, source?: string) {
           <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
             <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
             <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">Velkommen til Forma Estates!</h1>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Hej!</p>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Tak for at du oprettede en konto. Vi glæder os til at hjælpe dig med at sælge dine boliger hurtigere med professionelle AI-visualiseringer.</p>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 8px;">Med Forma Estates kan du:</p>
-            <ul style="color:#555;font-size:15px;line-height:2;margin:0 0 20px;padding-left:20px;">
-              <li>Transformere rum med AI på sekunder</li>
-              <li>Vælge mellem 8 forskellige stilarter</li>
-              <li>Imponere dine boligkøbere med fotorealistiske visualiseringer</li>
-            </ul>
-            <p style="text-align:center;margin:28px 0;">
-              <a href="https://formaestates.com/find-stil"
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Tak fordi du oprettede en konto. Forma Estates hjælper professionelle i hele ejendomsbranchen — ejendomsmæglere, boligudlejere, byggefirmaer, ejendomsudviklere og ejerforeninger — med at præsentere ejendomme på deres allerbedste med fotorealistiske AI-visualiseringer.</p>
+
+            <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:20px 22px;margin:0 0 22px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:10px;">Det kan du med Forma Estates</div>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;width:45%;">AI-indretningsdesign</td><td style="padding:6px 0;color:#777;font-size:13px;">Foto af et rum → fotorealistisk redesign på sekunder</td></tr>
+                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;">3D-plantegninger</td><td style="padding:6px 0;color:#777;font-size:13px;">2D-plantegning → flot 3D-version</td></tr>
+                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;">Videoer & showcases</td><td style="padding:6px 0;color:#777;font-size:13px;">Før/efter-videoer og præsentationsvideoer til annoncer og SoMe</td></tr>
+                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;">AI Design Agent</td><td style="padding:6px 0;color:#777;font-size:13px;">Beskriv frit hvad du ønsker — fuld kreativ frihed</td></tr>
+              </table>
+            </div>
+
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 6px;">Din konto starter med <strong style="color:#0F1923;">gratis AI-visualiseringer</strong>, så du kan prøve platformen af med det samme.</p>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Vil du have fuld adgang til 3D-plantegninger, videoer, showcases og flere månedlige visualiseringer? <strong style="color:#0F1923;">Opgradér til et abonnement</strong> — fra 2.999 kr/md.</p>
+
+            <p style="text-align:center;margin:26px 0 10px;">
+              <a href="https://formaestates.com/boligpotentiale/dashboard"
                  style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
                 Start dit første design →
               </a>
             </p>
-            <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">Venlig hilsen<br/><strong style="color:#0F1923;">Forma Estates</strong></p>
+            <p style="text-align:center;margin:0 0 24px;">
+              <a href="https://formaestates.com/pris"
+                 style="background:#C9A96E;color:white;padding:12px 26px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:14px;">
+                Se abonnementer & opgradér nu
+              </a>
+            </p>
+            <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">Spørgsmål? Svar blot på denne mail — vi sidder klar.<br/><br/>Venlig hilsen<br/><strong style="color:#0F1923;">Forma Estates</strong></p>
           </div>
           <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
         </div>

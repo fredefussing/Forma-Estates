@@ -1256,18 +1256,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/welcome-email", async (req, res) => {
-    try {
-      const { email, source } = req.body;
-      if (!email || typeof email !== "string") {
-        return res.status(400).json({ error: "Email is required" });
-      }
-      sendWelcomeEmail(email, source);
-      return res.json({ success: true });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  });
+  // NOTE: welcome emails are sent exclusively server-side when the user row is
+  // first created in /api/auth/verify — a separate client-triggered endpoint
+  // caused duplicate welcome + admin emails.
 
   app.post("/api/admin/login", (req, res) => {
     const { password } = req.body;
@@ -4493,7 +4484,7 @@ export async function registerRoutes(
       const SYSTEM_PROMPT = `Du er en hjælpsom AI-assistent for Forma Estates – en avanceret AI-platform til professionel ejendomsvisualisering i Danmark. Du svarer altid på dansk, er venlig, præcis og professionel. Omtal altid platformen som "Forma Estates" – aldrig "Nordic Homebuild" eller andre navne.
 
 ## Om Forma Estates
-Forma Estates er en AI-drevet platform der hjælper professionelle i ejendomsbranchen med at præsentere ejendomme professionelt vha. AI-genererede visualiseringer. Platformen bruges af:
+Forma Estates er en AI-drevet platform der hjælper professionelle i HELE ejendomsbranchen — ikke kun ejendomsmæglere — med at præsentere ejendomme professionelt vha. AI-genererede visualiseringer. Platformen bruges af:
 - Ejendomsmæglere (before/after-visualiseringer, reels, annoncer)
 - Ejendomsudviklere og byggefirmaer (projektvisualiseringer, 3D-plantegninger, cinematic walkthroughs)
 - Ejerforeninger og boligforeninger (renoveringsforslag, AI Design Agent, 3D-plantegninger)
@@ -4512,7 +4503,7 @@ Platformen tilbyder:
 - Genererer og gemmer AI-visualiseringer per sag
 - Ser statistik over billeder, sager og aktivitet
 - Administrerer deres konto og abonnement
-BoligPotentiale er altså et andet ord for det professionelle dashboard i Forma Estates. Adgang kræver et aktivt abonnement.
+BoligPotentiale er altså et andet ord for det professionelle dashboard i Forma Estates. Alle nye brugere får adgang med en gratis prøve (2 gratis AI-visualiseringer) — fuld adgang til 3D-plantegninger, videoer og showcases kræver et aktivt abonnement.
 
 ## Alle funktioner i detaljer
 
@@ -4568,6 +4559,12 @@ Pro og Business inkluderer 4K download og fuld branding-kontrol.
 Alle pakker inkluderer HD 1080p download og JPG + PNG eksport.
 
 Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkte her på platformen via /pris siden.
+
+## Oprettelse & gratis prøve
+- Ny konto oprettes på /opret med navn, email og password
+- Ved oprettelse skal emailen bekræftes med en 6-cifret aktiveringskode, som sendes til brugerens email (gyldig i 15 minutter — tjek evt. spam-mappen, og brug "Send ny kode" hvis den ikke kommer)
+- Efter bekræftelse starter alle nye brugere med en gratis prøve: 2 gratis AI-visualiseringer (før/efter), så platformen kan prøves af med det samme
+- Den gratis prøve inkluderer AI-visualisering og AI Design Agent — 3D-plantegninger, videoer og showcases kræver et abonnement
 
 ## Kreditsystem
 - Nye brugere får gratis startbilleder (kreditter) ved oprettelse af konto

@@ -69,11 +69,19 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+// Module-level cache so newly mounted gates/widgets start from the latest
+// known quota instead of flashing a "loading → locked/unlocked" transition.
+// User-scoped: cache from one account is never shown for another.
+let quotaCache: { uid: string; data: QuotaData } | null = null;
+
 export function useQuotaData(): QuotaData | null {
   const { user } = useAuth();
-  const [data, setData] = useState<QuotaData | null>(null);
+  const [data, setData] = useState<QuotaData | null>(
+    quotaCache && quotaCache.uid === user?.uid ? quotaCache.data : null
+  );
   useEffect(() => {
-    if (!user) return;
+    if (!user) { quotaCache = null; setData(null); return; }
+    if (quotaCache && quotaCache.uid !== user.uid) { quotaCache = null; setData(null); }
     let cancelled = false;
     const load = async () => {
       try {
@@ -81,6 +89,7 @@ export function useQuotaData(): QuotaData | null {
         const res = await fetch("/api/bolig/quota", { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) return;
         const json = await res.json();
+        quotaCache = { uid: user.uid, data: json };
         if (!cancelled) setData(json);
       } catch { /* ignore */ }
     };

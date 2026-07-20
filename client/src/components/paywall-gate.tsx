@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Lock, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,16 +13,32 @@ export function useIsSubscribed() {
 }
 
 // Free-trial users get a small AI allowance (see FREE_TRIAL_QUOTAS on the
-// server). Returns true while they still have trial generations left.
-// Fails closed: while quota data is loading (or the fetch fails) access is
-// NOT granted — the server enforces the real limit regardless.
-export function useHasFreeTrialCredits() {
+// server). Returns true while they still have trial generations left,
+// false when they don't, and null while quota data is still loading —
+// callers render a neutral state instead of flashing a lock. The server
+// enforces the real limit regardless.
+export function useHasFreeTrialCredits(): boolean | null {
   const quotaData = useQuotaData();
-  if (quotaData == null) return false;
+  if (quotaData == null) return null;
   if (quotaData.isAdmin) return true;
   const ai = quotaData.quota.ai;
   if (ai.limit === null) return true;
   return ai.limit - ai.used > 0;
+}
+
+// Wraps useHasFreeTrialCredits with a deadline: if quota data still hasn't
+// arrived after a few seconds (network error, etc.) we fail CLOSED (false)
+// instead of leaving the UI in a blank/neutral state forever.
+function useFreeTrialGateState(): boolean | null {
+  const raw = useHasFreeTrialCredits();
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    if (raw !== null) { setTimedOut(false); return; }
+    const t = setTimeout(() => setTimedOut(true), 4000);
+    return () => clearTimeout(t);
+  }, [raw]);
+  if (raw !== null) return raw;
+  return timedOut ? false : null;
 }
 
 const EXAMPLE_PAIRS = [
@@ -32,10 +49,15 @@ const EXAMPLE_PAIRS = [
 
 export function PaywallPage({ children, allowFreeTrial = false }: { children: React.ReactNode; allowFreeTrial?: boolean }) {
   const isSubscribed = useIsSubscribed();
-  const hasFreeTrialCredits = useHasFreeTrialCredits();
+  const hasFreeTrialCredits = useFreeTrialGateState();
   const [, setLocation] = useLocation();
 
-  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits)) return <>{children}</>;
+  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits === true)) return <>{children}</>;
+
+  // Quota still loading → neutral blank state instead of flashing the paywall
+  if (allowFreeTrial && hasFreeTrialCredits === null) {
+    return <div className="min-h-[80vh]" style={{ background: "#FAF7F2" }} />;
+  }
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center px-4 pt-10 pb-16" style={{ background: "#FAF7F2" }}>
@@ -160,10 +182,20 @@ export function PaywallAction({
   allowFreeTrial?: boolean;
 }) {
   const isSubscribed = useIsSubscribed();
-  const hasFreeTrialCredits = useHasFreeTrialCredits();
+  const hasFreeTrialCredits = useFreeTrialGateState();
   const [, setLocation] = useLocation();
 
-  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits)) return <div className={className}>{children}</div>;
+  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits === true)) return <div className={className}>{children}</div>;
+
+  // Quota still loading → show the content dimmed, without the lock badge,
+  // so free-trial users never see "Kræver abonnement" flash for a split second.
+  if (allowFreeTrial && hasFreeTrialCredits === null) {
+    return (
+      <div className={className}>
+        <div style={{ opacity: 0.4, pointerEvents: "none", userSelect: "none" }}>{children}</div>
+      </div>
+    );
+  }
 
   return (
     <div
