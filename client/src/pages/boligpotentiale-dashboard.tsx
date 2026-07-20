@@ -3245,16 +3245,16 @@ const CAMERA_PRESETS: { key: string; name: string; icon: string; animName: strin
 ];
 
 const CAM_PREVIEW_CSS = `
-@keyframes cam-slide-left    { 0%{transform:translateX(6%)} 100%{transform:translateX(-6%)} }
-@keyframes cam-slide-right   { 0%{transform:translateX(-6%)} 100%{transform:translateX(6%)} }
-@keyframes cam-push-in       { 0%{transform:scale(1)} 100%{transform:scale(1.18)} }
-@keyframes cam-pull-out      { 0%{transform:scale(1.18)} 100%{transform:scale(1)} }
-@keyframes cam-orbit-left    { 0%{transform:translateX(5%) scale(1.04) rotate(1.5deg)} 100%{transform:translateX(-5%) scale(1.04) rotate(-1.5deg)} }
-@keyframes cam-orbit-right   { 0%{transform:translateX(-5%) scale(1.04) rotate(-1.5deg)} 100%{transform:translateX(5%) scale(1.04) rotate(1.5deg)} }
-@keyframes cam-crane-down    { 0%{transform:translateY(-6%)} 100%{transform:translateY(6%)} }
-@keyframes cam-crane-up      { 0%{transform:translateY(6%)} 100%{transform:translateY(-6%)} }
-@keyframes cam-pedestal-down { 0%{transform:translateY(-5%) scale(1.03)} 100%{transform:translateY(5%) scale(1.03)} }
-@keyframes cam-pedestal-up   { 0%{transform:translateY(5%) scale(1.03)} 100%{transform:translateY(-5%) scale(1.03)} }
+@keyframes cam-slide-left    { 0%{transform:perspective(600px) translateX(6%)} 100%{transform:perspective(600px) translateX(-6%)} }
+@keyframes cam-slide-right   { 0%{transform:perspective(600px) translateX(-6%)} 100%{transform:perspective(600px) translateX(6%)} }
+@keyframes cam-push-in       { 0%{transform:perspective(600px) translateZ(0)} 100%{transform:perspective(600px) translateZ(70px)} }
+@keyframes cam-pull-out      { 0%{transform:perspective(600px) translateZ(70px)} 100%{transform:perspective(600px) translateZ(0)} }
+@keyframes cam-orbit-left    { 0%{transform:perspective(600px) rotateY(9deg) translateX(3%) scale(1.06)} 100%{transform:perspective(600px) rotateY(-9deg) translateX(-3%) scale(1.06)} }
+@keyframes cam-orbit-right   { 0%{transform:perspective(600px) rotateY(-9deg) translateX(-3%) scale(1.06)} 100%{transform:perspective(600px) rotateY(9deg) translateX(3%) scale(1.06)} }
+@keyframes cam-crane-down    { 0%{transform:perspective(600px) rotateX(-5deg) translateY(-5%) scale(1.04)} 100%{transform:perspective(600px) rotateX(5deg) translateY(5%) scale(1.04)} }
+@keyframes cam-crane-up      { 0%{transform:perspective(600px) rotateX(5deg) translateY(5%) scale(1.04)} 100%{transform:perspective(600px) rotateX(-5deg) translateY(-5%) scale(1.04)} }
+@keyframes cam-pedestal-down { 0%{transform:perspective(600px) translateY(-6%)} 100%{transform:perspective(600px) translateY(6%)} }
+@keyframes cam-pedestal-up   { 0%{transform:perspective(600px) translateY(6%)} 100%{transform:perspective(600px) translateY(-6%)} }
 @keyframes cam-static        { 0%,100%{transform:scale(1)} }
 .cam-preview-scene { width:145%; height:145%; transition:none; animation-timing-function:ease-in-out; animation-iteration-count:infinite; animation-direction:alternate; animation-duration:6s; }
 `;

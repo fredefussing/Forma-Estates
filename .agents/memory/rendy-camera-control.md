@@ -9,7 +9,8 @@ description: How Rendy's public API handles camera-movement keys, and how to pro
 - Camera keys are sent as the per-image `presetKey` on `POST /listings` — there is NO separate camera field. The listing schema only knows `address`, `ratio`, `imageUrls[{url, presetKey, originalImageWidth, originalImageHeight}]`.
 - The API no longer rejects unknown presetKeys upfront (older behavior did). Unknown keys are silently ignored, so validate keys yourself against `/camera-movements` + `/presets` before sending.
 - Music is NOT controllable via the public API (no known field).
-- Camera movements have no official sample videos (unlike VFX presets, which stream from Rendy's Supabase).
+- Camera movements have no official sample videos anywhere (unlike VFX presets, which stream from Rendy's Supabase) — verified exhaustively: API, landing page, Supabase path guesses, and ALL public webpack chunks. Rendy's own picker instead renders 3D-transform previews of the user's own image (their form schema has `cameraActionKey` enum + `cameraCustom {horizontal, vertical, zoom, pan, tilt, rotate}`). Replicate with CSS `perspective()` transforms, not videos.
+- To enumerate a Next.js site's full public chunk set: fetch `webpack-*.js` runtime, extract `chunkId:"16hexhash"` pairs → `/_next/static/chunks/{id}-{hash}.js`, download all, grep. Route-level app chunks behind auth are NOT in this map.
 
 **How to apply:** any change to which keys we forward to Rendy should be validated against the live `/camera-movements` and `/presets` endpoints (both free GET calls).
 
