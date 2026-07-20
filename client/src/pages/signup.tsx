@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
 
 export default function SignupPage() {
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [, setLocation] = useLocation();
 
   const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
@@ -119,32 +120,54 @@ export default function SignupPage() {
           </div>
           <div>
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              placeholder="Min. 6 tegn"
-              autoComplete="new-password"
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5"
-              data-testid="input-password"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Min. 6 tegn"
+                autoComplete="new-password"
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-10"
+                data-testid="input-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showPassword ? "Skjul password" : "Vis password"}
+                data-testid="button-toggle-password"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <div>
             <Label htmlFor="confirmPassword">Gentag password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              required
-              placeholder="Gentag password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1.5"
-              data-testid="input-confirm-password"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Gentag password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="pr-10"
+                data-testid="input-confirm-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showPassword ? "Skjul password" : "Vis password"}
+                data-testid="button-toggle-confirm-password"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <Button type="submit" className="w-full h-12 text-base" disabled={loading} data-testid="button-signup">
