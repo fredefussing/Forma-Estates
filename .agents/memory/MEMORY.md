@@ -1,3 +1,4 @@
+- [Live hosting is Render, not Replit](live-hosting-render.md) — formaestates.com runs on Render (GitHub auto-deploy) but uses the Replit PROD database; schema only syncs on Publish.
 - [Drizzle-kit push interactive prompt](drizzle-push-prompt.md) — `npm run db:push` blocks on a "rename or create" prompt that doesn't accept piped input; fall back to direct `psql` DDL.
 - [Upgrade fal.ai transform-video to v3/pro](fal-video-model-upgrade.md) — currently on v1.6/pro due to account access; upgrade to v3/pro when fal.ai billing is in order.
 - [Showcase paid-AI slot gating](showcase-paid-ai-gating.md) — gate paid fal.ai clip generation behind the render queue slot (acquire at top of render), bound per-job fan-out, clean partial temp clips.
