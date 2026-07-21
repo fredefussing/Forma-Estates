@@ -8177,6 +8177,7 @@ export default function BoligpotentialeDashboard() {
   const quotaData = useQuotaData();
   const lockedTV = !isAdmin && quotaData != null && quotaData.quota.transformVideo.limit === 0;
   const lockedSV = !isAdmin && quotaData != null && quotaData.quota.showcase.limit === 0;
+  const lockedFP = !isAdmin && quotaData != null && quotaData.quota.floorPlan.limit === 0;
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
@@ -8528,7 +8529,7 @@ export default function BoligpotentialeDashboard() {
     { id: "sager" as Section, label: "Alle sager", icon: <FolderOpen className="w-[18px] h-[18px]" /> },
     { id: "solgte" as Section, label: "Solgte sager", icon: <PackageCheck className="w-[18px] h-[18px]" />, badge: soldCount > 0 ? soldCount : null },
     { id: "ai-design-agent" as Section, label: "AI Design Agent", icon: <PenTool className="w-[18px] h-[18px]" /> },
-    { id: "3d-plantegning" as Section, label: "3D plantegning", icon: <Box className="w-[18px] h-[18px]" /> },
+    { id: "3d-plantegning" as Section, label: "3D plantegning", icon: <Box className="w-[18px] h-[18px]" />, locked: lockedFP },
     { id: "transformering-video" as Section, label: "Transformering video", icon: <Video className="w-[18px] h-[18px]" />, locked: lockedTV },
     ...(isOwner ? [{ id: "ai-boligfremvisning" as Section, label: "AI boligfremvisning", icon: <Home className="w-[18px] h-[18px]" /> }] : []),
     { id: "showcase-video" as Section, label: "Bolig showcase", icon: <Film className="w-[18px] h-[18px]" />, locked: lockedSV },
