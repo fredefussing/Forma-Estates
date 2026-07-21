@@ -57,6 +57,7 @@ interface BillingSubscriptionInfo {
   cancelAtPeriodEnd: boolean;
   cancelAt: string | null;
   stripeSubscriptionId: string | null;
+  paused: boolean;
 }
 interface BillingOverview {
   subscription: BillingSubscriptionInfo | null;
@@ -8681,6 +8682,60 @@ export default function BoligpotentialeDashboard() {
     },
   });
 
+  const reactivateSubscriptionMutation = useMutation({
+    mutationFn: async (subscriptionId: string) => {
+      const token = await user!.getIdToken();
+      const res = await fetch("/api/billing/reactivate", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
+        throw new Error(err.error || "Fejl ved genaktivering");
+      }
+      return res.json();
+    },
+    onSuccess: () => { refetchBilling(); setToast("Abonnement genaktiveret — opsigelsen er fortrudt."); },
+    onError: (err: Error) => { setToast(`Fejl: ${err.message}`); },
+  });
+
+  const pauseSubscriptionMutation = useMutation({
+    mutationFn: async (subscriptionId: string) => {
+      const token = await user!.getIdToken();
+      const res = await fetch("/api/billing/pause", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
+        throw new Error(err.error || "Fejl ved pausering");
+      }
+      return res.json();
+    },
+    onSuccess: () => { refetchBilling(); setToast("Abonnement sat på pause — ingen opkrævning i pauseperioden."); },
+    onError: (err: Error) => { setToast(`Fejl: ${err.message}`); },
+  });
+
+  const resumeSubscriptionMutation = useMutation({
+    mutationFn: async (subscriptionId: string) => {
+      const token = await user!.getIdToken();
+      const res = await fetch("/api/billing/resume", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
+        throw new Error(err.error || "Fejl ved genoptagelse");
+      }
+      return res.json();
+    },
+    onSuccess: () => { refetchBilling(); setToast("Abonnement genoptaget — fakturering fortsætter normalt."); },
+    onError: (err: Error) => { setToast(`Fejl: ${err.message}`); },
+  });
+
   // ── Create case mutation ───────────────────────────────────────────────────
   const createCaseMutation = useMutation({
     mutationFn: async ({ address, caseNo, notes }: { address: string; caseNo: string; notes: string }) => {
@@ -9759,60 +9814,105 @@ export default function BoligpotentialeDashboard() {
                               )}
                             </div>
 
-                            {/* Opsig / cancel */}
-                            {billingOverview.subscription.stripeSubscriptionId && !billingOverview.subscription.cancelAtPeriodEnd && (
-                              <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
-                                {!cancelConfirming ? (
-                                  <button
-                                    onClick={() => setCancelConfirming(true)}
-                                    className="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
-                                    style={{ color: "#DC2626" }}
-                                    data-testid="billing-cancel-button"
-                                  >
-                                    Opsig abonnement
-                                  </button>
-                                ) : (
-                                  <div className="flex items-start gap-4 flex-wrap">
-                                    <p className="text-sm" style={{ color: "#0F1D2F" }}>
-                                      Er du sikker? Du bevarer adgang til{" "}
+                            {/* Abonnementsstyring: pause / genoptag / opsig / genaktiver */}
+                            {billingOverview.subscription.stripeSubscriptionId && (
+                              <div className="pt-4 border-t flex flex-col gap-3" style={{ borderColor: "#E5E2DC" }}>
+
+                                {/* Pauset tilstand */}
+                                {billingOverview.subscription.paused && (
+                                  <div className="flex items-center justify-between flex-wrap gap-3">
+                                    <p className="text-sm" style={{ color: "#92400E" }}>⏸ Abonnement på pause — ingen opkrævning indtil du genoptager.</p>
+                                    <button
+                                      onClick={() => resumeSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
+                                      disabled={resumeSubscriptionMutation.isPending}
+                                      className="px-4 py-2 rounded-full text-sm font-semibold disabled:opacity-60 hover:opacity-90 transition-opacity"
+                                      style={{ background: "#166534", color: "#fff" }}
+                                      data-testid="billing-resume-button"
+                                    >
+                                      {resumeSubscriptionMutation.isPending ? "Genoptager…" : "Genoptag abonnement"}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Opsagt tilstand — vis genaktiver */}
+                                {billingOverview.subscription.cancelAtPeriodEnd && (
+                                  <div className="flex items-center justify-between flex-wrap gap-3">
+                                    <p className="text-sm" style={{ color: "#92400E" }}>
+                                      ⚠ Opsiges den{" "}
                                       <span className="font-semibold">
                                         {billingOverview.subscription.nextBillingDate
                                           ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
-                                          : "udløbsdatoen"}
-                                      </span>.
+                                          : "—"}
+                                      </span>
                                     </p>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => cancelSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
-                                        disabled={cancelSubscriptionMutation.isPending}
-                                        className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
-                                        style={{ background: "#DC2626", color: "#fff" }}
-                                        data-testid="billing-cancel-confirm"
-                                      >
-                                        {cancelSubscriptionMutation.isPending ? "Opsiger…" : "Opsig alligevel"}
-                                      </button>
-                                      <button
-                                        onClick={() => setCancelConfirming(false)}
-                                        className="px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
-                                        style={{ background: "#F0EDE8", color: "#0F1D2F" }}
-                                      >
-                                        Fortryd
-                                      </button>
-                                    </div>
+                                    <button
+                                      onClick={() => reactivateSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
+                                      disabled={reactivateSubscriptionMutation.isPending}
+                                      className="px-4 py-2 rounded-full text-sm font-semibold disabled:opacity-60 hover:opacity-90 transition-opacity"
+                                      style={{ background: "#0F1D2F", color: "#fff" }}
+                                      data-testid="billing-reactivate-button"
+                                    >
+                                      {reactivateSubscriptionMutation.isPending ? "Genaktiverer…" : "Fortryd opsigelse"}
+                                    </button>
                                   </div>
                                 )}
-                              </div>
-                            )}
-                            {billingOverview.subscription.cancelAtPeriodEnd && (
-                              <div className="pt-4 border-t" style={{ borderColor: "#E5E2DC" }}>
-                                <p className="text-sm" style={{ color: "#92400E" }}>
-                                  ⚠ Dit abonnement er opsagt og udløber den{" "}
-                                  <span className="font-semibold">
-                                    {billingOverview.subscription.nextBillingDate
-                                      ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
-                                      : "—"}
-                                  </span>. Kontakt os på kontakt@formaestates.com for at genoprette.
-                                </p>
+
+                                {/* Aktiv tilstand — vis pause + opsig */}
+                                {!billingOverview.subscription.paused && !billingOverview.subscription.cancelAtPeriodEnd && (
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    {!cancelConfirming ? (
+                                      <>
+                                        <button
+                                          onClick={() => pauseSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
+                                          disabled={pauseSubscriptionMutation.isPending}
+                                          className="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity disabled:opacity-40"
+                                          style={{ color: "#6B6B6B" }}
+                                          data-testid="billing-pause-button"
+                                        >
+                                          {pauseSubscriptionMutation.isPending ? "Sætter på pause…" : "Sæt på pause"}
+                                        </button>
+                                        <span style={{ color: "#D1CEC9" }}>|</span>
+                                        <button
+                                          onClick={() => setCancelConfirming(true)}
+                                          className="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
+                                          style={{ color: "#DC2626" }}
+                                          data-testid="billing-cancel-button"
+                                        >
+                                          Opsig abonnement
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <div className="flex items-start gap-4 flex-wrap">
+                                        <p className="text-sm" style={{ color: "#0F1D2F" }}>
+                                          Er du sikker? Du bevarer adgang til{" "}
+                                          <span className="font-semibold">
+                                            {billingOverview.subscription.nextBillingDate
+                                              ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
+                                              : "udløbsdatoen"}
+                                          </span>.
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => cancelSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
+                                            disabled={cancelSubscriptionMutation.isPending}
+                                            className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
+                                            style={{ background: "#DC2626", color: "#fff" }}
+                                            data-testid="billing-cancel-confirm"
+                                          >
+                                            {cancelSubscriptionMutation.isPending ? "Opsiger…" : "Opsig alligevel"}
+                                          </button>
+                                          <button
+                                            onClick={() => setCancelConfirming(false)}
+                                            className="px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+                                            style={{ background: "#F0EDE8", color: "#0F1D2F" }}
+                                          >
+                                            Fortryd
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </>

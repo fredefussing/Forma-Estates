@@ -5184,6 +5184,7 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
           cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
           cancelAt: stripeSubscription.cancel_at ? new Date(stripeSubscription.cancel_at * 1000).toISOString() : null,
           stripeSubscriptionId: stripeSubscription.id,
+          paused: !!(stripeSubscription as any).pause_collection,
         };
       } else if (user.subscriptionStatus === "active") {
         subscriptionInfo = {
@@ -5312,6 +5313,66 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
+  });
+
+  // Undo cancellation — remove cancel_at_period_end
+  app.post("/api/billing/reactivate", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    let uid: string;
+    try { ({ uid } = await verifyFirebaseToken(req.headers.authorization)); }
+    catch { return res.status(401).json({ error: "Ikke autoriseret" }); }
+    try {
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const { subscriptionId } = req.body;
+      if (!subscriptionId || typeof subscriptionId !== "string") return res.status(400).json({ error: "subscriptionId påkrævet" });
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      const customerId = typeof sub.customer === "string" ? sub.customer : (sub.customer as any).id;
+      const customer = await stripe.customers.retrieve(customerId);
+      if ("deleted" in customer || customer.email?.toLowerCase() !== user.email.toLowerCase()) return res.status(403).json({ error: "Ingen adgang" });
+      await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: false });
+      return res.json({ success: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  // Pause subscription — stop charging but keep subscription alive
+  app.post("/api/billing/pause", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    let uid: string;
+    try { ({ uid } = await verifyFirebaseToken(req.headers.authorization)); }
+    catch { return res.status(401).json({ error: "Ikke autoriseret" }); }
+    try {
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const { subscriptionId } = req.body;
+      if (!subscriptionId || typeof subscriptionId !== "string") return res.status(400).json({ error: "subscriptionId påkrævet" });
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      const customerId = typeof sub.customer === "string" ? sub.customer : (sub.customer as any).id;
+      const customer = await stripe.customers.retrieve(customerId);
+      if ("deleted" in customer || customer.email?.toLowerCase() !== user.email.toLowerCase()) return res.status(403).json({ error: "Ingen adgang" });
+      await stripe.subscriptions.update(subscriptionId, { pause_collection: { behavior: "void" } });
+      return res.json({ success: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  // Resume paused subscription
+  app.post("/api/billing/resume", async (req, res) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe ikke konfigureret" });
+    let uid: string;
+    try { ({ uid } = await verifyFirebaseToken(req.headers.authorization)); }
+    catch { return res.status(401).json({ error: "Ikke autoriseret" }); }
+    try {
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const { subscriptionId } = req.body;
+      if (!subscriptionId || typeof subscriptionId !== "string") return res.status(400).json({ error: "subscriptionId påkrævet" });
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      const customerId = typeof sub.customer === "string" ? sub.customer : (sub.customer as any).id;
+      const customer = await stripe.customers.retrieve(customerId);
+      if ("deleted" in customer || customer.email?.toLowerCase() !== user.email.toLowerCase()) return res.status(403).json({ error: "Ingen adgang" });
+      await stripe.subscriptions.update(subscriptionId, { pause_collection: "" as any });
+      return res.json({ success: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
   app.post("/api/create-package-checkout", async (req, res) => {
