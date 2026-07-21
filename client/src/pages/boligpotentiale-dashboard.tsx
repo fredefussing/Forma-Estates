@@ -6123,6 +6123,13 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
         </div>
       )}
 
+      <GuidedTourSection
+        propertyId={propertyId}
+        property={property}
+        rooms={property?.rooms ?? []}
+        invalidate={() => queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] })}
+      />
+
       {/* Centered modal picker for the just-drawn rum. Rendered at the root
           of PropertyTourDetail (outside the floor-plan's overflow-hidden box)
           so it can never get clipped, regardless of where on the plan the
