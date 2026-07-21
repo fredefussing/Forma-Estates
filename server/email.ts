@@ -622,3 +622,103 @@ export async function sendTeamInviteEmail(toEmail: string, teamName: string, inv
     log(`Failed to send team invite email to ${toEmail}: ${err.message}`);
   }
 }
+
+// ── Onboarding-drip (dag 2 + dag 5) ──────────────────────────────────────────
+// Sendes kun til verificerede brugere uden genereringer, som ikke har frameldt
+// sig. Afmeld-linket er HMAC-signeret, så ingen kan framelde andre.
+import crypto from "crypto";
+
+function unsubscribeSecret(): string {
+  return process.env.UNSUBSCRIBE_SECRET || process.env.BREVO_API_KEY || "forma-unsub-fallback";
+}
+
+export function unsubscribeSig(userId: number): string {
+  return crypto.createHmac("sha256", unsubscribeSecret()).update(String(userId)).digest("hex").slice(0, 32);
+}
+
+export function verifyUnsubscribeSig(userId: number, sig: string): boolean {
+  const expected = unsubscribeSig(userId);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(String(sig)));
+  } catch {
+    return false;
+  }
+}
+
+function unsubscribeFooter(userId: number): string {
+  const link = `https://formaestates.com/api/unsubscribe?u=${userId}&sig=${unsubscribeSig(userId)}`;
+  return `<div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark<br/><a href="${link}" style="color:#999;text-decoration:underline;">Afmeld disse mails</a></div>`;
+}
+
+export async function sendOnboardingDay2Email(email: string, name: string | null, userId: number) {
+  const greeting = name ? `Hej ${name.split(" ")[0]}` : "Hej";
+  await sendBrevoEmail({
+    to: email,
+    subject: "Dit første AI-billede tager under et minut — Forma Estates",
+    senderEmail: KONTAKT_EMAIL,
+    replyTo: KONTAKT_EMAIL,
+    html: `
+      <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+        <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
+          <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
+          <h1 style="color:#0F1923;font-size:24px;margin:10px 0 18px;font-weight:500;">${greeting} — klar til dit første før/efter?</h1>
+          <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Du oprettede en konto for et par dage siden, men har ikke lavet din første AI-visualisering endnu. Det tager under et minut:</p>
+          <table style="width:100%;border-collapse:collapse;margin:0 0 20px;">
+            <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">1.</strong>&nbsp; Upload et foto af et rum</td></tr>
+            <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">2.</strong>&nbsp; Vælg rumtype og stil</td></tr>
+            <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">3.</strong>&nbsp; Få et fotorealistisk resultat på ca. 30 sekunder</td></tr>
+          </table>
+          <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Dine gratis visualiseringer venter stadig på kontoen.</p>
+          <p style="text-align:center;margin:26px 0 10px;">
+            <a href="https://formaestates.com/boligpotentiale/dashboard"
+               style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
+              Lav dit første billede →
+            </a>
+          </p>
+          <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">Spørgsmål? Svar blot på denne mail.<br/><br/>Venlig hilsen<br/><strong style="color:#0F1923;">Forma Estates</strong></p>
+        </div>
+        ${unsubscribeFooter(userId)}
+      </div>
+    `,
+  });
+  log(`Drip day-2 email sent to ${email}`);
+}
+
+export async function sendOnboardingDay5Email(email: string, name: string | null, userId: number) {
+  const greeting = name ? `Hej ${name.split(" ")[0]}` : "Hej";
+  await sendBrevoEmail({
+    to: email,
+    subject: "Sådan bruger mæglere AI-visualiseringer til at sælge hurtigere",
+    senderEmail: KONTAKT_EMAIL,
+    replyTo: KONTAKT_EMAIL,
+    html: `
+      <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+        <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
+          <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
+          <h1 style="color:#0F1923;font-size:24px;margin:10px 0 18px;font-weight:500;">${greeting} — tre måder at bruge Forma Estates i dit salgsarbejde</h1>
+          <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:20px 22px;margin:0 0 18px;">
+            <div style="color:#0F1923;font-size:14px;font-weight:600;margin-bottom:4px;">Til sælgermødet</div>
+            <div style="color:#777;font-size:13px;line-height:1.6;">Vis sælger boligens potentiale med før/efter-billeder — et stærkt argument for at vælge netop dig.</div>
+          </div>
+          <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:20px 22px;margin:0 0 18px;">
+            <div style="color:#0F1923;font-size:14px;font-weight:600;margin-bottom:4px;">I annoncen</div>
+            <div style="color:#777;font-size:13px;line-height:1.6;">Tomme eller nedslidte rum skræmmer købere væk. AI-møblering giver købere noget at forelske sig i.</div>
+          </div>
+          <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:20px 22px;margin:0 0 22px;">
+            <div style="color:#0F1923;font-size:14px;font-weight:600;margin-bottom:4px;">Når liggetiden stiger</div>
+            <div style="color:#777;font-size:13px;line-height:1.6;">Frisk annoncen op med nye visualiseringer i stedet for at sænke prisen som første træk.</div>
+          </div>
+          <p style="text-align:center;margin:26px 0 10px;">
+            <a href="https://formaestates.com/boligpotentiale/dashboard"
+               style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
+              Prøv det med et af dine egne fotos →
+            </a>
+          </p>
+          <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">Venlig hilsen<br/><strong style="color:#0F1923;">Forma Estates</strong></p>
+        </div>
+        ${unsubscribeFooter(userId)}
+      </div>
+    `,
+  });
+  log(`Drip day-5 email sent to ${email}`);
+}

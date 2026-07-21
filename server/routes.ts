@@ -17,7 +17,7 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, verifySmtpConnection } from "./email";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
@@ -2052,6 +2052,156 @@ export async function registerRoutes(
     }
   });
 
+  // ── Liggetid: opdater sagens "på markedet siden"-dato ───────────────────────
+  app.patch("/api/bolig/cases/:id/market-date", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getBoligCase(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const { marketDateISO } = req.body;
+      if (typeof marketDateISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(marketDateISO)) {
+        return res.status(400).json({ message: "Ugyldig dato (forventer YYYY-MM-DD)" });
+      }
+      const parsed = new Date(marketDateISO + "T00:00:00");
+      if (isNaN(parsed.getTime()) || parsed.getTime() > Date.now()) {
+        return res.status(400).json({ message: "Datoen skal være gyldig og må ikke ligge i fremtiden" });
+      }
+      const updated = await storage.updateBoligCaseMarketDate(id, marketDateISO);
+      return res.json(updated);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Delbare før/efter-links ─────────────────────────────────────────────────
+  // Mægleren opretter et offentligt link til én visualisering; ejerskab tjekkes.
+  app.post("/api/bolig/share", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const caseImageId = req.body.caseImageId ? parseInt(req.body.caseImageId) : null;
+      const generatedImageId = req.body.generatedImageId ? parseInt(req.body.generatedImageId) : null;
+      if (!caseImageId && !generatedImageId) return res.status(400).json({ message: "caseImageId eller generatedImageId er påkrævet" });
+
+      if (caseImageId) {
+        const row = await storage.getBoligCaseImage(caseImageId);
+        if (!row) return res.status(404).json({ message: "Billedet blev ikke fundet" });
+        if (row.ownerUserId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      } else if (generatedImageId) {
+        const img = await storage.getGeneratedImage(generatedImageId);
+        if (!img) return res.status(404).json({ message: "Billedet blev ikke fundet" });
+        if (img.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const token = crypto.randomBytes(12).toString("base64url");
+      const link = await storage.createShareLink(
+        user.id,
+        { caseImageId: caseImageId ?? undefined, generatedImageId: generatedImageId ?? undefined },
+        token,
+      );
+      const proto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      return res.json({ token: link.token, url: `${proto}://${host}/s/${link.token}` });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Afmeld onboarding-mails (HMAC-signeret link i mailens footer) ───────────
+  app.get("/api/unsubscribe", async (req, res) => {
+    const userId = parseInt(String(req.query.u || ""));
+    const sig = String(req.query.sig || "");
+    const page = (title: string, body: string) =>
+      `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | Forma Estates</title></head>` +
+      `<body style="font-family:'Segoe UI',Tahoma,sans-serif;background:#FAF6EC;margin:0;padding:48px 16px;">` +
+      `<div style="max-width:480px;margin:0 auto;background:#fff;border:1px solid #E8DFD0;border-radius:10px;padding:36px 32px;text-align:center;">` +
+      `<div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>` +
+      `<h1 style="color:#0F1923;font-size:22px;font-weight:500;margin:12px 0 10px;">${title}</h1>` +
+      `<p style="color:#555;font-size:15px;line-height:1.6;margin:0;">${body}</p></div></body></html>`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    if (isNaN(userId) || !sig || !verifyUnsubscribeSig(userId, sig)) {
+      return res.status(400).send(page("Ugyldigt link", "Linket er ugyldigt eller udløbet."));
+    }
+    try {
+      await storage.setMarketingOptOut(userId);
+      return res.send(page("Du er afmeldt", "Du modtager ikke flere onboarding-mails fra os. Vigtige mails om din konto (f.eks. kvitteringer) sendes stadig."));
+    } catch (err: any) {
+      return res.status(500).send(page("Noget gik galt", "Prøv igen senere, eller skriv til kontakt@formaestates.com."));
+    }
+  });
+
+  // Offentligt: hent deledata (ingen login). Billeder serveres via proxy-image,
+  // så vandmærket altid er brændt ind.
+  app.get("/api/share/:token", async (req, res) => {
+    try {
+      const token = String(req.params.token || "");
+      if (!/^[A-Za-z0-9_-]{8,32}$/.test(token)) return res.status(404).json({ message: "Ikke fundet" });
+      const data = await storage.getShareLinkData(token);
+      if (!data) return res.status(404).json({ message: "Ikke fundet" });
+      const toPublic = (u: string | null) => {
+        if (!u) return null;
+        if (u.startsWith("/uploads/")) return u; // lokalt hostet — allerede offentlig
+        return `/api/proxy-image?url=${encodeURIComponent(u)}`;
+      };
+      return res.json({
+        beforeUrl: toPublic(data.beforeUrl),
+        afterUrl: toPublic(data.afterUrl),
+        room: data.room,
+        style: data.style,
+        agentName: data.agentName,
+        createdAt: data.createdAt,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Link-previews: bots (Facebook/WhatsApp/LinkedIn m.fl.) får en minimal HTML
+  // med korrekte OG-tags; alm. browsere falder videre til SPA'en. Registreret
+  // FØR Vite/static catch-all, så ingen ændringer i vite-opsætningen behøves.
+  app.get("/s/:token", async (req, res, next) => {
+    const ua = String(req.headers["user-agent"] || "");
+    const isBot = /facebookexternalhit|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|skypeuripreview|pinterest|googlebot/i.test(ua);
+    if (!isBot) return next();
+    try {
+      const token = String(req.params.token || "");
+      const data = /^[A-Za-z0-9_-]{8,32}$/.test(token) ? await storage.getShareLinkData(token) : null;
+      if (!data) return next();
+      const proto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const base = `${proto}://${host}`;
+      const roomLabel = BOLIG_ROOM_LABELS[data.room] ?? data.room;
+      const styleLabel = BOLIG_STYLE_LABELS[data.style] ?? data.style;
+      const ogImg = data.afterUrl.startsWith("/uploads/")
+        ? `${base}${data.afterUrl}`
+        : `${base}/api/proxy-image?url=${encodeURIComponent(data.afterUrl)}`;
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+      const title = `Før/efter: ${esc(roomLabel)} i ${esc(styleLabel)} stil | Forma Estates`;
+      const desc = data.agentName
+        ? `${esc(data.agentName)} har delt en AI-visualisering af boligens potentiale.`
+        : "Se boligens potentiale med AI-visualisering fra Forma Estates.";
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.send(`<!DOCTYPE html><html lang="da"><head><meta charset="utf-8">
+<title>${title}</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+<meta property="og:image" content="${esc(ogImg)}">
+<meta property="og:url" content="${esc(`${base}/s/${token}`)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${esc(ogImg)}">
+</head><body>${title}</body></html>`);
+    } catch {
+      return next();
+    }
+  });
+
   app.get("/api/bolig/stats", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
@@ -2402,6 +2552,7 @@ export async function registerRoutes(
   app.get("/api/proxy-image", (req, res) => {
     const url = req.query.url as string;
     const format = (req.query.format as string | undefined) ?? "jpg";
+    const isDemo = req.query.demo === "1";
     if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
 
     const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", url]);
@@ -2417,29 +2568,49 @@ export async function registerRoutes(
         const imgH = meta.height || 1067;
 
         // ── Watermark: brændes ALTID ind — kan ikke frakobles ─────────────────
-        // Font: minimum 26px, skalerer med billedets højde
-        const fontSize = Math.max(26, Math.round(imgH * 0.032));
+        // Elegant badge: serif (Georgia/DejaVu Serif findes på både Replit og
+        // Render), let vægt, luft mellem bogstaverne, mørk navy-scrim i brandfarve.
+        const wmText = "AI-redigeret";
+        const fontSize = Math.max(24, Math.round(imgH * 0.028));
+        const letterSpacing = Math.round(fontSize * 0.09);
         const padRight = Math.round(imgW * 0.022);
         const padBottom = Math.round(imgH * 0.022);
-        const hPad = Math.round(fontSize * 0.55);
-        const vPad = Math.round(fontSize * 0.38);
-        const approxTextW = Math.round(fontSize * 5.6); // "AI-redigeret" ≈ 5.6× font
+        const hPad = Math.round(fontSize * 0.85);
+        // Serif glyphs are narrower than the old Arial-bold estimate (~0.52× font
+        // per char) — plus explicit letter-spacing between the 11 gaps.
+        const approxTextW = Math.round(fontSize * 0.52 * wmText.length) + letterSpacing * (wmText.length - 1);
         const boxW = approxTextW + hPad * 2;
-        const boxH = Math.round(fontSize * 1.55);
-        const rx = Math.round(boxH * 0.28);
+        const boxH = Math.round(fontSize * 1.9);
+        const rx = Math.round(boxH / 2); // fuldt afrundet pill
         const boxX = imgW - boxW - padRight;
         const boxY = imgH - boxH - padBottom;
-        // Text baseline: vertically centred inside box
         const textX = boxX + boxW / 2;
-        const textY = boxY + boxH - vPad;
+        const textY = boxY + Math.round(boxH * 0.68);
+
+        const wmFont = `Georgia,'DejaVu Serif','Times New Roman',serif`;
+        let svgParts =
+          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(15,25,35,0.52)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>` +
+          `<text x="${textX}" y="${textY}" ` +
+          `font-family="${wmFont}" font-size="${fontSize}" font-weight="500" ` +
+          `letter-spacing="${letterSpacing}" fill="#F5F1E8" text-anchor="middle">${wmText}</text>`;
+
+        // Demo-variant (gratis prøve uden login): ekstra tydelig branding, så
+        // billedet reklamerer for Forma Estates, hvis det deles videre.
+        if (isDemo) {
+          const brandSize = Math.max(30, Math.round(imgW * 0.034));
+          const brandSpacing = Math.round(brandSize * 0.22);
+          svgParts +=
+            `<text x="${Math.round(imgW / 2)}" y="${Math.round(imgH * 0.5)}" ` +
+            `font-family="${wmFont}" font-size="${Math.round(imgW * 0.055)}" font-weight="500" ` +
+            `letter-spacing="${brandSpacing}" fill="rgba(255,255,255,0.16)" text-anchor="middle" ` +
+            `transform="rotate(-24 ${Math.round(imgW / 2)} ${Math.round(imgH * 0.5)})">FORMA ESTATES</text>` +
+            `<text x="${Math.round(imgW / 2)}" y="${imgH - Math.round(imgH * 0.035)}" ` +
+            `font-family="${wmFont}" font-size="${Math.max(20, Math.round(imgH * 0.022))}" font-weight="500" ` +
+            `letter-spacing="${Math.round(brandSize * 0.08)}" fill="rgba(255,255,255,0.85)" text-anchor="middle">formaestates.com</text>`;
+        }
 
         const svgWatermark = Buffer.from(
-          `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` +
-          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(0,0,0,0.55)"/>` +
-          `<text x="${textX}" y="${textY}" ` +
-          `font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="700" ` +
-          `letter-spacing="1" fill="#FFFFFF" text-anchor="middle">AI-redigeret</text>` +
-          `</svg>`
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` + svgParts + `</svg>`
         );
 
         if (format === "png") {
@@ -2616,10 +2787,103 @@ export async function registerRoutes(
     }
   });
 
+  // ── Gratis demo på forsiden — INGEN login ───────────────────────────────────
+  // Én gratis AI-forvandling pr. IP pr. dag med kraftigt vandmærke. Global
+  // dagsgrænse beskytter Collov-kreditterne. IP hentes fra Cloudflare-headeren
+  // (live kører bag Cloudflare) og hashes før lagring (GDPR).
+  app.post("/api/bolig/demo-generate", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "Intet billede uploadet" });
+      }
+      if (!COLLOV_API_KEY) {
+        return res.status(500).json({ success: false, message: "Tjenesten er midlertidigt utilgængelig" });
+      }
+
+      const rawIp =
+        (req.headers["cf-connecting-ip"] as string | undefined) ||
+        ((req.headers["x-forwarded-for"] as string | undefined) || "").split(",")[0].trim() ||
+        req.socket.remoteAddress || "unknown";
+      const ipHash = crypto.createHash("sha256").update(rawIp).digest("hex");
+
+      const rate = await storage.demoRateCheck(ipHash, 1, 50);
+      if (!rate.allowed) {
+        const msg = rate.reason === "global"
+          ? "Dagens gratis prøver er brugt op. Opret en gratis konto for at fortsætte."
+          : "Du har brugt dagens gratis prøve. Opret en gratis konto og få 2 visualiseringer mere.";
+        return res.status(429).json({ success: false, rateLimited: true, message: msg });
+      }
+
+      // Fast opsætning: skandinavisk stil, standard-tier, begrænset rumvalg
+      const allowedRooms = ["living room", "kitchen", "bedroom", "dining room", "bathroom"];
+      const room = allowedRooms.includes(String(req.body.room)) ? String(req.body.room) : "living room";
+      const style = "scandinavian";
+      const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
+      let prompt: string;
+      try {
+        prompt = getBoligPrompt(resolvedRoom, style, "tier2");
+      } catch {
+        prompt = `Completely redesign this ${room} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
+      }
+
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      log(`[Demo] generate: room=${room}, ipHash=${ipHash.slice(0, 10)}…`);
+
+      // Én Collov-kørsel + én retry (billigere end den fulde pipeline)
+      let collovImageUrl: string | null = null;
+      let lastFailReason: string | null = null;
+      for (let attempt = 0; attempt <= 1 && !collovImageUrl; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 8000));
+        const form = new FormData();
+        form.append("uploadUrl", publicUrl);
+        form.append("prompt", prompt);
+        const collovRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+          method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: form,
+        });
+        const collovJson = (await collovRes.json()) as any;
+        if (!collovJson.success || !collovJson.data?.uuid) {
+          lastFailReason = collovJson.message || "Collov API fejl";
+          continue;
+        }
+        const uuid = collovJson.data.uuid;
+        for (let i = 0; i < 45; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const pollRes = await fetch(
+            `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
+            { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
+          );
+          const pollJson = (await pollRes.json()) as any;
+          const status = pollJson.data?.status;
+          if (status === "SUCCESS" && pollJson.data?.generateUrl) { collovImageUrl = pollJson.data.generateUrl; break; }
+          if (status === "FAILED") { lastFailReason = pollJson.data?.failReason || "Generering mislykkedes"; break; }
+        }
+      }
+
+      if (!collovImageUrl) {
+        // Fejlet generering skal ikke æde dagens gratis prøve
+        await storage.demoRateRefund(ipHash).catch(() => {});
+        return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes — prøv igen om lidt" });
+      }
+
+      // Resultatet serveres KUN gennem proxy'en med demo-vandmærke
+      return res.json({
+        success: true,
+        image_url: `/api/proxy-image?url=${encodeURIComponent(collovImageUrl)}&demo=1`,
+        original_url: `/uploads/${req.file.filename}`,
+      });
+    } catch (err: any) {
+      log(`[Demo] error: ${err.message}`);
+      return res.status(500).json({ success: false, message: "Der opstod en fejl — prøv igen" });
+    }
+  });
+
   // ── AI BoligPotentiale: generate endpoint ──────────────────────────────────
   app.post("/api/bolig/generate", upload.single("image"), async (req, res) => {
     try {
-      if (!req.file) {
+      const sourceCaseImageId = req.body.sourceCaseImageId ? parseInt(req.body.sourceCaseImageId) : null;
+      if (!req.file && !sourceCaseImageId) {
         return res.status(400).json({ success: false, message: "Intet billede uploadet" });
       }
 
@@ -2640,8 +2904,18 @@ export async function registerRoutes(
       }
 
       const isDesignAgent = req.body.isDesignAgent === "true" || req.body.isDesignAgent === true;
-      const style = isDesignAgent ? "Custom" : (req.body.style as string) || "scandinavian";
-      const room = isDesignAgent ? "Design Agent" : (req.body.room as string) || "living room";
+      // Sæsonopdatering: server-styret prompt, der KUN ændrer sæsonpræg
+      const SEASON_PROMPTS: Record<string, { label: string; prompt: string }> = {
+        spring: { label: "Forårsklar", prompt: "Refresh this interior photo with a bright spring atmosphere: fresh cut flowers and light green plants, light airy textiles in soft pastel tones, and bright natural daylight. If windows show outdoor greenery, make it fresh spring foliage." },
+        summer: { label: "Sommerklar", prompt: "Refresh this interior photo with a warm summer atmosphere: warm golden sunlight streaming in, light linen textiles, fresh flowers, and a bright open feel. If windows show outdoor greenery, make it lush green summer foliage." },
+        autumn: { label: "Efterårsklar", prompt: "Refresh this interior photo with a cozy autumn atmosphere: warm amber lighting, soft wool throws and cushions in warm earth tones, lit candles, and a hygge mood. If windows show outdoor greenery, make it golden autumn foliage." },
+        winter: { label: "Vinterklar", prompt: "Refresh this interior photo with a cozy winter atmosphere: warm soft lighting, lit candles, chunky knit throws and cushions, and an inviting hygge mood. If windows show the outdoors, make it a soft winter scene." },
+      };
+      const SEASON_SUFFIX = " Keep ALL furniture, layout, walls, floors, windows and the camera angle EXACTLY the same. Do not move, add or remove furniture. Only adjust decor accents, textiles, plants, lighting mood and the view outside windows to match the season. Preserve the original perspective and zoom exactly.";
+      const seasonRaw = (req.body.season as string) || "";
+      const season = Object.keys(SEASON_PROMPTS).includes(seasonRaw) ? seasonRaw : null;
+      let style = season ? SEASON_PROMPTS[season].label : isDesignAgent ? "Custom" : (req.body.style as string) || "scandinavian";
+      let room = isDesignAgent ? "Design Agent" : (req.body.room as string) || "living room";
       const tierRaw = (req.body.tier as string) || "tier2";
       const tier = (tierRaw === "tier1" || tierRaw === "tier2" || tierRaw === "tier3") ? tierRaw : "tier2";
       const caseId = req.body.caseId ? parseInt(req.body.caseId as string) : null;
@@ -2670,14 +2944,34 @@ export async function registerRoutes(
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
-      const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-      log(`[BoligPotentiale] generate: room=${room}, style=${style}, tier=${tier}, url=${publicUrl}`);
+
+      // Sæsonopdatering (eller re-generering) ud fra et eksisterende sagsbillede:
+      // kilden slås op i databasen og ejerskab verificeres — klienten kan ikke
+      // pege på vilkårlige URL'er.
+      let originalForRecord: string;
+      let publicUrl: string;
+      if (sourceCaseImageId) {
+        const srcImg = await storage.getGeneratedImage(sourceCaseImageId);
+        if (!srcImg || srcImg.userId !== authedUserId) {
+          await storage.refundQuota(authedUserId, "ai").catch(() => {});
+          return res.status(srcImg ? 403 : 404).json({ success: false, message: "Kildebilledet blev ikke fundet" });
+        }
+        originalForRecord = srcImg.imageUrl;
+        publicUrl = srcImg.imageUrl.startsWith("http") ? srcImg.imageUrl : `${protocol}://${host}${srcImg.imageUrl}`;
+        if (season) room = srcImg.roomType || room;
+      } else {
+        originalForRecord = `/uploads/${req.file!.filename}`;
+        publicUrl = `${protocol}://${host}/uploads/${req.file!.filename}`;
+      }
+      log(`[BoligPotentiale] generate: room=${room}, style=${style}, tier=${tier}, season=${season ?? "-"}, url=${publicUrl}`);
 
       const startTime = Date.now();
 
-      // Build prompt — use custom text for design agent, structured prompt otherwise
+      // Build prompt — season refresh and design agent bypass the prompt lock
       let prompt: string;
-      if (isDesignAgent) {
+      if (season) {
+        prompt = SEASON_PROMPTS[season].prompt + SEASON_SUFFIX;
+      } else if (isDesignAgent) {
         prompt = customPromptText;
       } else {
         const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
@@ -2779,7 +3073,7 @@ export async function registerRoutes(
             isQuickGeneration: isQuickGeneration || !caseId,
             isDesignAgent,
             imageUrl: collovImageUrl,
-            originalImageUrl: `/uploads/${req.file!.filename}`,
+            originalImageUrl: originalForRecord,
             roomType: room,
             style,
             budgetTier: isDesignAgent ? "0" : tier,
@@ -2798,7 +3092,7 @@ export async function registerRoutes(
         storage.logCrmActivity(authedUserId, "visualization", `${room} · ${style}`).catch(() => {});
       }
 
-      return res.json({ success: true, image_url: collovImageUrl, original_url: `/uploads/${req.file!.filename}`, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
+      return res.json({ success: true, image_url: collovImageUrl, original_url: originalForRecord, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
     } catch (err: any) {
       log(`[BoligPotentiale] generate error: ${err.message}`);
       return res.status(500).json({ success: false, message: err.message });

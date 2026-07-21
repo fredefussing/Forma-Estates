@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startTracker } from "./tracker";
+import { startDripScheduler } from "./drip";
 import { storage } from "./storage";
 import { ensureRendyJobsTable } from "./rendy";
 
@@ -87,6 +88,12 @@ app.use((req, res, next) => {
   // Ensure Rendy job tracking table exists (survives server restarts)
   try { await ensureRendyJobsTable(); } catch (e: any) { console.error("[init] ensureRendyJobsTable:", e.message); }
 
+  // Additive schema guard: creates newer tables/columns if missing (also on Render)
+  try {
+    const { ensureSchema } = await import("./ensure-schema");
+    await ensureSchema();
+  } catch (e: any) { console.error("[init] ensureSchema:", e.message); }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -127,6 +134,9 @@ app.use((req, res, next) => {
 
       // Start system tracker (isolated background loops)
       setTimeout(() => startTracker(), 5000);
+
+      // Onboarding-drip: dagligt sweep for dag-2/dag-5 mails
+      startDripScheduler();
 
       // Pre-warm Collov GPU models 10s after start
       setTimeout(async () => {

@@ -23,6 +23,7 @@ import {
   Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
   FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music,
+  Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -237,7 +238,8 @@ async function downloadCasePdf(opts: {
         "Billederne er AI-genererede visualiseringer og skal ses som inspiration. Det endelige resultat kan variere.",
         margin, pageH - 9, { maxWidth: pageW - margin * 2 }
       );
-      pdf.text("Forma Estates", pageW - margin, pageH - 5, { align: "right" });
+      const pageNo = (pdf as any).internal.getCurrentPageInfo?.().pageNumber;
+      pdf.text(pageNo ? `Forma Estates · Side ${pageNo}` : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
     };
 
     // ── Page 1: Cover ────────────────────────────────────────────────────────
@@ -477,7 +479,274 @@ function DownloadMenu(props: {
   );
 }
 
+// ── Del-knap: opret offentligt før/efter-link og kopiér til udklipsholder ────
+function ShareButton(props: {
+  caseImageId: number;
+  variant: "icon-dark" | "pill-light";
+  testId: string;
+  stopPropagation?: boolean;
+}) {
+  const [state, setState] = useState<"idle" | "busy" | "copied" | "error">("idle");
+
+  const share = async (e: ReactMouseEvent) => {
+    if (props.stopPropagation) e.stopPropagation();
+    if (state === "busy") return;
+    setState("busy");
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/bolig/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ generatedImageId: props.caseImageId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.url) throw new Error(json.message || "Kunne ikke oprette link");
+      const abs = json.url.startsWith("http") ? json.url : `${window.location.origin}${json.url}`;
+      try {
+        await navigator.clipboard.writeText(abs);
+      } catch {
+        window.prompt("Kopiér linket:", abs);
+      }
+      setState("copied");
+      setTimeout(() => setState("idle"), 2500);
+    } catch {
+      setState("error");
+      setTimeout(() => setState("idle"), 2500);
+    }
+  };
+
+  const label = state === "copied" ? "Link kopieret!" : state === "error" ? "Fejl — prøv igen" : "Del";
+  if (props.variant === "icon-dark") {
+    return (
+      <button
+        type="button"
+        onClick={share}
+        disabled={state === "busy"}
+        title="Del før/efter-link"
+        data-testid={props.testId}
+        className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold text-white disabled:opacity-50"
+        style={{ background: state === "copied" ? "rgba(45,106,79,0.95)" : "rgba(15,29,47,0.85)" }}
+      >
+        {state === "copied" ? <CheckCheck className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+        <span>{state === "busy" ? "…" : state === "copied" ? "Kopieret" : "Del"}</span>
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={share}
+      disabled={state === "busy"}
+      data-testid={props.testId}
+      className="h-8 px-3 rounded-full font-semibold text-xs flex items-center gap-1.5 hover:bg-white/10 transition-colors disabled:opacity-50"
+      style={
+        state === "copied"
+          ? { color: "#7BC49A", border: "1px solid rgba(123,196,154,0.5)" }
+          : { color: "#C8956C", border: "1px solid rgba(200,149,108,0.4)" }
+      }
+    >
+      {state === "copied" ? <CheckCheck className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+      <span>{state === "busy" ? "Opretter…" : label}</span>
+    </button>
+  );
+}
+
+// ── Sælgerrapport-PDF: hele sagen som præsentation til sælgermødet ───────────
+async function downloadSellerReportPdf(opts: {
+  address: string;
+  caseNo?: string | null;
+  marketDateISO: string;
+  liveDays: number;
+  images: ApiCaseImage[];
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const stills = opts.images.filter((i) => !isVideoUrl(i.src) && !i.style?.startsWith("showcase-video-")).slice(0, 10);
+    if (stills.length === 0) return { ok: false, error: "Sagen har ingen billeder til rapporten" };
+    const { jsPDF } = await import("jspdf");
+
+    const fetched: { img: ApiCaseImage; after: NonNullable<Awaited<ReturnType<typeof fetchImageAsDataUrl>>>; before: Awaited<ReturnType<typeof fetchImageAsDataUrl>> }[] = [];
+    for (const img of stills) {
+      const after = await fetchImageAsDataUrl(img.src);
+      if (!after) continue;
+      const before = img.beforeSrc ? await fetchImageAsDataUrl(img.beforeSrc) : null;
+      fetched.push({ img, after, before });
+    }
+    if (fetched.length === 0) return { ok: false, error: "Billederne kunne ikke hentes" };
+
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 16;
+    const navy = [15, 29, 47] as const;
+    const muted = [107, 107, 107] as const;
+    const accent = [200, 149, 108] as const;
+    const dateStr = new Date().toLocaleDateString("da-DK", { day: "2-digit", month: "long", year: "numeric" });
+    const marketDateStr = new Date(opts.marketDateISO).toLocaleDateString("da-DK", { day: "2-digit", month: "long", year: "numeric" });
+
+    const drawWatermark = (imgX: number, imgY: number, imgW: number, imgH: number) => {
+      const label = "AI-redigeret";
+      const fs = 6.5;
+      const approxW = 19;
+      const boxH = 4.2;
+      const padX = 1.4;
+      const bx = imgX + imgW - approxW - padX;
+      const by = imgY + imgH - boxH - 1.8;
+      pdf.saveGraphicsState();
+      (pdf as any).setGState(new (pdf as any).GState({ opacity: 0.45 }));
+      pdf.setFillColor(0, 0, 0);
+      pdf.roundedRect(bx, by, approxW, boxH, 0.8, 0.8, "F");
+      pdf.restoreGraphicsState();
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(fs);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(label, imgX + imgW - padX - 0.5, by + boxH - 1.1, { align: "right" });
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
+    };
+
+    const drawFooter = () => {
+      pdf.setDrawColor(217, 213, 207);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, pageH - 14, pageW - margin, pageH - 14);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(muted[0], muted[1], muted[2]);
+      pdf.text(
+        "Billederne er AI-genererede visualiseringer og skal ses som inspiration. Det endelige resultat kan variere.",
+        margin, pageH - 9, { maxWidth: pageW - margin * 2 }
+      );
+      const pageNo = (pdf as any).internal.getCurrentPageInfo?.().pageNumber;
+      pdf.text(pageNo ? `Forma Estates · Side ${pageNo}` : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
+    };
+
+    // ── Forside ──────────────────────────────────────────────────────────────
+    pdf.setFillColor(navy[0], navy[1], navy[2]);
+    pdf.rect(0, 0, pageW, 6, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(accent[0], accent[1], accent[2]);
+    pdf.text("SÆLGERRAPPORT · AI BOLIGPOTENTIALE", margin, 22);
+    pdf.setFontSize(28);
+    pdf.setTextColor(navy[0], navy[1], navy[2]);
+    pdf.text("Boligens fulde", margin, 42);
+    pdf.text("potentiale — visualiseret", margin, 54, { maxWidth: pageW - margin * 2 });
+    pdf.setDrawColor(accent[0], accent[1], accent[2]);
+    pdf.setLineWidth(0.8);
+    pdf.line(margin, 62, margin + 40, 62);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.text(opts.address, margin, 74, { maxWidth: pageW - margin * 2 });
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(muted[0], muted[1], muted[2]);
+    let metaY = 82;
+    if (opts.caseNo) { pdf.text(`Sagsnr. ${opts.caseNo}`, margin, metaY); metaY += 6; }
+    pdf.text(`På markedet siden ${marketDateStr} (${opts.liveDays} dage)`, margin, metaY); metaY += 6;
+    pdf.text(`${fetched.length} AI-visualisering${fetched.length !== 1 ? "er" : ""} · Udarbejdet ${dateStr}`, margin, metaY); metaY += 4;
+
+    const hero = fetched[0].after;
+    const heroMaxW = pageW - margin * 2;
+    const heroMaxH = pageH - metaY - 34;
+    const heroRatio = hero.w / hero.h;
+    let heroW = heroMaxW, heroH = heroMaxW / heroRatio;
+    if (heroH > heroMaxH) { heroH = heroMaxH; heroW = heroMaxH * heroRatio; }
+    const heroX = (pageW - heroW) / 2;
+    const heroY = metaY + 8;
+    pdf.addImage(hero.dataUrl, "JPEG", heroX, heroY, heroW, heroH, undefined, "FAST");
+    drawWatermark(heroX, heroY, heroW, heroH);
+    drawFooter();
+
+    // ── Én side pr. visualisering ────────────────────────────────────────────
+    for (const { img, after, before } of fetched) {
+      pdf.addPage();
+      const roomLabel = BOLIG_ROOM_LABELS[img.room] || img.room;
+      const styleLabel = BOLIG_STYLE_LABELS[img.style] || img.style;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(16);
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
+      pdf.text(`${roomLabel} — ${styleLabel}`, margin, 22, { maxWidth: pageW - margin * 2 });
+      pdf.setDrawColor(accent[0], accent[1], accent[2]);
+      pdf.setLineWidth(0.6);
+      pdf.line(margin, 26, margin + 30, 26);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(muted[0], muted[1], muted[2]);
+      pdf.text(`Genereret dag ${img.daysAfterMarket} på markedet`, margin, 32);
+      const imgTop = 38;
+      const imgBottom = pageH - 22;
+      if (before) {
+        const half = (pageW - margin * 2 - 6) / 2;
+        const drawHalf = (im: { dataUrl: string; w: number; h: number }, x: number, label: string) => {
+          const r = im.w / im.h;
+          let w = half, h = half / r;
+          const maxH = imgBottom - imgTop - 8;
+          if (h > maxH) { h = maxH; w = maxH * r; }
+          const ox = x + (half - w) / 2;
+          pdf.addImage(im.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
+          drawWatermark(ox, imgTop, w, h);
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(9);
+          pdf.setTextColor(accent[0], accent[1], accent[2]);
+          pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
+        };
+        drawHalf(before, margin, "FØR");
+        drawHalf(after, margin + half + 6, "EFTER");
+      } else {
+        const maxW = pageW - margin * 2;
+        const maxH = imgBottom - imgTop;
+        const r = after.w / after.h;
+        let w = maxW, h = maxW / r;
+        if (h > maxH) { h = maxH; w = maxH * r; }
+        const singleX = (pageW - w) / 2;
+        pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
+        drawWatermark(singleX, imgTop, w, h);
+      }
+      drawFooter();
+    }
+
+    // ── Afslutning ───────────────────────────────────────────────────────────
+    pdf.addPage();
+    pdf.setFillColor(navy[0], navy[1], navy[2]);
+    pdf.rect(0, 0, pageW, 6, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(accent[0], accent[1], accent[2]);
+    pdf.text("NÆSTE SKRIDT", margin, 26);
+    pdf.setFontSize(20);
+    pdf.setTextColor(navy[0], navy[1], navy[2]);
+    pdf.text("Klar til at vise potentialet frem?", margin, 38, { maxWidth: pageW - margin * 2 });
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(muted[0], muted[1], muted[2]);
+    const bullets = [
+      "Brug visualiseringerne i boligannoncen og på sociale medier for at fange flere købere.",
+      "Vis før/efter-billederne til fremvisninger, så køberne ser boligens muligheder.",
+      "Opdater billederne løbende — fx med en sæsonopfriskning, hvis boligen har ligget længe.",
+    ];
+    let by = 50;
+    for (const b of bullets) {
+      pdf.setFillColor(accent[0], accent[1], accent[2]);
+      pdf.circle(margin + 1.2, by - 1.2, 1.2, "F");
+      pdf.text(b, margin + 6, by, { maxWidth: pageW - margin * 2 - 6 });
+      by += 14;
+    }
+    drawFooter();
+
+    const filename = buildImageFilename({ address: opts.address, room: "saelgerrapport", ext: "pdf" });
+    pdf.save(filename);
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Ukendt fejl" };
+  }
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
+const SEASONS = [
+  { value: "spring", label: "Forår",   Icon: Flower2 },
+  { value: "summer", label: "Sommer",  Icon: Sun },
+  { value: "autumn", label: "Efterår", Icon: Leaf },
+  { value: "winter", label: "Vinter",  Icon: Snowflake },
+] as const;
+
 const ROOM_TYPES = [
   { value: "living room",      label: "Stue" },
   { value: "bedroom",          label: "Soveværelse" },
@@ -573,6 +842,13 @@ function CaseDetailPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [genStep, setGenStep] = useState<0|1|2|3>(0);
   const [includePlants, setIncludePlants] = useState(false);
+  const [editingMarketDate, setEditingMarketDate] = useState(false);
+  const [marketDateDraft, setMarketDateDraft] = useState("");
+  const [sellerPdfBusy, setSellerPdfBusy] = useState(false);
+  const [seasonBusy, setSeasonBusy] = useState<string | null>(null);
+  const [seasonSourceId, setSeasonSourceId] = useState<number | null>(null);
+  const [seasonError, setSeasonError] = useState<string | null>(null);
+  const [seasonDone, setSeasonDone] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -621,7 +897,7 @@ function CaseDetailPanel({
     },
     onSuccess: (updatedCase) => {
       queryClient.setQueryData(["/api/bolig/cases"], (old: ApiCase[] | undefined) =>
-        old ? old.map((c) => (c.id === updatedCase.id ? updatedCase : c)) : [updatedCase]
+        old ? old.map((c) => (c.id === updatedCase.id ? { ...c, ...updatedCase } : c)) : old
       );
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
@@ -646,6 +922,67 @@ function CaseDetailPanel({
     },
   });
 
+  const marketDateMutation = useMutation({
+    mutationFn: async (marketDateISO: string) => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/cases/${caseData.id}/market-date`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ marketDateISO }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Kunne ikke opdatere datoen");
+      return json as ApiCase;
+    },
+    onSuccess: (updatedCase) => {
+      queryClient.setQueryData(["/api/bolig/cases"], (old: ApiCase[] | undefined) =>
+        old ? old.map((c) => (c.id === updatedCase.id ? { ...c, ...updatedCase } : c)) : old
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      setEditingMarketDate(false);
+    },
+  });
+
+  // Sæsonopfriskning: kun stillbilleder kan bruges som kilde
+  const seasonSources = useMemo(
+    () => images.filter((i) => !isVideoUrl(i.src) && !i.style?.startsWith("showcase-video-")),
+    [images]
+  );
+
+  const runSeasonRefresh = async (season: string) => {
+    const srcId = seasonSourceId ?? seasonSources[0]?.id;
+    if (!srcId || seasonBusy) return;
+    setSeasonBusy(season);
+    setSeasonError(null);
+    setSeasonDone(false);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("sourceCaseImageId", String(srcId));
+      fd.append("season", season);
+      fd.append("caseId", String(caseData.id));
+      const res = await fetch("/api/bolig/generate", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Sæsonopdateringen mislykkedes. Prøv igen.");
+      await refetchImages();
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      window.dispatchEvent(new Event("quota:refresh"));
+      setSeasonDone(true);
+      setTimeout(() => setSeasonDone(false), 5000);
+    } catch (err: any) {
+      setSeasonError(err.message || "Noget gik galt. Prøv igen.");
+    } finally {
+      setSeasonBusy(null);
+    }
+  };
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
@@ -723,9 +1060,49 @@ function CaseDetailPanel({
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: caseData.status === "active" ? "rgba(45,106,79,0.1)" : "rgba(200,149,108,0.1)", color: caseData.status === "active" ? "#2D6A4F" : "#C8956C" }}>
                 {caseData.status === "active" ? "Aktiv — I salg" : "Afsluttet"}
               </span>
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D9D5CF]" style={{ color: "#6B6B6B" }}>
-                {liveDays} dage på markedet
-              </span>
+              {editingMarketDate ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={marketDateDraft}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setMarketDateDraft(e.target.value)}
+                    className="text-[11px] border rounded-full px-2 py-0.5 outline-none"
+                    style={{ borderColor: "#C8956C", color: "#1A1A1A", background: "#fff" }}
+                    data-testid="bolig-market-date-input"
+                  />
+                  <button
+                    onClick={() => marketDateDraft && marketDateMutation.mutate(marketDateDraft)}
+                    disabled={marketDateMutation.isPending || !marketDateDraft}
+                    className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white disabled:opacity-60"
+                    style={{ background: "#0F1D2F" }}
+                    data-testid="bolig-market-date-save"
+                  >
+                    {marketDateMutation.isPending ? "..." : "Gem"}
+                  </button>
+                  <button
+                    onClick={() => setEditingMarketDate(false)}
+                    className="text-[11px] px-2 py-0.5 rounded-full border border-[#D9D5CF]"
+                    style={{ color: "#6B6B6B" }}
+                    data-testid="bolig-market-date-cancel"
+                  >
+                    Annuller
+                  </button>
+                  {marketDateMutation.isError && (
+                    <span className="text-[11px]" style={{ color: "#DC2626" }}>{(marketDateMutation.error as Error)?.message}</span>
+                  )}
+                </span>
+              ) : (
+                <button
+                  onClick={() => { setMarketDateDraft(caseData.marketDateISO.slice(0, 10)); setEditingMarketDate(true); }}
+                  className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D9D5CF] inline-flex items-center gap-1 hover:border-[#C8956C] transition-colors"
+                  style={{ color: "#6B6B6B" }}
+                  title="Ret dato for salgsopstart"
+                  data-testid="bolig-market-date-edit"
+                >
+                  <CalendarDays className="w-3 h-3" /> {liveDays} dage på markedet
+                </button>
+              )}
               {images.length > 0 && (
                 <span className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D9D5CF]" style={{ color: "#6B6B6B" }}>
                   {images.length} visual{images.length !== 1 ? "s" : ""}
@@ -736,6 +1113,34 @@ function CaseDetailPanel({
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {seasonSources.length > 0 && (
+            <button
+              onClick={async () => {
+                if (sellerPdfBusy) return;
+                setSellerPdfBusy(true);
+                try {
+                  const r = await downloadSellerReportPdf({
+                    address: caseData.address,
+                    caseNo: caseData.caseNo,
+                    marketDateISO: caseData.marketDateISO,
+                    liveDays,
+                    images,
+                  });
+                  if (!r.ok) alert(r.error || "Sælgerrapporten kunne ikke genereres. Prøv igen.");
+                } finally {
+                  setSellerPdfBusy(false);
+                }
+              }}
+              disabled={sellerPdfBusy}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border transition-colors disabled:opacity-60"
+              style={{ borderColor: "rgba(15,29,47,0.25)", color: "#0F1D2F", background: "rgba(15,29,47,0.04)" }}
+              title="Download en samlet PDF med alle visualiseringer til sælgermødet"
+              data-testid="bolig-seller-report-btn"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              {sellerPdfBusy ? "Genererer..." : "Sælgerrapport"}
+            </button>
+          )}
           {caseData.status === "active" ? (
             <button
               onClick={() => setConfirmDialog({
@@ -866,6 +1271,10 @@ function CaseDetailPanel({
                               })()}
                             </>
                           ) : (
+                          <>
+                          {!isVideoUrl(img.src) && (
+                            <ShareButton caseImageId={img.id} variant="icon-dark" testId={`bolig-share-${img.id}`} stopPropagation />
+                          )}
                           <DownloadMenu
                             url={img.src}
                             beforeUrl={img.beforeSrc}
@@ -876,6 +1285,7 @@ function CaseDetailPanel({
                             testIdPrefix={`bolig-gallery-download-${img.id}`}
                             stopPropagation
                           />
+                          </>
                           )}
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirmDialog({ title: "Slet billede", desc: "Vil du slette dette billede? Det kan ikke fortrydes.", confirmLabel: "Slet billede", onConfirm: () => deleteImageMutation.mutate(img.id) }); }}
@@ -902,7 +1312,78 @@ function CaseDetailPanel({
             )}
           </div>
 
-          {/* RIGHT: QUICK GENERATE ENTRY */}
+          {/* RIGHT: QUICK GENERATE + SEASON REFRESH */}
+          <div className="flex flex-col gap-6">
+
+          {caseData.status === "active" && liveDays >= 30 && seasonSources.length > 0 && (
+            <div className="rounded-2xl border p-6" style={{ background: "#fff", borderColor: "rgba(200,149,108,0.55)", boxShadow: "0 2px 16px rgba(200,149,108,0.1)" }} data-testid="bolig-season-refresh-card">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: "#B07848" }}>Sæsonopfriskning</p>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{liveDays} dage på markedet</span>
+              </div>
+              <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
+                Boligen har ligget over en måned på markedet. Giv annoncen nyt liv med en sæsonopdatering — samme rum og møbler, ny stemning.
+              </p>
+
+              {seasonSources.length > 1 && (
+                <div className="mb-4">
+                  <p className="text-[11px] font-semibold mb-1.5" style={{ color: "#9B9690" }}>Vælg billede</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {seasonSources.map((src) => {
+                      const selected = (seasonSourceId ?? seasonSources[0].id) === src.id;
+                      return (
+                        <button
+                          key={src.id}
+                          onClick={() => !seasonBusy && setSeasonSourceId(src.id)}
+                          className="flex-shrink-0 rounded-lg overflow-hidden transition-all"
+                          style={{ width: 64, height: 48, border: selected ? "2px solid #C8956C" : "2px solid transparent", opacity: selected ? 1 : 0.6 }}
+                          data-testid={`bolig-season-source-${src.id}`}
+                        >
+                          <img src={src.src} alt={src.room} className="w-full h-full object-cover" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                {SEASONS.map((s) => {
+                  const busy = seasonBusy === s.value;
+                  return (
+                    <button
+                      key={s.value}
+                      onClick={() => runSeasonRefresh(s.value)}
+                      disabled={seasonBusy !== null}
+                      className="h-10 rounded-full text-sm font-semibold flex items-center justify-center gap-1.5 border transition-colors disabled:opacity-60"
+                      style={{ borderColor: "rgba(200,149,108,0.4)", color: "#B07848", background: busy ? "rgba(200,149,108,0.13)" : "#fff" }}
+                      data-testid={`bolig-season-btn-${s.value}`}
+                    >
+                      {busy ? (
+                        <span className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#C8956C", borderTopColor: "transparent" }} />
+                      ) : (
+                        <s.Icon className="w-3.5 h-3.5" />
+                      )}
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {seasonBusy && (
+                <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>AI'en arbejder — ca. 30–60 sekunder. Billedet gemmes i galleriet.</p>
+              )}
+              {seasonDone && (
+                <p className="text-xs mt-3 text-center font-semibold flex items-center justify-center gap-1" style={{ color: "#2D6A4F" }} data-testid="bolig-season-done">
+                  <Check className="w-3.5 h-3.5" /> Sæsonbilledet er gemt i galleriet
+                </p>
+              )}
+              {seasonError && (
+                <p className="text-xs mt-3 text-center" style={{ color: "#DC2626" }} data-testid="bolig-season-error">{seasonError}</p>
+              )}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-[#E8E4DE] p-6 flex flex-col gap-5" style={{ background: "#fff" }}>
             <div>
               <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1" style={{ color: "#9B9690" }}>Generer nyt billede</p>
@@ -931,6 +1412,8 @@ function CaseDetailPanel({
             {images.length > 0 && (
               <p className="text-center text-xs" style={{ color: "#9B9690" }}>{images.length} tidligere visual{images.length !== 1 ? "s" : ""} i galleriet</p>
             )}
+          </div>
+
           </div>
         </div>
       )}
@@ -1377,6 +1860,10 @@ function CaseDetailPanel({
                       })()}
                     </>
                   ) : (
+                    <>
+                    {!isVideoUrl(lightboxImg.src) && (
+                      <ShareButton caseImageId={lightboxImg.id} variant="pill-light" testId="bolig-lightbox-share" stopPropagation />
+                    )}
                     <DownloadMenu
                       url={lightboxImg.src}
                       beforeUrl={lightboxImg.beforeSrc}
@@ -1387,6 +1874,7 @@ function CaseDetailPanel({
                       testIdPrefix="bolig-lightbox-download"
                       stopPropagation
                     />
+                    </>
                   )}
                   <button onClick={() => setLightboxImg(null)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: "#fff" }} data-testid="bolig-lightbox-close">
                     <X className="w-4 h-4" />

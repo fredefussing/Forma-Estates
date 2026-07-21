@@ -19,6 +19,8 @@ import {
   type CrmInteraction, type InsertCrmInteraction, crmInteractions,
   type CrmUserOverride, crmUserOverrides,
   type PendingPurchase, pendingPurchases,
+  type ShareLink, shareLinks,
+  dripEmails,
   SUBSCRIPTION_QUOTAS, FREE_TRIAL_QUOTAS,
 } from "@shared/schema";
 import { db } from "./db";
@@ -131,6 +133,24 @@ export interface IStorage {
   addTeamMember(data: InsertTeamMember): Promise<TeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   updateTeamMemberRole(memberId: number, role: string): Promise<TeamMember | undefined>;
+
+  // Share links (public before/after pages)
+  createShareLink(userId: number, ref: { caseImageId?: number; generatedImageId?: number }, token: string): Promise<ShareLink>;
+  getShareLinkData(token: string): Promise<{ beforeUrl: string | null; afterUrl: string; room: string; style: string; agentName: string | null; createdAt: Date } | null>;
+  getBoligCaseImage(id: number): Promise<{ image: BoligCaseImage; ownerUserId: number } | null>;
+  getGeneratedImage(id: number): Promise<GeneratedImage | undefined>;
+
+  // Anonymous landing demo rate limiting
+  demoRateCheck(ipHash: string, perIpLimit: number, globalLimit: number): Promise<{ allowed: boolean; reason?: "ip" | "global" }>;
+  demoRateRefund(ipHash: string): Promise<void>;
+
+  // Case liggetid
+  updateBoligCaseMarketDate(id: number, marketDateISO: string): Promise<BoligCase>;
+
+  // Onboarding drip emails
+  getDripCandidates(emailKey: string, minAgeDays: number, maxAgeDays: number): Promise<Array<{ id: number; email: string; displayName: string | null }>>;
+  recordDripEmail(userId: number, emailKey: string): Promise<boolean>;
+  setMarketingOptOut(userId: number): Promise<void>;
   getTeamsOwnedByUser(userId: number): Promise<Team[]>;
   createTeamInvite(data: InsertTeamInvite): Promise<TeamInvite>;
   getTeamInviteByToken(token: string): Promise<TeamInvite | undefined>;
@@ -500,6 +520,122 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(boligCaseImages)
       .where(eq(boligCaseImages.caseId, caseId))
       .orderBy(desc(boligCaseImages.createdAt));
+  }
+
+  // ── Share links (public before/after pages) ─────────────────────────────────
+  async createShareLink(userId: number, ref: { caseImageId?: number; generatedImageId?: number }, token: string): Promise<ShareLink> {
+    // Reuse an existing non-revoked link for the same image so the URL is stable
+    const existing = await db.select().from(shareLinks).where(and(
+      eq(shareLinks.userId, userId),
+      eq(shareLinks.revoked, false),
+      ref.caseImageId ? eq(shareLinks.caseImageId, ref.caseImageId) : eq(shareLinks.generatedImageId, ref.generatedImageId!),
+    )).limit(1);
+    if (existing.length > 0) return existing[0];
+    const [row] = await db.insert(shareLinks).values({
+      token,
+      userId,
+      caseImageId: ref.caseImageId ?? null,
+      generatedImageId: ref.generatedImageId ?? null,
+    }).returning();
+    return row;
+  }
+
+  async getShareLinkData(token: string): Promise<{ beforeUrl: string | null; afterUrl: string; room: string; style: string; agentName: string | null; createdAt: Date } | null> {
+    const [link] = await db.select().from(shareLinks)
+      .where(and(eq(shareLinks.token, token), eq(shareLinks.revoked, false))).limit(1);
+    if (!link) return null;
+    const [owner] = await db.select({ displayName: users.displayName }).from(users).where(eq(users.id, link.userId)).limit(1);
+    if (link.caseImageId) {
+      const [img] = await db.select().from(boligCaseImages).where(eq(boligCaseImages.id, link.caseImageId)).limit(1);
+      if (!img) return null;
+      return { beforeUrl: img.beforeSrc, afterUrl: img.src, room: img.room, style: img.style, agentName: owner?.displayName ?? null, createdAt: link.createdAt };
+    }
+    if (link.generatedImageId) {
+      const [img] = await db.select().from(generatedImages).where(eq(generatedImages.id, link.generatedImageId)).limit(1);
+      if (!img) return null;
+      return { beforeUrl: img.originalImageUrl, afterUrl: img.imageUrl, room: img.roomType, style: img.style, agentName: owner?.displayName ?? null, createdAt: link.createdAt };
+    }
+    return null;
+  }
+
+  async getBoligCaseImage(id: number): Promise<{ image: BoligCaseImage; ownerUserId: number } | null> {
+    const [row] = await db.select({ image: boligCaseImages, ownerUserId: boligCases.userId })
+      .from(boligCaseImages)
+      .innerJoin(boligCases, eq(boligCaseImages.caseId, boligCases.id))
+      .where(eq(boligCaseImages.id, id)).limit(1);
+    return row ?? null;
+  }
+
+  async getGeneratedImage(id: number): Promise<GeneratedImage | undefined> {
+    const [row] = await db.select().from(generatedImages).where(eq(generatedImages.id, id)).limit(1);
+    return row;
+  }
+
+  // ── Anonymous landing demo rate limiting (per hashed IP per day) ────────────
+  async demoRateCheck(ipHash: string, perIpLimit: number, globalLimit: number): Promise<{ allowed: boolean; reason?: "ip" | "global" }> {
+    // Global daily circuit breaker first (protects Collov credits)
+    const { rows: [g] } = await pool.query(
+      "SELECT COALESCE(SUM(count), 0)::int AS total FROM demo_generations WHERE created_date = CURRENT_DATE",
+    );
+    if (g.total >= globalLimit) return { allowed: false, reason: "global" };
+    // Atomic per-IP upsert: increments and returns the new count
+    const { rows: [r] } = await pool.query(
+      `INSERT INTO demo_generations (ip_hash, created_date, count) VALUES ($1, CURRENT_DATE, 1)
+       ON CONFLICT (ip_hash, created_date) DO UPDATE SET count = demo_generations.count + 1
+       RETURNING count`,
+      [ipHash],
+    );
+    if (r.count > perIpLimit) return { allowed: false, reason: "ip" };
+    return { allowed: true };
+  }
+
+  // Refunder et demo-forsøg, hvis genereringen fejlede (så fejl ikke æder dagens prøve)
+  async demoRateRefund(ipHash: string): Promise<void> {
+    await pool.query(
+      "UPDATE demo_generations SET count = GREATEST(count - 1, 0) WHERE ip_hash = $1 AND created_date = CURRENT_DATE",
+      [ipHash],
+    );
+  }
+
+  // ── Case liggetid ────────────────────────────────────────────────────────────
+  async updateBoligCaseMarketDate(id: number, marketDateISO: string): Promise<BoligCase> {
+    const [row] = await db.update(boligCases)
+      .set({ marketDateISO, updatedAt: new Date() })
+      .where(eq(boligCases.id, id)).returning();
+    return row;
+  }
+
+  // ── Onboarding drip emails ───────────────────────────────────────────────────
+  async getDripCandidates(emailKey: string, minAgeDays: number, maxAgeDays: number): Promise<Array<{ id: number; email: string; displayName: string | null }>> {
+    // Only verified, opted-in users in the age window who have never generated
+    // anything and haven't received this drip yet. The max-age bound prevents
+    // blasting old accounts when the feature launches.
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.display_name AS "displayName"
+       FROM users u
+       WHERE u.email_verified = true
+         AND u.marketing_opt_out = false
+         AND u.created_at <= now() - ($1 || ' days')::interval
+         AND u.created_at >  now() - ($2 || ' days')::interval
+         AND NOT EXISTS (SELECT 1 FROM generated_images g WHERE g.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM drip_emails d WHERE d.user_id = u.id AND d.email_key = $3)
+       LIMIT 100`,
+      [minAgeDays, maxAgeDays, emailKey],
+    );
+    return rows;
+  }
+
+  async recordDripEmail(userId: number, emailKey: string): Promise<boolean> {
+    // Ledger row is written BEFORE sending — duplicate insert returns false
+    const { rowCount } = await pool.query(
+      "INSERT INTO drip_emails (user_id, email_key) VALUES ($1, $2) ON CONFLICT (user_id, email_key) DO NOTHING",
+      [userId, emailKey],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
+  async setMarketingOptOut(userId: number): Promise<void> {
+    await pool.query("UPDATE users SET marketing_opt_out = true WHERE id = $1", [userId]);
   }
 
   // ── Team methods ────────────────────────────────────────────────────────────

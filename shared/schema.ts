@@ -72,6 +72,9 @@ export const users = pgTable("users", {
   verificationCodeHash: varchar("verification_code_hash", { length: 128 }),
   verificationCodeExpires: timestamp("verification_code_expires"),
   verificationAttempts: integer("verification_attempts").notNull().default(0),
+  // GDPR: users can opt out of onboarding/marketing emails (transactional
+  // emails like verification codes and receipts are unaffected).
+  marketingOptOut: boolean("marketing_opt_out").notNull().default(false),
 });
 
 // Monthly quotas per subscription tier
@@ -315,6 +318,34 @@ export type InsertBoligCase = z.infer<typeof insertBoligCaseSchema>;
 export type BoligCase = typeof boligCases.$inferSelect;
 export type InsertBoligCaseImage = z.infer<typeof insertBoligCaseImageSchema>;
 export type BoligCaseImage = typeof boligCaseImages.$inferSelect;
+
+// ── Public share links (før/efter pages, no login) ──────────────────────────
+export const shareLinks = pgTable("share_links", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  token: varchar("token", { length: 32 }).notNull().unique(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  caseImageId: integer("case_image_id").references(() => boligCaseImages.id),
+  generatedImageId: integer("generated_image_id").references(() => generatedImages.id),
+  revoked: boolean("revoked").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type ShareLink = typeof shareLinks.$inferSelect;
+
+// ── Anonymous landing demo rate limiting (per hashed IP per day) ─────────────
+export const demoGenerations = pgTable("demo_generations", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  ipHash: varchar("ip_hash", { length: 64 }).notNull(),
+  createdDate: date("created_date").defaultNow().notNull(),
+  count: integer("count").notNull().default(1),
+});
+
+// ── Onboarding drip email ledger (duplicate protection across restarts) ─────
+export const dripEmails = pgTable("drip_emails", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  emailKey: varchar("email_key", { length: 30 }).notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
 
 // ── AI Boligfremvisning (property tours) ─────────────────────────────────────
 export const aiTourProperties = pgTable("ai_tour_properties", {

@@ -32,6 +32,7 @@ import PaymentSuccessPage from "@/pages/payment-success";
 import BoligpotentialeLanding from "@/pages/boligpotentiale-landing";
 import BoligpotentialeDashboard from "@/pages/boligpotentiale-dashboard";
 import BoligpotentialeJoinTeam from "@/pages/boligpotentiale-join-team";
+import ShareView from "@/pages/share-view";
 import OpretTeamPage from "@/pages/opret-team";
 import TrackerDashboard from "@/pages/tracker-dashboard";
 import {
@@ -156,6 +157,7 @@ function TeamSetupGate({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Switch>
+      <Route path="/s/:token" component={ShareView} />
       <Route path="/join/:code" component={BoligpotentialeJoinTeam} />
       <Route path="/boligpotentiale/join-team" component={BoligpotentialeJoinTeam} />
       <Route path="/opret-team" component={OpretTeamPage} />
