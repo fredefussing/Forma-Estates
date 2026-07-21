@@ -4963,7 +4963,7 @@ const ROOM_NAME_SUGGESTIONS = ["Stue", "Køkken", "Soveværelse", "Badeværelse"
 
 function PropertyTourFlow() {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<"list" | "create" | "detail" | "final">("list");
+  const [mode, setMode] = useState<"list" | "create" | "detail" | "final" | "tour">("list");
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -5060,6 +5060,15 @@ function PropertyTourFlow() {
         propertyId={currentId}
         onBack={() => setMode("detail")}
         onClose={() => { setCurrentId(null); setMode("list"); }}
+      />
+    );
+  }
+
+  if (mode === "tour" && currentId !== null) {
+    return (
+      <TourGeneratorPage
+        propertyId={currentId}
+        onBack={() => { setCurrentId(null); setMode("list"); }}
       />
     );
   }
@@ -5217,7 +5226,7 @@ function PropertyTourFlow() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="flex items-center mt-auto">
+                <div className="flex items-center gap-2 mt-auto flex-wrap">
                   <span
                     className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md"
                     style={{ background: p.status === "mapping" ? "#F5F3EF" : "rgba(200,149,108,0.08)", color: p.status === "mapping" ? "#6B6B6B" : "#C8956C" }}
@@ -5227,6 +5236,14 @@ function PropertyTourFlow() {
                     {p.status !== "mapping" && <div className="w-1.5 h-1.5 rounded-full bg-[#C8956C]" />}
                     {p.status === "mapping" ? "Klar til rum" : p.status}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCurrentId(p.id); setMode("tour"); }}
+                    className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md transition-colors hover:bg-[#0F1D2F] hover:text-white"
+                    style={{ background: "#F5F3EF", color: "#0F1D2F" }}
+                    data-testid={`button-tour-walkthrough-${p.id}`}
+                  >
+                    <Film className="w-3 h-3" /> Rundvisning
+                  </button>
                 </div>
               </div>
             </div>
@@ -6123,13 +6140,6 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
         </div>
       )}
 
-      <GuidedTourSection
-        propertyId={propertyId}
-        property={property}
-        rooms={property?.rooms ?? []}
-        invalidate={() => queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] })}
-      />
-
       {/* Centered modal picker for the just-drawn rum. Rendered at the root
           of PropertyTourDetail (outside the floor-plan's overflow-hidden box)
           so it can never get clipped, regardless of where on the plan the
@@ -6412,8 +6422,6 @@ function PropertyTourFinal({
         )}
       </section>
 
-      <GuidedTourSection propertyId={propertyId} property={property} rooms={rooms} invalidate={invalidate} />
-
       <AnimatePresence>
         {viewerRoom && (
           <motion.div
@@ -6442,6 +6450,50 @@ function PropertyTourFinal({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ── TourGeneratorPage ─────────────────────────────────────────────────────────
+// Selvstændig side under AI Boligfremvisning → Rundvisning-knap på et projekt.
+// Viser GuidedTourSection med tilbageknap til projektlisten.
+function TourGeneratorPage({ propertyId, onBack }: { propertyId: number; onBack: () => void }) {
+  const queryClient = useQueryClient();
+  const { data: property } = useQuery<AiTourProperty & { rooms: AiTourRoom[] }>({
+    queryKey: ["/api/ai-boligfremvisning/properties", propertyId],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
+    refetchInterval: 8000,
+  });
+  const rooms: AiTourRoom[] = property?.rooms ?? [];
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+
+  return (
+    <div className="max-w-5xl">
+      <div className="mb-8">
+        <button
+          onClick={onBack}
+          className="text-[11px] font-bold tracking-wider uppercase mb-3 inline-flex items-center gap-1.5 hover:text-[#0F1D2F] transition-colors"
+          style={{ color: "#9B9690" }}
+          data-testid="button-back-from-tour"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" /> Tilbage til projekter
+        </button>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
+          {property?.name || "Indlæser…"}
+        </h1>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>
+          AI-genereret virtuel rundvisning — ét filmisk videoklip pr. rum, sammensat til en komplet fremvisningsfilm.
+        </p>
+      </div>
+      <GuidedTourSection propertyId={propertyId} property={property} rooms={rooms} invalidate={invalidate} />
     </div>
   );
 }
