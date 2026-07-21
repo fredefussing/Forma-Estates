@@ -29,16 +29,16 @@ export default function SignupPage() {
     if (prefillEmail && !email) setEmail(prefillEmail);
   }, [prefillEmail]);
 
-  const { emailVerified } = useAuth();
+  const { emailVerified, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && user && emailVerified === true) {
+    if (!authLoading && user && (emailVerified === true || isAdmin)) {
       setLocation(redirect);
     }
-    if (!authLoading && user && emailVerified === false) {
+    if (!authLoading && user && emailVerified === false && !isAdmin) {
       setLocation(`/verificer-email?redirect=${encodeURIComponent(redirect)}`);
     }
-  }, [user, authLoading, emailVerified, setLocation, redirect]);
+  }, [user, authLoading, emailVerified, isAdmin, setLocation, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

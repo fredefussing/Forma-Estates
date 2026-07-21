@@ -78,29 +78,16 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
             draggable={false}
           />
 
-          {/* Dark overlay on the right (after) side */}
-          <div
-            className="absolute top-0 bottom-0 right-0 pointer-events-none z-[1]"
-            style={{ left: `${sliderPos}%`, background: "rgba(0,0,0,0.28)" }}
+          {/* Before image clipped to the left of the slider — clipPath keeps it
+              perfectly aligned with the after image (no width measurement needed
+              on first render) and adds no color/shadow distortion. */}
+          <img
+            src={before}
+            alt="Before redesign"
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+            draggable={false}
           />
-
-          <div
-            className="absolute top-0 left-0 bottom-0 overflow-hidden bg-white"
-            style={{ width: `${sliderPos}%` }}
-          >
-            <img
-              src={before}
-              alt="Before redesign"
-              className="absolute top-0 left-0 h-full object-contain"
-              style={{
-                width: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100vw",
-                maxWidth: "none",
-              }}
-              draggable={false}
-            />
-            {/* Subtle bright overlay on left (before) side */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "rgba(255,255,255,0.08)" }} />
-          </div>
 
           <div
             className="absolute top-0 bottom-0 z-10"

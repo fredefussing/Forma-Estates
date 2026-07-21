@@ -103,20 +103,21 @@ function BoligComingSoon() {
 }
 
 function BoligGate({ children }: { children: React.ReactNode }) {
-  const { user, loading, emailVerified } = useAuth();
+  const { user, loading, emailVerified, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   useEffect(() => {
     if (!loading && !user) {
       setLocation("/login?redirect=/boligpotentiale/dashboard");
     }
-    if (!loading && user && emailVerified === false) {
+    // Admin-konti er fritaget for aktiveringskode (serveren fritager dem også).
+    if (!loading && user && emailVerified === false && !isAdmin) {
       setLocation("/verificer-email?redirect=/boligpotentiale/dashboard");
     }
-  }, [user, loading, emailVerified, setLocation]);
+  }, [user, loading, emailVerified, isAdmin, setLocation]);
   if (loading) {
     return <div className="min-h-screen" style={{ background: "#FAF7F2" }} />;
   }
-  if (!user || emailVerified === false) {
+  if (!user || (emailVerified === false && !isAdmin)) {
     return null;
   }
   return <>{children}</>;

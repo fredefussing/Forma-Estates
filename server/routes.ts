@@ -17,7 +17,7 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { assertPromptLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, sendTestEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
@@ -415,7 +415,9 @@ export async function registerRoutes(
       }
     }
 
-    next();
+    // Filen findes hverken på disk eller i R2 → rigtig 404, IKKE SPA'ens HTML.
+    // (HTML med status 200 fik <img> til at fejle uklart og PDF'en til at gå i stå.)
+    return res.status(404).send("Not found");
   });
 
   // Serve sitemap.xml and robots.txt as static XML/text before Vite catch-all
@@ -446,6 +448,7 @@ export async function registerRoutes(
       openaiKeySet: !!process.env.OPENAI_API_KEY,
       falKeySet: !!process.env.FAL_KEY,
       collovKeySet: !!(process.env.COLLOV_API_KEY || process.env.COLLOV_KEY),
+      r2ConfigSet: !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_BUCKET_NAME),
     };
     try {
       const url = process.env.DATABASE_URL || "";
@@ -495,6 +498,29 @@ export async function registerRoutes(
       out.smtp = "ok";
     } catch (e: any) {
       out.smtp = { error: e.message, code: e.code ?? null };
+    }
+    // Brevo API-status: er nøglen gyldig, og er afsenderen godkendt?
+    if (process.env.BREVO_API_KEY) {
+      const brevoGet = async (path: string) => {
+        const r = await fetch(`https://api.brevo.com/v3/${path}`, {
+          headers: { "api-key": process.env.BREVO_API_KEY!, accept: "application/json" },
+          signal: AbortSignal.timeout(10000),
+        });
+        const text = await r.text().catch(() => "");
+        return { status: r.status, body: text.slice(0, 500) };
+      };
+      try { out.brevoAccount = await brevoGet("account"); } catch (e: any) { out.brevoAccount = { error: e.message }; }
+      try { out.brevoSenders = await brevoGet("senders"); } catch (e: any) { out.brevoSenders = { error: e.message }; }
+    }
+    // ?testmail=adresse — forsøger en rigtig afsendelse og viser den præcise fejl.
+    const testmail = typeof req.query.testmail === "string" ? req.query.testmail.trim() : "";
+    if (testmail && /^\S+@\S+\.\S+$/.test(testmail)) {
+      try {
+        await sendTestEmail(testmail);
+        out.testmail = `ok — testmail sendt til ${testmail}`;
+      } catch (e: any) {
+        out.testmail = { error: e.message };
+      }
     }
     return res.json(out);
   });
@@ -2549,11 +2575,23 @@ export async function registerRoutes(
   // ── Quota info endpoint ────────────────────────────────────────────────────
   // ── Image proxy — fetches external image server-side and streams to client ──
   // Fixes CORS issue where browser cannot directly fetch Cloudfront/S3 images.
-  app.get("/api/proxy-image", (req, res) => {
+  app.get("/api/proxy-image", async (req, res) => {
     const url = req.query.url as string;
     const format = (req.query.format as string | undefined) ?? "jpg";
     const isDemo = req.query.demo === "1";
     if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
+
+    // plain=1 + gyldigt Firebase-token: spring det indbrændte vandmærke over.
+    // Bruges af PDF-generatoren, som selv tegner sit vandmærke (og hvor FØR-
+    // billedet ikke skal brandes som AI). Uden gyldigt login brændes vandmærket
+    // ALTID ind, så den åbne proxy ikke kan misbruges til rene billeder.
+    let skipWatermark = false;
+    if (req.query.plain === "1") {
+      try {
+        await verifyFirebaseToken(req.headers.authorization);
+        skipWatermark = true;
+      } catch {}
+    }
 
     const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", url]);
 
@@ -2613,13 +2651,15 @@ export async function registerRoutes(
           `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` + svgParts + `</svg>`
         );
 
+        let pipeline = sharp(buf);
+        if (!skipWatermark) pipeline = pipeline.composite([{ input: svgWatermark, blend: "over" }]);
         if (format === "png") {
-          const out = await sharp(buf).composite([{ input: svgWatermark, blend: "over" }]).png().toBuffer();
+          const out = await pipeline.png().toBuffer();
           res.setHeader("Content-Type", "image/png");
           res.setHeader("Cache-Control", "private, max-age=86400");
           res.end(out);
         } else {
-          const out = await sharp(buf).composite([{ input: svgWatermark, blend: "over" }]).jpeg({ quality: 92 }).toBuffer();
+          const out = await pipeline.jpeg({ quality: 92 }).toBuffer();
           res.setHeader("Content-Type", "image/jpeg");
           res.setHeader("Cache-Control", "private, max-age=86400");
           res.end(out);

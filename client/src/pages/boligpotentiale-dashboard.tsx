@@ -120,7 +120,18 @@ function buildImageFilename(opts: { address?: string | null; room?: string | nul
 }
 async function fetchImageAsDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number; mime: string } | null> {
   try {
-    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    // External images (Collov CDN m.fl.) cannot be fetched directly from the
+    // browser in production (no CORS headers) — route them through our own
+    // proxy. plain=1 + auth token skips the burned-in watermark so the PDF's
+    // own vector watermark doesn't get doubled (and FØR stays unbranded).
+    let fetchUrl = url;
+    let init: RequestInit = { mode: "cors", credentials: "omit" };
+    if (url.startsWith("http") && !url.startsWith(window.location.origin)) {
+      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&plain=1`;
+      init = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    }
+    const res = await fetch(fetchUrl, init);
     if (!res.ok) return null;
     const blob = await res.blob();
     const dataUrl: string = await new Promise((resolve, reject) => {

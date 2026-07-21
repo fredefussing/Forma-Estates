@@ -14,4 +14,5 @@
 - [Server modules must not import ./index](server-modules-standalone.md) — importing server/index.ts boots Express (EADDRINUSE in test scripts); leaf modules use a local logger.
 - [Rendy camera control via presetKey](rendy-camera-control.md) — camera keys go in per-image presetKey (GET /camera-movements lists them); music not controllable; zero-cost Zod probing trick.
 - [Showcase crop frames are aspect-locked](showcase-crop-aspect-lock.md) — pre-made rendy-style frame (h=k·w normalized); ratio switch clears crops; progress always integer.
+- [Render ephemeral uploads & R2](render-ephemeral-uploads.md) — prod disk wipes on deploy; /uploads needs R2 vars on Render + real 404s; Collov CDN blocks browser CORS, use the proxy (plain=1+token skips watermark).
 - [Bolig gallery image tables](bolig-image-tables.md) — gallery ids are generated_images rows; bolig_case_images is legacy (no writes) — use generatedImageId + getGeneratedImage + userId check.

@@ -29,6 +29,17 @@ export default function ShareView() {
   const token = params?.token || "";
   const [data, setData] = useState<ShareData | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "notfound" | "error">("loading");
+  const [beforeFailed, setBeforeFailed] = useState(false);
+
+  // Hvis før-billedet ikke længere findes (fx slettet ved server-deploy), så
+  // fald pænt tilbage til kun at vise efter-billedet i stedet for en tom skyder.
+  useEffect(() => {
+    setBeforeFailed(false);
+    if (!data?.beforeUrl) return;
+    const im = new Image();
+    im.onerror = () => setBeforeFailed(true);
+    im.src = data.beforeUrl;
+  }, [data?.beforeUrl]);
 
   useEffect(() => {
     if (!token) { setStatus("notfound"); return; }
@@ -109,7 +120,7 @@ export default function ShareView() {
               </p>
             </div>
 
-            {data.beforeUrl && data.afterUrl ? (
+            {data.beforeUrl && data.afterUrl && !beforeFailed ? (
               <BeforeAfterSlider beforeSrc={data.beforeUrl} afterSrc={data.afterUrl} className="bg-white shadow-lg" />
             ) : (
               <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${C.champagne}`, background: "#fff" }}>

@@ -97,6 +97,17 @@ async function sendBrevoEmail(options: EmailOptions) {
   });
 }
 
+// Bruges KUN af live-diagnostikken til at afsløre den præcise afsendelsesfejl
+// (Brevo API-status + fejltekst) i produktion.
+export async function sendTestEmail(to: string) {
+  await sendBrevoEmail({
+    to,
+    subject: "Testmail — Forma Estates diagnostik",
+    senderEmail: KONTAKT_EMAIL,
+    html: `<p>Dette er en testmail fra Forma Estates' diagnostikværktøj. Hvis du kan læse denne, virker mailafsendelsen.</p>`,
+  });
+}
+
 export async function sendVerificationCodeEmail(email: string, code: string) {
   await sendBrevoEmail({
     to: email,
