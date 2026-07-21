@@ -297,21 +297,21 @@ async function downloadCasePdf(opts: {
     const imgBottom = pageH - 22;
     if (before) {
       const half = (pageW - margin * 2 - 6) / 2;
-      const drawHalf = (img: { dataUrl: string; w: number; h: number }, x: number, label: string) => {
+      const drawHalf = (img: { dataUrl: string; w: number; h: number }, x: number, label: string, addWatermark: boolean) => {
         const r = img.w / img.h;
         let w = half, h = half / r;
         const maxH = imgBottom - imgTop - 8;
         if (h > maxH) { h = maxH; w = maxH * r; }
         const ox = x + (half - w) / 2;
         pdf.addImage(img.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
-        drawWatermark(ox, imgTop, w, h);
+        if (addWatermark) drawWatermark(ox, imgTop, w, h);
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(9);
         pdf.setTextColor(accent[0], accent[1], accent[2]);
         pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
       };
-      drawHalf(before, margin, "FØR");
-      drawHalf(after, margin + half + 6, "EFTER");
+      drawHalf(before, margin, "FØR", false);
+      drawHalf(after, margin + half + 6, "EFTER", true);
     } else {
       const maxW = pageW - margin * 2;
       const maxH = imgBottom - imgTop;
@@ -675,21 +675,21 @@ async function downloadSellerReportPdf(opts: {
       const imgBottom = pageH - 22;
       if (before) {
         const half = (pageW - margin * 2 - 6) / 2;
-        const drawHalf = (im: { dataUrl: string; w: number; h: number }, x: number, label: string) => {
+        const drawHalf = (im: { dataUrl: string; w: number; h: number }, x: number, label: string, addWatermark: boolean) => {
           const r = im.w / im.h;
           let w = half, h = half / r;
           const maxH = imgBottom - imgTop - 8;
           if (h > maxH) { h = maxH; w = maxH * r; }
           const ox = x + (half - w) / 2;
           pdf.addImage(im.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
-          drawWatermark(ox, imgTop, w, h);
+          if (addWatermark) drawWatermark(ox, imgTop, w, h);
           pdf.setFont("helvetica", "bold");
           pdf.setFontSize(9);
           pdf.setTextColor(accent[0], accent[1], accent[2]);
           pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
         };
-        drawHalf(before, margin, "FØR");
-        drawHalf(after, margin + half + 6, "EFTER");
+        drawHalf(before, margin, "FØR", false);
+        drawHalf(after, margin + half + 6, "EFTER", true);
       } else {
         const maxW = pageW - margin * 2;
         const maxH = imgBottom - imgTop;
