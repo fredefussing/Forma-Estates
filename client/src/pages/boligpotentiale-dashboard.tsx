@@ -5291,20 +5291,14 @@ const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string }> = [
 
 function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
   const queryClient = useQueryClient();
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [rooms, setRooms] = useState<DraftRoom[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [drag, setDrag] = useState<{ startX: number; startY: number; curX: number; curY: number } | null>(null);
+  const [styleKey, setStyleKey] = useState<string | null>("scandinavian");
+  const [tierKey, setTierKey] = useState<"budget" | "standard" | "premium">("standard");
+  const [batchRunning, setBatchRunning] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [showAddRoom, setShowAddRoom] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
   const nextLocalIdRef = useRef(-1);
-  // After mouseup we stash the just-drawn rectangle here and show the room-
-  // type picker. The rectangle is *not* added to `rooms` until the user
-  // chooses a name (or cancels, which discards it).
-  const [pendingRoom, setPendingRoom] = useState<
-    { posX: number; posY: number; width: number; height: number; color: string } | null
-  >(null);
-  const [pendingCustomName, setPendingCustomName] = useState("");
 
   const { data: property, isLoading } = useQuery<AiTourProperty & { rooms: AiTourRoom[] }>({
     queryKey: ["/api/ai-boligfremvisning/properties", propertyId],
@@ -5316,41 +5310,12 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       if (!res.ok) throw new Error(`${res.status}`);
       return res.json();
     },
-    // Poll while the 3D plan is being generated in the background so the
-    // marking surface auto-swaps to the 3D render the moment it's ready —
-    // user marks rooms on the prettier 3D image instead of the flat 2D.
     refetchInterval: (q) => (q.state.data?.threedPlanUrl ? false : 4000),
   });
 
-  const [styleKey, setStyleKey] = useState<string | null>(null);
-  const [tierKey, setTierKey] = useState<"budget" | "standard" | "premium">("standard");
-  const [batchRunning, setBatchRunning] = useState(false);
-  // Tracks whether we've already kicked off the auto 3D-plan generation for
-  // this property in this session (component mount). Prevents double-firing
-  // on React StrictMode remounts and on every refetch.
   const auto3DRef = useRef<Set<number>>(new Set());
-  const [regenerating3D, setRegenerating3D] = useState(false);
+  const autoAnalyzeRef = useRef<Set<number>>(new Set());
 
-  const handleRegenerate3D = async () => {
-    if (!property || regenerating3D) return;
-    setRegenerating3D(true);
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      await fetch(`/api/ai-boligfremvisning/properties/${property.id}/generate-3d-plan`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-    } catch (e) {
-      console.error("[ai-tour] regenerate 3D plan failed", e);
-    } finally {
-      setRegenerating3D(false);
-    }
-  };
-
-  // Hydrate local draft state from server payload exactly once per load.
-  // (Photo / after-image updates after this point are applied in-place from
-  // each endpoint response so we don't blow away unsaved layout edits.)
   useEffect(() => {
     if (!property) return;
     setRooms(property.rooms.map((r) => ({
@@ -5368,20 +5333,13 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       afterImageUrl2: (r as any).afterImageUrl2 ?? null,
       panoramaUrl: r.panoramaUrl ?? null,
     })));
-    setStyleKey(property.style ?? null);
+    setStyleKey(property.style ?? "scandinavian");
     const t = property.tier === "luxury" ? "premium" : (property.tier as any);
     if (t === "budget" || t === "standard" || t === "premium") setTierKey(t);
   }, [property?.id]);
 
-  // Auto-trigger 3D plantegning generation in the background as soon as the
-  // user lands on a project that doesn't yet have one. The user explicitly
-  // asked for "så lidt klikkeri som muligt" — they upload the floor plan and
-  // by the time they're done marking rooms the 3D render is ready in the
-  // final view. Uses the same fal pipeline as the standalone /3d-plantegning
-  // feature; nothing else in that flow is touched.
   useEffect(() => {
-    if (!property) return;
-    if (property.threedPlanUrl) return;
+    if (!property || property.threedPlanUrl) return;
     if (auto3DRef.current.has(property.id)) return;
     auto3DRef.current.add(property.id);
     (async () => {
@@ -5392,21 +5350,12 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-      } catch (e) {
-        console.error("[ai-tour] auto 3D plan failed", e);
-      }
+      } catch (e) { console.error("[ai-tour] auto 3D plan failed", e); }
     })();
   }, [property?.id, property?.threedPlanUrl, propertyId, queryClient]);
 
-  // Strategy B — auto-trigger floor-plan analysis (GPT-4o-mini vision) in the
-  // background as soon as the user lands. Silent, idempotent, non-blocking.
-  // The result is used by /generate-after and /generate-panorama as APPENDED
-  // architectural context (windows/doors/exterior walls) — the existing
-  // prompts in shared/boligPrompts.ts stay completely untouched.
-  const autoAnalyzeRef = useRef<Set<number>>(new Set());
   useEffect(() => {
-    if (!property) return;
-    if ((property as any).floorplanAnalysis) return;
+    if (!property || (property as any).floorplanAnalysis) return;
     if (autoAnalyzeRef.current.has(property.id)) return;
     autoAnalyzeRef.current.add(property.id);
     (async () => {
@@ -5417,10 +5366,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-      } catch (e) {
-        // Non-fatal — we fall back to coordinate heuristics only.
-        console.warn("[ai-tour] auto analyze-floorplan failed", e);
-      }
+      } catch (e) { console.warn("[ai-tour] auto analyze-floorplan failed", e); }
     })();
   }, [property?.id, (property as any)?.floorplanAnalysis, propertyId, queryClient]);
 
@@ -5438,180 +5384,11 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
         body: JSON.stringify(body),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleStyleChange = (key: string) => { setStyleKey(key); patchProperty({ style: key }); };
   const handleTierChange = (key: "budget" | "standard" | "premium") => { setTierKey(key); patchProperty({ tier: key }); };
-
-  // Batch-generate after-images for every included room that has a before-photo
-  // and doesn't yet have an after-image. Calls the existing per-room
-  // /generate-after endpoint in parallel — each request handles its own
-  // Collov polling server-side, so we just await Promise.allSettled here.
-  const handleBatchGenerate = async () => {
-    if (!styleKey) { alert("Vælg en stil først."); return; }
-    const targets = rooms.filter((r) => r.id > 0 && r.included && r.roomPhotoUrl && !r.afterImageUrl);
-    if (targets.length === 0) { alert("Ingen rum klar til generering. Vælg rum og upload billeder først."); return; }
-    setBatchRunning(true);
-    setRooms((rs) => rs.map((r) => (targets.some((t) => t.id === r.id) ? { ...r, generating: true } : r)));
-    try {
-      const headers = await authHeader();
-      await Promise.allSettled(targets.map(async (room) => {
-        try {
-          const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${room.id}/generate-after`, {
-            method: "POST",
-            headers,
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
-          setRooms((rs) => rs.map((r) => (r.id === room.id ? { ...r, afterImageUrl: data.afterImageUrl, generating: false } : r)));
-        } catch (e: any) {
-          console.error(`[ai-tour] batch generate failed for room ${room.id}`, e);
-          setRooms((rs) => rs.map((r) => (r.id === room.id ? { ...r, generating: false } : r)));
-        }
-      }));
-    } finally {
-      setBatchRunning(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-    }
-  };
-
-  const handlePhotoUpload = async (roomId: number, file: File, angle: 1 | 2 = 1) => {
-    if (roomId < 0) {
-      alert("Gem rummene først, før du uploader billeder.");
-      return;
-    }
-    const fd = new FormData();
-    fd.append("photo", file);
-    try {
-      const headers = await authHeader();
-      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/photo?angle=${angle}`, {
-        method: "POST",
-        headers,
-        body: fd,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const updated = await res.json();
-      setRooms((rs) => rs.map((r) => (r.id === roomId
-        ? { ...r, roomPhotoUrl: updated.roomPhotoUrl ?? r.roomPhotoUrl, roomPhotoUrl2: updated.roomPhotoUrl2 ?? r.roomPhotoUrl2 }
-        : r)));
-    } catch (err) {
-      console.error(err);
-      alert("Kunne ikke uploade billede");
-    }
-  };
-
-  const handleGenerate = async (roomId: number) => {
-    if (roomId < 0) { alert("Gem rummene først."); return; }
-    if (!styleKey) { alert("Vælg en stil først."); return; }
-    setRooms((rs) => rs.map((r) => (r.id === roomId ? { ...r, generating: true } : r)));
-    try {
-      const headers = await authHeader();
-      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/generate-after`, {
-        method: "POST",
-        headers,
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || `HTTP ${res.status}`);
-      }
-      const updated = await res.json();
-      setRooms((rs) => rs.map((r) => (r.id === roomId ? { ...r, afterImageUrl: updated.afterImageUrl, generating: false } : r)));
-    } catch (err: any) {
-      console.error(err);
-      alert("Generering fejlede: " + (err.message || ""));
-      setRooms((rs) => rs.map((r) => (r.id === roomId ? { ...r, generating: false } : r)));
-    }
-  };
-
-  const getPct = (clientX: number, clientY: number) => {
-    const rect = overlayRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
-    };
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("[data-room-rect]")) return; // clicking an existing room — don't start drawing
-    const { x, y } = getPct(e.clientX, e.clientY);
-    setDrag({ startX: x, startY: y, curX: x, curY: y });
-    setSelectedId(null);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!drag) return;
-    const { x, y } = getPct(e.clientX, e.clientY);
-    setDrag({ ...drag, curX: x, curY: y });
-  };
-
-  const handleMouseUp = () => {
-    if (!drag) return;
-    const x = Math.min(drag.startX, drag.curX);
-    const y = Math.min(drag.startY, drag.curY);
-    const w = Math.abs(drag.curX - drag.startX);
-    const h = Math.abs(drag.curY - drag.startY);
-    setDrag(null);
-    if (w < 2 || h < 2) return; // ignore stray clicks
-    // Don't commit a room yet — first show the room-type picker so the user
-    // chooses which rum det er (i stedet for at vi auto-vælger "Stue").
-    const idx = rooms.length;
-    setPendingRoom({
-      posX: x,
-      posY: y,
-      width: w,
-      height: h,
-      color: ROOM_COLORS[idx % ROOM_COLORS.length],
-    });
-  };
-
-  // Commit a pending rectangle into the rooms list under the chosen name.
-  // Called from the room-type picker popover.
-  const commitPendingRoom = (name: string) => {
-    if (!pendingRoom) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const localId = nextLocalIdRef.current--;
-    const newRoom: DraftRoom = {
-      id: localId,
-      name: trimmed,
-      posX: pendingRoom.posX,
-      posY: pendingRoom.posY,
-      width: pendingRoom.width,
-      height: pendingRoom.height,
-      color: pendingRoom.color,
-      // New rooms default to included so the user doesn't have to tick a
-      // checkbox immediately after drawing each one — explicit opt-out is
-      // cheaper than explicit opt-in here.
-      included: true,
-    };
-    // Build the next rooms list explicitly so we can pass it straight to
-    // handleSave — relying on setRooms + setTimeout caused a stale-closure
-    // bug where the save POSTed the OLD rooms list and the server returned
-    // {rooms:[]}, wiping the new room from local state.
-    const nextRooms = [...rooms, newRoom];
-    setRooms(nextRooms);
-    setSelectedId(localId);
-    setPendingRoom(null);
-    setSaved(false);
-    // Auto-persist with the explicit snapshot so the user doesn't have to
-    // click "Gem rum" before uploading a photo for the new room.
-    void handleSave(nextRooms);
-  };
-
-  const updateRoom = (id: number, patch: Partial<DraftRoom>) => {
-    setRooms((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    setSaved(false);
-  };
-
-  const removeRoom = (id: number) => {
-    setRooms((rs) => rs.filter((r) => r.id !== id));
-    if (selectedId === id) setSelectedId(null);
-    setSaved(false);
-  };
 
   const handleSave = async (snapshot?: DraftRoom[]) => {
     setSaving(true);
@@ -5620,14 +5397,9 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       const token = await auth.currentUser?.getIdToken();
       const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           rooms: source.map((r) => ({
-            // Send positive ids so the server preserves photo/after-image; new
-            // rooms (negative local id) are omitted so the server inserts them.
             ...(r.id > 0 ? { id: r.id } : {}),
             name: r.name,
             posX: r.posX,
@@ -5641,18 +5413,12 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       });
       if (!res.ok) throw new Error("Kunne ikke gemme");
       const body = await res.json();
-      // Re-key local state from server response so newly-inserted rooms pick
-      // up their real DB ids (needed before they can accept photo uploads).
       if (Array.isArray(body.rooms)) {
         setRooms(body.rooms.map((r: AiTourRoom) => ({
-          id: r.id,
-          name: r.name,
-          posX: Number(r.posX),
-          posY: Number(r.posY),
-          width: Number(r.width),
-          height: Number(r.height),
-          color: r.color,
-          included: !!r.included,
+          id: r.id, name: r.name,
+          posX: Number(r.posX), posY: Number(r.posY),
+          width: Number(r.width), height: Number(r.height),
+          color: r.color, included: !!r.included,
           roomPhotoUrl: r.roomPhotoUrl ?? null,
           roomPhotoUrl2: (r as any).roomPhotoUrl2 ?? null,
           afterImageUrl: r.afterImageUrl ?? null,
@@ -5661,26 +5427,105 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
         })));
       }
       queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-      setSaved(true);
-    } catch (err) {
+    } catch (err) { console.error(err); } finally { setSaving(false); }
+  };
+
+  const addRoom = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const idx = rooms.length;
+    const localId = nextLocalIdRef.current--;
+    const newRoom: DraftRoom = {
+      id: localId, name: trimmed,
+      posX: 0, posY: 0, width: 10, height: 10,
+      color: ROOM_COLORS[idx % ROOM_COLORS.length],
+      included: true,
+    };
+    const next = [...rooms, newRoom];
+    setRooms(next);
+    setShowAddRoom(false);
+    setNewRoomName("");
+    await handleSave(next);
+  };
+
+  const removeRoom = async (id: number) => {
+    const next = rooms.filter((r) => r.id !== id);
+    setRooms(next);
+    await handleSave(next);
+  };
+
+  const handlePhotoUpload = async (roomId: number, file: File) => {
+    if (roomId < 0) { alert("Vent et øjeblik — rummet gemmes automatisk."); return; }
+    const fd = new FormData();
+    fd.append("photo", file);
+    try {
+      const headers = await authHeader();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/photo?angle=1`, {
+        method: "POST", headers, body: fd,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updated = await res.json();
+      setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, roomPhotoUrl: updated.roomPhotoUrl ?? r.roomPhotoUrl } : r));
+    } catch (err) { console.error(err); alert("Kunne ikke uploade billede"); }
+  };
+
+  const handleGenerate = async (roomId: number) => {
+    if (roomId < 0) { alert("Vent et øjeblik — rummet gemmes automatisk."); return; }
+    if (!styleKey) { alert("Vælg en stil først."); return; }
+    setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, generating: true } : r));
+    try {
+      const headers = await authHeader();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/generate-after`, {
+        method: "POST", headers,
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || `HTTP ${res.status}`); }
+      const updated = await res.json();
+      setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, afterImageUrl: updated.afterImageUrl, generating: false } : r));
+    } catch (err: any) {
       console.error(err);
-    } finally {
-      setSaving(false);
+      alert("Generering fejlede: " + (err.message || ""));
+      setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, generating: false } : r));
     }
   };
 
-  const drawPreview = drag
-    ? {
-        x: Math.min(drag.startX, drag.curX),
-        y: Math.min(drag.startY, drag.curY),
-        w: Math.abs(drag.curX - drag.startX),
-        h: Math.abs(drag.curY - drag.startY),
-      }
-    : null;
+  const handleBatchGenerate = async () => {
+    if (!styleKey) { alert("Vælg en stil først."); return; }
+    const targets = rooms.filter((r) => r.id > 0 && r.included && r.roomPhotoUrl && !r.afterImageUrl);
+    if (targets.length === 0) { alert("Upload mindst ét rum-billede først."); return; }
+    setBatchRunning(true);
+    setRooms((rs) => rs.map((r) => targets.some((t) => t.id === r.id) ? { ...r, generating: true } : r));
+    try {
+      const headers = await authHeader();
+      await Promise.allSettled(targets.map(async (room) => {
+        try {
+          const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${room.id}/generate-after`, {
+            method: "POST", headers,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+          setRooms((rs) => rs.map((r) => r.id === room.id ? { ...r, afterImageUrl: data.afterImageUrl, generating: false } : r));
+        } catch (e: any) {
+          console.error(`[ai-tour] batch generate failed for room ${room.id}`, e);
+          setRooms((rs) => rs.map((r) => r.id === room.id ? { ...r, generating: false } : r));
+        }
+      }));
+    } finally {
+      setBatchRunning(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
+    }
+  };
+
+  const readyCount = rooms.filter((r) => r.included && r.roomPhotoUrl && !r.afterImageUrl).length;
+  const doneCount = rooms.filter((r) => r.afterImageUrl).length;
+
+  if (isLoading || !property) {
+    return <div className="text-sm font-medium animate-pulse mt-8" style={{ color: "#9B9690" }}>Indlæser projekt...</div>;
+  }
 
   return (
-    <div className="max-w-6xl">
-      <div className="mb-8 flex items-start justify-between gap-4">
+    <div className="max-w-5xl">
+      {/* Header */}
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <button
             onClick={onBack}
@@ -5690,532 +5535,242 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           >
             <ChevronLeft className="w-3.5 h-3.5" /> Tilbage til projekter
           </button>
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-tour-detail">
-            {property?.name || "Indlæser..."}
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-tour-detail">
+            {property.name}
           </h1>
-          <p className="text-sm leading-relaxed max-w-2xl" style={{ color: "#6B6B6B" }}>Træk på plantegningen for at markere rum. Klik et rum for at omdøbe det. Når rummene er markeret, kan du uploade billeder og vælge stil.</p>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>
+            Upload et foto af hvert rum — AI'en genererer den stilede version automatisk.
+          </p>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <button
+          onClick={onFinish}
+          className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 flex-shrink-0 transition-transform hover:-translate-y-0.5 shadow-sm"
+          style={{ background: "#0F1D2F" }}
+          data-testid="button-tour-finish"
+        >
+          Vis 3D rundvisning <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Style + quality picker */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 mb-6 shadow-sm">
+        <div className="mb-5">
+          <p className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Stil</p>
+          <div className="flex flex-wrap gap-2">
+            {TOUR_STYLE_OPTIONS.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => handleStyleChange(s.key)}
+                className="h-9 px-4 rounded-full text-xs font-semibold transition-all border"
+                style={{
+                  background: styleKey === s.key ? "#C8956C" : "white",
+                  color: styleKey === s.key ? "white" : "#0F1D2F",
+                  borderColor: styleKey === s.key ? "#C8956C" : "#E8E4DE",
+                }}
+                data-testid={`button-style-${s.key}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Kvalitet</p>
+          <div className="flex gap-2">
+            {([
+              { key: "budget", label: "Hurtigt overblik" },
+              { key: "standard", label: "Standard" },
+              { key: "premium", label: "Premium" },
+            ] as const).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => handleTierChange(t.key)}
+                className="h-9 px-4 rounded-full text-xs font-semibold transition-all border"
+                style={{
+                  background: tierKey === t.key ? "#0F1D2F" : "white",
+                  color: tierKey === t.key ? "white" : "#0F1D2F",
+                  borderColor: tierKey === t.key ? "#0F1D2F" : "#E8E4DE",
+                }}
+                data-testid={`button-tier-${t.key}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Rooms */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "#9B9690" }}>
+          Rum ({rooms.length}){doneCount > 0 ? ` · ${doneCount} genereret` : ""}
+        </p>
+        <div className="flex gap-2">
+          {readyCount > 0 && (
+            <button
+              onClick={handleBatchGenerate}
+              disabled={batchRunning}
+              className="h-9 px-4 rounded-full font-semibold text-xs text-white inline-flex items-center gap-2 disabled:opacity-50"
+              style={{ background: "#C8956C" }}
+              data-testid="button-batch-generate"
+            >
+              {batchRunning ? (<><RotateCcw className="w-3.5 h-3.5 animate-spin" />Genererer...</>) : (<><Sparkles className="w-3.5 h-3.5" />Generér alle ({readyCount})</>)}
+            </button>
+          )}
           <button
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="h-11 px-6 rounded-full font-semibold text-sm inline-flex items-center gap-2 disabled:opacity-50 transition-all hover:bg-[#F8F6F3]"
-            style={{ borderColor: "#C8956C", color: "#C8956C", background: "white", borderWidth: "1.5px" }}
-            data-testid="button-save-tour-rooms"
+            onClick={() => setShowAddRoom(true)}
+            className="h-9 px-4 rounded-full font-semibold text-xs inline-flex items-center gap-2 border"
+            style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white" }}
+            data-testid="button-add-room"
           >
-            {saving ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Gemmer...</>) : saved ? (<>Gemt</>) : (<>Gem rum ({rooms.length})</>)}
-          </button>
-          {/* Færdig: only meaningful once every *included* room has an after-
-              image, so the rundvisning has something to show in each hotspot. */}
-          <button
-            onClick={onFinish}
-            disabled={(() => {
-              const included = rooms.filter((r) => r.included);
-              return included.length === 0 || included.some((r) => !r.afterImageUrl);
-            })()}
-            className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-40 transition-transform hover:-translate-y-0.5 shadow-sm"
-            style={{ background: "#0F1D2F" }}
-            data-testid="button-tour-finish"
-          >
-            Færdig — vis 3D rundvisning <ChevronRight className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" /> Tilføj rum
           </button>
         </div>
       </div>
 
-      {isLoading || !property ? (
-        <div className="text-sm font-medium animate-pulse" style={{ color: "#9B9690" }}>Indlæser plantegning...</div>
+      {rooms.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}>
+          <Home className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
+          <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen rum endnu</p>
+          <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>Klik "Tilføj rum" for at tilføje stue, køkken, badeværelse osv.</p>
+          <button
+            onClick={() => setShowAddRoom(true)}
+            className="h-10 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2"
+            style={{ background: "#C8956C" }}
+            data-testid="button-add-first-room"
+          >
+            <Plus className="w-4 h-4" /> Tilføj første rum
+          </button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 flex flex-col">
-            <div className="relative rounded-2xl overflow-hidden border bg-[#F8F6F3] select-none shadow-sm flex-1 min-h-[500px]" style={{ borderColor: "#E8E4DE" }}>
-              <img
-                src={property.floorplanUrl}
-                alt={property.name}
-                className="w-full h-full object-contain pointer-events-none"
-                draggable={false}
-                data-testid="img-tour-floorplan-detail"
-              />
-              <div
-                ref={overlayRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={() => setDrag(null)}
-                className="absolute inset-0 cursor-crosshair"
-                data-testid="overlay-tour-rooms"
-              >
-                {rooms.map((r) => {
-                  const isSelected = r.id === selectedId;
-                  return (
-                    <div
-                      key={r.id}
-                      data-room-rect
-                      data-testid={`rect-tour-room-${r.id}`}
-                      onMouseDown={(e) => { e.stopPropagation(); setSelectedId(r.id); }}
-                      style={{
-                        position: "absolute",
-                        left: `${r.posX}%`,
-                        top: `${r.posY}%`,
-                        width: `${r.width}%`,
-                        height: `${r.height}%`,
-                        background: `${r.color}33`,
-                        border: `2px solid ${r.color}`,
-                        boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 4px ${r.color}` : undefined,
-                        cursor: "pointer",
-                      }}
-                      className="flex items-center justify-center transition-all hover:bg-opacity-40"
-                    >
-                      <span
-                        className="text-xs font-bold px-2.5 py-1 rounded-md shadow-sm"
-                        style={{ background: r.color, color: "white" }}
-                      >
-                        {r.name}
-                      </span>
-                    </div>
-                  );
-                })}
-                {drawPreview && drawPreview.w > 0 && drawPreview.h > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: `${drawPreview.x}%`,
-                      top: `${drawPreview.y}%`,
-                      width: `${drawPreview.w}%`,
-                      height: `${drawPreview.h}%`,
-                      background: "rgba(200,149,108,0.2)",
-                      border: "2px dashed #C8956C",
-                      pointerEvents: "none",
-                    }}
-                  />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rooms.map((r) => (
+            <div key={r.id} className="rounded-2xl border bg-white overflow-hidden shadow-sm flex flex-col" style={{ borderColor: "#E8E4DE" }}>
+              {/* After-image or photo */}
+              <div className="relative aspect-[4/3] bg-[#F8F6F3] overflow-hidden">
+                {r.afterImageUrl ? (
+                  <img src={r.afterImageUrl} alt="AI design" className="w-full h-full object-cover" data-testid={`img-tour-after-${r.id}`} />
+                ) : r.roomPhotoUrl ? (
+                  <img src={r.roomPhotoUrl} alt="Rum-foto" className="w-full h-full object-cover opacity-70" data-testid={`img-tour-before-${r.id}`} />
+                ) : (
+                  <label className="absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-[#F0EDE7] transition-colors" data-testid={`dropzone-room-${r.id}`}>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
+                    <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
+                    <span className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>Upload billede</span>
+                  </label>
                 )}
-
-                {/* Just-drawn-but-not-yet-named rectangle stays dashed until
-                    the user picks a navn. The picker itself is rendered as a
-                    centered modal (see below) so it never gets clipped by the
-                    floor-plan container's overflow-hidden rounding. */}
-                {pendingRoom && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: `${pendingRoom.posX}%`,
-                      top: `${pendingRoom.posY}%`,
-                      width: `${pendingRoom.width}%`,
-                      height: `${pendingRoom.height}%`,
-                      background: `${pendingRoom.color}33`,
-                      border: `2px dashed ${pendingRoom.color}`,
-                      pointerEvents: "none",
-                    }}
-                  />
+                {r.afterImageUrl && (
+                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#A8C4A2] flex items-center justify-center">
+                    <Check className="w-3.5 h-3.5 text-white" />
+                  </div>
+                )}
+                {r.generating && (
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
+                    <RotateCcw className="w-5 h-5 text-white animate-spin" />
+                    <span className="text-xs text-white font-semibold">Genererer…</span>
+                  </div>
                 )}
               </div>
-            </div>
-            <div className="mt-4 flex items-start gap-3 bg-[#F8F6F3] p-4 rounded-xl border border-[#E8E4DE]">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm flex-shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#C8956C" }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Tip til markering</p>
-                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#6B6B6B" }}>
-                  Træk for at tegne et rektangel rundt om et rum. Brug rumlisten til højre for at omdøbe eller slette.
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 shadow-sm">
-              {/* 3D plantegning status pill — auto-generated in the background as
-                  soon as the user opens the project. */}
-              <div
-                className="mb-6 p-4 rounded-xl border flex flex-col gap-3"
-                style={{
-                  background: property.threedPlanUrl ? "#F0F5EE" : "#FFF7ED",
-                  borderColor: property.threedPlanUrl ? "#A8C4A2" : "#FBD38D",
-                }}
-                data-testid="status-3d-plan"
-              >
-                <div className="flex items-center gap-2" style={{ color: "#0F1D2F" }}>
-                  {property.threedPlanUrl ? (
-                    <><div className="w-6 h-6 rounded-full bg-[#A8C4A2]/20 flex items-center justify-center text-[#A8C4A2]"><Check className="w-3.5 h-3.5" /></div> <span className="text-sm font-semibold">3D plantegning klar</span></>
-                  ) : (
-                    <><div className="w-6 h-6 rounded-full bg-[#FBD38D]/20 flex items-center justify-center text-[#E6A23C]"><RotateCcw className="w-3.5 h-3.5 animate-spin" /></div> <span className="text-sm font-semibold">Genererer 3D plan…</span></>
+              <div className="p-4 flex-1 flex flex-col gap-3">
+                <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }} data-testid={`text-room-name-${r.id}`}>{r.name}</p>
+                <div className="flex gap-2 mt-auto">
+                  {!r.roomPhotoUrl && !r.afterImageUrl && (
+                    <label className="flex-1 h-8 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90" style={{ background: "#0F1D2F" }}>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
+                      <Upload className="w-3 h-3" /> Upload
+                    </label>
                   )}
-                </div>
-                {property.threedPlanUrl && (
-                  <button
-                    onClick={handleRegenerate3D}
-                    disabled={regenerating3D}
-                    className="w-full h-9 rounded-lg text-xs font-semibold border transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-white/50"
-                    style={{ background: "white", color: "#0F1D2F", borderColor: "#A8C4A2" }}
-                    data-testid="button-regenerate-3d-plan"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${regenerating3D ? "animate-spin" : ""}`} />
-                    {regenerating3D ? "Genererer ny 3D plan…" : "Regenerér 3D plan"}
-                  </button>
-                )}
-              </div>
-
-              {/* Global style picker — applies to every room when generating after-images */}
-              <h3 className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Stil til hele boligen</h3>
-              <div className="grid grid-cols-2 gap-2 mb-6">
-                {TOUR_STYLE_OPTIONS.map((opt) => {
-                  const active = styleKey === opt.key;
-                  return (
+                  {r.roomPhotoUrl && !r.afterImageUrl && !r.generating && (
                     <button
-                      key={opt.key}
-                      onClick={() => handleStyleChange(opt.key)}
-                      className="h-10 rounded-lg text-xs font-semibold border transition-all"
-                      style={{
-                        background: active ? "#C8956C" : "white",
-                        color: active ? "white" : "#0F1D2F",
-                        borderColor: active ? "#C8956C" : "#E8E4DE",
-                      }}
-                      data-testid={`button-tour-style-${opt.key}`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Kvalitets-/budget-vælger. Maps internt til Bolig-prompt tier1/2/3. */}
-              <h3 className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Kvalitet</h3>
-              <div className="grid grid-cols-3 gap-2 mb-6">
-                {TOUR_TIER_OPTIONS.map((opt) => {
-                  const active = tierKey === opt.key;
-                  return (
-                    <button
-                      key={opt.key}
-                      onClick={() => handleTierChange(opt.key)}
-                      className="h-16 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center justify-center px-1"
-                      style={{
-                        background: active ? "#0F1D2F" : "white",
-                        color: active ? "white" : "#0F1D2F",
-                        borderColor: active ? "#0F1D2F" : "#E8E4DE",
-                        boxShadow: active ? "0 4px 14px rgba(15,29,47,0.15)" : "none"
-                      }}
-                      data-testid={`button-tour-tier-${opt.key}`}
-                    >
-                      <span className="mb-0.5">{opt.label}</span>
-                      <span className="text-[9px] font-normal" style={{ color: active ? "rgba(255,255,255,0.7)" : "#9B9690" }}>{opt.sub}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Batch generate — primary action so the user doesn't need to
-                  click Generér on every single room individually. */}
-              {(() => {
-                const included = rooms.filter((r) => r.included);
-                const ready = included.filter((r) => r.id > 0 && r.roomPhotoUrl && !r.afterImageUrl);
-                const totalIncluded = included.length;
-                const withAfter = included.filter((r) => r.afterImageUrl).length;
-                const allDone = totalIncluded > 0 && withAfter === totalIncluded;
-                return (
-                  <div>
-                    <button
-                      onClick={handleBatchGenerate}
-                      disabled={batchRunning || !styleKey || ready.length === 0}
-                      className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-50 transition-transform hover:-translate-y-0.5 shadow-sm"
+                      onClick={() => handleGenerate(r.id)}
+                      className="flex-1 h-8 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5 hover:opacity-90"
                       style={{ background: "#C8956C" }}
-                      data-testid="button-tour-batch-generate"
+                      data-testid={`button-tour-generate-${r.id}`}
                     >
-                      {batchRunning ? (
-                        <><RotateCcw className="w-4 h-4 animate-spin" /> Genererer {ready.length} rum…</>
-                      ) : allDone ? (
-                        <><Check className="w-4 h-4" /> Alle valgte rum klar ({withAfter}/{totalIncluded})</>
-                      ) : (
-                        <><Sparkles className="w-4 h-4" /> Generér alle valgte rum ({ready.length})</>
-                      )}
+                      <Sparkles className="w-3 h-3" /> Generér design
                     </button>
-                    {totalIncluded > 0 && (
-                      <p className="text-xs mt-3 text-center" style={{ color: "#6B6B6B" }}>
-                        {withAfter} af {totalIncluded} valgte rum har efter-billede
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div className="rounded-2xl border border-[#E8E4DE] bg-[#F8F6F3] p-6 shadow-inner-sm min-h-[300px]">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "#0F1D2F" }}>Rum ({rooms.length})</h3>
-                {rooms.length > 0 && (
-                  <span className="text-xs font-medium" style={{ color: "#6B6B6B" }}>Marker af for at inkludere</span>
-                )}
+                  )}
+                  {r.roomPhotoUrl && r.afterImageUrl && (
+                    <label className="flex-1 h-8 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border hover:bg-[#F8F6F3]" style={{ borderColor: "#E8E4DE", color: "#6B6B6B" }}>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
+                      <Upload className="w-3 h-3" /> Nyt foto
+                    </label>
+                  )}
+                  <button
+                    onClick={() => removeRoom(r.id)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:border-[#FECACA] transition-colors flex-shrink-0"
+                    style={{ borderColor: "#E8E4DE", color: "#9B9690" }}
+                    data-testid={`button-remove-room-${r.id}`}
+                    aria-label="Slet rum"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {saving && <p className="text-[10px]" style={{ color: "#9B9690" }}>Gemmer…</p>}
               </div>
-              
-              {rooms.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#D9D5CF] bg-white p-8 text-center flex flex-col items-center justify-center h-[200px]">
-                  <div className="w-12 h-12 rounded-full bg-[#F8F6F3] flex items-center justify-center mb-3">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#C8956C" }}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>
-                  </div>
-                  <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen rum markeret</p>
-                  <p className="text-xs max-w-[200px]" style={{ color: "#6B6B6B" }}>Træk på plantegningen for at markere et rum.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {rooms.map((r) => {
-                    const isSelected = r.id === selectedId;
-                    const isPersisted = r.id > 0;
-                    const canGenerate = isPersisted && !!r.roomPhotoUrl && !!styleKey && !r.generating;
-                    return (
-                      <div
-                        key={r.id}
-                        onClick={() => setSelectedId(r.id)}
-                        className="rounded-xl border bg-white p-4 cursor-pointer transition-all hover:shadow-sm"
-                        style={{ borderColor: isSelected ? r.color : "#E8E4DE", boxShadow: isSelected ? `0 0 0 1px ${r.color}` : "none" }}
-                        data-testid={`row-tour-room-${r.id}`}
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          {/* Include-in-tour checkbox. Hides upload + generate UI
-                              below when unchecked so the user only sees the rum
-                              de faktisk vil bruge. */}
-                          <div className="relative flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={r.included}
-                              onChange={(e) => { e.stopPropagation(); updateRoom(r.id, { included: e.target.checked }); }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-5 h-5 accent-[#C8956C] cursor-pointer rounded border-[#D9D5CF]"
-                              aria-label="Inkludér rum i rundvisning"
-                              data-testid={`checkbox-tour-include-${r.id}`}
-                            />
-                          </div>
-                          <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" style={{ background: r.color }} />
-                          <input
-                            type="text"
-                            value={r.name}
-                            onChange={(e) => updateRoom(r.id, { name: e.target.value })}
-                            className="flex-1 text-sm font-bold outline-none bg-transparent min-w-0 transition-colors focus:text-[#C8956C]"
-                            style={{ color: r.included ? "#0F1D2F" : "#9B9690", textDecoration: r.included ? "none" : "line-through" }}
-                            onClick={(e) => e.stopPropagation()}
-                            data-testid={`input-tour-room-name-${r.id}`}
-                          />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
-                            className="p-1.5 rounded-md hover:bg-[#FEF2F2] flex-shrink-0 transition-colors group/del"
-                            data-testid={`button-delete-tour-room-${r.id}`}
-                            aria-label="Slet rum"
-                          >
-                            <X className="w-3.5 h-3.5 group-hover/del:text-[#B91C1C]" style={{ color: "#9B9690" }} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-1.5 mb-4 pl-8">
-                          {ROOM_COLORS.map((c) => (
-                            <button
-                              key={c}
-                              onClick={(e) => { e.stopPropagation(); updateRoom(r.id, { color: c }); }}
-                              className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
-                              style={{ background: c, borderColor: r.color === c ? "#0F1D2F" : "transparent" }}
-                              aria-label={`Farve ${c}`}
-                              data-testid={`button-tour-room-color-${r.id}-${c.slice(1)}`}
-                            />
-                          ))}
-                        </div>
-
-                        {/* Before-photo upload + after-image preview. Only shown
-                            for included rooms — others stay collapsed so the
-                            sidebar reflects "kun ☑️ rum viser upload-zone". */}
-                        {!r.included ? (
-                          <div className="pl-8">
-                            <p className="text-[11px] bg-[#F8F6F3] p-2 rounded-lg" style={{ color: "#9B9690" }}>Sæt kryds for at inkludere og uploade billede.</p>
-                          </div>
-                        ) : (
-                        <div className="space-y-4 pl-8" onClick={(e) => e.stopPropagation()}>
-                          {/* Strategy B — 2 angle slots. Vinkel 1 is required;
-                              Vinkel 2 unlocks a real stitched 360° panorama. */}
-                          <div className="grid grid-cols-2 gap-3">
-                            {[1, 2].map((angle) => {
-                              const url = angle === 1 ? r.roomPhotoUrl : r.roomPhotoUrl2;
-                              const label = angle === 1 ? "Vinkel 1" : "Vinkel 2 (360°)";
-                              return (
-                                <div key={angle} className="flex flex-col h-full">
-                                  <div className="text-[10px] font-bold tracking-wider uppercase mb-1.5" style={{ color: angle === 2 ? "#C8956C" : "#9B9690" }}>
-                                    {label}
-                                  </div>
-                                  <div className="flex-1 flex flex-col justify-end">
-                                    {url ? (
-                                      <div className="relative group/img rounded-lg overflow-hidden border shadow-sm h-[90px]" style={{ borderColor: "#E8E4DE" }}>
-                                        <img src={url} alt={label} className="w-full h-full object-cover" data-testid={`img-tour-before-${angle}-${r.id}`} />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                          <label className="text-[10px] font-semibold text-white px-2 py-1 rounded bg-black/60 cursor-pointer hover:bg-black/80">
-                                            Skift
-                                            <input
-                                              type="file"
-                                              accept="image/*"
-                                              className="hidden"
-                                              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
-                                            />
-                                          </label>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <label
-                                        className={`flex flex-col items-center justify-center h-[90px] rounded-lg border-2 border-dashed transition-colors ${isPersisted ? "cursor-pointer hover:bg-[#F8F6F3]" : "opacity-40 cursor-not-allowed"}`}
-                                        style={{ borderColor: angle === 2 ? "rgba(200,149,108,0.3)" : "#D9D5CF" }}
-                                      >
-                                        <Upload className="w-4 h-4 mb-1" style={{ color: angle === 2 ? "#C8956C" : "#9B9690" }} />
-                                        <span className="text-[11px] font-medium" style={{ color: angle === 2 ? "#C8956C" : "#6B6B6B" }}>
-                                          {angle === 2 ? "Valgfri" : "Upload"}
-                                        </span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          className="hidden"
-                                          disabled={!isPersisted}
-                                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f, angle as 1 | 2); }}
-                                          data-testid={`input-tour-before-${angle}-${r.id}`}
-                                        />
-                                      </label>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <p className="text-[11px] leading-relaxed bg-[#F8F6F3] p-2.5 rounded-lg" style={{ color: "#6B6B6B" }}>
-                            <span className="font-semibold text-[#0F1D2F]">Tip:</span> Tag vinkel 2 fra den modsatte ende af rummet for et ægte 360° resultat.
-                          </p>
-                          
-                          <div className="pt-2 border-t" style={{ borderColor: "#F0EDE7" }}>
-                            <div className="text-[10px] font-bold tracking-wider uppercase mb-2 flex items-center justify-between" style={{ color: "#9B9690" }}>
-                              <span>Efter</span>
-                              {r.afterImageUrl && <span className="text-[#A8C4A2] flex items-center gap-1"><Check className="w-3 h-3" /> Færdig</span>}
-                            </div>
-                            {r.afterImageUrl ? (
-                              <div className="relative rounded-lg overflow-hidden border shadow-sm h-[120px]" style={{ borderColor: "#E8E4DE" }}>
-                                <img src={r.afterImageUrl} alt="Efter" className="w-full h-full object-cover" data-testid={`img-tour-after-${r.id}`} />
-                                <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
-                                  <button
-                                    onClick={() => handleGenerate(r.id)}
-                                    disabled={!canGenerate}
-                                    className="w-full h-8 rounded-md text-[11px] font-semibold text-white bg-white/20 backdrop-blur-md hover:bg-white/30 transition-colors disabled:opacity-40"
-                                    data-testid={`button-tour-generate-${r.id}`}
-                                  >
-                                    {r.generating ? "Genererer..." : "Generér ny version"}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-center h-[90px] rounded-lg border border-dashed bg-[#F8F6F3]" style={{ borderColor: "#D9D5CF", color: "#9B9690" }}>
-                                  {r.generating ? (
-                                    <div className="flex flex-col items-center gap-2">
-                                      <RotateCcw className="w-5 h-5 animate-spin" style={{ color: "#C8956C" }} />
-                                      <span className="text-[11px]">Bygger design...</span>
-                                    </div>
-                                  ) : (
-                                    <div className="text-[11px]">Venter på generering</div>
-                                  )}
-                                </div>
-                                <button
-                                  onClick={() => handleGenerate(r.id)}
-                                  disabled={!canGenerate}
-                                  className="w-full h-10 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-colors hover:opacity-90"
-                                  style={{ background: "#0F1D2F" }}
-                                  data-testid={`button-tour-generate-${r.id}`}
-                                >
-                                  {r.generating ? "Genererer..." : "Generér dette rum"}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        )}
-
-                        {r.included && !isPersisted && (
-                          <p className="text-[11px] mt-3 bg-[#FFF7ED] p-2 rounded-lg text-[#C8956C] font-medium border border-[#FBD38D]">
-                            Gem rummet for at uploade billede.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Centered modal picker for the just-drawn rum. Rendered at the root
-          of PropertyTourDetail (outside the floor-plan's overflow-hidden box)
-          so it can never get clipped, regardless of where on the plan the
-          rectangle was drawn — fixed the issue hvor pickeren gik ud over
-          rammen. */}
-      {pendingRoom && (
+      {/* Add room modal */}
+      {showAddRoom && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
           style={{ background: "rgba(15,29,47,0.6)" }}
-          onClick={() => { setPendingRoom(null); setPendingCustomName(""); }}
-          data-testid="modal-pending-room"
+          onClick={() => { setShowAddRoom(false); setNewRoomName(""); }}
+          data-testid="modal-add-room"
         >
           <div
             className="w-full max-w-sm rounded-3xl bg-white border shadow-2xl p-6 md:p-8"
             style={{ borderColor: "#E8E4DE" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.01em" }}>Hvilket rum er det?</div>
-            <p className="text-sm mb-6" style={{ color: "#6B6B6B" }}>Vælg et forslag eller skriv dit eget navn.</p>
-            <div className="grid grid-cols-2 gap-2.5 mb-5">
+            <div className="text-xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.01em" }}>Tilføj rum</div>
+            <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>Vælg et forslag eller skriv rumnavnet.</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
               {ROOM_NAME_SUGGESTIONS.map((n) => (
                 <button
                   key={n}
-                  onClick={() => commitPendingRoom(n)}
+                  onClick={() => addRoom(n)}
                   className="h-11 rounded-xl text-sm font-semibold border transition-all hover:-translate-y-0.5"
-                  style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white", boxShadow: "0 2px 8px rgba(15,29,47,0.04)" }}
+                  style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white" }}
                   data-testid={`button-pick-room-${n.toLowerCase()}`}
                 >
                   {n}
                 </button>
               ))}
             </div>
-            <div className="relative mt-2 pt-5 border-t" style={{ borderColor: "#F0EDE7" }}>
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9B9690" }}>Eller</div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={pendingCustomName}
-                  onChange={(e) => setPendingCustomName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && pendingCustomName.trim()) {
-                      commitPendingRoom(pendingCustomName);
-                      setPendingCustomName("");
-                    }
-                  }}
-                  autoFocus
-                  placeholder="Skriv andet navn…"
-                  className="flex-1 h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-colors focus:border-[#C8956C] focus:bg-white"
-                  style={{ borderColor: "transparent", color: "#0F1D2F" }}
-                  data-testid="input-pending-room-custom"
-                />
-                <button
-                  onClick={() => { if (pendingCustomName.trim()) { commitPendingRoom(pendingCustomName); setPendingCustomName(""); } }}
-                  disabled={!pendingCustomName.trim()}
-                  className="h-12 px-5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-transform hover:-translate-y-0.5"
-                  style={{ background: "#C8956C" }}
-                  data-testid="button-pending-room-add"
-                >
-                  Tilføj
-                </button>
-              </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newRoomName.trim()) addRoom(newRoomName); }}
+                autoFocus
+                placeholder="Andet navn…"
+                className="flex-1 h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none focus:border-[#C8956C] focus:bg-white transition-colors"
+                style={{ borderColor: "transparent", color: "#0F1D2F" }}
+                data-testid="input-new-room-name"
+              />
+              <button
+                onClick={() => { if (newRoomName.trim()) addRoom(newRoomName); }}
+                disabled={!newRoomName.trim()}
+                className="h-12 px-5 rounded-xl text-sm font-bold text-white disabled:opacity-40"
+                style={{ background: "#C8956C" }}
+                data-testid="button-add-room-confirm"
+              >
+                Tilføj
+              </button>
             </div>
-            <button
-              onClick={() => { setPendingRoom(null); setPendingCustomName(""); }}
-              className="mt-4 w-full h-10 text-sm font-medium rounded-xl hover:bg-[#F8F6F3] transition-colors"
-              style={{ color: "#6B6B6B" }}
-              data-testid="button-pending-room-cancel"
-            >
-              Annuller
-            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
+
 
 // ============================================================================
 // PropertyTourFinal — "AI boligfremvisning" final view.
