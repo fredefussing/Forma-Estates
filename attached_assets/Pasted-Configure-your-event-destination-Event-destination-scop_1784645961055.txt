@@ -1,0 +1,220 @@
+Configure your event destination
+Event destination scope
+View docs on event destination scopes
+
+Your account
+Events from resources in your account. For Accounts v2, this includes events for accounts created directly within your account.
+
+Connected accounts
+Events from resources inside your connected accounts — including their payments, customers, and payment methods.
+Accounts v2 events route differently than v1. Events for v2 accounts that belong directly to your platform are delivered to Your account destinations - not Connected accounts as in v1. Events for v2 accounts that belong to your connected accounts (such as their customers and recipients) are delivered to Connected accounts destinations. To receive both, create two separate destinations.
+How event routing works for Accounts v2 
+
+API version
+
+API version
+2026-05-27.dahlia
+Events
+
+All events
+Selected events
+0
+Find event by name or description…
+Select all
+
+
+Account Link
+v2
+1 event
+
+Account Person
+v2
+3 events
+
+Account
+4 events
+
+Account
+v2
+13 events
+
+Balance Settings
+1 event
+
+Balance
+1 event
+
+Batch Job
+v2
+10 events
+
+Billing Portal
+3 events
+
+Billing
+10 events
+
+Capability
+1 event
+
+Cash Balance
+1 event
+
+Charge
+13 events
+
+Checkout
+4 events
+
+Climate
+7 events
+
+Commerce Product Catalog Imports
+v2
+4 events
+
+Coupon
+3 events
+
+Credit Note
+3 events
+
+Customer Cash Balance Transaction
+1 event
+
+Customer
+21 events
+
+Entitlements
+1 event
+
+Extend Workflow Run
+v2
+3 events
+
+File
+1 event
+
+Financial Connections
+14 events
+
+Health
+v2
+1 event
+
+Identity
+6 events
+
+Invoice Payment
+1 event
+
+Invoice
+17 events
+
+Invoiceitem
+2 events
+
+Issuing Authorization
+3 events
+
+Issuing Card
+2 events
+
+Issuing Cardholder
+2 events
+
+Issuing Dispute
+6 events
+
+Issuing Personalization Design
+4 events
+
+Issuing Token
+2 events
+
+Issuing Transaction
+3 events
+
+Mandate
+1 event
+
+Payment Intent
+8 events
+
+Payment Link
+2 events
+
+Payment Method
+4 events
+
+Payout
+6 events
+
+Person
+3 events
+
+Plan
+3 events
+
+Price
+3 events
+
+Product
+3 events
+
+Promotion Code
+2 events
+
+Quote
+5 events
+
+Radar
+2 events
+
+Refund
+3 events
+
+Reporting
+3 events
+
+Reserve
+7 events
+
+Review
+2 events
+
+Setup Intent
+5 events
+
+Shared Payment
+5 events
+
+Sigma
+1 event
+
+Source
+7 events
+
+Subscription Schedule
+7 events
+
+Tax Rate
+2 events
+
+Tax
+1 event
+
+Terminal
+3 events
+
+Test Helpers
+5 events
+
+Topup
+5 events
+
+Transfer
+3 events
+Cancel
+Continue
+Developers
