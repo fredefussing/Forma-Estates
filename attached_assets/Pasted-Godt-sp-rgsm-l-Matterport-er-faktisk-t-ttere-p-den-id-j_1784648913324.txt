@@ -1,0 +1,397 @@
+Godt spørgsmål. Matterport er faktisk tættere på den idé, jeg taler om, men det er ikke helt det samme.
+
+Kort sagt:
+
+Matterport = ægte 3D virtuel rundvisning
+AI Virtual Walkthrough = AI-genereret filmisk rundvisning
+
+De overlapper, men teknologien bag er forskellig.
+
+5
+Hvad gør Matterport?
+
+Matterport tager normalt ikke bare 30 almindelige boligbilleder.
+
+Det bruger typisk:
+
+3D-kameraer
+LiDAR (på understøttede enheder)
+360° kameraer
+en scanning hvor kameraet bevæges rundt i huset
+
+Derefter bygger Matterport:
+
+✅ 3D-model af boligen
+✅ rumforbindelser
+✅ afstande
+✅ gulve/vægge
+✅ interaktiv navigation
+
+Så en bruger kan:
+
+klikke rundt
+gå fra rum til rum
+dreje kameraet
+se "dollhouse view"
+
+Det er en rigtig virtuel fremvisning.
+
+Har Matterport API?
+
+Ja. Matterport har API-adgang. Deres Model API kan hente blandt andet:
+
+modeldata
+billeder
+videoer
+panoramaer
+positioner
+3D-data som mesh/point cloud (afhængigt af adgang og købte assets)
+
+De bruger GraphQL API'er til udviklere.
+
+Men her kommer det interessante for Forma Estates
+
+Jeg ville faktisk ikke konkurrere direkte med Matterport.
+
+Jeg ville bruge deres styrke + AI.
+
+Den stærke kombination:
+Trin 1
+
+Ejendomsmægler laver Matterport-scanning.
+
+↓
+
+Trin 2
+
+Forma Estates henter data via API.
+
+↓
+
+Trin 3
+
+AI laver automatisk:
+
+🎬 Cinematic walkthrough
+
+Eksempel:
+
+"Velkommen til denne moderne villa på 240 m²"
+
+Kamera:
+
+starter ved hoveddøren
+går gennem huset
+fokuserer på køkkenøen
+viser udsigten
+afslutter med drone-look
+
+↓
+
+Trin 4
+
+Output:
+
+90 sek. video til annoncer
+Instagram Reel
+YouTube Short
+boligportal-video
+Den store forskel:
+
+Matterport:
+
+"Her er huset. Gå selv rundt."
+
+Forma Estates AI:
+
+"Her er den perfekte præsentation af huset, klar til at sælge."
+
+Kan man lave Matterport-lignende ud fra kun billeder?
+
+I dag:
+
+Delvist.
+
+Med:
+
+Gaussian Splatting
+NeRF
+computer vision
+depth estimation
+
+kan man komme tættere på.
+
+Men hvis en ejendomsmægler skal betale for en premium-løsning, ville jeg ikke stole på almindelige billeder alene til en fuld 3D-gennemgang.
+
+Hvis jeg byggede Forma Estates, ville jeg lave 3 niveauer:
+Niveau 1 (jeres nuværende)
+
+AI Property Cinema
+
+billeder → flot video
+
+Pris:
+lav
+
+Niveau 2
+
+AI Virtual Walkthrough
+
+billeder + plantegning
+AI laver en guidet rundvisning
+
+Pris:
+premium
+
+Niveau 3
+
+Forma Estates 3D Experience
+
+Matterport/Gaussian Splatting
+ægte interaktiv bolig
+
+Pris:
+luksus/udviklere
+
+Så svaret er:
+
+Matterport laver den "ægte rundgang", men ikke den AI-filmiske salgsvideo.
+Der er faktisk en mulighed for Forma Estates i laget ovenpå Matterport: at gøre en eksisterende 3D-model til en automatisk salgsfilm. Det er dér, jeg synes idéen bliver mest interessant.
+
+kan vi gøre dette så det minder så meget om matterport som muligt, bare ud fra billeder ikke rigtig 360 kamera og det KUN billeder og en plantegning
+
+Ja, det kan vi godt forsøge at bygge, og faktisk er det en meget mere interessant idé end bare en AI-video. Men vi skal være præcise med, hvad resultatet bliver.
+
+Det vi prøver at bygge er i praksis:
+
+"Matterport-lignende boligoplevelse skabt fra almindelige billeder + plantegning."
+
+Ikke en ægte Matterport-scanning, men en AI-rekonstrueret digital boligmodel.
+
+Hvordan det ville fungere
+Input fra bruger
+
+Bruger uploader:
+
+Billeder:
+
+30-50 billeder
+
+Eksempel:
+
+Entré
+
+billede mod hoveddør
+billede mod gang
+billede mod stue
+
+Køkken
+
+billede fra dør
+billede mod køkkenø
+billede mod vinduer
+
+Stue
+
+flere vinkler
+Plantegning:
+
+PDF eller billede:
+
++----------------+
+|      Stue      |
+|                |
+|----     -------|
+| Køkken | Gang  |
+|        |       |
+|--------+-------|
+Hvad AI gør bagefter
+1. Forstår billederne
+
+AI analyserer:
+
+vægge
+gulve
+lofter
+døre
+vinduer
+møbler
+afstande
+
+Den laver en "forståelse":
+
+Dette billede:
+= stue
+
+Denne dør:
+= forbindelse til gang
+
+Dette vindue:
+= ydervæg
+2. Kombinerer med plantegningen
+
+Plantegningen bliver "kortet".
+
+AI matcher:
+
+Billede af køkken
+          ↓
+Køkken på plantegning
+
+Billede af stue
+          ↓
+Stue på plantegning
+
+Nu ved systemet:
+
+hvor rum ligger
+rækkefølge
+forbindelser
+3. Bygger en 3D-lignende scene
+
+Her kommer de nyere teknologier ind:
+
+Gaussian Splatting
+NeRF
+Depth estimation
+3D reconstruction
+
+Resultatet:
+
+En digital model hvor man kan:
+
+bevæge kameraet
+dreje rundt
+kigge i rummet
+Hvordan brugeren oplever det
+
+På Forma Estates:
+
+Klik:
+
+"Virtuel fremvisning"
+
+Så åbner:
+
+Villa Strandvej 24
+
+        ↓
+
+[3D boligvisning]
+
+
+Klik frem →
+Gå til køkken
+
+Drej →
+Se stue
+
+Klik →
+Terrasse
+
+Det føles som Matterport.
+
+Men her kommer den ærlige del
+
+Kan vi gøre det 100% som Matterport fra kun billeder?
+
+Nej.
+
+Ikke endnu.
+
+Problemet:
+
+Matterport ved:
+
+præcise afstande
+kamera-position
+dybde
+geometri
+
+Fra billeder skal AI gætte:
+
+hvor langt der er mellem vægge
+hvor stort rummet er
+hvad der er bag kameraet
+Men kan vi lave noget, der ser imponerende ud?
+
+Ja.
+
+Jeg tror faktisk, en god version kunne være:
+
+"AI Guided Walkthrough"
+
+Ikke fri bevægelse som et spil.
+
+Men:
+
+Brugeren kan vælge:
+
+Start rundvisning
+
+↓
+Entré
+
+↓
+Køkken
+
+↓
+Stue
+
+↓
+Soveværelse
+
+↓
+Have
+
+Systemet styrer kameraet.
+
+Det skjuler begrænsningerne.
+
+Det ville være meget lettere og mere realistisk
+
+I stedet for:
+
+"gå frit hvor som helst"
+
+lav:
+
+"professionel virtuel fremvisning"
+
+Lidt som en ejendomsmægler, der fører dig rundt.
+
+Teknisk stack kunne være:
+Upload billeder
+        |
+        |
+AI Vision
+(GPT Vision / Gemini Vision)
+        |
+        |
+Rumkort + plantegning
+        |
+        |
+3D reconstruction
+(Gaussian Splatting)
+        |
+        |
+Interactive viewer
+(WebGL / Three.js)
+        |
+        |
+Forma Estates
+Min vurdering
+
+Hvis målet er:
+
+"Vi vil lave en billig Matterport-konkurrent kun med billeder"
+
+→ Svært, men muligt på sigt.
+
+"Vi vil lave en digital AI-fremvisning som føles næsten som Matterport"
+
+→ Ja, det er realistisk.
+
+Og faktisk synes jeg, at kun billeder + plantegning er den rigtige retning, fordi ejendomsmæglere allerede har billederne. De skal ikke købe ekstra kameraudstyr eller sende en tekniker ud.
+
+Det kunne være et meget stærkt Forma Estates-produkt.
