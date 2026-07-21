@@ -499,63 +499,6 @@ export async function registerRoutes(
     return res.json(out);
   });
 
-  // TEMPORARY one-time schema repair for the live (Render-hosted) database.
-  // Applies the dev schema ADDITIVELY: creates missing tables, adds missing
-  // columns/constraints. Never drops or alters existing data. Idempotent —
-  // running it twice is a no-op. Protected by the same diagnostics key.
-  app.post("/api/health/live-migrate", async (req, res) => {
-    if (req.query.key !== "fe-diag-b81f39d2c6") return res.status(404).json({ message: "Not found" });
-    let manifest: { tables: Array<{ name: string; createSql: string; columns: Array<{ name: string; addSql: string }>; constraints: Array<{ name: string; addSql: string }> }> };
-    try {
-      manifest = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "server", "render-sync.json"), "utf-8"));
-    } catch (e: any) {
-      return res.status(500).json({ message: `Kunne ikke læse render-sync.json: ${e.message}` });
-    }
-    const results: Array<{ step: string; status: "ok" | "error"; detail?: string }> = [];
-    const run = async (step: string, sql: string) => {
-      try {
-        await pool.query(sql);
-        results.push({ step, status: "ok" });
-      } catch (e: any) {
-        results.push({ step, status: "error", detail: e.message });
-      }
-    };
-    await run("extension pgcrypto", "CREATE EXTENSION IF NOT EXISTS pgcrypto");
-    await run("extension vector", "CREATE EXTENSION IF NOT EXISTS vector");
-    for (const t of manifest.tables) {
-      try {
-        const { rows } = await pool.query(
-          "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
-          [t.name],
-        );
-        if (rows.length === 0) {
-          await run(`create table ${t.name}`, t.createSql);
-          continue;
-        }
-        const { rows: existingCols } = await pool.query(
-          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
-          [t.name],
-        );
-        const have = new Set(existingCols.map((r: any) => r.column_name));
-        for (const c of t.columns) {
-          if (!have.has(c.name)) await run(`add ${t.name}.${c.name}`, c.addSql);
-        }
-        const { rows: existingCons } = await pool.query(
-          "SELECT conname FROM pg_constraint con JOIN pg_class cl ON cl.oid = con.conrelid JOIN pg_namespace n ON n.oid = cl.relnamespace WHERE n.nspname = 'public' AND cl.relname = $1",
-          [t.name],
-        );
-        const haveCons = new Set(existingCons.map((r: any) => r.conname));
-        for (const con of t.constraints) {
-          if (!haveCons.has(con.name)) await run(`constraint ${t.name}.${con.name}`, con.addSql);
-        }
-      } catch (e: any) {
-        results.push({ step: `table ${t.name}`, status: "error", detail: e.message });
-      }
-    }
-    const errors = results.filter((r) => r.status === "error");
-    return res.json({ appliedOk: results.filter((r) => r.status === "ok").length, errorCount: errors.length, results });
-  });
-
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
   app.post("/api/admin/bootstrap", async (req, res) => {
     const { password } = req.body || {};
