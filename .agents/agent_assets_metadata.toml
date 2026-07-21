@@ -1,5 +1,22 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "YdG25gVvUIDDOBOi2Q7Cg"
+uri = "file://attached_assets/generated_images/hero-before-stue.png"
+type = "image"
+title = "empty Danish living room before"
+
+[[generated]]
+id = "2zMK5DV0FPewk3CocPPV2"
+uri = "file://attached_assets/generated_images/hero-before-koekken.png"
+type = "image"
+title = "dated Danish kitchen before"
+
+[[generated]]
+id = "K_g8ZQ1DaRurfdm4Capg5"
+uri = "file://attached_assets/generated_images/hero-before-sovevaerelse.png"
+type = "image"
+title = "empty Danish bedroom before"
 
 [[outputs]]
 id = "viBqTeE5k129fcKlo1WRJ"
