@@ -630,6 +630,46 @@ export function walkthroughMovePrompt(i: number): string {
   return WALKTHROUGH_MOVE_PROMPTS[i % WALKTHROUGH_MOVE_PROMPTS.length] + WALKTHROUGH_VISUAL_SUFFIX;
 }
 
+// ── Guidet rundvisning (AI Boligfremvisning) ───────────────────────────────
+// Landscape 16:9 klip til den interaktive rundvisningsviser + samlet film.
+// Prompten er rum-bevidst: kameraet "går ind" i rummet som en ejendomsmægler
+// der fører køberen rundt — rolig, glidende, professionel bevægelse.
+const GUIDED_TOUR_VISUAL_SUFFIX =
+  " Photorealistic quality indistinguishable from professional real estate videography (Sony A7S III, cinema lenses). Natural daylight, soft realistic shadows, true-to-life materials and reflections. Warm inviting color grade. The room's architecture, furniture and layout must remain EXACTLY as in the source image — no added objects, no altered geometry. Landscape 16:9 format, 24fps cinematic, smooth gimbal motion.";
+
+const GUIDED_TOUR_MOVES = [
+  "Slow smooth cinematic walk-in: camera glides steadily forward into the room at eye height and walking pace, as if a real estate agent is guiding a buyer into the space, revealing depth and details.",
+  "Gentle glide right: camera smoothly drifts forward and slightly right at eye height, naturally scanning the room the way a visitor's gaze would move on entering.",
+  "Slow smooth cinematic walk-in with a subtle left drift: camera moves forward at walking pace while gently revealing the left side of the room.",
+];
+
+export async function generateGuidedTourClip(
+  imageUrl: string,
+  roomName: string,
+  moveIndex: number,
+): Promise<{ videoUrl: string }> {
+  assertNotLockedDown();
+  const move = GUIDED_TOUR_MOVES[moveIndex % GUIDED_TOUR_MOVES.length];
+  const prompt = `Entering the ${roomName}. ${move}${GUIDED_TOUR_VISUAL_SUFFIX}`;
+  const result = await Promise.race([
+    fal.subscribe(SHOWCASE_ENDPOINT, {
+      input: {
+        prompt,
+        image_url: imageUrl,
+        aspect_ratio: "16:9" as const,
+        duration: "5" as const,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Guided tour clip timeout (10 min)")), 600_000),
+    ),
+  ]);
+  const videoUrl = (result.data as any).video?.url;
+  if (!videoUrl) throw new Error("No guided tour clip generated");
+  console.log(`[GuidedTour] clip "${roomName}" done (Kling v1.6 Pro)`);
+  return { videoUrl };
+}
+
 // Generér ét walkthrough-klip fra ét billede (Kling v1.6 Pro).
 export async function generateWalkthroughClip(
   imageUrl: string,

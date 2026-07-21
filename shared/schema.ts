@@ -361,6 +361,10 @@ export const aiTourProperties = pgTable("ai_tour_properties", {
   // architectural facts (windows/doors/exterior walls) into the after-image
   // and panorama prompts WITHOUT modifying the prompt library itself.
   floorplanAnalysis: jsonb("floorplan_analysis"),
+  // Guidet AI-rundvisning: URL til den samlede sammenklippede film + status
+  // ("generating" | "done" | "error"). Per-rum klip ligger på aiTourRooms.videoUrl.
+  tourVideoUrl: text("tour_video_url"),
+  tourStatus: text("tour_status"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

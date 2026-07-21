@@ -48,6 +48,21 @@ export async function ensureSchema(): Promise<void> {
       step: "drip_emails unique(user_id, email_key)",
       sql: `CREATE UNIQUE INDEX IF NOT EXISTS drip_emails_user_key_uq ON drip_emails (user_id, email_key)`,
     },
+    {
+      step: "ai_tour_properties.tour_video_url",
+      sql: `ALTER TABLE ai_tour_properties ADD COLUMN IF NOT EXISTS tour_video_url text`,
+    },
+    {
+      step: "ai_tour_properties.tour_status",
+      sql: `ALTER TABLE ai_tour_properties ADD COLUMN IF NOT EXISTS tour_status varchar(20)`,
+    },
+    {
+      // Tour-jobs lever kun i hukommelsen — et serverneustart midt i en
+      // generering ville ellers efterlade status "generating" for evigt og
+      // låse frontendens generér-knapper.
+      step: "reset stale tour_status",
+      sql: `UPDATE ai_tour_properties SET tour_status = 'error' WHERE tour_status = 'generating'`,
+    },
   ];
 
   for (const { step, sql } of statements) {

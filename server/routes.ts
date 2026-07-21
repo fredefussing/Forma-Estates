@@ -23,6 +23,7 @@ import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startWalkthroughVideo, getShowcaseJob } from "./showcase";
+import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
 
 // requestId / jobId → userId, so we can refund the quota credit (charged at
@@ -50,6 +51,15 @@ function refundWalkthroughVideo(jobId: string) {
   const uid = walkthroughVideoRefunds.get(jobId);
   if (uid == null) return;
   walkthroughVideoRefunds.delete(jobId);
+  storage.refundQuota(uid, "showcase").catch(() => {});
+}
+
+const guidedTourRefunds = new Map<string, number>();
+
+function refundGuidedTour(jobId: string) {
+  const uid = guidedTourRefunds.get(jobId);
+  if (uid == null) return;
+  guidedTourRefunds.delete(jobId);
   storage.refundQuota(uid, "showcase").catch(() => {});
 }
 
@@ -3739,15 +3749,15 @@ export async function registerRoutes(
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       log(`[ai-tour] analyze floorplan property=${propertyId}`);
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: `Analyze this floor plan image. For each visible room identify the room name, which walls have windows, which walls have doors and what they connect to, which walls are exterior walls (no neighboring room), and approximate area in square meters. Walls are described as one of: north, south, east, west.\n\nRespond ONLY with valid JSON in this exact shape, no prose:\n{\n  "rooms": [\n    {\n      "name": "Living Room",\n      "windows": [{"wall": "south", "position": "center", "size": "large"}],\n      "doors": [{"wall": "west", "connectsTo": "Hallway", "position": "left"}],\n      "exteriorWalls": ["south", "east"],\n      "areaSqm": 28\n    }\n  ],\n  "totalAreaSqm": 95\n}` },
-            { type: "image_url", image_url: { url: absUrl } },
+            { type: "text", text: `You are an expert architect analyzing a residential floor plan. Study the image carefully — read all room labels and measurements printed on the plan, trace wall lines, and locate door/window symbols precisely.\n\nFor each visible room identify: the room name (use the label printed on the plan when present, in its original language), which walls have windows, which walls have doors and what room they connect to, which walls are exterior walls (no neighboring room), and the area in square meters (use printed measurements when available, otherwise estimate from proportions). Walls are described as one of: north, south, east, west (north = top of the image).\n\nAlso determine "walkOrder": the natural order a real estate agent would walk a buyer through the home, starting at the entrance/hallway, then main living spaces (living room, kitchen), then bedrooms and bathrooms, ending with any secondary rooms. walkOrder is 1-based.\n\nRespond ONLY with valid JSON in this exact shape, no prose:\n{\n  "rooms": [\n    {\n      "name": "Living Room",\n      "walkOrder": 2,\n      "windows": [{"wall": "south", "position": "center", "size": "large"}],\n      "doors": [{"wall": "west", "connectsTo": "Hallway", "position": "left"}],\n      "exteriorWalls": ["south", "east"],\n      "areaSqm": 28\n    }\n  ],\n  "totalAreaSqm": 95\n}` },
+            { type: "image_url", image_url: { url: absUrl, detail: "high" } },
           ],
         }],
-        max_tokens: 1500,
+        max_tokens: 2500,
         response_format: { type: "json_object" },
       });
 
@@ -3775,6 +3785,85 @@ export async function registerRoutes(
     } catch (err: any) {
       log(`[ai-tour] analyze-floorplan error: ${err.message}`);
       return res.json({ success: false, message: err.message });
+    }
+  });
+
+  // ── Guidet AI-rundvisning ─────────────────────────────────────────────────
+  // Starter genereringen af ét Kling-klip pr. rum + den samlede rundvisnings-
+  // film. Koster 1 showcase-kvota (refunderes hvis jobbet fejler helt).
+  app.post("/api/ai-boligfremvisning/properties/:id/generate-tour", async (req, res) => {
+    let tourUserId: number | null = null;
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const propertyId = Number(req.params.id);
+      const property = await storage.getAiTourProperty(propertyId, user.id);
+      if (!property) return res.status(404).json({ message: "Projekt ikke fundet" });
+      if (!isFalConfigured()) return res.status(500).json({ message: "Video-generering er ikke konfigureret" });
+
+      const allRooms = await storage.getAiTourRooms(propertyId, user.id);
+      const eligible = allRooms.filter((r) => r.included && (r.afterImageUrl || r.roomPhotoUrl));
+      if (eligible.length === 0) {
+        return res.status(400).json({ message: "Ingen rum er klar — upload rum-fotos og generér design først" });
+      }
+
+      // Gå-rækkefølge: brug plantegnings-analysens walkOrder når den findes,
+      // ellers dansk rumnavns-heuristik (entré → stue → køkken → …).
+      const analysis: any = (property as any).floorplanAnalysis;
+      const norm = (s: string) => (s || "").toLowerCase().replace(/[^a-zæøå0-9 ]/gi, "").trim();
+      const orderOf = (name: string): number => {
+        const n = norm(name);
+        if (analysis?.rooms) {
+          const m = analysis.rooms.find((ar: any) => {
+            const a = norm(ar.name);
+            return a === n || a.includes(n) || n.includes(a);
+          });
+          if (m && Number(m.walkOrder) > 0) return Number(m.walkOrder);
+        }
+        const prio = ["entr", "hall", "gang", "stue", "opholds", "køkken", "alrum", "spise", "kontor", "værelse", "soveværelse", "badeværelse", "bad", "bryggers", "kælder", "terrasse", "have"];
+        const idx = prio.findIndex((p) => n.includes(p));
+        return idx >= 0 ? 100 + idx : 200;
+      };
+      const ordered = [...eligible].sort((a, b) => orderOf(a.name) - orderOf(b.name));
+
+      const q = await storage.checkAndIncrementQuota(user.id, "showcase");
+      if (!q.allowed) return res.status(403).json({ quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+      tourUserId = user.id;
+
+      const jobId = startGuidedTour(
+        propertyId,
+        user.id,
+        ordered.map((r) => ({ roomId: r.id, name: r.name, imageRelUrl: (r.afterImageUrl || r.roomPhotoUrl)! })),
+        uploadDir,
+      );
+      if (!jobId) {
+        storage.refundQuota(user.id, "showcase").catch(() => {});
+        return res.status(429).json({ message: "Serveren er optaget lige nu. Prøv igen om lidt." });
+      }
+      guidedTourRefunds.set(jobId, user.id);
+      storage.logCrmActivity(user.id, "video", `Guidet AI-rundvisning · ${ordered.length} rum`).catch(() => {});
+      log(`[GuidedTour] started job=${jobId} property=${propertyId} rooms=${ordered.length}`);
+      return res.json({ success: true, jobId, totalClips: Math.min(ordered.length, 10) });
+    } catch (err: any) {
+      if (tourUserId) storage.refundQuota(tourUserId, "showcase").catch(() => {});
+      return res.status(500).json({ message: err.message || "Fejl" });
+    }
+  });
+
+  // Poll status på et rundvisnings-job.
+  app.get("/api/ai-boligfremvisning/tour-status/:jobId", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const job = getGuidedTourJob(req.params.jobId);
+      if (!job || job.userId !== user.id) return res.status(404).json({ message: "Job ikke fundet" });
+      if (job.status === "failed") refundGuidedTour(req.params.jobId);
+      else if (job.status === "completed") guidedTourRefunds.delete(req.params.jobId);
+      return res.json({ status: job.status, progress: job.progress, error: job.error });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Fejl" });
     }
   });
 

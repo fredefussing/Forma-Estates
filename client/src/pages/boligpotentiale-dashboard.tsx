@@ -22,7 +22,7 @@ import {
   PenTool, Sparkles, RotateCcw, ChevronDown, Mail, Copy, CheckCheck,
   Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
-  FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music,
+  FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play,
   Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays,
 } from "lucide-react";
 
@@ -6405,6 +6405,8 @@ function PropertyTourFinal({
         )}
       </section>
 
+      <GuidedTourSection propertyId={propertyId} property={property} rooms={rooms} invalidate={invalidate} />
+
       <AnimatePresence>
         {viewerRoom && (
           <motion.div
@@ -6434,6 +6436,276 @@ function PropertyTourFinal({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Guidet AI-rundvisning ─────────────────────────────────────────────────────
+// Interaktiv rundvisning: ét Kling-videoklip pr. rum afspilles i en 16:9 player
+// med klikbare rum-piller + auto-fortsæt til næste rum. Den samlede sammen-
+// klippede film kan afspilles og downloades når serveren er færdig.
+const TOUR_ROOM_PRIO = ["entr", "hall", "gang", "stue", "opholds", "køkken", "alrum", "spise", "kontor", "værelse", "soveværelse", "badeværelse", "bad", "bryggers", "kælder", "terrasse", "have"];
+
+function GuidedTourSection({
+  propertyId,
+  property,
+  rooms,
+  invalidate,
+}: {
+  propertyId: number;
+  property: (AiTourProperty & { rooms: AiTourRoom[] }) | undefined;
+  rooms: AiTourRoom[];
+  invalidate: () => void;
+}) {
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ stage: string; currentClip: number; totalClips: number; message: string } | null>(null);
+  const [tourError, setTourError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [activeRoomId, setActiveRoomId] = useState<number | null>(null);
+  const [showFullFilm, setShowFullFilm] = useState(false);
+
+  const orderOf = (name: string) => {
+    const n = (name || "").toLowerCase();
+    const idx = TOUR_ROOM_PRIO.findIndex((p) => n.includes(p));
+    return idx >= 0 ? idx : 99;
+  };
+  const clipRooms = rooms
+    .filter((r) => r.included && r.videoUrl)
+    .sort((a, b) => orderOf(a.name) - orderOf(b.name));
+  const eligibleCount = rooms.filter((r) => r.included && (r.afterImageUrl || r.roomPhotoUrl)).length;
+
+  const tourVideoUrl = (property as any)?.tourVideoUrl as string | null | undefined;
+  const generating = !!jobId || (property as any)?.tourStatus === "generating";
+  const activeRoom = clipRooms.find((r) => r.id === activeRoomId) || clipRooms[0] || null;
+
+  const startTour = async () => {
+    setStarting(true);
+    setTourError(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/generate-tour`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Kunne ikke starte rundvisningen");
+      setJobId(data.jobId);
+      setProgress({ stage: "preparing", currentClip: 0, totalClips: data.totalClips || eligibleCount, message: "Starter op…" });
+    } catch (e: any) {
+      setTourError(e.message || "Fejl ved start af rundvisning");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // Poll jobstatus hvert 4. sekund mens der genereres. Vi invaliderer projektet
+  // på hvert tick så færdige rum-klip dukker op løbende i viseren. Hvis jobbet
+  // forsvinder på serveren (fx genstart/deploy) stopper vi efter 5 fejl i træk
+  // i stedet for at polle for evigt.
+  useEffect(() => {
+    if (!jobId) return;
+    let misses = 0;
+    const t = setInterval(async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch(`/api/ai-boligfremvisning/tour-status/${jobId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) {
+          misses++;
+          if (misses >= 5) {
+            setJobId(null);
+            setProgress(null);
+            setTourError("Forbindelsen til genereringen blev afbrudt (serveren genstartede muligvis). Allerede færdige klip er gemt — prøv igen for resten.");
+            invalidate();
+          }
+          return;
+        }
+        misses = 0;
+        const data = await res.json();
+        if (data.progress) setProgress(data.progress);
+        invalidate();
+        if (data.status === "completed") {
+          setJobId(null);
+          setProgress(null);
+          invalidate();
+        } else if (data.status === "failed") {
+          setJobId(null);
+          setProgress(null);
+          setTourError(data.error || data.progress?.message || "Genereringen mislykkedes — din kvota er refunderet");
+        }
+      } catch { /* netværkshik — prøv igen næste tick */ }
+    }, 4000);
+    return () => clearInterval(t);
+  }, [jobId]);
+
+  const advanceToNext = () => {
+    if (showFullFilm || !activeRoom) return;
+    const idx = clipRooms.findIndex((r) => r.id === activeRoom.id);
+    if (idx >= 0 && idx < clipRooms.length - 1) setActiveRoomId(clipRooms[idx + 1].id);
+  };
+
+  const pct = progress && progress.totalClips > 0
+    ? Math.round((progress.currentClip / progress.totalClips) * 100)
+    : 0;
+
+  return (
+    <section className="mb-10">
+      <div className="rounded-2xl border bg-white overflow-hidden shadow-sm" style={{ borderColor: "#E8E4DE" }}>
+        <div className="p-6 md:p-8 pb-5 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <span className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(200,149,108,0.12)" }}>
+                <Film className="w-4.5 h-4.5" style={{ color: "#C8956C" }} />
+              </span>
+              <h2 className="text-xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
+                Guidet AI-rundvisning
+              </h2>
+            </div>
+            <p className="text-sm max-w-xl" style={{ color: "#6B6B6B" }}>
+              AI'en fører køberen gennem boligen rum for rum med rolige, filmiske kamerabevægelser — som en ejendomsmægler der viser rundt.
+            </p>
+          </div>
+          {clipRooms.length === 0 && !generating && (
+            <button
+              onClick={startTour}
+              disabled={starting || eligibleCount === 0}
+              className="h-11 px-6 rounded-full font-semibold text-sm inline-flex items-center gap-2 text-white disabled:opacity-50 shrink-0"
+              style={{ background: "#C8956C" }}
+              data-testid="button-generate-tour"
+            >
+              <Sparkles className="w-4 h-4" />
+              {starting ? "Starter…" : `Generér rundvisning (${eligibleCount} rum)`}
+            </button>
+          )}
+        </div>
+
+        {tourError && (
+          <div className="mx-6 md:mx-8 mb-5 p-3 rounded-lg text-sm" style={{ background: "#FEF2F2", color: "#B91C1C" }} data-testid="text-tour-error">
+            {tourError}
+          </div>
+        )}
+
+        {generating && (
+          <div className="mx-6 md:mx-8 mb-6 p-5 rounded-xl" style={{ background: "#F8F6F3" }} data-testid="status-tour-progress">
+            <div className="flex items-center gap-3 mb-3">
+              <RotateCcw className="w-4 h-4 animate-spin shrink-0" style={{ color: "#C8956C" }} />
+              <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>
+                {progress?.message || "Genererer rundvisning…"}
+              </p>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "#E8E4DE" }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ background: "#C8956C", width: `${Math.max(pct, 4)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs" style={{ color: "#9B9690" }}>
+              Hvert rum tager 1–3 minutter. Du kan lukke siden — genereringen fortsætter på serveren.
+            </p>
+          </div>
+        )}
+
+        {eligibleCount === 0 && clipRooms.length === 0 && !generating && (
+          <p className="px-6 md:px-8 pb-6 text-sm" style={{ color: "#9B9690" }}>
+            Upload rum-fotos og generér design for mindst ét rum først — derefter kan rundvisningen laves.
+          </p>
+        )}
+
+        {clipRooms.length > 0 && (
+          <div className="px-6 md:px-8 pb-6 md:pb-8">
+            <div className="relative rounded-xl overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+              {showFullFilm && tourVideoUrl ? (
+                <video
+                  key="full-film"
+                  src={tourVideoUrl}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  playsInline
+                  data-testid="video-tour-full"
+                />
+              ) : activeRoom ? (
+                <video
+                  key={activeRoom.id}
+                  src={activeRoom.videoUrl!}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  onEnded={advanceToNext}
+                  data-testid="video-tour-room"
+                />
+              ) : null}
+              <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white pointer-events-none" style={{ background: "rgba(15,29,47,0.75)" }}>
+                {showFullFilm ? "Samlet rundvisning" : activeRoom?.name}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {clipRooms.map((r, i) => {
+                const active = !showFullFilm && activeRoom?.id === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => { setShowFullFilm(false); setActiveRoomId(r.id); }}
+                    className="h-9 px-4 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-all border"
+                    style={{
+                      background: active ? "#C8956C" : "white",
+                      color: active ? "white" : "#0F1D2F",
+                      borderColor: active ? "#C8956C" : "#E8E4DE",
+                    }}
+                    data-testid={`button-tour-room-${r.id}`}
+                  >
+                    <span className="opacity-60">{i + 1}</span> {r.name}
+                  </button>
+                );
+              })}
+              {tourVideoUrl && (
+                <button
+                  onClick={() => setShowFullFilm(true)}
+                  className="h-9 px-4 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-all border"
+                  style={{
+                    background: showFullFilm ? "#0F1D2F" : "white",
+                    color: showFullFilm ? "white" : "#0F1D2F",
+                    borderColor: "#0F1D2F",
+                  }}
+                  data-testid="button-tour-full-film"
+                >
+                  <Play className="w-3.5 h-3.5" /> Hele filmen
+                </button>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {tourVideoUrl && (
+                <a
+                  href={tourVideoUrl}
+                  download
+                  className="h-10 px-5 rounded-full font-semibold text-xs inline-flex items-center gap-2 text-white"
+                  style={{ background: "#0F1D2F" }}
+                  data-testid="link-download-tour"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download samlet film
+                </a>
+              )}
+              {!generating && (
+                <button
+                  onClick={startTour}
+                  disabled={starting}
+                  className="h-10 px-5 rounded-full font-semibold text-xs inline-flex items-center gap-2 border disabled:opacity-50"
+                  style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
+                  data-testid="button-regenerate-tour"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  {starting ? "Starter…" : "Generér igen"}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
