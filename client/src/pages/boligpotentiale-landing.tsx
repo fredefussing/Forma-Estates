@@ -526,8 +526,8 @@ function HeroStage() {
                 />
               )}
 
-              {/* Slide meta chip — fades with slide */}
-              <div className="absolute top-4 left-4" style={{ zIndex: 5 }}>
+              {/* Slide meta chip — bottom-right, clear of FØR/EFTER labels */}
+              <div className="absolute bottom-4 right-4" style={{ zIndex: 5 }}>
                 <div style={{ background: "rgba(15,25,35,0.70)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", padding: "5px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase" }}>
                   {slide.meta}
                 </div>
