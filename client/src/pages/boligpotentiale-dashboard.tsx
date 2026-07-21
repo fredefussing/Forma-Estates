@@ -5292,9 +5292,6 @@ const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string }> = [
 function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
   const queryClient = useQueryClient();
   const [rooms, setRooms] = useState<DraftRoom[]>([]);
-  const [styleKey, setStyleKey] = useState<string | null>("scandinavian");
-  const [tierKey, setTierKey] = useState<"budget" | "standard" | "premium">("standard");
-  const [batchRunning, setBatchRunning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
@@ -5310,7 +5307,6 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       if (!res.ok) throw new Error(`${res.status}`);
       return res.json();
     },
-    refetchInterval: (q) => (q.state.data?.threedPlanUrl ? false : 4000),
   });
 
   const auto3DRef = useRef<Set<number>>(new Set());
@@ -5319,23 +5315,16 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
   useEffect(() => {
     if (!property) return;
     setRooms(property.rooms.map((r) => ({
-      id: r.id,
-      name: r.name,
-      posX: Number(r.posX),
-      posY: Number(r.posY),
-      width: Number(r.width),
-      height: Number(r.height),
-      color: r.color,
-      included: !!r.included,
+      id: r.id, name: r.name,
+      posX: Number(r.posX), posY: Number(r.posY),
+      width: Number(r.width), height: Number(r.height),
+      color: r.color, included: !!r.included,
       roomPhotoUrl: r.roomPhotoUrl ?? null,
       roomPhotoUrl2: (r as any).roomPhotoUrl2 ?? null,
       afterImageUrl: r.afterImageUrl ?? null,
       afterImageUrl2: (r as any).afterImageUrl2 ?? null,
       panoramaUrl: r.panoramaUrl ?? null,
     })));
-    setStyleKey(property.style ?? "scandinavian");
-    const t = property.tier === "luxury" ? "premium" : (property.tier as any);
-    if (t === "budget" || t === "standard" || t === "premium") setTierKey(t);
   }, [property?.id]);
 
   useEffect(() => {
@@ -5375,21 +5364,6 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  const patchProperty = async (body: Record<string, any>) => {
-    try {
-      const headers = await authHeader();
-      await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify(body),
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-    } catch (err) { console.error(err); }
-  };
-
-  const handleStyleChange = (key: string) => { setStyleKey(key); patchProperty({ style: key }); };
-  const handleTierChange = (key: "budget" | "standard" | "premium") => { setTierKey(key); patchProperty({ tier: key }); };
-
   const handleSave = async (snapshot?: DraftRoom[]) => {
     setSaving(true);
     try {
@@ -5402,12 +5376,8 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           rooms: source.map((r) => ({
             ...(r.id > 0 ? { id: r.id } : {}),
             name: r.name,
-            posX: r.posX,
-            posY: r.posY,
-            width: r.width,
-            height: r.height,
-            color: r.color,
-            included: r.included,
+            posX: r.posX, posY: r.posY, width: r.width, height: r.height,
+            color: r.color, included: r.included,
           })),
         }),
       });
@@ -5469,54 +5439,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
     } catch (err) { console.error(err); alert("Kunne ikke uploade billede"); }
   };
 
-  const handleGenerate = async (roomId: number) => {
-    if (roomId < 0) { alert("Vent et øjeblik — rummet gemmes automatisk."); return; }
-    if (!styleKey) { alert("Vælg en stil først."); return; }
-    setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, generating: true } : r));
-    try {
-      const headers = await authHeader();
-      const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${roomId}/generate-after`, {
-        method: "POST", headers,
-      });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || `HTTP ${res.status}`); }
-      const updated = await res.json();
-      setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, afterImageUrl: updated.afterImageUrl, generating: false } : r));
-    } catch (err: any) {
-      console.error(err);
-      alert("Generering fejlede: " + (err.message || ""));
-      setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, generating: false } : r));
-    }
-  };
-
-  const handleBatchGenerate = async () => {
-    if (!styleKey) { alert("Vælg en stil først."); return; }
-    const targets = rooms.filter((r) => r.id > 0 && r.included && r.roomPhotoUrl && !r.afterImageUrl);
-    if (targets.length === 0) { alert("Upload mindst ét rum-billede først."); return; }
-    setBatchRunning(true);
-    setRooms((rs) => rs.map((r) => targets.some((t) => t.id === r.id) ? { ...r, generating: true } : r));
-    try {
-      const headers = await authHeader();
-      await Promise.allSettled(targets.map(async (room) => {
-        try {
-          const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/rooms/${room.id}/generate-after`, {
-            method: "POST", headers,
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
-          setRooms((rs) => rs.map((r) => r.id === room.id ? { ...r, afterImageUrl: data.afterImageUrl, generating: false } : r));
-        } catch (e: any) {
-          console.error(`[ai-tour] batch generate failed for room ${room.id}`, e);
-          setRooms((rs) => rs.map((r) => r.id === room.id ? { ...r, generating: false } : r));
-        }
-      }));
-    } finally {
-      setBatchRunning(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-    }
-  };
-
-  const readyCount = rooms.filter((r) => r.included && r.roomPhotoUrl && !r.afterImageUrl).length;
-  const doneCount = rooms.filter((r) => r.afterImageUrl).length;
+  const photoCount = rooms.filter((r) => r.roomPhotoUrl).length;
 
   if (isLoading || !property) {
     return <div className="text-sm font-medium animate-pulse mt-8" style={{ color: "#9B9690" }}>Indlæser projekt...</div>;
@@ -5539,95 +5462,36 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
             {property.name}
           </h1>
           <p className="text-sm" style={{ color: "#6B6B6B" }}>
-            Upload et foto af hvert rum — AI'en genererer den stilede version automatisk.
+            Upload et foto af hvert rum — så sætter vi en AI-rundvisning sammen for dig.
           </p>
         </div>
         <button
           onClick={onFinish}
           className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 flex-shrink-0 transition-transform hover:-translate-y-0.5 shadow-sm"
-          style={{ background: "#0F1D2F" }}
+          style={{ background: photoCount > 0 ? "#0F1D2F" : "#9B9690", cursor: photoCount > 0 ? "pointer" : "not-allowed" }}
+          disabled={photoCount === 0}
           data-testid="button-tour-finish"
         >
-          Vis 3D rundvisning <ChevronRight className="w-4 h-4" />
+          Lav AI-rundvisning <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Style + quality picker */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 mb-6 shadow-sm">
-        <div className="mb-5">
-          <p className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Stil</p>
-          <div className="flex flex-wrap gap-2">
-            {TOUR_STYLE_OPTIONS.map((s) => (
-              <button
-                key={s.key}
-                onClick={() => handleStyleChange(s.key)}
-                className="h-9 px-4 rounded-full text-xs font-semibold transition-all border"
-                style={{
-                  background: styleKey === s.key ? "#C8956C" : "white",
-                  color: styleKey === s.key ? "white" : "#0F1D2F",
-                  borderColor: styleKey === s.key ? "#C8956C" : "#E8E4DE",
-                }}
-                data-testid={`button-style-${s.key}`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Kvalitet</p>
-          <div className="flex gap-2">
-            {([
-              { key: "budget", label: "Hurtigt overblik" },
-              { key: "standard", label: "Standard" },
-              { key: "premium", label: "Premium" },
-            ] as const).map((t) => (
-              <button
-                key={t.key}
-                onClick={() => handleTierChange(t.key)}
-                className="h-9 px-4 rounded-full text-xs font-semibold transition-all border"
-                style={{
-                  background: tierKey === t.key ? "#0F1D2F" : "white",
-                  color: tierKey === t.key ? "white" : "#0F1D2F",
-                  borderColor: tierKey === t.key ? "#0F1D2F" : "#E8E4DE",
-                }}
-                data-testid={`button-tier-${t.key}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Rooms */}
+      {/* Rooms header row */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "#9B9690" }}>
-          Rum ({rooms.length}){doneCount > 0 ? ` · ${doneCount} genereret` : ""}
+          Rum ({rooms.length}){photoCount > 0 ? ` · ${photoCount} med billede` : ""}
         </p>
-        <div className="flex gap-2">
-          {readyCount > 0 && (
-            <button
-              onClick={handleBatchGenerate}
-              disabled={batchRunning}
-              className="h-9 px-4 rounded-full font-semibold text-xs text-white inline-flex items-center gap-2 disabled:opacity-50"
-              style={{ background: "#C8956C" }}
-              data-testid="button-batch-generate"
-            >
-              {batchRunning ? (<><RotateCcw className="w-3.5 h-3.5 animate-spin" />Genererer...</>) : (<><Sparkles className="w-3.5 h-3.5" />Generér alle ({readyCount})</>)}
-            </button>
-          )}
-          <button
-            onClick={() => setShowAddRoom(true)}
-            className="h-9 px-4 rounded-full font-semibold text-xs inline-flex items-center gap-2 border"
-            style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white" }}
-            data-testid="button-add-room"
-          >
-            <Plus className="w-3.5 h-3.5" /> Tilføj rum
-          </button>
-        </div>
+        <button
+          onClick={() => setShowAddRoom(true)}
+          className="h-9 px-4 rounded-full font-semibold text-xs inline-flex items-center gap-2 border"
+          style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white" }}
+          data-testid="button-add-room"
+        >
+          <Plus className="w-3.5 h-3.5" /> Tilføj rum
+        </button>
       </div>
 
+      {/* Room grid */}
       {rooms.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}>
           <Home className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
@@ -5646,12 +5510,14 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms.map((r) => (
             <div key={r.id} className="rounded-2xl border bg-white overflow-hidden shadow-sm flex flex-col" style={{ borderColor: "#E8E4DE" }}>
-              {/* After-image or photo */}
               <div className="relative aspect-[4/3] bg-[#F8F6F3] overflow-hidden">
-                {r.afterImageUrl ? (
-                  <img src={r.afterImageUrl} alt="AI design" className="w-full h-full object-cover" data-testid={`img-tour-after-${r.id}`} />
-                ) : r.roomPhotoUrl ? (
-                  <img src={r.roomPhotoUrl} alt="Rum-foto" className="w-full h-full object-cover opacity-70" data-testid={`img-tour-before-${r.id}`} />
+                {r.roomPhotoUrl ? (
+                  <>
+                    <img src={r.roomPhotoUrl} alt={r.name} className="w-full h-full object-cover" data-testid={`img-tour-room-${r.id}`} />
+                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#A8C4A2] flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </>
                 ) : (
                   <label className="absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-[#F0EDE7] transition-colors" data-testid={`dropzone-room-${r.id}`}>
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
@@ -5659,47 +5525,19 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                     <span className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>Upload billede</span>
                   </label>
                 )}
-                {r.afterImageUrl && (
-                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#A8C4A2] flex items-center justify-center">
-                    <Check className="w-3.5 h-3.5 text-white" />
-                  </div>
-                )}
-                {r.generating && (
-                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
-                    <RotateCcw className="w-5 h-5 text-white animate-spin" />
-                    <span className="text-xs text-white font-semibold">Genererer…</span>
-                  </div>
-                )}
               </div>
-
-              <div className="p-4 flex-1 flex flex-col gap-3">
+              <div className="p-4 flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }} data-testid={`text-room-name-${r.id}`}>{r.name}</p>
-                <div className="flex gap-2 mt-auto">
-                  {!r.roomPhotoUrl && !r.afterImageUrl && (
-                    <label className="flex-1 h-8 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90" style={{ background: "#0F1D2F" }}>
+                <div className="flex gap-2">
+                  {r.roomPhotoUrl && (
+                    <label className="w-8 h-8 rounded-lg flex items-center justify-center border cursor-pointer hover:bg-[#F8F6F3] transition-colors" style={{ borderColor: "#E8E4DE", color: "#6B6B6B" }} title="Skift billede">
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
-                      <Upload className="w-3 h-3" /> Upload
-                    </label>
-                  )}
-                  {r.roomPhotoUrl && !r.afterImageUrl && !r.generating && (
-                    <button
-                      onClick={() => handleGenerate(r.id)}
-                      className="flex-1 h-8 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5 hover:opacity-90"
-                      style={{ background: "#C8956C" }}
-                      data-testid={`button-tour-generate-${r.id}`}
-                    >
-                      <Sparkles className="w-3 h-3" /> Generér design
-                    </button>
-                  )}
-                  {r.roomPhotoUrl && r.afterImageUrl && (
-                    <label className="flex-1 h-8 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border hover:bg-[#F8F6F3]" style={{ borderColor: "#E8E4DE", color: "#6B6B6B" }}>
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
-                      <Upload className="w-3 h-3" /> Nyt foto
+                      <Upload className="w-3.5 h-3.5" />
                     </label>
                   )}
                   <button
                     onClick={() => removeRoom(r.id)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:border-[#FECACA] transition-colors flex-shrink-0"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:border-[#FECACA] transition-colors"
                     style={{ borderColor: "#E8E4DE", color: "#9B9690" }}
                     data-testid={`button-remove-room-${r.id}`}
                     aria-label="Slet rum"
@@ -5707,8 +5545,8 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {saving && <p className="text-[10px]" style={{ color: "#9B9690" }}>Gemmer…</p>}
               </div>
+              {saving && <p className="text-[10px] px-4 pb-3" style={{ color: "#9B9690" }}>Gemmer…</p>}
             </div>
           ))}
         </div>
@@ -5770,6 +5608,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
     </div>
   );
 }
+
 
 
 // ============================================================================
