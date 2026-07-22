@@ -1481,50 +1481,44 @@ export default function BoligpotentialeLanding() {
             </h2>
           </div>
           {(() => {
-            type TileMedia =
-              | { kind: "slider"; before: string; after: string; labels?: [string, string] }
-              | { kind: "carousel"; images: string[] }
-              | { kind: "video"; src: string; poster?: string }
-              | { kind: "image"; src: string };
-            type Tile = { eyebrow: string; title: string; desc: string; media: TileMedia; href: string };
-            const tiles: Tile[] = [
+            const tiles = [
               {
                 eyebrow: "Før / Efter",
                 title: "AI-iscenesættelse",
                 desc: "Et tomt rum bliver til et hjem på sekunder.",
-                media: { kind: "slider", before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg" },
+                media: { kind: "image" as const, src: "/bolig-images/living-scandi-after.jpg" },
                 href: "/boligpotentiale/foer-efter",
               },
               {
                 eyebrow: "3D Plantegning",
                 title: "Forstå flowet",
                 desc: "Lad køber gå gennem rummet før første visning.",
-                media: { kind: "slider", before: "/bolig-images/floorplan-2d.jpg", after: "/bolig-images/floorplan-3d.jpg", labels: ["2D", "3D"] },
+                media: { kind: "image" as const, src: "/bolig-images/floorplan-3d.jpg" },
                 href: "/boligpotentiale/3d-plantegning",
               },
               {
                 eyebrow: "Branchevideo",
                 title: "Cinematisk fortælling",
                 desc: "Væk følelser med en levende videogennemgang.",
-                media: { kind: "video", src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
+                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },
               {
                 eyebrow: "AI Design Agent",
                 title: "Beskriv din vision",
                 desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
-                media: { kind: "slider", before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/ai-agent-after-v2.jpg" },
+                media: { kind: "image" as const, src: "/bolig-images/ai-agent-after-v2.jpg" },
                 href: "/boligpotentiale/ai-design-agent",
               },
               {
                 eyebrow: "Bolig Showcase",
                 title: "Vis potentialet",
                 desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
-                media: { kind: "carousel", images: ["/bolig-images/living-modern-after.jpg", "/bolig-images/dining-after.jpg", "/bolig-images/kitchen-after.jpg", "/bolig-images/living-scandi-after.jpg"] },
+                media: { kind: "image" as const, src: "/bolig-images/living-modern-after.jpg" },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];
-            const renderTile = (t: Tile) => (
+            const renderTile = (t: typeof tiles[0]) => (
               <Link
                 key={t.eyebrow}
                 href={t.href}
@@ -1543,10 +1537,6 @@ export default function BoligpotentialeLanding() {
                       onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
-                  ) : t.media.kind === "slider" ? (
-                    <TileWiper before={t.media.before} after={t.media.after} labels={t.media.labels} />
-                  ) : t.media.kind === "carousel" ? (
-                    <TileCarousel images={t.media.images} />
                   ) : (
                     <img
                       src={t.media.src}
@@ -1554,7 +1544,7 @@ export default function BoligpotentialeLanding() {
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   )}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.3) 0%, rgba(15,25,35,0) 40%)" }} />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.35) 0%, rgba(15,25,35,0) 45%)" }} />
                   <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(255,255,255,0.92)", color: C.navy, padding: "6px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
                     {t.eyebrow}
                   </div>
