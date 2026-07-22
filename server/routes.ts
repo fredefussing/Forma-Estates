@@ -21,7 +21,7 @@ import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, se
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
-import { generate3DFloorplan, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
+import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startWalkthroughVideo, getShowcaseJob } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
@@ -3081,12 +3081,35 @@ export async function registerRoutes(
       } catch { /* allow if no token — gateway handles paywall */ }
 
       const localPath = path.join(uploadDir, req.file.filename);
-      log(`[3D] uploading plan to fal.storage…`);
-      const falUrl = await uploadToFal(localPath, req.file.mimetype);
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
 
-      log(`[3D] floorplan input: ${falUrl}`);
+      // Preprocess til disk (auto-crop + kontrast) og brug offentlig server-URL
+      // så modellen kan nå billedet. fal.storage-URL'er (v3b.fal.media) returnerer
+      // 403 for nano-banana-2/edit fordi Replit's network-proxy intercepter uploaden.
+      let inputUrl: string;
+      let imgWidth = 0;
+      let imgHeight = 0;
+      try {
+        const pre = await preprocessFloorplanToDisk(localPath, uploadDir);
+        inputUrl = `${protocol}://${host}/uploads/${pre.filename}`;
+        imgWidth = pre.width;
+        imgHeight = pre.height;
+      } catch (preErr) {
+        // Fallback: brug original fil direkte
+        console.warn("[3D] preprocess failed, using raw file:", preErr);
+        inputUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+        const { Jimp: JimpFallback } = await import("jimp");
+        try {
+          const img = await JimpFallback.read(localPath);
+          imgWidth = img.bitmap.width;
+          imgHeight = img.bitmap.height;
+        } catch { imgWidth = 1; imgHeight = 1; }
+      }
+
+      log(`[3D] floorplan input: ${inputUrl}`);
       const startTime = Date.now();
-      const { imageUrl } = await generate3DFloorplan(falUrl);
+      const { imageUrl } = await generate3DFloorplanFromUrl(inputUrl, imgWidth, imgHeight);
       const processingTime = Math.round((Date.now() - startTime) / 1000);
       log(`[3D] floorplan done in ${processingTime}s → ${imageUrl.slice(0, 60)}`);
       if (floorPlanUserId) storage.logCrmActivity(floorPlanUserId, "visualization", "3D Plantegning").catch(() => {});

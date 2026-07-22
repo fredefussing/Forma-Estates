@@ -269,28 +269,50 @@ No painterly effects.
 
 The final result should look like a luxury real estate marketing visualization rather than a technical architectural diagram.`;
 
-// Pre-processer plantegning før den sendes til fal: trim hvide kanter
-// (auto-crop), let kontrast-boost. Renser UI-artefakter (knapper, hvide
-// margener, overskrifter) der ellers forvirrer modellen og får den til at
-// generere interior renders i stedet for dollhouse-views.
-async function preprocessFloorplan(
-  sourceUrl: string,
-): Promise<{ url: string; width: number; height: number }> {
-  const image = await Jimp.read(sourceUrl);
-  // Auto-crop hvide/lyse kanter rundt om selve plantegningen
+// Pre-processer plantegning til disk (ingen fal.storage upload) — returnerer
+// lokal filsti + dimensioner. Bruges af generate3DFloorplanFromUrl så vi
+// undgår fal.storage-URL'er, som nano-banana-2/edit ikke kan tilgå (403).
+export async function preprocessFloorplanToDisk(
+  sourceLocalPath: string,
+  outputDir: string,
+): Promise<{ filename: string; width: number; height: number }> {
+  const image = await Jimp.read(sourceLocalPath);
   try {
     image.autocrop({ tolerance: 0.05, cropOnlyFrames: true });
   } catch (e) {
     console.warn("[preprocessFloorplan] autocrop failed, continuing without:", e);
   }
-  // Let kontrast-boost for at fremhæve vægge
   image.contrast(0.15);
   const width = image.bitmap.width;
   const height = image.bitmap.height;
-  const buffer = await image.getBuffer(JimpMime.jpeg);
-  const file = new File([buffer], `floorplan_${Date.now()}.jpg`, { type: "image/jpeg" });
-  const url = await fal.storage.upload(file);
-  return { url, width, height };
+  const filename = `floorplan_pre_${Date.now()}.jpg`;
+  const outPath = path.join(outputDir, filename);
+  await image.write(outPath as `${string}.jpg`);
+  return { filename, width, height };
+}
+
+// Kald nano-banana-2/edit direkte med en offentlig URL (ingen intern
+// fal.storage-upload). Bruges af /api/bolig/floorplan-3d efter lokal
+// preprocessing der gemmer filen til uploads/-mappen.
+export async function generate3DFloorplanFromUrl(
+  publicUrl: string,
+  width: number,
+  height: number,
+): Promise<{ imageUrl: string }> {
+  assertNotLockedDown();
+  const aspectRatio = nearestSupportedAspectRatio(width, height);
+  console.log(`[generate3DFloorplan] ${width}x${height} -> aspect_ratio ${aspectRatio}, url: ${publicUrl.slice(0, 60)}`);
+  const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
+    input: {
+      prompt: FLOORPLAN_3D_PROMPT,
+      image_urls: [publicUrl],
+      resolution: "2K",
+      aspect_ratio: aspectRatio,
+    },
+  });
+  const imageUrl = (result.data as any).images?.[0]?.url;
+  if (!imageUrl) throw new Error("No image generated");
+  return { imageUrl };
 }
 
 // Map et vilkårligt billed-størrelsesforhold til den nærmeste aspect_ratio som
