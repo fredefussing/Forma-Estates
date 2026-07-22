@@ -1103,6 +1103,56 @@ const PLAN_PRICE_IDS: Record<string, string> = {
   Business: "price_1Tl2pZKDpJP0jg0etHHBwE52",
 };
 
+function TileWiper({ before, after, labels = ["FØR", "EFTER"] }: { before: string; after: string; labels?: [string, string] }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const delays = [2600, 1400, 2600, 1400];
+    let id: ReturnType<typeof setTimeout>;
+    const advance = (s: number) => {
+      id = setTimeout(() => { const n = (s + 1) % 4; setStep(n); advance(n); }, delays[s]);
+    };
+    advance(0);
+    return () => clearTimeout(id);
+  }, []);
+  const clip = (step === 1 || step === 2) ? "0%" : "100%";
+  const animate = step === 1 || step === 3;
+  return (
+    <div className="absolute inset-0">
+      <img src={before} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <img src={after} alt="" className="absolute inset-0 w-full h-full object-cover"
+        style={{ clipPath: `inset(0 ${clip} 0 0)`, transition: animate ? "clip-path 1.4s ease-in-out" : "none" }} />
+      <div className="absolute bottom-3 left-3 pointer-events-none"
+        style={{ background: "rgba(15,25,35,0.72)", color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", padding: "4px 9px", borderRadius: 4, opacity: step === 0 ? 1 : 0, transition: "opacity 0.5s" }}>
+        {labels[0]}
+      </div>
+      <div className="absolute bottom-3 right-3 pointer-events-none"
+        style={{ background: "rgba(197,161,82,0.92)", color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", padding: "4px 9px", borderRadius: 4, opacity: step === 2 ? 1 : 0, transition: "opacity 0.5s" }}>
+        {labels[1]}
+      </div>
+    </div>
+  );
+}
+
+function TileCarousel({ images }: { images: string[] }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setIdx(i => (i + 1) % images.length), 2600);
+    return () => clearInterval(id);
+  }, [images.length]);
+  return (
+    <div className="absolute inset-0">
+      {images.map((src, i) => (
+        <img key={src} src={src} alt="" className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: i === idx ? 1 : 0, transition: "opacity 0.9s ease-in-out" }} />
+      ))}
+      <div className="absolute bottom-3.5 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+        {images.map((_, i) => (
+          <span key={i} style={{ display: "block", width: i === idx ? 20 : 6, height: 5, borderRadius: 3, background: i === idx ? "rgba(197,161,82,0.95)" : "rgba(255,255,255,0.55)", transition: "all 0.4s ease" }} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function BoligpotentialeLanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -1431,44 +1481,50 @@ export default function BoligpotentialeLanding() {
             </h2>
           </div>
           {(() => {
-            const tiles = [
+            type TileMedia =
+              | { kind: "slider"; before: string; after: string; labels?: [string, string] }
+              | { kind: "carousel"; images: string[] }
+              | { kind: "video"; src: string; poster?: string }
+              | { kind: "image"; src: string };
+            type Tile = { eyebrow: string; title: string; desc: string; media: TileMedia; href: string };
+            const tiles: Tile[] = [
               {
                 eyebrow: "Før / Efter",
                 title: "AI-iscenesættelse",
                 desc: "Et tomt rum bliver til et hjem på sekunder.",
-                media: { kind: "image" as const, src: "/bolig-images/living-scandi-after.jpg" },
+                media: { kind: "slider", before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg" },
                 href: "/boligpotentiale/foer-efter",
               },
               {
                 eyebrow: "3D Plantegning",
                 title: "Forstå flowet",
                 desc: "Lad køber gå gennem rummet før første visning.",
-                media: { kind: "image" as const, src: "/bolig-images/floorplan-3d.jpg" },
+                media: { kind: "slider", before: "/bolig-images/floorplan-2d.jpg", after: "/bolig-images/floorplan-3d.jpg", labels: ["2D", "3D"] },
                 href: "/boligpotentiale/3d-plantegning",
               },
               {
                 eyebrow: "Branchevideo",
                 title: "Cinematisk fortælling",
                 desc: "Væk følelser med en levende videogennemgang.",
-                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
+                media: { kind: "video", src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },
               {
                 eyebrow: "AI Design Agent",
                 title: "Beskriv din vision",
                 desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
-                media: { kind: "image" as const, src: "/bolig-images/ai-agent-after-v2.jpg" },
+                media: { kind: "slider", before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/ai-agent-after-v2.jpg" },
                 href: "/boligpotentiale/ai-design-agent",
               },
               {
                 eyebrow: "Bolig Showcase",
                 title: "Vis potentialet",
                 desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
-                media: { kind: "image" as const, src: "/bolig-images/living-modern-after.jpg" },
+                media: { kind: "carousel", images: ["/bolig-images/living-modern-after.jpg", "/bolig-images/dining-after.jpg", "/bolig-images/kitchen-after.jpg", "/bolig-images/living-scandi-after.jpg"] },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];
-            const renderTile = (t: typeof tiles[0]) => (
+            const renderTile = (t: Tile) => (
               <Link
                 key={t.eyebrow}
                 href={t.href}
@@ -1487,6 +1543,10 @@ export default function BoligpotentialeLanding() {
                       onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
+                  ) : t.media.kind === "slider" ? (
+                    <TileWiper before={t.media.before} after={t.media.after} labels={t.media.labels} />
+                  ) : t.media.kind === "carousel" ? (
+                    <TileCarousel images={t.media.images} />
                   ) : (
                     <img
                       src={t.media.src}
@@ -1494,7 +1554,7 @@ export default function BoligpotentialeLanding() {
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   )}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.35) 0%, rgba(15,25,35,0) 45%)" }} />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.3) 0%, rgba(15,25,35,0) 40%)" }} />
                   <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(255,255,255,0.92)", color: C.navy, padding: "6px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
                     {t.eyebrow}
                   </div>
