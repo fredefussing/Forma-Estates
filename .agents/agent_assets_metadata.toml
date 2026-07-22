@@ -18,6 +18,60 @@ uri = "file://attached_assets/generated_images/hero-before-sovevaerelse.png"
 type = "image"
 title = "empty Danish bedroom before"
 
+[[generated]]
+id = "NlrDF5Q2VpaNIpqK7wJ5s"
+uri = "file://public/bolig-images/living-scandi-after.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Tbf2BsqRBJS-lnrEMGmQh"
+uri = "file://public/bolig-images/dining-after.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "czLPdpK78CDILwrHG8AbU"
+uri = "file://public/bolig-images/kitchen-after.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "CTG98ZNpsYYKvKCyP9t9c"
+uri = "file://public/bolig-images/living-modern-after.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "euO_BL6KU2K2Le3N8qlgV"
+uri = "file://public/bolig-images/ai-agent-after-v2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Z25cAHhbTxo2oM14nXyAR"
+uri = "file://public/bolig-images/facade-after.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "vIEjLI5s3D3UtSYxBhXYO"
+uri = "file://public/bolig-images/floorplan-2d.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "kj5h76lt9uwUHvM91j7j0"
+uri = "file://public/bolig-images/floorplan-3d.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "7Vmkyq6j7ewKHlTeCDYND"
+uri = "file://public/bolig-images/video-poster.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "viBqTeE5k129fcKlo1WRJ"
 uri = "file://clip_input.csv"
@@ -71,3 +125,27 @@ id = "TML-BEvBn2PzUyR9wAeXC"
 uri = "file://uploads/jake_showcase_uplifting_test.mp4"
 type = "video"
 title = "Jake showcase — Opløftende stemning (23s reel)"
+
+[[outputs]]
+id = "r4KGuLeTdTz2HCIlU3zmA"
+uri = "file://attached_assets/stock_images/facade-before.jpg"
+type = "image"
+title = "Danish residential apartment building exterior facade architecture"
+
+[[outputs]]
+id = "ay4tTDiwoS-5OTsXQSehj"
+uri = "file://attached_assets/stock_images/living-scandi-before.jpg"
+type = "image"
+title = "empty unfurnished living room white walls wooden floor natural light minimal"
+
+[[outputs]]
+id = "a_bqTBKpwLbY5Kf9j72B2"
+uri = "file://attached_assets/stock_images/kitchen-before.jpg"
+type = "image"
+title = "simple empty kitchen white cabinets clean minimal interior"
+
+[[outputs]]
+id = "Ofs0u9U-42ycHSqeBjbmf"
+uri = "file://attached_assets/stock_images/living-modern-before.jpg"
+type = "image"
+title = "empty living room minimal white modern interior natural light"
