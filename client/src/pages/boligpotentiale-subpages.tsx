@@ -722,6 +722,13 @@ export function OmOsPage() {
 
 export function BoligShowcasePage() {
   usePageTitle("Bolig-showcase", "Se eksempler på komplette AI-producerede bolig-showcases med billeder og video fra Forma Estates.");
+  const showcaseVideoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = showcaseVideoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.play().catch(() => {});
+  }, []);
   const examples = [
     {
       src: "/bolig-images/living-scandi-after.jpg",
@@ -758,12 +765,13 @@ export function BoligShowcasePage() {
         </div>
         <div className="relative rounded-2xl overflow-hidden" style={{ width: "min(300px, 90%)", aspectRatio: "9/16", boxShadow: "0 24px 60px rgba(15,25,35,0.18)" }}>
           <video
+            ref={showcaseVideoRef}
             src="/videos/bolig-showcase-v1.mp4"
             autoPlay
             muted
             loop
             playsInline
-            poster="/bolig-images/living-modern-after.jpg"
+            preload="auto"
             className="absolute inset-0 w-full h-full object-cover"
             data-testid="showcase-video"
           />
