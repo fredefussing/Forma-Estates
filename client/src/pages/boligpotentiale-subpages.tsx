@@ -751,6 +751,33 @@ export function BoligShowcasePage() {
       title="Vis boligens fulde potentiale"
       intro="Præsentér alle rum i deres bedste lys med professionelle AI-visualiseringer — klar til annoncen, sociale medier og fremvisning. Vi dækker hele boligen på én gang."
     >
+      {/* Featured vertical video */}
+      <div className="flex flex-col items-center mb-14" data-testid="showcase-featured-video">
+        <div className="uppercase mb-4" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em", textAlign: "center" }}>
+          Eksempel på en færdig showcase
+        </div>
+        <div className="relative rounded-2xl overflow-hidden" style={{ width: "min(300px, 90%)", aspectRatio: "9/16", boxShadow: "0 24px 60px rgba(15,25,35,0.18)" }}>
+          <video
+            src="/videos/bolig-showcase-v1.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster="/bolig-images/living-modern-after.jpg"
+            className="absolute inset-0 w-full h-full object-cover"
+            data-testid="showcase-video"
+          />
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 pointer-events-none"
+            style={{ background: "rgba(15,25,35,0.72)", color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", padding: "4px 9px", borderRadius: 4 }}>
+            <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><rect x="0.5" y="0.5" width="7" height="12" rx="1.5" stroke="white" strokeWidth="1"/><rect x="2" y="10" width="4" height="1" rx="0.5" fill="white"/></svg>
+            LODRET VIDEO
+          </div>
+        </div>
+        <p className="mt-4 text-center" style={{ color: C.muted, fontSize: 14, maxWidth: 300, lineHeight: 1.6 }}>
+          Lodret format — klar til Instagram Reels, TikTok og Facebook
+        </p>
+      </div>
+
       {/* Grid af eksempler */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7" data-testid="showcase-grid">
         {examples.map((ex, i) => (

@@ -1531,15 +1531,10 @@ export default function BoligpotentialeLanding() {
                 <div className="relative overflow-hidden" style={{ aspectRatio: "4 / 3" }}>
                   {t.media.kind === "video" && isVerticalVideo ? (
                     <>
-                      {/* Blurred background fill so no black bars */}
                       <video src={t.media.src} autoPlay muted loop playsInline
-                        className="absolute inset-0 w-full h-full object-cover scale-125"
-                        style={{ filter: "blur(18px) brightness(0.55)" }} />
-                      {/* Sharp vertical video centered */}
-                      <video src={t.media.src} autoPlay muted loop playsInline
-                        className="absolute inset-y-0 h-full w-auto object-contain transition-transform duration-700 group-hover:scale-[1.03]"
-                        style={{ left: "50%", transform: "translateX(-50%)" }} />
-                      {/* Lodret format badge */}
+                        poster="/bolig-images/living-modern-after.jpg"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                        style={{ objectPosition: "center center" }} />
                       <div className="absolute top-4 right-4 flex items-center gap-1.5 pointer-events-none"
                         style={{ background: "rgba(15,25,35,0.72)", color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", padding: "5px 10px", borderRadius: 4 }}>
                         <svg width="9" height="14" viewBox="0 0 9 14" fill="none"><rect x="0.5" y="0.5" width="8" height="13" rx="1.5" stroke="white" strokeWidth="1"/><rect x="2.5" y="11" width="4" height="1" rx="0.5" fill="white"/></svg>
