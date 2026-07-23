@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink, Focus, ImageDown, Box } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { TRIPO_BG, TRIPO_MV_PROPS, TRIPO_MV_ATTRS } from "./tripo-viewer-constants";
 
 declare global {
   namespace JSX {
@@ -37,32 +38,6 @@ const SWATCHES: ColorSwatch[] = [
   { label: "Navy", hex: "#1C2E45", r: 0.11, g: 0.18, b: 0.27 },
 ];
 
-// Tripo's egen viewer-æstetik: mørkegrå radial gradient (lysere i midten).
-export const TRIPO_BG =
-  "radial-gradient(ellipse 120% 90% at 50% 38%, #464646 0%, #2b2b2b 55%, #171717 100%)";
-
-// Kamera & lys 1:1 med Tripo's web-viewer: ingen auto-rotation, tættere zoom
-// (min 4% / max 350% af model-radius), blød kamera-glidning, neutral tone-mapping.
-export const TRIPO_MV_PROPS: Record<string, string> = {
-  "camera-controls": "",
-  "camera-orbit": "0deg 30deg 105%",
-  "min-camera-orbit": "auto 0deg 4%",
-  "max-camera-orbit": "auto 180deg 350%",
-  "min-field-of-view": "10deg",
-  "max-field-of-view": "45deg",
-  "interpolation-decay": "120",
-  "interaction-prompt": "none",
-  "environment-image": "neutral",
-  "tone-mapping": "neutral",
-  "exposure": "0.95",
-  "shadow-intensity": "1",
-  "shadow-softness": "0.9",
-};
-
-// Samme opsætning som HTML-attributter til "Åbn i ny fane"-siderne.
-export const TRIPO_MV_ATTRS = Object.entries(TRIPO_MV_PROPS)
-  .map(([k, v]) => (v === "" ? k : `${k}="${v}"`))
-  .join(" ");
 
 function boostRenderResolution() {
   // Supersampling: model-viewer renderer i skærmens pixel-tæthed (1x på

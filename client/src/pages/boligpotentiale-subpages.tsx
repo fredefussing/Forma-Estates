@@ -294,11 +294,11 @@ function BenefitRow({ items }: { items: { title: string; desc: string }[] }) {
 export function EksemplerPage() {
   usePageTitle("Eksempler på AI-boligvisualisering", "Se før/efter-eksempler på AI-genereret boligstyling og iscenesættelse fra Forma Estates.");
   const pairs = [
-    { before: "/bolig-images/eks1-before.jpg", after: "/bolig-images/eks1-after.jpg", title: "Entre — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
-    { before: "/bolig-images/eks2-before.jpg", after: "/bolig-images/eks2-after.jpg", title: "Spisestue — skandinavisk", desc: "Rene linjer, varme træmøbler og naturligt lys." },
+    { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Entre — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
+    { before: "/bolig-images/dining-before.jpg", after: "/bolig-images/dining-after.jpg", title: "Spisestue — skandinavisk", desc: "Rene linjer, varme træmøbler og naturligt lys." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Køkken — landlig", desc: "Træfronter, sten og naturligt lys gør rummet levende." },
-    { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
-    { before: "/bolig-images/ai-agent-before.jpg", after: "/bolig-images/ai-agent-after-v2.jpg", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
+    { before: "/bolig-images/demo-bathroom-before.jpg", after: "/bolig-images/demo-bathroom-after-clean.png", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
+    { before: "/bolig-images/facade-before.jpg", after: "/bolig-images/ai-agent-after-v2.jpg", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
   ];
   return (
     <SubpageLayout
@@ -770,7 +770,7 @@ export function BoligShowcasePage() {
       desc: "Træfronter og naturligt lys giver køkkenet liv og varme.",
     },
     {
-      src: "/bolig-images/bathroom-after.jpg",
+      src: "/bolig-images/demo-bathroom-after-clean.png",
       title: "Badeværelse — japandi",
       desc: "Sten, træ og dæmpet palet skaber ro og balance.",
     },
@@ -940,7 +940,7 @@ export function AIDesignAgentPage() {
           </Link>
         </div>
         <BeforeAfterPair
-          before="/bolig-images/ai-agent-before.jpg"
+          before="/bolig-images/facade-before.jpg"
           after="/bolig-images/ai-agent-after-v2.jpg"
           title="“Renover facaden, ny belægning og ryd haven”"
           desc="Et eksempel på hvad agenten kan, fra ét enkelt promptkrav."

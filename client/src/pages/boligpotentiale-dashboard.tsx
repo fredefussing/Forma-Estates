@@ -11,7 +11,8 @@ import { signOut, sendPasswordResetEmail, updateProfile, deleteUser } from "fire
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
-import { FloorplanTripo3DViewer, TRIPO_BG, TRIPO_MV_PROPS, TRIPO_MV_ATTRS } from "@/components/floorplan-tripo3d-viewer";
+import { FloorplanTripo3DViewer } from "@/components/floorplan-tripo3d-viewer";
+import { TRIPO_BG, TRIPO_MV_PROPS, TRIPO_MV_ATTRS } from "@/components/tripo-viewer-constants";
 import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
@@ -6692,11 +6693,11 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
-            <img src="/bolig-images/ai-agent-before.jpg" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+            <img src="/bolig-images/facade-before.jpg" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
           </div>
           <div>
             <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
-            <img src="/bolig-images/ai-agent-after.jpg" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+            <img src="/bolig-images/ai-agent-after-v2.jpg" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
           </div>
         </div>
       </div>
