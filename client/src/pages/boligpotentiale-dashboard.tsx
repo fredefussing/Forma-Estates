@@ -2940,7 +2940,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             </div>
 
-            <FloorplanTripo3DViewer resultUrl={resultUrl} />
+            <FloorplanTripo3DViewer resultUrl={resultUrl} cases={activeCases} />
 
             <div className="flex flex-wrap gap-3">
               <DownloadMenu

@@ -3179,7 +3179,6 @@ export async function registerRoutes(
       });
       // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
       const data = await new Promise<any>((resolve, reject) => {
-        const { spawn } = require("child_process");
         const chunks: Buffer[] = [];
         const proc = spawn("curl", [
           "-s", "--max-time", "30",
@@ -3209,7 +3208,6 @@ export async function registerRoutes(
       const { taskId } = req.params;
       // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
       const data = await new Promise<any>((resolve, reject) => {
-        const { spawn } = require("child_process");
         const chunks: Buffer[] = [];
         const proc = spawn("curl", [
           "-s", "--max-time", "20",
@@ -3228,6 +3226,7 @@ export async function registerRoutes(
         status: task.status,
         progress: task.progress ?? 0,
         modelUrl: task.status === "success" ? task.output?.model : undefined,
+        renderedImageUrl: task.status === "success" ? task.output?.rendered_image : undefined,
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Ukendt fejl" });
