@@ -3241,8 +3241,9 @@ export async function registerRoutes(
       }
       const fileType = imageUrl.toLowerCase().includes(".png") ? "png" : "jpg";
       // HD-kvalitet som Tripo's egen web-app ("HD Model"): nyeste modelversion +
-      // Ultra-geometri + høj teksturopløsning. Uden disse falder API'et tilbage
-      // til v2.5/standard, som giver markant grovere/uskarpe modeller.
+      // Ultra-geometri + høj teksturopløsning + face_limit 200 000 (Tripo's
+      // platform bruger dette for HD-tilstanden — giver markant skarpere kanter
+      // og renere geometri end default ~50 000 triangler).
       const payload = JSON.stringify({
         type: "image_to_model",
         file: { type: fileType, url: imageUrl },
@@ -3251,6 +3252,8 @@ export async function registerRoutes(
         texture_quality: "detailed",
         texture: true,
         pbr: true,
+        face_limit: 200000,
+        quad: false,
       });
       // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
       const data = await new Promise<any>((resolve, reject) => {

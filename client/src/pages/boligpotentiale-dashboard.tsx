@@ -2822,6 +2822,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [tripoRenderedUrl, setTripoRenderedUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -2830,6 +2831,8 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
   const hasUnsaved = !!resultUrl && saveCaseId === null;
+  // Vis Tripo's professionelle rendered_image når den er klar, ellers fal.ai billedet
+  const displayUrl = tripoRenderedUrl || resultUrl;
   useUnsavedExitGuard(hasUnsaved);
 
   useEffect(() => {
@@ -2858,6 +2861,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
     if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setImageFile(file);
     setResultUrl(null);
+    setTripoRenderedUrl(null);
     setOriginalUrl(null);
     setError(null);
     const reader = new FileReader();
@@ -2871,6 +2875,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
     setIsGenerating(true);
     setError(null);
     setResultUrl(null);
+    setTripoRenderedUrl(null);
     setOriginalUrl(null);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -3030,22 +3035,28 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
             <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
               {imagePreview ? (
                 <div data-testid="slider-floorplan-compare">
-                  <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={resultUrl} />
+                  <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={displayUrl!} />
                 </div>
               ) : (
-                <img src={resultUrl} alt="3D plantegning" className="w-full block" data-testid="img-floorplan-result" />
+                <img src={displayUrl!} alt="3D plantegning" className="w-full block" data-testid="img-floorplan-result" />
               )}
               <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
                 <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
-                {imagePreview ? "Træk slideren for at sammenligne 2D og 3D" : "AI-genereret 3D render"}
+                {tripoRenderedUrl
+                  ? "Tripo AI-render · Klar til 360° rotation"
+                  : imagePreview ? "Træk slideren for at sammenligne 2D og 3D" : "AI-genereret 3D render"}
               </div>
             </div>
 
-            <FloorplanTripo3DViewer resultUrl={resultUrl} cases={activeCases} />
+            <FloorplanTripo3DViewer
+              resultUrl={resultUrl}
+              cases={activeCases}
+              onRenderedImage={(url) => setTripoRenderedUrl(url)}
+            />
 
             <div className="flex flex-wrap gap-3">
               <DownloadMenu
-                url={resultUrl}
+                url={displayUrl!}
                 style="3d-floorplan"
                 variant="primary"
                 testIdPrefix="floorplan-download"
@@ -3080,7 +3091,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                                   ...(token ? { Authorization: `Bearer ${token}` } : {}),
                                 },
                                 body: JSON.stringify({
-                                  imageUrl: resultUrl,
+                                  imageUrl: displayUrl,
                                   originalImageUrl: originalUrl,
                                   roomType: "floorplan",
                                   style: "3d-floorplan",

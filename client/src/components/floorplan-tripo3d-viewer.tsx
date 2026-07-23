@@ -173,9 +173,11 @@ function resetCameraView(mv: any) {
 export function FloorplanTripo3DViewer({
   resultUrl,
   cases = [],
+  onRenderedImage,
 }: {
   resultUrl: string;
   cases?: SavableCase[];
+  onRenderedImage?: (url: string) => void;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -324,7 +326,9 @@ export function FloorplanTripo3DViewer({
           if (d.status === "success" && d.modelUrl) {
             stopPolling();
             setModelUrl(d.modelUrl);
-            setRenderedImageUrl(d.renderedImageUrl ?? null);
+            const ri = d.renderedImageUrl ?? null;
+            setRenderedImageUrl(ri);
+            if (ri) onRenderedImage?.(ri);
             setStatus("ready");
           } else if (d.status === "failed" || d.status === "cancelled") {
             stopPolling();
