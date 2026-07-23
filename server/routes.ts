@@ -3222,11 +3222,18 @@ export async function registerRoutes(
       });
       if (data.code !== 0) return res.status(500).json({ message: "Status fejl" });
       const task = data.data;
+      // Tripo3D med pbr:true returnerer GLB under output.pbr_model (ikke output.model)
+      const modelUrl = task.status === "success"
+        ? (task.output?.pbr_model ?? task.output?.model ?? task.result?.pbr_model?.url)
+        : undefined;
+      const renderedImageUrl = task.status === "success"
+        ? (task.output?.rendered_image ?? task.result?.rendered_image?.url)
+        : undefined;
       res.json({
         status: task.status,
         progress: task.progress ?? 0,
-        modelUrl: task.status === "success" ? task.output?.model : undefined,
-        renderedImageUrl: task.status === "success" ? task.output?.rendered_image : undefined,
+        modelUrl,
+        renderedImageUrl,
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Ukendt fejl" });

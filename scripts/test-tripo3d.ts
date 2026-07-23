@@ -95,12 +95,14 @@ async function main() {
     process.stdout.write(`   [${i+1}] ${d.status}  ${d.progress ?? 0}%        \r`);
 
     if (d.status === "success") {
+      const glbUrl = d.output?.pbr_model ?? d.output?.model ?? d.result?.pbr_model?.url;
+      const previewUrl = d.output?.rendered_image ?? d.result?.rendered_image?.url;
       console.log("\n");
       console.log("════════════════════════════════════════");
       console.log("✅  3D MODEL KLAR!");
       console.log("════════════════════════════════════════");
-      console.log("GLB model URL  :", d.output?.model ?? "(ingen)");
-      console.log("Preview billede:", d.output?.rendered_image ?? "(ingen)");
+      console.log("GLB model URL  :", glbUrl ?? "(ingen)");
+      console.log("Preview billede:", previewUrl ?? "(ingen)");
       console.log("════════════════════════════════════════\n");
       return;
     } else if (d.status === "failed" || d.status === "cancelled") {
