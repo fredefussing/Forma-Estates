@@ -11,7 +11,7 @@ import { signOut, sendPasswordResetEmail, updateProfile, deleteUser } from "fire
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
-import { FloorplanTripo3DViewer } from "@/components/floorplan-tripo3d-viewer";
+import { FloorplanTripo3DViewer, TRIPO_BG, TRIPO_MV_PROPS, TRIPO_MV_ATTRS } from "@/components/floorplan-tripo3d-viewer";
 import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
@@ -1819,22 +1819,15 @@ function CaseDetailPanel({
               data-testid="bolig-lightbox-modal"
             >
               {lightboxImg.style === "3d-interactive" && lightboxImg.beforeSrc ? (
-                <div style={{ height: 520, background: "#0F1D2F", position: "relative" }}>
+                <div style={{ height: 520, background: TRIPO_BG, position: "relative" }}>
                   <model-viewer
                     src={lightboxImg.beforeSrc}
-                    camera-controls
-                    auto-rotate
-                    auto-rotate-delay="1500"
-                    rotation-per-second="20deg"
-                    environment-image="neutral"
-                    shadow-intensity="1.5"
-                    shadow-softness="1"
-                    exposure="1"
+                    {...TRIPO_MV_PROPS}
                     alt="3D Plantegning"
-                    style={{ width: "100%", height: "100%", background: "#0F1D2F" }}
+                    style={{ width: "100%", height: "100%", background: "transparent" }}
                     data-testid="bolig-lightbox-3d-viewer"
                   />
-                  <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(15,29,47,0.82)", color: "rgba(255,255,255,0.65)", padding: "6px 14px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap", pointerEvents: "none" }}>
+                  <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(22,22,22,0.85)", color: "rgba(255,255,255,0.65)", padding: "7px 16px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(255,255,255,0.08)", whiteSpace: "nowrap", pointerEvents: "none", backdropFilter: "blur(10px)" }}>
                     Klik og træk for at rotere · Scroll for at zoome
                   </div>
                 </div>
@@ -1895,7 +1888,7 @@ function CaseDetailPanel({
                       onClick={() => {
                         const raw = lightboxImg.beforeSrc!;
                         const glbSrc = raw.startsWith("http") ? raw : `${window.location.origin}${raw}`;
-                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0F1D2F;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}header{background:#0A1520;padding:12px 20px;border-bottom:1px solid rgba(200,149,108,0.2)}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}model-viewer{flex:1;width:100%;background:#0F1D2F}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(15,29,47,0.82);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(200,149,108,0.25);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><model-viewer src="${glbSrc}" camera-controls auto-rotate auto-rotate-delay="1500" rotation-per-second="20deg" environment-image="neutral" shadow-intensity="1.5" shadow-softness="1" exposure="1" alt="3D Plantegning" style="width:100%;height:calc(100vh - 46px);background:#0F1D2F"></model-viewer><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div></body></html>`;
+                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08)}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}model-viewer{flex:1;width:100%;background:${TRIPO_BG}}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><model-viewer src="${glbSrc}" ${TRIPO_MV_ATTRS} alt="3D Plantegning" style="width:100%;height:calc(100vh - 46px)"></model-viewer><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div></body></html>`;
                         const blob = new Blob([html], { type: "text/html" });
                         window.open(URL.createObjectURL(blob), "_blank");
                       }}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink } from "lucide-react";
+import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink, Focus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -37,6 +37,33 @@ const SWATCHES: ColorSwatch[] = [
   { label: "Navy", hex: "#1C2E45", r: 0.11, g: 0.18, b: 0.27 },
 ];
 
+// Tripo's egen viewer-æstetik: mørkegrå radial gradient (lysere i midten).
+export const TRIPO_BG =
+  "radial-gradient(ellipse 120% 90% at 50% 38%, #464646 0%, #2b2b2b 55%, #171717 100%)";
+
+// Kamera & lys 1:1 med Tripo's web-viewer: ingen auto-rotation, tættere zoom
+// (min 4% / max 350% af model-radius), blød kamera-glidning, neutral tone-mapping.
+export const TRIPO_MV_PROPS: Record<string, string> = {
+  "camera-controls": "",
+  "camera-orbit": "0deg 65deg 100%",
+  "min-camera-orbit": "auto auto 4%",
+  "max-camera-orbit": "auto auto 350%",
+  "min-field-of-view": "10deg",
+  "max-field-of-view": "45deg",
+  "interpolation-decay": "140",
+  "interaction-prompt": "none",
+  "environment-image": "neutral",
+  "tone-mapping": "neutral",
+  "exposure": "0.95",
+  "shadow-intensity": "1",
+  "shadow-softness": "0.9",
+};
+
+// Samme opsætning som HTML-attributter til "Åbn i ny fane"-siderne.
+export const TRIPO_MV_ATTRS = Object.entries(TRIPO_MV_PROPS)
+  .map(([k, v]) => (v === "" ? k : `${k}="${v}"`))
+  .join(" ");
+
 function ensureModelViewerScript() {
   if (typeof document === "undefined") return;
   if (document.querySelector("script[data-mv-loaded]")) return;
@@ -56,49 +83,98 @@ function ColorPanel({
   onSelect: (idx: number) => void;
   materialsReady: boolean;
 }) {
+  // Tripo-stil: flydende mørk pille i bunden med runde farvekugler.
   return (
     <div
       style={{
-        background: "rgba(15,29,47,0.88)",
-        border: "1px solid rgba(200,149,108,0.3)",
-        borderRadius: 14,
-        padding: "10px 12px",
-        backdropFilter: "blur(8px)",
+        background: "rgba(22,22,22,0.85)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 999,
+        padding: "8px 16px",
+        backdropFilter: "blur(10px)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
         display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        minWidth: 120,
+        alignItems: "center",
+        justifyContent: "center",
+        flexWrap: "wrap",
+        gap: 9,
+        maxWidth: "calc(100vw - 120px)",
       }}
     >
-      <span style={{ color: "rgba(200,149,108,0.9)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-        Farver
-      </span>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 24px)", gap: 5 }}>
-        {SWATCHES.map((s, i) => (
-          <button
-            key={s.hex}
-            title={s.label}
-            onClick={() => onSelect(i)}
-            disabled={!materialsReady}
-            style={{
-              width: 24, height: 24,
-              borderRadius: "50%",
-              background: s.hex,
-              border: i === swatchIdx ? "2px solid #C8956C" : "2px solid transparent",
-              transform: i === swatchIdx ? "scale(1.18)" : "scale(1)",
-              transition: "transform 0.15s ease, border-color 0.15s ease",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-              cursor: materialsReady ? "pointer" : "wait",
-              padding: 0,
-            }}
-          />
-        ))}
-      </div>
-      <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, textAlign: "center", minHeight: 12 }}>
+      {SWATCHES.map((s, i) => (
+        <button
+          key={s.hex}
+          title={s.label}
+          onClick={() => onSelect(i)}
+          disabled={!materialsReady}
+          style={{
+            width: 22, height: 22,
+            borderRadius: "50%",
+            background: `radial-gradient(circle at 32% 28%, ${s.hex}, ${s.hex} 55%, rgba(0,0,0,0.28))`,
+            outline: i === swatchIdx ? "2px solid rgba(255,255,255,0.95)" : "2px solid transparent",
+            outlineOffset: 2,
+            border: "none",
+            transform: i === swatchIdx ? "scale(1.15)" : "scale(1)",
+            transition: "transform 0.15s ease, outline-color 0.15s ease",
+            boxShadow: "0 1px 5px rgba(0,0,0,0.5)",
+            cursor: materialsReady ? "pointer" : "wait",
+            padding: 0,
+            flexShrink: 0,
+          }}
+        />
+      ))}
+      <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.14)", flexShrink: 0 }} />
+      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, whiteSpace: "nowrap", minWidth: 62 }}>
         {SWATCHES[swatchIdx]?.label ?? ""}
       </span>
     </div>
   );
+}
+
+function RailButton({ title, onClick, children, testId }: { title: string; onClick: () => void; children: React.ReactNode; testId?: string }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      className="hover:bg-white/10 transition-colors"
+      style={{
+        width: 36, height: 36, borderRadius: "50%",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "rgba(255,255,255,0.78)", background: "transparent",
+        border: "none", cursor: "pointer", padding: 0,
+      }}
+      data-testid={testId}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ControlRail({ children }: { children: React.ReactNode }) {
+  // Tripo-stil: lodret knap-søjle i højre side.
+  return (
+    <div
+      style={{
+        position: "absolute", top: "50%", right: 14, transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: 4,
+        background: "rgba(22,22,22,0.85)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 999, padding: 5,
+        backdropFilter: "blur(10px)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function resetCameraView(mv: any) {
+  if (!mv) return;
+  try {
+    mv.cameraOrbit = TRIPO_MV_PROPS["camera-orbit"];
+    mv.fieldOfView = "auto";
+  } catch { /* ignorér */ }
 }
 
 export function FloorplanTripo3DViewer({
@@ -339,16 +415,16 @@ export function FloorplanTripo3DViewer({
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#0F1D2F;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
-    header{background:#0A1520;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(200,149,108,0.2)}
+    body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
+    header{background:#111;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.08)}
     header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}
-    model-viewer{flex:1;width:100%;background:#0F1D2F}
-    .hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(15,29,47,0.82);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(200,149,108,0.25);pointer-events:none}
+    model-viewer{flex:1;width:100%;background:${TRIPO_BG}}
+    .hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}
   </style>
 </head>
 <body>
   <header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header>
-  <model-viewer src="${absModelUrl}" camera-controls auto-rotate auto-rotate-delay="1500" rotation-per-second="20deg" environment-image="neutral" shadow-intensity="1.5" shadow-softness="1" exposure="1" alt="3D Plantegning"></model-viewer>
+  <model-viewer src="${absModelUrl}" ${TRIPO_MV_ATTRS} alt="3D Plantegning"></model-viewer>
   <div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div>
 </body>
 </html>`;
@@ -499,63 +575,46 @@ export function FloorplanTripo3DViewer({
   return (
     <>
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE" }}>
-        <div className="relative" style={{ height: 480, background: "#0F1D2F" }}>
+        <div className="relative" style={{ height: 480, background: TRIPO_BG }}>
           <model-viewer
             ref={mvRef}
             src={modelUrl}
-            camera-controls
-            auto-rotate
-            auto-rotate-delay="1500"
-            rotation-per-second="20deg"
-            environment-image="neutral"
-            shadow-intensity="1.5"
-            shadow-softness="1"
-            exposure="1"
+            {...TRIPO_MV_PROPS}
             alt="3D Plantegning"
-            style={{ width: "100%", height: "100%", background: "#0F1D2F" }}
+            style={{ width: "100%", height: "100%", background: "transparent" }}
             data-testid="model-viewer-tripo3d"
           />
 
-          {/* Color panel */}
-          <div style={{ position: "absolute", top: 12, right: 12 }}>
-            <ColorPanel swatchIdx={swatchIdx} onSelect={selectSwatch} materialsReady={materialsReady} />
-          </div>
+          {/* Knap-søjle i højre side (Tripo-stil) */}
+          <ControlRail>
+            <RailButton title="Fuld skærm" onClick={() => setShowFullscreen(true)} testId="button-tripo3d-fullscreen">
+              <Maximize2 className="w-4 h-4" />
+            </RailButton>
+            <RailButton title="Åbn i ny fane" onClick={openInNewTab} testId="button-tripo3d-rail-open-tab">
+              <ExternalLink className="w-4 h-4" />
+            </RailButton>
+            <RailButton title="Nulstil visning" onClick={() => resetCameraView(mvRef.current)} testId="button-tripo3d-reset-view">
+              <Focus className="w-4 h-4" />
+            </RailButton>
+          </ControlRail>
 
-          {/* Fullscreen button */}
-          <button
-            onClick={() => setShowFullscreen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ position: "absolute", top: 12, left: 12, background: "rgba(15,29,47,0.75)", color: "rgba(255,255,255,0.85)", backdropFilter: "blur(4px)" }}
-            data-testid="button-tripo3d-fullscreen"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-            Fuld skærm
-          </button>
-
-          {/* Hint */}
-          {!materialsReady && (
+          {/* Bund-pille: farvekugler (Tripo-stil) */}
+          {!materialsReady ? (
             <div
               style={{
                 position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
-                background: "rgba(15,29,47,0.85)", color: "rgba(255,255,255,0.6)",
-                padding: "6px 14px", borderRadius: 999, fontSize: 11,
-                border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap",
+                background: "rgba(22,22,22,0.85)", color: "rgba(255,255,255,0.65)",
+                padding: "8px 16px", borderRadius: 999, fontSize: 11,
+                border: "1px solid rgba(255,255,255,0.08)", whiteSpace: "nowrap",
+                backdropFilter: "blur(10px)",
               }}
             >
               <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />
               Indlæser 3D model…
             </div>
-          )}
-          {materialsReady && (
-            <div
-              style={{
-                position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
-                background: "rgba(15,29,47,0.8)", color: "rgba(255,255,255,0.6)",
-                padding: "6px 14px", borderRadius: 999, fontSize: 11,
-                border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap",
-              }}
-            >
-              Klik og træk for at rotere · Scroll for at zoome
+          ) : (
+            <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)" }}>
+              <ColorPanel swatchIdx={swatchIdx} onSelect={selectSwatch} materialsReady={materialsReady} />
             </div>
           )}
         </div>
@@ -635,33 +694,30 @@ export function FloorplanTripo3DViewer({
             </button>
           </div>
 
-          <div className="relative flex-1">
+          <div className="relative flex-1" style={{ background: TRIPO_BG }}>
             <model-viewer
               ref={mvFsRef}
               src={modelUrl}
-              camera-controls
-              auto-rotate
-              auto-rotate-delay="1500"
-              rotation-per-second="20deg"
-              environment-image="neutral"
-              shadow-intensity="1.5"
-              shadow-softness="1"
-              exposure="1"
+              {...TRIPO_MV_PROPS}
               alt="3D Plantegning — fuld skærm"
-              style={{ width: "100%", height: "100%", background: "#0F1D2F" }}
+              style={{ width: "100%", height: "100%", background: "transparent" }}
             />
-            <div style={{ position: "absolute", top: 12, right: 12 }}>
-              <ColorPanel swatchIdx={swatchIdx} onSelect={selectSwatch} materialsReady={fsMaterialsReady} />
-            </div>
-            {!fsMaterialsReady && (
-              <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(15,29,47,0.85)", color: "rgba(255,255,255,0.6)", padding: "6px 14px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap" }}>
+            <ControlRail>
+              <RailButton title="Åbn i ny fane" onClick={openInNewTab}>
+                <ExternalLink className="w-4 h-4" />
+              </RailButton>
+              <RailButton title="Nulstil visning" onClick={() => resetCameraView(mvFsRef.current)}>
+                <Focus className="w-4 h-4" />
+              </RailButton>
+            </ControlRail>
+            {!fsMaterialsReady ? (
+              <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(22,22,22,0.85)", color: "rgba(255,255,255,0.65)", padding: "8px 16px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(255,255,255,0.08)", whiteSpace: "nowrap", backdropFilter: "blur(10px)" }}>
                 <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />
                 Indlæser 3D model…
               </div>
-            )}
-            {fsMaterialsReady && (
-              <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(15,29,47,0.8)", color: "rgba(255,255,255,0.6)", padding: "6px 14px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap" }}>
-                Klik og træk for at rotere · Scroll for at zoome
+            ) : (
+              <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)" }}>
+                <ColorPanel swatchIdx={swatchIdx} onSelect={selectSwatch} materialsReady={fsMaterialsReady} />
               </div>
             )}
           </div>
