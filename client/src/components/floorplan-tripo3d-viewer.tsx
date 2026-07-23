@@ -45,12 +45,12 @@ export const TRIPO_BG =
 // (min 4% / max 350% af model-radius), blød kamera-glidning, neutral tone-mapping.
 export const TRIPO_MV_PROPS: Record<string, string> = {
   "camera-controls": "",
-  "camera-orbit": "0deg 65deg 100%",
-  "min-camera-orbit": "auto auto 4%",
-  "max-camera-orbit": "auto auto 350%",
+  "camera-orbit": "0deg 30deg 105%",
+  "min-camera-orbit": "auto 0deg 4%",
+  "max-camera-orbit": "auto 180deg 350%",
   "min-field-of-view": "10deg",
   "max-field-of-view": "45deg",
-  "interpolation-decay": "140",
+  "interpolation-decay": "120",
   "interaction-prompt": "none",
   "environment-image": "neutral",
   "tone-mapping": "neutral",
@@ -66,6 +66,12 @@ export const TRIPO_MV_ATTRS = Object.entries(TRIPO_MV_PROPS)
 
 function ensureModelViewerScript() {
   if (typeof document === "undefined") return;
+  // Skarp rendering: model-viewer sænker som standard opløsningen til 25%
+  // under rotation/zoom — slå det fra så modellen altid er i fuld skarphed.
+  customElements.whenDefined("model-viewer").then(() => {
+    const MV: any = customElements.get("model-viewer");
+    if (MV && MV.minimumRenderScale !== 1) MV.minimumRenderScale = 1;
+  }).catch(() => {});
   if (document.querySelector("script[data-mv-loaded]")) return;
   const s = document.createElement("script");
   s.type = "module";
@@ -415,6 +421,7 @@ export function FloorplanTripo3DViewer({
   <title>Forma Estates · 3D Plantegning</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <script type="module">await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
