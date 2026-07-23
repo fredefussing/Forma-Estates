@@ -78,6 +78,14 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
             draggable={false}
           />
 
+          {/* White mask on the "before" side — covers any areas where the before
+              image doesn't fill the full frame (object-contain letterboxing),
+              preventing the after image from bleeding through at top/bottom. */}
+          <div
+            className="absolute inset-0 bg-white"
+            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+          />
+
           {/* Before image clipped to the left of the slider — clipPath keeps it
               perfectly aligned with the after image (no width measurement needed
               on first render) and adds no color/shadow distortion. */}
