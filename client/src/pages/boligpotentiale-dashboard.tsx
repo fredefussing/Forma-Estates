@@ -102,6 +102,12 @@ declare global {
 }
 function ensureMvScript() {
   if (typeof document === "undefined") return;
+  // Supersampling: tving mindst 2x pixel-tæthed for skarpe kanter i 3D
+  try {
+    if ((window.devicePixelRatio || 1) < 2) {
+      Object.defineProperty(window, "devicePixelRatio", { get: () => 2, configurable: true });
+    }
+  } catch { /* ignorér */ }
   // Skarp rendering under rotation/zoom (model-viewer sænker ellers opløsningen)
   customElements.whenDefined("model-viewer").then(() => {
     const MV: any = customElements.get("model-viewer");
@@ -1893,7 +1899,7 @@ function CaseDetailPanel({
                       onClick={() => {
                         const raw = lightboxImg.beforeSrc!;
                         const glbSrc = raw.startsWith("http") ? raw : `${window.location.origin}${raw}`;
-                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script><script type="module">await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08)}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}model-viewer{flex:1;width:100%;background:${TRIPO_BG}}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><model-viewer src="${glbSrc}" ${TRIPO_MV_ATTRS} alt="3D Plantegning" style="width:100%;height:calc(100vh - 46px)"></model-viewer><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div></body></html>`;
+                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script><script type="module">if((window.devicePixelRatio||1)<2){try{Object.defineProperty(window,"devicePixelRatio",{get:()=>2,configurable:true})}catch(e){}}await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08)}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}model-viewer{flex:1;width:100%;background:${TRIPO_BG}}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><model-viewer src="${glbSrc}" ${TRIPO_MV_ATTRS} alt="3D Plantegning" style="width:100%;height:calc(100vh - 46px)"></model-viewer><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div></body></html>`;
                         const blob = new Blob([html], { type: "text/html" });
                         window.open(URL.createObjectURL(blob), "_blank");
                       }}

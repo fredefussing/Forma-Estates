@@ -64,8 +64,19 @@ export const TRIPO_MV_ATTRS = Object.entries(TRIPO_MV_PROPS)
   .map(([k, v]) => (v === "" ? k : `${k}="${v}"`))
   .join(" ");
 
+function boostRenderResolution() {
+  // Supersampling: model-viewer renderer i skærmens pixel-tæthed (1x på
+  // almindelige skærme = takkede kanter). Tving mindst 2x for skarpe kanter.
+  try {
+    if ((window.devicePixelRatio || 1) < 2) {
+      Object.defineProperty(window, "devicePixelRatio", { get: () => 2, configurable: true });
+    }
+  } catch { /* ignorér */ }
+}
+
 function ensureModelViewerScript() {
   if (typeof document === "undefined") return;
+  boostRenderResolution();
   // Skarp rendering: model-viewer sænker som standard opløsningen til 25%
   // under rotation/zoom — slå det fra så modellen altid er i fuld skarphed.
   customElements.whenDefined("model-viewer").then(() => {
@@ -179,6 +190,7 @@ function resetCameraView(mv: any) {
   if (!mv) return;
   try {
     mv.cameraOrbit = TRIPO_MV_PROPS["camera-orbit"];
+    mv.cameraTarget = "auto auto auto"; // re-centrér efter evt. panorering
     mv.fieldOfView = "auto";
   } catch { /* ignorér */ }
 }
@@ -421,7 +433,7 @@ export function FloorplanTripo3DViewer({
   <title>Forma Estates · 3D Plantegning</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-  <script type="module">await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script>
+  <script type="module">if((window.devicePixelRatio||1)<2){try{Object.defineProperty(window,"devicePixelRatio",{get:()=>2,configurable:true})}catch(e){}}await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
