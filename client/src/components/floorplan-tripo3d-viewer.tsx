@@ -1,10 +1,28 @@
 import { useState, useRef, useEffect } from "react";
-import { Boxes, Loader2, RotateCcw, AlertCircle } from "lucide-react";
+import { Boxes, Loader2, RotateCcw, AlertCircle, Palette } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 type Status = "idle" | "submitting" | "polling" | "ready" | "error";
 
+interface ColorSwatch {
+  label: string;
+  hex: string;
+  r: number; g: number; b: number;
+}
+
+const SWATCHES: ColorSwatch[] = [
+  { label: "Original", hex: "#FFFFFF", r: 1.00, g: 1.00, b: 1.00 },
+  { label: "Champagne", hex: "#F5E5CC", r: 0.96, g: 0.90, b: 0.80 },
+  { label: "Sand", hex: "#DDD0B0", r: 0.87, g: 0.82, b: 0.69 },
+  { label: "Grå", hex: "#C0C0C0", r: 0.75, g: 0.75, b: 0.75 },
+  { label: "Blågrå", hex: "#A1B7C7", r: 0.63, g: 0.72, b: 0.78 },
+  { label: "Terrakotta", hex: "#D17A5C", r: 0.82, g: 0.48, b: 0.36 },
+  { label: "Skovgrøn", hex: "#426B52", r: 0.26, g: 0.42, b: 0.32 },
+  { label: "Navy", hex: "#1C2E45", r: 0.11, g: 0.18, b: 0.27 },
+];
+
 function buildModelViewerHtml(modelUrl: string): string {
+  const swatchesJson = JSON.stringify(SWATCHES);
   return `<!DOCTYPE html>
 <html lang="da">
 <head>
@@ -33,11 +51,44 @@ function buildModelViewerHtml(modelUrl: string): string {
     white-space: nowrap; transition: opacity 0.5s ease;
   }
   #hint.hide { opacity: 0; }
+
+  /* ── Farve-panel ─────────────────────────────────────── */
+  #color-panel {
+    position: fixed; top: 12px; right: 12px;
+    background: rgba(15,29,47,0.88); border: 1px solid rgba(200,149,108,0.3);
+    border-radius: 14px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    backdrop-filter: blur(8px);
+  }
+  #color-panel-label {
+    color: rgba(200,149,108,0.9); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 5px;
+  }
+  #swatches {
+    display: grid; grid-template-columns: repeat(4, 24px); gap: 5px;
+  }
+  .swatch {
+    width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    position: relative;
+  }
+  .swatch:hover { transform: scale(1.18); }
+  .swatch.active { border-color: #C8956C; transform: scale(1.18); }
+  .swatch[data-label="Original"] { background: white; }
+  #active-name {
+    color: rgba(255,255,255,0.55); font-size: 10px; text-align: center;
+    min-height: 12px; transition: color 0.2s;
+  }
 </style>
 </head>
 <body>
 <div id="logo">Forma Estates</div>
+
 <model-viewer
+  id="mv"
   src="${modelUrl}"
   camera-controls
   auto-rotate
@@ -49,15 +100,70 @@ function buildModelViewerHtml(modelUrl: string): string {
   exposure="1"
   alt="3D Plantegning">
 </model-viewer>
+
+<div id="color-panel">
+  <div id="color-panel-label">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+    Farver
+  </div>
+  <div id="swatches"></div>
+  <div id="active-name">Original</div>
+</div>
+
 <div id="hint">Klik og træk for at rotere &middot; Scroll for at zoome</div>
+
 <script>
+  const SWATCHES = ${swatchesJson};
+  const mv = document.getElementById('mv');
+  const swatchesEl = document.getElementById('swatches');
+  const activeName = document.getElementById('active-name');
+  let materialsReady = false;
+  let pendingApply = null;
+  let activeSwatch = null;
+
+  // Build swatch buttons
+  SWATCHES.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'swatch' + (i === 0 ? ' active' : '');
+    el.style.background = s.hex;
+    el.title = s.label;
+    el.dataset.label = s.label;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      activeName.textContent = s.label;
+      applyColor(s.r, s.g, s.b);
+    });
+    if (i === 0) activeSwatch = el;
+    swatchesEl.appendChild(el);
+  });
+
+  function applyColor(r, g, b) {
+    if (!materialsReady) { pendingApply = [r, g, b]; return; }
+    try {
+      const materials = mv.model.materials;
+      materials.forEach(mat => {
+        mat.pbrMetallicRoughness.setBaseColorFactor([r, g, b, 1.0]);
+      });
+    } catch(e) { console.warn('Color apply failed:', e); }
+  }
+
+  mv.addEventListener('load', () => {
+    materialsReady = true;
+    if (pendingApply) {
+      applyColor(pendingApply[0], pendingApply[1], pendingApply[2]);
+      pendingApply = null;
+    }
+  });
+
+  // Hint auto-hide
   const hint = document.getElementById('hint');
-  document.querySelector('model-viewer').addEventListener('camera-change', () => {
+  mv.addEventListener('camera-change', () => {
     clearTimeout(window._ht);
     hint.classList.remove('hide');
     window._ht = setTimeout(() => hint.classList.add('hide'), 2500);
   });
-  setTimeout(() => hint.classList.add('hide'), 4000);
+  setTimeout(() => hint.classList.add('hide'), 4500);
 </script>
 </body>
 </html>`;
@@ -158,8 +264,26 @@ export function FloorplanTripo3DViewer({ resultUrl }: { resultUrl: string }) {
               <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#C8956C" }}>Ny</span>
             </div>
             <p className="text-sm max-w-xs" style={{ color: "#6B6B6B" }}>
-              Gør 3D plantegningen interaktiv — rotér, zoom og udforsk modellen fra alle vinkler med rigtige vægge.
+              Gør 3D plantegningen interaktiv — rotér, zoom og udforsk modellen fra alle vinkler. Skift farver med ét klik.
             </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            {[
+              { hex: "#FFFFFF", label: "Hvid" },
+              { hex: "#F5E5CC", label: "Champagne" },
+              { hex: "#C0C0C0", label: "Grå" },
+              { hex: "#A1B7C7", label: "Blågrå" },
+              { hex: "#D17A5C", label: "Terrakotta" },
+              { hex: "#426B52", label: "Grøn" },
+            ].map(s => (
+              <div
+                key={s.hex}
+                title={s.label}
+                className="w-5 h-5 rounded-full border-2"
+                style={{ background: s.hex, borderColor: "#E8E4DE" }}
+              />
+            ))}
+            <span className="text-xs ml-1" style={{ color: "#9B9690" }}>8 farver inkl.</span>
           </div>
           <button
             onClick={generate}
@@ -227,19 +351,20 @@ export function FloorplanTripo3DViewer({ resultUrl }: { resultUrl: string }) {
         src={blobUrlRef.current!}
         title="Interaktiv 3D plantegning"
         className="w-full block"
-        style={{ height: 500, border: "none" }}
+        style={{ height: 520, border: "none" }}
         sandbox="allow-scripts allow-same-origin"
         data-testid="iframe-tripo3d-viewer"
       />
       <div className="p-3 bg-[#F8F6F3] flex items-center justify-between gap-2 text-xs" style={{ color: "#6B6B6B" }}>
         <span className="flex items-center gap-1.5">
-          <Boxes className="w-3 h-3" style={{ color: "#C8956C" }} />
-          Interaktiv 3D model · rotér, zoom og udforsk
+          <Palette className="w-3 h-3" style={{ color: "#C8956C" }} />
+          Rotér · zoom · skift farve
         </span>
         <button
           onClick={reset}
           className="flex items-center gap-1 transition-opacity hover:opacity-70"
           style={{ color: "#9B9690" }}
+          data-testid="button-tripo3d-reset"
         >
           <RotateCcw className="w-3 h-3" /> Genstart
         </button>

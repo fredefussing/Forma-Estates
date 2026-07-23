@@ -3171,17 +3171,30 @@ export async function registerRoutes(
         return res.status(400).json({ message: "imageUrl er påkrævet" });
       }
       const fileType = imageUrl.toLowerCase().includes(".png") ? "png" : "jpg";
-      const taskRes = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "image_to_model",
-          file: { type: fileType, url: imageUrl },
-          texture: true,
-          pbr: true,
-        }),
+      const payload = JSON.stringify({
+        type: "image_to_model",
+        file: { type: fileType, url: imageUrl },
+        texture: true,
+        pbr: true,
       });
-      const data = await taskRes.json() as any;
+      // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
+      const data = await new Promise<any>((resolve, reject) => {
+        const { spawn } = require("child_process");
+        const chunks: Buffer[] = [];
+        const proc = spawn("curl", [
+          "-s", "--max-time", "30",
+          "-X", "POST",
+          "https://api.tripo3d.ai/v2/openapi/task",
+          "-H", `Authorization: Bearer ${apiKey}`,
+          "-H", "Content-Type: application/json",
+          "-d", payload,
+        ]);
+        proc.stdout.on("data", (d: Buffer) => chunks.push(d));
+        proc.on("close", () => {
+          try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+          catch (e) { reject(new Error("Tripo3D ugyldigt svar")); }
+        });
+      });
       if (data.code !== 0) return res.status(500).json({ message: data.message || "Tripo3D fejl" });
       res.json({ taskId: data.data.task_id });
     } catch (err: any) {
@@ -3194,10 +3207,21 @@ export async function registerRoutes(
       const apiKey = process.env.THREED_API_KEY;
       if (!apiKey) return res.status(500).json({ message: "Tripo3D API ikke konfigureret" });
       const { taskId } = req.params;
-      const statusRes = await fetch(`https://api.tripo3d.ai/v2/openapi/task/${taskId}`, {
-        headers: { "Authorization": `Bearer ${apiKey}` },
+      // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
+      const data = await new Promise<any>((resolve, reject) => {
+        const { spawn } = require("child_process");
+        const chunks: Buffer[] = [];
+        const proc = spawn("curl", [
+          "-s", "--max-time", "20",
+          `https://api.tripo3d.ai/v2/openapi/task/${taskId}`,
+          "-H", `Authorization: Bearer ${apiKey}`,
+        ]);
+        proc.stdout.on("data", (d: Buffer) => chunks.push(d));
+        proc.on("close", () => {
+          try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+          catch (e) { reject(new Error("Tripo3D status ugyldigt svar")); }
+        });
       });
-      const data = await statusRes.json() as any;
       if (data.code !== 0) return res.status(500).json({ message: "Status fejl" });
       const task = data.data;
       res.json({
