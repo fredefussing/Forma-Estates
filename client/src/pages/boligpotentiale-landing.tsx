@@ -277,7 +277,7 @@ const STAGE_SLIDES: StageSlide[] = [
 ];
 
 function HeroStage() {
-  const [index, setIndex] = useState(2);
+  const [index, setIndex] = useState(0);
   const [pos, setPos] = useState(1); // swipe split (1 = fully before, 0 = fully after)
   const rafRef = useRef<number | null>(null);
   const slideStartRef = useRef<number>(performance.now());
