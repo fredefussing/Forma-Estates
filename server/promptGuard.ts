@@ -57,6 +57,33 @@ export function assertPromptLocked(
   }
 }
 
+// ── Lås for strukturbeskyttelses-prefixet ────────────────────────────────────
+// Prefixet er gemt i promptLock.json under nøglen nedenfor. Kaldes ved HVER
+// generering — hvis prefixet i koden afviger med bare ét tegn fra den låste
+// version, stoppes genereringen med PROMPT_INTEGRITY_VIOLATION.
+const STRUCTURAL_PREFIX_LOCK_KEY = "__structural_preservation_prefix__";
+
+export function assertStructuralPrefixLocked(actualPrefix: string): void {
+  const lock = getLock();
+  const expected = lock[STRUCTURAL_PREFIX_LOCK_KEY];
+
+  if (expected === undefined) {
+    const msg =
+      `[PROMPT_GUARD] STRUKTURBESKYTTELSE MANGLER I LÅSEN (nøgle "${STRUCTURAL_PREFIX_LOCK_KEY}") — generering stoppet!`;
+    console.error(msg);
+    throw new Error(msg);
+  }
+
+  if (actualPrefix !== expected) {
+    const msg =
+      `[PROMPT_GUARD] STRUKTURBESKYTTELSE ÆNDRET — generering stoppet!\n` +
+      `  Første forskel ved tegn ${firstDiff(expected, actualPrefix)}\n` +
+      `  Forventet længde: ${expected.length}, faktisk længde: ${actualPrefix.length}`;
+    console.error(msg);
+    throw new Error(msg);
+  }
+}
+
 function firstDiff(a: string, b: string): number {
   const len = Math.min(a.length, b.length);
   for (let i = 0; i < len; i++) {

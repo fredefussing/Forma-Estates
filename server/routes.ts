@@ -14,7 +14,7 @@ import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
-import { assertPromptLocked } from "./promptGuard";
+import { assertPromptLocked, assertStructuralPrefixLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, sendTestEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
@@ -109,6 +109,13 @@ const roomTypeFurnitureHint: Record<string, string> = {
 // Fælles modul: samme tekst bruges af serveren og test-scriptet (scripts/test-structure-preservation.ts)
 import { STRUCTURAL_PRESERVATION_PREFIX } from "@shared/structuralPrompt";
 
+// Låst prefix: verificeres mod promptLock.json ved HVER generering.
+// Afviger prefixet med bare ét tegn fra den låste version, kastes en fejl og genereringen stoppes.
+function guardedPrefix(): string {
+  assertStructuralPrefixLocked(STRUCTURAL_PRESERVATION_PREFIX);
+  return STRUCTURAL_PRESERVATION_PREFIX;
+}
+
 // ── Style prompts ─────────────────────────────────────────────────────────────
 const BOLIG_ROOM_ALIASES: Record<string, string> = {
   "open living and dining room": "open plan living",
@@ -135,7 +142,7 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
 
   // 1) Prøv room-specifik prompt fra det gamle vocab (Skandinavisk/Moderne har dækning her).
   const roomSpecific = getRoomStylePrompt(style, roomType, validTier);
-  if (roomSpecific) return STRUCTURAL_PRESERVATION_PREFIX + roomSpecific;
+  if (roomSpecific) return guardedPrefix() + roomSpecific;
 
   // 2) Fallback til nye Bolig-prompts (Luksus, Industriel, Kyst, Overgangs, Landlig, Midcentury).
   const tierMap: Record<string, "tier1" | "tier2" | "tier3"> = {
@@ -145,7 +152,7 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
   const boligRoom = BOLIG_ROOM_ALIASES[roomType.toLowerCase()] ?? roomType.toLowerCase();
   try {
     const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
-    return STRUCTURAL_PRESERVATION_PREFIX + boligPrompt;
+    return guardedPrefix() + boligPrompt;
   } catch (promptErr: any) {
     // FIX: do NOT rethrow — fall through to generic vocab fallback below.
     log(`[PROMPT_NOT_FOUND] ${promptErr.message} — falling back to generic vocab prompt`);
@@ -154,8 +161,8 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
   // 3) Generic vocab fallback — runs when boligPrompts has no entry for this room+style combo.
   const vocab = styleVocabulary[style]?.[validTier];
   return vocab
-    ? STRUCTURAL_PRESERVATION_PREFIX + `Completely redesign this ${roomType}. ${vocab.prompt} Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`
-    : STRUCTURAL_PRESERVATION_PREFIX + `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
+    ? guardedPrefix() + `Completely redesign this ${roomType}. ${vocab.prompt} Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`
+    : guardedPrefix() + `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
 }
 
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
@@ -2766,7 +2773,7 @@ export async function registerRoutes(
         prompt = `Completely redesign this ${room} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
       }
       // ── Strukturbeskyttelse: samme prefix som hovedflowet ──
-      prompt = STRUCTURAL_PRESERVATION_PREFIX + prompt;
+      prompt = guardedPrefix() + prompt;
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
@@ -2935,7 +2942,7 @@ export async function registerRoutes(
           });
         }
         // ── Strukturbeskyttelse: prefix tilføjes EFTER låse-tjek (låsen verificerer stilprompten uændret) ──
-        prompt = STRUCTURAL_PRESERVATION_PREFIX + prompt;
+        prompt = guardedPrefix() + prompt;
       }
       log(`[BoligPotentiale] prompt OK (lås verificeret + strukturbeskyttelse): ${prompt.slice(0, 120)}…`);
 
@@ -4001,7 +4008,7 @@ export async function registerRoutes(
         return parts.length ? ` Architectural facts from floor plan: ${parts.join(". ")}.` : "";
       })();
       // ── Strukturbeskyttelse: samme prefix som BoligPotentiale-flowet ──
-      const prompt = STRUCTURAL_PRESERVATION_PREFIX + basePrompt + layoutCtx + archFactsStr;
+      const prompt = guardedPrefix() + basePrompt + layoutCtx + archFactsStr;
 
       // Helper: run one Collov edit job against a single before-photo URL
       // and return the resulting after-image URL (or throw with reason).
