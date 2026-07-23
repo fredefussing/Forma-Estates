@@ -171,9 +171,9 @@ professionally staged
 
 CAMERA & COMPOSITION
 
-Use an elevated near-top-down camera angle with a subtle tilt between 15–20 degrees from vertical.
+Use an elevated isometric dollhouse camera angle at 38–45 degrees from vertical — similar to a classic axonometric architectural illustration. This angle should clearly show both the floor layout AND the walls at full height, making the space feel three-dimensional and explorable.
 
-The perspective must remain close to orthographic to preserve layout readability and architectural accuracy.
+The perspective should feel like a premium real estate dollhouse model: you can see into every room, walls stand tall, furniture is clearly visible, and the depth of the space is fully readable.
 
 Maintain the EXACT same orientation and viewing direction as the original floor plan:
 
@@ -181,7 +181,7 @@ same rotation
 same room alignment
 same top/bottom direction
 
-Do not use cinematic perspectives or dramatic wide-angle distortion.
+Do not use cinematic perspectives, dramatic wide-angle distortion, or eye-level interior shots.
 
 WALLS & ARCHITECTURAL DEFINITION
 
