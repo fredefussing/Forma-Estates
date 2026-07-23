@@ -3159,6 +3159,32 @@ export async function registerRoutes(
   });
 
   // ── Tripo3D — Interaktiv 3D plantegning (billede → GLB model) ───────────
+  // Lokaliserer et eksternt billede til /uploads/ så URL'en ikke udløber
+  app.post("/api/bolig/localize-image", async (req, res) => {
+    try {
+      await verifyFirebaseToken(req.headers.authorization);
+      const { url } = req.body ?? {};
+      if (!url || typeof url !== "string") return res.status(400).json({ message: "url er påkrævet" });
+      if (url.startsWith("/uploads/") || url.startsWith("/bolig-images/")) {
+        return res.json({ localUrl: url });
+      }
+      const ext = url.match(/\.(webp|jpg|jpeg|png|gif)/i)?.[1]?.toLowerCase() ?? "jpg";
+      const filename = `tripo-preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const localFilePath = path.join(uploadDir, filename);
+      await new Promise<void>((resolve, reject) => {
+        const curl = spawn("curl", ["-sL", "--fail", "--max-time", "60", "--max-filesize", "52428800", "-o", localFilePath, url]);
+        curl.on("close", (code: number) => code === 0 ? resolve() : reject(new Error(`curl exit ${code}`)));
+        curl.on("error", reject);
+      });
+      const size = fs.statSync(localFilePath).size;
+      if (size < 500) { fs.unlinkSync(localFilePath); return res.status(422).json({ message: "For lille fil" }); }
+      r2UploadFile(localFilePath).catch((e: any) => log(`[R2] localize-image upload failed: ${e?.message}`));
+      return res.json({ localUrl: `/uploads/${filename}` });
+    } catch (e: any) {
+      return res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/bolig/tripo3d", async (req, res) => {
     try {
       const apiKey = process.env.THREED_API_KEY;

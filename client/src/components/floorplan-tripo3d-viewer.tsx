@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check } from "lucide-react";
+import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -276,6 +276,25 @@ export function FloorplanTripo3DViewer({
     setTripoSaveCaseId(caseId);
     try {
       const token = await user?.getIdToken();
+      // Localize the preview image so it doesn't expire
+      const previewSrc = renderedImageUrl || resultUrl;
+      let localPreviewUrl = previewSrc;
+      try {
+        const localRes = await fetch("/api/bolig/localize-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ url: previewSrc }),
+        });
+        if (localRes.ok) {
+          const { localUrl } = await localRes.json();
+          if (localUrl) localPreviewUrl = localUrl;
+        }
+      } catch {
+        // fall back to remote url
+      }
       const r = await fetch(`/api/bolig/cases/${caseId}/images`, {
         method: "POST",
         headers: {
@@ -283,7 +302,7 @@ export function FloorplanTripo3DViewer({
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          imageUrl: renderedImageUrl || resultUrl,
+          imageUrl: localPreviewUrl,
           originalImageUrl: modelUrl,
           roomType: "floorplan",
           style: "3d-interactive",
@@ -306,6 +325,35 @@ export function FloorplanTripo3DViewer({
       setTripoSaveCaseId(null);
       alert("Kunne ikke gemme til mappen. Prøv igen.");
     }
+  }
+
+  function openInNewTab() {
+    if (!modelUrl) return;
+    const html = `<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8"/>
+  <title>Forma Estates · 3D Plantegning</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0F1D2F;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
+    header{background:#0A1520;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(200,149,108,0.2)}
+    header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}
+    model-viewer{flex:1;width:100%;background:#0F1D2F}
+    .hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(15,29,47,0.82);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(200,149,108,0.25);pointer-events:none}
+  </style>
+</head>
+<body>
+  <header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header>
+  <model-viewer src="${modelUrl}" camera-controls auto-rotate auto-rotate-delay="1500" rotation-per-second="20deg" environment-image="neutral" shadow-intensity="1.5" shadow-softness="1" exposure="1" alt="3D Plantegning"></model-viewer>
+  <div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div>
+</body>
+</html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   }
 
   function reset() {
@@ -518,6 +566,16 @@ export function FloorplanTripo3DViewer({
           </span>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={openInNewTab}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:opacity-80"
+              style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+              data-testid="button-tripo3d-open-tab"
+              title="Åbn 3D model i ny fane"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Åbn i ny fane
+            </button>
             {activeCases.length > 0 && (
               <div className="relative" ref={saveDdRef}>
                 <button
@@ -527,7 +585,7 @@ export function FloorplanTripo3DViewer({
                   data-testid="button-tripo3d-save"
                 >
                   {tripoSaveCaseId ? <Check className="w-3 h-3" /> : <Home className="w-3 h-3" />}
-                  {tripoSaveCaseId ? "Gemt" : "Gem"}
+                  {tripoSaveCaseId ? "Gemt" : "Gem til mappe"}
                   {!tripoSaveCaseId && <ChevronDown className="w-3 h-3" />}
                 </button>
                 {showSaveDrop && (

@@ -22,7 +22,7 @@ import {
   Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
   FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play,
-  Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays,
+  Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -90,6 +90,24 @@ interface ApiCaseImage {
   beforeSrc: string | null;
   daysAfterMarket: number;
   createdAt: string;
+}
+
+// ── Model-viewer global declaration ───────────────────────────────────────────
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "model-viewer": any;
+    }
+  }
+}
+function ensureMvScript() {
+  if (typeof document === "undefined") return;
+  if (document.querySelector("script[data-mv-loaded]")) return;
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js";
+  s.setAttribute("data-mv-loaded", "");
+  document.head.appendChild(s);
 }
 
 // ── Media type helper ─────────────────────────────────────────────────────────
@@ -862,6 +880,7 @@ function CaseDetailPanel({
   const [seasonDone, setSeasonDone] = useState(false);
 
   useEffect(() => {
+    ensureMvScript();
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
@@ -1244,12 +1263,19 @@ function CaseDetailPanel({
                               <Video className="w-3 h-3" /> Video
                             </div>
                           </>
+                        ) : img.style === "3d-interactive" ? (
+                          <>
+                            <img src={img.src} alt={img.room} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                            <div className="absolute top-2 left-2 flex items-center gap-1 text-[10px] font-semibold text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(15,29,47,0.82)" }}>
+                              <Boxes className="w-3 h-3" /> 3D model
+                            </div>
+                          </>
                         ) : (
                           <img src={img.src} alt={img.room} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                         )}
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(15,29,47,0.4)" }}>
                           <span className="text-white text-[11px] font-semibold px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
-                            {isVideoUrl(img.src) ? "Afspil video" : img.beforeSrc ? "Vis Før / Efter" : "Åbn"}
+                            {isVideoUrl(img.src) ? "Afspil video" : img.style === "3d-interactive" ? "Vis 3D model" : img.beforeSrc ? "Vis Før / Efter" : "Åbn"}
                           </span>
                         </div>
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1787,11 +1813,34 @@ function CaseDetailPanel({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.18 }}
-              className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full rounded-2xl overflow-hidden shadow-2xl"
+              style={{ maxWidth: lightboxImg.style === "3d-interactive" ? 800 : 768 }}
               onClick={(e) => e.stopPropagation()}
               data-testid="bolig-lightbox-modal"
             >
-              {isVideoUrl(lightboxImg.src) ? (
+              {lightboxImg.style === "3d-interactive" && lightboxImg.beforeSrc ? (
+                <div style={{ height: 520, background: "#0F1D2F", position: "relative" }}>
+                  <model-viewer
+                    src={lightboxImg.beforeSrc}
+                    camera-controls
+                    auto-rotate
+                    auto-rotate-delay="1500"
+                    rotation-per-second="20deg"
+                    environment-image="neutral"
+                    shadow-intensity="1.5"
+                    shadow-softness="1"
+                    exposure="1"
+                    alt="3D Plantegning"
+                    style={{ width: "100%", height: "100%", background: "#0F1D2F" }}
+                    data-testid="bolig-lightbox-3d-viewer"
+                  />
+                  <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(15,29,47,0.82)", color: "rgba(255,255,255,0.65)", padding: "6px 14px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap", pointerEvents: "none" }}>
+                    Klik og træk for at rotere · Scroll for at zoome
+                  </div>
+                </div>
+              ) : lightboxImg.style === "3d-interactive" ? (
+                <img src={lightboxImg.src} alt={lightboxImg.room} className="w-full h-auto" style={{ maxHeight: "70vh", objectFit: "contain" }} />
+              ) : isVideoUrl(lightboxImg.src) ? (
                 <video
                   src={lightboxImg.src}
                   controls
@@ -1809,11 +1858,8 @@ function CaseDetailPanel({
                   onPointerMove={(e) => { if (e.buttons > 0) updateLbPos(e.clientX); }}
                   onPointerUp={() => {}}
                 >
-                  {/* invisible spacer — sets natural image height */}
                   <img src={lightboxImg.src} alt="" className="w-full h-auto block invisible" style={{ maxHeight: "70vh" }} draggable={false} />
-                  {/* after layer */}
                   <img src={lightboxImg.src} alt="Efter" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
-                  {/* before layer — clipped to lbPos% */}
                   <div className="absolute top-0 left-0 bottom-0 overflow-hidden" style={{ width: `${lbPos}%` }}>
                     <img
                       src={lightboxImg.beforeSrc}
@@ -1823,7 +1869,6 @@ function CaseDetailPanel({
                       draggable={false}
                     />
                   </div>
-                  {/* handle */}
                   <div className="absolute top-0 bottom-0 w-px bg-white/90 z-10" style={{ left: `${lbPos}%`, transform: "translateX(-50%)" }}>
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
                       <ChevronLeft className="w-3 h-3" style={{ color: "#0F1D2F" }} />
@@ -1840,11 +1885,26 @@ function CaseDetailPanel({
                 <div className="flex gap-2 min-w-0">
                   <span className="text-[11px] font-semibold text-white truncate">{lightboxImg.room}</span>
                   <span className="text-[11px] text-white/60">·</span>
-                  <span className="text-[11px] text-white/70 truncate">{lightboxImg.style}</span>
+                  <span className="text-[11px] text-white/70 truncate">{lightboxImg.style === "3d-interactive" ? "Interaktiv 3D model" : lightboxImg.style}</span>
                   {lightboxImg.tier && <><span className="text-[11px] text-white/60">·</span><span className="text-[11px] text-white/70">{tierLabel(lightboxImg.tier)}</span></>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {lightboxImg.style?.startsWith("showcase-video-") ? (
+                  {lightboxImg.style === "3d-interactive" && lightboxImg.beforeSrc ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const glbSrc = lightboxImg.beforeSrc!;
+                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0F1D2F;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}header{background:#0A1520;padding:12px 20px;border-bottom:1px solid rgba(200,149,108,0.2)}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}model-viewer{flex:1;width:100%;background:#0F1D2F}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(15,29,47,0.82);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(200,149,108,0.25);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><model-viewer src="${glbSrc}" camera-controls auto-rotate auto-rotate-delay="1500" rotation-per-second="20deg" environment-image="neutral" shadow-intensity="1.5" shadow-softness="1" exposure="1" alt="3D Plantegning" style="width:100%;height:calc(100vh - 46px);background:#0F1D2F"></model-viewer><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div></body></html>`;
+                        const blob = new Blob([html], { type: "text/html" });
+                        window.open(URL.createObjectURL(blob), "_blank");
+                      }}
+                      className="h-8 px-3 rounded-full font-semibold text-xs text-white flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
+                      data-testid="bolig-lightbox-3d-open-tab"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Åbn i ny fane
+                    </button>
+                  ) : lightboxImg.style?.startsWith("showcase-video-") ? (
                     <>
                       <button
                         type="button"
