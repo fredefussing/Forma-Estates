@@ -243,6 +243,14 @@ const STAGE_SLIDES: StageSlide[] = [
     meta: "",
   },
   {
+    kind: "video",
+    src: "/videos/transformering-kokken.mp4",
+    poster: "/bolig-images/transformering-kokken-poster.jpg",
+    title: "Transformerings video",
+    caption: "Se rummet gå fra før til efter i én flydende animation — perfekt til annoncer og sociale medier.",
+    meta: "Køkken · Transformering",
+  },
+  {
     kind: "swipe",
     before: "/bolig-images/dining-before.jpg",
     after: "/bolig-images/dining-after.jpg",
