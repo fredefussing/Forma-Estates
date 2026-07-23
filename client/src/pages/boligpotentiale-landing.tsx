@@ -446,13 +446,13 @@ function HeroStage() {
               overflow: "clip",
             }}
           >
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <motion.div
               key={index}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 1.1, ease: "easeInOut" }}
               className="absolute inset-0"
             >
               {slide.kind === "swipe" ? (
@@ -464,22 +464,12 @@ function HeroStage() {
                     className="absolute inset-0 w-full h-full"
                     style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center" }}
                   />
-                  {/* Dark overlay on right (after) side */}
-                  <div
-                    className="absolute top-0 bottom-0 right-0 pointer-events-none"
-                    style={{ left: `${splitPct}%`, background: "rgba(0,0,0,0.28)" }}
-                  />
-                  {/* Before image — same fit, curtain-clipped from the right so it slides cleanly without distorting */}
+                  {/* Before image — curtain-clipped from the right */}
                   <img
                     src={slide.before}
                     alt={slide.beforeLabel}
                     className="absolute inset-0 w-full h-full"
                     style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
-                  />
-                  {/* Bright overlay on left (before) side */}
-                  <div
-                    className="absolute top-0 bottom-0 left-0 pointer-events-none"
-                    style={{ right: `${100 - splitPct}%`, background: "rgba(255,255,255,0.10)" }}
                   />
                   <div
                     className="absolute top-0 bottom-0 flex items-center"
@@ -543,47 +533,6 @@ function HeroStage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Bottom gradient */}
-          <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "38%", background: "linear-gradient(to top, rgba(10,18,25,0.88) 0%, rgba(10,18,25,0.60) 35%, rgba(10,18,25,0.18) 70%, transparent 100%)", zIndex: 6 }} />
-
-          {/* Headline + CTAs — desktop only; mobile version lives below the stage */}
-          <div className="hidden md:block absolute left-0 right-0" style={{ bottom: "clamp(90px, 9vw, 150px)", paddingLeft: "clamp(20px, 3.5vw, 48px)", paddingRight: "clamp(20px, 3.5vw, 48px)", zIndex: 7 }}>
-            <div style={{ maxWidth: "clamp(260px, 90%, 560px)" }}>
-              <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(22px, 3vw, 42px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 12px rgba(0,0,0,0.3)" }}>
-                Professionelle boligvisualiseringer på få sekunder
-              </h1>
-              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(13px, 1.2vw, 15px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
-                Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Link href="/opret">
-                  <button
-                    className="inline-flex items-center gap-2 transition-all"
-                    style={{ background: C.gold, color: C.navy, padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
-                    data-testid="bolig-hero-cta"
-                  >
-                    Kom i gang gratis <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </Link>
-                <Link href="/boligpotentiale/eksempler">
-                  <button
-                    className="inline-flex items-center gap-2 transition-all"
-                    style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
-                    data-testid="bolig-hero-cta-secondary"
-                  >
-                    Se eksempler
-                  </button>
-                </Link>
-              </div>
-              <p style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.65)", fontFamily: SANS }} data-testid="bolig-hero-trial-note">
-                2 gratis AI-visualiseringer · intet kreditkort
-              </p>
-            </div>
-          </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
             <button
@@ -665,33 +614,42 @@ function HeroStage() {
           })}
         </div>
 
-        {/* ── Mobile-only headline + CTAs — below the stage image, clean & uncluttered ── */}
-        <div className="md:hidden" style={{ paddingTop: 20, paddingBottom: 8, paddingLeft: 20, paddingRight: 20 }}>
-          <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: 28, fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 12 }}>
-            Professionelle boligvisualiseringer på få sekunder
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 1.6, marginBottom: 20, fontFamily: SANS }}>
-            Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
-          </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link href="/opret">
-              <button
-                className="inline-flex items-center gap-2"
-                style={{ background: C.gold, color: C.navy, padding: "12px 22px", borderRadius: 7, fontSize: 14, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
-                data-testid="bolig-hero-cta-mobile"
-              >
-                Kom i gang gratis <ArrowRight className="w-4 h-4" />
-              </button>
-            </Link>
-            <Link href="/boligpotentiale/eksempler">
-              <button
-                className="inline-flex items-center gap-2"
-                style={{ background: "transparent", color: "#fff", padding: "12px 22px", borderRadius: 7, fontSize: 14, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
-                data-testid="bolig-hero-cta-secondary-mobile"
-              >
-                Se eksempler
-              </button>
-            </Link>
+        {/* ── Headline + CTAs — below the stage, all screen sizes ── */}
+        <div style={{ paddingTop: 28, paddingBottom: 8, paddingLeft: "clamp(16px, 3vw, 48px)", paddingRight: "clamp(16px, 3vw, 48px)" }}>
+          <div style={{ maxWidth: 600 }}>
+            <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(26px, 3.2vw, 44px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 12 }}>
+              Professionelle boligvisualiseringer på få sekunder
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "clamp(13px, 1.1vw, 15px)", lineHeight: 1.6, marginBottom: 22, fontFamily: SANS }}>
+              Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <Link href="/opret">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: C.gold, color: C.navy, padding: "12px 24px", borderRadius: 7, fontSize: "clamp(13px, 1vw, 14px)", fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                  data-testid="bolig-hero-cta"
+                >
+                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+              <Link href="/boligpotentiale/eksempler">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: "transparent", color: "#fff", padding: "12px 24px", borderRadius: 7, fontSize: "clamp(13px, 1vw, 14px)", fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                  data-testid="bolig-hero-cta-secondary"
+                >
+                  Se eksempler
+                </button>
+              </Link>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS, margin: 0 }} data-testid="bolig-hero-trial-note">
+                2 gratis AI-visualiseringer · intet kreditkort
+              </p>
+            </div>
           </div>
         </div>
 
