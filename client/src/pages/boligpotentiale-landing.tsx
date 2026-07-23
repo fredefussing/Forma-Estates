@@ -236,7 +236,7 @@ type StageSlide =
 const STAGE_SLIDES: StageSlide[] = [
   {
     kind: "video",
-    src: "/videos/transformation-kling-v16-pro.mp4",
+    src: "/videos/bolig-showcase-v1.mp4",
     poster: "/bolig-images/video-poster.jpg",
     title: "Cinematisk video",
     caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
@@ -277,7 +277,7 @@ const STAGE_SLIDES: StageSlide[] = [
 ];
 
 function HeroStage() {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(2);
   const [pos, setPos] = useState(1); // swipe split (1 = fully before, 0 = fully after)
   const rafRef = useRef<number | null>(null);
   const slideStartRef = useRef<number>(performance.now());
