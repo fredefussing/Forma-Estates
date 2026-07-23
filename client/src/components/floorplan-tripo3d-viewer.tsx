@@ -4,6 +4,14 @@ import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronD
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "model-viewer": any;
+    }
+  }
+}
+
 type Status = "idle" | "submitting" | "polling" | "ready" | "error";
 
 interface SavableCase {
@@ -29,126 +37,68 @@ const SWATCHES: ColorSwatch[] = [
   { label: "Navy", hex: "#1C2E45", r: 0.11, g: 0.18, b: 0.27 },
 ];
 
-function buildModelViewerHtml(modelUrl: string): string {
-  const swatchesJson = JSON.stringify(SWATCHES);
-  return `<!DOCTYPE html>
-<html lang="da">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forma Estates · 3D Plantegning</title>
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0F1D2F; overflow: hidden; font-family: system-ui, sans-serif; }
-  model-viewer {
-    width: 100vw; height: 100vh; background: #0F1D2F;
-    --progress-bar-color: #C8956C;
-    --progress-mask: transparent;
-  }
-  #logo {
-    position: fixed; top: 16px; left: 20px;
-    color: rgba(255,255,255,0.4); font-size: 11px; font-weight: 600;
-    letter-spacing: 0.12em; text-transform: uppercase; pointer-events: none;
-  }
-  #hint {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(15,29,47,0.85); color: rgba(255,255,255,0.7);
-    padding: 7px 16px; border-radius: 999px; font-size: 12px;
-    pointer-events: none; border: 1px solid rgba(200,149,108,0.3);
-    white-space: nowrap; transition: opacity 0.5s ease;
-  }
-  #hint.hide { opacity: 0; }
-  #color-panel {
-    position: fixed; top: 12px; right: 12px;
-    background: rgba(15,29,47,0.88); border: 1px solid rgba(200,149,108,0.3);
-    border-radius: 14px; padding: 10px 12px;
-    display: flex; flex-direction: column; gap: 8px;
-    backdrop-filter: blur(8px);
-  }
-  #color-panel-label {
-    color: rgba(200,149,108,0.9); font-size: 10px; font-weight: 700;
-    letter-spacing: 0.12em; text-transform: uppercase;
-  }
-  #swatches {
-    display: grid; grid-template-columns: repeat(4, 24px); gap: 5px;
-  }
-  .swatch {
-    width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
-    border: 2px solid transparent;
-    transition: transform 0.15s ease, border-color 0.15s ease;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-  }
-  .swatch:hover { transform: scale(1.18); }
-  .swatch.active { border-color: #C8956C; transform: scale(1.18); }
-  #active-name {
-    color: rgba(255,255,255,0.55); font-size: 10px; text-align: center; min-height: 12px;
-  }
-</style>
-</head>
-<body>
-<div id="logo">Forma Estates</div>
-<model-viewer
-  id="mv"
-  src="${modelUrl}"
-  camera-controls
-  auto-rotate
-  auto-rotate-delay="1500"
-  rotation-per-second="20deg"
-  environment-image="neutral"
-  shadow-intensity="1.5"
-  shadow-softness="1"
-  exposure="1"
-  alt="3D Plantegning">
-</model-viewer>
-<div id="color-panel">
-  <div id="color-panel-label">Farver</div>
-  <div id="swatches"></div>
-  <div id="active-name">Original</div>
-</div>
-<div id="hint">Klik og træk for at rotere &middot; Scroll for at zoome</div>
-<script>
-  const SWATCHES = ${swatchesJson};
-  const mv = document.getElementById('mv');
-  const swatchesEl = document.getElementById('swatches');
-  const activeName = document.getElementById('active-name');
-  let materialsReady = false;
-  let pendingApply = null;
-  SWATCHES.forEach((s, i) => {
-    const el = document.createElement('div');
-    el.className = 'swatch' + (i === 0 ? ' active' : '');
-    el.style.background = s.hex;
-    el.title = s.label;
-    el.addEventListener('click', () => {
-      document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
-      el.classList.add('active');
-      activeName.textContent = s.label;
-      applyColor(s.r, s.g, s.b);
-    });
-    swatchesEl.appendChild(el);
-  });
-  function applyColor(r, g, b) {
-    if (!materialsReady) { pendingApply = [r, g, b]; return; }
-    try {
-      mv.model.materials.forEach(mat => {
-        mat.pbrMetallicRoughness.setBaseColorFactor([r, g, b, 1.0]);
-      });
-    } catch(e) { console.warn('Color apply failed:', e); }
-  }
-  mv.addEventListener('load', () => {
-    materialsReady = true;
-    if (pendingApply) { applyColor(pendingApply[0], pendingApply[1], pendingApply[2]); pendingApply = null; }
-  });
-  const hint = document.getElementById('hint');
-  mv.addEventListener('camera-change', () => {
-    clearTimeout(window._ht);
-    hint.classList.remove('hide');
-    window._ht = setTimeout(() => hint.classList.add('hide'), 2500);
-  });
-  setTimeout(() => hint.classList.add('hide'), 4500);
-</script>
-</body>
-</html>`;
+function ensureModelViewerScript() {
+  if (typeof document === "undefined") return;
+  if (document.querySelector("script[data-mv-loaded]")) return;
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js";
+  s.setAttribute("data-mv-loaded", "");
+  document.head.appendChild(s);
+}
+
+function ColorPanel({
+  swatchIdx,
+  onSelect,
+  materialsReady,
+}: {
+  swatchIdx: number;
+  onSelect: (idx: number) => void;
+  materialsReady: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: "rgba(15,29,47,0.88)",
+        border: "1px solid rgba(200,149,108,0.3)",
+        borderRadius: 14,
+        padding: "10px 12px",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        minWidth: 120,
+      }}
+    >
+      <span style={{ color: "rgba(200,149,108,0.9)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+        Farver
+      </span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 24px)", gap: 5 }}>
+        {SWATCHES.map((s, i) => (
+          <button
+            key={s.hex}
+            title={s.label}
+            onClick={() => onSelect(i)}
+            disabled={!materialsReady}
+            style={{
+              width: 24, height: 24,
+              borderRadius: "50%",
+              background: s.hex,
+              border: i === swatchIdx ? "2px solid #C8956C" : "2px solid transparent",
+              transform: i === swatchIdx ? "scale(1.18)" : "scale(1)",
+              transition: "transform 0.15s ease, border-color 0.15s ease",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+              cursor: materialsReady ? "pointer" : "wait",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, textAlign: "center", minHeight: 12 }}>
+        {SWATCHES[swatchIdx]?.label ?? ""}
+      </span>
+    </div>
+  );
 }
 
 export function FloorplanTripo3DViewer({
@@ -168,17 +118,25 @@ export function FloorplanTripo3DViewer({
   const [tripoSaveCaseId, setTripoSaveCaseId] = useState<number | null>(null);
   const [showSaveDrop, setShowSaveDrop] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
-  const blobUrlRef = useRef<string | null>(null);
+  const [swatchIdx, setSwatchIdx] = useState(0);
+  const [materialsReady, setMaterialsReady] = useState(false);
+  const [fsMaterialsReady, setFsMaterialsReady] = useState(false);
+
+  const mvRef = useRef<any>(null);
+  const mvFsRef = useRef<any>(null);
+  const pendingColorRef = useRef<[number, number, number] | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const taskIdRef = useRef<string | null>(null);
   const saveDdRef = useRef<HTMLDivElement>(null);
+
   const activeCases = cases.filter(c => c.status !== "sold");
 
   useEffect(() => {
-    return () => {
-      stopPolling();
-      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-    };
+    ensureModelViewerScript();
+  }, []);
+
+  useEffect(() => {
+    return () => { stopPolling(); };
   }, []);
 
   useEffect(() => {
@@ -190,7 +148,6 @@ export function FloorplanTripo3DViewer({
     return () => document.removeEventListener("mousedown", onDown);
   }, [showSaveDrop]);
 
-  // Close fullscreen on Escape
   useEffect(() => {
     if (!showFullscreen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowFullscreen(false); };
@@ -198,8 +155,61 @@ export function FloorplanTripo3DViewer({
     return () => document.removeEventListener("keydown", onKey);
   }, [showFullscreen]);
 
+  useEffect(() => {
+    if (status !== "ready" || !mvRef.current) return;
+    const mv = mvRef.current;
+    const onLoad = () => {
+      setMaterialsReady(true);
+      if (pendingColorRef.current) {
+        const [r, g, b] = pendingColorRef.current;
+        pendingColorRef.current = null;
+        applyColorToMv(mv, r, g, b);
+      }
+    };
+    mv.addEventListener("load", onLoad);
+    return () => mv.removeEventListener("load", onLoad);
+  }, [status]);
+
+  useEffect(() => {
+    if (!showFullscreen || !mvFsRef.current) return;
+    const mv = mvFsRef.current;
+    const onLoad = () => {
+      setFsMaterialsReady(true);
+      const s = SWATCHES[swatchIdx];
+      if (s) applyColorToMv(mv, s.r, s.g, s.b);
+    };
+    mv.addEventListener("load", onLoad);
+    return () => mv.removeEventListener("load", onLoad);
+  }, [showFullscreen, swatchIdx]);
+
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }
+
+  function applyColorToMv(mv: any, r: number, g: number, b: number) {
+    try {
+      if (mv?.model?.materials) {
+        mv.model.materials.forEach((mat: any) => {
+          mat.pbrMetallicRoughness.setBaseColorFactor([r, g, b, 1.0]);
+        });
+      }
+    } catch (e) {
+      console.warn("Color apply failed:", e);
+    }
+  }
+
+  function selectSwatch(idx: number) {
+    setSwatchIdx(idx);
+    const s = SWATCHES[idx];
+    if (!s) return;
+    if (materialsReady && mvRef.current) {
+      applyColorToMv(mvRef.current, s.r, s.g, s.b);
+    } else {
+      pendingColorRef.current = [s.r, s.g, s.b];
+    }
+    if (fsMaterialsReady && mvFsRef.current) {
+      applyColorToMv(mvFsRef.current, s.r, s.g, s.b);
+    }
   }
 
   async function generate() {
@@ -209,6 +219,9 @@ export function FloorplanTripo3DViewer({
     setModelUrl(null);
     setRenderedImageUrl(null);
     setTripoSaveCaseId(null);
+    setSwatchIdx(0);
+    setMaterialsReady(false);
+    setFsMaterialsReady(false);
     try {
       const token = await user?.getIdToken();
       const res = await fetch("/api/bolig/tripo3d", {
@@ -241,9 +254,6 @@ export function FloorplanTripo3DViewer({
             stopPolling();
             setModelUrl(d.modelUrl);
             setRenderedImageUrl(d.renderedImageUrl ?? null);
-            const html = buildModelViewerHtml(d.modelUrl);
-            if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-            blobUrlRef.current = URL.createObjectURL(new Blob([html], { type: "text/html" }));
             setStatus("ready");
           } else if (d.status === "failed" || d.status === "cancelled") {
             stopPolling();
@@ -300,8 +310,8 @@ export function FloorplanTripo3DViewer({
 
   function reset() {
     stopPolling();
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     taskIdRef.current = null;
+    pendingColorRef.current = null;
     setStatus("idle");
     setProgress(0);
     setErrorMsg(null);
@@ -309,12 +319,14 @@ export function FloorplanTripo3DViewer({
     setRenderedImageUrl(null);
     setTripoSaveCaseId(null);
     setShowSaveDrop(false);
+    setSwatchIdx(0);
+    setMaterialsReady(false);
+    setFsMaterialsReady(false);
   }
 
   if (status === "idle") {
     return (
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}>
-        {/* Header */}
         <div className="px-5 pt-5 pb-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: "#F0EDE7" }}>
@@ -331,8 +343,7 @@ export function FloorplanTripo3DViewer({
             </div>
           </div>
 
-          {/* Steps */}
-          <div className="mt-4 flex items-center gap-2 text-xs">
+          <div className="mt-4 flex items-center gap-2 text-xs flex-wrap">
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#EEF7EE" }}>
               <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#22A447" }}>
                 <svg width="7" height="7" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -346,12 +357,11 @@ export function FloorplanTripo3DViewer({
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#C8C4BE" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#F5F3EF" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9B9690" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9B9690" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
               <span style={{ color: "#9B9690", fontWeight: 500 }}>Rotér & udforsk</span>
             </div>
           </div>
 
-          {/* CTA + time */}
           <div className="mt-4 flex items-center gap-3">
             <button
               onClick={generate}
@@ -366,9 +376,8 @@ export function FloorplanTripo3DViewer({
           </div>
         </div>
 
-        {/* Eksempel */}
         <div style={{ borderTop: "1px solid #E8E4DE" }}>
-          <div className="px-4 py-2 flex items-center gap-2">
+          <div className="px-4 py-2">
             <span className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#9B9690" }}>Eksempel på resultat</span>
           </div>
           <div className="relative mx-4 mb-4 rounded-xl overflow-hidden" style={{ height: 180 }}>
@@ -377,7 +386,6 @@ export function FloorplanTripo3DViewer({
               alt="Eksempel på 3D plantegning der omdannes til interaktiv model"
               className="w-full h-full object-cover"
             />
-            {/* Overlay badges */}
             <div className="absolute inset-0 flex items-center justify-center gap-3">
               <div className="px-3 py-1.5 rounded-full text-xs font-bold shadow-lg" style={{ background: "rgba(15,29,47,0.82)", color: "rgba(255,255,255,0.9)" }}>
                 3D plantegning
@@ -388,7 +396,6 @@ export function FloorplanTripo3DViewer({
                 360° rotérbar model
               </div>
             </div>
-            {/* Bottom caption */}
             <div className="absolute bottom-0 inset-x-0 px-3 py-2 flex items-center gap-3" style={{ background: "linear-gradient(transparent, rgba(15,29,47,0.75))" }}>
               {SWATCHES.slice(0, 6).map(s => (
                 <div key={s.hex} title={s.label} className="w-4 h-4 rounded-full border border-white/40 flex-shrink-0" style={{ background: s.hex }} />
@@ -440,40 +447,77 @@ export function FloorplanTripo3DViewer({
     );
   }
 
-  // ── Ready state ─────────────────────────────────────────────────────────────
   return (
     <>
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE" }}>
-        <div className="relative">
-          <iframe
-            src={blobUrlRef.current!}
-            title="Interaktiv 3D plantegning"
-            className="w-full block"
-            style={{ height: 480, border: "none" }}
-            sandbox="allow-scripts allow-same-origin"
-            data-testid="iframe-tripo3d-viewer"
+        <div className="relative" style={{ height: 480, background: "#0F1D2F" }}>
+          <model-viewer
+            ref={mvRef}
+            src={modelUrl}
+            camera-controls
+            auto-rotate
+            auto-rotate-delay="1500"
+            rotation-per-second="20deg"
+            environment-image="neutral"
+            shadow-intensity="1.5"
+            shadow-softness="1"
+            exposure="1"
+            alt="3D Plantegning"
+            style={{ width: "100%", height: "100%", background: "#0F1D2F" }}
+            data-testid="model-viewer-tripo3d"
           />
-          {/* Fullscreen button overlay */}
+
+          {/* Color panel */}
+          <div style={{ position: "absolute", top: 12, right: 12 }}>
+            <ColorPanel swatchIdx={swatchIdx} onSelect={selectSwatch} materialsReady={materialsReady} />
+          </div>
+
+          {/* Fullscreen button */}
           <button
             onClick={() => setShowFullscreen(true)}
-            className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ background: "rgba(15,29,47,0.75)", color: "rgba(255,255,255,0.85)", backdropFilter: "blur(4px)" }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
+            style={{ position: "absolute", top: 12, left: 12, background: "rgba(15,29,47,0.75)", color: "rgba(255,255,255,0.85)", backdropFilter: "blur(4px)" }}
             data-testid="button-tripo3d-fullscreen"
-            title="Åbn i fuld skærm"
           >
             <Maximize2 className="w-3.5 h-3.5" />
             Fuld skærm
           </button>
+
+          {/* Hint */}
+          {!materialsReady && (
+            <div
+              style={{
+                position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+                background: "rgba(15,29,47,0.85)", color: "rgba(255,255,255,0.6)",
+                padding: "6px 14px", borderRadius: 999, fontSize: 11,
+                border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap",
+              }}
+            >
+              <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />
+              Indlæser 3D model…
+            </div>
+          )}
+          {materialsReady && (
+            <div
+              style={{
+                position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+                background: "rgba(15,29,47,0.8)", color: "rgba(255,255,255,0.6)",
+                padding: "6px 14px", borderRadius: 999, fontSize: 11,
+                border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap",
+              }}
+            >
+              Klik og træk for at rotere · Scroll for at zoome
+            </div>
+          )}
         </div>
 
-        <div className="p-3 bg-[#F8F6F3] flex items-center justify-between gap-2" style={{ borderTop: "1px solid #E8E4DE" }}>
+        <div className="p-3 flex items-center justify-between gap-2" style={{ background: "#F8F6F3", borderTop: "1px solid #E8E4DE" }}>
           <span className="flex items-center gap-1.5 text-xs" style={{ color: "#6B6B6B" }}>
             <Palette className="w-3 h-3" style={{ color: "#C8956C" }} />
             Rotér · zoom · skift farve
           </span>
 
           <div className="flex items-center gap-2">
-            {/* Save to case */}
             {activeCases.length > 0 && (
               <div className="relative" ref={saveDdRef}>
                 <button
@@ -504,8 +548,6 @@ export function FloorplanTripo3DViewer({
                 )}
               </div>
             )}
-
-            {/* Reset */}
             <button onClick={reset} className="flex items-center gap-1 text-xs transition-opacity hover:opacity-70" style={{ color: "#9B9690" }} data-testid="button-tripo3d-reset">
               <RotateCcw className="w-3 h-3" /> Genstart
             </button>
@@ -513,14 +555,12 @@ export function FloorplanTripo3DViewer({
         </div>
       </div>
 
-      {/* ── Fullscreen overlay ─────────────────────────────────────────────── */}
       {showFullscreen && createPortal(
         <div
           className="fixed inset-0 flex flex-col"
           style={{ zIndex: 9999, background: "#0F1D2F" }}
           data-testid="modal-tripo3d-fullscreen"
         >
-          {/* Header bar */}
           <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ background: "#0A1520", borderBottom: "1px solid rgba(200,149,108,0.2)" }}>
             <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.8)", letterSpacing: "0.06em" }}>
               FORMA ESTATES · Interaktiv 3D Plantegning
@@ -535,14 +575,37 @@ export function FloorplanTripo3DViewer({
               Luk (Esc)
             </button>
           </div>
-          {/* Full-size iframe */}
-          <iframe
-            src={blobUrlRef.current!}
-            title="Interaktiv 3D plantegning — fuld skærm"
-            className="flex-1 w-full"
-            style={{ border: "none" }}
-            sandbox="allow-scripts allow-same-origin"
-          />
+
+          <div className="relative flex-1">
+            <model-viewer
+              ref={mvFsRef}
+              src={modelUrl}
+              camera-controls
+              auto-rotate
+              auto-rotate-delay="1500"
+              rotation-per-second="20deg"
+              environment-image="neutral"
+              shadow-intensity="1.5"
+              shadow-softness="1"
+              exposure="1"
+              alt="3D Plantegning — fuld skærm"
+              style={{ width: "100%", height: "100%", background: "#0F1D2F" }}
+            />
+            <div style={{ position: "absolute", top: 12, right: 12 }}>
+              <ColorPanel swatchIdx={swatchIdx} onSelect={selectSwatch} materialsReady={fsMaterialsReady} />
+            </div>
+            {!fsMaterialsReady && (
+              <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(15,29,47,0.85)", color: "rgba(255,255,255,0.6)", padding: "6px 14px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap" }}>
+                <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />
+                Indlæser 3D model…
+              </div>
+            )}
+            {fsMaterialsReady && (
+              <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(15,29,47,0.8)", color: "rgba(255,255,255,0.6)", padding: "6px 14px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(200,149,108,0.25)", whiteSpace: "nowrap" }}>
+                Klik og træk for at rotere · Scroll for at zoome
+              </div>
+            )}
+          </div>
         </div>,
         document.body
       )}
