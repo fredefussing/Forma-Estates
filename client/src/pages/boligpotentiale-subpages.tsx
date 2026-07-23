@@ -318,9 +318,9 @@ export function EksemplerPage() {
 export function ForEfterPage() {
   usePageTitle("Før & efter — AI-iscenesættelse", "Se hvordan AI forvandler tomme og slidte rum til indbydende boliger på få sekunder.");
   const pairs = [
-    { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", title: "Tom stue → moderne look", desc: "Samme rum, samme dag — moderne indretning med fokus på linjer og lys." },
-    { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Slidt køkken → frisk indretning", desc: "Iscenesat med nye farver, planter og en levende stemning." },
-    { before: "/bolig-images/bathroom-before.jpg", after: "/bolig-images/bathroom-after.jpg", title: "Badeværelse → japandi stil", desc: "Sten, træ og papirlamper skaber ro og balance på under 20 sekunder." },
+    { before: "/bolig-images/demo-bathroom-before.jpg", after: "/bolig-images/demo-bathroom-after.png", title: "Badeværelse → skandinavisk stil", desc: "Blå mosaikfliser forvandlet til lyst skandinavisk badeværelse med egetræ, messing og natursten." },
+    { before: "/bolig-images/demo-dining-before.jpg", after: "/bolig-images/demo-dining-after.jpg", title: "Spisestue → skandinavisk stil", desc: "Mørkt og rodet rum transformeret til lyst, nordisk spisemiljø med naturlige materialer og ro." },
+    { before: "/bolig-images/demo-room-before.jpg", after: "/bolig-images/demo-room-before.jpg", title: "Tomt rum → iscenesat hjem", desc: "Fra bart og tomt til et rum med liv, lys og personlighed — på få sekunder." },
   ];
   return (
     <SubpageLayout
