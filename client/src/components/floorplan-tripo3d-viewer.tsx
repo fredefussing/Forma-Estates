@@ -314,34 +314,88 @@ export function FloorplanTripo3DViewer({
   if (status === "idle") {
     return (
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}>
-        <div className="p-6 flex flex-col items-center text-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#F0EDE7" }}>
-            <Boxes className="w-6 h-6" style={{ color: "#C8956C" }} />
-          </div>
-          <div>
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Interaktiv 3D-visning</span>
-              <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#C8956C" }}>Ny</span>
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: "#F0EDE7" }}>
+              <Boxes className="w-5 h-5" style={{ color: "#C8956C" }} />
             </div>
-            <p className="text-sm max-w-xs" style={{ color: "#6B6B6B" }}>
-              Gør 3D plantegningen interaktiv — rotér, zoom og udforsk modellen fra alle vinkler. Skift farver med ét klik.
-            </p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-bold" style={{ color: "#0F1D2F" }}>Byg en 360° rotérbar 3D model</span>
+                <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#C8956C" }}>NY</span>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
+                AI'en omdanner dit 3D plantegningsbillede til en model du kan dreje, zoome og udforske frit — og skifte farver på væggene med ét klik.
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-center">
-            {SWATCHES.slice(0, 6).map(s => (
-              <div key={s.hex} title={s.label} className="w-5 h-5 rounded-full border-2" style={{ background: s.hex, borderColor: "#E8E4DE" }} />
-            ))}
-            <span className="text-xs ml-1" style={{ color: "#9B9690" }}>8 farver inkl.</span>
+
+          {/* Steps */}
+          <div className="mt-4 flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#EEF7EE" }}>
+              <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#22A447" }}>
+                <svg width="7" height="7" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <span style={{ color: "#22A447", fontWeight: 600 }}>3D billede klar</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#C8C4BE" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#F0EDE7" }}>
+              <Boxes className="w-3 h-3 flex-shrink-0" style={{ color: "#C8956C" }} />
+              <span style={{ color: "#C8956C", fontWeight: 600 }}>AI bygger 3D model</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#C8C4BE" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#F5F3EF" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9B9690" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              <span style={{ color: "#9B9690", fontWeight: 500 }}>Rotér & udforsk</span>
+            </div>
           </div>
-          <button
-            onClick={generate}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-85"
-            style={{ background: "#C8956C", color: "white" }}
-            data-testid="button-generate-tripo3d"
-          >
-            <Boxes className="w-4 h-4" />
-            Generer interaktiv 3D
-          </button>
+
+          {/* CTA + time */}
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              onClick={generate}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-opacity hover:opacity-85"
+              style={{ background: "#C8956C", color: "white" }}
+              data-testid="button-generate-tripo3d"
+            >
+              <Boxes className="w-4 h-4" />
+              Byg interaktiv 3D model
+            </button>
+            <span className="text-xs" style={{ color: "#9B9690" }}>⏱ ca. 3 minutter</span>
+          </div>
+        </div>
+
+        {/* Eksempel */}
+        <div style={{ borderTop: "1px solid #E8E4DE" }}>
+          <div className="px-4 py-2 flex items-center gap-2">
+            <span className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#9B9690" }}>Eksempel på resultat</span>
+          </div>
+          <div className="relative mx-4 mb-4 rounded-xl overflow-hidden" style={{ height: 180 }}>
+            <img
+              src="/bolig-images/example-3d-floorplan.png"
+              alt="Eksempel på 3D plantegning der omdannes til interaktiv model"
+              className="w-full h-full object-cover"
+            />
+            {/* Overlay badges */}
+            <div className="absolute inset-0 flex items-center justify-center gap-3">
+              <div className="px-3 py-1.5 rounded-full text-xs font-bold shadow-lg" style={{ background: "rgba(15,29,47,0.82)", color: "rgba(255,255,255,0.9)" }}>
+                3D plantegning
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(200,149,108,0.9)" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              <div className="px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5" style={{ background: "rgba(200,149,108,0.92)", color: "white" }}>
+                <Boxes className="w-3 h-3" />
+                360° rotérbar model
+              </div>
+            </div>
+            {/* Bottom caption */}
+            <div className="absolute bottom-0 inset-x-0 px-3 py-2 flex items-center gap-3" style={{ background: "linear-gradient(transparent, rgba(15,29,47,0.75))" }}>
+              {SWATCHES.slice(0, 6).map(s => (
+                <div key={s.hex} title={s.label} className="w-4 h-4 rounded-full border border-white/40 flex-shrink-0" style={{ background: s.hex }} />
+              ))}
+              <span className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>Skift farve på modellen med ét klik</span>
+            </div>
+          </div>
         </div>
       </div>
     );
