@@ -3158,6 +3158,58 @@ export async function registerRoutes(
     }
   });
 
+  // ── Tripo3D — Interaktiv 3D plantegning (billede → GLB model) ───────────
+  app.post("/api/bolig/tripo3d", async (req, res) => {
+    try {
+      const apiKey = process.env.THREED_API_KEY;
+      if (!apiKey) return res.status(500).json({ message: "Tripo3D API ikke konfigureret" });
+      try { await verifyFirebaseToken(req.headers.authorization); } catch {
+        return res.status(401).json({ message: "Log ind for at generere 3D model" });
+      }
+      const { imageUrl } = req.body ?? {};
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ message: "imageUrl er påkrævet" });
+      }
+      const fileType = imageUrl.toLowerCase().includes(".png") ? "png" : "jpg";
+      const taskRes = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "image_to_model",
+          file: { type: fileType, url: imageUrl },
+          texture: true,
+          pbr: true,
+        }),
+      });
+      const data = await taskRes.json() as any;
+      if (data.code !== 0) return res.status(500).json({ message: data.message || "Tripo3D fejl" });
+      res.json({ taskId: data.data.task_id });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Ukendt fejl" });
+    }
+  });
+
+  app.get("/api/bolig/tripo3d-status/:taskId", async (req, res) => {
+    try {
+      const apiKey = process.env.THREED_API_KEY;
+      if (!apiKey) return res.status(500).json({ message: "Tripo3D API ikke konfigureret" });
+      const { taskId } = req.params;
+      const statusRes = await fetch(`https://api.tripo3d.ai/v2/openapi/task/${taskId}`, {
+        headers: { "Authorization": `Bearer ${apiKey}` },
+      });
+      const data = await statusRes.json() as any;
+      if (data.code !== 0) return res.status(500).json({ message: "Status fejl" });
+      const task = data.data;
+      res.json({
+        status: task.status,
+        progress: task.progress ?? 0,
+        modelUrl: task.status === "success" ? task.output?.model : undefined,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Ukendt fejl" });
+    }
+  });
+
   // ── Transformeringsvideo (fal.ai luma dream machine — før → efter) ────────
   app.post(
     "/api/bolig/transform-video",

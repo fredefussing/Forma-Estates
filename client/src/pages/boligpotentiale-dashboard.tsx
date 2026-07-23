@@ -11,8 +11,7 @@ import { signOut, sendPasswordResetEmail, updateProfile, deleteUser } from "fire
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
-import { Floorplan3DViewer } from "@/components/floorplan-3d-viewer";
-import { FloorplanDollhouseViewer } from "@/components/floorplan-dollhouse-viewer";
+import { FloorplanTripo3DViewer } from "@/components/floorplan-tripo3d-viewer";
 import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
@@ -2756,7 +2755,6 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [showDollhouse, setShowDollhouse] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2808,7 +2806,6 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
     setError(null);
     setResultUrl(null);
     setOriginalUrl(null);
-    setShowDollhouse(false);
     try {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
@@ -2943,35 +2940,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             </div>
 
-            {isOwner && <Floorplan3DViewer resultUrl={resultUrl} />}
-
-            {isOwner && originalUrl && !showDollhouse && (
-              <div
-                className="rounded-2xl border overflow-hidden"
-                style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}
-              >
-                <div className="p-5 flex flex-col items-center text-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Boxes className="w-4 h-4" style={{ color: "#C8956C" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Dukkehus med rigtige vægge</span>
-                    <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#C8956C" }}>Beta</span>
-                  </div>
-                  <p className="text-sm max-w-sm" style={{ color: "#6B6B6B" }}>
-                    Byg et Funda-agtigt dukkehus med <strong>rigtige lodrette vægge</strong> rejst op fra plantegningen — drej, zoom og skær vægge væk.
-                  </p>
-                  <button
-                    onClick={() => setShowDollhouse(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-85"
-                    style={{ background: "#C8956C", color: "white" }}
-                    data-testid="button-show-dollhouse"
-                  >
-                    <Boxes className="w-4 h-4" />
-                    Byg dukkehus
-                  </button>
-                </div>
-              </div>
-            )}
-            {isOwner && originalUrl && showDollhouse && <FloorplanDollhouseViewer planUrl={originalUrl} />}
+            <FloorplanTripo3DViewer resultUrl={resultUrl} />
 
             <div className="flex flex-wrap gap-3">
               <DownloadMenu
@@ -3033,7 +3002,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                               resetTimerRef.current = setTimeout(() => {
                                 resetTimerRef.current = null;
                                 setImageFile(null); setImagePreview(null); setOriginalUrl(null);
-                                setShowDollhouse(false); setResultUrl(null); setError(null); setSaveCaseId(null);
+                                setResultUrl(null); setError(null); setSaveCaseId(null);
                               }, 1500);
                             } catch (err) {
                               setSaveCaseId(null);
