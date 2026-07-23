@@ -154,10 +154,10 @@ title = "empty living room minimal white modern interior natural light"
 id = "GTXktjqqVqL5IHfDcDkXX"
 uri = "file://public/bolig-images/demo-bathroom-after-clean.png"
 type = "image"
-title = "Badeværelse efter — vandmærke fjernet"
+title = "Badeværelse efter — vandmærke væk"
 
 [[outputs]]
 id = "sEK9HwQbCsank5H8UMaAh"
 uri = "file://public/bolig-images/demo-room-after.jpg"
 type = "image"
-title = "Bryggers/entre efter — vandmærke fjernet"
+title = "Bryggers efter — vandmærke væk"
