@@ -18,7 +18,14 @@ The `pbr_model` GLB **IS fully textured with colors from the input image** (bake
 - The model itself always has colors when input image has colors
 - Gray in Tripo3D's own viewer = different input image (building facade, not floor plan)
 
-**How to apply:**
+## API defaults to old v2.5 — must pin model_version for HD quality
+API without `model_version` uses v2.5-20250123 + standard texture → mushy, low-poly output
+(rendered preview even named `legacy_mesh.webp`). Tripo's own web "HD Model" = v3.x +
+Ultra geometry (up to 2M triangles; v2.5 caps at 500k) + high-res texture.
+
+**How to apply:** send `model_version: "v3.1-20260211", geometry_quality: "detailed", texture_quality: "detailed"` (texture_quality detailed costs +20 credits/task). Version list: GET docs /docs/generation.
+
+**How to apply (payload basics):**
 - POST body: `{ type: "image_to_model", file: { type, url }, texture: true }`
 - Status route URL priority: `output.model ?? output.pbr_model` (model never exists, pbr_model always does)
 - Node.js fetch() is blocked by Replit proxy — always use `spawn("curl", [...])` for Tripo3D API calls

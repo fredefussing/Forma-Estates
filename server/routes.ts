@@ -3240,10 +3240,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: "imageUrl er påkrævet" });
       }
       const fileType = imageUrl.toLowerCase().includes(".png") ? "png" : "jpg";
+      // HD-kvalitet som Tripo's egen web-app ("HD Model"): nyeste modelversion +
+      // Ultra-geometri + høj teksturopløsning. Uden disse falder API'et tilbage
+      // til v2.5/standard, som giver markant grovere/uskarpe modeller.
       const payload = JSON.stringify({
         type: "image_to_model",
         file: { type: fileType, url: imageUrl },
+        model_version: "v3.1-20260211",
+        geometry_quality: "detailed",
+        texture_quality: "detailed",
         texture: true,
+        pbr: true,
       });
       // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
       const data = await new Promise<any>((resolve, reject) => {
