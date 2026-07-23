@@ -264,15 +264,15 @@ const STAGE_SLIDES: StageSlide[] = [
   },
   {
     kind: "swipe",
-    before: "/bolig-images/floorplan-2d.jpg",
-    after: "/bolig-images/floorplan-3d.jpg",
+    before: "/bolig-images/floorplan-2d-new.jpg",
+    after: "/bolig-images/floorplan-3d-new.png",
     beforeLabel: "2D plan",
     afterLabel: "3D",
     title: "3D Plantegning",
     caption: "Fra flad plantegning til levende 3D-rum, køberen kan fornemme.",
-    meta: "Stand-in eksempel",
+    meta: "3D Plantegning",
     contain: true,
-    bg: "#F0EDE8",
+    bg: "#FFFFFF",
   },
 ];
 
