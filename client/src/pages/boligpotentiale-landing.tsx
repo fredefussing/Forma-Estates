@@ -533,6 +533,51 @@ function HeroStage() {
             </motion.div>
           </AnimatePresence>
 
+          {/* Subtle bottom gradient — just enough to lift text, image still breathes */}
+          <div
+            className="absolute bottom-0 left-0 right-0 pointer-events-none"
+            style={{ height: "52%", background: "linear-gradient(to top, rgba(10,18,25,0.72) 0%, rgba(10,18,25,0.38) 30%, rgba(10,18,25,0.10) 65%, transparent 100%)", zIndex: 6 }}
+          />
+
+          {/* CTA overlay — desktop */}
+          <div
+            className="hidden md:flex absolute left-0 right-0 bottom-0 flex-col justify-end"
+            style={{ padding: "clamp(18px, 2.5vw, 36px) clamp(20px, 3.5vw, 48px)", zIndex: 7 }}
+          >
+            <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(20px, 2.4vw, 36px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 8px rgba(0,0,0,0.25)" }}>
+              Professionelle boligvisualiseringer på få sekunder
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.80)", fontSize: "clamp(12px, 1vw, 14px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, maxWidth: 500 }}>
+              Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/opret">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: C.gold, color: C.navy, padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                  data-testid="bolig-hero-cta"
+                >
+                  Kom i gang gratis <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </Link>
+              <Link href="/boligpotentiale/eksempler">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
+                  data-testid="bolig-hero-cta-secondary"
+                >
+                  Se eksempler
+                </button>
+              </Link>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS }}>
+                2 gratis AI-visualiseringer · intet kreditkort
+              </span>
+            </div>
+          </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
             <button
