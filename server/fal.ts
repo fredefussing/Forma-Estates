@@ -108,15 +108,31 @@ export async function uploadVideoPairToFal(
 // ===== 1. 3D PLANTEGNING (2D floor plan image → 3D dollhouse render) =====
 // Stricter prompt der eksplicit forbyder interior/eye-level views.
 // Korte direkte forbud > lange beskrivende ønsker for arkitektonisk troskab.
-const FLOORPLAN_3D_PROMPT = `Use the attached floor plan as a STRICT spatial and architectural reference and transform it into a premium ultra-realistic 3D architectural floor plan visualization.
+const FLOORPLAN_3D_PROMPT = `STRICT STRUCTURAL RULES — READ THESE FIRST. THESE OVERRIDE EVERYTHING ELSE.
 
-Preserve the exact geometry, wall placement, proportions, circulation, room layout, windows, doors, and all architectural boundaries precisely as shown in the original 2D floor plan. Do not redesign, reinterpret, simplify, or modify the structure in any way.
+DO NOT add any room that does not exist in the input floor plan.
+DO NOT remove any room that exists in the input floor plan.
+DO NOT merge rooms together.
+DO NOT split any room into multiple rooms.
+DO NOT move any wall, door, or window from its position in the input.
+DO NOT add new walls that are not in the input.
+DO NOT enlarge or shrink any room.
+DO NOT change the outer footprint or boundary of the building.
+DO NOT outpaint, extend, or add floor area beyond what exists in the input.
+DO NOT enclose any open-air terrace, balcony, or outdoor area — they must remain open with no roof added.
+DO NOT reframe, crop, zoom, pan, or rescale the composition — the floor plan must occupy the same position and scale within the image canvas as in the input.
+DO NOT add an interior room or walls inside any outdoor terrace area.
+DO NOT change the number of rooms. Count the rooms in the input — output must have the exact same count.
 
-CRITICAL: Render ONLY the rooms and area that exist in the original floor plan. Do not add, extend, invent, or outpaint any extra rooms, walls, sections, or floor area. The outer footprint and total number of rooms must match the original exactly. Keep the same framing and aspect ratio as the input image — do not enlarge the canvas or add empty space around the plan.
+The structure is LOCKED. The only thing you may change is the visual rendering style (3D, materials, lighting, furniture, plants).
 
-CRITICAL — NO RECOMPOSITION: Do NOT crop, zoom in, pan, re-center, or re-frame the drawing relative to the image you receive. Reproduce the plan at the EXACT same scale and position within the frame as the input image. The walls and outer boundary must land in the same place on the canvas as in the input.
+---
 
-CRITICAL — TERRACES STAY OPEN: Any outdoor terrace, balcony, or open area (often drawn with a thin or angled/diagonal outline rather than thick walls) MUST remain an open-air outdoor surface. Do NOT enclose it with walls, do NOT turn it into an interior room, and do NOT add a roof or new walls around it. Keep its exact angled/diagonal boundary shape from the original drawing.
+Transform the attached 2D floor plan into a premium ultra-realistic 3D architectural floor plan visualization while obeying every rule above without exception.
+
+Preserve the exact geometry, wall placement, proportions, circulation, room layout, windows, doors, and all architectural boundaries precisely as shown in the original 2D floor plan.
+
+TERRACES STAY OPEN: Any outdoor terrace, balcony, or open area (often drawn with a thin or angled/diagonal outline rather than thick walls) MUST remain an open-air outdoor surface. Do NOT enclose it with walls, do NOT turn it into an interior room, and do NOT add a roof or new walls around it. Keep its exact angled/diagonal boundary shape from the original drawing.
 
 The final image should feel like a high-end Scandinavian real estate presentation created for luxury property marketing.
 
