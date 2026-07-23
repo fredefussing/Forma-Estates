@@ -484,22 +484,24 @@ export function PlantegningPage() {
         </div>
       </div>
 
-      {/* 3D model showcase — billedet i fuld fokus, tekst nedenunder */}
-      <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.12)", background: "#1A2535" }} data-testid="plantegning-3d-model">
-        {/* Billedet — rent, ingen gradient eller tekst ovenpå */}
-        <div className="relative w-full" style={{ aspectRatio: "4 / 3" }}>
-          <img
-            src="/bolig-images/3d-model-showcase.png"
-            alt="Interaktiv 3D model af bolig"
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: "center center" }}
-          />
+      {/* 3D model showcase — billede venstre, tekst højre (samme bredde som de to øverste kort) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7" data-testid="plantegning-3d-model">
+        {/* Billede-halvdel */}
+        <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
+          <div className="relative w-full" style={{ aspectRatio: "4 / 3" }}>
+            <img
+              src="/bolig-images/3d-model-showcase.png"
+              alt="Interaktiv 3D model af bolig"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: "center center" }}
+            />
+            <div className="absolute top-3 left-3 uppercase" style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D Model</div>
+          </div>
         </div>
-        {/* Tekst og badge nedenunder billedet */}
-        <div style={{ padding: "20px 28px 26px" }}>
-          <div className="uppercase mb-3" style={{ display: "inline-block", background: C.gold, color: "#fff", padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D Model</div>
-          <div style={{ fontFamily: SERIF, color: "#fff", fontSize: 22, fontWeight: 500, marginBottom: 8 }}>Den fulde interaktive 3D-oplevelse</div>
-          <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 14.5, lineHeight: 1.6 }}>
+        {/* Tekst-halvdel */}
+        <div style={{ background: "#1A2535", border: `1px solid rgba(255,255,255,0.07)`, borderRadius: 16, padding: "26px 28px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ fontFamily: SERIF, color: "#fff", fontSize: 20, fontWeight: 500, marginBottom: 10 }}>Den fulde interaktive 3D-oplevelse</div>
+          <div style={{ color: "rgba(255,255,255,0.58)", fontSize: 14.5, lineHeight: 1.65 }}>
             Ud over 3D-billedet genererer Forma Estates en interaktiv 3D-model — køber kan dreje, zoome og udforske boligen fra alle vinkler direkte i browseren, helt uden software. Det giver en boligoplevelse tæt på en fysisk fremvisning, allerede fra annoncen.
           </div>
         </div>
