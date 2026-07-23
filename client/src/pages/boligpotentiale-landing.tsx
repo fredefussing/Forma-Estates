@@ -252,8 +252,8 @@ const STAGE_SLIDES: StageSlide[] = [
   },
   {
     kind: "swipe",
-    before: "/bolig-images/dining-before.jpg",
-    after: "/bolig-images/dining-after.jpg",
+    before: "/bolig-images/dining-before-new.png",
+    after: "/bolig-images/dining-after-new.jpg",
     beforeLabel: "Før",
     afterLabel: "Efter",
     title: "Før & efter",
