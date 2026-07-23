@@ -16,6 +16,7 @@
 - [Rendy camera control via presetKey](rendy-camera-control.md) — camera keys go in per-image presetKey (GET /camera-movements lists them); music not controllable; zero-cost Zod probing trick.
 - [Showcase crop frames are aspect-locked](showcase-crop-aspect-lock.md) — pre-made rendy-style frame (h=k·w normalized); ratio switch clears crops; progress always integer.
 - [Tripo3D texture vs pbr parameter](tripo3d-texture-vs-pbr.md) — pbr_model is always the output; gray = iframe bug; CDN GLB URLs are CORS-blocked + expire ~9h, must localize server-side.
+- [Tripo3D face_limit max is 2M](tripo3d-face-limit.md) — API accepts face_limit up to 2000000 (tested 2026-07-23); matches their UI's "HD Model: up to 2 million polygons" claim; use 2000000 for max quality.
 - [Background processes need setsid](bash-background-setsid.md) — plain `nohup &` from the bash tool is killed with the process group; use `(setsid nohup … &)`; pkill -f can match its own shell.
 - [In-memory job maps vs DB status flags](inmemory-job-db-status.md) — DB "generating" flags from memory-only jobs need boot-time reset + frontend 404 bail-out, or restarts strand the UI.
 - [Render ephemeral uploads & R2](render-ephemeral-uploads.md) — prod disk wipes on deploy; /uploads needs R2 vars on Render + real 404s; Collov CDN blocks browser CORS, use the proxy (plain=1+token skips watermark).
