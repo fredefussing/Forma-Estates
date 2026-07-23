@@ -329,6 +329,7 @@ export function FloorplanTripo3DViewer({
 
   function openInNewTab() {
     if (!modelUrl) return;
+    const absModelUrl = modelUrl.startsWith("http") ? modelUrl : `${window.location.origin}${modelUrl}`;
     const html = `<!DOCTYPE html>
 <html lang="da">
 <head>
@@ -347,7 +348,7 @@ export function FloorplanTripo3DViewer({
 </head>
 <body>
   <header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header>
-  <model-viewer src="${modelUrl}" camera-controls auto-rotate auto-rotate-delay="1500" rotation-per-second="20deg" environment-image="neutral" shadow-intensity="1.5" shadow-softness="1" exposure="1" alt="3D Plantegning"></model-viewer>
+  <model-viewer src="${absModelUrl}" camera-controls auto-rotate auto-rotate-delay="1500" rotation-per-second="20deg" environment-image="neutral" shadow-intensity="1.5" shadow-softness="1" exposure="1" alt="3D Plantegning"></model-viewer>
   <div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div>
 </body>
 </html>`;

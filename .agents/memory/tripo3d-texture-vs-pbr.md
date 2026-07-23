@@ -21,6 +21,15 @@ The `pbr_model` GLB **IS fully textured with colors from the input image** (bake
 **How to apply:**
 - POST body: `{ type: "image_to_model", file: { type, url }, texture: true }`
 - Status route URL priority: `output.model ?? output.pbr_model` (model never exists, pbr_model always does)
-- Tripo3D signed URLs expire after ~9 hours; users must regenerate after expiry
 - Node.js fetch() is blocked by Replit proxy — always use `spawn("curl", [...])` for Tripo3D API calls
 - React model-viewer: inject script into head via `ensureModelViewerScript()`, render `<model-viewer>` directly (no iframe/sandbox — those block GLB loading)
+
+## GLB URLs must be localized server-side (never sent raw to browser)
+Tripo3D CDN GLB URLs are doubly unusable in the browser: the CDN blocks browser CORS
+(model-viewer fetch fails → eternal "loading" spinner), AND the signed URLs expire after ~9h.
+
+**How to apply:**
+- Server downloads the GLB (curl, tmp+rename) to `/uploads/` on the success poll, uploads to R2, and returns only the local `/uploads/...` URL to the client.
+- Never fall back to the remote URL on download failure — that silently reinstates the CORS bug. Instead return `status:"running"` so the client re-polls (capped retries), then fail explicitly.
+- Serve `.glb` with `Content-Type: model/gltf-binary` + immutable Cache-Control.
+- Blob-page (`URL.createObjectURL`) viewers can't resolve relative `/uploads/...` paths — prefix with `window.location.origin`.

@@ -390,6 +390,10 @@ export async function registerRoutes(
     // 1. Serve from local disk if present (dev + same-session files)
     const localPath = path.join(uploadDir, key);
     if (fs.existsSync(localPath)) {
+      if (path.extname(key).toLowerCase() === ".glb") {
+        res.setHeader("Content-Type", "model/gltf-binary");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
       return res.sendFile(localPath);
     }
 
@@ -402,6 +406,7 @@ export async function registerRoutes(
           const ct = ext === ".png" ? "image/png"
                    : ext === ".webp" ? "image/webp"
                    : ext === ".mp4" ? "video/mp4"
+                   : ext === ".glb" ? "model/gltf-binary"
                    : "image/jpeg";
           res.setHeader("Content-Type", ct);
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
@@ -3185,6 +3190,44 @@ export async function registerRoutes(
     }
   });
 
+  // Downloader Tripo3D GLB-modellen til /uploads/ (én gang pr. task).
+  // In-flight map forhindrer dobbelt-download når klienten poller hvert 4. sekund.
+  const tripoGlbInflight = new Map<string, Promise<string>>();
+  const tripoGlbFailCounts = new Map<string, number>();
+  async function localizeTripoGlb(taskId: string, remoteUrl: string): Promise<string> {
+    const safeId = taskId.replace(/[^a-zA-Z0-9_-]/g, "");
+    const filename = `tripo-model-${safeId}.glb`;
+    const localFilePath = path.join(uploadDir, filename);
+    if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).size > 1000) {
+      return `/uploads/${filename}`;
+    }
+    const existing = tripoGlbInflight.get(safeId);
+    if (existing) return existing;
+    const p = (async () => {
+      const tmpPath = `${localFilePath}.tmp`;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const curl = spawn("curl", ["-sL", "--fail", "--max-time", "120", "--max-filesize", "209715200", "-o", tmpPath, remoteUrl]);
+          curl.on("close", (code: number) => code === 0 ? resolve() : reject(new Error(`curl exit ${code}`)));
+          curl.on("error", reject);
+        });
+        const size = fs.statSync(tmpPath).size;
+        if (size < 1000) throw new Error(`GLB for lille (${size} bytes)`);
+        fs.renameSync(tmpPath, localFilePath);
+        log(`[Tripo3D] GLB lokaliseret → /uploads/${filename} (${Math.round(size / 1024 / 1024 * 10) / 10} MB)`);
+        r2UploadFile(localFilePath).catch((e: any) => log(`[R2] tripo GLB upload fejlede: ${e?.message}`));
+        return `/uploads/${filename}`;
+      } catch (e) {
+        try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
+        throw e;
+      } finally {
+        tripoGlbInflight.delete(safeId);
+      }
+    })();
+    tripoGlbInflight.set(safeId, p);
+    return p;
+  }
+
   app.post("/api/bolig/tripo3d", async (req, res) => {
     try {
       const apiKey = process.env.THREED_API_KEY;
@@ -3248,12 +3291,32 @@ export async function registerRoutes(
       if (data.code !== 0) return res.status(500).json({ message: "Status fejl" });
       const task = data.data;
       // texture:true (uden pbr) returnerer output.model med baked image-teksturer (farver)
-      const modelUrl = task.status === "success"
+      const remoteModelUrl = task.status === "success"
         ? (task.output?.model ?? task.output?.pbr_model ?? task.result?.model?.url ?? task.result?.pbr_model?.url)
         : undefined;
       const renderedImageUrl = task.status === "success"
         ? (task.output?.rendered_image ?? task.result?.rendered_image?.url)
         : undefined;
+      // Lokalisér GLB til /uploads/ — Tripo3D's CDN blokerer browser-CORS og
+      // deres signerede URL'er udløber efter ~9 timer. Lokal fil = ingen af delene.
+      // VIGTIGT: Send ALDRIG remote-URL'en til klienten — den virker ikke i browseren.
+      // Fejler download, svarer vi "running" så klienten poller igen (max 5 forsøg).
+      let modelUrl: string | undefined;
+      if (remoteModelUrl) {
+        try {
+          modelUrl = await localizeTripoGlb(taskId, remoteModelUrl);
+          tripoGlbFailCounts.delete(taskId);
+        } catch (e: any) {
+          const fails = (tripoGlbFailCounts.get(taskId) ?? 0) + 1;
+          tripoGlbFailCounts.set(taskId, fails);
+          log(`[Tripo3D] GLB-lokalisering fejlede (forsøg ${fails}/5): ${e?.message}`);
+          if (fails < 5) {
+            return res.json({ status: "running", progress: 99 });
+          }
+          tripoGlbFailCounts.delete(taskId);
+          return res.status(500).json({ message: "Kunne ikke hente 3D modellen — prøv igen" });
+        }
+      }
       res.json({
         status: task.status,
         progress: task.progress ?? 0,
