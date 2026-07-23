@@ -2902,6 +2902,41 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en 2D plantegning — AI bygger et møbleret 3D dukkehus set fra oven, baseret på rumlayoutet.</p>
       </div>
 
+      {/* ── Forstå flowet / Få din 3D model nu ─────────────────────────── */}
+      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "#0F1D2F" }}>
+        <div className="relative">
+          <img
+            src="/bolig-images/3d-model-showcase.png"
+            alt="Eksempel på interaktiv 3D model af bolig"
+            className="w-full object-cover"
+            style={{ maxHeight: 320, objectPosition: "center top" }}
+          />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 45%, #0F1D2F 100%)" }} />
+        </div>
+        <div className="px-6 pb-6 -mt-2">
+          <p className="text-[11px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C8956C" }}>Muligt med Forma Estates</p>
+          <h2 className="text-xl font-bold mb-2 leading-snug" style={{ color: "#FFFFFF", letterSpacing: "-0.02em" }}>
+            Fra 2D tegning til interaktiv 3D model
+          </h2>
+          <p className="text-sm mb-5 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+            Upload din plantegning — AI omdanner den automatisk til et fuldt møbleret 3D dukkehus, som køber kan dreje og zoome i inden første visning.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              { step: "01", label: "2D plantegning", desc: "Upload en simpel plantegning — tegnet eller skannet" },
+              { step: "02", label: "AI genererer 3D billede", desc: "Artificial intelligence møblerer og bygger rummet op" },
+              { step: "03", label: "Interaktiv 3D model", desc: "Køber roterer og udforsker alle vinkler frit" },
+            ] as const).map(({ step, label, desc }) => (
+              <div key={step} className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <p className="text-[10px] font-bold tracking-[0.14em] uppercase mb-1.5" style={{ color: "#C8956C" }}>Trin {step}</p>
+                <p className="text-[13px] font-semibold mb-1 leading-tight" style={{ color: "#FFFFFF" }}>{label}</p>
+                <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Eksempel */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
