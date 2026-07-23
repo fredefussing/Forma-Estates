@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink, Focus } from "lucide-react";
+import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink, Focus, ImageDown, Box } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -197,6 +197,8 @@ export function FloorplanTripo3DViewer({
   const [swatchIdx, setSwatchIdx] = useState(0);
   const [materialsReady, setMaterialsReady] = useState(false);
   const [fsMaterialsReady, setFsMaterialsReady] = useState(false);
+  const [downloadingImg, setDownloadingImg] = useState(false);
+  const [downloadingGlb, setDownloadingGlb] = useState(false);
 
   const mvRef = useRef<any>(null);
   const mvFsRef = useRef<any>(null);
@@ -433,6 +435,38 @@ export function FloorplanTripo3DViewer({
     window.open(url, "_blank");
   }
 
+  async function downloadFile(url: string, filename: string, setLoading: (v: boolean) => void) {
+    setLoading(true);
+    try {
+      const absUrl = url.startsWith("http") ? url : `${window.location.origin}${url}`;
+      const res = await fetch(absUrl);
+      if (!res.ok) throw new Error("Hentning fejlede");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 1000);
+    } catch (e) {
+      console.warn("Download failed:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function downloadImage() {
+    const src = renderedImageUrl || resultUrl;
+    if (!src) return;
+    const ext = src.includes(".png") ? "png" : "jpg";
+    downloadFile(src, `forma-estates-3d-plantegning.${ext}`, setDownloadingImg);
+  }
+
+  function downloadGlb() {
+    if (!modelUrl) return;
+    downloadFile(modelUrl, "forma-estates-3d-model.glb", setDownloadingGlb);
+  }
+
   function reset() {
     stopPolling();
     taskIdRef.current = null;
@@ -625,7 +659,29 @@ export function FloorplanTripo3DViewer({
             Rotér · zoom · skift farve
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={downloadImage}
+              disabled={downloadingImg}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:opacity-80 disabled:opacity-50"
+              style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+              data-testid="button-tripo3d-download-image"
+              title="Hent billede (PNG/JPG)"
+            >
+              {downloadingImg ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageDown className="w-3 h-3" />}
+              Hent billede
+            </button>
+            <button
+              onClick={downloadGlb}
+              disabled={downloadingGlb}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:opacity-80 disabled:opacity-50"
+              style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+              data-testid="button-tripo3d-download-glb"
+              title="Hent 3D model (.glb)"
+            >
+              {downloadingGlb ? <Loader2 className="w-3 h-3 animate-spin" /> : <Box className="w-3 h-3" />}
+              Hent 3D model
+            </button>
             <button
               onClick={openInNewTab}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:opacity-80"
