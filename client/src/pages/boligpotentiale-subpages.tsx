@@ -484,19 +484,18 @@ export function PlantegningPage() {
         </div>
       </div>
 
-      {/* 3D model showcase — interaktiv model under de to billeder */}
+      {/* 3D model showcase — billedet i fuld fokus, tekst nedenunder */}
       <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.12)", background: "#1A2535" }} data-testid="plantegning-3d-model">
-        <div className="relative">
-          <img
-            src="/bolig-images/3d-model-showcase.png"
-            alt="Interaktiv 3D model af bolig"
-            className="w-full object-cover"
-            style={{ maxHeight: 360, objectPosition: "center top" }}
-          />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 50%, #1A2535 100%)" }} />
-          <div className="absolute top-3 left-3 uppercase" style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D MODEL</div>
-        </div>
-        <div style={{ padding: "22px 28px 28px" }}>
+        {/* Billedet — rent, ingen gradient eller tekst ovenpå */}
+        <img
+          src="/bolig-images/3d-model-showcase.png"
+          alt="Interaktiv 3D model af bolig"
+          className="w-full block object-cover"
+          style={{ objectPosition: "center center" }}
+        />
+        {/* Tekst og badge nedenunder billedet */}
+        <div style={{ padding: "20px 28px 26px" }}>
+          <div className="uppercase mb-3" style={{ display: "inline-block", background: C.gold, color: "#fff", padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D Model</div>
           <div style={{ fontFamily: SERIF, color: "#fff", fontSize: 22, fontWeight: 500, marginBottom: 8 }}>Den fulde interaktive 3D-oplevelse</div>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 14.5, lineHeight: 1.6 }}>
             Ud over 3D-billedet genererer Forma Estates en interaktiv 3D-model — køber kan dreje, zoome og udforske boligen fra alle vinkler direkte i browseren, helt uden software. Det giver en boligoplevelse tæt på en fysisk fremvisning, allerede fra annoncen.
