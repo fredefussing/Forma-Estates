@@ -262,13 +262,14 @@ const STAGE_SLIDES: StageSlide[] = [
   },
   {
     kind: "swipe",
-    before: "/bolig-images/facade-before.jpg",
-    after: "/bolig-images/facade-after.jpg",
+    before: "/bolig-images/facade-before-new.png",
+    after: "/bolig-images/facade-after-new.png",
     beforeLabel: "Før",
     afterLabel: "Efter",
     title: "Før & efter",
     caption: "Upload et foto — AI'en transformerer ejendommen på under 20 sekunder.",
-    meta: "Facade · AI Design Agent",
+    meta: "Stald · AI Design Agent",
+    objectPosition: "center center",
   },
   {
     kind: "swipe",
