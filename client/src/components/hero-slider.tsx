@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import before1Src from "@assets/Skærmbillede_2026-04-06_kl._17.11.58_1776257774704.png";
-import after1Src from "@assets/Skærmbillede_2026-04-06_kl._17.12.09_1776257781035.png";
+import before1Src from "@assets/att.7YWz8zQwNyl3FxfWTKyD1tlNYeA22Xz_TeBx4v3qhdI_1784839780274.JPG";
+import after1Src from "@assets/nabo-gard-lovlig-blmmeder-entryway-scandinavian-2026-06-16_1784839712835.jpg";
 import before2Src from "@assets/Skærmbillede_2026-04-06_kl._17.12.40_1776257791039.png";
 import after2Src from "@assets/Skærmbillede_2026-04-06_kl._17.12.49_1776257791040.png";
 import before3Src from "@assets/Skærmbillede_2026-04-15_kl._14.57.45_1776257869209.png";
