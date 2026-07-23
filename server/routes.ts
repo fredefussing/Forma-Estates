@@ -3175,7 +3175,6 @@ export async function registerRoutes(
         type: "image_to_model",
         file: { type: fileType, url: imageUrl },
         texture: true,
-        pbr: true,
       });
       // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
       const data = await new Promise<any>((resolve, reject) => {
@@ -3222,9 +3221,9 @@ export async function registerRoutes(
       });
       if (data.code !== 0) return res.status(500).json({ message: "Status fejl" });
       const task = data.data;
-      // Tripo3D med pbr:true returnerer GLB under output.pbr_model (ikke output.model)
+      // texture:true (uden pbr) returnerer output.model med baked image-teksturer (farver)
       const modelUrl = task.status === "success"
-        ? (task.output?.pbr_model ?? task.output?.model ?? task.result?.pbr_model?.url)
+        ? (task.output?.model ?? task.output?.pbr_model ?? task.result?.model?.url ?? task.result?.pbr_model?.url)
         : undefined;
       const renderedImageUrl = task.status === "success"
         ? (task.output?.rendered_image ?? task.result?.rendered_image?.url)
