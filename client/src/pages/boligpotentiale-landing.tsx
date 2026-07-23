@@ -236,7 +236,7 @@ type StageSlide =
 const STAGE_SLIDES: StageSlide[] = [
   {
     kind: "video",
-    src: "/videos/bolig-showcase-v1.mp4",
+    src: "/cinematisk-video.mp4",
     poster: "/bolig-images/video-poster.jpg",
     title: "Cinematisk video",
     caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
