@@ -487,12 +487,14 @@ export function PlantegningPage() {
       {/* 3D model showcase — billedet i fuld fokus, tekst nedenunder */}
       <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.12)", background: "#1A2535" }} data-testid="plantegning-3d-model">
         {/* Billedet — rent, ingen gradient eller tekst ovenpå */}
-        <img
-          src="/bolig-images/3d-model-showcase.png"
-          alt="Interaktiv 3D model af bolig"
-          className="w-full block object-cover"
-          style={{ objectPosition: "center center" }}
-        />
+        <div className="relative w-full" style={{ aspectRatio: "4 / 3" }}>
+          <img
+            src="/bolig-images/3d-model-showcase.png"
+            alt="Interaktiv 3D model af bolig"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: "center center" }}
+          />
+        </div>
         {/* Tekst og badge nedenunder billedet */}
         <div style={{ padding: "20px 28px 26px" }}>
           <div className="uppercase mb-3" style={{ display: "inline-block", background: C.gold, color: "#fff", padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D Model</div>
