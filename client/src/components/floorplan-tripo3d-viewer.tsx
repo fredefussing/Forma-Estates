@@ -3,15 +3,7 @@ import { createPortal } from "react-dom";
 import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronDown, Home, Check, ExternalLink, Focus, ImageDown, Box } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
-import { TRIPO_BG, TRIPO_MV_PROPS, TRIPO_MV_ATTRS } from "./tripo-viewer-constants";
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "model-viewer": any;
-    }
-  }
-}
+import { TripoOrbitViewer, type TripoOrbitViewerHandle } from "./tripo-orbit-viewer";
 
 type Status = "idle" | "submitting" | "polling" | "ready" | "error";
 
@@ -39,32 +31,6 @@ const SWATCHES: ColorSwatch[] = [
 ];
 
 
-function boostRenderResolution() {
-  // Supersampling: model-viewer renderer i skærmens pixel-tæthed (1x på
-  // almindelige skærme = takkede kanter). Tving mindst 2x for skarpe kanter.
-  try {
-    if ((window.devicePixelRatio || 1) < 2) {
-      Object.defineProperty(window, "devicePixelRatio", { get: () => 2, configurable: true });
-    }
-  } catch { /* ignorér */ }
-}
-
-function ensureModelViewerScript() {
-  if (typeof document === "undefined") return;
-  boostRenderResolution();
-  // Skarp rendering: model-viewer sænker som standard opløsningen til 25%
-  // under rotation/zoom — slå det fra så modellen altid er i fuld skarphed.
-  customElements.whenDefined("model-viewer").then(() => {
-    const MV: any = customElements.get("model-viewer");
-    if (MV && MV.minimumRenderScale !== 1) MV.minimumRenderScale = 1;
-  }).catch(() => {});
-  if (document.querySelector("script[data-mv-loaded]")) return;
-  const s = document.createElement("script");
-  s.type = "module";
-  s.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js";
-  s.setAttribute("data-mv-loaded", "");
-  document.head.appendChild(s);
-}
 
 function ColorPanel({
   swatchIdx,
@@ -161,14 +127,6 @@ function ControlRail({ children }: { children: React.ReactNode }) {
   );
 }
 
-function resetCameraView(mv: any) {
-  if (!mv) return;
-  try {
-    mv.cameraOrbit = TRIPO_MV_PROPS["camera-orbit"];
-    mv.cameraTarget = "auto auto auto"; // re-centrér efter evt. panorering
-    mv.fieldOfView = "auto";
-  } catch { /* ignorér */ }
-}
 
 export function FloorplanTripo3DViewer({
   resultUrl,
@@ -195,18 +153,13 @@ export function FloorplanTripo3DViewer({
   const [downloadingImg, setDownloadingImg] = useState(false);
   const [downloadingGlb, setDownloadingGlb] = useState(false);
 
-  const mvRef = useRef<any>(null);
-  const mvFsRef = useRef<any>(null);
-  const pendingColorRef = useRef<[number, number, number] | null>(null);
+  const orbitRef = useRef<TripoOrbitViewerHandle>(null);
+  const orbitFsRef = useRef<TripoOrbitViewerHandle>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const taskIdRef = useRef<string | null>(null);
   const saveDdRef = useRef<HTMLDivElement>(null);
 
   const activeCases = cases.filter(c => c.status !== "sold");
-
-  useEffect(() => {
-    ensureModelViewerScript();
-  }, []);
 
   useEffect(() => {
     return () => { stopPolling(); };
@@ -222,68 +175,27 @@ export function FloorplanTripo3DViewer({
   }, [showSaveDrop]);
 
   useEffect(() => {
-    if (!showFullscreen) return;
+    if (!showFullscreen) {
+      setFsMaterialsReady(false);
+      return;
+    }
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowFullscreen(false); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [showFullscreen]);
 
-  useEffect(() => {
-    if (status !== "ready" || !mvRef.current) return;
-    const mv = mvRef.current;
-    const onLoad = () => {
-      setMaterialsReady(true);
-      if (pendingColorRef.current) {
-        const [r, g, b] = pendingColorRef.current;
-        pendingColorRef.current = null;
-        applyColorToMv(mv, r, g, b);
-      }
-    };
-    mv.addEventListener("load", onLoad);
-    return () => mv.removeEventListener("load", onLoad);
-  }, [status]);
-
-  useEffect(() => {
-    if (!showFullscreen || !mvFsRef.current) return;
-    const mv = mvFsRef.current;
-    const onLoad = () => {
-      setFsMaterialsReady(true);
-      const s = SWATCHES[swatchIdx];
-      if (s) applyColorToMv(mv, s.r, s.g, s.b);
-    };
-    mv.addEventListener("load", onLoad);
-    return () => mv.removeEventListener("load", onLoad);
-  }, [showFullscreen, swatchIdx]);
-
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }
 
-  function applyColorToMv(mv: any, r: number, g: number, b: number) {
-    try {
-      if (mv?.model?.materials) {
-        mv.model.materials.forEach((mat: any) => {
-          mat.pbrMetallicRoughness.setBaseColorFactor([r, g, b, 1.0]);
-        });
-      }
-    } catch (e) {
-      console.warn("Color apply failed:", e);
-    }
-  }
-
   function selectSwatch(idx: number) {
     setSwatchIdx(idx);
-    const s = SWATCHES[idx];
-    if (!s) return;
-    if (materialsReady && mvRef.current) {
-      applyColorToMv(mvRef.current, s.r, s.g, s.b);
-    } else {
-      pendingColorRef.current = [s.r, s.g, s.b];
-    }
-    if (fsMaterialsReady && mvFsRef.current) {
-      applyColorToMv(mvFsRef.current, s.r, s.g, s.b);
-    }
   }
+
+  const currentSwatch = SWATCHES[swatchIdx];
+  const colorRGB: [number, number, number] = currentSwatch
+    ? [currentSwatch.r, currentSwatch.g, currentSwatch.b]
+    : [1, 1, 1];
 
   async function generate() {
     setStatus("submitting");
@@ -411,21 +323,62 @@ export function FloorplanTripo3DViewer({
   <meta charset="utf-8"/>
   <title>Forma Estates · 3D Plantegning</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-  <script type="module">if((window.devicePixelRatio||1)<2){try{Object.defineProperty(window,"devicePixelRatio",{get:()=>2,configurable:true})}catch(e){}}await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script>
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
+  </script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
-    header{background:#111;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.08)}
+    body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif;overflow:hidden}
+    header{background:#111;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}
     header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}
-    model-viewer{flex:1;width:100%;background:${TRIPO_BG}}
+    #vp{flex:1;width:100%;background:radial-gradient(ellipse 120% 90% at 50% 38%,#464646 0%,#2b2b2b 55%,#171717 100%)}
     .hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}
   </style>
 </head>
 <body>
   <header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header>
-  <model-viewer src="${absModelUrl}" ${TRIPO_MV_ATTRS} alt="3D Plantegning"></model-viewer>
-  <div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div>
+  <div id="vp"></div>
+  <div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome &nbsp;·&nbsp; Højreklik for at panorere</div>
+  <script type="module">
+    import * as THREE from 'three';
+    import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+    import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+    import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+    const c=document.getElementById('vp');
+    const dpr=Math.max(window.devicePixelRatio||1,2);
+    const renderer=new THREE.WebGLRenderer({antialias:true,precision:'highp',powerPreference:'high-performance'});
+    renderer.setPixelRatio(dpr);renderer.setSize(c.clientWidth,c.clientHeight);
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    c.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(38,c.clientWidth/c.clientHeight,0.01,1000);
+    camera.position.set(3,2.5,3);
+    scene.add(new THREE.HemisphereLight(0xffffff,0x222233,1.2));
+    const key=new THREE.DirectionalLight(0xffffff,2.8);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.width=key.shadow.mapSize.height=2048;scene.add(key);
+    const fill=new THREE.DirectionalLight(0xffffff,0.9);fill.position.set(-3,2,-2);scene.add(fill);
+    const controls=new OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=true;controls.dampingFactor=0.05;controls.enablePan=true;
+    const draco=new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    const loader=new GLTFLoader();loader.setDRACOLoader(draco);
+    loader.load('${absModelUrl}',(gltf)=>{
+      const model=gltf.scene;
+      model.traverse(ch=>{if(ch.isMesh){ch.castShadow=true;ch.receiveShadow=true;}});
+      scene.add(model);
+      const box=new THREE.Box3().setFromObject(model);
+      const center=box.getCenter(new THREE.Vector3());
+      const size=box.getSize(new THREE.Vector3());
+      const maxDim=Math.max(size.x,size.y,size.z);
+      model.position.sub(center);
+      camera.near=maxDim*0.005;camera.far=maxDim*300;camera.updateProjectionMatrix();
+      const dist=maxDim*1.8;
+      camera.position.set(dist*0.75,dist*0.55,dist*0.75);
+      controls.minDistance=maxDim*0.15;controls.maxDistance=maxDim*20;controls.update();
+    });
+    function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();
+    window.addEventListener('resize',()=>{const nw=c.clientWidth,nh=c.clientHeight;camera.aspect=nw/nh;camera.updateProjectionMatrix();renderer.setSize(nw,nh);});
+  </script>
 </body>
 </html>`;
     const blob = new Blob([html], { type: "text/html" });
@@ -468,7 +421,6 @@ export function FloorplanTripo3DViewer({
   function reset() {
     stopPolling();
     taskIdRef.current = null;
-    pendingColorRef.current = null;
     setStatus("idle");
     setProgress(0);
     setErrorMsg(null);
@@ -607,15 +559,16 @@ export function FloorplanTripo3DViewer({
   return (
     <>
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE" }}>
-        <div className="relative" style={{ height: 480, background: TRIPO_BG }}>
-          <model-viewer
-            ref={mvRef}
-            src={modelUrl}
-            {...TRIPO_MV_PROPS}
-            alt="3D Plantegning"
-            style={{ width: "100%", height: "100%", background: "transparent" }}
-            data-testid="model-viewer-tripo3d"
-          />
+        <div className="relative" style={{ height: 480 }}>
+          <div data-testid="model-viewer-tripo3d" style={{ width: "100%", height: "100%" }}>
+            <TripoOrbitViewer
+              ref={orbitRef}
+              modelUrl={modelUrl!}
+              colorRGB={colorRGB}
+              onReady={() => setMaterialsReady(true)}
+              style={{ width: "100%", height: "100%" }}
+            />
+          </div>
 
           {/* Knap-søjle i højre side (Tripo-stil) */}
           <ControlRail>
@@ -625,7 +578,7 @@ export function FloorplanTripo3DViewer({
             <RailButton title="Åbn i ny fane" onClick={openInNewTab} testId="button-tripo3d-rail-open-tab">
               <ExternalLink className="w-4 h-4" />
             </RailButton>
-            <RailButton title="Nulstil visning" onClick={() => resetCameraView(mvRef.current)} testId="button-tripo3d-reset-view">
+            <RailButton title="Nulstil visning" onClick={() => orbitRef.current?.resetCamera()} testId="button-tripo3d-reset-view">
               <Focus className="w-4 h-4" />
             </RailButton>
           </ControlRail>
@@ -748,19 +701,19 @@ export function FloorplanTripo3DViewer({
             </button>
           </div>
 
-          <div className="relative flex-1" style={{ background: TRIPO_BG }}>
-            <model-viewer
-              ref={mvFsRef}
-              src={modelUrl}
-              {...TRIPO_MV_PROPS}
-              alt="3D Plantegning — fuld skærm"
-              style={{ width: "100%", height: "100%", background: "transparent" }}
+          <div className="relative flex-1">
+            <TripoOrbitViewer
+              ref={orbitFsRef}
+              modelUrl={modelUrl!}
+              colorRGB={colorRGB}
+              onReady={() => setFsMaterialsReady(true)}
+              style={{ width: "100%", height: "100%" }}
             />
             <ControlRail>
               <RailButton title="Åbn i ny fane" onClick={openInNewTab}>
                 <ExternalLink className="w-4 h-4" />
               </RailButton>
-              <RailButton title="Nulstil visning" onClick={() => resetCameraView(mvFsRef.current)}>
+              <RailButton title="Nulstil visning" onClick={() => orbitFsRef.current?.resetCamera()}>
                 <Focus className="w-4 h-4" />
               </RailButton>
             </ControlRail>

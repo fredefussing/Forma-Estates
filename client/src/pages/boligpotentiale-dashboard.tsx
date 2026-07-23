@@ -12,7 +12,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-gate";
 import { FloorplanTripo3DViewer } from "@/components/floorplan-tripo3d-viewer";
-import { TRIPO_BG, TRIPO_MV_PROPS, TRIPO_MV_ATTRS } from "@/components/tripo-viewer-constants";
+import { TripoOrbitViewer } from "@/components/tripo-orbit-viewer";
 import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
@@ -93,34 +93,6 @@ interface ApiCaseImage {
   createdAt: string;
 }
 
-// ── Model-viewer global declaration ───────────────────────────────────────────
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "model-viewer": any;
-    }
-  }
-}
-function ensureMvScript() {
-  if (typeof document === "undefined") return;
-  // Supersampling: tving mindst 2x pixel-tæthed for skarpe kanter i 3D
-  try {
-    if ((window.devicePixelRatio || 1) < 2) {
-      Object.defineProperty(window, "devicePixelRatio", { get: () => 2, configurable: true });
-    }
-  } catch { /* ignorér */ }
-  // Skarp rendering under rotation/zoom (model-viewer sænker ellers opløsningen)
-  customElements.whenDefined("model-viewer").then(() => {
-    const MV: any = customElements.get("model-viewer");
-    if (MV && MV.minimumRenderScale !== 1) MV.minimumRenderScale = 1;
-  }).catch(() => {});
-  if (document.querySelector("script[data-mv-loaded]")) return;
-  const s = document.createElement("script");
-  s.type = "module";
-  s.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js";
-  s.setAttribute("data-mv-loaded", "");
-  document.head.appendChild(s);
-}
 
 // ── Media type helper ─────────────────────────────────────────────────────────
 function isVideoUrl(url: string | null | undefined): boolean {
@@ -892,7 +864,6 @@ function CaseDetailPanel({
   const [seasonDone, setSeasonDone] = useState(false);
 
   useEffect(() => {
-    ensureMvScript();
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
@@ -1831,17 +1802,11 @@ function CaseDetailPanel({
               data-testid="bolig-lightbox-modal"
             >
               {lightboxImg.style === "3d-interactive" && lightboxImg.beforeSrc ? (
-                <div style={{ height: 520, background: TRIPO_BG, position: "relative" }}>
-                  <model-viewer
-                    src={lightboxImg.beforeSrc}
-                    {...TRIPO_MV_PROPS}
-                    alt="3D Plantegning"
-                    style={{ width: "100%", height: "100%", background: "transparent" }}
-                    data-testid="bolig-lightbox-3d-viewer"
+                <div style={{ height: 520, position: "relative" }} data-testid="bolig-lightbox-3d-viewer">
+                  <TripoOrbitViewer
+                    modelUrl={lightboxImg.beforeSrc}
+                    style={{ width: "100%", height: "100%" }}
                   />
-                  <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(22,22,22,0.85)", color: "rgba(255,255,255,0.65)", padding: "7px 16px", borderRadius: 999, fontSize: 11, border: "1px solid rgba(255,255,255,0.08)", whiteSpace: "nowrap", pointerEvents: "none", backdropFilter: "blur(10px)" }}>
-                    Klik og træk for at rotere · Scroll for at zoome
-                  </div>
                 </div>
               ) : lightboxImg.style === "3d-interactive" ? (
                 <img src={lightboxImg.src} alt={lightboxImg.room} className="w-full h-auto" style={{ maxHeight: "70vh", objectFit: "contain" }} />
@@ -1900,7 +1865,7 @@ function CaseDetailPanel({
                       onClick={() => {
                         const raw = lightboxImg.beforeSrc!;
                         const glbSrc = raw.startsWith("http") ? raw : `${window.location.origin}${raw}`;
-                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script><script type="module">if((window.devicePixelRatio||1)<2){try{Object.defineProperty(window,"devicePixelRatio",{get:()=>2,configurable:true})}catch(e){}}await customElements.whenDefined("model-viewer");customElements.get("model-viewer").minimumRenderScale=1;</script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08)}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}model-viewer{flex:1;width:100%;background:${TRIPO_BG}}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><model-viewer src="${glbSrc}" ${TRIPO_MV_ATTRS} alt="3D Plantegning" style="width:100%;height:calc(100vh - 46px)"></model-viewer><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome</div></body></html>`;
+                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}</script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif;overflow:hidden}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}#vp{flex:1;width:100%;background:radial-gradient(ellipse 120% 90% at 50% 38%,#464646 0%,#2b2b2b 55%,#171717 100%)}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><div id="vp"></div><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome &nbsp;·&nbsp; Højreklik for at panorere</div><script type="module">import*as THREE from'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{DRACOLoader}from'three/addons/loaders/DRACOLoader.js';import{OrbitControls}from'three/addons/controls/OrbitControls.js';const c=document.getElementById('vp');const dpr=Math.max(window.devicePixelRatio||1,2);const renderer=new THREE.WebGLRenderer({antialias:true,precision:'highp',powerPreference:'high-performance'});renderer.setPixelRatio(dpr);renderer.setSize(c.clientWidth,c.clientHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.outputColorSpace=THREE.SRGBColorSpace;c.appendChild(renderer.domElement);const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(38,c.clientWidth/c.clientHeight,0.01,1000);camera.position.set(3,2.5,3);scene.add(new THREE.HemisphereLight(0xffffff,0x222233,1.2));const key=new THREE.DirectionalLight(0xffffff,2.8);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.width=key.shadow.mapSize.height=2048;scene.add(key);const fill=new THREE.DirectionalLight(0xffffff,0.9);fill.position.set(-3,2,-2);scene.add(fill);const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.05;controls.enablePan=true;const draco=new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');const loader=new GLTFLoader();loader.setDRACOLoader(draco);loader.load('${glbSrc}',(gltf)=>{const model=gltf.scene;model.traverse(ch=>{if(ch.isMesh){ch.castShadow=true;ch.receiveShadow=true;}});scene.add(model);const box=new THREE.Box3().setFromObject(model);const center=box.getCenter(new THREE.Vector3());const size=box.getSize(new THREE.Vector3());const maxDim=Math.max(size.x,size.y,size.z);model.position.sub(center);camera.near=maxDim*0.005;camera.far=maxDim*300;camera.updateProjectionMatrix();const dist=maxDim*1.8;camera.position.set(dist*0.75,dist*0.55,dist*0.75);controls.minDistance=maxDim*0.15;controls.maxDistance=maxDim*20;controls.update();});function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();window.addEventListener('resize',()=>{const nw=c.clientWidth,nh=c.clientHeight;camera.aspect=nw/nh;camera.updateProjectionMatrix();renderer.setSize(nw,nh);});</script></body></html>`;
                         const blob = new Blob([html], { type: "text/html" });
                         window.open(URL.createObjectURL(blob), "_blank");
                       }}
