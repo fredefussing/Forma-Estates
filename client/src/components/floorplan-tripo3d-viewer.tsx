@@ -156,6 +156,7 @@ export function FloorplanTripo3DViewer({
   const orbitRef = useRef<TripoOrbitViewerHandle>(null);
   const orbitFsRef = useRef<TripoOrbitViewerHandle>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const taskIdRef = useRef<string | null>(null);
   const saveDdRef = useRef<HTMLDivElement>(null);
 
@@ -186,6 +187,7 @@ export function FloorplanTripo3DViewer({
 
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
   }
 
   function selectSwatch(idx: number) {
@@ -226,8 +228,9 @@ export function FloorplanTripo3DViewer({
       setStatus("polling");
 
       // Timeout efter 4 minutter — Tripo3D kan sidde fast i "queued"
-      const timeoutHandle = setTimeout(() => {
-        stopPolling();
+      timeoutRef.current = setTimeout(() => {
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+        timeoutRef.current = null;
         setErrorMsg("Tripo3D's servere svarer ikke — de er muligvis overbelastede. Prøv igen om lidt.");
         setStatus("error");
       }, 4 * 60 * 1000);
@@ -248,7 +251,6 @@ export function FloorplanTripo3DViewer({
           }
 
           if (d.status === "success" && d.modelUrl) {
-            clearTimeout(timeoutHandle);
             stopPolling();
             setModelUrl(d.modelUrl);
             const ri = d.renderedImageUrl ?? null;
@@ -256,12 +258,10 @@ export function FloorplanTripo3DViewer({
             if (ri) onRenderedImage?.(ri);
             setStatus("ready");
           } else if (d.status === "failed" || d.status === "cancelled") {
-            clearTimeout(timeoutHandle);
             stopPolling();
             throw new Error("3D generering mislykkedes — prøv igen");
           }
         } catch (e: any) {
-          clearTimeout(timeoutHandle);
           stopPolling();
           setErrorMsg(e.message || "Generering mislykkedes");
           setStatus("error");

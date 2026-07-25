@@ -660,12 +660,12 @@ function HeroStage() {
           })}
         </div>
 
-        {/* ── Headline + CTAs — below the stage, all screen sizes ── */}
-        <div style={{ paddingTop: 28, paddingBottom: 8, paddingLeft: "clamp(16px, 3vw, 48px)", paddingRight: "clamp(16px, 3vw, 48px)" }}>
+        {/* ── Headline + CTAs — below the stage, mobile only (desktop has overlay) ── */}
+        <div className="md:hidden" style={{ paddingTop: 28, paddingBottom: 8, paddingLeft: "clamp(16px, 3vw, 48px)", paddingRight: "clamp(16px, 3vw, 48px)" }}>
           <div style={{ maxWidth: 600 }}>
-            <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(26px, 3.2vw, 44px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 12 }}>
+            <p style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(26px, 3.2vw, 44px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 12 }}>
               Professionelle boligvisualiseringer på få sekunder
-            </h1>
+            </p>
             <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "clamp(13px, 1.1vw, 15px)", lineHeight: 1.6, marginBottom: 22, fontFamily: SANS }}>
               Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
             </p>
@@ -676,7 +676,7 @@ function HeroStage() {
                   style={{ background: C.gold, color: C.navy, padding: "12px 24px", borderRadius: 7, fontSize: "clamp(13px, 1vw, 14px)", fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
                   onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
-                  data-testid="bolig-hero-cta"
+                  data-testid="bolig-hero-cta-mobile"
                 >
                   Kom i gang gratis <ArrowRight className="w-4 h-4" />
                 </button>
@@ -687,7 +687,7 @@ function HeroStage() {
                   style={{ background: "transparent", color: "#fff", padding: "12px 24px", borderRadius: 7, fontSize: "clamp(13px, 1vw, 14px)", fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                  data-testid="bolig-hero-cta-secondary"
+                  data-testid="bolig-hero-cta-secondary-mobile"
                 >
                   Se eksempler
                 </button>
