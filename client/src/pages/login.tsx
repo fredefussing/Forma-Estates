@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -63,14 +63,20 @@ export default function LoginPage() {
     setResetError("");
     setResetLoading(true);
     try {
-      await sendPasswordResetEmail(auth, resetEmail);
+      // Går via vores egen server, så hvert forsøg logges (fejlsøgning af
+      // "mailen kommer aldrig"-sager). Selve mailen sendes af Firebase.
+      const r = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim() }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.success) {
+        throw new Error(j.message || "Der skete en fejl. Prøv igen.");
+      }
       setResetSent(true);
     } catch (err: any) {
-      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-email") {
-        setResetError("Ingen konto fundet med denne email.");
-      } else {
-        setResetError("Der skete en fejl. Prøv igen.");
-      }
+      setResetError(err.message || "Der skete en fejl. Prøv igen.");
     } finally {
       setResetLoading(false);
     }
@@ -96,7 +102,10 @@ export default function LoginPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-sm text-muted-foreground">Vi har sendt et link til <strong>{resetEmail}</strong>. Tjek din indbakke (og spam-mappen).</p>
+              <p className="text-sm text-muted-foreground">Vi har sendt et link til <strong>{resetEmail}</strong>.</p>
+              <div className="text-left text-xs leading-relaxed rounded-lg p-3" style={{ background: "#FEF6EC", color: "#8A5A2B", border: "1px solid #F0DDC2" }} data-testid="text-reset-spam-hint">
+                <strong>Vigtigt:</strong> Mailen kommer fra <strong>noreply@nordic-homebuilding1.firebaseapp.com</strong> med emnet <em>"Reset your password"</em> — den lander ofte i <strong>spam/uønsket post</strong>. Søg evt. efter "nordic-homebuilding" i din mail.
+              </div>
               <button
                 onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
                 className="text-sm text-[#1a1a1a] underline"

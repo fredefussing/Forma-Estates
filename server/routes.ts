@@ -640,6 +640,62 @@ export async function registerRoutes(
   const hashVerificationCode = (code: string, userId: number) =>
     crypto.createHash("sha256").update(`${userId}:${code}`).digest("hex");
 
+  // "Glemt password" — kaldes fra login-siden i stedet for direkte fra klienten,
+  // så vi kan LOGGE hvert forsøg (findes brugeren i DB? svarede Firebase OK?).
+  // Selve mailen sendes stadig af Firebase/Google fra
+  // noreply@nordic-homebuilding1.firebaseapp.com — den lander ofte i spam.
+  const pwResetLast = new Map<string, number>();
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) {
+      return res.status(400).json({ success: false, message: "Ugyldig email-adresse" });
+    }
+    const now = Date.now();
+    if (now - (pwResetLast.get(email) || 0) < 60_000) {
+      log(`[PasswordReset] throttled (under 60s siden sidst): ${email}`);
+      return res.json({ success: true });
+    }
+    pwResetLast.set(email, now);
+    if (pwResetLast.size > 5000) pwResetLast.clear();
+    try {
+      const known = await storage.getUserByEmail(email);
+      const apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIRE_BASE_APIKEY || "";
+      if (!apiKey) {
+        log(`[PasswordReset] FEJL: ingen Firebase API-nøgle i miljøet`);
+        return res.status(500).json({ success: false, message: "Nulstilling er ikke tilgængelig lige nu" });
+      }
+      // spawn("curl") — Node fetch er intercepted i Replit-dev-miljøet.
+      const body = JSON.stringify({ requestType: "PASSWORD_RESET", email });
+      const out: string = await new Promise((resolve, reject) => {
+        const curl = spawn("curl", ["-s", "--max-time", "15", "-X", "POST", "-H", "Content-Type: application/json", "-d", body, `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`]);
+        let buf = "";
+        curl.stdout.on("data", (d) => (buf += d));
+        curl.on("close", (code) => (code === 0 ? resolve(buf) : reject(new Error(`curl exit ${code}`))));
+        curl.on("error", reject);
+      });
+      let fbOk = false;
+      let fbErr = "";
+      try {
+        const j = JSON.parse(out);
+        fbOk = !j.error && !!j.kind;
+        fbErr = j.error?.message || "";
+      } catch {
+        fbErr = "uparsebart svar fra Firebase";
+      }
+      // NB: Firebase har "email enumeration protection" slået til, så den
+      // svarer OK selv for ukendte emails (uden at sende noget). Loggen her
+      // viser om adressen overhovedet findes i vores egen database.
+      log(`[PasswordReset] email=${email} iVoresDB=${known ? `ja (bruger-id ${known.id})` : "NEJ — findes ikke i users-tabellen"} firebase=${fbOk ? "OK — mail afsendt af Google" : `FEJL: ${fbErr}`}`);
+      if (!fbOk) {
+        return res.status(500).json({ success: false, message: "Kunne ikke sende nulstillingsmail. Prøv igen om lidt." });
+      }
+      return res.json({ success: true });
+    } catch (err: any) {
+      log(`[PasswordReset] FEJL email=${email}: ${err.message}`);
+      return res.status(500).json({ success: false, message: "Kunne ikke sende nulstillingsmail. Prøv igen om lidt." });
+    }
+  });
+
   app.post("/api/auth/send-verification-code", async (req, res) => {
     let uid: string;
     try {
