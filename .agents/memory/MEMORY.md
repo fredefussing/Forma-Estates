@@ -21,3 +21,5 @@
 - [Render ephemeral uploads & R2](render-ephemeral-uploads.md) — prod disk wipes on deploy; /uploads needs R2 vars on Render + real 404s; Collov CDN blocks browser CORS, use the proxy (plain=1+token skips watermark).
 - [Bolig gallery image tables](bolig-image-tables.md) — gallery ids are generated_images rows; bolig_case_images is legacy (no writes) — use generatedImageId + getGeneratedImage + userId check.
 - [E2E customer testing](e2e-customer-testing.md) — test signups: flip users.email_verified in dev DB; ALWAYS verify tester "blocked/failed" claims against generated_images; trial gating differs per entry point.
+- [Dashboard banner overlay](dashboard-banner-overlay.md) — top-strip elements are covered by the -mt sibling's transparent padding: visible but unclickable; fix with relative z-10 on the element, never the wrapper.
+- [Prompt lock sync](prompt-lock-sync.md) — editing shared/structuralPrompt.ts requires tsx-syncing promptLock.json to byte-identical or ALL generations throw; restart server after.

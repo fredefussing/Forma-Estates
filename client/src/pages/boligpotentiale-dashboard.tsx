@@ -6620,6 +6620,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      window.dispatchEvent(new Event("quota:refresh"));
     } catch (err: any) {
       setError(err.message || "Noget gik galt. Prøv igen.");
       setStage("idle");
@@ -8232,6 +8233,11 @@ export default function BoligpotentialeDashboard() {
   const lockedTV = !isAdmin && quotaData != null && quotaData.quota.transformVideo.limit === 0;
   const lockedSV = !isAdmin && quotaData != null && quotaData.quota.showcase.limit === 0;
   const lockedFP = !isAdmin && quotaData != null && quotaData.quota.floorPlan.limit === 0;
+  // Første-gangs onboarding: gratis prøve, intet genereret endnu → guide brugeren
+  // direkte til de to genererings-indgange (Før/Efter + AI Design Agent).
+  const trialAi = quotaData?.quota.ai;
+  const trialAiLeft = trialAi && trialAi.limit !== null ? Math.max(0, trialAi.limit - trialAi.used) : 0;
+  const showOnboarding = !isAdmin && !!quotaData?.quota.isFreeTrial && !!trialAi && trialAi.limit !== null && trialAi.used === 0 && trialAiLeft > 0;
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
@@ -8633,6 +8639,15 @@ export default function BoligpotentialeDashboard() {
             >
               {item.icon}
               <span className="md:inline flex-1">{item.label}</span>
+              {item.id === "ai-design-agent" && showOnboarding && !isActive && (
+                <span
+                  className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
+                  style={{ background: "#C8956C", color: "white" }}
+                  data-testid="bolig-nav-design-agent-hint"
+                >
+                  <ArrowLeft className="w-3 h-3" /> Prøv gratis
+                </span>
+              )}
               {isLocked && <Lock className="w-3.5 h-3.5 opacity-50" />}
               {"badge" in item && item.badge != null && !isLocked && (
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.25)", color: "#86efac" }}>{item.badge}</span>
@@ -8814,7 +8829,7 @@ export default function BoligpotentialeDashboard() {
       </header>
 
       <div className="pt-20 md:pt-32 md:pl-56">
-        <PaywallBanner />
+        <PaywallBanner onGenerate={() => { setSection("upload"); setSidebarOpen(false); }} />
       </div>
 
       <div className="flex flex-1 -mt-20 md:-mt-32 pt-20 md:pt-32">
@@ -8857,6 +8872,62 @@ export default function BoligpotentialeDashboard() {
                 <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Godmorgen, {displayName.split(" ")[0]}</h1>
                 <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Her får du et hurtigt overblik over dine sager og visualiseringer.</p>
               </div>
+
+              {/* Første-gangs guide — vises indtil brugeren har genereret sit første billede */}
+              {showOnboarding && (
+                <div
+                  className="mb-6 rounded-2xl p-6 border"
+                  style={{ background: "linear-gradient(135deg, #0F1D2F 0%, #1B3050 100%)", borderColor: "rgba(200,149,108,0.35)" }}
+                  data-testid="bolig-onboarding"
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
+                    <span className="text-[11px] font-bold tracking-[0.16em] uppercase" style={{ color: "#C8956C" }}>Kom godt i gang</span>
+                  </div>
+                  <h2 className="text-lg font-semibold mb-1" style={{ color: "#F5F3EF" }}>Dit første billede er 2 klik væk</h2>
+                  <p className="text-sm mb-5" style={{ color: "rgba(245,243,239,0.65)" }}>
+                    Du har {trialAiLeft === 1 ? "1 gratis AI-visualisering" : `${trialAiLeft} gratis AI-visualiseringer`} — du behøver ikke oprette en sag først. Vælg her:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setSection("upload")}
+                      className="group text-left bg-white rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                      data-testid="bolig-onboarding-upload"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,108,0.12)" }}>
+                          <Upload className="w-5 h-5" style={{ color: "#C8956C" }} />
+                        </div>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Før/Efter billede</h3>
+                      </div>
+                      <p className="text-xs leading-relaxed mb-3" style={{ color: "#6B6B6B" }}>
+                        Upload et boligfoto — AI'en møblerer rummet om på ca. 15 sekunder.
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "#C8956C" }}>
+                        Generér her <ArrowRight className="w-3.5 h-3.5 animate-bounce-x-r" />
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setSection("ai-design-agent")}
+                      className="group text-left bg-white rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                      data-testid="bolig-onboarding-design-agent"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,108,0.12)" }}>
+                          <PenTool className="w-5 h-5" style={{ color: "#C8956C" }} />
+                        </div>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>AI Design Agent</h3>
+                      </div>
+                      <p className="text-xs leading-relaxed mb-3" style={{ color: "#6B6B6B" }}>
+                        Beskriv dine ønsker med ord — fx »nyt sort tag og nypudset hvid facade«.
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "#C8956C" }}>
+                        Prøv Design Agent <ArrowRight className="w-3.5 h-3.5 animate-bounce-x-r" />
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Statistik — 6 kort */}
               <div className="mb-6" data-testid="bolig-stats">

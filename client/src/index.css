@@ -249,3 +249,15 @@
 }
 
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Onboarding-guide: horisontal "peger"-animation (pil der nudger mod målet) */
+@keyframes bounce-x {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-5px); }
+}
+.animate-bounce-x { animation: bounce-x 1.2s ease-in-out infinite; }
+@keyframes bounce-x-r {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+.animate-bounce-x-r { animation: bounce-x-r 1.2s ease-in-out infinite; }

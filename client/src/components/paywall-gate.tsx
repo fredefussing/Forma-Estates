@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lock, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuotaData } from "@/components/quota-widget";
@@ -142,9 +142,10 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
   );
 }
 
-export function PaywallBanner() {
+export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
   const isSubscribed = useIsSubscribed();
   const { user, loading, creditsRemaining } = useAuth();
+  const quotaData = useQuotaData();
   const [, setLocation] = useLocation();
 
   if (isSubscribed) return null;
@@ -153,16 +154,62 @@ export function PaywallBanner() {
   // konto" flash + layout jump on every dashboard load.
   if (loading || !user || creditsRemaining === null) return null;
 
+  const q = quotaData?.quota;
+  const isFreeTrial = !!q?.isFreeTrial && !quotaData?.isAdmin;
+  const aiLeft = q && q.ai.limit !== null ? Math.max(0, q.ai.limit - q.ai.used) : null;
+
+  // Free trial with generations left: encourage trying — don't claim everything is locked.
+  if (isFreeTrial && aiLeft !== null && aiLeft > 0) {
+    return (
+      <div
+        className="relative z-10 w-full flex items-center justify-between gap-4 px-5 py-2.5 text-sm"
+        style={{ background: "#0F1D2F", borderBottom: "1px solid rgba(200,149,108,0.25)" }}
+        data-testid="paywall-banner"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: "#C8956C" }} />
+          <span className="truncate" style={{ color: "rgba(245,243,239,0.85)", fontSize: "0.8rem" }}>
+            <span className="font-semibold" style={{ color: "#C8956C" }}>Gratis prøve:</span>{" "}
+            {aiLeft === 1 ? "1 AI-visualisering tilbage" : `${aiLeft} AI-visualiseringer tilbage`} — prøv Før/Efter eller AI Design Agent uden abonnement
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => (onGenerate ? onGenerate() : setLocation("/boligpotentiale/dashboard"))}
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
+            style={{ background: "#C8956C", color: "white" }}
+            data-testid="button-banner-generate"
+          >
+            Generér nu
+          </button>
+          <button
+            onClick={() => setLocation("/boligpotentiale#pricing")}
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors hover:bg-[rgba(245,243,239,0.08)]"
+            style={{ color: "rgba(245,243,239,0.75)", borderColor: "rgba(245,243,239,0.25)" }}
+            data-testid="button-upgrade"
+          >
+            Opgrader
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Free trial used up: honest state + upgrade path.
+  const bannerText = isFreeTrial && aiLeft === 0
+    ? "Din gratis prøve er brugt op — opgradér for at fortsætte med alle AI-værktøjer"
+    : "Du er på en gratis konto — alle funktioner kræver et aktivt abonnement";
+
   return (
     <div
-      className="w-full flex items-center justify-between gap-4 px-5 py-2.5 text-sm"
+      className="relative z-10 w-full flex items-center justify-between gap-4 px-5 py-2.5 text-sm"
       style={{ background: "#0F1D2F", borderBottom: "1px solid rgba(200,149,108,0.25)" }}
       data-testid="paywall-banner"
     >
       <div className="flex items-center gap-2.5">
         <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: "#C8956C" }} />
         <span style={{ color: "rgba(245,243,239,0.78)", fontSize: "0.8rem" }}>
-          Du er på en gratis konto — alle funktioner kræver et aktivt abonnement
+          {bannerText}
         </span>
       </div>
       <button

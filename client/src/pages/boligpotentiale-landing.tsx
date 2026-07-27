@@ -1549,7 +1549,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: "Bolig Showcase",
                 title: "Vis potentialet",
                 desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
-                media: { kind: "video" as const, src: "/videos/bolig-showcase-tile.mp4" },
+                media: { kind: "video" as const, src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg" },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];
@@ -1566,6 +1566,7 @@ export default function BoligpotentialeLanding() {
                   {t.media.kind === "video" ? (
                     <video
                       src={t.media.src}
+                      poster={t.media.poster}
                       autoPlay
                       muted
                       loop

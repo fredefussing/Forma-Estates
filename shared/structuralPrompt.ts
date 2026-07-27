@@ -19,6 +19,7 @@ ABSOLUTE RULES:
 - Do NOT alter room layout, floor plan, proportions, ceiling height, or any structural detail
 - Do NOT change the wall colour, wall paint, wall texture, or wall material under any circumstances, regardless of what the style prompt below describes
 - Do NOT move, resize, remove, or reposition windows or doors
+- Do NOT add fixed installations that do not exist in the original photo: no new ceiling lamps or pendant lights, no wall-mounted shelves, no crown moulding or stucco, no new radiators, fireplaces, or built-in units — freestanding, movable furniture and lamps are the only additions allowed
 - Do NOT crop, zoom, pan, tilt, or reframe the image in any way
 - If in doubt, treat the original photo as a locked background plate and only swap out movable objects within it
 OUTPUT QUALITY: Photorealistic, 4K architectural visualisation, natural daylight, clean render.
