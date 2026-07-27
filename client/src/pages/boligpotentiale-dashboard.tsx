@@ -3480,12 +3480,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             <div className="text-xs leading-relaxed" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>1 før + 1 efter · statisk kamera · rummet ombygger sig på stedet</div>
           </button>
         </div>
-        {videoMode === "morph" && (
-          <button type="button" onClick={(e) => { e.stopPropagation(); setShowTransformEksempel(true); }} className="inline-flex items-center gap-1.5 text-xs font-semibold mt-4 px-3 py-1.5 rounded-full transition-all hover:bg-[#C8956C]/10" style={{ color: "#C8956C", background: "rgba(200,149,108,0.05)" }} data-testid="button-transform-eksempel">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
-            Se eksempel
-          </button>
-        )}
       </div>
 
       {/* ── Forvandlingsfilm UI ── */}
@@ -3609,16 +3603,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       {/* ── Morph (Forvandling) UI ── */}
       {videoMode === "morph" && (
         <>
-          <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
-            <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div><p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Før-billede</p><img src="/bolig-images/living-scandi-before.jpg" alt="Før eksempel" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1/1" }} /></div>
-              <div><p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter-billede</p><img src="/bolig-images/living-scandi-after.jpg" alt="Efter eksempel" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1/1" }} /></div>
-            </div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Eksempel video</p>
-            <video src="/eksempel-transformering.mp4" autoPlay muted loop playsInline className="w-full h-auto rounded-xl" style={{ aspectRatio: "1764/1172", background: "#0F1D2F" }} />
-          </div>
-
           <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {renderMorphDrop("before", beforePreview, "Før-billede")}
