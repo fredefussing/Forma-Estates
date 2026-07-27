@@ -18,3 +18,9 @@ The before→after video product runs on fal endpoint `bytedance/seedance-2.0/im
 - UI: result `<video>` elements need `maxHeight` + `objectFit: contain` so an unexpected portrait video can never blow up the layout.
 
 Historical: the product previously ran on Kling v1.6/pro, which had discriminated-union input modes (`image_url`+`tail_image_url` vs `start_image_url`+`end_image_url`, 422 at worker if mixed). Irrelevant unless Kling is reintroduced.
+
+## Params verified live (2026-07-27)
+- `resolution` defaults to **720p** — must set explicitly; enum 480p/720p/1080p/4k. `bitrate_mode: "high"` gives ~27 Mbps encode. `duration` enum "4"–"15" or "auto".
+- aspect_ratio "auto" + 1080p: output keeps input AR at ~2.07M px budget (1264x843 in → 1664x1248 out).
+- 8s @ 1080p high bitrate took ~4.5 min to generate (5s @ 720p was 2-4 min). File ~27 MB.
+- Morph prompt learnings: prompt must EXPLICITLY say static/locked-off camera (code comments don't reach the model); avoid "golden daylight"-style grading (color-drifts away from end image); demand constant WB/exposure and "final frame matches the provided end image exactly".

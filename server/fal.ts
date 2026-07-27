@@ -443,7 +443,7 @@ export async function generate360Panorama(
 // fornyer sig plank for plank, gamle møbler opløses og nye møbler
 // folder/vokser frem til den endelige indretning. God til præsentationer
 // hvor mægleren vil bevise "før→efter" konkret.
-const TRANSFORM_VIDEO_MORPH_PROMPT = `A cinematic room renovation. The scene transforms smoothly from the original interior to the beautifully renovated interior. All architectural structure remains completely fixed and untouched — walls, windows, doors, flooring layout, ceiling, and room geometry never move or warp. Only the interior styling, furniture, materials, and decor change. Each element transforms in a natural, believable sequence one after another — cabinetry and storage units first, then surfaces and countertops, then lighting fixtures, then seating and tables, then textiles and decor last. Nothing appears magically or spawns from nowhere — each change is a smooth, organic morph. Warm golden daylight floods through the windows, soft natural shadows, cozy inviting atmosphere. Ultra-smooth slow motion throughout, no abrupt jumps, no warping, no stretching, no deformation of any element. Photorealistic architectural visualization quality, 1080p, cinematic.`;
+const TRANSFORM_VIDEO_MORPH_PROMPT = `A cinematic room renovation filmed from a completely static, locked-off tripod. The camera never moves — no zoom, no push-in, no pan, no drift, no rotation for the entire video. The scene transforms smoothly from the original interior to the beautifully renovated interior. All architectural structure remains completely fixed and untouched — walls, windows, doors, flooring layout, ceiling, and room geometry never move or warp. Only the interior styling, furniture, materials, and decor change. Each element transforms in a natural, believable sequence one after another — cabinetry and storage units first, then surfaces and countertops, then lighting fixtures, then seating and tables, then textiles and decor last. Nothing appears magically or spawns from nowhere — each change is a smooth, organic morph. Lighting stays completely true to the photographs: constant white balance, constant exposure, no flicker, no color shifts, soft natural shadows. No people, no hands, no text, no captions, no logos, no watermarks. Ultra-smooth motion throughout, no abrupt jumps, no warping, no stretching, no deformation of any element. The final frame matches the provided end image exactly. Photorealistic architectural visualization quality.`;
 
 // "Cinematisk gennemgang": Prompt 2 — Professionel Walkthrough Video (Seedance 2.0).
 // Kameraet bevæger sig jævnt igennem boligen, rum for rum, som en high-end
@@ -505,7 +505,11 @@ function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: Vi
   const base = {
     image_url: beforeImageUrl,
     end_image_url: afterImageUrl,
-    duration: "5" as const,
+    // 8 sek + 1080p + high bitrate: roligere morph, skarpere billede og
+    // færre komprimeringsartefakter end de gamle 5 sek @ 720p (standard).
+    duration: "8" as const,
+    resolution: "1080p" as const,
+    bitrate_mode: "high" as const,
     generate_audio: false,
   };
   if (mode === "cinematic") {
