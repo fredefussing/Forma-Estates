@@ -5135,14 +5135,19 @@ BoligPotentiale er altså et andet ord for det professionelle dashboard i Forma 
 - Download og del direkte
 
 ### 7. Bolig Showcase Video
-- Kombiner billeder og AI-designs i en professionel præsentationsvideo
+- Kombiner billeder og AI-designs i en professionel præsentationsvideo (med valgfri baggrundsmusik)
 - Ideel til sociale medier og boligannoncer
 
-### 8. Furniture Detector
+### 8. Transformering Video (forvandlingsvideo)
+- Upload et før-foto → få en kort video hvor rummet eller facaden glidende forvandles til det nye design
+- Perfekt til reels, annoncer og at vise en boligs potentiale
+- Kræver abonnement (indgår i alle pakker)
+
+### 9. Furniture Detector
 - Klikbare zoner på det genererede billede
 - Finder lignende produkter til køb
 
-### 9. Stil Quiz ("Find din stil")
+### 10. Stil Quiz ("Find din stil")
 - Interaktiv quiz der guider til den rigtige designstil
 - Tilgængelig via /find-stil
 
@@ -5155,7 +5160,7 @@ BoligPotentiale er altså et andet ord for det professionelle dashboard i Forma 
 | **Business** | 11.999 kr/md | 60/md | 12/md | 12/md | 8/md |
 | **Enterprise** | Kontakt os | Ubegrænset | Ubegrænset | Ubegrænset | Ubegrænset |
 
-Pro og Business inkluderer 4K download og fuld branding-kontrol.
+Pro og Business inkluderer 4K download, PDF-eksport og fuld branding-kontrol. Start inkluderer logo-branding (til/fra).
 Alle pakker inkluderer HD 1080p download og JPG + PNG eksport.
 
 Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkte her på platformen via /pris siden.
@@ -5165,6 +5170,7 @@ Pris per enkelt billede: 1 kredit = 1 genereret billede. Kreditter købes direkt
 - Ved oprettelse skal emailen bekræftes med en 6-cifret aktiveringskode, som sendes til brugerens email (gyldig i 15 minutter — tjek evt. spam-mappen, og brug "Send ny kode" hvis den ikke kommer)
 - Efter bekræftelse starter alle nye brugere med en gratis prøve: 2 gratis AI-visualiseringer (før/efter), så platformen kan prøves af med det samme
 - Den gratis prøve inkluderer AI-visualisering og AI Design Agent — 3D-plantegninger, videoer og showcases kræver et abonnement
+- Nye brugere guides direkte fra dashboardet: et "Kom godt i gang"-kort øverst giver ét-kliks adgang til Før/Efter billede og AI Design Agent — man behøver IKKE oprette en sag først for at generere sit første billede
 
 ## Kreditsystem
 - Nye brugere får gratis startbilleder (kreditter) ved oprettelse af konto

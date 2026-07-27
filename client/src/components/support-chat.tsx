@@ -31,7 +31,7 @@ export function SupportChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hej! Jeg er Formas AI-assistent. Jeg kender platformen ind og ud – spørg mig om alt fra designstile og priser til tekniske spørgsmål. Hvordan kan jeg hjælpe?",
+      content: "Hej! Jeg er Forma Estates' AI-chatbot — er der noget vi kan hjælpe med? Spørg mig fx om priser, designstile eller hvordan du kommer i gang.",
     },
   ]);
   const [input, setInput] = useState("");
