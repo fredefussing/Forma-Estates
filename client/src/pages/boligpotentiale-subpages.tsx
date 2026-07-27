@@ -947,6 +947,30 @@ export function AIDesignAgentPage() {
           testId="agent-pair-0"
         />
       </div>
+      <div className="grid lg:grid-cols-2 gap-7 items-center mt-10">
+        <BeforeAfterPair
+          before="/bolig-images/ai-agent-townhouse-before.jpg"
+          after="/bolig-images/ai-agent-townhouse-after.png"
+          title="“Giv billedet farver, sommer og liv”"
+          desc="Fra gråt vinterfoto til indbydende sommerdag — med ét enkelt promptkrav."
+          testId="agent-pair-1"
+        />
+        <div
+          className="flex flex-col"
+          style={{ background: C.white, borderRadius: 16, padding: "32px 28px", border: `1px solid ${C.border}`, boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+          data-testid="agent-prompt-card-2"
+        >
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Din prompt
+          </div>
+          <div
+            style={{ background: C.warm, border: `1px solid ${C.border}`, borderRadius: 8, padding: "18px", minHeight: 130, color: C.navy, fontSize: 15, lineHeight: 1.6, fontFamily: SANS }}
+            data-testid="agent-prompt-example-2"
+          >
+            "Gør billedet til en solrig sommerdag med blå himmel. Giv træerne grønne blade, tilføj blomster og hejste flag, og gør hele stemningen varm og indbydende. Bevar husets arkitektur og detaljer."
+          </div>
+        </div>
+      </div>
       <BenefitRow
         items={[
           { title: "Frit sprog", desc: "Beskriv ændringen som du ville beskrive den til en designer." },
