@@ -3165,6 +3165,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   // ── Forvandlingsfilm state ──────────────────────────────────────────────────
   const [tfCandidates, setTfCandidates] = useState<FilmCandidate[] | null>(null);
   const [tfSelected, setTfSelected] = useState<number[]>([]);
+  const [tfShowAll, setTfShowAll] = useState(false);
   const [wtAddress, setWtAddress] = useState("");
   const [wtVideoUrls, setWtVideoUrls] = useState<Record<string, string> | null>(null);
   const [wtCleanVideoUrls, setWtCleanVideoUrls] = useState<Record<string, string> | null>(null);
@@ -3500,27 +3501,45 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen designs med før- og efter-billede endnu</p>
                 <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>Lav først et AI-design under "Nyt design" — så dukker det op her og kan blive et rum i din forvandlingsfilm.</p>
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {tfCandidates.map((cand) => {
-                    const order = tfSelected.indexOf(cand.id);
-                    const selected = order >= 0;
-                    return (
-                      <button type="button" key={cand.id} onClick={() => tfToggle(cand.id)} disabled={wtGenerating} className="relative text-left rounded-xl overflow-hidden border-2 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: selected ? "#C8956C" : "#E8E4DE", boxShadow: selected ? "0 4px 14px rgba(200,149,108,0.25)" : "none" }} data-testid={`button-film-candidate-${cand.id}`}>
-                        <div className="relative">
-                          <img src={cand.after} alt={cand.roomType || "Design"} className="w-full object-cover" style={{ aspectRatio: "4/3" }} loading="lazy" />
-                          <img src={cand.before} alt="Før" className="absolute bottom-2 left-2 w-12 h-12 object-cover rounded-md border-2 border-white shadow-md" loading="lazy" />
-                          {selected && <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md" style={{ background: "#C8956C" }}>{order + 1}</div>}
-                        </div>
-                        <div className="px-2.5 py-1.5 bg-white text-[11px] font-medium truncate" style={{ color: "#6B6B6B" }}>{cand.roomType || cand.style || "Design"}</div>
+            ) : (() => {
+              const PREVIEW_COUNT = 6;
+              // Vis altid allerede-valgte kort, selv hvis de ville ligge over grænsen.
+              const visible = tfShowAll
+                ? tfCandidates
+                : tfCandidates.filter((c, i) => i < PREVIEW_COUNT || tfSelected.includes(c.id));
+              const hiddenCount = tfCandidates.length - visible.length;
+              return (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {visible.map((cand) => {
+                      const order = tfSelected.indexOf(cand.id);
+                      const selected = order >= 0;
+                      return (
+                        <button type="button" key={cand.id} onClick={() => tfToggle(cand.id)} disabled={wtGenerating} className="relative text-left rounded-xl overflow-hidden border-2 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: selected ? "#C8956C" : "#E8E4DE", boxShadow: selected ? "0 4px 14px rgba(200,149,108,0.25)" : "none" }} data-testid={`button-film-candidate-${cand.id}`}>
+                          <div className="relative">
+                            <img src={cand.after} alt={cand.roomType || "Design"} className="w-full object-cover" style={{ aspectRatio: "4/3" }} loading="lazy" />
+                            <img src={cand.before} alt="Før" className="absolute bottom-2 left-2 w-12 h-12 object-cover rounded-md border-2 border-white shadow-md" loading="lazy" />
+                            {selected && <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md" style={{ background: "#C8956C" }}>{order + 1}</div>}
+                          </div>
+                          <div className="px-2.5 py-1.5 bg-white text-[11px] font-medium truncate" style={{ color: "#6B6B6B" }}>{cand.roomType || cand.style || "Design"}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between mt-2.5">
+                    <p className="text-[11px]" style={{ color: "#9B9690" }}>Klik for at vælge 2–8 rum · rækkefølgen du klikker i, bliver filmens rækkefølge. Det lille billede er "før".</p>
+                    {tfCandidates.length > PREVIEW_COUNT && (
+                      <button type="button" onClick={() => setTfShowAll((v) => !v)} className="shrink-0 ml-4 text-[11px] font-semibold underline underline-offset-2 transition-opacity hover:opacity-70" style={{ color: "#C8956C" }} data-testid="button-film-show-all">
+                        {tfShowAll ? "Skjul" : `Se alle ${tfCandidates.length} generationer`}
                       </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] mt-2.5" style={{ color: "#9B9690" }}>Klik for at vælge 2–8 rum — rækkefølgen du klikker i, bliver filmens rækkefølge. Det lille billede i hjørnet er "før".</p>
-              </>
-            )}
+                    )}
+                  </div>
+                  {!tfShowAll && hiddenCount > 0 && (
+                    <p className="text-[11px]" style={{ color: "#9B9690" }}>Viser de 6 nyeste · {hiddenCount} ældre skjult</p>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           <div>
