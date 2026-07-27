@@ -7464,7 +7464,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               Du kan invitere kolleger nu via invite-koden herunder. Når du køber et abonnement låses alle team-funktioner op for dig og alle der bruger dit invite-link — delte sager, statistik og credit-styring.
             </p>
             <button
-              onClick={() => window.location.href = "/pris"}
+              onClick={() => window.location.href = "/boligpotentiale#pricing"}
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90"
               style={{ background: "#C8956C" }}
               data-testid="team-upgrade-cta">
@@ -8240,15 +8240,16 @@ export default function BoligpotentialeDashboard() {
   const [section, setSection] = useState<Section>("dashboard");
   const [modal, setModal] = useState<Modal>(null);
   const [planCheckoutLoading, setPlanCheckoutLoading] = useState<string | null>(null);
+  const [planBilling, setPlanBilling] = useState<"monthly" | "yearly">("monthly");
 
-  const DASH_PLAN_PRICE_IDS: Record<string, string> = {
-    Start:    "price_1Tl2kVKDpJP0jg0e2UqApR5B",
-    Pro:      "price_1Tl2nYKDpJP0jg0eMbTJQ2jx",
-    Business: "price_1Tl2pZKDpJP0jg0etHHBwE52",
+  const DASH_PLAN_PRICE_IDS: Record<string, { monthly: string; yearly: string }> = {
+    Start:    { monthly: "price_1Tl2kVKDpJP0jg0e2UqApR5B", yearly: "price_1Tl2rVKDpJP0jg0erJ0x7FZs" },
+    Pro:      { monthly: "price_1Tl2nYKDpJP0jg0eMbTJQ2jx", yearly: "price_1Tl2soKDpJP0jg0eREm8LuB4" },
+    Business: { monthly: "price_1Tl2pZKDpJP0jg0etHHBwE52", yearly: "price_1Tl2uiKDpJP0jg0eAXRwj3Al" },
   };
 
   const startPlanCheckout = async (planName: string) => {
-    const priceId = DASH_PLAN_PRICE_IDS[planName];
+    const priceId = DASH_PLAN_PRICE_IDS[planName]?.[planBilling];
     if (!priceId) return;
     setPlanCheckoutLoading(planName);
     try {
@@ -9397,15 +9398,38 @@ export default function BoligpotentialeDashboard() {
 
           {section === "pris" && (
             <motion.div key="pris-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <div className="mb-8">
+              <div className="mb-6">
                 <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Pris</h2>
                 <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov.</p>
+              </div>
+              <div className="inline-flex items-center rounded-full border p-1 gap-1 mb-6" style={{ borderColor: "#E5E2DC", background: "#F8F6F3" }} data-testid="settings-billing-toggle">
+                <button
+                  onClick={() => setPlanBilling("monthly")}
+                  className="px-5 py-1.5 rounded-full text-sm font-medium transition-all"
+                  style={{ background: planBilling === "monthly" ? "#0F1D2F" : "transparent", color: planBilling === "monthly" ? "#fff" : "#6B6B6B" }}
+                  data-testid="settings-billing-monthly"
+                >
+                  Månedlig
+                </button>
+                <button
+                  onClick={() => setPlanBilling("yearly")}
+                  className="px-5 py-1.5 rounded-full text-sm font-medium transition-all inline-flex items-center gap-2"
+                  style={{ background: planBilling === "yearly" ? "#0F1D2F" : "transparent", color: planBilling === "yearly" ? "#fff" : "#6B6B6B" }}
+                  data-testid="settings-billing-yearly"
+                >
+                  Årlig
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: planBilling === "yearly" ? "rgba(200,149,108,0.35)" : "rgba(200,149,108,0.15)", color: "#C8956C" }}>
+                    Spar 20%
+                  </span>
+                </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5" data-testid="settings-pricing-grid">
                 {[
                   {
                     name: "Start",
                     price: "2.999",
+                    priceYearly: "2.399",
+                    yearlyTotal: "28.788",
                     period: "kr./ måned",
                     desc: "Til dig der vil i gang med professionelle AI-visualiseringer.",
                     features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
@@ -9416,6 +9440,8 @@ export default function BoligpotentialeDashboard() {
                   {
                     name: "Pro",
                     price: "5.999",
+                    priceYearly: "4.799",
+                    yearlyTotal: "57.588",
                     period: "kr./ måned",
                     desc: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
                     features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
@@ -9426,6 +9452,8 @@ export default function BoligpotentialeDashboard() {
                   {
                     name: "Business",
                     price: "11.999",
+                    priceYearly: "9.599",
+                    yearlyTotal: "115.188",
                     period: "kr./ måned",
                     desc: "Til bureauer og mæglerkæder med høj volumen.",
                     features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
@@ -9449,12 +9477,17 @@ export default function BoligpotentialeDashboard() {
                       </div>
                     )}
                     <div className="font-bold text-base mb-1" style={{ color: plan.highlight ? "#C8956C" : "#6B6B6B" }}>{plan.name}</div>
-                    <div className="flex items-end gap-1 mb-3">
-                      <span className="text-4xl font-bold" style={{ color: plan.highlight ? "#fff" : "#0F1D2F" }}>{plan.price}</span>
+                    <div className="flex items-end gap-1 mb-1">
+                      <span className="text-4xl font-bold" style={{ color: plan.highlight ? "#fff" : "#0F1D2F" }}>
+                        {planBilling === "yearly" ? plan.priceYearly : plan.price}
+                      </span>
                       <span className="text-sm mb-1" style={{ color: plan.highlight ? "rgba(255,255,255,0.6)" : "#6B6B6B" }}>
                         {plan.custom ? plan.period : `kr.${plan.period.replace(/^kr\./, "")}`}
                       </span>
                     </div>
+                    <p className="text-xs mb-3" style={{ color: plan.highlight ? "rgba(255,255,255,0.55)" : "#9B9690", minHeight: 16 }}>
+                      {planBilling === "yearly" ? `faktureres ${plan.yearlyTotal} kr. årligt` : "\u00A0"}
+                    </p>
                     <p className="text-sm mb-6 leading-relaxed" style={{ color: plan.highlight ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{plan.desc}</p>
                     <ul className="space-y-2.5 mb-7 flex-1">
                       {plan.features.map((f) => (

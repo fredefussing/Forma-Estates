@@ -1109,10 +1109,10 @@ function H2({ children, light = false, style }: { children: React.ReactNode; lig
   );
 }
 
-const PLAN_PRICE_IDS: Record<string, string> = {
-  Start:    "price_1Tl2kVKDpJP0jg0e2UqApR5B",
-  Pro:      "price_1Tl2nYKDpJP0jg0eMbTJQ2jx",
-  Business: "price_1Tl2pZKDpJP0jg0etHHBwE52",
+const PLAN_PRICE_IDS: Record<string, { monthly: string; yearly: string }> = {
+  Start:    { monthly: "price_1Tl2kVKDpJP0jg0e2UqApR5B", yearly: "price_1Tl2rVKDpJP0jg0erJ0x7FZs" },
+  Pro:      { monthly: "price_1Tl2nYKDpJP0jg0eMbTJQ2jx", yearly: "price_1Tl2soKDpJP0jg0eREm8LuB4" },
+  Business: { monthly: "price_1Tl2pZKDpJP0jg0etHHBwE52", yearly: "price_1Tl2uiKDpJP0jg0eAXRwj3Al" },
 };
 
 function TileWiper({ before, after, labels = ["FØR", "EFTER"] }: { before: string; after: string; labels?: [string, string] }) {
@@ -1175,7 +1175,7 @@ export default function BoligpotentialeLanding() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   const startCheckout = async (planName: string) => {
-    const priceId = PLAN_PRICE_IDS[planName];
+    const priceId = PLAN_PRICE_IDS[planName]?.[billing];
     if (!priceId) return;
     setCheckoutLoading(planName);
     try {
@@ -1199,6 +1199,29 @@ export default function BoligpotentialeLanding() {
     onScroll();
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // SPA-navigation (pushState) udløser ikke browserens indbyggede anker-scroll,
+  // så "Opgrader"-knapper der peger på /boligpotentiale#pricing landede bare i
+  // toppen af forsiden. Scroll manuelt til hash'en når siden mounter (med
+  // retries indtil sektionen er renderet) og ved efterfølgende hash-skift.
+  useEffect(() => {
+    let cancelled = false;
+    const scrollToHash = () => {
+      const id = window.location.hash.replace("#", "");
+      if (!id) return;
+      let attempts = 0;
+      const tryScroll = () => {
+        if (cancelled) return;
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        else if (attempts++ < 30) setTimeout(tryScroll, 100);
+      };
+      tryScroll();
+    };
+    scrollToHash();
+    window.addEventListener("hashchange", scrollToHash);
+    return () => { cancelled = true; window.removeEventListener("hashchange", scrollToHash); };
   }, []);
 
   const formatPrice = (monthly: number | null) => {
@@ -1902,6 +1925,11 @@ export default function BoligpotentialeLanding() {
                             kr./{billing === "monthly" ? "md." : "md., årligt"}
                           </span>
                         </div>
+                        {billing === "yearly" && plan.monthly !== null && (
+                          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 4 }}>
+                            faktureres {(Math.round(plan.monthly * 0.8) * 12).toLocaleString("da-DK")} kr. årligt
+                          </div>
+                        )}
                       </>
                     ) : (
                       <span style={{ fontFamily: SERIF, fontWeight: 500, color: C.white, fontSize: 40, lineHeight: 1 }}>Custom</span>

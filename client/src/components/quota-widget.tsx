@@ -212,7 +212,7 @@ export function QuotaWidget() {
             Du er på en gratis prøve med {quota.ai.limit ?? 2} AI-visualiseringer. Opgradér for at låse 3D-plantegninger, videoer og mere op.
           </p>
           <a
-            href="/pris"
+            href="/boligpotentiale#pricing"
             data-testid="link-upgrade-quota"
             className="inline-flex items-center justify-center gap-1.5 w-full px-4 py-2 rounded-full text-xs font-semibold text-white transition-all hover:opacity-90"
             style={{ background: "#C8956C" }}
@@ -296,7 +296,7 @@ export function QuotaGate({
         <p className="text-xs text-amber-700 mt-1">{subtitle}</p>
       </div>
       <a
-        href="/pris"
+        href="/boligpotentiale#pricing"
         data-testid={`button-upgrade-${feature}`}
         className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
         style={{ background: "#C8956C" }}
