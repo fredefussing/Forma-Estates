@@ -1549,12 +1549,11 @@ export default function BoligpotentialeLanding() {
                 eyebrow: "Bolig Showcase",
                 title: "Vis potentialet",
                 desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
-                media: { kind: "video" as const, src: "/videos/bolig-showcase-v1.mp4", vertical: true },
+                media: { kind: "video" as const, src: "/videos/bolig-showcase-tile.mp4" },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];
             const renderTile = (t: typeof tiles[0]) => {
-              const isVerticalVideo = t.media.kind === "video" && (t.media as { kind: "video"; src: string; vertical?: boolean }).vertical;
               return (
               <Link
                 key={t.eyebrow}
@@ -1564,19 +1563,7 @@ export default function BoligpotentialeLanding() {
                 data-testid={`bolig-why-tile-${t.eyebrow}`}
               >
                 <div className="relative overflow-hidden" style={{ aspectRatio: "4 / 3" }}>
-                  {t.media.kind === "video" && isVerticalVideo ? (
-                    <>
-                      <video src={t.media.src} autoPlay muted loop playsInline
-                        poster="/bolig-images/living-modern-after.jpg"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                        style={{ objectPosition: "center center" }} />
-                      <div className="absolute top-4 right-4 flex items-center gap-1.5 pointer-events-none"
-                        style={{ background: "rgba(15,25,35,0.72)", color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", padding: "5px 10px", borderRadius: 4 }}>
-                        <svg width="9" height="14" viewBox="0 0 9 14" fill="none"><rect x="0.5" y="0.5" width="8" height="13" rx="1.5" stroke="white" strokeWidth="1"/><rect x="2.5" y="11" width="4" height="1" rx="0.5" fill="white"/></svg>
-                        LODRET VIDEO
-                      </div>
-                    </>
-                  ) : t.media.kind === "video" ? (
+                  {t.media.kind === "video" ? (
                     <video
                       src={t.media.src}
                       autoPlay

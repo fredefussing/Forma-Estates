@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Link } from "wouter";
-import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -745,36 +745,41 @@ export function OmOsPage() {
 
 
 export function BoligShowcasePage() {
-  usePageTitle("Bolig-showcase", "Se eksempler på komplette AI-producerede bolig-showcases med billeder og video fra Forma Estates.");
-  const showcaseVideoRef = useRef<HTMLVideoElement>(null);
+  usePageTitle("Bolig-showcase", "Se eksempler på komplette AI-producerede bolig-showcases med video fra Forma Estates.");
+  const wideVideoRef = useRef<HTMLVideoElement>(null);
+  const verticalVideoRef = useRef<HTMLVideoElement>(null);
+  // Hvilken video afspiller musik lige nu (autoplay kræver muted start).
+  const [musicOn, setMusicOn] = useState<null | "wide" | "vertical">(null);
   useEffect(() => {
-    const v = showcaseVideoRef.current;
-    if (!v) return;
-    v.muted = true;
-    v.play().catch(() => {});
+    for (const v of [wideVideoRef.current, verticalVideoRef.current]) {
+      if (!v) continue;
+      v.muted = true;
+      v.play().catch(() => {});
+    }
   }, []);
-  const examples = [
-    {
-      src: "/bolig-images/living-scandi-after.jpg",
-      title: "Stue — skandinavisk",
-      desc: "Lyst egetræ, uldtæppe og stearinlys gør det tomt rum til et hjem køber kan se sig selv i.",
-    },
-    {
-      src: "/bolig-images/living-modern-after.jpg",
-      title: "Stue — moderne",
-      desc: "Rene linjer og mørke accenter fremhæver rummets arkitektur og størrelse.",
-    },
-    {
-      src: "/bolig-images/kitchen-after.jpg",
-      title: "Køkken — landlig",
-      desc: "Træfronter og naturligt lys giver køkkenet liv og varme.",
-    },
-    {
-      src: "/bolig-images/demo-bathroom-after-clean.png",
-      title: "Badeværelse — japandi",
-      desc: "Sten, træ og dæmpet palet skaber ro og balance.",
-    },
-  ];
+  const toggleMusic = (which: "wide" | "vertical") => {
+    const next = musicOn === which ? null : which;
+    const wide = wideVideoRef.current;
+    const vert = verticalVideoRef.current;
+    if (wide) wide.muted = next !== "wide";
+    if (vert) vert.muted = next !== "vertical";
+    const active = next === "wide" ? wide : next === "vertical" ? vert : null;
+    active?.play().catch(() => {});
+    setMusicOn(next);
+  };
+  const musicButton = (which: "wide" | "vertical") => (
+    <button
+      onClick={() => toggleMusic(which)}
+      aria-pressed={musicOn === which}
+      aria-label={musicOn === which ? "Slå musik fra" : "Slå musik til"}
+      className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 transition-opacity hover:opacity-90"
+      style={{ background: "rgba(15,25,35,0.78)", color: "#fff", fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", padding: "7px 12px", borderRadius: 999 }}
+      data-testid={`button-music-${which}`}
+    >
+      {musicOn === which ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+      {musicOn === which ? "Slå musik fra" : "Slå musik til"}
+    </button>
+  );
 
   return (
     <SubpageLayout
@@ -782,20 +787,49 @@ export function BoligShowcasePage() {
       title="Vis boligens fulde potentiale"
       intro="Præsentér alle rum i deres bedste lys med professionelle AI-visualiseringer — klar til annoncen, sociale medier og fremvisning. Vi dækker hele boligen på én gang."
     >
-      {/* Featured vertical video */}
+      {/* Featured showcase-video i bredformat */}
       <div className="flex flex-col items-center mb-14" data-testid="showcase-featured-video">
         <div className="uppercase mb-4" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em", textAlign: "center" }}>
           Eksempel på en færdig showcase
         </div>
-        <div className="relative rounded-2xl overflow-hidden" style={{ width: "min(300px, 90%)", aspectRatio: "9/16", boxShadow: "0 24px 60px rgba(15,25,35,0.18)" }}>
+        <div className="relative rounded-2xl overflow-hidden w-full" style={{ maxWidth: 860, aspectRatio: "16/9", boxShadow: "0 24px 60px rgba(15,25,35,0.18)" }}>
           <video
-            ref={showcaseVideoRef}
-            src="/videos/bolig-showcase-v1.mp4"
+            ref={wideVideoRef}
+            src="/videos/bolig-showcase-bredformat.mp4"
             autoPlay
             muted
             loop
             playsInline
             preload="auto"
+            className="absolute inset-0 w-full h-full object-cover"
+            data-testid="showcase-video-wide"
+          />
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 pointer-events-none"
+            style={{ background: "rgba(15,25,35,0.72)", color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", padding: "4px 9px", borderRadius: 4 }}>
+            <svg width="13" height="9" viewBox="0 0 13 9" fill="none"><rect x="0.5" y="0.5" width="12" height="8" rx="1.5" stroke="white" strokeWidth="1"/></svg>
+            BREDFORMAT 16:9
+          </div>
+          {musicButton("wide")}
+        </div>
+        <p className="mt-4 text-center" style={{ color: C.muted, fontSize: 14, maxWidth: 480, lineHeight: 1.6 }}>
+          Bredformat — klar til boligannoncen, Boligsiden og fremvisning på storskærm
+        </p>
+      </div>
+
+      {/* Lodret version til sociale medier */}
+      <div className="flex flex-col items-center mb-14" data-testid="showcase-vertical-video">
+        <div className="uppercase mb-4" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em", textAlign: "center" }}>
+          Også som lodret video til sociale medier
+        </div>
+        <div className="relative rounded-2xl overflow-hidden" style={{ width: "min(300px, 90%)", aspectRatio: "9/16", boxShadow: "0 24px 60px rgba(15,25,35,0.18)" }}>
+          <video
+            ref={verticalVideoRef}
+            src="/videos/eksempel-bolig-showcase.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
             className="absolute inset-0 w-full h-full object-cover"
             data-testid="showcase-video"
           />
@@ -804,39 +838,11 @@ export function BoligShowcasePage() {
             <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><rect x="0.5" y="0.5" width="7" height="12" rx="1.5" stroke="white" strokeWidth="1"/><rect x="2" y="10" width="4" height="1" rx="0.5" fill="white"/></svg>
             LODRET VIDEO
           </div>
+          {musicButton("vertical")}
         </div>
         <p className="mt-4 text-center" style={{ color: C.muted, fontSize: 14, maxWidth: 300, lineHeight: 1.6 }}>
           Lodret format — klar til Instagram Reels, TikTok og Facebook
         </p>
-      </div>
-
-      {/* Grid af eksempler */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-7" data-testid="showcase-grid">
-        {examples.map((ex, i) => (
-          <div
-            key={ex.title}
-            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
-            data-testid={`showcase-example-${i}`}
-          >
-            <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-              <img
-                src={ex.src}
-                alt={ex.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              <div
-                className="absolute top-3 left-3 uppercase"
-                style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
-              >
-                AI Visualisering
-              </div>
-            </div>
-            <div style={{ padding: "22px 26px 26px" }}>
-              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 20, fontWeight: 500, lineHeight: 1.25, marginBottom: 6 }}>{ex.title}</div>
-              <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55 }}>{ex.desc}</div>
-            </div>
-          </div>
-        ))}
       </div>
 
       <BenefitRow
