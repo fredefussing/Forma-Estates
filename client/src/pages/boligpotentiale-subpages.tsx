@@ -584,11 +584,51 @@ export function BranchevideoPage() {
         </div>
       </div>
 
-      {/* Forvandlingsfilm — flere rum samlet i én film */}
+      {/* Forvandlingsfilm — Premium · 8 sek */}
       <div className="mt-5 mx-auto w-full" style={{ maxWidth: 760 }}>
         <div
           style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
-          data-testid="branchevideo-forvandlingsfilm"
+          data-testid="branchevideo-forvandlingsfilm-premium"
+        >
+          <div className="relative" style={{ aspectRatio: "16 / 9", background: C.navy }}>
+            <video
+              src="/videos/forvandling-premium-demo.mp4"
+              controls
+              playsInline
+              onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
+              className="absolute inset-0 w-full h-full object-cover"
+              data-testid="video-forvandling-premium-demo"
+            />
+            <div className="absolute top-3 left-3 flex gap-2">
+              <div
+                className="uppercase"
+                style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
+              >
+                AI-genereret video
+              </div>
+              <div
+                className="uppercase"
+                style={{ background: "rgba(15,29,47,0.82)", color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
+              >
+                Premium · 8 sek
+              </div>
+            </div>
+          </div>
+          <div style={{ padding: "18px 22px 22px" }}>
+            <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Forvandlingsfilm — Premium</div>
+            <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.55 }}>Vælg 2–8 af dine AI-designs — hvert rum forvandles fra før til efter, og det hele samles i én samlet film med musik, klar til annoncen.</div>
+            <div className="mt-3 flex items-center gap-1.5" style={{ color: "#8A7060", fontSize: 12.5 }}>
+              <span style={{ fontWeight: 600 }}>Roligste forvandling · typisk 4–6 min ventetid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Forvandlingsfilm — Hurtig · 5 sek */}
+      <div className="mt-5 mx-auto w-full" style={{ maxWidth: 760 }}>
+        <div
+          style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+          data-testid="branchevideo-forvandlingsfilm-hurtig"
         >
           <div className="relative" style={{ aspectRatio: "16 / 9", background: C.navy }}>
             <video
@@ -615,7 +655,7 @@ export function BranchevideoPage() {
             </div>
           </div>
           <div style={{ padding: "18px 22px 22px" }}>
-            <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Forvandlingsfilm — flere rum</div>
+            <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Forvandlingsfilm — Hurtig</div>
             <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.55 }}>Vælg 2–8 af dine AI-designs — hvert rum forvandles fra før til efter, og det hele samles i én samlet film med musik, klar til annoncen.</div>
             <div className="mt-3 flex items-center gap-1.5" style={{ color: "#8A7060", fontSize: 12.5 }}>
               <span style={{ fontWeight: 600 }}>Kortere video · typisk 2–4 min ventetid</span>
