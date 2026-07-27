@@ -3455,20 +3455,20 @@ export async function registerRoutes(
 
         const beforePath = path.join(uploadDir, beforeFile.filename);
         const afterPath = path.join(uploadDir, afterFile.filename);
-        log(`[Video] uploading before+after to fal.storage…`);
         const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
         // Hurtig (5 sek → hurtigere generering) vs. Premium (8 sek, default).
         const speed = req.body?.speed === "hurtig" ? "5" : "8";
         // Forvandlingsstil: "blød" = simultan crossfade, "hård" = sekventiel (default).
         const morphStyle = req.body?.morphStyle === "blød" ? "blød" : "hård" as "hård" | "blød";
 
-        // Begge modes bruger image_url + tail_image_url (kling v1.6 to-frame
-        // interpolation), og begge kræver identiske dimensioner.
-        // uploadVideoPairToFal center-cropper og normaliserer begge billeder
-        // til identiske mål (maks 1920px, lige tal) for at undgå 422.
+        // Brug vores egne /uploads/-URL'er frem for fal.storage — fal.storage
+        // returnerer v3b.fal.media-URL'er der giver 403 hos Seedance på Render.
+        const tvProto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0].trim() || req.protocol;
+        const tvPublicBaseUrl = `${tvProto}://${req.get("host")}`;
+        log(`[Video] normalising + serving images via ${tvPublicBaseUrl}/uploads/…`);
         const { beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
-          await uploadVideoPairToFal(beforePath, afterPath);
-        log(`[Video] submit mode=${mode} duration=${speed}s before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
+          await uploadVideoPairToFal(beforePath, afterPath, { uploadDir, publicBaseUrl: tvPublicBaseUrl });
+        log(`[Video] submit mode=${mode} duration=${speed}s before=${beforeFalUrl.slice(0, 80)} after=${afterFalUrl.slice(0, 80)}`);
         const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode, { duration: speed, style: morphStyle });
         log(`[Video] submitted request_id=${requestId}`);
         // Track for a quota refund if the job later fails at the poll stage.
