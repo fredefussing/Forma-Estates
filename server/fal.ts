@@ -67,7 +67,7 @@ export async function uploadVideoPairToFal(
   beforePath: string,
   afterPath: string,
 ): Promise<{ beforeUrl: string; afterUrl: string }> {
-  const before = await Jimp.read(beforePath);
+  const [before, after] = await Promise.all([Jimp.read(beforePath), Jimp.read(afterPath)]);
   let w = before.bitmap.width;
   let h = before.bitmap.height;
   const MAX = 1920;
@@ -85,7 +85,6 @@ export async function uploadVideoPairToFal(
   h -= h % 2;
 
   before.cover({ w, h });
-  const after = await Jimp.read(afterPath);
   after.cover({ w, h });
 
   const [beforeBuf, afterBuf] = await Promise.all([
@@ -501,13 +500,19 @@ const VIDEO_ENDPOINT = "bytedance/seedance-2.0/image-to-video";
 //    kameraet bevæger sig fremad igennem rummet, rum for rum.
 //  • morph ("Forvandling"): statisk kamera, rummet transformerer sig fra
 //    gammelt til renoveret på fladen.
-function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode) {
+export interface VideoOpts {
+  /** Seedance duration i sekunder ("4"–"15"). Default "8" (premium). */
+  duration?: string;
+}
+
+function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode, opts?: VideoOpts) {
   const base = {
     image_url: beforeImageUrl,
     end_image_url: afterImageUrl,
-    // 8 sek + 1080p + high bitrate: roligere morph, skarpere billede og
-    // færre komprimeringsartefakter end de gamle 5 sek @ 720p (standard).
-    duration: "8" as const,
+    // 1080p + high bitrate: skarpere billede og færre komprimerings-
+    // artefakter end fal-standarden (720p/standard). Varighed: 8 sek premium,
+    // 5 sek hurtig-mode, 6 sek pr. klip i Forvandlingsfilm.
+    duration: (opts?.duration ?? "8") as "8",
     resolution: "1080p" as const,
     bitrate_mode: "high" as const,
     generate_audio: false,
@@ -525,10 +530,11 @@ export async function generateAnimationVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
   mode: VideoMode = "cinematic",
+  opts?: VideoOpts,
 ): Promise<{ videoUrl: string }> {
   assertNotLockedDown();
   const result = await fal.subscribe(VIDEO_ENDPOINT, {
-    input: buildVideoInput(beforeImageUrl, afterImageUrl, mode),
+    input: buildVideoInput(beforeImageUrl, afterImageUrl, mode, opts),
   });
 
   const videoUrl = (result.data as any).video?.url;
@@ -544,10 +550,11 @@ export async function submitAnimationVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
   mode: VideoMode = "cinematic",
+  opts?: VideoOpts,
 ): Promise<{ requestId: string }> {
   assertNotLockedDown();
   const { request_id } = await fal.queue.submit(VIDEO_ENDPOINT, {
-    input: buildVideoInput(beforeImageUrl, afterImageUrl, mode),
+    input: buildVideoInput(beforeImageUrl, afterImageUrl, mode, opts),
   });
   return { requestId: request_id };
 }

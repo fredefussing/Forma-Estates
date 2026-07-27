@@ -22,7 +22,7 @@ import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStri
 import { verifyFirebaseToken } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
-import { startWalkthroughVideo, getShowcaseJob } from "./showcase";
+import { startWalkthroughVideo, startTransformFilm, getShowcaseJob } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
 
@@ -52,6 +52,35 @@ function refundWalkthroughVideo(jobId: string) {
   if (uid == null) return;
   walkthroughVideoRefunds.delete(jobId);
   storage.refundQuota(uid, "showcase").catch(() => {});
+}
+
+// Forvandlingsfilm: 1 transformVideo-kredit pr. rum. `count` er den RESTERENDE
+// refusionssaldo — enkelt-klip-fejl refunderes løbende via onClipFailed og
+// nedskriver saldoen, så en total-fejl aldrig dobbelt-refunderer.
+const transformFilmRefunds = new Map<string, { userId: number; count: number }>();
+
+function refundTransformFilm(jobId: string) {
+  const entry = transformFilmRefunds.get(jobId);
+  if (!entry) return;
+  transformFilmRefunds.delete(jobId);
+  for (let i = 0; i < entry.count; i++) {
+    storage.refundQuota(entry.userId, "transformVideo").catch(() => {});
+  }
+}
+
+// SSRF-værn: galleri-URL'er må kun hentes server-side fra vores egne kilder
+// (lokale /uploads, fal.media-resultater og Collov's CloudFront-CDN). Alt
+// andet afvises, så en gemt URL aldrig kan pege på interne adresser.
+function isTrustedFilmImageUrl(url: string): boolean {
+  if (url.startsWith("/uploads/")) return true;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const h = u.hostname.toLowerCase();
+    return h === "fal.media" || h.endsWith(".fal.media") || h.endsWith(".cloudfront.net");
+  } catch {
+    return false;
+  }
 }
 
 const guidedTourRefunds = new Map<string, number>();
@@ -3372,6 +3401,8 @@ export async function registerRoutes(
         const afterPath = path.join(uploadDir, afterFile.filename);
         log(`[Video] uploading before+after to fal.storage…`);
         const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
+        // Hurtig (5 sek → hurtigere generering) vs. Premium (8 sek, default).
+        const speed = req.body?.speed === "hurtig" ? "5" : "8";
 
         // Begge modes bruger image_url + tail_image_url (kling v1.6 to-frame
         // interpolation), og begge kræver identiske dimensioner.
@@ -3379,8 +3410,8 @@ export async function registerRoutes(
         // til identiske mål (maks 1920px, lige tal) for at undgå 422.
         const { beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
           await uploadVideoPairToFal(beforePath, afterPath);
-        log(`[Video] submit mode=${mode} before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
-        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode);
+        log(`[Video] submit mode=${mode} duration=${speed}s before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
+        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode, { duration: speed });
         log(`[Video] submitted request_id=${requestId}`);
         // Track for a quota refund if the job later fails at the poll stage.
         if (transformUserId) transformVideoRefunds.set(requestId, transformUserId);
@@ -3798,6 +3829,224 @@ export async function registerRoutes(
     }
     if (job.status === "failed") {
       refundWalkthroughVideo(req.params.jobId);
+      return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
+    }
+    return res.json({ success: true, status: "IN_PROGRESS" });
+  });
+
+  // ── Forvandlingsfilm ───────────────────────────────────────────────────────
+  // Galleri-kandidater: brugerens AI-designs der har BÅDE før- og efter-billede
+  // og derfor kan blive til et morph-klip i filmen.
+  const FILM_IMG_RE = /\.(jpe?g|png|webp)(\?|$)/i;
+  app.get("/api/bolig/film-candidates", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Bruger ikke fundet" });
+      const imgs = await storage.getAllGeneratedImages(user.id, 200);
+      const skip = (s: string) =>
+        s.startsWith("transform-video") || s.startsWith("walkthrough-video") ||
+        s.startsWith("showcase") || s.startsWith("transform-film") || s.startsWith("3d");
+      const out = imgs
+        .filter((i) =>
+          !!i.originalImageUrl && !!i.imageUrl &&
+          FILM_IMG_RE.test(i.originalImageUrl) && FILM_IMG_RE.test(i.imageUrl) &&
+          isTrustedFilmImageUrl(i.originalImageUrl) && isTrustedFilmImageUrl(i.imageUrl) &&
+          !skip(i.style || "") && (i.roomType || "") !== "floorplan",
+        )
+        .slice(0, 60)
+        .map((i) => ({
+          id: i.id,
+          before: i.originalImageUrl,
+          after: i.imageUrl,
+          roomType: i.roomType,
+          style: i.style,
+          createdAt: i.createdAt,
+        }));
+      return res.json(out);
+    } catch {
+      return res.status(401).json({ message: "Log ind for at se dine designs" });
+    }
+  });
+
+  // Start en forvandlingsfilm: 2-8 galleri-billeder (id'er) → ét morph-klip pr.
+  // rum → samlet film med musik. Koster 1 Transformering-kredit pr. rum.
+  app.post("/api/bolig/transform-film", async (req, res) => {
+    let filmUser: { id: number } | null = null;
+    let charged = 0;
+    const localCopies: string[] = [];
+    const cleanupCopies = () => { for (const p of localCopies) fs.promises.unlink(p).catch(() => {}); };
+    try {
+      if (!isFalConfigured()) {
+        return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+      }
+      // Auth er PÅKRÆVET (vi læser brugerens galleri).
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (u) filmUser = u;
+      } catch { /* falder igennem til 401 nedenfor */ }
+      if (!filmUser) return res.status(401).json({ success: false, message: "Log ind for at lave en forvandlingsfilm" });
+
+      const rawIds: unknown[] = Array.isArray(req.body?.imageIds) ? req.body.imageIds : [];
+      const imageIds = Array.from(new Set(rawIds.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0)));
+      if (imageIds.length < 2 || imageIds.length > 8) {
+        return res.status(400).json({ success: false, message: "Vælg 2-8 designs fra dit galleri" });
+      }
+      const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
+
+      // 1) Valider alle galleri-rækker (ejerskab + før/efter-billeder findes).
+      const urlPairs: Array<{ before: string; after: string }> = [];
+      for (const id of imageIds) {
+        const img = await storage.getGeneratedImage(id);
+        if (!img || img.userId !== filmUser.id) {
+          return res.status(404).json({ success: false, message: "Et af de valgte designs blev ikke fundet i dit galleri" });
+        }
+        if (!img.originalImageUrl || !img.imageUrl || !FILM_IMG_RE.test(img.originalImageUrl) || !FILM_IMG_RE.test(img.imageUrl) ||
+            !isTrustedFilmImageUrl(img.originalImageUrl) || !isTrustedFilmImageUrl(img.imageUrl)) {
+          return res.status(400).json({ success: false, message: "Et af de valgte designs kan ikke bruges i filmen — vælg et andet" });
+        }
+        urlPairs.push({ before: img.originalImageUrl, after: img.imageUrl });
+      }
+
+      // 2) Materialisér lokale KOPIER (pipelinen sletter sine inputfiler bagefter,
+      //    så vi må aldrig pege direkte på galleri-originaler i /uploads).
+      const toLocalCopy = async (url: string, tag: string): Promise<string> => {
+        if (url.startsWith("/uploads/")) {
+          const src = path.join(uploadDir, path.basename(url.split("?")[0]));
+          if (!fs.existsSync(src)) throw new Error("Et af billederne findes ikke længere på serveren — prøv et andet design");
+          const ext = path.extname(src) || ".jpg";
+          const dest = path.join(uploadDir, `film-src-${Date.now()}-${tag}-${Math.random().toString(36).slice(2, 7)}${ext}`);
+          await fs.promises.copyFile(src, dest);
+          localCopies.push(dest);
+          return dest;
+        }
+        if (/^https?:\/\//i.test(url)) {
+          // Dobbelt-tjek (SSRF-værn) — valideringen ovenfor skal have fanget det.
+          if (!isTrustedFilmImageUrl(url)) throw new Error("Ugyldig billed-adresse i galleriet");
+          const m = url.match(/\.(jpe?g|png|webp)(?=\?|$)/i);
+          const publicPath = await downloadToUploads(url, uploadDir, m ? `.${m[1].toLowerCase()}` : ".jpg");
+          const dest = path.join(uploadDir, path.basename(publicPath));
+          localCopies.push(dest);
+          return dest;
+        }
+        throw new Error("Ugyldig billed-adresse i galleriet");
+      };
+      const pairs: Array<{ before: string; after: string }> = [];
+      for (let i = 0; i < urlPairs.length; i++) {
+        pairs.push({
+          before: await toLocalCopy(urlPairs[i].before, `${i}b`),
+          after: await toLocalCopy(urlPairs[i].after, `${i}a`),
+        });
+      }
+
+      // 3) Kvota: 1 transformVideo-kredit pr. rum.
+      for (let i = 0; i < pairs.length; i++) {
+        const q = await storage.checkAndIncrementQuota(filmUser.id, "transformVideo");
+        if (!q.allowed) {
+          for (let j = 0; j < charged; j++) storage.refundQuota(filmUser.id, "transformVideo").catch(() => {});
+          cleanupCopies();
+          return res.status(403).json({
+            success: false,
+            quotaExceeded: true,
+            feature: q.feature,
+            message: `En forvandlingsfilm bruger 1 Transformering-kredit pr. rum (${pairs.length} i alt) — du har ikke nok tilbage denne måned.`,
+          });
+        }
+        charged++;
+      }
+
+      // 4) Start jobbet. onClipFailed refunderer løbende ét fejlet rum ad gangen
+      //    og nedskriver refusionssaldoen, så SSE-fejl-refusionen ikke dobbelttæller.
+      const userId = filmUser.id;
+      let jobId: string | null = null;
+      jobId = startTransformFilm(pairs, uploadDir, address, () => {
+        storage.refundQuota(userId, "transformVideo").catch(() => {});
+        if (jobId) {
+          const entry = transformFilmRefunds.get(jobId);
+          if (entry) {
+            entry.count -= 1;
+            if (entry.count <= 0) transformFilmRefunds.delete(jobId);
+          }
+        }
+      }, (failed) => {
+        // Terminal afregning direkte fra jobbet — virker også hvis klienten
+        // lukker fanen og aldrig rammer SSE/status-ruterne (de er idempotente).
+        if (!jobId) return;
+        if (failed) refundTransformFilm(jobId);
+        else transformFilmRefunds.delete(jobId);
+      });
+      if (!jobId) {
+        for (let j = 0; j < charged; j++) storage.refundQuota(userId, "transformVideo").catch(() => {});
+        cleanupCopies();
+        return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
+      }
+      transformFilmRefunds.set(jobId, { userId, count: charged });
+      log(`[Film] started job=${jobId} rooms=${pairs.length} user=${userId}`);
+      storage.logCrmActivity(userId, "video", `Forvandlingsfilm · ${pairs.length} rum`).catch(() => {});
+      return res.json({ success: true, job_id: jobId });
+    } catch (err: any) {
+      log(`[Film] submit error: ${err.message}`);
+      if (filmUser) for (let j = 0; j < charged; j++) storage.refundQuota(filmUser.id, "transformVideo").catch(() => {});
+      cleanupCopies();
+      return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
+    }
+  });
+
+  app.get("/api/bolig/transform-film/progress/:jobId", (req, res) => {
+    const { jobId } = req.params;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    const send = (data: object) => {
+      try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
+    };
+    const ping = () => { try { res.write(":\n\n"); } catch {} };
+
+    const job = getShowcaseJob(jobId);
+    if (!job) {
+      send({ stage: "failed", currentClip: 0, totalClips: 0, message: "Job ikke fundet" });
+      res.end();
+      return;
+    }
+    send(job.progress);
+    if (job.status !== "processing") {
+      if (job.status === "failed") refundTransformFilm(jobId);
+      else if (job.status === "completed") transformFilmRefunds.delete(jobId);
+      res.end();
+      return;
+    }
+
+    const iv = setInterval(() => {
+      const j = getShowcaseJob(jobId);
+      if (!j) { clearInterval(iv); clearInterval(hb); try { res.end(); } catch {} return; }
+      send(j.progress);
+      if (j.status === "completed" || j.status === "failed") {
+        if (j.status === "failed") refundTransformFilm(jobId);
+        else transformFilmRefunds.delete(jobId);
+        clearInterval(iv);
+        clearInterval(hb);
+        try { res.end(); } catch {}
+      }
+    }, 1500);
+
+    const hb = setInterval(ping, 20_000);
+    req.on("close", () => { clearInterval(iv); clearInterval(hb); });
+  });
+
+  app.get("/api/bolig/transform-film/status/:jobId", (req, res) => {
+    const job = getShowcaseJob(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ success: false, status: "FAILED", message: "Job ikke fundet" });
+    }
+    if (job.status === "completed" && job.videoUrls) {
+      transformFilmRefunds.delete(req.params.jobId);
+      return res.json({ success: true, status: "COMPLETED", video_urls: job.videoUrls });
+    }
+    if (job.status === "failed") {
+      refundTransformFilm(req.params.jobId);
       return res.json({ success: false, status: "FAILED", message: job.error || "Generering mislykkedes" });
     }
     return res.json({ success: true, status: "IN_PROGRESS" });
@@ -5140,6 +5389,8 @@ BoligPotentiale er altså et andet ord for det professionelle dashboard i Forma 
 
 ### 8. Transformering Video (forvandlingsvideo)
 - Upload et før-foto → få en kort video hvor rummet eller facaden glidende forvandles til det nye design
+- To hastigheder: Hurtig (5 sek video, typisk 2-4 min ventetid) eller Premium (8 sek video, typisk 4-6 min ventetid)
+- Forvandlingsfilm: vælg 2-8 af dine gemte AI-designs fra galleriet → én samlet film hvor rummene forvandler sig ét efter ét, med baggrundsmusik i 4 stemninger — bruger 1 Transformering-kredit pr. rum (findes i dashboardet under Video → Forvandlingsfilm)
 - Perfekt til reels, annoncer og at vise en boligs potentiale
 - Kræver abonnement (indgår i alle pakker)
 

@@ -23,3 +23,4 @@
 - [E2E customer testing](e2e-customer-testing.md) — test signups: flip users.email_verified in dev DB; ALWAYS verify tester "blocked/failed" claims against generated_images; trial gating differs per entry point.
 - [Dashboard banner overlay](dashboard-banner-overlay.md) — top-strip elements are covered by the -mt sibling's transparent padding: visible but unclickable; fix with relative z-10 on the element, never the wrapper.
 - [Prompt lock sync](prompt-lock-sync.md) — editing shared/structuralPrompt.ts requires tsx-syncing promptLock.json to byte-identical or ALL generations throw; restart server after.
+- [Server-side URL fetch allowlist](server-side-url-fetch-allowlist.md) — stored/user-influenced URLs must pass a host allowlist before server-side download (SSRF); settle paid-job credits in the job's then/catch, not only via polling routes.

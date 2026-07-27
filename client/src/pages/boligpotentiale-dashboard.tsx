@@ -3136,7 +3136,7 @@ async function downloadFromUrl(url: string, filename: string) {
   }
 }
 
-interface WalkthroughImg { id: string; file: File; url: string; }
+interface FilmCandidate { id: number; before: string; after: string; roomType: string | null; style: string | null; createdAt?: string }
 const MOOD_LABELS_WT: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
 const ALL_MOODS_WT = ["calm", "uplifting", "modern", "tension"] as const;
 
@@ -3158,19 +3158,19 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [morphSaveCaseId, setMorphSaveCaseId] = useState<number | null>(null);
   const [morphShowCaseDropdown, setMorphShowCaseDropdown] = useState(false);
   const [morphDownloading, setMorphDownloading] = useState(false);
+  const [morphSpeed, setMorphSpeed] = useState<"premium" | "hurtig">("premium");
   const [showTransformEksempel, setShowTransformEksempel] = useState(false);
   const morphDropdownRef = useRef<HTMLDivElement>(null);
 
-  // ── Cinematic walkthrough state ─────────────────────────────────────────────
-  const [wtImages, setWtImages] = useState<WalkthroughImg[]>([]);
+  // ── Forvandlingsfilm state ──────────────────────────────────────────────────
+  const [tfCandidates, setTfCandidates] = useState<FilmCandidate[] | null>(null);
+  const [tfSelected, setTfSelected] = useState<number[]>([]);
   const [wtAddress, setWtAddress] = useState("");
   const [wtVideoUrls, setWtVideoUrls] = useState<Record<string, string> | null>(null);
   const [wtCleanVideoUrls, setWtCleanVideoUrls] = useState<Record<string, string> | null>(null);
   const [wtGenerating, setWtGenerating] = useState(false);
   const [wtProgressMsg, setWtProgressMsg] = useState("");
   const [wtError, setWtError] = useState<string | null>(null);
-  const [wtDragOver, setWtDragOver] = useState(false);
-  const [wtDragIndex, setWtDragIndex] = useState<number | null>(null);
   const [wtSaveCaseId, setWtSaveCaseId] = useState<number | null>(null);
   const [wtShowCaseDropdown, setWtShowCaseDropdown] = useState(false);
   const [wtDownloading, setWtDownloading] = useState(false);
@@ -3200,6 +3200,24 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [wtShowCaseDropdown]);
+
+  // Hent galleri-kandidater (designs med både før- og efter-billede) når
+  // Forvandlingsfilm-fanen åbnes første gang.
+  useEffect(() => {
+    if (videoMode !== "cinematic" || tfCandidates !== null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const r = await fetch("/api/bolig/film-candidates", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const d = await r.json().catch(() => []);
+        if (!cancelled) setTfCandidates(Array.isArray(d) ? d : []);
+      } catch {
+        if (!cancelled) setTfCandidates([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [videoMode, tfCandidates]);
 
   // ── Morph handlers ──────────────────────────────────────────────────────────
   const morphResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3236,6 +3254,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       fd.append("beforeImage", beforeFile);
       fd.append("afterImage", afterFile);
       fd.append("mode", "morph");
+      fd.append("speed", morphSpeed === "hurtig" ? "hurtig" : "standard");
       const res = await fetch("/api/bolig/transform-video", {
         method: "POST",
         body: fd,
@@ -3247,11 +3266,11 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (!res.ok || !data.success || !data.request_id) throw new Error(data.message || "Indsendelse mislykkedes");
       const requestId = data.request_id as string;
       setMorphProgressStep(2);
-      const maxAttempts = 80;
+      const maxAttempts = 120;
       let finalUrl: string | null = null;
       for (let i = 0; i < maxAttempts; i++) {
-        if (i === 15) setMorphProgressStep(3);
-        await new Promise((r) => setTimeout(r, 6000));
+        if (i === 18) setMorphProgressStep(3);
+        await new Promise((r) => setTimeout(r, 5000));
         const sres = await fetch(`/api/bolig/transform-video/status/${requestId}`);
         const sctype = sres.headers.get("content-type") || "";
         if (!sctype.includes("application/json")) continue;
@@ -3311,38 +3330,26 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
     finally { setMorphDownloading(false); }
   };
 
-  // ── Cinematic walkthrough handlers ──────────────────────────────────────────
-  const wtAddFiles = (files: FileList | File[]) => {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (arr.length === 0) { setWtError("Vælg venligst billedfiler"); return; }
+  // ── Forvandlingsfilm handlers ───────────────────────────────────────────────
+  const tfToggle = (id: number) => {
+    if (wtGenerating) return;
     if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
     setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null);
-    const next = arr.map((file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, file, url: URL.createObjectURL(file) }));
-    setWtImages((prev) => [...prev, ...next].slice(0, 20));
-  };
-
-  const wtRemoveImage = (id: string) => {
-    setWtImages((prev) => prev.filter((i) => i.id !== id));
-    setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null);
-  };
-
-  const wtMoveImage = (from: number, to: number) => {
-    if (from === to || to < 0 || to >= wtImages.length) return;
-    setWtImages((prev) => { const copy = [...prev]; const [moved] = copy.splice(from, 1); copy.splice(to, 0, moved); return copy; });
-    setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null);
+    setTfSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : (prev.length >= 8 ? prev : [...prev, id]));
   };
 
   const handleWtGenerate = async () => {
-    if (wtImages.length < 2) { setWtError("Upload mindst 2 billeder"); return; }
+    if (tfSelected.length < 2) { setWtError("Vælg mindst 2 designs fra dit galleri"); return; }
     if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
     setWtGenerating(true); setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtProgressMsg("Forbereder…");
     if (wtEsRef.current) { wtEsRef.current.close(); wtEsRef.current = null; }
     try {
       const token = await auth.currentUser?.getIdToken();
-      const fd = new FormData();
-      wtImages.forEach((img) => fd.append("images", img.file));
-      if (wtAddress.trim()) fd.append("address", wtAddress.trim());
-      const res = await fetch("/api/bolig/walkthrough-video", { method: "POST", body: fd, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch("/api/bolig/transform-film", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ imageIds: tfSelected, address: wtAddress.trim() || undefined }),
+      });
       const ctype = res.headers.get("content-type") || "";
       if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
       const data = await res.json();
@@ -3357,7 +3364,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           deadlineTimer = setTimeout(() => { wtEsRef.current?.close(); wtEsRef.current = null; if (!settled) { settled = true; reject(new Error("Generering tog for lang tid. Prøv igen.")); } }, TIMEOUT_MS);
         };
         const connect = () => {
-          const es = new EventSource(`/api/bolig/walkthrough-video/progress/${jobId}`);
+          const es = new EventSource(`/api/bolig/transform-film/progress/${jobId}`);
           wtEsRef.current = es;
           es.onmessage = (e) => {
             retries = 0;
@@ -3390,7 +3397,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleWtReset = () => {
     if (wtHasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme videoerne?")) return;
-    setWtImages([]); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtError(null);
+    setTfSelected([]); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtError(null);
   };
 
   const wtSaveToCase = async (c: ApiCase) => {
@@ -3400,7 +3407,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       const token = await user?.getIdToken();
       const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
       for (const mood of ALL_MOODS_WT.filter((m) => wtVideoUrls[m])) {
-        const r = await fetch(`/api/bolig/cases/${c.id}/images`, { method: "POST", headers, body: JSON.stringify({ imageUrl: wtVideoUrls[mood], originalImageUrl: wtCleanVideoUrls?.[mood] ?? null, roomType: "walkthrough-video", style: `walkthrough-video-${mood}`, budgetTier: "tier2", promptText: `Cinematisk walkthrough — ${MOOD_LABELS_WT[mood]} stemning`, isDesignAgent: true }) });
+        const r = await fetch(`/api/bolig/cases/${c.id}/images`, { method: "POST", headers, body: JSON.stringify({ imageUrl: wtVideoUrls[mood], originalImageUrl: wtCleanVideoUrls?.[mood] ?? null, roomType: "transform-film", style: `transform-film-${mood}`, budgetTier: "tier2", promptText: `Forvandlingsfilm — ${MOOD_LABELS_WT[mood]} stemning`, isDesignAgent: true }) });
         if (!r.ok) { setWtSaveCaseId(null); alert(`Kunne ikke gemme video til mappen.`); return; }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
@@ -3410,7 +3417,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current);
       wtResetTimerRef.current = setTimeout(() => {
         wtResetTimerRef.current = null;
-        setWtImages([]); setWtAddress(""); setWtVideoUrls(null); setWtCleanVideoUrls(null);
+        setTfSelected([]); setWtAddress(""); setWtVideoUrls(null); setWtCleanVideoUrls(null);
         setWtSaveCaseId(null); setWtError(null);
       }, 1500);
     } catch { setWtSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
@@ -3418,7 +3425,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleWtDownload = async (url: string, mood: string) => {
     setWtDownloading(true);
-    try { await downloadFromUrl(url, `walkthrough-${mood}-${new Date().toISOString().slice(0, 10)}.mp4`); }
+    try { await downloadFromUrl(url, `forvandlingsfilm-${mood}-${new Date().toISOString().slice(0, 10)}.mp4`); }
     finally { setWtDownloading(false); }
   };
 
@@ -3455,7 +3462,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
-          {videoMode === "cinematic" ? "Upload 5–20 billeder af boligen — AI laver et klip per rum og syr det hele til én professionel walkthrough." : "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem."}
+          {videoMode === "cinematic" ? "Vælg 2–8 af dine gemte AI-designs — hvert rum forvandler sig fra før til efter, og det hele samles i én film med musik." : "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem."}
         </p>
       </div>
 
@@ -3464,8 +3471,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         <div className="text-[11px] font-bold uppercase tracking-wider mb-4 block" style={{ color: "#9B9690" }}>Videostil</div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button type="button" onClick={() => setVideoMode("cinematic")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "cinematic" ? "#0F1D2F" : "white", color: videoMode === "cinematic" ? "white" : "#0F1D2F", boxShadow: videoMode === "cinematic" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-cinematic">
-            <div className="text-sm font-semibold mb-1">Cinematisk gennemgang</div>
-            <div className="text-xs leading-relaxed" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Upload 5–20 billeder · AI genererer klip per rum · professionel ejendomsmæglervideo</div>
+            <div className="text-sm font-semibold mb-1">Forvandlingsfilm</div>
+            <div className="text-xs leading-relaxed" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Vælg 2–8 af dine AI-designs · ét forvandlingsklip pr. rum · én samlet film med musik</div>
           </button>
           <button type="button" onClick={() => setVideoMode("morph")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "morph" ? "#0F1D2F" : "white", color: videoMode === "morph" ? "white" : "#0F1D2F", boxShadow: videoMode === "morph" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-morph">
             <div className="text-sm font-semibold mb-1">Forvandling</div>
@@ -3480,77 +3487,71 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         )}
       </div>
 
-      {/* ── Cinematisk Walkthrough UI ── */}
+      {/* ── Forvandlingsfilm UI ── */}
       {videoMode === "cinematic" && (
         <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-8 shadow-sm">
-          {/* Image upload grid */}
+          {/* Galleri-vælger: designs med både før- og efter-billede */}
           <div>
-            <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Billeder til walkthrough</label>
-            <label
-              onDragOver={(e) => { e.preventDefault(); setWtDragOver(true); }}
-              onDragLeave={() => setWtDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setWtDragOver(false); wtAddFiles(e.dataTransfer.files); }}
-              className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-300 group hover:bg-[#C8956C]/[0.02]"
-              style={{ borderColor: wtDragOver ? "#C8956C" : "#D9D5CF", background: wtDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
-              data-testid="dropzone-walkthrough"
-            >
-              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files) wtAddFiles(e.target.files); }} data-testid="input-walkthrough-images" />
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
-                <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
+            <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Vælg rum fra dit galleri · {tfSelected.length}/8 valgt</label>
+            {tfCandidates === null ? (
+              <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-10 text-center text-sm" style={{ color: "#6B6B6B" }} data-testid="text-film-loading">Henter dine designs…</div>
+            ) : tfCandidates.length === 0 ? (
+              <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-10 text-center" data-testid="text-film-empty">
+                <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen designs med før- og efter-billede endnu</p>
+                <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>Lav først et AI-design under "Nyt design" — så dukker det op her og kan blive et rum i din forvandlingsfilm.</p>
               </div>
-              <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
-              <p className="text-sm" style={{ color: "#6B6B6B" }}>2–20 billeder · JPG, PNG · ét AI-klip per billede</p>
-            </label>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {tfCandidates.map((cand) => {
+                    const order = tfSelected.indexOf(cand.id);
+                    const selected = order >= 0;
+                    return (
+                      <button type="button" key={cand.id} onClick={() => tfToggle(cand.id)} disabled={wtGenerating} className="relative text-left rounded-xl overflow-hidden border-2 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: selected ? "#C8956C" : "#E8E4DE", boxShadow: selected ? "0 4px 14px rgba(200,149,108,0.25)" : "none" }} data-testid={`button-film-candidate-${cand.id}`}>
+                        <div className="relative">
+                          <img src={cand.after} alt={cand.roomType || "Design"} className="w-full object-cover" style={{ aspectRatio: "4/3" }} loading="lazy" />
+                          <img src={cand.before} alt="Før" className="absolute bottom-2 left-2 w-12 h-12 object-cover rounded-md border-2 border-white shadow-md" loading="lazy" />
+                          {selected && <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md" style={{ background: "#C8956C" }}>{order + 1}</div>}
+                        </div>
+                        <div className="px-2.5 py-1.5 bg-white text-[11px] font-medium truncate" style={{ color: "#6B6B6B" }}>{cand.roomType || cand.style || "Design"}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] mt-2.5" style={{ color: "#9B9690" }}>Klik for at vælge 2–8 rum — rækkefølgen du klikker i, bliver filmens rækkefølge. Det lille billede i hjørnet er "før".</p>
+              </>
+            )}
           </div>
-
-          {wtImages.length > 0 && (
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "#9B9690" }}>{wtImages.length} billede{wtImages.length !== 1 ? "r" : ""} valgt — træk for at ændre rækkefølge</div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                {wtImages.map((img, idx) => (
-                  <div key={img.id} className="relative group rounded-xl overflow-hidden border border-[#E8E4DE] shadow-sm" data-testid={`img-walkthrough-${idx}`}>
-                    <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
-                    <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-[10px] font-bold text-white backdrop-blur-sm">{idx + 1}</div>
-                    <button onClick={() => wtRemoveImage(img.id)} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" data-testid={`button-remove-walkthrough-${idx}`}>
-                      <X className="w-3 h-3" style={{ color: "#0F1D2F" }} />
-                    </button>
-                    <div className="absolute bottom-2 inset-x-2 flex justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {idx > 0 ? <button onClick={() => wtMoveImage(idx, idx - 1)} className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[10px] hover:bg-white font-bold transition-transform hover:scale-110 shadow-sm">←</button> : <div />}
-                      {idx < wtImages.length - 1 && <button onClick={() => wtMoveImage(idx, idx + 1)} className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[10px] hover:bg-white font-bold transition-transform hover:scale-110 shadow-sm">→</button>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Adresse (valgfri)</label>
-            <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder="fx Strandvejen 42, 2900 Hellerup" className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white" style={{ borderColor: "transparent", color: "#0F1D2F" }} data-testid="input-walkthrough-address" maxLength={80} />
+            <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder="fx Strandvejen 42, 2900 Hellerup" className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white" style={{ borderColor: "transparent", color: "#0F1D2F" }} data-testid="input-film-address" maxLength={80} />
           </div>
 
-          <QuotaGate feature="showcase">
-            <button onClick={handleWtGenerate} disabled={wtImages.length < 2 || wtGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0" style={{ background: "#C8956C", boxShadow: "0 4px 14px rgba(200,149,108,0.25)" }} data-testid="button-generate-walkthrough">
-              {wtGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{wtProgressMsg || "Genererer…"}</>) : (<><Video className="w-4 h-4" />Generér cinematisk walkthrough</>)}
-            </button>
+          <QuotaGate feature="transformVideo">
+            <div>
+              <button onClick={handleWtGenerate} disabled={tfSelected.length < 2 || wtGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0" style={{ background: "#C8956C", boxShadow: "0 4px 14px rgba(200,149,108,0.25)" }} data-testid="button-generate-film">
+                {wtGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{wtProgressMsg || "Genererer…"}</>) : (<><Video className="w-4 h-4" />Generér forvandlingsfilm{tfSelected.length >= 2 ? ` · ${tfSelected.length} rum` : ""}</>)}
+              </button>
+              <p className="text-[11px] text-center mt-2" style={{ color: "#9B9690" }}>Bruger 1 Transformering-kredit pr. valgt rum</p>
+            </div>
           </QuotaGate>
 
           {wtGenerating && (
             <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4 text-center">
               <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>{wtProgressMsg || "Genererer…"}</p>
-              <p className="text-[11px]" style={{ color: "#9B9690" }}>Ca. 5–15 min for {wtImages.length} billeder · Luk ikke vinduet</p>
+              <p className="text-[11px]" style={{ color: "#9B9690" }}>Ca. 5–12 min for {tfSelected.length} rum · Luk ikke vinduet</p>
             </div>
           )}
 
-          {wtError && <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-walkthrough-error">{wtError}</div>}
+          {wtError && <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-film-error">{wtError}</div>}
 
           {wtVideoUrls && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ALL_MOODS_WT.filter((m) => wtVideoUrls[m]).map((mood) => (
                   <div key={mood} className="rounded-xl overflow-hidden border border-[#E8E4DE]">
-                    <video src={wtVideoUrls[mood]} controls autoPlay={mood === "calm"} muted loop className="w-full block bg-black" style={{ aspectRatio: "9/16" }} data-testid={`video-walkthrough-${mood}`} />
+                    <video src={wtVideoUrls[mood]} controls autoPlay={mood === "calm"} muted loop className="w-full block bg-black" style={{ aspectRatio: "16/9" }} data-testid={`video-film-${mood}`} />
                     <div className="p-3 bg-[#F8F6F3] flex items-center justify-between">
                       <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>{MOOD_LABELS_WT[mood]}</span>
                       <button onClick={() => handleWtDownload(wtVideoUrls[mood], mood)} disabled={wtDownloading} className="text-xs font-medium flex items-center gap-1 disabled:opacity-50" style={{ color: "#C8956C" }} data-testid={`button-download-walkthrough-${mood}`}>
@@ -3605,6 +3606,20 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               {renderMorphDrop("after", afterPreview, "Efter-billede")}
             </div>
 
+            <div>
+              <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Kvalitet & ventetid</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button type="button" onClick={() => setMorphSpeed("premium")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphSpeed === "premium" ? "#0F1D2F" : "#E8E4DE", background: morphSpeed === "premium" ? "#0F1D2F" : "white", color: morphSpeed === "premium" ? "white" : "#0F1D2F" }} data-testid="button-morph-speed-premium">
+                  <div className="text-sm font-semibold mb-0.5">Premium · 8 sek</div>
+                  <div className="text-[11px]" style={{ color: morphSpeed === "premium" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Roligste forvandling · typisk 4–6 min ventetid</div>
+                </button>
+                <button type="button" onClick={() => setMorphSpeed("hurtig")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphSpeed === "hurtig" ? "#0F1D2F" : "#E8E4DE", background: morphSpeed === "hurtig" ? "#0F1D2F" : "white", color: morphSpeed === "hurtig" ? "white" : "#0F1D2F" }} data-testid="button-morph-speed-hurtig">
+                  <div className="text-sm font-semibold mb-0.5">Hurtig · 5 sek</div>
+                  <div className="text-[11px]" style={{ color: morphSpeed === "hurtig" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Kortere video · typisk 2–4 min ventetid</div>
+                </button>
+              </div>
+            </div>
+
             <QuotaGate feature="transformVideo">
               <button onClick={handleMorphGenerate} disabled={!beforeFile || !afterFile || morphGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50" style={{ background: "#C8956C" }} data-testid="button-generate-video">
                 {morphGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{morphProgressStep === 1 ? "Sender billeder..." : morphProgressStep === 3 ? "Færdiggør video..." : "Bygger video..."}</>) : (<><Video className="w-4 h-4" />Generér forvandlingsvideo</>)}
@@ -3624,7 +3639,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-center" style={{ color: "#9B9690" }}>Ca. 1–3 minutter · Luk ikke vinduet</p>
+                <p className="text-[11px] text-center" style={{ color: "#9B9690" }}>{morphSpeed === "hurtig" ? "Ca. 2–4 minutter" : "Ca. 4–6 minutter"} · Luk ikke vinduet</p>
               </div>
             )}
 

@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, downloadToFile, selectCameraMove, CameraMove } from "./fal";
+import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, uploadVideoPairToFal, generateAnimationVideo, downloadToFile, selectCameraMove, CameraMove } from "./fal";
 import { r2UploadFile } from "./r2";
 
 // ===== BOLIG SHOWCASE VIDEO =====
@@ -1676,6 +1676,197 @@ export function startShowcaseVideo(
     .finally(() => {
       for (const p of imagePaths) {
         fs.promises.unlink(p).catch(() => {});
+      }
+    });
+
+  return jobId;
+}
+
+// ===== FORVANDLINGSFILM =====
+// 2-8 før/efter-par fra brugerens galleri → ét Seedance morph-klip pr. rum
+// (samme motor som enkelt-Forvandling, 6 sek/klip) → én samlet landskabsfilm
+// (1920×1080) med musik i 4 stemninger. Klippene afspilles i FULD længde —
+// en forvandling må aldrig beat-trimmes midt i transformationen, så beat-
+// planen fra Showcase/Walkthrough bruges bevidst IKKE her.
+
+export interface FilmPair {
+  before: string;
+  after: string;
+}
+
+const FILM_CLIP_CONCURRENCY = 3; // betalte fal-kald i flight pr. job
+const FILM_CLIP_DURATION = "6";  // sek pr. rum-forvandling
+const FILM_MOODS = ["calm", "uplifting", "modern", "tension"];
+export const MAX_FILM_PAIRS = 8;
+
+async function buildFilmClips(
+  pairs: FilmPair[],
+  outDir: string,
+  onProgress?: (p: ShowcaseProgress) => void,
+  onClipFailed?: () => void,
+): Promise<AIClipData | null> {
+  const totalClips = pairs.length;
+  onProgress?.({ stage: "uploading", currentClip: 0, totalClips, message: `Uploader ${totalClips * 2} billeder…` });
+
+  let done = 0;
+  onProgress?.({ stage: "generating", currentClip: 0, totalClips, message: `Forvandler rum 0/${totalClips}… (ca. 3-5 min pr. rum)` });
+  const clips = await mapLimit(pairs, FILM_CLIP_CONCURRENCY, async (pair, i) => {
+    try {
+      const { beforeUrl, afterUrl } = await uploadVideoPairToFal(pair.before, pair.after);
+      const { videoUrl } = await generateAnimationVideo(beforeUrl, afterUrl, "morph", { duration: FILM_CLIP_DURATION });
+      const dest = path.join(outDir, `film-clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`);
+      await downloadToFile(videoUrl, dest);
+      done++;
+      onProgress?.({ stage: "generating", currentClip: done, totalClips, message: `Forvandler rum ${done}/${totalClips}… (ca. 3-5 min pr. rum)` });
+      return dest;
+    } catch (e: any) {
+      console.warn(`[film] klip ${i} fejlede:`, e?.message || e);
+      onClipFailed?.();
+      done++;
+      onProgress?.({ stage: "generating", currentClip: done, totalClips, message: `Forvandler rum ${done}/${totalClips}… (ét rum fejlede — krediten refunderes)` });
+      return null;
+    }
+  });
+
+  const clipPaths = clips.filter((c): c is string => !!c);
+  if (clipPaths.length === 0) return null;
+
+  try {
+    const sizes: Array<{ w: number; h: number }> = [];
+    const durations: number[] = [];
+    for (const c of clipPaths) {
+      sizes.push(await ffprobeSize(c));
+      durations.push(await ffprobeDuration(c));
+    }
+    return { clipPaths, sizes, durations };
+  } catch (e) {
+    for (const c of clipPaths) fs.promises.unlink(c).catch(() => {});
+    throw e;
+  }
+}
+
+// Fuld-længde RenderInputs: hvert klip spiller hele sin længde (minus den
+// lille ramp-up-trim som slide-byggeren altid fjerner i toppen). musicSeek=0 —
+// klippene styrer rytmen, ikke musikken.
+function makeRenderInputsFilm(clips: AIClipData): RenderInputs {
+  const n = clips.clipPaths.length;
+  const durations = clips.durations.map((d) => +Math.max(1, d - KLING_RAMPUP - 0.05).toFixed(4));
+  const filter = buildFilterVideoCleanLandscape(n, durations, clips.sizes);
+  const avgDur = +(durations.reduce((a, b) => a + b, 0) / n).toFixed(4);
+  return { inputPaths: clips.clipPaths, slideCount: n, slideDur: avgDur, durations, musicSeek: 0, filter, tmpClips: [] };
+}
+
+// Test/debug-hook: sammensæt en film direkte fra allerede-downloadede klip
+// (springer de betalte fal-kald over). Bruges af scripts/, ikke af routes.
+export async function assembleFilmFromClips(
+  clipPaths: string[],
+  outDir: string,
+  address?: string,
+  mood: string = "calm",
+): Promise<string> {
+  const sizes: Array<{ w: number; h: number }> = [];
+  const durations: number[] = [];
+  for (const c of clipPaths) {
+    sizes.push(await ffprobeSize(c));
+    durations.push(await ffprobeDuration(c));
+  }
+  const inputs = makeRenderInputsFilm({ clipPaths, sizes, durations });
+  return assembleVideo(inputs, outDir, address, mood, undefined, undefined);
+}
+
+async function renderTransformFilm(
+  jobId: string,
+  pairs: FilmPair[],
+  outDir: string,
+  address?: string,
+  onClipFailed?: () => void,
+): Promise<void> {
+  if (activeRenders >= MAX_CONCURRENT) {
+    setProgress(jobId, { stage: "uploading", currentClip: 0, totalClips: pairs.length, message: "Venter på ledig plads… (1-2 job kører allerede)" });
+  }
+  await acquireSlot();
+  try {
+    const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
+    if (!isFalConfigured()) {
+      throw new Error("AI-video er ikke tilgængelig lige nu. Prøv igen senere.");
+    }
+
+    const clipData = await buildFilmClips(pairs, outDir, emit, onClipFailed);
+    if (!clipData) {
+      throw new Error("Ingen af rummene kunne forvandles. Kreditterne er refunderet — prøv igen.");
+    }
+
+    const n = clipData.clipPaths.length;
+    try {
+      const inputs = makeRenderInputsFilm(clipData);
+      const videoUrls: Record<string, string> = {};
+      for (const mood of FILM_MOODS) {
+        emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[mood]}…` });
+        videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, undefined, undefined);
+      }
+
+      const doneMsg = n < pairs.length ? `Film klar (${n} af ${pairs.length} rum lykkedes)` : "4 film klar!";
+      emit({ stage: "complete", currentClip: n, totalClips: n, message: doneMsg, videoUrls });
+      jobs.set(jobId, {
+        status: "completed",
+        videoUrls,
+        createdAt: Date.now(),
+        progress: { stage: "complete", currentClip: n, totalClips: n, message: doneMsg, videoUrls },
+      });
+    } finally {
+      // Klip-filerne skal væk uanset om sammensætningen lykkedes — ellers
+      // efterlader et fejlet job store mp4-temp-filer i uploads/.
+      for (const c of clipData.clipPaths) fs.promises.unlink(c).catch(() => {});
+    }
+  } finally {
+    releaseSlot();
+  }
+}
+
+export function startTransformFilm(
+  pairs: FilmPair[],
+  outDir: string,
+  address?: string,
+  onClipFailed?: () => void,
+  onDone?: (failed: boolean) => void,
+): string | null {
+  pruneJobs();
+  if (activeRenders + waiters.length >= MAX_BACKLOG) return null;
+  const jobId = randomUUID();
+  const totalClips = Math.min(pairs.length, MAX_FILM_PAIRS);
+  jobs.set(jobId, {
+    status: "processing",
+    createdAt: Date.now(),
+    progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
+  });
+
+  renderTransformFilm(jobId, pairs.slice(0, MAX_FILM_PAIRS), outDir, address, onClipFailed)
+    .then(() => {
+      // Server-side afregning ved succes — afhænger ikke af at klienten poller.
+      onDone?.(false);
+    })
+    .catch((err: any) => {
+      const cur = jobs.get(jobId);
+      jobs.set(jobId, {
+        status: "failed",
+        error: err?.message || "Render mislykkedes",
+        createdAt: Date.now(),
+        progress: {
+          stage: "failed",
+          currentClip: cur?.progress?.currentClip ?? 0,
+          totalClips: cur?.progress?.totalClips ?? totalClips,
+          message: err?.message || "Generering mislykkedes",
+        },
+      });
+      // Refundér resterende kreditter server-side, selv hvis klienten er væk.
+      onDone?.(true);
+    })
+    .finally(() => {
+      // Slet de midlertidige billed-KOPIER (aldrig originaler — ruten kopierer
+      // altid galleri-filer til friske tmp-navne inden start).
+      for (const p of pairs) {
+        fs.promises.unlink(p.before).catch(() => {});
+        fs.promises.unlink(p.after).catch(() => {});
       }
     });
 
