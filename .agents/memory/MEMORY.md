@@ -1,11 +1,10 @@
 - [Live hosting is Render, not Replit](live-hosting-render.md) — formaestates.com runs on Render (GitHub auto-deploy) but uses the Replit PROD database; schema only syncs on Publish.
 - [Drizzle-kit push interactive prompt](drizzle-push-prompt.md) — `npm run db:push` blocks on a "rename or create" prompt that doesn't accept piped input; fall back to direct `psql` DDL.
-- [Upgrade fal.ai transform-video to v3/pro](fal-video-model-upgrade.md) — currently on v1.6/pro due to account access; upgrade to v3/pro when fal.ai billing is in order.
 - [Showcase paid-AI slot gating](showcase-paid-ai-gating.md) — gate paid fal.ai clip generation behind the render queue slot (acquire at top of render), bound per-job fan-out, clean partial temp clips.
 - [FFmpeg looped audio bed](ffmpeg-looped-audio.md) — never `-shortest` with `-stream_loop -1` audio (it deadlocks/fails); cap with `-t videoTotal`. Also: `tsx` dev server needs a workflow restart for server edits.
 - [Replit dev: Node.js HTTP intercepted](replit-nodejs-http-proxy.md) — Node.js fetch() and https.get() are intercepted by Replit's network layer; use spawn("curl") instead for server-side external fetches.
 - [fal.storage URLs blocked by nano-banana-2/edit](fal-storage-forbidden.md) — fal.storage.upload() via Replit proxy produces v3b.fal.media URLs that return 403 to model workers; fix: preprocess to disk, pass ${protocol}://${host}/uploads/... instead.
-- [Kling v1.6 image-to-video field modes](fal-kling-video-modes.md) — single-image mode requires `image_url`, not `start_image_url`; 422 surfaces at generation poll, not at submit.
+- [Seedance 2.0 transform video](fal-seedance-transform-video.md) — morph mode needs aspect_ratio "auto" or landscape inputs crop-zoom to 9:16; endpoint id has no fal-ai/ prefix; free schema probe via fal openapi URL.
 - [Floorplan wall detection](floorplan-wall-detection.md) — paper-white-relative threshold + dilate + keep-large-components beats Otsu+absolute-minArea for thin grey walls.
 - [Screenshot tool has no WebGL](screenshot-no-webgl.md) — app_preview headless browser can't create a WebGL context; 3D/Three.js scenes never render in screenshots.
 - [Depth-displacement diorama viewer](depth-displacement-diorama.md) — single-plane depth viewer is 2.5D relief; lay flat + constrain polar angle so users never see the torn edge-on view.

@@ -505,14 +505,16 @@ function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: Vi
   const base = {
     image_url: beforeImageUrl,
     end_image_url: afterImageUrl,
-    aspect_ratio: "9:16" as const,
     duration: "5" as const,
     generate_audio: false,
   };
   if (mode === "cinematic") {
-    return { ...base, prompt: CINEMATIC_WALKTHROUGH_PROMPT };
+    // Walkthrough-produktet er designet som lodret 9:16.
+    return { ...base, aspect_ratio: "9:16" as const, prompt: CINEMATIC_WALKTHROUGH_PROMPT };
   }
-  return { ...base, prompt: TRANSFORM_VIDEO_MORPH_PROMPT };
+  // Forvandling (morph): "auto" følger input-billedets format, så landskabs-
+  // billeder ikke beskæres/zoomes ind i et tvunget 9:16-udsnit.
+  return { ...base, aspect_ratio: "auto" as const, prompt: TRANSFORM_VIDEO_MORPH_PROMPT };
 }
 
 export async function generateAnimationVideo(

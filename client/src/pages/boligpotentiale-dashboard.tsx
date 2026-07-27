@@ -2349,7 +2349,7 @@ function HistoryView({
               {lightbox.beforeSrc && !isVideoUrl(lightbox.src) ? (
                 <BeforeAfterSlider beforeSrc={lightbox.beforeSrc} afterSrc={lightbox.src} />
               ) : isVideoUrl(lightbox.src) ? (
-                <video src={lightbox.src} controls autoPlay className="w-full rounded-2xl" />
+                <video src={lightbox.src} controls autoPlay className="w-full rounded-2xl" style={{ maxHeight: "82vh", objectFit: "contain", background: "#000" }} />
               ) : (
                 <img src={lightbox.src} alt={lightbox.room} className="w-full rounded-2xl" />
               )}
@@ -3633,7 +3633,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             {morphVideoUrl && (
               <>
                 <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
-                  <video src={morphVideoUrl} controls autoPlay loop className="w-full block bg-black" data-testid="video-result" />
+                  <video src={morphVideoUrl} controls autoPlay loop className="w-full block bg-black" style={{ maxHeight: "70vh", objectFit: "contain" }} data-testid="video-result" />
                   <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}><Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />AI-genereret forvandlingsvideo</div>
                 </div>
                 <div className="flex flex-wrap gap-3">
