@@ -298,7 +298,7 @@ export function EksemplerPage() {
     { before: "/bolig-images/dining-before.jpg", after: "/bolig-images/dining-after.jpg", title: "Spisestue — skandinavisk", desc: "Rene linjer, varme træmøbler og naturligt lys." },
     { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Køkken — landlig", desc: "Træfronter, sten og naturligt lys gør rummet levende." },
     { before: "/bolig-images/demo-bathroom-before.jpg", after: "/bolig-images/demo-bathroom-after-clean.png", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
-    { before: "/bolig-images/facade-before.jpg", after: "/bolig-images/ai-agent-after-v2.jpg", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
+    { before: "/bolig-images/ai-agent-house-before.png", after: "/bolig-images/ai-agent-house-after.png", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
   ];
   return (
     <SubpageLayout
@@ -940,8 +940,8 @@ export function AIDesignAgentPage() {
           </Link>
         </div>
         <BeforeAfterPair
-          before="/bolig-images/facade-before.jpg"
-          after="/bolig-images/ai-agent-after-v2.jpg"
+          before="/bolig-images/ai-agent-house-before.png"
+          after="/bolig-images/ai-agent-house-after.png"
           title="“Renover facaden, ny belægning og ryd haven”"
           desc="Et eksempel på hvad agenten kan, fra ét enkelt promptkrav."
           testId="agent-pair-0"
