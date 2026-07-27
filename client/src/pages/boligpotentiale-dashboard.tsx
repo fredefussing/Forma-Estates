@@ -6675,6 +6675,14 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
             <img src="/bolig-images/ai-agent-house-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
           </div>
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
+            <img src="/bolig-images/ai-agent-townhouse-before.jpg" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
+            <img src="/bolig-images/ai-agent-townhouse-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+          </div>
         </div>
       </div>
 
