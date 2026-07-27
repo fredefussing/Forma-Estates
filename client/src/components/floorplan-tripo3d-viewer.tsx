@@ -459,7 +459,7 @@ export function FloorplanTripo3DViewer({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-bold" style={{ color: "#0F1D2F" }}>Byg en 360° rotérbar 3D model</span>
-                <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#C8956C" }}>NY</span>
+                <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#C8956C" }} data-testid="badge-tripo3d-beta">BETA</span>
               </div>
               <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
                 AI'en omdanner dit 3D plantegningsbillede til en model du kan dreje, zoome og udforske frit — og skifte farver på væggene med ét klik.
@@ -600,6 +600,20 @@ export function FloorplanTripo3DViewer({
             />
           </div>
 
+          {/* Beta-mærke */}
+          <div
+            data-testid="badge-tripo3d-viewer-beta"
+            style={{
+              position: "absolute", top: 12, left: 12,
+              background: "rgba(22,22,22,0.72)", color: "rgba(255,255,255,0.85)",
+              padding: "3px 9px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(8px)",
+            }}
+          >
+            Beta
+          </div>
+
           {/* Knap-søjle i højre side (Tripo-stil) */}
           <ControlRail>
             <RailButton title="Fuld skærm" onClick={() => setShowFullscreen(true)} testId="button-tripo3d-fullscreen">
@@ -717,8 +731,9 @@ export function FloorplanTripo3DViewer({
           data-testid="modal-tripo3d-fullscreen"
         >
           <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ background: "#0A1520", borderBottom: "1px solid rgba(200,149,108,0.2)" }}>
-            <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.8)", letterSpacing: "0.06em" }}>
+            <span className="text-sm font-semibold flex items-center gap-2" style={{ color: "rgba(255,255,255,0.8)", letterSpacing: "0.06em" }}>
               FORMA ESTATES · Interaktiv 3D Plantegning
+              <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>Beta</span>
             </span>
             <button
               onClick={() => setShowFullscreen(false)}
