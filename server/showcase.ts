@@ -1704,15 +1704,20 @@ async function buildFilmClips(
   outDir: string,
   onProgress?: (p: ShowcaseProgress) => void,
   onClipFailed?: () => void,
+  publicBaseUrl?: string,
 ): Promise<AIClipData | null> {
   const totalClips = pairs.length;
   onProgress?.({ stage: "uploading", currentClip: 0, totalClips, message: `Uploader ${totalClips * 2} billeder…` });
+
+  // Brug vores egne /uploads/-URL'er frem for fal.storage — fal.storage returnerer
+  // v3b.fal.media-URL'er der giver 403 hos Seedance model-workers på Render.
+  const falOpts = publicBaseUrl ? { uploadDir: outDir, publicBaseUrl } : undefined;
 
   let done = 0;
   onProgress?.({ stage: "generating", currentClip: 0, totalClips, message: `Forvandler rum 0/${totalClips}… (ca. 3-5 min pr. rum)` });
   const clips = await mapLimit(pairs, FILM_CLIP_CONCURRENCY, async (pair, i) => {
     try {
-      const { beforeUrl, afterUrl } = await uploadVideoPairToFal(pair.before, pair.after);
+      const { beforeUrl, afterUrl } = await uploadVideoPairToFal(pair.before, pair.after, falOpts);
       const { videoUrl } = await generateAnimationVideo(beforeUrl, afterUrl, "morph", { duration: FILM_CLIP_DURATION });
       const dest = path.join(outDir, `film-clip-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.mp4`);
       await downloadToFile(videoUrl, dest);
@@ -1780,6 +1785,7 @@ async function renderTransformFilm(
   outDir: string,
   address?: string,
   onClipFailed?: () => void,
+  publicBaseUrl?: string,
 ): Promise<void> {
   if (activeRenders >= MAX_CONCURRENT) {
     setProgress(jobId, { stage: "uploading", currentClip: 0, totalClips: pairs.length, message: "Venter på ledig plads… (1-2 job kører allerede)" });
@@ -1791,7 +1797,7 @@ async function renderTransformFilm(
       throw new Error("AI-video er ikke tilgængelig lige nu. Prøv igen senere.");
     }
 
-    const clipData = await buildFilmClips(pairs, outDir, emit, onClipFailed);
+    const clipData = await buildFilmClips(pairs, outDir, emit, onClipFailed, publicBaseUrl);
     if (!clipData) {
       throw new Error("Ingen af rummene kunne forvandles. Kreditterne er refunderet — prøv igen.");
     }
@@ -1829,6 +1835,7 @@ export function startTransformFilm(
   address?: string,
   onClipFailed?: () => void,
   onDone?: (failed: boolean) => void,
+  publicBaseUrl?: string,
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) return null;
@@ -1840,7 +1847,7 @@ export function startTransformFilm(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  renderTransformFilm(jobId, pairs.slice(0, MAX_FILM_PAIRS), outDir, address, onClipFailed)
+  renderTransformFilm(jobId, pairs.slice(0, MAX_FILM_PAIRS), outDir, address, onClipFailed, publicBaseUrl)
     .then(() => {
       // Server-side afregning ved succes — afhænger ikke af at klienten poller.
       onDone?.(false);

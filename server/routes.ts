@@ -3950,6 +3950,8 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Vælg 2-8 designs fra dit galleri" });
       }
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
+      const filmProtocol = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0].trim() || req.protocol;
+      const filmPublicBaseUrl = `${filmProtocol}://${req.get("host")}`;
 
       // 1) Valider alle galleri-rækker (ejerskab + før/efter-billeder findes).
       const urlPairs: Array<{ before: string; after: string }> = [];
@@ -3969,11 +3971,27 @@ export async function registerRoutes(
       //    så vi må aldrig pege direkte på galleri-originaler i /uploads).
       const toLocalCopy = async (url: string, tag: string): Promise<string> => {
         if (url.startsWith("/uploads/")) {
-          const src = path.join(uploadDir, path.basename(url.split("?")[0]));
-          if (!fs.existsSync(src)) throw new Error("Et af billederne findes ikke længere på serveren — prøv et andet design");
+          const key = path.basename(url.split("?")[0]);
+          const src = path.join(uploadDir, key);
           const ext = path.extname(src) || ".jpg";
           const dest = path.join(uploadDir, `film-src-${Date.now()}-${tag}-${Math.random().toString(36).slice(2, 7)}${ext}`);
-          await fs.promises.copyFile(src, dest);
+          if (fs.existsSync(src)) {
+            // Filen er på disk (samme server-session som upload).
+            await fs.promises.copyFile(src, dest);
+          } else if (isR2Configured()) {
+            // Filen er ikke på disk (efter en redeploy) — hent fra R2.
+            const stream = await r2GetStream(key);
+            if (!stream) throw new Error("Et af billederne kunne ikke hentes fra cloud-lageret — prøv et andet design");
+            await new Promise<void>((res, rej) => {
+              const ws = fs.createWriteStream(dest);
+              (stream as any).pipe(ws);
+              ws.on("finish", res);
+              ws.on("error", rej);
+              (stream as any).on("error", rej);
+            });
+          } else {
+            throw new Error("Et af billederne findes ikke længere på serveren — prøv et andet design");
+          }
           localCopies.push(dest);
           return dest;
         }
@@ -4031,7 +4049,7 @@ export async function registerRoutes(
         if (!jobId) return;
         if (failed) refundTransformFilm(jobId);
         else transformFilmRefunds.delete(jobId);
-      });
+      }, filmPublicBaseUrl);
       if (!jobId) {
         for (let j = 0; j < charged; j++) storage.refundQuota(userId, "transformVideo").catch(() => {});
         cleanupCopies();

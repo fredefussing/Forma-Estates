@@ -63,9 +63,14 @@ export async function uploadToFal(localFilePath: string, mimeType?: string): Pro
 // uploads har næsten altid forskellig størrelse, så vi normaliserer begge
 // til identiske mål (center-cover-crop ift. før-billedets aspekt, maks 1920px,
 // lige tal) før upload.
+// opts.uploadDir + opts.publicBaseUrl: i stedet for fal.storage (som returnerer
+// v3b.fal.media-URL'er der får 403 hos model-workers på Render) gemmes de
+// normaliserede billeder til disk + R2 og vi returnerer vores egne /uploads/-URL'er.
+// Uden opts bruges fal.storage som fallback (kun til lokal dev uden public URL).
 export async function uploadVideoPairToFal(
   beforePath: string,
   afterPath: string,
+  opts?: { uploadDir: string; publicBaseUrl: string },
 ): Promise<{ beforeUrl: string; afterUrl: string }> {
   const [before, after] = await Promise.all([Jimp.read(beforePath), Jimp.read(afterPath)]);
   let w = before.bitmap.width;
@@ -92,6 +97,27 @@ export async function uploadVideoPairToFal(
     after.getBuffer(JimpMime.jpeg),
   ]);
 
+  if (opts?.uploadDir && opts?.publicBaseUrl) {
+    // Gem til disk (+ R2 non-blocking) og returner vores egne public URL'er.
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const beforeName = `film-pair-${stamp}-b.jpg`;
+    const afterName  = `film-pair-${stamp}-a.jpg`;
+    const beforeLocal = path.join(opts.uploadDir, beforeName);
+    const afterLocal  = path.join(opts.uploadDir, afterName);
+    fs.writeFileSync(beforeLocal, Buffer.from(beforeBuf));
+    fs.writeFileSync(afterLocal,  Buffer.from(afterBuf));
+    // Upload til R2 non-blocking — sørger for at billederne overlever en redeploy
+    // hvis Seedance tager lang tid og vi restarter serveren undervejs (sjælden).
+    r2UploadFile(beforeLocal).catch(() => {});
+    r2UploadFile(afterLocal).catch(() => {});
+    const base = opts.publicBaseUrl.replace(/\/$/, "");
+    return {
+      beforeUrl: `${base}/uploads/${beforeName}`,
+      afterUrl:  `${base}/uploads/${afterName}`,
+    };
+  }
+
+  // Fallback: fal.storage (kun lokal dev uden offentlig URL).
   const upload = async (buf: Buffer, name: string) => {
     const file = new File([Buffer.from(buf)], name, { type: "image/jpeg" });
     return await fal.storage.upload(file);
