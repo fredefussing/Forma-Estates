@@ -3159,6 +3159,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [morphShowCaseDropdown, setMorphShowCaseDropdown] = useState(false);
   const [morphDownloading, setMorphDownloading] = useState(false);
   const [morphSpeed, setMorphSpeed] = useState<"premium" | "hurtig">("premium");
+  const [morphStyle, setMorphStyle] = useState<"hård" | "blød">("hård");
   const [showTransformEksempel, setShowTransformEksempel] = useState(false);
   const morphDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -3256,6 +3257,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       fd.append("afterImage", afterFile);
       fd.append("mode", "morph");
       fd.append("speed", morphSpeed === "hurtig" ? "hurtig" : "standard");
+      fd.append("morphStyle", morphStyle);
       const res = await fetch("/api/bolig/transform-video", {
         method: "POST",
         body: fd,
@@ -3619,6 +3621,20 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 <button type="button" onClick={() => setMorphSpeed("hurtig")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphSpeed === "hurtig" ? "#0F1D2F" : "#E8E4DE", background: morphSpeed === "hurtig" ? "#0F1D2F" : "white", color: morphSpeed === "hurtig" ? "white" : "#0F1D2F" }} data-testid="button-morph-speed-hurtig">
                   <div className="text-sm font-semibold mb-0.5">Hurtig · 5 sek</div>
                   <div className="text-[11px]" style={{ color: morphSpeed === "hurtig" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Kortere video · typisk 2–4 min ventetid</div>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Forvandlingsstil</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button type="button" onClick={() => setMorphStyle("hård")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphStyle === "hård" ? "#0F1D2F" : "#E8E4DE", background: morphStyle === "hård" ? "#0F1D2F" : "white", color: morphStyle === "hård" ? "white" : "#0F1D2F" }} data-testid="button-morph-style-hard">
+                  <div className="text-sm font-semibold mb-0.5">Hård</div>
+                  <div className="text-[11px]" style={{ color: morphStyle === "hård" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Elementer bygger sig op ét ad gangen</div>
+                </button>
+                <button type="button" onClick={() => setMorphStyle("blød")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphStyle === "blød" ? "#0F1D2F" : "#E8E4DE", background: morphStyle === "blød" ? "#0F1D2F" : "white", color: morphStyle === "blød" ? "white" : "#0F1D2F" }} data-testid="button-morph-style-soft">
+                  <div className="text-sm font-semibold mb-0.5">Blød</div>
+                  <div className="text-[11px]" style={{ color: morphStyle === "blød" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Alt forvandles simultant og gradvist</div>
                 </button>
               </div>
             </div>

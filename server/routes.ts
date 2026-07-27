@@ -3459,6 +3459,8 @@ export async function registerRoutes(
         const mode = (req.body?.mode === "morph" ? "morph" : "cinematic") as "morph" | "cinematic";
         // Hurtig (5 sek → hurtigere generering) vs. Premium (8 sek, default).
         const speed = req.body?.speed === "hurtig" ? "5" : "8";
+        // Forvandlingsstil: "blød" = simultan crossfade, "hård" = sekventiel (default).
+        const morphStyle = req.body?.morphStyle === "blød" ? "blød" : "hård" as "hård" | "blød";
 
         // Begge modes bruger image_url + tail_image_url (kling v1.6 to-frame
         // interpolation), og begge kræver identiske dimensioner.
@@ -3467,7 +3469,7 @@ export async function registerRoutes(
         const { beforeUrl: beforeFalUrl, afterUrl: afterFalUrl } =
           await uploadVideoPairToFal(beforePath, afterPath);
         log(`[Video] submit mode=${mode} duration=${speed}s before=${beforeFalUrl.slice(0, 60)} after=${afterFalUrl.slice(0, 60)}`);
-        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode, { duration: speed });
+        const { requestId } = await submitAnimationVideo(beforeFalUrl, afterFalUrl, mode, { duration: speed, style: morphStyle });
         log(`[Video] submitted request_id=${requestId}`);
         // Track for a quota refund if the job later fails at the poll stage.
         if (transformUserId) transformVideoRefunds.set(requestId, transformUserId);

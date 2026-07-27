@@ -468,7 +468,13 @@ export async function generate360Panorama(
 // fornyer sig plank for plank, gamle møbler opløses og nye møbler
 // folder/vokser frem til den endelige indretning. God til præsentationer
 // hvor mægleren vil bevise "før→efter" konkret.
+// "Hård" stil: elementer bygger sig op ét ad gangen i en naturlig rækkefølge
+// (nuværende adfærd — tydeligt skift, ting popper ind sekventielt).
 const TRANSFORM_VIDEO_MORPH_PROMPT = `A cinematic room renovation filmed from a completely static, locked-off tripod. The camera never moves — no zoom, no push-in, no pan, no drift, no rotation for the entire video. The scene transforms smoothly from the original interior to the beautifully renovated interior. All architectural structure remains completely fixed and untouched — walls, windows, doors, flooring layout, ceiling, and room geometry never move or warp. Only the interior styling, furniture, materials, and decor change. Each element transforms in a natural, believable sequence one after another — cabinetry and storage units first, then surfaces and countertops, then lighting fixtures, then seating and tables, then textiles and decor last. Nothing appears magically or spawns from nowhere — each change is a smooth, organic morph. Lighting stays completely true to the photographs: constant white balance, constant exposure, no flicker, no color shifts, soft natural shadows. No people, no hands, no text, no captions, no logos, no watermarks. Ultra-smooth motion throughout, no abrupt jumps, no warping, no stretching, no deformation of any element. The final frame matches the provided end image exactly. Photorealistic architectural visualization quality.`;
+
+// "Blød" stil: ALT forvandles SIMULTANT og graduelt — som to fotografier der
+// langsomt crossfader ind i hinanden. Ingen sekventielle skift, ingen popping.
+const TRANSFORM_VIDEO_MORPH_BLØD_PROMPT = `A cinematic room renovation filmed from a completely static, locked-off tripod. The camera never moves — no zoom, no push-in, no pan, no drift, no rotation for the entire video. The entire scene undergoes one single, simultaneous, perfectly uniform dissolve — like a slow long-exposure cross-fade between two photographs. Every element in the room — walls, floor, ceiling, furniture, textiles, lighting, decor — transforms at exactly the same pace at the same time. Nothing changes before anything else. There is no sequence, no order, no one element appearing ahead of another. Think of it as a single seamless photographic morph where both images co-exist and slowly blend: the old interior gradually becomes translucent as the new interior materialises beneath it, at an absolutely even, meditative rate across every pixel simultaneously. The transformation is so gradual and uniform that any single frame is a perfect 50/50 blend of the two states. All architectural structure remains completely fixed — walls, windows, doors, flooring layout, ceiling, and room geometry never move or warp. Lighting stays completely true to both photographs: constant white balance, constant exposure, no flicker, no color shifts, soft natural shadows. No people, no hands, no text, no captions, no logos, no watermarks. The motion is calm, smooth, and deeply cinematic — like watching seasons change in a time-lapse, serene and unhurried. No abrupt jumps, no sudden appearances, no popping, no warping, no stretching. The final frame matches the provided end image exactly. Photorealistic architectural visualization quality.`;
 
 // "Cinematisk gennemgang": Prompt 2 — Professionel Walkthrough Video (Seedance 2.0).
 // Kameraet bevæger sig jævnt igennem boligen, rum for rum, som en high-end
@@ -529,6 +535,8 @@ const VIDEO_ENDPOINT = "bytedance/seedance-2.0/image-to-video";
 export interface VideoOpts {
   /** Seedance duration i sekunder ("4"–"15"). Default "8" (premium). */
   duration?: string;
+  /** Forvandlingsstil: "hård" (sekventielle skift, default) eller "blød" (simultan crossfade). */
+  style?: "hård" | "blød";
 }
 
 function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: VideoMode, opts?: VideoOpts) {
@@ -549,7 +557,8 @@ function buildVideoInput(beforeImageUrl: string, afterImageUrl: string, mode: Vi
   }
   // Forvandling (morph): "auto" følger input-billedets format, så landskabs-
   // billeder ikke beskæres/zoomes ind i et tvunget 9:16-udsnit.
-  return { ...base, aspect_ratio: "auto" as const, prompt: TRANSFORM_VIDEO_MORPH_PROMPT };
+  const morphPrompt = opts?.style === "blød" ? TRANSFORM_VIDEO_MORPH_BLØD_PROMPT : TRANSFORM_VIDEO_MORPH_PROMPT;
+  return { ...base, aspect_ratio: "auto" as const, prompt: morphPrompt };
 }
 
 export async function generateAnimationVideo(
