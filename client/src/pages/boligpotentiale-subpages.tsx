@@ -553,31 +553,35 @@ export function BranchevideoPage() {
         </div>
       </div>
 
-      {/* Two example posters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-7 mt-7">
-        {[
-          { src: "/bolig-images/living-scandi-after.jpg", title: "Stue — rolig pan", desc: "Langsom kamerabevægelse fra vindue mod sofagruppe." },
-          { src: "/bolig-images/living-modern-after.jpg", title: "Stue — dybde-zoom", desc: "Kameraet bevæger sig ind i rummet og åbner perspektivet." },
-        ].map((v, i) => (
-          <div
-            key={v.title}
-            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
-            data-testid={`branchevideo-example-${i}`}
-          >
-            <div className="relative" style={{ aspectRatio: "16 / 9" }}>
-              <img src={v.src} alt={v.title} className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="rounded-full flex items-center justify-center" style={{ width: 56, height: 56, background: "rgba(255,255,255,0.92)", color: C.navy }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                </div>
-              </div>
-            </div>
-            <div style={{ padding: "18px 22px 22px" }}>
-              <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{v.title}</div>
-              <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.55 }}>{v.desc}</div>
+      {/* Forvandlingsvideo — før → efter */}
+      <div className="mt-7 mx-auto w-full" style={{ maxWidth: 760 }}>
+        <div
+          style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+          data-testid="branchevideo-forvandling"
+        >
+          <div className="relative" style={{ aspectRatio: "4 / 3", background: C.navy }}>
+            <video
+              src="/videos/branchevideo-forvandling.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              className="absolute inset-0 w-full h-full object-cover"
+              data-testid="video-branchevideo-forvandling"
+            />
+            <div
+              className="absolute top-3 left-3 uppercase"
+              style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
+            >
+              AI-genereret video
             </div>
           </div>
-        ))}
+          <div style={{ padding: "18px 22px 22px" }}>
+            <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Forvandling — spisestue</div>
+            <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.55 }}>Rummet forvandler sig fra mørk indretning til lyst skandinavisk look i én flydende bevægelse — samme rum, nyt udtryk.</div>
+          </div>
+        </div>
       </div>
 
       <BenefitRow
