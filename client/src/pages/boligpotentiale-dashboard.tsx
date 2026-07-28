@@ -6842,24 +6842,37 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       {/* Eksempel */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6" style={{ order: 2 }}>
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
-            <img src="/bolig-images/ai-agent-house-before.png" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+        {satelliteMode ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Satellit screenshot</p>
+              <img src="/bolig-images/satellite-example-before.png" alt="Satellit billede før" className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>AI dronefoto</p>
+              <img src="/bolig-images/satellite-example-after.jpg" alt="Satellit billede efter AI" className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
-            <img src="/bolig-images/ai-agent-house-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
+              <img src="/bolig-images/ai-agent-house-before.png" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
+              <img src="/bolig-images/ai-agent-house-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
+              <img src="/bolig-images/ai-agent-townhouse-before.jpg" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
+              <img src="/bolig-images/ai-agent-townhouse-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
-            <img src="/bolig-images/ai-agent-townhouse-before.jpg" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
-          </div>
-          <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
-            <img src="/bolig-images/ai-agent-townhouse-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Info card */}
