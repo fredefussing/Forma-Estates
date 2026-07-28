@@ -77,18 +77,18 @@ const EXAMPLE_PROMPTS = [
 ];
 
 const SATELLITE_TIMES = [
-  { label: "Solopgang",         emoji: "🌄", phrase: "The time of the day is sunrise" },
-  { label: "Formiddag",         emoji: "🌤️", phrase: "The time of the day is mid-morning" },
-  { label: "Middag",            emoji: "☀️", phrase: "The time of the day is midday" },
-  { label: "Tidlig solnedgang", emoji: "🌅", phrase: "The time of the day is early sundown" },
-  { label: "Blå time",          emoji: "🌆", phrase: "The time of the day is blue hour at dusk" },
+  { label: "Solopgang",         emoji: "🌄", phrase: "time of the day is sunrise" },
+  { label: "Formiddag",         emoji: "🌤️", phrase: "time of the day is mid-morning" },
+  { label: "Middag",            emoji: "☀️", phrase: "time of the day is midday" },
+  { label: "Tidlig solnedgang", emoji: "🌅", phrase: "time of the day is early sundown" },
+  { label: "Blå time",          emoji: "🌆", phrase: "time of the day is blue hour at dusk" },
 ] as const;
 
 const SATELLITE_PROMPT_BASE =
   `Using image @1 as the exact reference layout, transform this satellite map screenshot into a photorealistic aerial drone photograph of the same location.\n` +
   `Remove all map interface elements completely: text labels, place names, road names, pins, watermarks, icons, and any UI overlay. None should remain.\n` +
   `Preserve the site layout exactly. Every road, building, or area stays in its original position, shape, and scale. Do not invent, move, or remove any structure.\n` +
-  `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water.\n\n` +
+  `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water, natural depth and atmospheric haze toward the horizon.\n\n` +
   `{TIME}\n\n` +
   `The result should look like a professional drone photograph of this exact place. High resolution, sharp, cinematic.`;
 
