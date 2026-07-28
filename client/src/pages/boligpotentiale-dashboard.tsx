@@ -8740,8 +8740,8 @@ export default function BoligpotentialeDashboard() {
             src={formaEstatesLogo}
             alt="Forma Estates – tilbage til forsiden"
             title="Tilbage til forsiden"
-            className="h-14 md:h-24 w-auto select-none cursor-pointer"
-            style={{ filter: "brightness(0) invert(1)", minWidth: "fit-content" }}
+            className="h-10 md:h-16 w-auto max-w-[160px] md:max-w-[240px] object-contain select-none cursor-pointer"
+            style={{ filter: "brightness(0) invert(1)" }}
             data-testid="bolig-topbar-logo"
           />
         </Link>
