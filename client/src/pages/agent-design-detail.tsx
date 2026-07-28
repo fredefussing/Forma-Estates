@@ -5,6 +5,64 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { Flame, ArrowLeft, Loader2, Download, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentDesign } from "@shared/schema";
+import { auth } from "@/lib/firebase";
+
+function useWatermarkPreference() {
+  const [watermark, setWatermarkState] = useState<boolean>(() =>
+    localStorage.getItem("fe-watermark") !== "false"
+  );
+  const setWatermark = (v: boolean) => {
+    localStorage.setItem("fe-watermark", v ? "true" : "false");
+    setWatermarkState(v);
+    window.dispatchEvent(new CustomEvent("fe-watermark-change", { detail: v }));
+  };
+  useEffect(() => {
+    const handler = (e: Event) => setWatermarkState((e as CustomEvent<boolean>).detail);
+    window.addEventListener("fe-watermark-change", handler);
+    return () => window.removeEventListener("fe-watermark-change", handler);
+  }, []);
+  return { watermark, setWatermark };
+}
+
+function WatermarkToggle() {
+  const { watermark, setWatermark } = useWatermarkPreference();
+  return (
+    <button
+      type="button"
+      onClick={() => setWatermark(!watermark)}
+      className="inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-all"
+      style={watermark
+        ? { background: "rgba(15,29,47,0.07)", color: "#4B5563", border: "1px solid rgba(15,29,47,0.13)" }
+        : { background: "rgba(200,149,108,0.12)", color: "#9B6A40", border: "1px solid rgba(200,149,108,0.45)" }
+      }
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${watermark ? "bg-slate-500" : "bg-[#C8956C]"}`} />
+      Brændemærke: <strong>{watermark ? "TIL" : "FRA"}</strong>
+    </button>
+  );
+}
+
+function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-[340px] shadow-2xl">
+        <p className="text-sm font-semibold mb-1">Download uden brændemærke</p>
+        <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+          Du er ved at downloade <strong>uden</strong> "AI-redigeret"-mærket.<br />
+          Er du sikker på dette?
+        </p>
+        <div className="flex gap-2">
+          <button type="button" onClick={onConfirm} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ background: "#0F1D2F" }}>
+            Ja, download
+          </button>
+          <button type="button" onClick={onCancel} className="flex-1 h-10 rounded-xl text-sm font-semibold border text-foreground hover:bg-slate-50">
+            Annuller
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AgentDesignDetailPage() {
   const [match, params] = useRoute("/agent-design/:id");
@@ -32,13 +90,22 @@ export default function AgentDesignDetailPage() {
     fetchDesign();
   }, [match, params]);
 
-  const handleDownload = async () => {
+  const { watermark } = useWatermarkPreference();
+  const [showWmConfirm, setShowWmConfirm] = useState(false);
+
+  const doDownload = async () => {
     if (!design?.resultImageUrl) return;
-    const fetchUrl = design.resultImageUrl.startsWith("http")
+    let fetchUrl = design.resultImageUrl.startsWith("http")
       ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
       : design.resultImageUrl;
+    const fetchInit: RequestInit = {};
+    if (!watermark && design.resultImageUrl.startsWith("http")) {
+      fetchUrl += "&plain=1";
+      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+      if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
+    }
     try {
-      const res = await fetch(fetchUrl);
+      const res = await fetch(fetchUrl, fetchInit);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const objUrl = URL.createObjectURL(blob);
@@ -52,6 +119,11 @@ export default function AgentDesignDetailPage() {
     } catch {
       window.open(design.resultImageUrl, "_blank");
     }
+  };
+
+  const handleDownload = () => {
+    if (!watermark) { setShowWmConfirm(true); return; }
+    doDownload();
   };
 
   if (authLoading || loading) {
@@ -133,6 +205,12 @@ export default function AgentDesignDetailPage() {
           </p>
         </div>
 
+        {showWmConfirm && (
+          <NoWatermarkConfirmDialog
+            onConfirm={() => { setShowWmConfirm(false); doDownload(); }}
+            onCancel={() => setShowWmConfirm(false)}
+          />
+        )}
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground" data-testid="text-date">
             {new Date(design.createdAt).toLocaleDateString("da-DK", {
@@ -141,10 +219,13 @@ export default function AgentDesignDetailPage() {
             })}
           </p>
           {design.resultImageUrl && (
-            <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              Download
-            </Button>
+            <div className="flex flex-col items-end gap-1.5">
+              <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Download
+              </Button>
+              <WatermarkToggle />
+            </div>
           )}
         </div>
       </div>

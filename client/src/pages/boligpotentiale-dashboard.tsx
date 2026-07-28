@@ -100,6 +100,74 @@ function isVideoUrl(url: string | null | undefined): boolean {
   return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
 }
 
+// ── Watermark preference (localStorage, synced across components via CustomEvent)
+function useWatermarkPreference() {
+  const [watermark, setWatermarkState] = useState<boolean>(() =>
+    localStorage.getItem("fe-watermark") !== "false"
+  );
+  const setWatermark = (v: boolean) => {
+    localStorage.setItem("fe-watermark", v ? "true" : "false");
+    setWatermarkState(v);
+    window.dispatchEvent(new CustomEvent("fe-watermark-change", { detail: v }));
+  };
+  useEffect(() => {
+    const handler = (e: Event) => setWatermarkState((e as CustomEvent<boolean>).detail);
+    window.addEventListener("fe-watermark-change", handler);
+    return () => window.removeEventListener("fe-watermark-change", handler);
+  }, []);
+  return { watermark, setWatermark };
+}
+
+function WatermarkToggle({ className }: { className?: string }) {
+  const { watermark, setWatermark } = useWatermarkPreference();
+  return (
+    <button
+      type="button"
+      onClick={() => setWatermark(!watermark)}
+      title={watermark ? "Klik for at downloade uden brændemærke" : "Klik for at tilføje brændemærke igen"}
+      className={`inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-all ${className ?? ""}`}
+      style={watermark
+        ? { background: "rgba(15,29,47,0.07)", color: "#4B5563", border: "1px solid rgba(15,29,47,0.13)" }
+        : { background: "rgba(200,149,108,0.12)", color: "#9B6A40", border: "1px solid rgba(200,149,108,0.45)" }
+      }
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${watermark ? "bg-slate-500" : "bg-[#C8956C]"}`} />
+      Brændemærke: <strong>{watermark ? "TIL" : "FRA"}</strong>
+    </button>
+  );
+}
+
+function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-[340px] shadow-2xl">
+        <p className="text-sm font-semibold text-[#0F1D2F] mb-1">Download uden brændemærke</p>
+        <p className="text-sm text-[#4B5563] mb-5 leading-relaxed">
+          Du er ved at downloade <strong>uden</strong> "AI-redigeret"-mærket.<br />
+          Er du sikker på dette?
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 h-10 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ background: "#0F1D2F" }}
+          >
+            Ja, download
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 h-10 rounded-xl text-sm font-semibold border border-[#D9D5CF] text-[#0F1D2F] hover:bg-slate-50 transition-colors"
+          >
+            Annuller
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Download helper ───────────────────────────────────────────────────────────
 function slugifyForFilename(input: string | null | undefined): string {
   if (!input) return "";
@@ -160,9 +228,11 @@ async function downloadCasePdf(opts: {
   room?: string | null;
   style?: string | null;
   mode?: "presentation" | "images-only";
+  skipWatermark?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
   if (!opts.url) return { ok: false, error: "Intet billede" };
   const mode = opts.mode ?? "presentation";
+  const skipWm = opts.skipWatermark ?? false;
   try {
     const { jsPDF } = await import("jspdf");
     const after = await fetchImageAsDataUrl(opts.url);
@@ -182,27 +252,29 @@ async function downloadCasePdf(opts: {
         format: [pageW, pageH],
       });
       pdfImg.addImage(after.dataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
-      // Watermark for images-only mode
-      const drawWatermarkImg = (imgX: number, imgY: number, imgW: number, imgH: number) => {
-        const label = "AI-redigeret";
-        const fs = Math.max(6.5, imgH * 0.032);
-        const approxW = fs * 5.6;
-        const boxH = fs * 1.55;
-        const padX = 1.8;
-        const padBottom = imgH * 0.022;
-        const bx = imgX + imgW - approxW - padX - 1;
-        const by = imgY + imgH - boxH - padBottom;
-        pdfImg.saveGraphicsState();
-        (pdfImg as any).setGState(new (pdfImg as any).GState({ opacity: 0.55 }));
-        pdfImg.setFillColor(0, 0, 0);
-        pdfImg.roundedRect(bx, by, approxW + 2, boxH, 0.8, 0.8, "F");
-        pdfImg.restoreGraphicsState();
-        pdfImg.setFont("helvetica", "bold");
-        pdfImg.setFontSize(fs);
-        pdfImg.setTextColor(255, 255, 255);
-        pdfImg.text(label, imgX + imgW - padX - 0.5, by + boxH - fs * 0.38, { align: "right" });
-      };
-      drawWatermarkImg(0, 0, pageW, pageH);
+      if (!skipWm) {
+        // Watermark for images-only mode
+        const drawWatermarkImg = (imgX: number, imgY: number, imgW: number, imgH: number) => {
+          const label = "AI-redigeret";
+          const fs = Math.max(6.5, imgH * 0.032);
+          const approxW = fs * 5.6;
+          const boxH = fs * 1.55;
+          const padX = 1.8;
+          const padBottom = imgH * 0.022;
+          const bx = imgX + imgW - approxW - padX - 1;
+          const by = imgY + imgH - boxH - padBottom;
+          pdfImg.saveGraphicsState();
+          (pdfImg as any).setGState(new (pdfImg as any).GState({ opacity: 0.55 }));
+          pdfImg.setFillColor(0, 0, 0);
+          pdfImg.roundedRect(bx, by, approxW + 2, boxH, 0.8, 0.8, "F");
+          pdfImg.restoreGraphicsState();
+          pdfImg.setFont("helvetica", "bold");
+          pdfImg.setFontSize(fs);
+          pdfImg.setTextColor(255, 255, 255);
+          pdfImg.text(label, imgX + imgW - padX - 0.5, by + boxH - fs * 0.38, { align: "right" });
+        };
+        drawWatermarkImg(0, 0, pageW, pageH);
+      }
       const filenameImg = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: "pdf" });
       pdfImg.save(filenameImg);
       return { ok: true };
@@ -294,7 +366,7 @@ async function downloadCasePdf(opts: {
     const heroX = (pageW - heroW) / 2;
     const heroY = metaY + 8;
     pdf.addImage(after.dataUrl, "JPEG", heroX, heroY, heroW, heroH, undefined, "FAST");
-    drawWatermark(heroX, heroY, heroW, heroH);
+    if (!skipWm) drawWatermark(heroX, heroY, heroW, heroH);
     drawFooter();
 
     // ── Page 2: Før / Efter (or large single) ────────────────────────────────
@@ -317,7 +389,7 @@ async function downloadCasePdf(opts: {
         if (h > maxH) { h = maxH; w = maxH * r; }
         const ox = x + (half - w) / 2;
         pdf.addImage(img.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
-        if (addWatermark) drawWatermark(ox, imgTop, w, h);
+        if (addWatermark && !skipWm) drawWatermark(ox, imgTop, w, h);
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(9);
         pdf.setTextColor(accent[0], accent[1], accent[2]);
@@ -333,7 +405,7 @@ async function downloadCasePdf(opts: {
       if (h > maxH) { h = maxH; w = maxH * r; }
       const singleX = (pageW - w) / 2;
       pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
-      drawWatermark(singleX, imgTop, w, h);
+      if (!skipWm) drawWatermark(singleX, imgTop, w, h);
     }
     drawFooter();
 
@@ -353,17 +425,26 @@ function triggerBlobDownload(blob: Blob, filename: string) {
 }
 async function downloadImageFile(
   url: string,
-  opts: { address?: string | null; room?: string | null; style?: string | null; format?: "jpg" | "png" } = {}
+  opts: { address?: string | null; room?: string | null; style?: string | null; format?: "jpg" | "png"; skipWatermark?: boolean } = {}
 ): Promise<void> {
   if (!url) return;
   const format = opts.format ?? "jpg";
   const filename = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: format });
-  // Server proxy handles both fetching (CORS) and format conversion (JPG/PNG).
-  const fetchUrl = url.startsWith("http")
-    ? `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}`
-    : url;
+  let fetchUrl: string;
+  let fetchInit: RequestInit = {};
+  if (url.startsWith("http")) {
+    if (opts.skipWatermark) {
+      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}&plain=1`;
+      if (token) fetchInit = { headers: { Authorization: `Bearer ${token}` } };
+    } else {
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}`;
+    }
+  } else {
+    fetchUrl = url;
+  }
   try {
-    const res = await fetch(fetchUrl);
+    const res = await fetch(fetchUrl, fetchInit);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     triggerBlobDownload(blob, filename);
@@ -390,22 +471,33 @@ function DownloadMenu(props: {
 }) {
   const { url, beforeUrl, address, room, style, variant, testIdPrefix, stopPropagation } = props;
   const [busy, setBusy] = useState<DownloadKind | null>(null);
+  const [confirmKind, setConfirmKind] = useState<DownloadKind | null>(null);
+  const { watermark } = useWatermarkPreference();
 
-  const run = (kind: DownloadKind) => async (e: ReactMouseEvent) => {
-    if (stopPropagation) e.stopPropagation();
+  const doDownload = async (kind: DownloadKind, skipWatermark: boolean) => {
     if (busy) return;
     setBusy(kind);
     try {
       if (kind === "jpg" || kind === "png") {
-        await downloadImageFile(url, { address, room, style, format: kind });
+        await downloadImageFile(url, { address, room, style, format: kind, skipWatermark });
       } else {
         const mode = kind === "pdf-images" ? "images-only" : "presentation";
-        const r = await downloadCasePdf({ url, beforeUrl, address, room, style, mode });
+        const r = await downloadCasePdf({ url, beforeUrl, address, room, style, mode, skipWatermark });
         if (!r.ok) alert("PDF'en kunne ikke genereres. Prøv igen.");
       }
     } finally {
       setBusy(null);
     }
+  };
+
+  const run = (kind: DownloadKind) => (e: ReactMouseEvent) => {
+    if (stopPropagation) e.stopPropagation();
+    if (busy) return;
+    if (!watermark) {
+      setConfirmKind(kind);
+      return;
+    }
+    doDownload(kind, false);
   };
 
   const items: { kind: DownloadKind; label: string; short: string; Icon: typeof Download; tone: "neutral" | "accent" }[] = [
@@ -417,30 +509,39 @@ function DownloadMenu(props: {
 
   if (variant === "icon-dark") {
     return (
-      <div className="flex gap-1">
-        {items.map((it) => {
-          const isPresentation = it.tone === "accent";
-          const loading = busy === it.kind;
-          return (
-            <button
-              key={it.kind}
-              type="button"
-              onClick={run(it.kind)}
-              disabled={busy !== null}
-              title={it.label}
-              data-testid={`${testIdPrefix}-${it.kind}`}
-              className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold disabled:opacity-50"
-              style={{
-                background: isPresentation ? "rgba(200,149,108,0.95)" : "rgba(0,0,0,0.55)",
-                color: "#fff",
-              }}
-            >
-              <it.Icon className="w-3 h-3" />
-              <span>{loading ? "…" : it.short}</span>
-            </button>
-          );
-        })}
-      </div>
+      <>
+        {confirmKind && (
+          <NoWatermarkConfirmDialog
+            onConfirm={() => { const k = confirmKind; setConfirmKind(null); doDownload(k, true); }}
+            onCancel={() => setConfirmKind(null)}
+          />
+        )}
+        <div className="flex gap-1 items-center flex-wrap">
+          {items.map((it) => {
+            const isPresentation = it.tone === "accent";
+            const loading = busy === it.kind;
+            return (
+              <button
+                key={it.kind}
+                type="button"
+                onClick={run(it.kind)}
+                disabled={busy !== null}
+                title={it.label}
+                data-testid={`${testIdPrefix}-${it.kind}`}
+                className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold disabled:opacity-50"
+                style={{
+                  background: isPresentation ? "rgba(200,149,108,0.95)" : "rgba(0,0,0,0.55)",
+                  color: "#fff",
+                }}
+              >
+                <it.Icon className="w-3 h-3" />
+                <span>{loading ? "…" : it.short}</span>
+              </button>
+            );
+          })}
+          <WatermarkToggle className="ml-0.5" />
+        </div>
+      </>
     );
   }
 
@@ -469,26 +570,37 @@ function DownloadMenu(props: {
   const iconSize = variant === "pill-light" ? "w-3.5 h-3.5" : "w-4 h-4";
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {items.map((it) => {
-        const s = styleFor(it);
-        const loading = busy === it.kind;
-        return (
-          <button
-            key={it.kind}
-            type="button"
-            onClick={run(it.kind)}
-            disabled={busy !== null}
-            data-testid={`${testIdPrefix}-${it.kind}`}
-            className={s.cls}
-            style={s.style}
-          >
-            <it.Icon className={iconSize} />
-            <span>{loading ? "Henter..." : it.label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <>
+      {confirmKind && (
+        <NoWatermarkConfirmDialog
+          onConfirm={() => { const k = confirmKind; setConfirmKind(null); doDownload(k, true); }}
+          onCancel={() => setConfirmKind(null)}
+        />
+      )}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2">
+          {items.map((it) => {
+            const s = styleFor(it);
+            const loading = busy === it.kind;
+            return (
+              <button
+                key={it.kind}
+                type="button"
+                onClick={run(it.kind)}
+                disabled={busy !== null}
+                data-testid={`${testIdPrefix}-${it.kind}`}
+                className={s.cls}
+                style={s.style}
+              >
+                <it.Icon className={iconSize} />
+                <span>{loading ? "Henter..." : it.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <WatermarkToggle />
+      </div>
+    </>
   );
 }
 
@@ -571,7 +683,9 @@ async function downloadSellerReportPdf(opts: {
   marketDateISO: string;
   liveDays: number;
   images: ApiCaseImage[];
+  skipWatermark?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
+  const skipWm = opts.skipWatermark ?? false;
   try {
     const stills = opts.images.filter((i) => !isVideoUrl(i.src) && !i.style?.startsWith("showcase-video-")).slice(0, 10);
     if (stills.length === 0) return { ok: false, error: "Sagen har ingen billeder til rapporten" };
@@ -665,7 +779,7 @@ async function downloadSellerReportPdf(opts: {
     const heroX = (pageW - heroW) / 2;
     const heroY = metaY + 8;
     pdf.addImage(hero.dataUrl, "JPEG", heroX, heroY, heroW, heroH, undefined, "FAST");
-    drawWatermark(heroX, heroY, heroW, heroH);
+    if (!skipWm) drawWatermark(heroX, heroY, heroW, heroH);
     drawFooter();
 
     // ── Én side pr. visualisering ────────────────────────────────────────────
@@ -695,7 +809,7 @@ async function downloadSellerReportPdf(opts: {
           if (h > maxH) { h = maxH; w = maxH * r; }
           const ox = x + (half - w) / 2;
           pdf.addImage(im.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
-          if (addWatermark) drawWatermark(ox, imgTop, w, h);
+          if (addWatermark && !skipWm) drawWatermark(ox, imgTop, w, h);
           pdf.setFont("helvetica", "bold");
           pdf.setFontSize(9);
           pdf.setTextColor(accent[0], accent[1], accent[2]);
@@ -711,7 +825,7 @@ async function downloadSellerReportPdf(opts: {
         if (h > maxH) { h = maxH; w = maxH * r; }
         const singleX = (pageW - w) / 2;
         pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
-        drawWatermark(singleX, imgTop, w, h);
+        if (!skipWm) drawWatermark(singleX, imgTop, w, h);
       }
       drawFooter();
     }

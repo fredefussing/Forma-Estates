@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
@@ -9,6 +9,64 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { apiRequest } from "@/lib/queryClient";
 import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+
+function useWatermarkPreference() {
+  const [watermark, setWatermarkState] = useState<boolean>(() =>
+    localStorage.getItem("fe-watermark") !== "false"
+  );
+  const setWatermark = (v: boolean) => {
+    localStorage.setItem("fe-watermark", v ? "true" : "false");
+    setWatermarkState(v);
+    window.dispatchEvent(new CustomEvent("fe-watermark-change", { detail: v }));
+  };
+  useEffect(() => {
+    const handler = (e: Event) => setWatermarkState((e as CustomEvent<boolean>).detail);
+    window.addEventListener("fe-watermark-change", handler);
+    return () => window.removeEventListener("fe-watermark-change", handler);
+  }, []);
+  return { watermark, setWatermark };
+}
+
+function WatermarkToggle() {
+  const { watermark, setWatermark } = useWatermarkPreference();
+  return (
+    <button
+      type="button"
+      onClick={() => setWatermark(!watermark)}
+      className="inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-all"
+      style={watermark
+        ? { background: "rgba(15,29,47,0.07)", color: "#4B5563", border: "1px solid rgba(15,29,47,0.13)" }
+        : { background: "rgba(200,149,108,0.12)", color: "#9B6A40", border: "1px solid rgba(200,149,108,0.45)" }
+      }
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${watermark ? "bg-slate-500" : "bg-[#C8956C]"}`} />
+      Brændemærke: <strong>{watermark ? "TIL" : "FRA"}</strong>
+    </button>
+  );
+}
+
+function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-[340px] shadow-2xl">
+        <p className="text-sm font-semibold mb-1">Download uden brændemærke</p>
+        <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+          Du er ved at downloade <strong>uden</strong> "AI-redigeret"-mærket.<br />
+          Er du sikker på dette?
+        </p>
+        <div className="flex gap-2">
+          <button type="button" onClick={onConfirm} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ background: "#0F1D2F" }}>
+            Ja, download
+          </button>
+          <button type="button" onClick={onCancel} className="flex-1 h-10 rounded-xl text-sm font-semibold border text-foreground hover:bg-slate-50">
+            Annuller
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const EXAMPLE_PROMPTS = [
   "Mørkt moderne køkken med vinkøleskab og marmorbordplade",
@@ -153,13 +211,22 @@ export default function AIDesignAgentPage() {
     }
   };
 
-  const handleDownload = async () => {
+  const { watermark } = useWatermarkPreference();
+  const [showWmConfirm, setShowWmConfirm] = useState(false);
+
+  const doDownload = async () => {
     if (!resultUrl) return;
     try {
-      const proxyUrl = resultUrl.startsWith("http")
+      let proxyUrl = resultUrl.startsWith("http")
         ? `/api/proxy-image?url=${encodeURIComponent(resultUrl)}&format=jpg`
         : resultUrl;
-      const r = await fetch(proxyUrl);
+      const fetchInit: RequestInit = {};
+      if (!watermark && resultUrl.startsWith("http")) {
+        proxyUrl += "&plain=1";
+        const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+        if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
+      }
+      const r = await fetch(proxyUrl, fetchInit);
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -170,6 +237,11 @@ export default function AIDesignAgentPage() {
     } catch {
       window.open(resultUrl, "_blank");
     }
+  };
+
+  const handleDownload = () => {
+    if (!watermark) { setShowWmConfirm(true); return; }
+    doDownload();
   };
 
   const isGenerating = status === "uploading" || status === "processing";
@@ -229,8 +301,14 @@ export default function AIDesignAgentPage() {
 
                 <BeforeAfterSlider beforeSrc={originalUrl} afterSrc={resultUrl} />
 
+                {showWmConfirm && (
+                  <NoWatermarkConfirmDialog
+                    onConfirm={() => { setShowWmConfirm(false); doDownload(); }}
+                    onCancel={() => setShowWmConfirm(false)}
+                  />
+                )}
                 <div className="mt-4 flex flex-col gap-2">
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3 items-center">
                     <Button onClick={handleDownload} variant="outline" className="gap-2" data-testid="button-download">
                       <Download className="w-4 h-4" /> Download billede
                     </Button>
@@ -240,9 +318,13 @@ export default function AIDesignAgentPage() {
                         <ArrowRight className="w-4 h-4" />
                       </Button>
                     </Link>
+                    <WatermarkToggle />
                   </div>
                   <p className="text-xs text-muted-foreground" data-testid="text-ai-label-notice">
-                    Downloadede billeder mærkes automatisk med "AI-redigeret" som krævet ved lov.
+                    {watermark
+                      ? <>Downloadede billeder mærkes automatisk med "AI-redigeret" som krævet ved lov.</>
+                      : <>Brændemærke er slået <strong>fra</strong> — billeder downloades uden "AI-redigeret".</>
+                    }
                   </p>
                 </div>
               </motion.div>

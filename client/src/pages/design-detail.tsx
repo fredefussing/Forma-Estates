@@ -8,6 +8,64 @@ import { Separator } from "@/components/ui/separator";
 import type { Design } from "@shared/schema";
 import { styleVocabulary, type BudgetTier } from "@shared/styleVocabulary";
 import { formatDKK, getTierLabel } from "@shared/budgetUtils";
+import { auth } from "@/lib/firebase";
+
+function useWatermarkPreference() {
+  const [watermark, setWatermarkState] = useState<boolean>(() =>
+    localStorage.getItem("fe-watermark") !== "false"
+  );
+  const setWatermark = (v: boolean) => {
+    localStorage.setItem("fe-watermark", v ? "true" : "false");
+    setWatermarkState(v);
+    window.dispatchEvent(new CustomEvent("fe-watermark-change", { detail: v }));
+  };
+  useEffect(() => {
+    const handler = (e: Event) => setWatermarkState((e as CustomEvent<boolean>).detail);
+    window.addEventListener("fe-watermark-change", handler);
+    return () => window.removeEventListener("fe-watermark-change", handler);
+  }, []);
+  return { watermark, setWatermark };
+}
+
+function WatermarkToggle() {
+  const { watermark, setWatermark } = useWatermarkPreference();
+  return (
+    <button
+      type="button"
+      onClick={() => setWatermark(!watermark)}
+      className="inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-all"
+      style={watermark
+        ? { background: "rgba(15,29,47,0.07)", color: "#4B5563", border: "1px solid rgba(15,29,47,0.13)" }
+        : { background: "rgba(200,149,108,0.12)", color: "#9B6A40", border: "1px solid rgba(200,149,108,0.45)" }
+      }
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${watermark ? "bg-slate-500" : "bg-[#C8956C]"}`} />
+      Brændemærke: <strong>{watermark ? "TIL" : "FRA"}</strong>
+    </button>
+  );
+}
+
+function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-[340px] shadow-2xl">
+        <p className="text-sm font-semibold mb-1">Download uden brændemærke</p>
+        <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+          Du er ved at downloade <strong>uden</strong> "AI-redigeret"-mærket.<br />
+          Er du sikker på dette?
+        </p>
+        <div className="flex gap-2">
+          <button type="button" onClick={onConfirm} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ background: "#0F1D2F" }}>
+            Ja, download
+          </button>
+          <button type="button" onClick={onCancel} className="flex-1 h-10 rounded-xl text-sm font-semibold border text-foreground hover:bg-slate-50">
+            Annuller
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const roomTypeLabels: Record<string, string> = {
   "living room": "Stue",
@@ -100,13 +158,22 @@ export default function DesignDetailPage() {
     ? styleVocabulary[design.style]?.[design.tier as BudgetTier]
     : null;
 
-  const handleDownload = async () => {
+  const { watermark } = useWatermarkPreference();
+  const [showWmConfirm, setShowWmConfirm] = useState(false);
+
+  const doDownload = async () => {
     if (!design.resultImageUrl) return;
-    const fetchUrl = design.resultImageUrl.startsWith("http")
+    let fetchUrl = design.resultImageUrl.startsWith("http")
       ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
       : design.resultImageUrl;
+    const fetchInit: RequestInit = {};
+    if (!watermark && design.resultImageUrl.startsWith("http")) {
+      fetchUrl += "&plain=1";
+      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+      if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
+    }
     try {
-      const response = await fetch(fetchUrl);
+      const response = await fetch(fetchUrl, fetchInit);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -120,6 +187,11 @@ export default function DesignDetailPage() {
     } catch {
       window.open(design.resultImageUrl, "_blank");
     }
+  };
+
+  const handleDownload = () => {
+    if (!watermark) { setShowWmConfirm(true); return; }
+    doDownload();
   };
 
   return (
@@ -176,9 +248,18 @@ export default function DesignDetailPage() {
             </p>
           </div>
           {design.resultImageUrl && (
-            <Button variant="outline" size="sm" onClick={handleDownload} className="h-9" data-testid="button-download">
-              <Download className="w-3.5 h-3.5 mr-2" /> Download
-            </Button>
+            <div className="flex flex-col items-end gap-1.5">
+              {showWmConfirm && (
+                <NoWatermarkConfirmDialog
+                  onConfirm={() => { setShowWmConfirm(false); doDownload(); }}
+                  onCancel={() => setShowWmConfirm(false)}
+                />
+              )}
+              <Button variant="outline" size="sm" onClick={handleDownload} className="h-9" data-testid="button-download">
+                <Download className="w-3.5 h-3.5 mr-2" /> Download
+              </Button>
+              <WatermarkToggle />
+            </div>
           )}
         </div>
 
