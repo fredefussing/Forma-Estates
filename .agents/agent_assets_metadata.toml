@@ -161,3 +161,9 @@ id = "sEK9HwQbCsank5H8UMaAh"
 uri = "file://public/bolig-images/demo-room-after.jpg"
 type = "image"
 title = "Bryggers efter — vandmærke væk"
+
+[[outputs]]
+id = "DzllLPIOugejB636UiyhW"
+uri = "file://attached_assets/Sk%C3%A6rmbillede_2026-07-28_kl._09.17.24_1785223047009_0.5pct_zoom.png"
+type = "image"
+title = "Plantegning — 0,5 % mere zoom"
