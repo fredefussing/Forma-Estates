@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { apiRequest } from "@/lib/queryClient";
-import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight } from "lucide-react";
+import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight, Globe, ChevronLeft, Sun, Sunrise, Sunset, Cloud, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 
@@ -76,6 +76,26 @@ const EXAMPLE_PROMPTS = [
   "Boheme stue med farverige tekstiler, hængelamper og grønne planter",
 ];
 
+const SATELLITE_TIMES = [
+  { label: "Solopgang",         emoji: "🌄", phrase: "The time of the day is sunrise" },
+  { label: "Formiddag",         emoji: "🌤️", phrase: "The time of the day is mid-morning" },
+  { label: "Middag",            emoji: "☀️", phrase: "The time of the day is midday" },
+  { label: "Tidlig solnedgang", emoji: "🌅", phrase: "The time of the day is early sundown" },
+  { label: "Blå time",          emoji: "🌆", phrase: "The time of the day is blue hour at dusk" },
+] as const;
+
+const SATELLITE_PROMPT_BASE =
+  `Using image @1 as the exact reference layout, transform this satellite map screenshot into a photorealistic aerial drone photograph of the same location. ` +
+  `Remove all map interface elements completely: text labels, place names, road names, pins, watermarks, icons, and any UI overlay. None should remain. ` +
+  `Preserve the site layout exactly. Every road, building, or area stays in its original position, shape, and scale. Do not invent, move, or remove any structure. ` +
+  `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water, natural depth and atmospheric haze toward the horizon. ` +
+  `{TIME}. ` +
+  `The result should look like a professional drone photograph of this exact place. High resolution, sharp, cinematic.`;
+
+function buildSatellitePrompt(phrase: string) {
+  return SATELLITE_PROMPT_BASE.replace("{TIME}", phrase);
+}
+
 type GenerationStatus = "idle" | "uploading" | "processing" | "completed" | "failed";
 
 export default function AIDesignAgentPage() {
@@ -91,6 +111,8 @@ export default function AIDesignAgentPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [designId, setDesignId] = useState<number | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
+  const [mode, setMode] = useState<"normal" | "satellite">("normal");
+  const [satelliteTimeIdx, setSatelliteTimeIdx] = useState(3); // default: tidlig solnedgang
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +151,21 @@ export default function AIDesignAgentPage() {
     setErrorMsg(null);
     setDesignId(null);
     setOriginalUrl(null);
+    setMode("normal");
+    setSatelliteTimeIdx(3);
     pollAttemptsRef.current = 0;
+  };
+
+  const enterSatelliteMode = () => {
+    const idx = 3; // default: tidlig solnedgang
+    setSatelliteTimeIdx(idx);
+    setPrompt(buildSatellitePrompt(SATELLITE_TIMES[idx].phrase));
+    setMode("satellite");
+  };
+
+  const selectSatelliteTime = (idx: number) => {
+    setSatelliteTimeIdx(idx);
+    setPrompt(buildSatellitePrompt(SATELLITE_TIMES[idx].phrase));
   };
 
   const pollStatus = useCallback(async (id: number) => {
@@ -384,40 +420,103 @@ export default function AIDesignAgentPage() {
                   </div>
                 )}
 
-                {/* Prompt field */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs tracking-widest uppercase text-muted-foreground font-medium">
-                      Beskriv hvad du vil have
-                    </label>
+                {/* Prompt field — skjult i satellit-tilstand */}
+                {mode === "normal" && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs tracking-widest uppercase text-muted-foreground font-medium">
+                        Beskriv hvad du vil have
+                      </label>
+                    </div>
+                    <Textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="F.eks. Mørkt moderne køkken med vinkøleskab og marmorbordplade..."
+                      className="min-h-[120px] resize-none text-sm leading-relaxed"
+                      maxLength={1000}
+                      data-testid="input-prompt"
+                    />
+                    <p className="text-xs text-muted-foreground text-right mt-1.5">{prompt.length}/1000</p>
                   </div>
-                  <Textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="F.eks. Mørkt moderne køkken med vinkøleskab og marmorbordplade..."
-                    className="min-h-[120px] resize-none text-sm leading-relaxed"
-                    maxLength={1000}
-                    data-testid="input-prompt"
-                  />
-                  <p className="text-xs text-muted-foreground text-right mt-1.5">{prompt.length}/1000</p>
-                </div>
+                )}
 
-                {/* Example prompts */}
-                <div className="mb-8">
-                  <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Eksempler</p>
-                  <div className="flex flex-wrap gap-2">
-                    {EXAMPLE_PROMPTS.map((ex) => (
+                {/* Satellit-tilstand: tidspunkt-vælger */}
+                {mode === "satellite" && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-4">
                       <button
-                        key={ex}
-                        onClick={() => setPrompt(ex)}
-                        className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-transparent text-foreground/60 hover:border-foreground/30 hover:text-foreground transition-all duration-200"
-                        data-testid={`button-example-${ex.slice(0, 20).replace(/\s/g, "-")}`}
+                        type="button"
+                        onClick={() => { setMode("normal"); setPrompt(""); }}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {ex}
+                        <ChevronLeft className="w-3.5 h-3.5" /> Tilbage
                       </button>
-                    ))}
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(15,29,47,0.07)", color: "#0F1D2F" }}>
+                        <Globe className="w-3 h-3" /> Satellit billede
+                      </span>
+                    </div>
+                    <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Tidspunkt på dagen</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {SATELLITE_TIMES.map((t, idx) => (
+                        <button
+                          key={t.label}
+                          type="button"
+                          onClick={() => selectSatelliteTime(idx)}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-all text-left ${
+                            satelliteTimeIdx === idx
+                              ? "border-foreground/60 bg-foreground/5 text-foreground"
+                              : "border-border/50 bg-transparent text-foreground/60 hover:border-foreground/30 hover:text-foreground"
+                          }`}
+                          data-testid={`button-satellite-time-${idx}`}
+                        >
+                          <span className="text-base leading-none">{t.emoji}</span>
+                          {t.label}
+                          {satelliteTimeIdx === idx && (
+                            <span className="ml-auto w-1.5 h-1.5 rounded-full bg-foreground" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Promptbibliotek + satellit-knap — kun i normal tilstand */}
+                {mode === "normal" && (
+                  <div className="mb-8 space-y-4">
+                    <div>
+                      <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Promptbibliotek</p>
+                      <p className="text-xs text-muted-foreground mb-2">Klik på en prompt for at indsætte den i feltet.</p>
+                      <div className="flex flex-wrap gap-2">
+                        {EXAMPLE_PROMPTS.map((ex) => (
+                          <button
+                            key={ex}
+                            onClick={() => setPrompt(ex)}
+                            className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-transparent text-foreground/60 hover:border-foreground/30 hover:text-foreground transition-all duration-200"
+                            data-testid={`button-example-${ex.slice(0, 20).replace(/\s/g, "-")}`}
+                          >
+                            {ex}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Satellit billede-funktion */}
+                    <button
+                      type="button"
+                      onClick={enterSatelliteMode}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 hover:border-foreground/30 transition-all group text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,29,47,0.07)" }}>
+                        <Globe className="w-4 h-4 text-foreground/70" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground group-hover:text-foreground">Satellit billede</p>
+                        <p className="text-xs text-muted-foreground">Forvandl et satellitkort til et fotorealistisk dronefotos</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+                )}
 
                 {/* Error */}
                 {status === "failed" && errorMsg && (
