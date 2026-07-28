@@ -1643,9 +1643,9 @@ function CaseDetailPanel({
                   <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>Eller prøv med et eksempelbillede:</p>
                   <div className="flex gap-3 justify-center">
                     {[
-                      { src: "/bolig-images/living-scandi-before.jpg", label: "Stue" },
-                      { src: "/bolig-images/kitchen-before.jpg", label: "Køkken" },
-                      { src: "/bolig-images/living-modern-before.jpg", label: "Stue 2" },
+                      { src: "/bolig-images/living-modern-before.jpg", label: "Stue" },
+                      { src: "/bolig-images/demo-dining-before.jpg", label: "Spisestue" },
+                      { src: "/bolig-images/demo-bathroom-before.jpg", label: "Badeværelse" },
                     ].map((ex) => (
                       <button key={ex.src}
                         onClick={async () => { const r = await fetch(ex.src); const blob = await r.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); setGenStep(2); }}
@@ -2765,7 +2765,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
             {error && <div className="mt-4 text-sm text-red-600 text-center">{error}</div>}
             <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>Eller prøv med et eksempelbillede:</p>
             <div className="flex gap-3 flex-wrap">
-              {[{ src: "/bolig-images/living-scandi-before.jpg", label: "Stue" }, { src: "/bolig-images/kitchen-before.jpg", label: "Køkken" }, { src: "/bolig-images/living-modern-before.jpg", label: "Stue 2" }].map((ex) => (
+              {[{ src: "/bolig-images/living-modern-before.jpg", label: "Stue" }, { src: "/bolig-images/demo-dining-before.jpg", label: "Spisestue" }, { src: "/bolig-images/demo-bathroom-before.jpg", label: "Badeværelse" }].map((ex) => (
                 <button key={ex.src} onClick={async () => { const res = await fetch(ex.src); const blob = await res.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); }}
                   className="relative rounded-xl overflow-hidden border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-all">
                   <img src={ex.src} alt={ex.label} className="w-24 h-16 object-cover" />
