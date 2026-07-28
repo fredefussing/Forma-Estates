@@ -2873,6 +2873,8 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
         <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en 2D plantegning — AI bygger et møbleret 3D dukkehus set fra oven, baseret på rumlayoutet.</p>
       </div>
 
+      <div className="flex flex-col">
+      <div style={{ order: 2 }}>
       {/* ── Forstå flowet / Få din 3D model nu ─────────────────────────── */}
       <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "#0F1D2F" }}>
         <div className="relative">
@@ -2922,8 +2924,9 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         </div>
       </div>
+      </div>
 
-        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm">
+        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm" style={{ order: 1 }}>
           <div>
             <label className="text-xs font-semibold tracking-wider uppercase mb-3 block" style={{ color: "#0F1D2F" }}>Plantegning (2D)</label>
             {!imagePreview ? (
@@ -3101,6 +3104,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );
@@ -4265,7 +4269,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const panelImg = images.find((i) => i.id === openPanelId) ?? null;
 
   return (
-    <div style={{ paddingLeft: "3.5%" }}>
+    <div className="flex flex-col" style={{ paddingLeft: "3.5%" }}>
       {/* ── Crop Modal ── */}
       {cropModalImg && (
         <div
@@ -4365,7 +4369,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       </div>
 
       {/* Eksempel */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-8 shadow-sm max-w-4xl">
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-8 shadow-sm max-w-4xl" style={{ order: 2 }}>
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
         <div className="rounded-xl overflow-hidden border border-[#E8E4DE] flex justify-center" style={{ background: "#0F1D2F" }}>
           <video
@@ -4383,7 +4387,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden">
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden" style={{ order: 1 }}>
 
         {/* ── Top bar: Address + Format ── */}
         <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -6686,7 +6690,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   };
 
   return (
-    <div>
+    <div className="flex flex-col">
       <div className="flex items-center gap-3 mb-8">
         <button onClick={handleBack} className="flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity" style={{ color: "#6B6B6B" }} data-testid="bolig-agent-back">
           <ChevronLeft className="w-4 h-4" /> Tilbage til Dashboard
@@ -6699,7 +6703,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       </div>
 
       {/* Eksempel */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6" style={{ order: 2 }}>
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -6722,7 +6726,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       </div>
 
       {/* Info card */}
-      <div className="rounded-2xl p-5 mb-6 border border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
+      <div className="rounded-2xl p-5 mb-6 border border-[#E8E4DE]" style={{ background: "#F5F3EF", order: 2 }}>
         <div className="flex gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#0F1D2F" }}>
             <Sparkles className="w-4 h-4 text-white" />
@@ -6739,7 +6743,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-8 items-start max-w-6xl">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-8 items-start max-w-6xl" style={{ order: 1 }}>
         {/* Left column: form + result */}
         <div className="grid gap-6 min-w-0">
         {/* Upload zone */}
