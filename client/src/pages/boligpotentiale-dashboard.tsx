@@ -6567,12 +6567,11 @@ const SATELLITE_TIMES_DASH = [
 ] as const;
 
 const SATELLITE_PROMPT_DASH =
-  `Using image @1 as the exact reference layout, transform this satellite map screenshot into a photorealistic aerial drone photograph of the same location. ` +
-  `Remove all map interface elements completely: text labels, place names, road names, pins, watermarks, icons, and any UI overlay. None should remain. ` +
-  `Preserve the site layout exactly. Every road, building, or area stays in its original position, shape, and scale. Do not invent, move, or remove any structure. ` +
-  `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water, natural depth and atmospheric haze toward the horizon. ` +
-  `{TIME}. ` +
-  `Place maximum focus and sharpness on the central property — render its roof materials, facade texture, garden, and immediate surroundings in the highest possible detail. ` +
+  `Using image @1 as the exact reference layout, transform this satellite map screenshot into a photorealistic aerial drone photograph of the same location.\n` +
+  `Remove all map interface elements completely: text labels, place names, road names, pins, watermarks, icons, and any UI overlay. None should remain.\n` +
+  `Preserve the site layout exactly. Every road, building, or area stays in its original position, shape, and scale. Do not invent, move, or remove any structure.\n` +
+  `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water.\n\n` +
+  `{TIME}\n\n` +
   `The result should look like a professional drone photograph of this exact place. High resolution, sharp, cinematic.`;
 
 function buildSatellitePromptDash(phrase: string) {
