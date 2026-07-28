@@ -8873,11 +8873,21 @@ export default function BoligpotentialeDashboard() {
       <PaywallAction allowFreeTrial>
         <button
           onClick={() => { setModal("newSag"); setSidebarOpen(false); }}
-          className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold text-sm text-white mb-5 transition-all hover:opacity-90 active:scale-95"
+          className="flex items-center gap-2 w-full py-3 px-4 rounded-xl font-semibold text-sm text-white mb-5 transition-all hover:opacity-90 active:scale-95"
           style={{ background: "#C8956C" }}
           data-testid="bolig-sidebar-new-sag"
         >
-          <Plus className="w-4 h-4" /> Ny sag
+          <Plus className="w-4 h-4" />
+          <span className="flex-1 text-left">Ny sag</span>
+          {showOnboarding && (
+            <span
+              className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
+              style={{ background: "rgba(0,0,0,0.22)", color: "white" }}
+              data-testid="bolig-sidebar-new-sag-hint"
+            >
+              <ArrowLeft className="w-2.5 h-2.5" /> Start her
+            </span>
+          )}
         </button>
       </PaywallAction>
 
@@ -9147,11 +9157,11 @@ export default function BoligpotentialeDashboard() {
                     <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
                     <span className="text-[11px] font-bold tracking-[0.16em] uppercase" style={{ color: "#C8956C" }}>Kom godt i gang</span>
                   </div>
-                  <h2 className="text-lg font-semibold mb-1" style={{ color: "#F5F3EF" }}>Dit første billede er 2 klik væk</h2>
+                  <h2 className="text-lg font-semibold mb-1" style={{ color: "#F5F3EF" }}>Vælg, hvordan du vil starte</h2>
                   <p className="text-sm mb-5" style={{ color: "rgba(245,243,239,0.65)" }}>
-                    Du har {trialAiLeft === 1 ? "1 gratis AI-visualisering" : `${trialAiLeft} gratis AI-visualiseringer`} — du behøver ikke oprette en sag først. Vælg her:
+                    Du har {trialAiLeft === 1 ? "1 gratis AI-visualisering" : `${trialAiLeft} gratis AI-visualiseringer`} — prøv direkte eller opret en sag og generer derfra.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button
                       onClick={() => setSection("upload")}
                       className="group text-left bg-white rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
@@ -9186,6 +9196,24 @@ export default function BoligpotentialeDashboard() {
                       </p>
                       <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "#C8956C" }}>
                         Prøv Design Agent <ArrowRight className="w-3.5 h-3.5 animate-bounce-x-r" />
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setModal("newSag")}
+                      className="group text-left bg-white rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                      data-testid="bolig-onboarding-new-sag"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,108,0.12)" }}>
+                          <FolderOpen className="w-5 h-5" style={{ color: "#C8956C" }} />
+                        </div>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Opret sag</h3>
+                      </div>
+                      <p className="text-xs leading-relaxed mb-3" style={{ color: "#6B6B6B" }}>
+                        Tilknyt en adresse og generer alle billeder samlet under én sag.
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "#C8956C" }}>
+                        Opret sag <ArrowRight className="w-3.5 h-3.5 animate-bounce-x-r" />
                       </span>
                     </button>
                   </div>
