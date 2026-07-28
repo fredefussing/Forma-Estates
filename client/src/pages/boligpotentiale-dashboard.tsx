@@ -6558,6 +6558,27 @@ function ParallaxKenBurnsViewer({
 type AgentPromptItem = { title: string; text: string };
 type AgentPromptCategory = { id: string; label: string; blurb: string; items: AgentPromptItem[] };
 
+const SATELLITE_TIMES_DASH = [
+  { label: "Solopgang",         emoji: "🌄", phrase: "The time of the day is sunrise" },
+  { label: "Formiddag",         emoji: "🌤️", phrase: "The time of the day is mid-morning" },
+  { label: "Middag",            emoji: "☀️",  phrase: "The time of the day is midday" },
+  { label: "Tidlig solnedgang", emoji: "🌅", phrase: "The time of the day is early sundown" },
+  { label: "Blå time",          emoji: "🌆", phrase: "The time of the day is blue hour at dusk" },
+] as const;
+
+const SATELLITE_PROMPT_DASH =
+  `Using image @1 as the exact reference layout, transform this satellite map screenshot into a photorealistic aerial drone photograph of the same location. ` +
+  `Remove all map interface elements completely: text labels, place names, road names, pins, watermarks, icons, and any UI overlay. None should remain. ` +
+  `Preserve the site layout exactly. Every road, building, or area stays in its original position, shape, and scale. Do not invent, move, or remove any structure. ` +
+  `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water, natural depth and atmospheric haze toward the horizon. ` +
+  `{TIME}. ` +
+  `Place maximum focus and sharpness on the central property — render its roof materials, facade texture, garden, and immediate surroundings in the highest possible detail. ` +
+  `The result should look like a professional drone photograph of this exact place. High resolution, sharp, cinematic.`;
+
+function buildSatellitePromptDash(phrase: string) {
+  return SATELLITE_PROMPT_DASH.replace("{TIME}", phrase);
+}
+
 const AGENT_PROMPT_CATEGORIES: AgentPromptCategory[] = [
   {
     id: "tid",
@@ -6714,6 +6735,8 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   const quotaData = useQuotaData();
   const [activeCat, setActiveCat] = useState(AGENT_PROMPT_CATEGORIES[0].id);
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [satelliteMode, setSatelliteMode] = useState(false);
+  const [satelliteTimeIdx, setSatelliteTimeIdx] = useState(3); // default: tidlig solnedgang
   const [isDragging, setIsDragging] = useState(false);
   const [stage, setStage] = useState<"idle" | "loading" | "result">("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -6888,14 +6911,19 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#F0EDE7" }}>
                 <Upload className="w-5 h-5" style={{ color: "#C8956C" }} />
               </div>
-              <p className="font-semibold text-sm mb-1" style={{ color: "#0F1D2F" }}>Træk et billede hertil</p>
-              <p className="text-xs" style={{ color: "#6B6B6B" }}>eller klik for at vælge · JPG, PNG — Max 10 MB</p>
+              <p className="font-semibold text-sm mb-1" style={{ color: "#0F1D2F" }}>
+                {satelliteMode ? "Upload dit satellit billede her" : "Træk et billede hertil"}
+              </p>
+              <p className="text-xs" style={{ color: "#6B6B6B" }}>
+                {satelliteMode ? "Screenshot fra Google Maps, Apple Maps e.l. · JPG, PNG — Max 10 MB" : "eller klik for at vælge · JPG, PNG — Max 10 MB"}
+              </p>
             </div>
           )}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>
 
-        {/* Instructions */}
+        {/* Instructions — skjult i satellit-tilstand */}
+        {!satelliteMode && (
         <div>
           <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Dine instruktioner</p>
           <textarea
@@ -6911,6 +6939,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           />
           <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/6000 tegn</p>
         </div>
+        )}
 
         {/* Saved prompt suggestions — only shown if user has 2+ uses of same prompt */}
         {savedPromptSuggestions.length > 0 && (
@@ -7072,58 +7101,118 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 <div className="w-6 h-6 rounded-md bg-[#0F1D2F] flex items-center justify-center">
                   <Sparkles className="w-3 h-3 text-white" />
                 </div>
-                <h3 className="text-sm font-bold tracking-[0.04em] uppercase" style={{ color: "#0F1D2F" }}>Promptbibliotek</h3>
+                <h3 className="text-sm font-bold tracking-[0.04em] uppercase" style={{ color: "#0F1D2F" }}>
+                  {satelliteMode ? "Satellit billede" : "Promptbibliotek"}
+                </h3>
               </div>
-              <p className="text-xs" style={{ color: "#6B6B6B" }}>Klik på en prompt for at indsætte den i feltet.</p>
+              <p className="text-xs" style={{ color: "#6B6B6B" }}>
+                {satelliteMode ? "Vælg tidspunkt på dagen for dronefotos." : "Klik på en prompt for at indsætte den i feltet."}
+              </p>
             </div>
 
             <div className="p-5">
-              <div className="flex flex-wrap gap-2 mb-4">
-                {AGENT_PROMPT_CATEGORIES.map((cat) => {
-                  const active = cat.id === activeCat;
-                  return (
+              {/* Kategori-chips + Satellit-chip — kun i normal tilstand */}
+              {!satelliteMode && (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {AGENT_PROMPT_CATEGORIES.map((cat) => {
+                      const active = cat.id === activeCat;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => setActiveCat(cat.id)}
+                          className="px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all hover:-translate-y-px"
+                          style={active
+                            ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F", boxShadow: "0 2px 8px rgba(15,29,47,0.15)" }
+                            : { background: "#fff", color: "#6B6B6B", borderColor: "#D9D5CF" }}
+                          data-testid={`bolig-agent-cat-${cat.id}`}
+                        >
+                          {cat.label}
+                        </button>
+                      );
+                    })}
+                    {/* Satellit-chip */}
                     <button
-                      key={cat.id}
-                      onClick={() => setActiveCat(cat.id)}
-                      className="px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all hover:-translate-y-px"
-                      style={active
-                        ? { background: "#0F1D2F", color: "#fff", borderColor: "#0F1D2F", boxShadow: "0 2px 8px rgba(15,29,47,0.15)" }
-                        : { background: "#fff", color: "#6B6B6B", borderColor: "#D9D5CF" }}
-                      data-testid={`bolig-agent-cat-${cat.id}`}
+                      onClick={() => {
+                        setSatelliteMode(true);
+                        setPromptText(buildSatellitePromptDash(SATELLITE_TIMES_DASH[3].phrase));
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all hover:-translate-y-px"
+                      style={{ background: "#fff", color: "#6B6B6B", borderColor: "#D9D5CF" }}
+                      data-testid="bolig-agent-cat-satellite"
                     >
-                      {cat.label}
+                      🌍 Satellit
                     </button>
-                  );
-                })}
-              </div>
-              <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
-
-              <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 340px)" }}>
-                {activeCategory.items.map((item) => (
-                  <button
-                    key={item.title}
-                    onClick={() => handlePickPrompt(item)}
-                    className="w-full text-left p-4 rounded-xl border transition-all group hover:shadow-md hover:-translate-y-0.5 relative overflow-hidden"
-                    style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
-                    data-testid={`bolig-agent-prompt-${item.title}`}
-                  >
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300" style={{ background: "linear-gradient(120deg, transparent, rgba(200,149,108,0.03), transparent)" }} />
-                    <div className="flex items-center justify-between gap-3 mb-2 relative z-10">
-                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
-                      {justAdded === item.title ? (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-[#C8956C]/10 flex-shrink-0" style={{ color: "#C8956C" }}>
-                          <Check className="w-3 h-3" /> Tilføjet
-                        </span>
-                      ) : (
-                        <div className="w-6 h-6 rounded-full border border-[#D9D5CF] flex items-center justify-center group-hover:border-[#C8956C] group-hover:bg-[#C8956C] transition-colors flex-shrink-0">
-                          <Plus className="w-3 h-3 text-[#9B9690] group-hover:text-white transition-colors" />
+                  </div>
+                  <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
+                  <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 340px)" }}>
+                    {activeCategory.items.map((item) => (
+                      <button
+                        key={item.title}
+                        onClick={() => handlePickPrompt(item)}
+                        className="w-full text-left p-4 rounded-xl border transition-all group hover:shadow-md hover:-translate-y-0.5 relative overflow-hidden"
+                        style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
+                        data-testid={`bolig-agent-prompt-${item.title}`}
+                      >
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300" style={{ background: "linear-gradient(120deg, transparent, rgba(200,149,108,0.03), transparent)" }} />
+                        <div className="flex items-center justify-between gap-3 mb-2 relative z-10">
+                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
+                          {justAdded === item.title ? (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-[#C8956C]/10 flex-shrink-0" style={{ color: "#C8956C" }}>
+                              <Check className="w-3 h-3" /> Tilføjet
+                            </span>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full border border-[#D9D5CF] flex items-center justify-center group-hover:border-[#C8956C] group-hover:bg-[#C8956C] transition-colors flex-shrink-0">
+                              <Plus className="w-3 h-3 text-[#9B9690] group-hover:text-white transition-colors" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <p className="text-xs leading-relaxed line-clamp-3 relative z-10" style={{ color: "#6B6B6B" }}>{item.text}</p>
+                        <p className="text-xs leading-relaxed line-clamp-3 relative z-10" style={{ color: "#6B6B6B" }}>{item.text}</p>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Satellit-tilstand: tidspunkt-vælger */}
+              {satelliteMode && (
+                <div>
+                  <div className="space-y-2 mb-5">
+                    {SATELLITE_TIMES_DASH.map((t, idx) => (
+                      <button
+                        key={t.label}
+                        type="button"
+                        onClick={() => {
+                          setSatelliteTimeIdx(idx);
+                          setPromptText(buildSatellitePromptDash(t.phrase));
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-all text-left"
+                        style={satelliteTimeIdx === idx
+                          ? { borderColor: "#0F1D2F", background: "rgba(15,29,47,0.04)", color: "#0F1D2F" }
+                          : { borderColor: "#E8E4DE", background: "#F8F6F3", color: "#6B6B6B" }}
+                        data-testid={`bolig-satellite-time-${idx}`}
+                      >
+                        <span className="text-base leading-none">{t.emoji}</span>
+                        {t.label}
+                        {satelliteTimeIdx === idx && (
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#0F1D2F" }} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSatelliteMode(false);
+                      setPromptText("");
+                      setSatelliteTimeIdx(3);
+                    }}
+                    className="w-full py-2 rounded-xl text-xs font-medium border transition-all"
+                    style={{ borderColor: "#D9D5CF", color: "#6B6B6B", background: "#fff" }}
+                  >
+                    ← Tilbage til promptbibliotek
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
