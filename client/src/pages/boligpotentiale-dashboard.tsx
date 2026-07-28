@@ -7114,6 +7114,28 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               {/* Kategori-chips + Satellit-chip — kun i normal tilstand */}
               {!satelliteMode && (
                 <>
+                  {/* Satellit-banner — prominent feature card */}
+                  <button
+                    onClick={() => {
+                      setSatelliteMode(true);
+                      setPromptText(buildSatellitePromptDash(SATELLITE_TIMES_DASH[3].phrase));
+                    }}
+                    className="w-full text-left rounded-xl overflow-hidden mb-4 group transition-all hover:shadow-md hover:-translate-y-0.5"
+                    style={{ background: "#0F1D2F" }}
+                    data-testid="bolig-agent-cat-satellite"
+                  >
+                    <div className="px-4 py-3.5 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
+                        <MapPin className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white leading-tight">Satellit billede</p>
+                        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>Forvandl et satellitkort til dronefoto</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                    </div>
+                  </button>
+
                   <div className="flex flex-wrap gap-2 mb-4">
                     {AGENT_PROMPT_CATEGORIES.map((cat) => {
                       const active = cat.id === activeCat;
@@ -7131,21 +7153,9 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                         </button>
                       );
                     })}
-                    {/* Satellit-chip */}
-                    <button
-                      onClick={() => {
-                        setSatelliteMode(true);
-                        setPromptText(buildSatellitePromptDash(SATELLITE_TIMES_DASH[3].phrase));
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all hover:-translate-y-px"
-                      style={{ background: "#fff", color: "#6B6B6B", borderColor: "#D9D5CF" }}
-                      data-testid="bolig-agent-cat-satellite"
-                    >
-                      🌍 Satellit
-                    </button>
                   </div>
                   <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
-                  <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 340px)" }}>
+                  <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 420px)" }}>
                     {activeCategory.items.map((item) => (
                       <button
                         key={item.title}
