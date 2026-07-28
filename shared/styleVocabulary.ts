@@ -282,6 +282,12 @@ export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, 
       luxury:
         "Completely redesign this kitchen. Scandinavian design with custom oak cabinetry, Calacatta marble, designer brass fixtures, statement pendant, luxury bar stools. Warm white, oak, grey, forest green. Solid oak, Calacatta marble, brushed brass. Designer pieces and bespoke craftsmanship. Culinary sanctuary, architectural elegance. Small green indoor plants placed naturally — on countertop edges, open shelving, windowsill. Replace all existing furniture and decor. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.",
     },
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  ⚠️  DO NOT EDIT — BATHROOM PROMPTS ARE LOCKED                       │
+// │  Any change requires: 1) edit source  2) sync promptLock.json        │
+// │  3) recompute SHA-256 in server/promptGuard.ts  4) server restart     │
+// └─────────────────────────────────────────────────────────────────────┘
+
     "bathroom": {
       budget:
         "Completely redesign this bathroom. Scandinavian design with white vanity, round mirror, brass fixtures, plush towels. White, warm white, soft grey. Ceramic, brass, cotton. Clean and bright, simple functional design. Small green indoor plants placed naturally — on vanity shelf, corner floor, windowsill. BATHROOM EXCEPTION: In a bathroom, the vanity, sink, shower enclosure, bathtub, toilet, wall tiles, and floor tiles are fully replaceable design elements — they are not fixed structural elements. Replace them completely with the new style. Replace all existing furniture and decor. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.",
@@ -412,6 +418,12 @@ export const roomStylePrompts: Record<string, Record<string, Record<BudgetTier, 
       luxury:
         "Completely redesign this kitchen. Modern design with custom handleless cabinetry, waterfall quartz, designer steel fixtures, statement pendant, luxury bar stools. Charcoal, white, brushed steel. Custom lacquer, waterfall quartz, designer steel. Designer pieces and bespoke craftsmanship. Culinary sanctuary, architectural precision. Small green indoor plants placed naturally — on countertop edges, open shelving, windowsill. Replace all existing furniture and decor. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.",
     },
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  ⚠️  DO NOT EDIT — BATHROOM PROMPTS ARE LOCKED                       │
+// │  Any change requires: 1) edit source  2) sync promptLock.json        │
+// │  3) recompute SHA-256 in server/promptGuard.ts  4) server restart     │
+// └─────────────────────────────────────────────────────────────────────┘
+
     "bathroom": {
       budget:
         "Completely redesign this bathroom. Modern design with floating vanity, round mirror, chrome fixtures, white towels. White, chrome, glass. Ceramic, chrome, cotton. Clean and bright, minimal aesthetic. Small green indoor plants placed naturally — on vanity shelf, corner floor, windowsill. BATHROOM EXCEPTION: In a bathroom, the vanity, sink, shower enclosure, bathtub, toilet, wall tiles, and floor tiles are fully replaceable design elements — they are not fixed structural elements. Replace them completely with the new style. Replace all existing furniture and decor. Photorealistic rendering, 4K quality. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.",

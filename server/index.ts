@@ -8,6 +8,7 @@ import { startTracker } from "./tracker";
 import { startDripScheduler } from "./drip";
 import { storage } from "./storage";
 import { ensureRendyJobsTable } from "./rendy";
+import { assertLockFileIntegrity } from "./promptGuard";
 
 const app = express();
 const httpServer = createServer(app);
@@ -85,6 +86,12 @@ app.use((req, res, next) => {
       }
     } catch { /* non-fatal — will be fixed on next login via /api/auth/verify */ }
   }
+
+  // ── PROMPT LOCK INTEGRITY — must pass before any route is registered ──────
+  // Verifies SHA-256 of shared/promptLock.json matches the hardcoded value in
+  // server/promptGuard.ts. If the lock file has been modified without updating
+  // the checksum constant, the server refuses to start.
+  assertLockFileIntegrity();
 
   // Ensure Rendy job tracking table exists (survives server restarts)
   try { await ensureRendyJobsTable(); } catch (e: any) { console.error("[init] ensureRendyJobsTable:", e.message); }
