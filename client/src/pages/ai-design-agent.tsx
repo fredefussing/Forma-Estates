@@ -90,6 +90,7 @@ const SATELLITE_PROMPT_BASE =
   `Preserve the site layout exactly. Every road, building, or area stays in its original position, shape, and scale. Do not invent, move, or remove any structure. ` +
   `Re-render the scene with photoreal detail and golden-hour lighting: warm low-angle sun, long soft shadows, real material textures on roofs, asphalt, grass, and water, natural depth and atmospheric haze toward the horizon. ` +
   `{TIME}. ` +
+  `Place maximum focus and sharpness on the central property — render its roof materials, facade texture, garden, and immediate surroundings in the highest possible detail. ` +
   `The result should look like a professional drone photograph of this exact place. High resolution, sharp, cinematic.`;
 
 function buildSatellitePrompt(phrase: string) {
@@ -395,8 +396,12 @@ export default function AIDesignAgentPage() {
                     <div className="w-14 h-14 rounded-2xl bg-foreground/5 border border-border/60 flex items-center justify-center mb-4">
                       <Upload className="w-6 h-6 text-muted-foreground" />
                     </div>
-                    <p className="text-sm font-medium mb-1">Klik for at uploade et billede</p>
-                    <p className="text-xs text-muted-foreground">eller træk og slip her · JPG, PNG, WEBP · max 10 MB</p>
+                    <p className="text-sm font-medium mb-1">
+                      {mode === "satellite" ? "Upload dit satellit billede her" : "Klik for at uploade et billede"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {mode === "satellite" ? "Screenshot fra Google Maps, Apple Maps e.l. · JPG, PNG, WEBP · max 10 MB" : "eller træk og slip her · JPG, PNG, WEBP · max 10 MB"}
+                    </p>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -480,41 +485,32 @@ export default function AIDesignAgentPage() {
                   </div>
                 )}
 
-                {/* Promptbibliotek + satellit-knap — kun i normal tilstand */}
+                {/* Promptbibliotek — kun i normal tilstand */}
                 {mode === "normal" && (
-                  <div className="mb-8 space-y-4">
-                    <div>
-                      <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Promptbibliotek</p>
-                      <p className="text-xs text-muted-foreground mb-2">Klik på en prompt for at indsætte den i feltet.</p>
-                      <div className="flex flex-wrap gap-2">
-                        {EXAMPLE_PROMPTS.map((ex) => (
-                          <button
-                            key={ex}
-                            onClick={() => setPrompt(ex)}
-                            className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-transparent text-foreground/60 hover:border-foreground/30 hover:text-foreground transition-all duration-200"
-                            data-testid={`button-example-${ex.slice(0, 20).replace(/\s/g, "-")}`}
-                          >
-                            {ex}
-                          </button>
-                        ))}
-                      </div>
+                  <div className="mb-8">
+                    <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium mb-3">Promptbibliotek</p>
+                    <p className="text-xs text-muted-foreground mb-2">Klik på en prompt for at indsætte den i feltet.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {EXAMPLE_PROMPTS.map((ex) => (
+                        <button
+                          key={ex}
+                          onClick={() => setPrompt(ex)}
+                          className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-transparent text-foreground/60 hover:border-foreground/30 hover:text-foreground transition-all duration-200"
+                          data-testid={`button-example-${ex.slice(0, 20).replace(/\s/g, "-")}`}
+                        >
+                          {ex}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={enterSatelliteMode}
+                        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-border/60 bg-transparent text-foreground/60 hover:border-foreground/30 hover:text-foreground transition-all duration-200"
+                        data-testid="button-satellite-mode"
+                      >
+                        <Globe className="w-3 h-3" />
+                        Satellit
+                      </button>
                     </div>
-
-                    {/* Satellit billede-funktion */}
-                    <button
-                      type="button"
-                      onClick={enterSatelliteMode}
-                      className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 hover:border-foreground/30 transition-all group text-left"
-                    >
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,29,47,0.07)" }}>
-                        <Globe className="w-4 h-4 text-foreground/70" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground group-hover:text-foreground">Satellit billede</p>
-                        <p className="text-xs text-muted-foreground">Forvandl et satellitkort til et fotorealistisk dronefotos</p>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto group-hover:translate-x-0.5 transition-transform" />
-                    </button>
                   </div>
                 )}
 
