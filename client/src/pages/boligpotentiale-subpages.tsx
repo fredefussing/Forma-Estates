@@ -294,9 +294,9 @@ function BenefitRow({ items }: { items: { title: string; desc: string }[] }) {
 export function EksemplerPage() {
   usePageTitle("Eksempler på AI-boligvisualisering", "Se før/efter-eksempler på AI-genereret boligstyling og iscenesættelse fra Forma Estates.");
   const pairs = [
-    { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Entre — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
-    { before: "/bolig-images/dining-before.jpg", after: "/bolig-images/dining-after.jpg", title: "Spisestue — skandinavisk", desc: "Rene linjer, varme træmøbler og naturligt lys." },
-    { before: "/bolig-images/kitchen-before.jpg", after: "/bolig-images/kitchen-after.jpg", title: "Køkken — landlig", desc: "Træfronter, sten og naturligt lys gør rummet levende." },
+    { before: "/bolig-images/demo-room-before.jpg", after: "/bolig-images/demo-room-after.jpg", title: "Entre — skandinavisk", desc: "Fra renoveringsprojekt til indbydende entre med nordiske materialer og smart opbevaring." },
+    { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Stue — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
+    { before: "/bolig-images/demo-dining-before.jpg", after: "/bolig-images/dining-after.jpg", title: "Spisestue — skandinavisk", desc: "Rene linjer, varme træmøbler og naturligt lys." },
     { before: "/bolig-images/demo-bathroom-before.jpg", after: "/bolig-images/demo-bathroom-after-clean.png", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
     { before: "/bolig-images/ai-agent-house-before.png", after: "/bolig-images/ai-agent-house-after.png", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
   ];
