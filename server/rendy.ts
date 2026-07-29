@@ -327,6 +327,10 @@ export function startRendyShowcase(
 
   (async () => {
     try {
+      // Gem job_id i DB STRAKS — inden uploads starter — så SSE-recovery
+      // altid kan finde jobbet selvom serveren genstarter undervejs.
+      await dbUpsertJob(jobId);
+
       // Step 1: Upload all images concurrently
       const uploadedImages: RendyUploadedImage[] = new Array(filePaths.length);
       let uploaded = 0;
@@ -362,8 +366,8 @@ export function startRendyShowcase(
       const listingId = await createRendyListing(address || "Boligfremvisning", ratio, imageUrls);
       const cur = jobs.get(jobId)!;
       jobs.set(jobId, { ...cur, listingId });
-      // Persist listingId to DB so SSE can recover after a server restart
-      dbUpsertJob(jobId, listingId);
+      // Gem listingId med await — ingen vindue hvor listing er skabt men ikke i DB
+      await dbUpsertJob(jobId, listingId);
 
       // Step 3: Poll until done — with retry on transient Rendy errors
       let consecutiveErrors = 0;
