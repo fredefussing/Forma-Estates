@@ -3901,12 +3901,14 @@ const VFX_TRANSITIONS = [
   { key: "3d-text-just-listed",  name: "3D Tekst: Just Listed", sampleVideoUrl: `${BASE}/assets/presets/video/1782301341756-ox8aft.mp4` },
   { key: "helicopter-drop-off",  name: "Helicopter Drop Off",   sampleVideoUrl: `${BASE}/assets/presets/video/1782302625157-mscc9h.mp4` },
 ];
+// durationHint: actors produce the longest clips (~15-22s) because Rendy
+// AI-generates a virtual person walking through the scene.
 const VFX_ACTORS = [
-  { key: "family", name: "Family", sampleVideoUrl: `${BASE}/actors/previews/family.mp4` },
-  { key: "man",    name: "Man",    sampleVideoUrl: `${BASE}/actors/previews/man.mp4` },
-  { key: "woman",  name: "Woman",  sampleVideoUrl: `${BASE}/actors/previews/woman.mp4` },
-  { key: "kids",   name: "Kids",   sampleVideoUrl: `${BASE}/actors/previews/kids.mp4` },
-  { key: "couple", name: "Couple", sampleVideoUrl: `${BASE}/actors/previews/couple.mp4` },
+  { key: "family", name: "Family", durationHint: "~20s", sampleVideoUrl: `${BASE}/actors/previews/family.mp4` },
+  { key: "man",    name: "Man",    durationHint: "~20s", sampleVideoUrl: `${BASE}/actors/previews/man.mp4` },
+  { key: "woman",  name: "Woman",  durationHint: "~20s", sampleVideoUrl: `${BASE}/actors/previews/woman.mp4` },
+  { key: "kids",   name: "Kids",   durationHint: "~20s", sampleVideoUrl: `${BASE}/actors/previews/kids.mp4` },
+  { key: "couple", name: "Couple", durationHint: "~20s", sampleVideoUrl: `${BASE}/actors/previews/couple.mp4` },
 ];
 const VFX_STAGING = [
   { key: "2d-3d-floorplan",  name: "2D > 3D Floor Plan",  sampleVideoUrl: `${BASE}/assets/presets/video/1775532692161-16w0je.mp4` },
@@ -4020,6 +4022,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [videoDurations, setVideoDurations] = useState<Record<string, number>>({});
   // Panel state: which image is selected, which panel tab
   const [openPanelId, setOpenPanelId] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<"camera" | "vfx">("camera");
@@ -4309,7 +4312,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   settled = true;
                   setResultVideos(p.videos as RendyVideo[]);
                   setRenderingVideos([]);
-                  if (p.listingId) setListingId(p.listingId);
+                  if (p.listingId) {
+                    setListingId(p.listingId);
+                    // Auto-start zip export so combined download is ready without extra click
+                    setTimeout(() => handleExport(p.listingId), 800);
+                  }
                   resolve();
                 }
               } else if (p.stage === "failed") {
@@ -4336,12 +4343,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     }
   };
 
-  const handleExport = async () => {
-    if (!listingId) return;
+  const handleExport = async (lid?: string) => {
+    const effectiveLid = lid ?? listingId;
+    if (!effectiveLid) return;
     setIsExporting(true);
     setExportUrl(null);
     try {
-      const res = await fetch(`/api/bolig/showcase-video/${listingId}/export`, { method: "POST" });
+      const res = await fetch(`/api/bolig/showcase-video/${effectiveLid}/export`, { method: "POST" });
       const data = await res.json();
       if (data.downloadUrl) { setExportUrl(data.downloadUrl); setIsExporting(false); return; }
       const ej = data.jobId as string;
@@ -4370,6 +4378,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setError(null);
     setProgressPct(0);
     setProgressMsg("");
+    setVideoDurations({});
     setShowcaseSaveCaseId(null);
     setShowcaseShowCaseDropdown(false);
   };
@@ -4910,6 +4919,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                             )}
                           </div>
                           <span className="text-sm font-semibold text-center leading-tight" style={{ color: isSelected ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
+                          {(v as any).durationHint && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(200,149,108,0.15)", color: "#9B6444" }}>
+                              {(v as any).durationHint} klip
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -5075,7 +5089,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <div key={video.id} className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]" data-testid={`card-rendy-video-${idx}`}>
                 <div className="bg-[#0F1D2F] px-3 py-2 flex items-center justify-between">
                   <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
-                  <span className="text-[10px] font-mono" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
+                  <div className="flex items-center gap-1.5">
+                    {videoDurations[video.id] != null && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.14)", color: "#D4CEC7" }}>
+                        {videoDurations[video.id]}s
+                      </span>
+                    )}
+                    <span className="text-[10px] font-mono" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
+                  </div>
                 </div>
                 {video.url ? (
                   <video
@@ -5084,6 +5105,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     loop
                     muted
                     playsInline
+                    onLoadedMetadata={(e) => {
+                      const dur = e.currentTarget.duration;
+                      if (dur && isFinite(dur)) setVideoDurations(prev => ({ ...prev, [video.id]: Math.round(dur) }));
+                    }}
                     className={`w-full object-contain bg-black ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
                     data-testid={`video-rendy-${idx}`}
                   />
