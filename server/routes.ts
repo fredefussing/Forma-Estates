@@ -2550,7 +2550,26 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: "Unauthorized" });
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+
+      // Hent billedet inden sletning så vi kan rydde disk + R2
+      const img = await storage.getGeneratedImage(id);
+      if (img && img.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+
+      // Slet fra DB først
       await storage.deleteGeneratedImage(id, user.id);
+
+      // Ryd lokale filer + R2 (non-blocking — DB delete er allerede sket)
+      if (img) {
+        const r2Keys: string[] = [];
+        for (const url of [img.originalImageUrl, img.imageUrl]) {
+          if (!url?.startsWith("/uploads/")) continue;
+          const filename = path.basename(url);
+          fs.unlink(path.join(uploadDir, filename), () => {});
+          r2Keys.push(filename);
+        }
+        if (r2Keys.length > 0) r2DeleteFiles(r2Keys).catch(() => {});
+      }
+
       return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
