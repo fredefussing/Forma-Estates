@@ -111,16 +111,15 @@ export async function r2DeleteFiles(keys: string[]): Promise<void> {
   }
 }
 
-// Upload a local file to R2 (used for generated images and videos)
+// Upload a local file to R2 using a read-stream (ingen hel fil i RAM).
+// Kaster fejl ved fejl — kalder skal selv catch/warn.
 export async function r2UploadFile(localPath: string): Promise<void> {
   if (!isR2Configured()) return;
+  const client = makeClient();
+  if (!client) return;
   const key = path.basename(localPath);
   const ext = path.extname(localPath).toLowerCase();
   const contentType = mimeForExt(ext);
-  try {
-    const buffer = fs.readFileSync(localPath);
-    await r2Upload(key, buffer, contentType);
-  } catch (err: any) {
-    console.warn(`[R2] Failed to upload ${key}:`, err?.message);
-  }
+  const stream = fs.createReadStream(localPath);
+  await client.send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: stream as any, ContentType: contentType }));
 }

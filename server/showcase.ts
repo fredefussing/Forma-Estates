@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, uploadVideoPairToFal, generateAnimationVideo, downloadToFile, selectCameraMove, CameraMove } from "./fal";
-import { r2UploadFile } from "./r2";
+import { r2UploadFile, isR2Configured } from "./r2";
 
 // ===== BOLIG SHOWCASE VIDEO =====
 // Vertical (9:16) property reel. PRIMARY path: each photo becomes one real AI
@@ -48,12 +48,12 @@ function setProgress(jobId: string, p: ShowcaseProgress) {
   if (job) jobs.set(jobId, { ...job, progress: p });
 }
 
-// Drop jobs older than 1h so the map doesn't grow unbounded.
+// Drop completed/failed jobs older than 4h — beskytter jobs der stadig venter i kø.
 function pruneJobs() {
-  const cutoff = Date.now() - 60 * 60 * 1000;
+  const cutoff = Date.now() - 4 * 60 * 60 * 1000;
   const stale: string[] = [];
   jobs.forEach((job, id) => {
-    if (job.createdAt < cutoff) stale.push(id);
+    if (job.status !== "processing" && job.createdAt < cutoff) stale.push(id);
   });
   stale.forEach((id) => jobs.delete(id));
 }
@@ -1360,7 +1360,17 @@ async function assembleVideo(
     for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
   }
 
-  r2UploadFile(outPath).catch(() => {});
+  // Upload til R2 og slet derefter fra Render-disk (sparer diskplads).
+  // Filen serveres fremover via R2-fallback i /uploads-middlewaren.
+  // Fejler R2, beholdes den lokale kopi som fallback.
+  if (isR2Configured()) {
+    try {
+      await r2UploadFile(outPath);
+      fs.promises.unlink(outPath).catch(() => {});
+    } catch (err: any) {
+      console.warn(`[showcase] R2 upload fejlede for ${filename} — beholder lokal kopi:`, err?.message);
+    }
+  }
   return `/uploads/${filename}`;
 }
 

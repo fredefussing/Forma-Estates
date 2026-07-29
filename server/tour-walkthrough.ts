@@ -44,7 +44,7 @@ function setProgress(jobId: string, p: TourProgress) {
 function pruneJobs() {
   // Ryd kun afsluttede jobs — et kørende job kan sagtens vente >1 time i køen
   // (MAX_CONCURRENT=1) og må aldrig slettes mens klienten stadig poller det.
-  const cutoff = Date.now() - 60 * 60 * 1000;
+  const cutoff = Date.now() - 4 * 60 * 60 * 1000;
   const stale: string[] = [];
   jobs.forEach((job, id) => {
     if (job.status !== "processing" && job.createdAt < cutoff) stale.push(id);
@@ -176,7 +176,10 @@ async function renderTour(
         tempClips.push(dest);
         // Persistér klippet på rummet med det samme, så den interaktive viser
         // kan afspille færdige rum mens resten stadig genereres.
-        if (isR2Configured()) await r2UploadFile(dest).catch(() => {});
+        if (isR2Configured()) {
+          try { await r2UploadFile(dest); fs.promises.unlink(dest).catch(() => {}); }
+          catch (e: any) { console.warn(`[GuidedTour] R2 upload fejlede for ${base}:`, e?.message); }
+        }
         await storage.updateAiTourRoom(room.roomId, userId, { videoUrl: `/uploads/${base}` } as any);
         done++;
         setProgress(jobId, { stage: "generating", currentClip: done, totalClips: total, message: `Laver rundvisningsklip ${done}/${total}…` });
@@ -218,7 +221,10 @@ async function renderTour(
       finalPath,
     ]);
 
-    if (isR2Configured()) await r2UploadFile(finalPath).catch(() => {});
+    if (isR2Configured()) {
+      try { await r2UploadFile(finalPath); fs.promises.unlink(finalPath).catch(() => {}); }
+      catch (e: any) { console.warn(`[GuidedTour] R2 upload fejlede for ${finalBase}:`, e?.message); }
+    }
     const tourVideoUrl = `/uploads/${finalBase}`;
     await storage.updateAiTourProperty(propertyId, userId, { tourVideoUrl, tourStatus: "done" } as any);
 
