@@ -3726,7 +3726,7 @@ export async function registerRoutes(
         consecutiveErrors++;
         log(`[Rendy] recovery poll error (${consecutiveErrors}/${MAX_ERRORS}): ${err.message}`);
         if (consecutiveErrors >= MAX_ERRORS) {
-          send({ stage: "failed", progress: 0, message: "Forbindelsen til Rendy mislykkedes. Prøv igen." });
+          send({ stage: "failed", progress: 0, message: "Generering mislykkedes. Prøv igen." });
           break;
         }
         await new Promise((r) => setTimeout(r, 5000));

@@ -3125,7 +3125,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
                 <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
                 {tripoRenderedUrl
-                  ? "Tripo AI-render · Klar til 360° rotation"
+                  ? "AI-render · Klar til 360° rotation"
                   : imagePreview ? "Træk slideren for at sammenligne 2D og 3D" : "AI-genereret 3D render"}
               </div>
             </div>
@@ -4479,7 +4479,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig Showcase</h1>
         </div>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Vælg kamerabevægelse eller VFX-effekt per billede — eller lad Rendy vælge automatisk. Baggrundsmusik vælges automatisk til videoen.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Vælg kamerabevægelse eller VFX-effekt per billede — eller lad AI'en vælge automatisk. Baggrundsmusik vælges automatisk til videoen.</p>
       </div>
 
       {/* Eksempel */}

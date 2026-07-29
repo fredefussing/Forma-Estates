@@ -231,7 +231,7 @@ export function FloorplanTripo3DViewer({
       timeoutRef.current = setTimeout(() => {
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         timeoutRef.current = null;
-        setErrorMsg("Tripo3D's servere svarer ikke — de er muligvis overbelastede. Prøv igen om lidt.");
+        setErrorMsg("Serverne svarer ikke — de er muligvis overbelastede. Prøv igen om lidt.");
         setStatus("error");
       }, 4 * 60 * 1000);
 
@@ -309,7 +309,7 @@ export function FloorplanTripo3DViewer({
           roomType: "floorplan",
           style: "3d-interactive",
           budgetTier: "tier2",
-          promptText: "Interaktiv 3D model genereret af Tripo3D AI",
+          promptText: "Interaktiv 3D model",
           isDesignAgent: true,
         }),
       });
@@ -547,10 +547,10 @@ export function FloorplanTripo3DViewer({
         <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#C8956C" }} />
         <div className="text-center">
           <p className="text-sm font-medium mb-0.5" style={{ color: "#0F1D2F" }}>
-            {progress === 0 ? "Venter i Tripo3D's kø…" : "Bygger 3D model med rigtige vægge…"}
+            {progress === 0 ? "Venter i kø…" : "Bygger 3D model med rigtige vægge…"}
           </p>
           <p className="text-xs" style={{ color: "#9B9690" }}>
-            {progress === 0 ? "Tripo3D's servere er travle — starter automatisk" : "Kan tage 1–3 minutter"}
+            {progress === 0 ? "Serverne er travle — starter automatisk" : "Kan tage 1–3 minutter"}
           </p>
         </div>
         <div className="w-full max-w-xs">

@@ -321,7 +321,7 @@ export function startRendyShowcase(
     progress: {
       stage: "uploading",
       progress: 0,
-      message: `Uploader ${filePaths.length} billeder til Rendy…`,
+      message: `Uploader ${filePaths.length} billeder…`,
     },
   });
 
@@ -348,7 +348,7 @@ export function startRendyShowcase(
       setProgress(jobId, {
         stage: "generating",
         progress: 32,
-        message: "Sender til Rendy og starter AI-generering…",
+        message: "Starter AI-generering…",
       });
 
       const imageUrls = uploadedImages.map((img, i) => ({
