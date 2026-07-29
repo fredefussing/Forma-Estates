@@ -1,5 +1,7 @@
 import { fal } from "@fal-ai/client";
 import fs from "fs";
+import { pipeline } from "stream/promises";
+import { Readable } from "stream";
 import path from "path";
 import { Jimp, JimpMime } from "jimp";
 import { r2UploadFile } from "./r2";
@@ -843,13 +845,13 @@ export async function generateDroneClip(
   return { videoUrl };
 }
 
-// Download a remote URL to an explicit local path (used for fal-hosted clips that
-// we then feed into FFmpeg). Throws on a non-2xx response.
+// Download a remote URL to an explicit local path — streamer direkte til disk,
+// ingen hel videofil i RAM. Throws on a non-2xx response.
 export async function downloadToFile(remoteUrl: string, destPath: string): Promise<void> {
   const resp = await fetch(remoteUrl);
   if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
-  const buf = Buffer.from(await resp.arrayBuffer());
-  fs.writeFileSync(destPath, buf);
+  if (!resp.body) throw new Error("No response body");
+  await pipeline(Readable.fromWeb(resp.body as any), fs.createWriteStream(destPath));
 }
 
 // Download a remote URL (e.g. fal-hosted mp4) to local /uploads and return /uploads/<file>.
@@ -858,12 +860,9 @@ export async function downloadToUploads(
   uploadDir: string,
   ext: string,
 ): Promise<string> {
-  const resp = await fetch(remoteUrl);
-  if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
-  const buf = Buffer.from(await resp.arrayBuffer());
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
   const full = path.join(uploadDir, filename);
-  fs.writeFileSync(full, buf);
+  await downloadToFile(remoteUrl, full); // streamer til disk, ingen buffer i RAM
   r2UploadFile(full).catch(() => {});
   return `/uploads/${filename}`;
 }

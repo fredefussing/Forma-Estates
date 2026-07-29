@@ -111,7 +111,8 @@ export async function r2DeleteFiles(keys: string[]): Promise<void> {
   }
 }
 
-// Upload a local file to R2 using a read-stream (ingen hel fil i RAM).
+// Upload a local file to R2 som en stream med ContentLength.
+// ContentLength er KRITISK — uden den bufferer AWS SDK hele filen i RAM.
 // Kaster fejl ved fejl — kalder skal selv catch/warn.
 export async function r2UploadFile(localPath: string): Promise<void> {
   if (!isR2Configured()) return;
@@ -120,6 +121,7 @@ export async function r2UploadFile(localPath: string): Promise<void> {
   const key = path.basename(localPath);
   const ext = path.extname(localPath).toLowerCase();
   const contentType = mimeForExt(ext);
+  const contentLength = fs.statSync(localPath).size;
   const stream = fs.createReadStream(localPath);
-  await client.send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: stream as any, ContentType: contentType }));
+  await client.send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: stream as any, ContentType: contentType, ContentLength: contentLength }));
 }

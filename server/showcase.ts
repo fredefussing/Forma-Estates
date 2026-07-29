@@ -1455,11 +1455,9 @@ async function render(
           buildLocalInputsCleanLandscape(imagePaths, m, cutStyle),
         ]);
       }
-      // Both variants for this mood run concurrently — they read the same clips independently.
-      const [main, clean] = await Promise.all([
-        assembleVideo(inputs, outDir, address, m, startText, endText),
-        assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText),
-      ]);
+      // Sekventielt — to samtidige FFmpeg-processer + R2-uploads sprængte 512MB.
+      const main  = await assembleVideo(inputs,      outDir, address, m,            startText, endText);
+      const clean = await assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText);
       videoUrls[m] = main;
       cleanVideoUrls[m] = clean;
     });
