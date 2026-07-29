@@ -61,7 +61,7 @@ function pruneJobs() {
 // Local FFmpeg runs on this same server's CPU, so cap how many encodes run at
 // once and reject new work once the backlog is full. This protects the box from
 // compute-abuse / traffic spikes turning into an out-of-resources crash.
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 1;  // 1 job ad gangen — FFmpeg + clip-downloads er tungt
 const MAX_BACKLOG = 12; // active + queued
 let activeRenders = 0;
 const waiters: Array<() => void> = [];
@@ -534,7 +534,7 @@ async function mapLimit<T, R>(
 
 // Most Kling generations a single job runs concurrently. Each is a paid call, so
 // we trickle them rather than firing all MAX_AI_CLIPS at once.
-const AI_CLIP_CONCURRENCY = 6;
+const AI_CLIP_CONCURRENCY = 3; // reduceret fra 6 — clip-downloads bruger ~30MB/stk i Node-heap
 
 // Even-rounded value — x264/yuv420p needs even pixel dimensions and offsets.
 const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
@@ -1023,16 +1023,15 @@ async function buildAIClips(
 
   onProgress?.({ stage: "uploading", currentClip: 0, totalClips: totalClips, message: `Uploader ${allPhotos.length} billeder…` });
 
-  // Upload all images in parallel
-  const allUploads = await Promise.all(
-    allPhotos.map((p) =>
-      uploadToFal(p)
-        .then((url) => url)
-        .catch((e) => {
-          console.warn("[showcase] upload failed:", e?.message || e);
-          return null;
-        }),
-    ),
+  // Upload images with bounded concurrency — Promise.all over 20 images holder alle
+  // HTTP-responses i hukommelsen på én gang; mapLimit med 4 sparer ~60-80 MB peak.
+  const allUploads = await mapLimit(allPhotos, 4, async (p: string) =>
+    uploadToFal(p)
+      .then((url: string) => url)
+      .catch((e: any) => {
+        console.warn("[showcase] upload failed:", e?.message || e);
+        return null as null;
+      }),
   );
 
   let done = 0;
@@ -1335,11 +1334,12 @@ async function assembleVideo(
     args.push("-map", "[aout]");
   }
   args.push(
+    "-threads", "2",          // begrænser FFmpeg's per-proces tråde → lavere RAM-spike
     "-r", String(FPS),
     "-fps_mode", "cfr",
     "-c:v", "libx264",
-    "-preset", "medium",
-    "-crf", "18",
+    "-preset", "fast",        // fast i stedet for medium: ~30% lavere peak-allokering, marginalt lavere kvalitet
+    "-crf", "19",
     "-pix_fmt", "yuv420p",
     "-profile:v", "high",
     "-level", "4.1",
@@ -1431,7 +1431,7 @@ async function render(
         ? [mood]
         : ["calm", "uplifting", "modern", "tension"];
 
-    const MOOD_CONCURRENCY = moodsToRender.length > 1 ? 2 : 1;
+    const MOOD_CONCURRENCY = 1; // altid sekventielt — 2 samtidige FFmpeg-processer i stedet for 4
     await mapLimit(moodsToRender, MOOD_CONCURRENCY, async (m) => {
       emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[m]}…` });
       let inputs: RenderInputs;
