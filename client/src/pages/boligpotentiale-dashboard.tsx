@@ -1932,23 +1932,26 @@ function CaseDetailPanel({
 
                       {caseRefinementCount < CASE_MAX_REFINEMENTS ? (
                         <div className="p-4">
-                          {/* Quick suggestion chips */}
+                          {/* Quick suggestion chips — clicking appends, never replaces */}
                           <div className="flex flex-wrap gap-2 mb-3">
-                            {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => (
+                            {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
+                              const active = caseRefinementPrompt.toLowerCase().includes(s.toLowerCase());
+                              return (
                               <button
                                 key={s}
-                                onClick={() => setCaseRefinementPrompt(s)}
+                                onClick={() => setCaseRefinementPrompt(prev => prev.trim() ? `${prev.trim()}, ${s.toLowerCase()}` : s)}
                                 disabled={isCaseRefining}
                                 className="px-3 py-1 rounded-full text-xs border transition-all hover:border-[#C8956C] disabled:opacity-40"
                                 style={{
-                                  borderColor: caseRefinementPrompt === s ? "#C8956C" : "#E8E4DE",
-                                  color: caseRefinementPrompt === s ? "#C8956C" : "#6B6B6B",
-                                  background: caseRefinementPrompt === s ? "rgba(200,149,108,0.08)" : "white",
+                                  borderColor: active ? "#C8956C" : "#E8E4DE",
+                                  color: active ? "#C8956C" : "#6B6B6B",
+                                  background: active ? "rgba(200,149,108,0.08)" : "white",
                                 }}
                               >
                                 {s}
                               </button>
-                            ))}
+                              );
+                            })}
                           </div>
                           {/* Input + submit */}
                           <div className="flex gap-2">
@@ -3067,23 +3070,26 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 
                   {refinementCount < MAX_REFINEMENTS ? (
                     <div className="p-4">
-                      {/* Quick suggestion chips */}
+                      {/* Quick suggestion chips — clicking appends, never replaces */}
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => (
+                        {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
+                          const active = refinementPrompt.toLowerCase().includes(s.toLowerCase());
+                          return (
                           <button
                             key={s}
-                            onClick={() => setRefinementPrompt(s)}
+                            onClick={() => setRefinementPrompt(prev => prev.trim() ? `${prev.trim()}, ${s.toLowerCase()}` : s)}
                             disabled={isRefining}
                             className="px-3 py-1 rounded-full text-xs border transition-all hover:border-[#C8956C] disabled:opacity-40"
                             style={{
-                              borderColor: refinementPrompt === s ? "#C8956C" : "#E8E4DE",
-                              color: refinementPrompt === s ? "#C8956C" : "#6B6B6B",
-                              background: refinementPrompt === s ? "rgba(200,149,108,0.08)" : "white",
+                              borderColor: active ? "#C8956C" : "#E8E4DE",
+                              color: active ? "#C8956C" : "#6B6B6B",
+                              background: active ? "rgba(200,149,108,0.08)" : "white",
                             }}
                           >
                             {s}
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                       {/* Input + submit */}
                       <div className="flex gap-2">
