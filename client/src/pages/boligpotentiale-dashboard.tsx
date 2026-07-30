@@ -1444,11 +1444,20 @@ function CaseDetailPanel({
                                 );
                               })()}
                             </>
+                          ) : isVideoUrl(img.src) ? (
+                            <button
+                              type="button"
+                              onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(img.src, `video-${img.style ?? "download"}-${ts}.mp4`); }}
+                              title="Download video (MP4)"
+                              data-testid={`bolig-gallery-download-${img.id}-mp4`}
+                              className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold text-white"
+                              style={{ background: "rgba(15,29,47,0.85)" }}
+                            >
+                              <Download className="w-3 h-3" /> MP4
+                            </button>
                           ) : (
                           <>
-                          {!isVideoUrl(img.src) && (
-                            <ShareButton caseImageId={img.id} variant="icon-dark" testId={`bolig-share-${img.id}`} stopPropagation />
-                          )}
+                          <ShareButton caseImageId={img.id} variant="icon-dark" testId={`bolig-share-${img.id}`} stopPropagation />
                           <DownloadMenu
                             url={img.src}
                             beforeUrl={img.beforeSrc}
@@ -2140,11 +2149,19 @@ function CaseDetailPanel({
                         );
                       })()}
                     </>
+                  ) : isVideoUrl(lightboxImg.src) ? (
+                    <button
+                      type="button"
+                      onClick={async () => { const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(lightboxImg.src, `video-${lightboxImg.style ?? "download"}-${ts}.mp4`); }}
+                      className="h-8 px-3 rounded-full font-semibold text-xs text-white flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
+                      data-testid="bolig-lightbox-download-mp4"
+                    >
+                      <Download className="w-3 h-3" /> Download MP4
+                    </button>
                   ) : (
                     <>
-                    {!isVideoUrl(lightboxImg.src) && (
-                      <ShareButton caseImageId={lightboxImg.id} variant="pill-light" testId="bolig-lightbox-share" stopPropagation />
-                    )}
+                    <ShareButton caseImageId={lightboxImg.id} variant="pill-light" testId="bolig-lightbox-share" stopPropagation />
                     <DownloadMenu
                       url={lightboxImg.src}
                       beforeUrl={lightboxImg.beforeSrc}
