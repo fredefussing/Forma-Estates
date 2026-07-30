@@ -3172,17 +3172,23 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ success: false, message: "Intet plantegning-billede uploadet" });
       }
-      // Auth + quota check
+      // Auth + quota check — auth is REQUIRED for this paid feature
       let floorPlanUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
-        if (u) {
-          floorPlanUserId = u.id;
-          const q = await storage.checkAndIncrementQuota(u.id, "floorPlan");
-          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        if (!u) {
+          fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
+          return res.status(401).json({ success: false, message: "Log ind for at generere 3D plantegninger." });
         }
-      } catch { /* allow if no token — gateway handles paywall */ }
+        floorPlanUserId = u.id;
+        const q = await storage.checkAndIncrementQuota(u.id, "floorPlan");
+        if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+      } catch (authErr: any) {
+        if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
+        fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
+        return res.status(401).json({ success: false, message: "Log ind for at generere 3D plantegninger." });
+      }
 
       const localPath = path.join(uploadDir, req.file.filename);
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
@@ -3465,16 +3471,18 @@ export async function registerRoutes(
         if (!beforeFile || !afterFile) {
           return res.status(400).json({ success: false, message: "Både før- og efter-billede skal uploades" });
         }
-        // Auth + quota check
+        // Auth + quota check — auth is REQUIRED for this paid feature
         try {
           const { uid } = await verifyFirebaseToken(req.headers.authorization);
           const u = await storage.getUserByFirebaseUid(uid);
-          if (u) {
-            transformUserId = u.id;
-            const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
-            if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
-          }
-        } catch { /* allow if no token */ }
+          if (!u) return res.status(401).json({ success: false, message: "Log ind for at generere transformeringsvideoer." });
+          transformUserId = u.id;
+          const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
+          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        } catch (authErr: any) {
+          if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
+          return res.status(401).json({ success: false, message: "Log ind for at generere transformeringsvideoer." });
+        }
 
         const beforePath = path.join(uploadDir, beforeFile.filename);
         const afterPath = path.join(uploadDir, afterFile.filename);
@@ -3563,19 +3571,25 @@ export async function registerRoutes(
       if (files.length < 1) {
         return res.status(400).json({ success: false, message: "Upload mindst 1 billede" });
       }
-      // Auth + quota check
+      // Auth + quota check — auth is REQUIRED for this paid feature
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
-        if (u) {
-          showcaseUserId = u.id;
-          const q = await storage.checkAndIncrementQuota(u.id, "showcase");
-          if (!q.allowed) {
-            for (const f of files) fs.promises.unlink(path.join(uploadDir, f.filename)).catch(() => {});
-            return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
-          }
+        if (!u) {
+          for (const f of files) fs.promises.unlink(path.join(uploadDir, f.filename)).catch(() => {});
+          return res.status(401).json({ success: false, message: "Log ind for at generere showcase-videoer." });
         }
-      } catch { /* allow unauthenticated */ }
+        showcaseUserId = u.id;
+        const q = await storage.checkAndIncrementQuota(u.id, "showcase");
+        if (!q.allowed) {
+          for (const f of files) fs.promises.unlink(path.join(uploadDir, f.filename)).catch(() => {});
+          return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        }
+      } catch (authErr: any) {
+        if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
+        for (const f of files) fs.promises.unlink(path.join(uploadDir, f.filename)).catch(() => {});
+        return res.status(401).json({ success: false, message: "Log ind for at generere showcase-videoer." });
+      }
 
       const filePaths = files.map((f) => path.join(uploadDir, f.filename));
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 120) : "";
@@ -3826,15 +3840,18 @@ export async function registerRoutes(
       if (files.length < 2) {
         return res.status(400).json({ success: false, message: "Upload mindst 2 billeder" });
       }
+      // Auth + quota check — auth is REQUIRED for this paid feature
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
-        if (u) {
-          walkthroughUserId = u.id;
-          const q = await storage.checkAndIncrementQuota(u.id, "showcase");
-          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
-        }
-      } catch { /* allow if no token */ }
+        if (!u) return res.status(401).json({ success: false, message: "Log ind for at generere walkthrough-videoer." });
+        walkthroughUserId = u.id;
+        const q = await storage.checkAndIncrementQuota(u.id, "showcase");
+        if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+      } catch (authErr: any) {
+        if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
+        return res.status(401).json({ success: false, message: "Log ind for at generere walkthrough-videoer." });
+      }
       const paths = files.map((f) => path.join(uploadDir, f.filename));
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
       const jobId = startWalkthroughVideo(paths, uploadDir, address);
