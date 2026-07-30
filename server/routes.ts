@@ -2988,8 +2988,12 @@ export async function registerRoutes(
         }
       }
 
+      // Refinements (isRefinement=true + sourceCaseImageId) are free — we already charged
+      // for the original generation. Up to 5 per image, enforced client-side; server skips quota.
+      const isRefinement = (req.body.isRefinement === "true" || req.body.isRefinement === true) && !!sourceCaseImageId;
+
       // Quota check — blocks non-admin users who have exhausted their AI visualization quota
-      if (authedUserId) {
+      if (authedUserId && !isRefinement) {
         const q = await storage.checkAndIncrementQuota(authedUserId, "ai");
         if (!q.allowed) {
           return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}. Opgrader din pakke for at generere flere billeder.` });

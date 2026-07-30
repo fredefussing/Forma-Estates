@@ -2684,6 +2684,12 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState<number | null>(null);
+  const [savedImageId, setSavedImageId] = useState<number | null>(null);
+  const [refinedUrl, setRefinedUrl] = useState<string | null>(null);
+  const [refinementCount, setRefinementCount] = useState(0);
+  const [refinementPrompt, setRefinementPrompt] = useState("");
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinementError, setRefinementError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
@@ -2717,6 +2723,10 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
       setResultUrl(data.image_url);
+      setSavedImageId(data.generation_id ?? null);
+      setRefinedUrl(null);
+      setRefinementCount(0);
+      setRefinementError(null);
       setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
@@ -2731,7 +2741,42 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const reset = () => { setStage("upload"); setImageFile(null); setImagePreview(null); setResultUrl(null); setError(null); setProcessingTime(null); };
+  const MAX_REFINEMENTS = 5;
+
+  const handleRefinement = async () => {
+    if (!savedImageId || !refinementPrompt.trim() || isRefining || refinementCount >= MAX_REFINEMENTS) return;
+    setIsRefining(true);
+    setRefinementError(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("sourceCaseImageId", String(savedImageId));
+      fd.append("isDesignAgent", "true");
+      fd.append("isRefinement", "true");
+      fd.append("promptText", refinementPrompt.trim());
+      const res = await fetch("/api/bolig/generate", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Justering mislykkedes. Prøv igen.");
+      setRefinedUrl(data.image_url);
+      if (data.generation_id) setSavedImageId(data.generation_id);
+      setRefinementCount(c => c + 1);
+      setRefinementPrompt("");
+    } catch (err: any) {
+      setRefinementError(err.message || "Noget gik galt. Prøv igen.");
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const reset = () => {
+    setStage("upload"); setImageFile(null); setImagePreview(null); setResultUrl(null);
+    setError(null); setProcessingTime(null); setSavedImageId(null);
+    setRefinedUrl(null); setRefinementCount(0); setRefinementPrompt(""); setRefinementError(null);
+  };
 
   return (
     <div>
@@ -2865,23 +2910,105 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
           <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <div className="mb-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-3" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
-                <Check className="w-3 h-3" /> Visualisering klar{processingTime ? ` · ${processingTime} sek` : ""}
+                <Check className="w-3 h-3" /> {refinedUrl ? "Justering klar" : `Visualisering klar${processingTime ? ` · ${processingTime} sek` : ""}`}
               </div>
               <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Forvandlingen er klar!</h2>
               <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Træk slideren for at sammenligne før og efter</p>
             </div>
             <div className="max-w-4xl">
-              <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={resultUrl} />
+              <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={refinedUrl ?? resultUrl} />
+
+              {/* ── Inline refinement chat ─────────────────────────────────────── */}
+              {savedImageId && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.25 }}
+                  className="mt-5 rounded-2xl border border-[#E8E4DE] overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-[#E8E4DE]" style={{ background: "#FAF7F2" }}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Sparkles className="w-4 h-4 shrink-0" style={{ color: "#C8956C" }} />
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forbedr resultatet</span>
+                      <span className="hidden sm:inline text-xs" style={{ color: "#9B9690" }}>— juster belysning, møbler, dekorationer og mere</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-medium tabular-nums" style={{ color: refinementCount >= MAX_REFINEMENTS ? "#DC2626" : "#9B9690" }}>
+                        {refinementCount}/{MAX_REFINEMENTS} justeringer
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a" }}>
+                        <Check className="w-3 h-3" /> Koster ikke ekstra kredit
+                      </span>
+                    </div>
+                  </div>
+
+                  {refinementCount < MAX_REFINEMENTS ? (
+                    <div className="p-4">
+                      {/* Quick suggestion chips */}
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setRefinementPrompt(s)}
+                            disabled={isRefining}
+                            className="px-3 py-1 rounded-full text-xs border transition-all hover:border-[#C8956C] disabled:opacity-40"
+                            style={{
+                              borderColor: refinementPrompt === s ? "#C8956C" : "#E8E4DE",
+                              color: refinementPrompt === s ? "#C8956C" : "#6B6B6B",
+                              background: refinementPrompt === s ? "rgba(200,149,108,0.08)" : "white",
+                            }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Input + submit */}
+                      <div className="flex gap-2">
+                        <input
+                          value={refinementPrompt}
+                          onChange={(e) => setRefinementPrompt(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter" && !isRefining && refinementPrompt.trim()) handleRefinement(); }}
+                          placeholder="Fx: tilføj en stående lampe ved sofaen, bedre belysning..."
+                          className="flex-1 h-10 px-3.5 text-sm rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#C8956C] disabled:opacity-50"
+                          style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
+                          disabled={isRefining}
+                        />
+                        <button
+                          onClick={handleRefinement}
+                          disabled={isRefining || !refinementPrompt.trim()}
+                          className="h-10 px-4 rounded-xl text-sm font-semibold text-white disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-90"
+                          style={{ background: "#C8956C" }}
+                          data-testid="bolig-refine-submit"
+                        >
+                          {isRefining
+                            ? <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> Justerer...</>
+                            : <><Sparkles className="w-3.5 h-3.5" /> Juster</>}
+                        </button>
+                      </div>
+                      {refinementError && (
+                        <p className="text-xs mt-2" style={{ color: "#DC2626" }}>{refinementError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="px-5 py-4 text-sm text-center" style={{ color: "#6B6B6B" }}>
+                      Du har brugt alle {MAX_REFINEMENTS} justeringer til dette billede.
+                      Generer et nyt billede for at starte forfra.
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               <div className="flex flex-wrap gap-3 mt-5">
                 <DownloadMenu
-                  url={resultUrl}
+                  url={refinedUrl ?? resultUrl}
                   beforeUrl={imagePreview}
                   room={roomType}
                   style={style}
                   variant="primary"
                   testIdPrefix="bolig-upload-result-download"
                 />
-                <button onClick={() => { setStage("config"); setResultUrl(null); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }}>Prøv anden stil</button>
+                <button onClick={() => { setStage("config"); setResultUrl(null); setRefinedUrl(null); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }}>Prøv anden stil</button>
                 <button onClick={reset} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#6B6B6B" }}>Nyt billede</button>
               </div>
             </div>
