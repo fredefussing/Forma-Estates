@@ -943,7 +943,7 @@ export function BoligShowcasePage() {
         <div className="relative rounded-2xl overflow-hidden" style={{ width: "min(300px, 90%)", aspectRatio: "9/16", boxShadow: "0 24px 60px rgba(15,25,35,0.18)" }}>
           <video
             ref={verticalVideoRef}
-            src="/videos/eksempel-bolig-showcase.mp4"
+            src="/videos/showcase-lodret-eksempel.mp4"
             autoPlay
             muted
             loop
