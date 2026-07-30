@@ -23,7 +23,7 @@ import {
   Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
   FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play,
-  Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink,
+  Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink, MessageSquare,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -8845,6 +8845,7 @@ export default function BoligpotentialeDashboard() {
   const [activityLightbox, setActivityLightbox] = useState<{ src: string; beforeSrc: string | null } | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<BillingInvoice | null>(null);
   const [cancelConfirming, setCancelConfirming] = useState(false);
+  const [featuresHintDismissed, setFeaturesHintDismissed] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -9514,6 +9515,36 @@ export default function BoligpotentialeDashboard() {
                       </span>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Post-purchase: funktions-hint */}
+              {isSubscribed && !showOnboarding && !featuresHintDismissed && (
+                <div
+                  className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 border cursor-pointer group"
+                  style={{ background: "rgba(200,149,108,0.07)", borderColor: "rgba(200,149,108,0.28)" }}
+                  onClick={() => {
+                    setFeaturesHintDismissed(true);
+                    window.dispatchEvent(new CustomEvent("openSupportChat", {
+                      detail: { autoMessage: "Gennemgå alle Forma Estates funktioner kort for mig — hvad kan jeg bruge platformen til?" }
+                    }));
+                  }}
+                  data-testid="features-hint-banner"
+                >
+                  <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "#C8956C" }} />
+                  <span className="text-sm flex-1" style={{ color: "#0F1D2F" }}>
+                    <span className="font-semibold">I tvivl om hvordan alle funktioner virker?</span>
+                    <span className="ml-1.5 font-normal" style={{ color: "#6B6B6B" }}>Klik her — AI-assistenten guider dig igennem</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "#C8956C" }} />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFeaturesHintDismissed(true); }}
+                    className="w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0 hover:bg-black/10 transition-colors"
+                    style={{ color: "#9B9690" }}
+                    data-testid="features-hint-dismiss"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </div>
               )}
 

@@ -199,6 +199,12 @@ function Router() {
   );
 }
 
+function SupportChatWrapper() {
+  const [location] = useLocation();
+  const mode = location.startsWith("/boligpotentiale") ? "dashboard" : "landing";
+  return <SupportChat mode={mode} />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -206,7 +212,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
-          <SupportChat />
+          <SupportChatWrapper />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
