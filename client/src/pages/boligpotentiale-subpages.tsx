@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Link } from "wouter";
-import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight, Volume2, VolumeX, MessageSquare } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -340,6 +340,42 @@ export function ForEfterPage() {
           { title: "Køberen ser sig selv", desc: "Et iscenesat rum forkorter tiden til første bud markant." },
         ]}
       />
+
+      {/* ── Tekst-justering callout ── */}
+      <div style={{ marginTop: 48, marginBottom: 8 }}>
+        <div
+          style={{
+            background: "linear-gradient(135deg, #0F1D2F 0%, #1A2E45 100%)",
+            borderRadius: 16,
+            padding: "32px 36px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ background: "rgba(200,149,108,0.18)", borderRadius: 10, padding: 10, flexShrink: 0 }}>
+              <MessageSquare style={{ width: 20, height: 20, color: "#C8956C" }} />
+            </div>
+            <div>
+              <div style={{ fontFamily: SERIF, color: "#fff", fontSize: 19, fontWeight: 500, lineHeight: 1.25 }}>
+                Ikke helt tilfreds? Juster med tekst
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12.5, marginTop: 2 }}>
+                Op til 5 justeringer pr. billede — koster ingen ekstra kreditter
+              </div>
+            </div>
+          </div>
+          <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 14.5, lineHeight: 1.7, margin: 0 }}>
+            Når dit billede er klar, kan du beskrive ændringer med dine egne ord direkte under resultatet —
+            ligesom en AI Design Agent der er bygget ind i flowet. Skriv f.eks.{" "}
+            <span style={{ color: "#C8956C", fontStyle: "italic" }}>"gør væggene lysere"</span>,{" "}
+            <span style={{ color: "#C8956C", fontStyle: "italic" }}>"tilføj en lænestol i hjørnet"</span> eller{" "}
+            <span style={{ color: "#C8956C", fontStyle: "italic" }}>"mere naturligt lys fra vinduet"</span> —
+            og AI'en genererer en justeret version på sekunder. Du har 5 forsøg pr. billede til at perfektionere resultatet.
+          </p>
+        </div>
+      </div>
 
       {/* ── 9 stilarter guide ── */}
       <div style={{ marginTop: 72 }}>
