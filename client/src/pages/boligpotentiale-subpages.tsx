@@ -982,10 +982,10 @@ export function BoligShowcasePage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {[
-            { label: "AI-iscenesættelse", desc: "Hvert rum transformeres til en stilfuld visualisering i den valgte designstil." },
-            { label: "9 stilarter", desc: "Skandinavisk, moderne, luksus, japandi, minimalistisk og flere — vælg den der passer til boligen." },
-            { label: "3 kvalitetsniveauer", desc: "Budget (IKEA/JYSK), Standard (BoConcept/HAY) eller Premium (Fritz Hansen/Carl Hansen)." },
-            { label: "HD billeder", desc: "Leveres i høj opløsning — klar til print, digital annoncering og sociale medier." },
+            { label: "Upload dine boligfotos", desc: "Upload billeder af hvert rum — stue, køkken, soveværelse, badeværelse og resten. AI'en omdanner dem til professionelle visualiseringer i den stilart du vælger." },
+            { label: "Vælg VFX eller kamerabevægelse", desc: "Giv hvert billede sin egen animation: zoom ind, glidende pan, lens flare, implosion, house drop og mange flere. Du bestemmer effekten for hvert enkelt rum." },
+            { label: "Automatisk musik og adresse", desc: "Videoen sammensættes automatisk med diskret baggrundsmusik og boligens adresse som overtekst — klar til deling uden ekstra redigering." },
+            { label: "To formater leveret på én gang", desc: "Du får både bredformat (16:9) til boligannoncen og Boligsiden, og lodret video (9:16) til Instagram Reels, TikTok og Facebook." },
           ].map((item) => (
             <div
               key={item.label}
