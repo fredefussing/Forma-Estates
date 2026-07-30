@@ -500,7 +500,7 @@ export function PlantegningPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }} data-testid="plantegning-2d">
           <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-            <img src="/bolig-images/demo-floorplan-2d.jpg" alt="2D plantegning" className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scale(1.005)" }} />
+            <img src="/bolig-images/demo-floorplan-2d.png" alt="2D plantegning" className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scale(1.005)" }} />
             <div className="absolute top-3 left-3 uppercase" style={{ background: "rgba(15,25,35,0.78)", color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>2D</div>
           </div>
           <div style={{ padding: "22px 26px" }}>
@@ -510,7 +510,7 @@ export function PlantegningPage() {
         </div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }} data-testid="plantegning-3d">
           <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-            <img src="/bolig-images/demo-floorplan-3d.jpg" alt="3D plantegning" className="absolute inset-0 w-full h-full object-cover" />
+            <img src="/bolig-images/demo-floorplan-3d.png" alt="3D plantegning" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute top-3 left-3 uppercase" style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D</div>
           </div>
           <div style={{ padding: "22px 26px" }}>
