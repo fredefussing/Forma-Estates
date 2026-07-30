@@ -9573,10 +9573,12 @@ export default function BoligpotentialeDashboard() {
             </PaywallPage>
           </div>
 
-          {/* AI boligfremvisning section — owner only */}
+          {/* AI boligfremvisning section — owner only, requires subscription */}
           {section === "ai-boligfremvisning" && isOwner && (
             <motion.div key="ai-boligfremvisning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <PropertyTourFlow />
+              <PaywallPage>
+                <PropertyTourFlow />
+              </PaywallPage>
             </motion.div>
           )}
 

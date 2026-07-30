@@ -4448,6 +4448,12 @@ export async function registerRoutes(
       if (!room) return res.status(404).json({ message: "Rum ikke fundet" });
       if (!room.roomPhotoUrl) return res.status(400).json({ message: "Upload først et før-billede af rummet" });
 
+      // Quota check — rum-redesign bruger Collov (AI-kredit)
+      const roomAiQ = await storage.checkAndIncrementQuota(user.id, "ai");
+      if (!roomAiQ.allowed) {
+        return res.status(403).json({ success: false, quotaExceeded: true, feature: roomAiQ.feature, message: `Du har nået din månedlige kvota for ${roomAiQ.feature}. Opgrader din pakke for at generere flere billeder.` });
+      }
+
       // Collov needs an absolute URL it can fetch. roomPhotoUrl is stored as
       // a relative /uploads/... path; rebuild against the public host here.
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
@@ -4581,6 +4587,7 @@ export async function registerRoutes(
           after1 = await runCollov(absolutePhotoUrl);
         }
       } catch (e: any) {
+        storage.refundQuota(user.id, "ai").catch(() => {});
         return res.status(504).json({ message: e.message || "Generering fejlede" });
       }
 
@@ -4615,6 +4622,12 @@ export async function registerRoutes(
       const prop = await storage.getAiTourProperty(id, user.id);
       if (!prop) return res.status(404).json({ message: "Projekt ikke fundet" });
 
+      // Quota check — 3D plantegning bruger fal.ai (gulvplan-kredit)
+      const planQ = await storage.checkAndIncrementQuota(user.id, "floorPlan");
+      if (!planQ.allowed) {
+        return res.status(403).json({ success: false, quotaExceeded: true, feature: planQ.feature, message: `Du har nået din månedlige kvota for ${planQ.feature}. Opgrader din pakke for at generere flere plantegninger.` });
+      }
+
       const { generate3DFloorplan, uploadToFal } = await import("./fal");
       // Feed the model the exact same kind of input the working standalone
       // /api/bolig/floorplan-3d endpoint uses — a canonical fal.storage URL.
@@ -4631,7 +4644,13 @@ export async function registerRoutes(
         falInputUrl = await uploadToFal(localPath, mime);
       }
       log(`[ai-tour] generate 3D plan for property ${id} (input: ${falInputUrl.slice(0, 60)})`);
-      const { imageUrl } = await generate3DFloorplan(falInputUrl);
+      let imageUrl: string;
+      try {
+        ({ imageUrl } = await generate3DFloorplan(falInputUrl));
+      } catch (e: any) {
+        storage.refundQuota(user.id, "floorPlan").catch(() => {});
+        throw e;
+      }
       const updated = await storage.updateAiTourProperty(id, user.id, { threedPlanUrl: imageUrl });
       return res.json(updated);
     } catch (err: any) {
