@@ -1132,6 +1132,46 @@ export function AIDesignAgentPage() {
           </div>
         </div>
       </div>
+      <div className="grid lg:grid-cols-2 gap-7 items-center mt-10">
+        <div
+          className="flex flex-col"
+          style={{ background: C.white, borderRadius: 16, padding: "32px 28px", border: `1px solid ${C.border}`, boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
+          data-testid="agent-prompt-card-3"
+        >
+          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Din prompt
+          </div>
+          <div
+            style={{ background: C.warm, border: `1px solid ${C.border}`, borderRadius: 8, padding: "18px", minHeight: 130, color: C.navy, fontSize: 15, lineHeight: 1.6, fontFamily: SANS }}
+            data-testid="agent-prompt-example-3"
+          >
+            "Gør dette luftfoto til et professionelt drone-foto. Forbedre farverne, tilføj en varm solnedgangsbelysning, skarp kontrast og klar blå himmel. Bevar ejendommens proportioner og omgivelserne."
+          </div>
+          <div className="uppercase mt-5 mb-2" style={{ color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Eksempler du kan prøve
+          </div>
+          <ul className="space-y-2">
+            {[
+              "Gør luftfotoet til en varm solnedgangsoptagelse",
+              "Tilføj sommer og grønne træer til haven",
+              "Skarp kontrast og klarere farver på hele ejendommen",
+              "Skift himlen til blå og tilføj lette skyer",
+            ].map((ex, i) => (
+              <li key={i} className="flex items-start gap-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
+                <span>{ex}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <BeforeAfterPair
+          before="/bolig-images/ai-agent-aerial-before.png"
+          after="/bolig-images/ai-agent-aerial-after.jpg"
+          title={`\u201cGør luftfotoet til et professionelt drone-foto\u201d`}
+          desc="Fra fladt satellit-billede til levende drone-foto med varmt lys og skarphed — ét prompt."
+          testId="agent-pair-2"
+        />
+      </div>
       <BenefitRow
         items={[
           { title: "Frit sprog", desc: "Beskriv ændringen som du ville beskrive den til en designer." },
