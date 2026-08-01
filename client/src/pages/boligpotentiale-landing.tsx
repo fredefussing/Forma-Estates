@@ -285,12 +285,19 @@ const STAGE_SLIDES: StageSlide[] = [
   },
 ];
 
+// Pre-computed: which slide indices are video slides, in order.
+// Used to map slide index → videoRefs array index.
+const VIDEO_SLIDE_INDICES = STAGE_SLIDES
+  .map((s, i) => (s.kind === "video" ? i : -1))
+  .filter((i) => i >= 0);
+
 function HeroStage() {
   const [index, setIndex] = useState(0);
   const [pos, setPos] = useState(1); // swipe split (1 = fully before, 0 = fully after)
   const rafRef = useRef<number | null>(null);
   const slideStartRef = useRef<number>(performance.now());
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // One ref per video slide — always in DOM so iOS Safari autoPlay fires on page load.
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   // After a manual click we wait this long before auto-advancing resumes.
   const AUTO_RESUME_AFTER = 7000;
   const lastInteractionRef = useRef<number>(0);
@@ -325,25 +332,18 @@ function HeroStage() {
     resetTo(next);
   };
 
-  // Side-effects on slide change (video restart only — pos/timer already reset above)
-  // Retry loop: AnimatePresence mounts the new element asynchronously, so the ref
-  // may not point to the new <video> yet when this effect first fires.
+  // When a video slide becomes active, rewind it to 0 so it plays from the start.
+  // The element is always in the DOM so .play() is already running; we just reset time.
   useEffect(() => {
-    if (slide.kind !== "video") return;
-    let cancelled = false;
-    const tryPlay = (attempt = 0) => {
-      if (cancelled) return;
-      const v = videoRef.current;
-      if (!v) {
-        if (attempt < 8) setTimeout(() => tryPlay(attempt + 1), 80);
-        return;
-      }
+    const s = STAGE_SLIDES[index];
+    if (s.kind !== "video") return;
+    const vidIdx = VIDEO_SLIDE_INDICES.indexOf(index);
+    const v = videoRefs.current[vidIdx];
+    if (v) {
       v.currentTime = 0;
-      v.muted = true; // iOS requires the property set programmatically before play()
+      v.muted = true;
       v.play().catch(() => {});
-    };
-    tryPlay();
-    return () => { cancelled = true; };
+    }
   }, [index]);
 
   // Animation loop
@@ -450,7 +450,9 @@ function HeroStage() {
             </div>
           </button>
 
-          {/* CENTER stage */}
+          {/* CENTER stage — ALL slides permanently in DOM.
+              Videos get autoPlay fired on page load so iOS Safari never blocks them.
+              Visibility is controlled purely by CSS opacity + transition. */}
           <div
             className="relative flex-1"
             style={{
@@ -460,107 +462,95 @@ function HeroStage() {
               overflow: "clip",
             }}
           >
-          {/* initial={false} skips the mount animation on first render so the first slide
-              is immediately visible. The entering slide is at z=2 (on top) so the exiting
-              slide never bleeds through; we only see a brief fade-out of the old slide. */}
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={index}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35, ease: "easeInOut" }}
-              className="absolute inset-0"
-              style={{ zIndex: 2 }}
-            >
-              {slide.kind === "swipe" ? (
-                <div className="relative w-full h-full select-none" style={{ background: slide.bg ?? "#0a1219" }}>
-                  {/* After image — fills frame */}
-                  <img
-                    src={slide.after}
-                    alt={slide.afterLabel}
-                    className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center" }}
-                  />
-                  {/* Before image — curtain-clipped from the right */}
-                  <img
-                    src={slide.before}
-                    alt={slide.beforeLabel}
-                    className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: slide.contain ? "contain" : "cover", objectPosition: slide.objectPosition ?? "center", clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
-                  />
-                  <div
-                    className="absolute top-0 bottom-0 flex items-center"
-                    style={{ left: `${splitPct}%`, transform: "translateX(-50%)" }}
-                  >
-                    <div className="w-[2px] h-full bg-white" style={{ boxShadow: "0 0 8px rgba(255,255,255,0.6)" }} />
-                    <div className="absolute w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
-                      <ChevronLeft className="w-3.5 h-3.5 -mr-0.5" style={{ color: C.navy }} />
-                      <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
+          {STAGE_SLIDES.map((s, i) => {
+            const isActive = i === index;
+            const vidRefIdx = s.kind === "video" ? VIDEO_SLIDE_INDICES.indexOf(i) : -1;
+            // Swipe split: use live splitPct only for the active slide;
+            // inactive swipe slides park at "before" (splitPct = 100).
+            const pct = (s.kind === "swipe" && isActive) ? splitPct : 100;
+
+            return (
+              <div
+                key={i}
+                className="absolute inset-0"
+                style={{
+                  opacity: isActive ? 1 : 0,
+                  zIndex: isActive ? 2 : 1,
+                  transition: "opacity 0.35s ease-in-out",
+                  pointerEvents: isActive ? "auto" : "none",
+                }}
+              >
+                {s.kind === "swipe" ? (
+                  <div className="relative w-full h-full select-none" style={{ background: s.bg ?? "#0a1219" }}>
+                    <img
+                      src={s.after}
+                      alt={s.afterLabel}
+                      className="absolute inset-0 w-full h-full"
+                      style={{ objectFit: s.contain ? "contain" : "cover", objectPosition: s.objectPosition ?? "center" }}
+                    />
+                    <img
+                      src={s.before}
+                      alt={s.beforeLabel}
+                      className="absolute inset-0 w-full h-full"
+                      style={{ objectFit: s.contain ? "contain" : "cover", objectPosition: s.objectPosition ?? "center", clipPath: `inset(0 ${100 - pct}% 0 0)` }}
+                    />
+                    <div
+                      className="absolute top-0 bottom-0 flex items-center"
+                      style={{ left: `${pct}%`, transform: "translateX(-50%)" }}
+                    >
+                      <div className="w-[2px] h-full bg-white" style={{ boxShadow: "0 0 8px rgba(255,255,255,0.6)" }} />
+                      <div className="absolute w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center">
+                        <ChevronLeft className="w-3.5 h-3.5 -mr-0.5" style={{ color: C.navy }} />
+                        <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
+                      </div>
+                    </div>
+                    <div
+                      className="absolute top-4 left-4 text-white text-[12px] font-semibold uppercase"
+                      style={{ background: C.navy, padding: "6px 13px", borderRadius: 5, letterSpacing: "0.1em", boxShadow: "0 2px 8px rgba(0,0,0,0.22)" }}
+                    >
+                      {s.beforeLabel}
+                    </div>
+                    <div
+                      className="absolute top-4 right-4 text-[12px] font-semibold uppercase"
+                      style={{ background: C.gold, color: C.navy, padding: "6px 13px", borderRadius: 5, letterSpacing: "0.1em", boxShadow: "0 2px 8px rgba(0,0,0,0.18)" }}
+                    >
+                      {s.afterLabel}
                     </div>
                   </div>
-                  <div
-                    className="absolute top-4 left-4 text-white text-[12px] font-semibold uppercase"
-                    style={{
-                      background: C.navy,
-                      padding: "6px 13px",
-                      borderRadius: 5,
-                      letterSpacing: "0.1em",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.22)",
+                ) : (
+                  <video
+                    ref={(el) => {
+                      videoRefs.current[vidRefIdx] = el;
+                      if (el) {
+                        // iOS: set muted property programmatically before play()
+                        el.muted = true;
+                        el.play().catch(() => {});
+                      }
                     }}
-                  >
-                    {slide.beforeLabel}
-                  </div>
-                  <div
-                    className="absolute top-4 right-4 text-[12px] font-semibold uppercase"
-                    style={{
-                      background: C.gold,
-                      color: C.navy,
-                      padding: "6px 13px",
-                      borderRadius: 5,
-                      letterSpacing: "0.1em",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-                    }}
-                  >
-                    {slide.afterLabel}
-                  </div>
-                </div>
-              ) : (
-                <video
-                  // Callback ref: as soon as this element enters the DOM we
-                  // set muted programmatically (iOS requirement) and call play().
-                  ref={(el) => {
-                    videoRef.current = el;
-                    if (el) {
-                      el.muted = true;
-                      el.play().catch(() => {});
-                    }
-                  }}
-                  src={slide.src}
-                  // No poster on video slides — poster is a static JPEG that shows
-                  // while the video loads, and on slower connections it gets "stuck"
-                  // on top of the video. We rely on the dark background instead.
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="auto"
-                  // Belt-and-suspenders: also try play() once data is ready
-                  onLoadedData={(e) => { e.currentTarget.muted = true; e.currentTarget.play().catch(() => {}); }}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{ transform: "translateZ(0)", backfaceVisibility: "hidden", willChange: "transform", background: "#0a1219" }}
-                  data-testid="bolig-hero-stage-video"
-                />
-              )}
+                    src={s.src}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    onLoadedData={(e) => { e.currentTarget.muted = true; e.currentTarget.play().catch(() => {}); }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ transform: "translateZ(0)", backfaceVisibility: "hidden", willChange: "transform" }}
+                    data-testid={`bolig-hero-stage-video-${i}`}
+                  />
+                )}
 
-              {/* Slide meta chip — bottom-right, clear of FØR/EFTER labels */}
-              <div className="absolute bottom-4 right-4" style={{ zIndex: 5 }}>
-                <div style={{ background: "rgba(15,25,35,0.70)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", padding: "5px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase" }}>
-                  {slide.meta}
-                </div>
+                {/* Meta chip — bottom-right */}
+                {s.meta && (
+                  <div className="absolute bottom-4 right-4" style={{ zIndex: 5 }}>
+                    <div style={{ background: "rgba(15,25,35,0.70)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", padding: "5px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                      {s.meta}
+                    </div>
+                  </div>
+                )}
               </div>
-            </motion.div>
-          </AnimatePresence>
+            );
+          })}
 
           {/* Subtle bottom gradient — just enough to lift text, image still breathes */}
           <div
