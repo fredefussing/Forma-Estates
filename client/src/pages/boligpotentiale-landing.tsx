@@ -326,11 +326,24 @@ function HeroStage() {
   };
 
   // Side-effects on slide change (video restart only — pos/timer already reset above)
+  // Retry loop: AnimatePresence mounts the new element asynchronously, so the ref
+  // may not point to the new <video> yet when this effect first fires.
   useEffect(() => {
-    if (slide.kind === "video" && videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(() => {});
-    }
+    if (slide.kind !== "video") return;
+    let cancelled = false;
+    const tryPlay = (attempt = 0) => {
+      if (cancelled) return;
+      const v = videoRef.current;
+      if (!v) {
+        if (attempt < 8) setTimeout(() => tryPlay(attempt + 1), 80);
+        return;
+      }
+      v.currentTime = 0;
+      v.muted = true; // iOS requires the property set programmatically before play()
+      v.play().catch(() => {});
+    };
+    tryPlay();
+    return () => { cancelled = true; };
   }, [index]);
 
   // Animation loop
@@ -447,14 +460,18 @@ function HeroStage() {
               overflow: "clip",
             }}
           >
-          <AnimatePresence>
+          {/* initial={false} skips the mount animation on first render so the first slide
+              is immediately visible. The entering slide is at z=2 (on top) so the exiting
+              slide never bleeds through; we only see a brief fade-out of the old slide. */}
+          <AnimatePresence initial={false}>
             <motion.div
               key={index}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1.1, ease: "easeInOut" }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
               className="absolute inset-0"
+              style={{ zIndex: 2 }}
             >
               {slide.kind === "swipe" ? (
                 <div className="relative w-full h-full select-none" style={{ background: slide.bg ?? "#0a1219" }}>
@@ -510,17 +527,28 @@ function HeroStage() {
                 </div>
               ) : (
                 <video
-                  ref={videoRef}
+                  // Callback ref: as soon as this element enters the DOM we
+                  // set muted programmatically (iOS requirement) and call play().
+                  ref={(el) => {
+                    videoRef.current = el;
+                    if (el) {
+                      el.muted = true;
+                      el.play().catch(() => {});
+                    }
+                  }}
                   src={slide.src}
-                  poster={(slide as Extract<StageSlide, { kind: "video" }>).poster}
+                  // No poster on video slides — poster is a static JPEG that shows
+                  // while the video loads, and on slower connections it gets "stuck"
+                  // on top of the video. We rely on the dark background instead.
                   autoPlay
                   muted
                   loop
                   playsInline
                   preload="auto"
-                  onCanPlay={(e) => { e.currentTarget.play().catch(() => {}); }}
+                  // Belt-and-suspenders: also try play() once data is ready
+                  onLoadedData={(e) => { e.currentTarget.muted = true; e.currentTarget.play().catch(() => {}); }}
                   className="absolute inset-0 w-full h-full object-cover"
-                  style={{ transform: "translateZ(0)", backfaceVisibility: "hidden", willChange: "transform" }}
+                  style={{ transform: "translateZ(0)", backfaceVisibility: "hidden", willChange: "transform", background: "#0a1219" }}
                   data-testid="bolig-hero-stage-video"
                 />
               )}
