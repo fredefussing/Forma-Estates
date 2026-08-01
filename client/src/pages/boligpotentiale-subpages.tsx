@@ -1134,35 +1134,37 @@ export function AIDesignAgentPage() {
       </div>
       <div className="grid lg:grid-cols-2 gap-7 items-center mt-10">
         <div
-          className="flex flex-col"
+          className="flex flex-col gap-4"
           style={{ background: C.white, borderRadius: 16, padding: "32px 28px", border: `1px solid ${C.border}`, boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
-          data-testid="agent-prompt-card-3"
+          data-testid="agent-aerial-card"
         >
-          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
-            Din prompt
+          <div className="uppercase" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
+            Virker på alle billedtyper
           </div>
-          <div
-            style={{ background: C.warm, border: `1px solid ${C.border}`, borderRadius: 8, padding: "18px", minHeight: 130, color: C.navy, fontSize: 15, lineHeight: 1.6, fontFamily: SANS }}
-            data-testid="agent-prompt-example-3"
-          >
-            "Gør dette luftfoto til et professionelt drone-foto. Forbedre farverne, tilføj en varm solnedgangsbelysning, skarp kontrast og klar blå himmel. Bevar ejendommens proportioner og omgivelserne."
+          <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 26, fontWeight: 500, lineHeight: 1.25, letterSpacing: "-0.01em" }}>
+            Udendørs, facade og luftfoto
           </div>
-          <div className="uppercase mt-5 mb-2" style={{ color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" }}>
-            Eksempler du kan prøve
-          </div>
-          <ul className="space-y-2">
+          <p style={{ color: C.muted, fontSize: 15, lineHeight: 1.7 }}>
+            Agenten er ikke begrænset til indendørs. Upload et drone-foto, et satellit-udtræk eller et facadebillede — og beskriv den transformation du ønsker.
+          </p>
+          <div className="space-y-3 mt-1">
             {[
-              "Gør luftfotoet til en varm solnedgangsoptagelse",
-              "Tilføj sommer og grønne træer til haven",
-              "Skarp kontrast og klarere farver på hele ejendommen",
-              "Skift himlen til blå og tilføj lette skyer",
-            ].map((ex, i) => (
-              <li key={i} className="flex items-start gap-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
-                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
-                <span>{ex}</span>
-              </li>
+              { label: "Lys & årstid", desc: "Skift fra overskyet vinter til varm solrig sommerdag" },
+              { label: "Himmel & vejr", desc: "Udskift grå himmel med blå og tilføj lette skyer" },
+              { label: "Farver & kontrast", desc: "Skærp billedkvaliteten og løft farvemætningen" },
+              { label: "Have & grønne arealer", desc: "Tilføj grønne træer, blomster og velplejet beplantning" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5" style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(201,169,110,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Check className="w-3.5 h-3.5" style={{ color: C.gold }} />
+                </div>
+                <div>
+                  <div style={{ color: C.navy, fontSize: 13, fontWeight: 600, marginBottom: 1 }}>{item.label}</div>
+                  <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
         <BeforeAfterPair
           before="/bolig-images/ai-agent-aerial-before.png"
