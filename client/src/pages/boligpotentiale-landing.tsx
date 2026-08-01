@@ -1560,7 +1560,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: "AI Design Agent",
                 title: "Beskriv din vision",
                 desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
-                media: { kind: "image" as const, src: "/bolig-images/ai-agent-house-after.png" },
+                media: { kind: "swipe" as const, before: "/bolig-images/ai-agent-aerial-before.png", after: "/bolig-images/ai-agent-aerial-after.jpg", beforeLabel: "Før", afterLabel: "Efter" },
                 href: "/boligpotentiale/ai-design-agent",
               },
               {
@@ -1592,6 +1592,29 @@ export default function BoligpotentialeLanding() {
                       onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
+                  ) : t.media.kind === "swipe" ? (
+                    // Animated Før/Efter: hover pauses at midpoint, else auto-cycles
+                    <div className="absolute inset-0 select-none">
+                      {/* After — base layer */}
+                      <img src={t.media.after} alt={t.media.afterLabel ?? "Efter"} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+                      {/* Before — clipped curtain, animates via CSS */}
+                      <img
+                        src={t.media.before}
+                        alt={t.media.beforeLabel ?? "Før"}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                        style={{
+                          clipPath: "inset(0 0% 0 0)",
+                          animation: "tileSwipe 4s ease-in-out 1s infinite",
+                        }}
+                      />
+                      {/* Labels */}
+                      <div className="absolute top-4 right-4 uppercase" style={{ background: C.gold, color: C.navy, padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
+                        {t.media.afterLabel ?? "Efter"}
+                      </div>
+                      <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(15,25,35,0.75)", color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
+                        {t.media.beforeLabel ?? "Før"}
+                      </div>
+                    </div>
                   ) : (
                     <img
                       src={t.media.src}
@@ -1600,9 +1623,11 @@ export default function BoligpotentialeLanding() {
                     />
                   )}
                   <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.35) 0%, rgba(15,25,35,0) 45%)" }} />
-                  <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(255,255,255,0.92)", color: C.navy, padding: "6px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
-                    {t.eyebrow}
-                  </div>
+                  {t.media.kind !== "swipe" && (
+                    <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(255,255,255,0.92)", color: C.navy, padding: "6px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
+                      {t.eyebrow}
+                    </div>
+                  )}
                 </div>
                 <div style={{ padding: "28px 30px 32px" }}>
                   <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 24, fontWeight: 500, lineHeight: 1.25, marginBottom: 10, letterSpacing: "-0.005em" }}>

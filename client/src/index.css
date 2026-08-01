@@ -249,6 +249,14 @@
 }
 
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* Tile before/after reveal: holds on "before", sweeps to reveal "after", holds, returns */
+@keyframes tileSwipe {
+  0%   { clip-path: inset(0 0% 0 0); }
+  20%  { clip-path: inset(0 0% 0 0); }
+  50%  { clip-path: inset(0 100% 0 0); }
+  70%  { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0% 0 0); }
+}
 
 /* Onboarding-guide: horisontal "peger"-animation (pil der nudger mod målet) */
 @keyframes bounce-x {
