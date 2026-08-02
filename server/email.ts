@@ -144,8 +144,10 @@ export async function sendWelcomeEmail(email: string, source?: string) {
   });
   const sourceLabel = source || "Direkte signup (/opret)";
 
-  try {
-    await sendBrevoEmail({
+  // Send welcome + admin notification in parallel — halves total time when
+  // using SMTP (each send is a separate TCP round-trip).
+  const [welcomeResult, adminResult] = await Promise.allSettled([
+    sendBrevoEmail({
       to: email,
       subject: "Velkommen til Forma Estates!",
       senderEmail: KONTAKT_EMAIL,
@@ -187,14 +189,8 @@ export async function sendWelcomeEmail(email: string, source?: string) {
           <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
         </div>
       `,
-    });
-    log(`Welcome email sent to ${email}`);
-  } catch (err: any) {
-    log(`Failed to send welcome email to ${email}: ${err.message}`);
-  }
-
-  try {
-    await sendBrevoEmail({
+    }),
+    sendBrevoEmail({
       to: KONTAKT_EMAIL,
       subject: `Ny brugeroprettelse — ${email}`,
       senderEmail: KONTAKT_EMAIL,
@@ -218,11 +214,13 @@ export async function sendWelcomeEmail(email: string, source?: string) {
           <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates</div>
         </div>
       `,
-    });
-    log(`Admin signup notification sent for ${email}`);
-  } catch (err: any) {
-    log(`Failed to send admin signup notification for ${email}: ${err.message}`);
-  }
+    }),
+  ]);
+
+  if (welcomeResult.status === "rejected") log(`Failed to send welcome email to ${email}: ${(welcomeResult as PromiseRejectedResult).reason?.message}`);
+  else log(`Welcome email sent to ${email}`);
+  if (adminResult.status === "rejected") log(`Failed to send admin signup notification for ${email}: ${(adminResult as PromiseRejectedResult).reason?.message}`);
+  else log(`Admin signup notification sent for ${email}`);
 }
 
 export async function sendOrderConfirmationEmail(data: {

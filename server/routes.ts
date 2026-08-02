@@ -723,7 +723,11 @@ export async function registerRoutes(
         verificationCodeExpires: new Date(Date.now() + VERIFICATION_CODE_TTL_MS),
         verificationAttempts: 0,
       });
-      await sendVerificationCodeEmail(user.email, code);
+      // Fire-and-forget — code is already saved to DB, respond immediately so
+      // the client shows "kode sendt" without waiting for the SMTP round-trip.
+      sendVerificationCodeEmail(user.email, code).catch((err: any) =>
+        log(`[auth] send-verification-code email failed: ${err.message}`)
+      );
       return res.json({ success: true });
     } catch (err: any) {
       log(`[auth] send-verification-code failed: ${err.message}`);
