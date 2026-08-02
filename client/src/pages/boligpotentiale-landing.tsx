@@ -1851,7 +1851,7 @@ export default function BoligpotentialeLanding() {
           <div className="text-center mb-10">
             <p className="text-[11px] font-semibold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Hvad sparer du?</p>
             <h2 className="text-3xl sm:text-4xl font-semibold mb-4" style={{ color: "#F5F3EF", fontFamily: '"Playfair Display", Georgia, serif', letterSpacing: "-0.02em" }}>
-              Op til 18.000 kr sparet på post-produktion — pr. bolig
+              Op til 18.000 kr+ sparet på post-produktion — pr. bolig
             </h2>
             <p className="text-sm max-w-xl mx-auto" style={{ color: "rgba(245,243,239,0.55)", lineHeight: 1.7 }}>
               Vi erstatter ikke fotografen. Vi erstatter den dyre del efterfølgende: staging, video og 3D.
@@ -1869,7 +1869,7 @@ export default function BoligpotentialeLanding() {
 
             {/* Rows */}
             {[
-              { label: "4 AI-visualiseringer", traditional: "2.400 kr" },
+              { label: "4 AI-visualiseringer", traditional: "2.500 kr" },
               { label: "1 3D-plantegning", traditional: "2.500 kr" },
               { label: "2 transformationsvideoer", traditional: "10.000 kr" },
               { label: "1 showcase-video", traditional: "6.000 kr" },
@@ -1886,7 +1886,7 @@ export default function BoligpotentialeLanding() {
             <div className="grid grid-cols-3 items-center px-6 py-5"
               style={{ background: "rgba(200,149,108,0.13)", borderTop: "1px solid rgba(200,149,108,0.3)" }}>
               <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>Post-produktion total</p>
-              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 15 }}>20.900 kr</p>
+              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 15 }}>21.000 kr</p>
               <p className="text-right font-bold" style={{ color: "#C8956C" }}>Fra 2.999 kr/md</p>
             </div>
           </div>
