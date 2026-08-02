@@ -431,12 +431,12 @@ export default function LandingPage() {
                     className="text-2xl sm:text-3xl font-semibold leading-tight mb-3"
                     style={{ color: "#F5F3EF", fontFamily: '"Playfair Display", Georgia, serif' }}
                   >
-                    Spar typisk over 23.000 kr<br className="hidden sm:block" /> per bolig
+                    Op til 23.500 kr sparet på<br className="hidden sm:block" /> post-produktion — pr. bolig
                   </h3>
                   <p className="text-sm leading-relaxed max-w-md" style={{ color: "rgba(245,243,239,0.6)" }}>
-                    4 stagingbilleder, 1 3D plantegning, 2 transformationsvideoer og 1 showcase video
-                    koster traditionelt <strong style={{ color: "rgba(245,243,239,0.85)" }}>over 26.000 kr</strong> per ejendom.
-                    Med Forma Estates er det inkluderet fra 2.999 kr/md.
+                    Vi erstatter ikke fotografen. Vi erstatter den dyre del efterfølgende:
+                    staging, video og 3D — traditionelt <strong style={{ color: "rgba(245,243,239,0.85)" }}>26.400 kr per ejendom</strong>,
+                    inkluderet fra 2.999 kr/md med Forma Estates.
                   </p>
                 </div>
                 <div className="flex-shrink-0 flex items-center gap-3 sm:flex-col sm:items-end">
