@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
+import { TrustMarquee } from "@/components/TrustMarquee";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -578,7 +579,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta"
                 >
-                  Kom i gang gratis <ArrowRight className="w-3.5 h-3.5" />
+                  Se hvad AI gør med din ejendom <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
@@ -696,7 +697,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta-mobile"
                 >
-                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
+                  Se hvad AI gør med din ejendom <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
@@ -1462,6 +1463,8 @@ export default function BoligpotentialeLanding() {
         </div>
       </div>
 
+      <TrustMarquee />
+
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
@@ -1839,6 +1842,61 @@ export default function BoligpotentialeLanding() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* ── BESPARELSE SAMMENLIGNING ── */}
+      <section id="sammenligning" className="px-6" style={{ background: "#0A1624", paddingTop: "clamp(52px, 8vw, 96px)", paddingBottom: "clamp(40px, 6vw, 72px)" }}>
+        <div className="mx-auto max-w-4xl">
+          <div className="text-center mb-10">
+            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Hvad sparer du?</p>
+            <h2 className="text-3xl sm:text-4xl font-semibold mb-4" style={{ color: "#F5F3EF", fontFamily: '"Playfair Display", Georgia, serif', letterSpacing: "-0.02em" }}>
+              Over 23.000 kr sparet — per bolig
+            </h2>
+            <p className="text-sm max-w-xl mx-auto" style={{ color: "rgba(245,243,239,0.55)", lineHeight: 1.7 }}>
+              Priser baseret på typiske markedspriser i Danmark for professionel videoproduktion, virtuel staging og 3D plantegninger.
+            </p>
+          </div>
+
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(200,149,108,0.2)" }}>
+            {/* Header */}
+            <div className="grid grid-cols-3 text-[11px] font-semibold tracking-[0.1em] uppercase px-6 py-4"
+              style={{ background: "rgba(200,149,108,0.12)", color: "rgba(245,243,239,0.5)", borderBottom: "1px solid rgba(200,149,108,0.15)" }}>
+              <span>Ydelse</span>
+              <span className="text-center">Traditionelt (ca.)</span>
+              <span className="text-right">Forma Estates</span>
+            </div>
+
+            {/* Rows */}
+            {[
+              { label: "4 AI visualiseringer", traditional: "2.500 kr", note: "600 kr/billede hos stagingfirma" },
+              { label: "1 3D plantegning", traditional: "2.500 kr", note: "Arkitekt eller specialfirma" },
+              { label: "2 transformationsvideoer", traditional: "14.000 kr", note: "7.000 kr/video inkl. redigering" },
+              { label: "1 boligshowcase video", traditional: "7.500 kr", note: "Filmhold + redigering" },
+            ].map((row, i) => (
+              <div key={i} className="grid grid-cols-3 items-center px-6 py-4"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "#F5F3EF" }}>{row.label}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: "rgba(245,243,239,0.35)" }}>{row.note}</p>
+                </div>
+                <p className="text-center text-sm font-medium" style={{ color: "rgba(245,243,239,0.65)" }}>{row.traditional}</p>
+                <p className="text-right text-sm font-semibold" style={{ color: "#C8956C" }}>✓ Inkluderet</p>
+              </div>
+            ))}
+
+            {/* Total row */}
+            <div className="grid grid-cols-3 items-center px-6 py-5"
+              style={{ background: "rgba(200,149,108,0.1)", borderTop: "1px solid rgba(200,149,108,0.25)" }}>
+              <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>Total per bolig</p>
+              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 16 }}>26.500 kr</p>
+              <p className="text-right font-bold" style={{ color: "#C8956C", fontSize: 15 }}>fra 2.999 kr/md</p>
+            </div>
+          </div>
+
+          <p className="text-center text-[11px] mt-5" style={{ color: "rgba(245,243,239,0.3)" }}>
+            * Priser er vejledende og kan variere afhængigt af leverandør, kompleksitet og geografi.
+          </p>
         </div>
       </section>
 

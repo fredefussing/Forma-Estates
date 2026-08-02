@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Trust marquee animation */
+@keyframes forma-marquee {
+  from { transform: translateX(0) }
+  to   { transform: translateX(-50%) }
+}
+.forma-marquee-track {
+  animation: forma-marquee 40s linear infinite;
+}
+.forma-marquee-track:hover {
+  animation-play-state: paused;
+}
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);

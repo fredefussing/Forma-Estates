@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Eye, Palette, ShieldCheck, Flame, User, Menu, X } from "lucide-react";
+import { TrustMarquee } from "@/components/TrustMarquee";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotatingStats } from "@/components/rotating-stats";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
@@ -163,8 +164,8 @@ export default function LandingPage() {
               Se dit nye rum – før du køber møblerne
             </h1>
             <p className="mt-3 text-[14px] sm:text-[16px] leading-relaxed max-w-lg mx-auto" style={{ color: "#3A3A3A" }}>
-              AI redesigner dit rum på 60 sekunder.<br />
-              Få tilbud på møbler indenfor 24 timer.
+              AI-visualiseringer, 3D plantegninger og showcase videoer.<br />
+              Salgsklar præsentation på under et minut.
             </p>
           </motion.div>
 
@@ -175,7 +176,7 @@ export default function LandingPage() {
             transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
             className="text-center pt-3 pb-5 sm:pb-8"
           >
-            <Link href="/design">
+            <Link href="/boligpotentiale">
               <button
                 className="group inline-flex items-center gap-2 font-semibold text-white rounded-full transition-all duration-300"
                 style={{
@@ -197,7 +198,7 @@ export default function LandingPage() {
                 }}
                 data-testid="button-hero-cta"
               >
-                Upload dit rum
+                Se hvad AI gør med din ejendom
                 <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </button>
             </Link>
@@ -220,6 +221,8 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      <TrustMarquee />
 
       <section id="saadan-virker-det" className="py-14 sm:py-20 px-6">
         <div className="mx-auto max-w-5xl">
@@ -399,6 +402,59 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── BESPARELSE TEASER ── */}
+      <section className="py-10 px-6 border-t border-border/40">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.5 }}
+          className="mx-auto max-w-4xl"
+        >
+          <Link href="/boligpotentiale#sammenligning">
+            <div
+              className="group rounded-2xl p-7 sm:p-10 cursor-pointer transition-all duration-300 hover:-translate-y-1"
+              style={{
+                background: "linear-gradient(135deg, #0F1D2F 0%, #162840 100%)",
+                boxShadow: "0 4px 24px rgba(15,29,47,0.15), 0 1px 4px rgba(15,29,47,0.08)",
+              }}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div>
+                  <p
+                    className="text-[11px] font-semibold tracking-[0.12em] uppercase mb-3"
+                    style={{ color: "#C8956C" }}
+                  >
+                    Hvad koster det traditionelt?
+                  </p>
+                  <h3
+                    className="text-2xl sm:text-3xl font-semibold leading-tight mb-3"
+                    style={{ color: "#F5F3EF", fontFamily: '"Playfair Display", Georgia, serif' }}
+                  >
+                    Spar typisk over 23.000 kr<br className="hidden sm:block" /> per bolig
+                  </h3>
+                  <p className="text-sm leading-relaxed max-w-md" style={{ color: "rgba(245,243,239,0.6)" }}>
+                    4 stagingbilleder, 1 3D plantegning, 2 transformationsvideoer og 1 showcase video
+                    koster traditionelt <strong style={{ color: "rgba(245,243,239,0.85)" }}>over 26.000 kr</strong> per ejendom.
+                    Med Forma Estates er det inkluderet fra 2.999 kr/md.
+                  </p>
+                </div>
+                <div className="flex-shrink-0 flex items-center gap-3 sm:flex-col sm:items-end">
+                  <span
+                    className="text-sm font-semibold transition-all group-hover:translate-x-1 inline-flex items-center gap-2"
+                    style={{ color: "#C8956C" }}
+                  >
+                    Se den fulde beregning
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      </section>
+
+      {/* ── BOTTOM CTA ── */}
       <section className="py-14 px-6 border-t border-border/40">
         <div className="mx-auto max-w-2xl text-center">
           <motion.div
@@ -408,14 +464,14 @@ export default function LandingPage() {
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-4">
-              Klar til at transformere dit rum?
+              Klar til at sætte din ejendom bedst muligt til salg?
             </h2>
             <p className="text-muted-foreground text-sm mb-8">
-              Det tager under et minut at få dit personlige designforslag.
+              Kom i gang på under et minut — ingen binding, ingen skjulte gebyrer.
             </p>
-            <Link href="/design">
+            <Link href="/boligpotentiale">
               <Button size="lg" className="h-12 px-8 text-sm font-medium rounded-full" data-testid="button-bottom-cta">
-                Kom i gang
+                Se hvad AI gør med din ejendom
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
