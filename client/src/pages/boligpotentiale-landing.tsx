@@ -553,10 +553,10 @@ function HeroStage() {
             );
           })}
 
-          {/* Strong bottom gradient — text readable on any image, light or dark */}
+          {/* Bottom gradient — text readable, images breathe */}
           <div
             className="absolute bottom-0 left-0 right-0 pointer-events-none"
-            style={{ height: "70%", background: "linear-gradient(to top, rgba(8,14,22,0.95) 0%, rgba(8,14,22,0.80) 18%, rgba(8,14,22,0.52) 40%, rgba(8,14,22,0.22) 62%, rgba(8,14,22,0.05) 82%, transparent 100%)", zIndex: 6 }}
+            style={{ height: "65%", background: "linear-gradient(to top, rgba(8,14,22,0.80) 0%, rgba(8,14,22,0.62) 18%, rgba(8,14,22,0.38) 42%, rgba(8,14,22,0.14) 65%, transparent 100%)", zIndex: 6 }}
           />
 
           {/* CTA overlay — desktop */}
