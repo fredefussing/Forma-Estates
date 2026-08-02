@@ -1465,29 +1465,6 @@ export default function BoligpotentialeLanding() {
 
       <TrustMarquee />
 
-      {/* ── TECH LOGOS — "Drevet af verdens førende AI-infrastruktur" ── */}
-      <div style={{ background: "#0B1929", borderBottom: "1px solid rgba(200,149,108,0.1)", padding: "9px 24px 10px" }}>
-        <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 mx-auto" style={{ maxWidth: 800 }}>
-          <p style={{ color: "rgba(245,243,239,0.32)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, whiteSpace: "nowrap", margin: 0 }}>
-            Drevet af verdens førende AI-infrastruktur
-          </p>
-          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} className="hidden sm:block" />
-          <div className="flex items-center gap-6">
-            {/* fal.ai wordmark */}
-            <span style={{ color: "rgba(245,243,239,0.55)", fontSize: 14, fontWeight: 800, letterSpacing: "-0.4px", fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif", lineHeight: 1 }}>
-              fal.ai
-            </span>
-            {/* Cloudflare R2 */}
-            <span className="flex items-center gap-1.5">
-              <svg width="18" height="13" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M9.8 9.5H4.2a3.2 3.2 0 0 1 0-6.4h.15a5 5 0 0 1 9.65 2.2 2.1 2.1 0 0 1-.5 4.1l-.7.1H9.8z" fill="#F48120" opacity="0.6"/>
-              </svg>
-              <span style={{ color: "rgba(245,243,239,0.55)", fontSize: 13, fontWeight: 600, letterSpacing: "-0.2px" }}>Cloudflare R2</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
