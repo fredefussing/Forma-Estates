@@ -59,17 +59,11 @@ export default function LandingPage() {
           </nav>
 
           {/* ── MOBIL NAV ── */}
-          <nav className="flex md:hidden items-center gap-5">
-            <Link href="/find-stil">
-              <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-find-style-mobile">Find din stil</span>
-            </Link>
-            <Link href="/ai-design-agent">
-              <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-ai-agent-mobile">AI Agent</span>
-            </Link>
-            <Link href={user ? "/min-konto" : "/login"}>
-              <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer" data-testid="link-account-mobile">
-                {user ? "Min konto" : "Login / Opret"}
-              </span>
+          <nav className="flex md:hidden items-center gap-3">
+            <Link href="/design">
+              <Button size="sm" className="h-8 px-4 text-sm font-semibold bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/85 rounded-full shadow-sm" data-testid="button-header-cta-mobile">
+                Prøv nu
+              </Button>
             </Link>
             <button
               onClick={() => setMobileMenuOpen((o) => !o)}
@@ -98,6 +92,12 @@ export default function LandingPage() {
                   <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer block" data-testid="link-my-designs-mobile">Mine designs</span>
                 </Link>
               )}
+              <Link href="/find-stil" onClick={() => setMobileMenuOpen(false)}>
+                <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer block" data-testid="link-find-style-mobile">Find din stil</span>
+              </Link>
+              <Link href="/ai-design-agent" onClick={() => setMobileMenuOpen(false)}>
+                <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer block" data-testid="link-ai-agent-mobile">AI Design Agent</span>
+              </Link>
               <Link href="/pris" onClick={() => setMobileMenuOpen(false)}>
                 <span className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] transition-colors cursor-pointer block" data-testid="link-pricing-mobile">Pris</span>
               </Link>
