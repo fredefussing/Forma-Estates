@@ -579,7 +579,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta"
                 >
-                  Se hvad AI gør med din ejendom <ArrowRight className="w-3.5 h-3.5" />
+                  Kom i gang gratis <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
@@ -706,7 +706,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta-mobile"
                 >
-                  Se hvad AI gør med din ejendom <ArrowRight className="w-4 h-4" />
+                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
