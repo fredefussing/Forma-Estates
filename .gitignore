@@ -5,3 +5,6 @@ server/public
 vite.config.ts.*
 *.tar.gznode_modules
 .env
+
+# Firebase service accounts
+attached_assets/Pasted--type-service-account*
