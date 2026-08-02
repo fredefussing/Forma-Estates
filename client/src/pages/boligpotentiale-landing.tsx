@@ -1465,6 +1465,29 @@ export default function BoligpotentialeLanding() {
 
       <TrustMarquee />
 
+      {/* ── TECH LOGOS — "Drevet af verdens førende AI-infrastruktur" ── */}
+      <div style={{ background: "#0B1929", borderBottom: "1px solid rgba(200,149,108,0.1)", padding: "9px 24px 10px" }}>
+        <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 mx-auto" style={{ maxWidth: 800 }}>
+          <p style={{ color: "rgba(245,243,239,0.32)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 500, whiteSpace: "nowrap", margin: 0 }}>
+            Drevet af verdens førende AI-infrastruktur
+          </p>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} className="hidden sm:block" />
+          <div className="flex items-center gap-6">
+            {/* fal.ai wordmark */}
+            <span style={{ color: "rgba(245,243,239,0.55)", fontSize: 14, fontWeight: 800, letterSpacing: "-0.4px", fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif", lineHeight: 1 }}>
+              fal.ai
+            </span>
+            {/* Cloudflare R2 */}
+            <span className="flex items-center gap-1.5">
+              <svg width="18" height="13" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M9.8 9.5H4.2a3.2 3.2 0 0 1 0-6.4h.15a5 5 0 0 1 9.65 2.2 2.1 2.1 0 0 1-.5 4.1l-.7.1H9.8z" fill="#F48120" opacity="0.6"/>
+              </svg>
+              <span style={{ color: "rgba(245,243,239,0.55)", fontSize: 13, fontWeight: 600, letterSpacing: "-0.2px" }}>Cloudflare R2</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
@@ -1885,17 +1908,36 @@ export default function BoligpotentialeLanding() {
               </div>
             ))}
 
-            {/* Total row */}
+            {/* Subtotal row */}
+            <div className="grid grid-cols-3 items-center px-6 py-4"
+              style={{ borderTop: "1px solid rgba(200,149,108,0.2)", background: "rgba(255,255,255,0.02)" }}>
+              <p className="text-sm font-semibold" style={{ color: "rgba(245,243,239,0.75)" }}>Traditionel total</p>
+              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 15 }}>26.500 kr</p>
+              <p className="text-right text-sm" style={{ color: "rgba(245,243,239,0.4)" }}>—</p>
+            </div>
+
+            {/* Forma Estates row */}
+            <div className="grid grid-cols-3 items-center px-6 py-4"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "rgba(245,243,239,0.75)" }}>Forma Estates Start</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "rgba(245,243,239,0.35)" }}>Alt ovenstående inkluderet</p>
+              </div>
+              <p className="text-center text-sm" style={{ color: "rgba(245,243,239,0.4)" }}>—</p>
+              <p className="text-right font-bold" style={{ color: "#C8956C" }}>2.999 kr/md</p>
+            </div>
+
+            {/* Savings row — hero */}
             <div className="grid grid-cols-3 items-center px-6 py-5"
-              style={{ background: "rgba(200,149,108,0.1)", borderTop: "1px solid rgba(200,149,108,0.25)" }}>
-              <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>Total per bolig</p>
-              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 16 }}>26.500 kr</p>
-              <p className="text-right font-bold" style={{ color: "#C8956C", fontSize: 15 }}>fra 2.999 kr/md</p>
+              style={{ background: "rgba(200,149,108,0.13)", borderTop: "1px solid rgba(200,149,108,0.3)" }}>
+              <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>Din besparelse</p>
+              <p className="text-center text-[11px]" style={{ color: "rgba(245,243,239,0.4)" }}>26.500 − 2.999</p>
+              <p className="text-right font-extrabold" style={{ color: "#C8956C", fontSize: 17 }}>23.501 kr</p>
             </div>
           </div>
 
           <p className="text-center text-[11px] mt-5" style={{ color: "rgba(245,243,239,0.3)" }}>
-            * Priser er vejledende og kan variere afhængigt af leverandør, kompleksitet og geografi.
+            * Priser er vejledende og kan variere afhængigt af leverandør, kompleksitet og geografi. Besparelse beregnet ved 1 bolig per måned.
           </p>
         </div>
       </section>
