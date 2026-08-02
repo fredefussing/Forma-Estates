@@ -21,6 +21,7 @@ import PricingPage from "@/pages/pricing";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import VerifyEmailPage from "@/pages/verify-email";
+import NulstilPasswordPage from "@/pages/nulstil-password";
 import AccountPage from "@/pages/account";
 import MyDesignsPage from "@/pages/my-designs";
 import AgentDesignDetailPage from "@/pages/agent-design-detail";
@@ -186,6 +187,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/opret" component={SignupPage} />
       <Route path="/verificer-email" component={VerifyEmailPage} />
+      <Route path="/nulstil-password" component={NulstilPasswordPage} />
       <Route path="/min-konto" component={AccountPage} />
       <Route path="/mine-designs" component={MyDesignsPage} />
       <Route path="/betalt" component={PaymentSuccessPage} />

@@ -17,9 +17,9 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { assertPromptLocked, assertStructuralPrefixLocked } from "./promptGuard";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
-import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, sendTestEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
+import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, sendPasswordResetEmail, sendTestEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
-import { verifyFirebaseToken } from "./firebase-admin";
+import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startWalkthroughVideo, startTransformFilm, getShowcaseJob } from "./showcase";
@@ -653,46 +653,76 @@ export async function registerRoutes(
     const now = Date.now();
     if (now - (pwResetLast.get(email) || 0) < 60_000) {
       log(`[PasswordReset] throttled (under 60s siden sidst): ${email}`);
-      return res.json({ success: true });
+      return res.json({ success: true }); // Don't leak timing
     }
     pwResetLast.set(email, now);
     if (pwResetLast.size > 5000) pwResetLast.clear();
     try {
-      const known = await storage.getUserByEmail(email);
-      const apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIRE_BASE_APIKEY || "";
-      if (!apiKey) {
-        log(`[PasswordReset] FEJL: ingen Firebase API-nøgle i miljøet`);
-        return res.status(500).json({ success: false, message: "Nulstilling er ikke tilgængelig lige nu" });
+      const user = await storage.getUserByEmail(email);
+      // Always respond success — never leak whether the email exists
+      if (!user) {
+        log(`[PasswordReset] email=${email} — ikke fundet i DB, sender ikke`);
+        return res.json({ success: true });
       }
-      // spawn("curl") — Node fetch er intercepted i Replit-dev-miljøet.
-      const body = JSON.stringify({ requestType: "PASSWORD_RESET", email });
-      const out: string = await new Promise((resolve, reject) => {
-        const curl = spawn("curl", ["-s", "--max-time", "15", "-X", "POST", "-H", "Content-Type: application/json", "-d", body, `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`]);
-        let buf = "";
-        curl.stdout.on("data", (d) => (buf += d));
-        curl.on("close", (code) => (code === 0 ? resolve(buf) : reject(new Error(`curl exit ${code}`))));
-        curl.on("error", reject);
-      });
-      let fbOk = false;
-      let fbErr = "";
-      try {
-        const j = JSON.parse(out);
-        fbOk = !j.error && !!j.kind;
-        fbErr = j.error?.message || "";
-      } catch {
-        fbErr = "uparsebart svar fra Firebase";
-      }
-      // NB: Firebase har "email enumeration protection" slået til, så den
-      // svarer OK selv for ukendte emails (uden at sende noget). Loggen her
-      // viser om adressen overhovedet findes i vores egen database.
-      log(`[PasswordReset] email=${email} iVoresDB=${known ? `ja (bruger-id ${known.id})` : "NEJ — findes ikke i users-tabellen"} firebase=${fbOk ? "OK — mail afsendt af Google" : `FEJL: ${fbErr}`}`);
-      if (!fbOk) {
-        return res.status(500).json({ success: false, message: "Kunne ikke sende nulstillingsmail. Prøv igen om lidt." });
-      }
+      // Generate a secure random token (raw), store only the SHA-256 hash
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      await storage.createPasswordResetToken(user.id, tokenHash, expiresAt);
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const resetUrl = `${baseUrl}/nulstil-password?token=${rawToken}`;
+      // Fire-and-forget — respond immediately
+      sendPasswordResetEmail(email, resetUrl).catch((err: any) =>
+        log(`[PasswordReset] email-fejl for ${email}: ${err.message}`)
+      );
+      log(`[PasswordReset] token genereret for bruger-id ${user.id}, email afsendt via Brevo`);
       return res.json({ success: true });
     } catch (err: any) {
       log(`[PasswordReset] FEJL email=${email}: ${err.message}`);
       return res.status(500).json({ success: false, message: "Kunne ikke sende nulstillingsmail. Prøv igen om lidt." });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const rawToken = String(req.body?.token || "").trim();
+    const newPassword = String(req.body?.password || "");
+    if (!rawToken || rawToken.length < 32) {
+      return res.status(400).json({ success: false, message: "Ugyldigt nulstillingslink. Bed om et nyt." });
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: "Password skal være mindst 8 tegn." });
+    }
+    if (newPassword.length > 128) {
+      return res.status(400).json({ success: false, message: "Password må højst være 128 tegn." });
+    }
+    try {
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const record = await storage.getPasswordResetToken(tokenHash);
+      if (!record) {
+        return res.status(400).json({ success: false, message: "Ugyldigt nulstillingslink. Bed om et nyt." });
+      }
+      if (record.usedAt) {
+        return res.status(400).json({ success: false, message: "Dette link er allerede brugt. Bed om et nyt." });
+      }
+      if (new Date() > record.expiresAt) {
+        return res.status(400).json({ success: false, message: "Linket er udløbet (gyldigt i 15 min). Bed om et nyt." });
+      }
+      const user = await storage.getUserById(record.userId);
+      if (!user) {
+        return res.status(400).json({ success: false, message: "Bruger ikke fundet. Kontakt support." });
+      }
+      // Update password in Firebase
+      await updateFirebasePassword(user.firebaseUid, newPassword);
+      // Mark token as used (idempotency — prevent replay)
+      await storage.markPasswordResetTokenUsed(record.id);
+      log(`[PasswordReset] password opdateret for bruger-id ${user.id}`);
+      return res.json({ success: true });
+    } catch (err: any) {
+      log(`[PasswordReset] reset-fejl: ${err.message}`);
+      if (err.message?.includes("FIREBASE_SERVICE_ACCOUNT_JSON")) {
+        return res.status(503).json({ success: false, message: "Password-nulstilling er ikke konfigureret endnu. Kontakt support." });
+      }
+      return res.status(500).json({ success: false, message: "Der skete en fejl. Prøv igen." });
     }
   });
 

@@ -542,3 +542,17 @@ export type CrmInteraction = typeof crmInteractions.$inferSelect;
 export type InsertCrmInteraction = z.infer<typeof insertCrmInteractionSchema>;
 export type CrmUserOverride = typeof crmUserOverrides.$inferSelect;
 export type InsertCrmUserOverride = z.infer<typeof insertCrmUserOverrideSchema>;
+
+// ── Password reset tokens ─────────────────────────────────────────────────────
+// Server-generated tokens for the custom Brevo-based password reset flow.
+// The raw token is emailed to the user; only the SHA-256 hash is stored.
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  tokenHash: varchar("token_hash", { length: 128 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, type App } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, cert, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 
 // Accept tokens from both old and new Firebase project
@@ -13,6 +13,22 @@ function getOrCreateApp(projectId: string): App {
   } catch {
     return initializeApp({ projectId }, projectId);
   }
+}
+
+// Updates a Firebase user's password using a service-account credential.
+// Requires FIREBASE_SERVICE_ACCOUNT_JSON to be set (JSON string).
+export async function updateFirebasePassword(uid: string, newPassword: string): Promise<void> {
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!json) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON er ikke konfigureret");
+  const serviceAccount = JSON.parse(json);
+  const appName = "admin-sa";
+  let saApp: App;
+  try {
+    saApp = getApp(appName);
+  } catch {
+    saApp = initializeApp({ credential: cert(serviceAccount) }, appName);
+  }
+  await getAuth(saApp).updateUser(uid, { password: newPassword });
 }
 
 export async function verifyFirebaseToken(

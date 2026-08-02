@@ -102,10 +102,8 @@ export default function LoginPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-sm text-muted-foreground">Vi har sendt et link til <strong>{resetEmail}</strong>.</p>
-              <div className="text-left text-xs leading-relaxed rounded-lg p-3" style={{ background: "#FEF6EC", color: "#8A5A2B", border: "1px solid #F0DDC2" }} data-testid="text-reset-spam-hint">
-                <strong>Vigtigt:</strong> Mailen kommer fra <strong>noreply@nordic-homebuilding1.firebaseapp.com</strong> med emnet <em>"Reset your password"</em> — den lander ofte i <strong>spam/uønsket post</strong>. Søg evt. efter "nordic-homebuilding" i din mail.
-              </div>
+              <p className="text-sm text-muted-foreground">Vi har sendt et nulstillingslink til <strong>{resetEmail}</strong>.</p>
+              <p className="text-xs text-muted-foreground">Mailen kommer fra <strong>kontakt@formaestates.com</strong> — tjek evt. din spam-mappe hvis den ikke dukker op inden for et par minutter.</p>
               <button
                 onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
                 className="text-sm text-[#1a1a1a] underline"

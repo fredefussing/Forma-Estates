@@ -132,6 +132,32 @@ export async function sendVerificationCodeEmail(email: string, code: string) {
   log(`Verification code email sent to ${email}`);
 }
 
+export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+  await sendBrevoEmail({
+    to: email,
+    subject: "Nulstil dit password — Forma Estates",
+    senderEmail: KONTAKT_EMAIL,
+    replyTo: KONTAKT_EMAIL,
+    html: `
+      <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
+        <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
+          <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
+          <h1 style="color:#0F1923;font-size:24px;margin:10px 0 18px;font-weight:500;">Nulstil dit password</h1>
+          <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Vi har modtaget en anmodning om at nulstille passwordet til din Forma Estates-konto. Klik på knappen nedenfor for at vælge et nyt password:</p>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${resetUrl}" style="display:inline-block;background:#0F1923;color:#fff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.02em;">Nulstil password</a>
+          </div>
+          <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;">Linket er gyldigt i 15 minutter. Har du ikke bedt om at nulstille dit password, kan du ignorere denne mail — din konto er stadig sikker.</p>
+          <hr style="border:none;border-top:1px solid #E8DFD0;margin:24px 0 16px;">
+          <p style="color:#aaa;font-size:11px;margin:0;">Kan du ikke klikke på knappen? Kopiér dette link ind i din browser:<br><span style="color:#C9A96E;word-break:break-all;">${resetUrl}</span></p>
+        </div>
+        <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+      </div>
+    `,
+  });
+  log(`Password reset email sent to ${email}`);
+}
+
 export async function sendWelcomeEmail(email: string, source?: string) {
   const now = new Date();
   const timestamp = now.toLocaleDateString("da-DK", {

@@ -1538,6 +1538,38 @@ export class DatabaseStorage implements IStorage {
     );
     return res.rows as PendingPurchase[];
   }
+
+  // ── Password reset tokens ────────────────────────────────────────────────────
+
+  async createPasswordResetToken(userId: number, tokenHash: string, expiresAt: Date): Promise<void> {
+    // Delete any existing unused tokens for this user first (one active token at a time)
+    await pool.query(
+      `DELETE FROM password_reset_tokens WHERE user_id=$1 AND used_at IS NULL`,
+      [userId]
+    );
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+       VALUES ($1, $2, $3)`,
+      [userId, tokenHash, expiresAt]
+    );
+  }
+
+  async getPasswordResetToken(tokenHash: string): Promise<{ id: number; userId: number; expiresAt: Date; usedAt: Date | null } | null> {
+    const res = await pool.query(
+      `SELECT id, user_id AS "userId", expires_at AS "expiresAt", used_at AS "usedAt"
+       FROM password_reset_tokens
+       WHERE token_hash=$1`,
+      [tokenHash]
+    );
+    return res.rows[0] ?? null;
+  }
+
+  async markPasswordResetTokenUsed(id: number): Promise<void> {
+    await pool.query(
+      `UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1`,
+      [id]
+    );
+  }
 }
 
 export const storage = new DatabaseStorage();
