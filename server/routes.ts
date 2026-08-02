@@ -712,7 +712,7 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Bruger ikke fundet. Kontakt support." });
       }
       // Update password in Firebase
-      await updateFirebasePassword(user.firebaseUid, newPassword);
+      await updateFirebasePassword(user.firebaseUid, user.email, newPassword);
       // Mark token as used (idempotency — prevent replay)
       await storage.markPasswordResetTokenUsed(record.id);
       log(`[PasswordReset] password opdateret for bruger-id ${user.id}`);

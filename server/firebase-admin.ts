@@ -16,8 +16,10 @@ function getOrCreateApp(projectId: string): App {
 }
 
 // Updates a Firebase user's password using a service-account credential.
+// Handles three cases: UID exists in current project, UID is from old project (falls back to
+// email lookup), or user has never signed into the new project yet (creates account).
 // Requires FIREBASE_SERVICE_ACCOUNT_JSON to be set (JSON string).
-export async function updateFirebasePassword(uid: string, newPassword: string): Promise<void> {
+export async function updateFirebasePassword(uid: string, email: string, newPassword: string): Promise<void> {
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!json) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON er ikke konfigureret");
   const serviceAccount = JSON.parse(json);
@@ -28,7 +30,28 @@ export async function updateFirebasePassword(uid: string, newPassword: string): 
   } catch {
     saApp = initializeApp({ credential: cert(serviceAccount) }, appName);
   }
-  await getAuth(saApp).updateUser(uid, { password: newPassword });
+  const auth = getAuth(saApp);
+
+  // 1. Try updating by UID directly (works if user already exists in this project)
+  try {
+    await auth.updateUser(uid, { password: newPassword });
+    return;
+  } catch (err: any) {
+    if (err.code !== "auth/user-not-found") throw err;
+  }
+
+  // 2. UID is from old Firebase project — look up by email
+  try {
+    const existing = await auth.getUserByEmail(email);
+    await auth.updateUser(existing.uid, { password: newPassword });
+    return;
+  } catch (err: any) {
+    if (err.code !== "auth/user-not-found") throw err;
+  }
+
+  // 3. User hasn't signed into the new project yet — create them with the new password.
+  //    Next time they log in, /api/auth/verify will link their DB record to the new UID.
+  await auth.createUser({ email, password: newPassword, emailVerified: true });
 }
 
 export async function verifyFirebaseToken(
