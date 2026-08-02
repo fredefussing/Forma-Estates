@@ -45,3 +45,7 @@ VITE_FIREBASE_MEASUREMENT_ID = "G-5BRC2FMPNT"
 VITE_FIREBASE_MESSAGING_SENDER_ID = "1086068815265"
 VITE_FIREBASE_PROJECT_ID = "nordic-homebuilding"
 VITE_FIREBASE_STORAGE_BUCKET = "nordic-homebuilding.firebasestorage.app"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
