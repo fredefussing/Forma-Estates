@@ -597,6 +597,15 @@ function HeroStage() {
                 2 gratis AI-visualiseringer · intet kreditkort
               </span>
             </div>
+            <a
+              href="#sammenligning"
+              style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", fontFamily: SANS, marginTop: 10, display: "inline-block", textDecoration: "none" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.70)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.40)"; }}
+            >
+              Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
+              <span style={{ color: C.gold, textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
+            </a>
           </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
@@ -715,6 +724,15 @@ function HeroStage() {
                 2 gratis AI-visualiseringer · intet kreditkort
               </p>
             </div>
+            <a
+              href="#sammenligning"
+              style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", fontFamily: SANS, marginTop: 10, display: "inline-block", textDecoration: "none" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.70)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.40)"; }}
+            >
+              Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
+              <span style={{ color: C.gold, textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
+            </a>
           </div>
         </div>
 
