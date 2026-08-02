@@ -597,6 +597,18 @@ function HeroStage() {
                 2 gratis AI-visualiseringer · intet kreditkort
               </span>
             </div>
+            {/* Savings badge — visible on page load, links to comparison */}
+            <a href="#sammenligning" style={{ textDecoration: "none", marginTop: 10, display: "inline-flex" }}>
+              <div
+                className="inline-flex items-center gap-1.5 transition-all duration-200"
+                style={{ padding: "5px 13px", borderRadius: 999, border: "1px solid rgba(200,149,108,0.45)", background: "rgba(200,149,108,0.12)", backdropFilter: "blur(8px)", cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(200,149,108,0.22)"; e.currentTarget.style.borderColor = "rgba(200,149,108,0.75)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(200,149,108,0.12)"; e.currentTarget.style.borderColor = "rgba(200,149,108,0.45)"; }}
+              >
+                <span style={{ color: "#C8956C", fontSize: 12, fontWeight: 600, fontFamily: SANS }}>Spar op til 18.000 kr+ på post-produktion per bolig</span>
+                <ArrowRight className="w-3 h-3 flex-shrink-0" style={{ color: "#C8956C" }} />
+              </div>
+            </a>
           </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
@@ -715,6 +727,17 @@ function HeroStage() {
                 2 gratis AI-visualiseringer · intet kreditkort
               </p>
             </div>
+            {/* Savings badge — mobile */}
+            <a href="#sammenligning" style={{ textDecoration: "none", marginTop: 10, display: "inline-flex" }}>
+              <div
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, border: "1px solid rgba(200,149,108,0.45)", background: "rgba(200,149,108,0.12)", backdropFilter: "blur(8px)", cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(200,149,108,0.22)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(200,149,108,0.12)"; }}
+              >
+                <span style={{ color: "#C8956C", fontSize: 12, fontWeight: 600, fontFamily: SANS }}>Spar op til 18.000 kr+ på post-produktion per bolig</span>
+                <ArrowRight className="w-3 h-3 flex-shrink-0" style={{ color: "#C8956C" }} />
+              </div>
+            </a>
           </div>
         </div>
 
@@ -1464,21 +1487,6 @@ export default function BoligpotentialeLanding() {
       </div>
 
       <TrustMarquee />
-
-      {/* ── SAVINGS NUDGE — dedicated strip, no collision ── */}
-      <div style={{ background: "#0B1929", borderBottom: "1px solid rgba(200,149,108,0.12)", padding: "8px 24px" }}>
-        <div className="flex justify-center">
-          <a
-            href="#sammenligning"
-            style={{ fontSize: 11, color: "rgba(245,243,239,0.42)", fontFamily: SANS, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-            onMouseEnter={e => { e.currentTarget.style.color = "rgba(245,243,239,0.75)"; }}
-            onMouseLeave={e => { e.currentTarget.style.color = "rgba(245,243,239,0.42)"; }}
-          >
-            Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
-            <span style={{ color: "#C8956C", textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
-          </a>
-        </div>
-      </div>
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
