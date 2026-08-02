@@ -553,10 +553,10 @@ function HeroStage() {
             );
           })}
 
-          {/* Subtle bottom gradient — just enough to lift text, image still breathes */}
+          {/* Strong bottom gradient — text readable on any image, light or dark */}
           <div
             className="absolute bottom-0 left-0 right-0 pointer-events-none"
-            style={{ height: "52%", background: "linear-gradient(to top, rgba(10,18,25,0.72) 0%, rgba(10,18,25,0.38) 30%, rgba(10,18,25,0.10) 65%, transparent 100%)", zIndex: 6 }}
+            style={{ height: "70%", background: "linear-gradient(to top, rgba(8,14,22,0.95) 0%, rgba(8,14,22,0.80) 18%, rgba(8,14,22,0.52) 40%, rgba(8,14,22,0.22) 62%, rgba(8,14,22,0.05) 82%, transparent 100%)", zIndex: 6 }}
           />
 
           {/* CTA overlay — desktop */}
@@ -597,15 +597,6 @@ function HeroStage() {
                 2 gratis AI-visualiseringer · intet kreditkort
               </span>
             </div>
-            <a
-              href="#sammenligning"
-              style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", fontFamily: SANS, marginTop: 10, display: "inline-block", textDecoration: "none" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.70)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.40)"; }}
-            >
-              Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
-              <span style={{ color: C.gold, textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
-            </a>
           </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
@@ -724,15 +715,6 @@ function HeroStage() {
                 2 gratis AI-visualiseringer · intet kreditkort
               </p>
             </div>
-            <a
-              href="#sammenligning"
-              style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", fontFamily: SANS, marginTop: 10, display: "inline-block", textDecoration: "none" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.70)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.40)"; }}
-            >
-              Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
-              <span style={{ color: C.gold, textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
-            </a>
           </div>
         </div>
 
@@ -1482,6 +1464,21 @@ export default function BoligpotentialeLanding() {
       </div>
 
       <TrustMarquee />
+
+      {/* ── SAVINGS NUDGE — dedicated strip, no collision ── */}
+      <div style={{ background: "#0B1929", borderBottom: "1px solid rgba(200,149,108,0.12)", padding: "8px 24px" }}>
+        <div className="flex justify-center">
+          <a
+            href="#sammenligning"
+            style={{ fontSize: 11, color: "rgba(245,243,239,0.42)", fontFamily: SANS, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+            onMouseEnter={e => { e.currentTarget.style.color = "rgba(245,243,239,0.75)"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "rgba(245,243,239,0.42)"; }}
+          >
+            Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
+            <span style={{ color: "#C8956C", textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
+          </a>
+        </div>
+      </div>
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
