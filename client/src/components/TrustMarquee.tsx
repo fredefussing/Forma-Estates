@@ -1,14 +1,8 @@
+import { useTranslation } from "react-i18next";
+
 export function TrustMarquee() {
-  const items = [
-    "Bygget til det danske ejendomsmarked",
-    "GDPR-compliant — dine data forbliver i EU",
-    "Ingen binding — afmeld hvornår du vil",
-    "Professionel kvalitet på 30 sekunder",
-    "Fra tom bolig til salgsklar — øjeblikkeligt",
-    "AI visualiseringer · 3D plantegninger · Showcase videoer",
-    "Ingen skjulte gebyrer — transparent prissætning",
-    "Dokumenteret besparelse per bolig",
-  ];
+  const { t } = useTranslation();
+  const items = t("trustMarquee", { returnObjects: true }) as string[];
 
   // Duplicate items for seamless infinite loop
   const looped = [...items, ...items];

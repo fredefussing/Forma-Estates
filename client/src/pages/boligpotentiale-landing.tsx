@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { TrustMarquee } from "@/components/TrustMarquee";
 import { Link } from "wouter";
@@ -50,12 +51,13 @@ const C = {
 const SERIF = "'Playfair Display', Georgia, serif";
 const SANS = "'Inter', system-ui, -apple-system, sans-serif";
 
-const NAV_LINKS = [
-  { label: "FORSIDE", href: "#top" },
-  { label: "PRISER", href: "#pricing" },
-  { label: "EKSEMPLER", href: "/boligpotentiale/eksempler" },
-  { label: "OM OS", href: "/boligpotentiale/om-os" },
-  { label: "FAQ", href: "#faq" },
+// Nav keys map to t('nav.xxx') inside the component
+const NAV_LINKS_BASE = [
+  { navKey: "home",     href: "#top" },
+  { navKey: "prices",   href: "#pricing" },
+  { navKey: "examples", href: "/boligpotentiale/eksempler" },
+  { navKey: "about",    href: "/boligpotentiale/om-os" },
+  { navKey: "faq",      href: "#faq" },
 ];
 
 const HERO_PAIRS = [
@@ -64,78 +66,27 @@ const HERO_PAIRS = [
   { before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg", label: "Stue · Moderne" },
 ];
 
-const HOW_IT_WORKS = [
-  {
-    step: "01",
-    title: "Upload et rumfoto",
-    desc: "Tag et foto af rummet med din telefon eller kamera. Ingen professionel fotografering nødvendig.",
-    Icon: Camera,
-  },
-  {
-    step: "02",
-    title: "Vælg rumtype og stil",
-    desc: "Angiv rumtype og vælg en af vores designstile — fra skandinavisk minimalisme til moderne luksus.",
-    Icon: SlidersHorizontal,
-  },
-  {
-    step: "03",
-    title: "Download din visualisering",
-    desc: "AI'en genererer dit billede på under 20 sekunder. Klar til download i fuld kvalitet.",
-    Icon: Download,
-  },
+// Base icon structures — text comes from locale files via useTranslation()
+const HOW_IT_WORKS_BASE = [
+  { step: "01", Icon: Camera },
+  { step: "02", Icon: SlidersHorizontal },
+  { step: "03", Icon: Download },
 ];
 
-const FEATURES = [
-  {
-    Icon: Home,
-    title: "Naturtro visualisering",
-    desc: "Bevarer rummets vægge, vinduer og lysindfald — kun indretningen ændres.",
-    more: "Resultatet ligner et rigtigt foto af boligen. Proportioner, perspektiv og dagslys bevares, så køberen kan se det færdige hjem for sig.",
-  },
-  {
-    Icon: Palette,
-    title: "8 designstile",
-    desc: "Skandinavisk, moderne, industrielt, boho, klassisk og mere.",
-  },
-  {
-    Icon: Box,
-    title: "3D plantegning",
-    desc: "Få en overskuelig 3D-plantegning, der viser rummenes indretning og flow.",
-    more: "Plantegningen hjælper køberen med at forstå boligens layout og størrelsesforhold — en tydelig fordel i annoncen.",
-  },
-  {
-    Icon: Video,
-    title: "Transformationsvideo",
-    desc: "En kort video, der viser rummet gå fra før til efter.",
-    more: "Den lille før-/efter-video fanger opmærksomheden på boligportaler og sociale medier og gør annoncen mere levende.",
-  },
-  {
-    Icon: Wand2,
-    title: "Design Agent",
-    desc: "Skriv med almindelige ord, hvad du vil ændre — så klarer vi resten.",
-    more: 'Fx "skift sofaen ud med en lys linnedsofa og tilføj en stor potteplante". Du behøver ikke kende til design eller teknik.',
-  },
-  {
-    Icon: Zap,
-    title: "Klar på under 20 sek.",
-    desc: "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet.",
-  },
-  {
-    Icon: Monitor,
-    title: "Direkte i browseren",
-    desc: "Ingen software eller installation. Alt foregår online.",
-  },
-  {
-    Icon: Download,
-    title: "Download i høj opløsning",
-    desc: "Klar til brug på boligportaler, sociale medier og tryksager.",
-  },
-  {
-    Icon: MessageCircle,
-    title: "Dansk support",
-    desc: "Vi sidder i Danmark og besvarer dine spørgsmål på hverdage.",
-  },
+const FEATURES_BASE = [
+  { Icon: Home },
+  { Icon: Palette },
+  { Icon: Box },
+  { Icon: Video },
+  { Icon: Wand2 },
+  { Icon: Zap },
+  { Icon: Monitor },
+  { Icon: Download },
+  { Icon: MessageCircle },
 ];
+
+// Indices that have a "more" expandable section
+const FEATURES_WITH_MORE = new Set([0, 2, 3, 4]);
 
 type Plan = {
   name: string;
@@ -146,68 +97,10 @@ type Plan = {
   href: string;
 };
 
-const PRICING: Plan[] = [
-  {
-    name: "Start",
-    monthly: 2999,
-    features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformationsvideoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
-    cta: "Vælg Start",
-    href: "/opret",
-  },
-  {
-    name: "Pro",
-    monthly: 5999,
-    features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformationsvideoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
-    cta: "Vælg Pro",
-    highlight: true,
-    href: "/opret",
-  },
-  {
-    name: "Business",
-    monthly: 11999,
-    features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformationsvideoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
-    cta: "Vælg Business",
-    href: "/opret",
-  },
-];
-
-const FAQS = [
-  {
-    q: "Hvad er Forma Estates?",
-    a: "Forma Estates er en AI-platform til professionel ejendomsvisualisering. Du uploader billeder af en ejendom og får på få sekunder: stilfulde AI-visualiseringer af rummene i op til 8 designstile, en cinematisk ejendomsvideo med AI-kamerabevægelser og beatsynkroniseret musik, en transformationsvideo der animerer overgangen fra før til efter, en 3D-plantegning ud fra din 2D-grundplan, og professionelle PDF-præsentationer med før/efter-sammenligning — alt klar til annoncer, sociale medier, projektmateriale og kundepræsentationer.",
-  },
-  {
-    q: "Hvem bruger Forma Estates?",
-    a: "Platformen bruges af ejendomsmæglere, ejendomsudviklere, byggefirmaer, ejerforeninger, boligforeninger, B2B-boligudlejere og andre professionelle i ejendomsbranchen. Uanset om du sælger, lejer ud, renoverer eller præsenterer et projekt, giver Forma Estates dig professionelle visualiseringer på sekunder.",
-  },
-  {
-    q: "Hvad er AI-visualiseringer, og hvad er transformationsvideoer?",
-    a: "AI-visualiseringer er stillbilleder, hvor AI'en redesigner rummet i en valgt stil — vægge, gulv og vinduer forbliver uændrede, mens møbler, belysning og overflader skiftes ud. Transformationsvideoer er 5-sekunders videoklip, der animerer selve overgangen fra det originale rum til det redesignede — ideelt til at vise ejendommens potentiale på Instagram, til projektpræsentationer og i annoncer.",
-  },
-  {
-    q: "Hvad er ejendomsvideoerne (Showcase)?",
-    a: "Showcase-videoen samler dine ejendomsbilleder til en vertikal 9:16-video med AI-genererede kamerabevægelser (dolly, orbit, panorering) og beatsynkroniseret baggrundsmusik. Resultatet er en professionel reel klar til Instagram, Facebook, boligportaler og projektwebsites — uden kamerahold eller videoredigering.",
-  },
-  {
-    q: "Hvad koster det?",
-    a: "Abonnementer starter fra 2.999 kr./md. og giver adgang til alle funktioner: AI-visualiseringer, transformationsvideoer, ejendomsvideoer, 3D-plantegninger og PDF-præsentationer. Kontakt os for et tilbud tilpasset din virksomhed eller dit team.",
-  },
-  {
-    q: "Hvilke filformater kan jeg uploade?",
-    a: "Vi understøtter JPG og PNG. For bedste resultat bør billedet minimum være 800×600 pixels og være taget i godt, naturligt lys. Undgå stærkt modlys eller meget mørke rum — jo bedre input, jo bedre output.",
-  },
-  {
-    q: "Kan jeg bruge materialet i markedsføring og præsentationer?",
-    a: "Ja. Alle genererede visualiseringer, videoer og PDF'er kan downloades og bruges frit i annoncer, projektmateriale, sociale medier, tryksager og kundepræsentationer. Vi anbefaler at markere AI-genererede billeder tydeligt i overensstemmelse med branchens retningslinjer.",
-  },
-  {
-    q: "Bevarer AI'en rummets struktur?",
-    a: "Ja. Vægge, vinduer, gulv og rummets proportioner forbliver uændrede. Kun møbler, belysning og overflader redesignes, så resultatet ser realistisk og troværdigt ud for potentielle købere, lejere og investorer.",
-  },
-  {
-    q: "Er mine billeder fortrolige?",
-    a: 'Ja. Uploadede billeder bruges udelukkende til at generere din visualisering og deles ikke med tredjepart. <a href="/privatlivspolitik" style="color:inherit;text-decoration:underline;">Se vores privatlivspolitik</a> for fulde detaljer om databeskyttelse.',
-  },
+const PRICING_BASE = [
+  { name: "Start",    monthly: 2999,  highlight: false, href: "/opret" },
+  { name: "Pro",      monthly: 5999,  highlight: true,  href: "/opret" },
+  { name: "Business", monthly: 11999, highlight: false, href: "/opret" },
 ];
 
 // ── DR1-style hero stage: auto-rotating slides w/ swipe + video ──────────────
@@ -234,65 +127,40 @@ type StageSlide =
       meta: string;
     };
 
-const STAGE_SLIDES: StageSlide[] = [
-  {
-    kind: "video",
-    src: "/cinematisk-video.mp4",
-    poster: "/bolig-images/video-poster.jpg",
-    title: "Cinematisk video",
-    caption: "Ét stillbillede bliver til 5 sekunders levende video — klar til annoncen.",
-    meta: "",
-  },
-  {
-    kind: "video",
-    src: "/videos/transformering-kokken.mp4",
-    poster: "/bolig-images/transformering-kokken-poster.jpg",
-    title: "Transformerings video",
-    caption: "Se rummet gå fra før til efter i én flydende animation — perfekt til annoncer og sociale medier.",
-    meta: "Køkken · Transformering",
-  },
-  {
-    kind: "swipe",
-    before: "/bolig-images/dining-before-new.png",
-    after: "/bolig-images/dining-after-new.jpg",
-    beforeLabel: "Før",
-    afterLabel: "Efter",
-    title: "Før & efter",
-    caption: "Upload et rumfoto — AI'en redesigner indretningen på under 20 sekunder.",
-    meta: "Spisestue · Skandinavisk",
-  },
-  {
-    kind: "swipe",
-    before: "/bolig-images/facade-before-new.png",
-    after: "/bolig-images/facade-after-new.png",
-    beforeLabel: "Før",
-    afterLabel: "Efter",
-    title: "Før & efter",
-    caption: "Upload et foto — AI'en transformerer ejendommen på under 20 sekunder.",
-    meta: "Stald · AI Design Agent",
-    objectPosition: "center center",
-  },
-  {
-    kind: "swipe",
-    before: "/bolig-images/floorplan-2d-new.jpg",
-    after: "/bolig-images/floorplan-3d-new.png",
-    beforeLabel: "2D plan",
-    afterLabel: "3D",
-    title: "3D Plantegning",
-    caption: "Fra flad plantegning til levende 3D-rum, køberen kan fornemme.",
-    meta: "3D Plantegning",
-    contain: true,
-    bg: "#FFFFFF",
-  },
+// Media-only base (text injected inside HeroStage via useTranslation)
+const STAGE_SLIDES_BASE = [
+  { kind: "video" as const, src: "/cinematisk-video.mp4",               poster: "/bolig-images/video-poster.jpg" },
+  { kind: "video" as const, src: "/videos/transformering-kokken.mp4",   poster: "/bolig-images/transformering-kokken-poster.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/dining-before-new.png",   after: "/bolig-images/dining-after-new.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/facade-before-new.png",   after: "/bolig-images/facade-after-new.png", objectPosition: "center center" },
+  { kind: "swipe" as const, before: "/bolig-images/floorplan-2d-new.jpg",    after: "/bolig-images/floorplan-3d-new.png", contain: true, bg: "#FFFFFF" },
 ];
 
 // Pre-computed: which slide indices are video slides, in order.
 // Used to map slide index → videoRefs array index.
-const VIDEO_SLIDE_INDICES = STAGE_SLIDES
+const VIDEO_SLIDE_INDICES = STAGE_SLIDES_BASE
   .map((s, i) => (s.kind === "video" ? i : -1))
   .filter((i) => i >= 0);
 
 function HeroStage() {
+  const { t } = useTranslation();
+  const slideTr = t("slides", { returnObjects: true }) as Array<{
+    title: string; caption: string; meta: string; beforeLabel?: string; afterLabel?: string;
+  }>;
+  const STAGE_SLIDES: StageSlide[] = STAGE_SLIDES_BASE.map((s, i) => {
+    const tr = slideTr[i] ?? { title: "", caption: "", meta: "" };
+    if (s.kind === "video") {
+      return { ...s, title: tr.title, caption: tr.caption, meta: tr.meta };
+    }
+    return {
+      ...s,
+      title: tr.title,
+      caption: tr.caption,
+      meta: tr.meta,
+      beforeLabel: tr.beforeLabel ?? t("slider.before"),
+      afterLabel: tr.afterLabel ?? t("slider.after"),
+    };
+  });
   const [index, setIndex] = useState(0);
   const [pos, setPos] = useState(1); // swipe split (1 = fully before, 0 = fully after)
   const rafRef = useRef<number | null>(null);
@@ -430,7 +298,7 @@ function HeroStage() {
           {/* PREV peek */}
           <button
             onClick={() => go(prevIndex)}
-            aria-label={`Forrige: ${prevSlide.title}`}
+            aria-label={`${t("hero.prev")}: ${prevSlide.title}`}
             className="hidden md:block relative overflow-hidden transition-all duration-300 group flex-shrink-0"
             style={{
               width: "16%",
@@ -443,7 +311,7 @@ function HeroStage() {
             <img src={sidePreview(prevSlide)} alt={prevSlide.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
             <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(15,25,35,0.55) 0%, rgba(15,25,35,0.25) 100%)" }} />
             <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-left">
-              <div className="uppercase mb-1" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em" }}>Forrige</div>
+              <div className="uppercase mb-1" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em" }}>{t("hero.prev")}</div>
               <div style={{ fontFamily: SERIF, color: C.white, fontSize: 15, lineHeight: 1.25, fontWeight: 500 }}>{prevSlide.title}</div>
             </div>
             <div className="absolute top-1/2 -translate-y-1/2 right-3 flex items-center justify-center transition-opacity opacity-80 group-hover:opacity-100" style={{ width: 36, height: 36, borderRadius: 999, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.4)" }}>
@@ -565,10 +433,10 @@ function HeroStage() {
             style={{ padding: "clamp(18px, 2.5vw, 36px) clamp(20px, 3.5vw, 48px)", zIndex: 7 }}
           >
             <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(20px, 2.4vw, 36px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 8px rgba(0,0,0,0.25)" }}>
-              Professionelle boligvisualiseringer på få sekunder
+              {t("hero.headline")}
             </h1>
             <p style={{ color: "rgba(255,255,255,0.80)", fontSize: "clamp(12px, 1vw, 14px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, maxWidth: 500 }}>
-              Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
+              {t("hero.subline")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Link href="/opret">
@@ -579,7 +447,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta"
                 >
-                  Kom i gang gratis <ArrowRight className="w-3.5 h-3.5" />
+                  {t("hero.cta")} <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
@@ -590,11 +458,11 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
                   data-testid="bolig-hero-cta-secondary"
                 >
-                  Se eksempler
+                  {t("hero.ctaSecondary")}
                 </button>
               </Link>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS }}>
-                2 gratis AI-visualiseringer · intet kreditkort
+                {t("hero.trial")}
               </span>
             </div>
           </div>
@@ -602,7 +470,7 @@ function HeroStage() {
             {/* Mobile-only side arrows (peek panels hidden < md) */}
             <button
               onClick={() => go(index - 1)}
-              aria-label="Forrige"
+              aria-label={t("hero.prev")}
               className="md:hidden absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors hover:bg-white/30"
               style={{ width: 40, height: 40, borderRadius: 999, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.35)", color: C.white, zIndex: 10 }}
               data-testid="bolig-hero-prev-mobile"
@@ -611,7 +479,7 @@ function HeroStage() {
             </button>
             <button
               onClick={() => go(index + 1)}
-              aria-label="Næste"
+              aria-label={t("hero.next")}
               className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors hover:bg-white/30"
               style={{ width: 40, height: 40, borderRadius: 999, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.35)", color: C.white, zIndex: 10 }}
               data-testid="bolig-hero-next-mobile"
@@ -623,7 +491,7 @@ function HeroStage() {
           {/* NEXT peek */}
           <button
             onClick={() => go(nextIndex)}
-            aria-label={`Næste: ${nextSlide.title}`}
+            aria-label={`${t("hero.next")}: ${nextSlide.title}`}
             className="hidden md:block relative overflow-hidden transition-all duration-300 group flex-shrink-0"
             style={{
               width: "16%",
@@ -636,7 +504,7 @@ function HeroStage() {
             <img src={sidePreview(nextSlide)} alt={nextSlide.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
             <div className="absolute inset-0" style={{ background: "linear-gradient(to left, rgba(15,25,35,0.55) 0%, rgba(15,25,35,0.25) 100%)" }} />
             <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 text-right">
-              <div className="uppercase mb-1" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em" }}>Næste</div>
+              <div className="uppercase mb-1" style={{ color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "0.14em" }}>{t("hero.next")}</div>
               <div style={{ fontFamily: SERIF, color: C.white, fontSize: 15, lineHeight: 1.25, fontWeight: 500 }}>{nextSlide.title}</div>
             </div>
             <div className="absolute top-1/2 -translate-y-1/2 left-3 flex items-center justify-center transition-opacity opacity-80 group-hover:opacity-100" style={{ width: 36, height: 36, borderRadius: 999, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.4)" }}>
@@ -683,10 +551,10 @@ function HeroStage() {
         <div className="md:hidden" style={{ paddingTop: 28, paddingBottom: 8, paddingLeft: "clamp(16px, 3vw, 48px)", paddingRight: "clamp(16px, 3vw, 48px)" }}>
           <div style={{ maxWidth: 600 }}>
             <p style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(26px, 3.2vw, 44px)", fontWeight: 500, lineHeight: 1.08, letterSpacing: "-0.02em", marginBottom: 12 }}>
-              Professionelle boligvisualiseringer på få sekunder
+              {t("hero.headline")}
             </p>
             <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "clamp(13px, 1.1vw, 15px)", lineHeight: 1.6, marginBottom: 22, fontFamily: SANS }}>
-              Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser
+              {t("hero.subline")}
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
               <Link href="/opret">
@@ -697,7 +565,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta-mobile"
                 >
-                  Kom i gang gratis <ArrowRight className="w-4 h-4" />
+                  {t("hero.cta")} <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
@@ -708,11 +576,11 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
                   data-testid="bolig-hero-cta-secondary-mobile"
                 >
-                  Se eksempler
+                  {t("hero.ctaSecondary")}
                 </button>
               </Link>
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS, margin: 0 }} data-testid="bolig-hero-trial-note">
-                2 gratis AI-visualiseringer · intet kreditkort
+                {t("hero.trial")}
               </p>
             </div>
           </div>
@@ -848,6 +716,7 @@ function HeroSliderSection() {
 
 // ── Cookie consent banner ────────────────────────────────────────────────────
 function CookieBanner() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [stats, setStats] = useState(false);
   const [prefs, setPrefs] = useState(false);
@@ -890,15 +759,15 @@ function CookieBanner() {
         <div className="mx-auto max-w-6xl grid lg:grid-cols-[1.4fr_1fr] gap-6 lg:gap-10 items-start">
           <div>
             <h3 style={{ fontFamily: SERIF, color: C.white, fontSize: 20, fontWeight: 500, marginBottom: 8 }}>
-              Vi bruger cookies
+              {t("cookie.title")}
             </h3>
             <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, lineHeight: 1.6, marginBottom: 16, maxWidth: 560 }}>
-              Vi bruger cookies til at få vores side til at fungere, måle trafik og huske dine præferencer. Du vælger selv, hvad du accepterer.
+              {t("cookie.text")}
             </p>
             <div className="flex flex-wrap gap-x-7 gap-y-3">
               <label className="inline-flex items-center gap-2.5" style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, cursor: "not-allowed" }}>
                 <input type="checkbox" checked disabled style={{ width: 16, height: 16, accentColor: C.gold }} data-testid="bolig-cookie-necessary" />
-                Nødvendige (altid aktiv)
+                {t("cookie.necessary")}
               </label>
               <label className="inline-flex items-center gap-2.5" style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, cursor: "pointer" }}>
                 <input
@@ -908,7 +777,7 @@ function CookieBanner() {
                   style={{ width: 16, height: 16, accentColor: C.gold }}
                   data-testid="bolig-cookie-statistics"
                 />
-                Statistik
+                {t("cookie.statistics")}
               </label>
               <label className="inline-flex items-center gap-2.5" style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, cursor: "pointer" }}>
                 <input
@@ -918,7 +787,7 @@ function CookieBanner() {
                   style={{ width: 16, height: 16, accentColor: C.gold }}
                   data-testid="bolig-cookie-preferences"
                 />
-                Præferencer
+                {t("cookie.preferences")}
               </label>
             </div>
           </div>
@@ -937,7 +806,7 @@ function CookieBanner() {
               }}
               data-testid="bolig-cookie-save"
             >
-              Gem valg
+              {t("cookie.save")}
             </button>
             <button
               onClick={() => persist({ necessary: true, statistics: true, preferences: true })}
@@ -954,7 +823,7 @@ function CookieBanner() {
               }}
               data-testid="bolig-cookie-accept-all"
             >
-              Accepter alle
+              {t("cookie.acceptAll")}
             </button>
             <button
               onClick={() => persist({ necessary: true, statistics: false, preferences: false })}
@@ -971,7 +840,7 @@ function CookieBanner() {
               }}
               data-testid="bolig-cookie-reject"
             >
-              Afvis valgfrie
+              {t("cookie.reject")}
             </button>
           </div>
         </div>
@@ -1032,8 +901,8 @@ function Overline({ children, light = false }: { children: React.ReactNode; ligh
 function ManualSwipeSlider({
   before,
   after,
-  beforeLabel = "Før",
-  afterLabel = "Efter",
+  beforeLabel,
+  afterLabel,
   initial = 0.5,
   aspect = "aspect-[4/3]",
   testId,
@@ -1046,6 +915,9 @@ function ManualSwipeSlider({
   aspect?: string;
   testId?: string;
 }) {
+  const { t } = useTranslation();
+  const resolvedBefore = beforeLabel ?? t("slider.before");
+  const resolvedAfter = afterLabel ?? t("slider.after");
   const [pos, setPos] = useState(initial);
   const [dragging, setDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1087,11 +959,11 @@ function ManualSwipeSlider({
       onTouchStart={(e) => { setDragging(true); updatePos(e.touches[0].clientX); }}
       data-testid={testId}
     >
-      <img src={after} alt={afterLabel} className="absolute inset-0 w-full h-full object-cover" />
+      <img src={after} alt={resolvedAfter} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 overflow-hidden" style={{ width: `${splitPct}%` }}>
         <img
           src={before}
-          alt={beforeLabel}
+          alt={resolvedBefore}
           className="absolute inset-0 h-full object-cover"
           style={{ width: `${100 / ((splitPct / 100) || 0.001)}%` }}
         />
@@ -1103,9 +975,9 @@ function ManualSwipeSlider({
           <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
         </div>
       </div>
-      <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{beforeLabel}</div>
-      <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.gold, color: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{afterLabel}</div>
-      <div className="absolute bottom-3 right-3 text-white text-[10px] font-semibold" style={{ background: "rgba(0,0,0,0.52)", padding: "3px 8px", borderRadius: 4, letterSpacing: "0.08em" }}>AI-redigeret</div>
+      <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{resolvedBefore}</div>
+      <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.gold, color: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{resolvedAfter}</div>
+      <div className="absolute bottom-3 right-3 text-white text-[10px] font-semibold" style={{ background: "rgba(0,0,0,0.52)", padding: "3px 8px", borderRadius: 4, letterSpacing: "0.08em" }}>{t("slider.aiEdited")}</div>
     </div>
   );
 }
@@ -1186,12 +1058,33 @@ function TileCarousel({ images }: { images: string[] }) {
 }
 
 export default function BoligpotentialeLanding() {
+  const { t } = useTranslation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [activeNav, setActiveNav] = useState<string>("FORSIDE");
+  const [activeNav, setActiveNav] = useState<string>("home");
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [openFeature, setOpenFeature] = useState<number | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
+  // Build translated data arrays (re-computed on language change)
+  const NAV_LINKS = NAV_LINKS_BASE.map(l => ({ ...l, label: t(`nav.${l.navKey}`) }));
+  const HOW_IT_WORKS = HOW_IT_WORKS_BASE.map((s, i) => ({
+    ...s,
+    title: t(`howItWorks.steps.${i}.title`),
+    desc: t(`howItWorks.steps.${i}.desc`),
+  }));
+  const FEATURES = FEATURES_BASE.map((f, i) => ({
+    ...f,
+    title: t(`features.items.${i}.title`),
+    desc: t(`features.items.${i}.desc`),
+    more: FEATURES_WITH_MORE.has(i) ? t(`features.items.${i}.more`) : undefined,
+  }));
+  const PRICING: Plan[] = PRICING_BASE.map(p => ({
+    ...p,
+    cta: t(`pricing.plans.${p.name}.cta`),
+    features: t(`pricing.plans.${p.name}.features`, { returnObjects: true }) as string[],
+  }));
+  const FAQS = t("faq.items", { returnObjects: true }) as Array<{ q: string; a: string }>;
 
   const startCheckout = async (planName: string) => {
     const priceId = PLAN_PRICE_IDS[planName]?.[billing];
@@ -1205,9 +1098,9 @@ export default function BoligpotentialeLanding() {
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else alert("Checkout fejlede. Prøv igen.");
+      else alert(t("pricing.checkoutFailed"));
     } catch {
-      alert("Checkout fejlede. Prøv igen.");
+      alert(t("pricing.checkoutFailed"));
     } finally {
       setCheckoutLoading(null);
     }
@@ -1305,7 +1198,7 @@ export default function BoligpotentialeLanding() {
 
             <nav className="hidden md:flex items-stretch gap-7 self-stretch">
               {NAV_LINKS.map((l) => {
-                const isActive = activeNav === l.label;
+                const isActive = activeNav === l.navKey;
                 const isInternalPage = l.href.startsWith("/");
                 const content = (
                   <span className="relative inline-block group-hover:text-[color:var(--nav-hover)] transition-colors" style={{ ['--nav-hover' as any]: C.navy, paddingBottom: 6 }}>
@@ -1332,12 +1225,12 @@ export default function BoligpotentialeLanding() {
                 if (isInternalPage) {
                   return (
                     <Link
-                      key={l.label}
+                      key={l.navKey}
                       href={l.href}
-                      onClick={() => setActiveNav(l.label)}
+                      onClick={() => setActiveNav(l.navKey)}
                       className={className}
                       style={style}
-                      data-testid={`bolig-nav-${l.label}`}
+                      data-testid={`bolig-nav-${l.navKey}`}
                     >
                       {content}
                     </Link>
@@ -1345,12 +1238,12 @@ export default function BoligpotentialeLanding() {
                 }
                 return (
                   <a
-                    key={l.label}
+                    key={l.navKey}
                     href={l.href}
-                    onClick={() => setActiveNav(l.label)}
+                    onClick={() => setActiveNav(l.navKey)}
                     className={className}
                     style={style}
-                    data-testid={`bolig-nav-${l.label}`}
+                    data-testid={`bolig-nav-${l.navKey}`}
                   >
                     {content}
                   </a>
@@ -1366,7 +1259,7 @@ export default function BoligpotentialeLanding() {
                 style={{ ['--bg-warm' as any]: C.warm, padding: "10px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent", fontFamily: SANS }}
                 data-testid="bolig-nav-contact"
               >
-                Kontakt os
+                {t("nav.contact")}
               </button>
             </Link>
             <Link href="/login?redirect=/boligpotentiale/dashboard">
@@ -1375,7 +1268,7 @@ export default function BoligpotentialeLanding() {
                 style={{ ['--bg-warm' as any]: C.warm, padding: "10px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent", fontFamily: SANS }}
                 data-testid="bolig-nav-login"
               >
-                Log ind
+                {t("nav.login")}
               </button>
             </Link>
             <Link href="/opret">
@@ -1384,7 +1277,7 @@ export default function BoligpotentialeLanding() {
                 style={{ ['--gold-h' as any]: C.goldHover, padding: "10px 24px", borderRadius: 8, background: C.gold, fontSize: 13, fontWeight: 500, fontFamily: SANS }}
                 data-testid="bolig-nav-cta"
               >
-                Kom i gang
+                {t("nav.getStarted")}
               </button>
             </Link>
           </div>
@@ -1395,7 +1288,7 @@ export default function BoligpotentialeLanding() {
                 style={{ background: C.gold, color: C.navy, padding: "7px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, fontFamily: SANS }}
                 data-testid="bolig-mobile-nav-cta"
               >
-                Kom i gang
+                {t("nav.getStarted")}
               </button>
             </Link>
             <button
@@ -1421,7 +1314,7 @@ export default function BoligpotentialeLanding() {
             >
               {NAV_LINKS.map((l) => (
                 <a
-                  key={l.label}
+                  key={l.navKey}
                   href={l.href}
                   onClick={() => setMobileOpen(false)}
                   style={{ color: C.muted, fontSize: 13, fontWeight: 500, letterSpacing: "0.12em" }}
@@ -1431,12 +1324,12 @@ export default function BoligpotentialeLanding() {
               ))}
               <Link href="/login?redirect=/boligpotentiale/dashboard">
                 <button className="w-full mt-2" style={{ padding: "12px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent" }} data-testid="bolig-mobile-login">
-                  Log ind
+                  {t("nav.login")}
                 </button>
               </Link>
               <Link href="/opret">
                 <button className="w-full text-white" style={{ padding: "12px 24px", borderRadius: 8, background: C.gold, fontSize: 13, fontWeight: 500 }} data-testid="bolig-mobile-cta">
-                  Kom i gang
+                  {t("nav.getStarted")}
                 </button>
               </Link>
             </motion.div>
@@ -1474,8 +1367,8 @@ export default function BoligpotentialeLanding() {
             onMouseEnter={e => { e.currentTarget.style.color = "rgba(245,243,239,0.75)"; }}
             onMouseLeave={e => { e.currentTarget.style.color = "rgba(245,243,239,0.42)"; }}
           >
-            Spar op til 18.000 kr+ på post-produktion per bolig —{" "}
-            <span style={{ color: "#C8956C", textDecoration: "underline", textUnderlineOffset: "2px" }}>se beregningen her</span>
+            {t("savingsNudge.text")}{" "}
+            <span style={{ color: "#C8956C", textDecoration: "underline", textUnderlineOffset: "2px" }}>{t("savingsNudge.link")}</span>
           </a>
         </div>
       </div>
@@ -1485,9 +1378,9 @@ export default function BoligpotentialeLanding() {
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
           <div className="flex items-center justify-start sm:justify-center gap-5 sm:gap-7 lg:gap-9 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {[
-              { label: "Sådan virker det", href: "#how-it-works" },
-              { label: "Eksempler", href: "/boligpotentiale/eksempler" },
-              { label: "Priser", href: "#pricing" },
+              { label: t("categoryTabs.howItWorks"), href: "#how-it-works" },
+              { label: t("categoryTabs.examples"), href: "/boligpotentiale/eksempler" },
+              { label: t("categoryTabs.prices"), href: "#pricing" },
             ].map((p) => {
               const tabStyle = {
                 color: C.gold,
@@ -1542,67 +1435,68 @@ export default function BoligpotentialeLanding() {
               className="uppercase"
               style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.32em" }}
             >
-              Hvorfor visualisering
+              {t("why.overline")}
             </span>
             <h2
               className="mt-4"
               style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 5vw, 42px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}
             >
-              Vis potentialet<br />Ikke det tomme rum
+              {t("why.headline")}<br />{t("why.headlineLine2")}
             </h2>
           </div>
           {(() => {
+            const whyTilesTr = t("why.tiles", { returnObjects: true }) as Array<{ eyebrow: string; title: string; desc: string }>;
             const tiles = [
               {
-                eyebrow: "Før / Efter",
-                title: "AI-iscenesættelse",
-                desc: "Et tomt rum bliver til et hjem på sekunder.",
+                eyebrow: whyTilesTr[0]?.eyebrow ?? "",
+                title: whyTilesTr[0]?.title ?? "",
+                desc: whyTilesTr[0]?.desc ?? "",
                 media: { kind: "image" as const, src: "/bolig-images/living-scandi-after.jpg" },
                 href: "/boligpotentiale/foer-efter",
               },
               {
-                eyebrow: "3D Plantegning",
-                title: "Forstå flowet",
-                desc: "Lad køber gå gennem rummet før første visning.",
+                eyebrow: whyTilesTr[1]?.eyebrow ?? "",
+                title: whyTilesTr[1]?.title ?? "",
+                desc: whyTilesTr[1]?.desc ?? "",
                 media: { kind: "image" as const, src: "/bolig-images/floorplan-3d.jpg" },
                 href: "/boligpotentiale/3d-plantegning",
               },
               {
-                eyebrow: "Branchevideo",
-                title: "Cinematisk fortælling",
-                desc: "Væk følelser med en levende videogennemgang.",
+                eyebrow: whyTilesTr[2]?.eyebrow ?? "",
+                title: whyTilesTr[2]?.title ?? "",
+                desc: whyTilesTr[2]?.desc ?? "",
                 media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },
               {
-                eyebrow: "AI Design Agent",
-                title: "Beskriv din vision",
-                desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
-                media: { kind: "swipe" as const, before: "/bolig-images/ai-agent-aerial-before.png", after: "/bolig-images/ai-agent-aerial-after.jpg", beforeLabel: "Før", afterLabel: "Efter" },
+                eyebrow: whyTilesTr[3]?.eyebrow ?? "",
+                title: whyTilesTr[3]?.title ?? "",
+                desc: whyTilesTr[3]?.desc ?? "",
+                media: { kind: "swipe" as const, before: "/bolig-images/ai-agent-aerial-before.png", after: "/bolig-images/ai-agent-aerial-after.jpg", beforeLabel: t("slider.before"), afterLabel: t("slider.after") },
                 href: "/boligpotentiale/ai-design-agent",
               },
               {
-                eyebrow: "Bolig Showcase",
-                title: "Vis potentialet",
-                desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
+                eyebrow: whyTilesTr[4]?.eyebrow ?? "",
+                title: whyTilesTr[4]?.title ?? "",
+                desc: whyTilesTr[4]?.desc ?? "",
                 media: { kind: "video" as const, src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg" },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];
-            const renderTile = (t: typeof tiles[0]) => {
+            const renderTile = (tile: typeof tiles[0]) => {
               return (
               <Link
-                key={t.eyebrow}
-                href={t.href}
+                key={tile.eyebrow}
+                href={tile.href}
                 className="group cursor-pointer transition-all duration-500 hover:-translate-y-1 block"
                 style={{ background: C.white, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 40px rgba(15,25,35,0.06)" }}
-                data-testid={`bolig-why-tile-${t.eyebrow}`}
+                data-testid={`bolig-why-tile-${tile.eyebrow}`}
               >
                 <div className="relative overflow-hidden" style={{ aspectRatio: "4 / 3" }}>
-                  {t.media.kind === "video" ? (
+                  {tile.media.kind === "video" ? (
                     <video
-                      src={t.media.src}
-                      poster={t.media.poster}
+                      src={tile.media.src}
+                      poster={tile.media.poster}
                       autoPlay
                       muted
                       loop
@@ -1610,15 +1504,15 @@ export default function BoligpotentialeLanding() {
                       onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.5; }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
-                  ) : t.media.kind === "swipe" ? (
+                  ) : tile.media.kind === "swipe" ? (
                     // Animated Før/Efter: hover pauses at midpoint, else auto-cycles
                     <div className="absolute inset-0 select-none">
                       {/* After — base layer */}
-                      <img src={t.media.after} alt={t.media.afterLabel ?? "Efter"} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+                      <img src={tile.media.after} alt={tile.media.afterLabel ?? t("slider.after")} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
                       {/* Before — clipped curtain, animates via CSS */}
                       <img
-                        src={t.media.before}
-                        alt={t.media.beforeLabel ?? "Før"}
+                        src={tile.media.before}
+                        alt={tile.media.beforeLabel ?? t("slider.before")}
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                         style={{
                           clipPath: "inset(0 0% 0 0)",
@@ -1627,38 +1521,38 @@ export default function BoligpotentialeLanding() {
                       />
                       {/* Labels */}
                       <div className="absolute top-4 right-4 uppercase" style={{ background: C.gold, color: C.navy, padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
-                        {t.media.afterLabel ?? "Efter"}
+                        {tile.media.afterLabel ?? t("slider.after")}
                       </div>
                       <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(15,25,35,0.75)", color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
-                        {t.media.beforeLabel ?? "Før"}
+                        {tile.media.beforeLabel ?? t("slider.before")}
                       </div>
                     </div>
                   ) : (
                     <img
-                      src={t.media.src}
-                      alt={t.title}
+                      src={tile.media.src}
+                      alt={tile.title}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   )}
                   <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,25,35,0.35) 0%, rgba(15,25,35,0) 45%)" }} />
-                  {t.media.kind !== "swipe" && (
+                  {tile.media.kind !== "swipe" && (
                     <div className="absolute top-4 left-4 uppercase" style={{ background: "rgba(255,255,255,0.92)", color: C.navy, padding: "6px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>
-                      {t.eyebrow}
+                      {tile.eyebrow}
                     </div>
                   )}
                 </div>
                 <div style={{ padding: "28px 30px 32px" }}>
                   <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 24, fontWeight: 500, lineHeight: 1.25, marginBottom: 10, letterSpacing: "-0.005em" }}>
-                    {t.title}
+                    {tile.title}
                   </div>
                   <div style={{ color: C.muted, fontSize: 15, lineHeight: 1.6 }}>
-                    {t.desc}
+                    {tile.desc}
                   </div>
                   <span
                     className="inline-flex items-center gap-1.5 mt-5 transition-all group-hover:gap-2.5"
                     style={{ color: C.navy, fontSize: 13, fontWeight: 600, letterSpacing: "0.04em" }}
                   >
-                    Se mere
+                    {t("why.seeMore")}
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" style={{ color: C.gold }} />
                   </span>
                 </div>
@@ -1671,9 +1565,9 @@ export default function BoligpotentialeLanding() {
                   {tiles.slice(0, 3).map(renderTile)}
                 </div>
                 <div className="flex flex-col sm:flex-row justify-center gap-6 lg:gap-8 mt-6 lg:mt-8">
-                  {tiles.slice(3).map((t) => (
-                    <div key={t.eyebrow} className="w-full sm:w-[calc(33.333%-1rem)]">
-                      {renderTile(t)}
+                  {tiles.slice(3).map((tile) => (
+                    <div key={tile.eyebrow} className="w-full sm:w-[calc(33.333%-1rem)]">
+                      {renderTile(tile)}
                     </div>
                   ))}
                 </div>
@@ -1687,10 +1581,10 @@ export default function BoligpotentialeLanding() {
       <section id="how-it-works" style={{ background: C.warm, paddingTop: "clamp(36px, 5vw, 48px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} className="px-6" data-testid="bolig-how-it-works">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
-            <Overline>Sådan virker det</Overline>
-            <H2>Tre trin — under ét minut</H2>
+            <Overline>{t("howItWorks.overline")}</Overline>
+            <H2>{t("howItWorks.headline")}</H2>
             <p className="mt-4 max-w-xl mx-auto" style={{ color: C.muted, fontSize: 16, lineHeight: 1.6 }}>
-              Ingen software, ingen teknisk viden — bare et foto og et klik.
+              {t("howItWorks.subline")}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -1734,21 +1628,16 @@ export default function BoligpotentialeLanding() {
       <section id="saelg-hurtigere" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} className="px-6" data-testid="bolig-stats">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
-            <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.18em" }}>Sælg hurtigere</div>
+            <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.18em" }}>{t("stats.overline")}</div>
             <h2 className="mt-4" style={{ fontFamily: SERIF, color: C.white, fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em" }}>
-              Tallene taler for sig selv.
+              {t("stats.headline")}
             </h2>
             <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, lineHeight: 1.6 }}>
-              Boliger med professionel visualisering sælges hurtigere, til højere priser og tiltrækker flere visninger online.
+              {t("stats.subline")}
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            {[
-              { stat: "73%", label: "hurtigere salg", desc: "Iscenesatte boliger sælges i gennemsnit 73% hurtigere end ikke-iscenesatte." },
-              { stat: "+8%", label: "højere salgspris", desc: "Køberne byder typisk 1–8% mere for en bolig, der er visualiseret professionelt." },
-              { stat: "3×", label: "flere visninger online", desc: "Annoncer med staging-billeder får op til tre gange så mange klik på portalerne." },
-              { stat: "95%", label: "af køberne søger online", desc: "Førstehåndsindtrykket skabes på skærmen — ikke ved fremvisningen." },
-            ].map((s, i) => (
+            {(t("stats.items", { returnObjects: true }) as Array<{ stat: string; label: string; desc: string }>).map((s, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 30 }}
@@ -1772,7 +1661,7 @@ export default function BoligpotentialeLanding() {
             ))}
           </div>
           <div className="text-center mt-12" style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, letterSpacing: "0.04em" }}>
-            Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home
+            {t("stats.sources")}
           </div>
         </div>
       </section>
@@ -1781,8 +1670,8 @@ export default function BoligpotentialeLanding() {
       <section className="px-6" style={{ background: C.warm, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-features">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
-            <Overline>Funktioner</Overline>
-            <H2>Alt hvad du behøver</H2>
+            <Overline>{t("features.overline")}</Overline>
+            <H2>{t("features.headline")}</H2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {FEATURES.map((f, i) => {
@@ -1826,7 +1715,7 @@ export default function BoligpotentialeLanding() {
                       onMouseLeave={(e) => (e.currentTarget.style.color = C.gold)}
                       data-testid={`bolig-feature-toggle-${i}`}
                     >
-                      {isOpen ? "Vis mindre" : "Læs mere"}
+                      {isOpen ? t("features.readLess") : t("features.readMore")}
                       <ChevronDown
                         className="w-4 h-4 transition-transform duration-300"
                         style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
@@ -1864,12 +1753,12 @@ export default function BoligpotentialeLanding() {
       <section id="sammenligning" className="px-6" style={{ background: "#0A1624", paddingTop: "clamp(52px, 8vw, 96px)", paddingBottom: "clamp(40px, 6vw, 72px)" }}>
         <div className="mx-auto max-w-4xl">
           <div className="text-center mb-10">
-            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Hvad sparer du?</p>
+            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{t("savings.overline")}</p>
             <h2 className="text-3xl sm:text-4xl font-semibold mb-4" style={{ color: "#F5F3EF", fontFamily: '"Playfair Display", Georgia, serif', letterSpacing: "-0.02em" }}>
-              Op til 18.000 kr+ sparet på post-produktion — pr. bolig
+              {t("savings.headline")}
             </h2>
             <p className="text-sm max-w-xl mx-auto" style={{ color: "rgba(245,243,239,0.55)", lineHeight: 1.7 }}>
-              Vi erstatter ikke fotografen. Vi erstatter den dyre del efterfølgende: staging, video og 3D.
+              {t("savings.subline")}
             </p>
           </div>
 
@@ -1877,37 +1766,32 @@ export default function BoligpotentialeLanding() {
             {/* Header */}
             <div className="grid grid-cols-3 text-[11px] font-semibold tracking-[0.1em] uppercase px-6 py-4"
               style={{ background: "rgba(200,149,108,0.12)", color: "rgba(245,243,239,0.5)", borderBottom: "1px solid rgba(200,149,108,0.15)" }}>
-              <span>Post-produktion</span>
-              <span className="text-center">Traditionelt (ca.)</span>
-              <span className="text-right">Med Forma Estates</span>
+              <span>{t("savings.colService")}</span>
+              <span className="text-center">{t("savings.colTraditional")}</span>
+              <span className="text-right">{t("savings.colForma")}</span>
             </div>
 
             {/* Rows */}
-            {[
-              { label: "4 AI-visualiseringer", traditional: "2.500 kr" },
-              { label: "1 3D-plantegning", traditional: "2.500 kr" },
-              { label: "2 transformationsvideoer", traditional: "10.000 kr" },
-              { label: "1 showcase-video", traditional: "6.000 kr" },
-            ].map((row, i) => (
+            {(t("savings.rows", { returnObjects: true }) as Array<{ label: string; traditional: string }>).map((row, i) => (
               <div key={i} className="grid grid-cols-3 items-center px-6 py-4"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
                 <p className="text-sm font-medium" style={{ color: "#F5F3EF" }}>{row.label}</p>
                 <p className="text-center text-sm font-medium" style={{ color: "rgba(245,243,239,0.65)" }}>{row.traditional}</p>
-                <p className="text-right text-sm font-semibold" style={{ color: "#C8956C" }}>Inkluderet</p>
+                <p className="text-right text-sm font-semibold" style={{ color: "#C8956C" }}>{t("savings.included")}</p>
               </div>
             ))}
 
             {/* Total row */}
             <div className="grid grid-cols-3 items-center px-6 py-5"
               style={{ background: "rgba(200,149,108,0.13)", borderTop: "1px solid rgba(200,149,108,0.3)" }}>
-              <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>Post-produktion total</p>
-              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 15 }}>21.000 kr</p>
-              <p className="text-right font-bold" style={{ color: "#C8956C" }}>Fra 2.999 kr/md</p>
+              <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>{t("savings.totalLabel")}</p>
+              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 15 }}>{t("savings.totalTraditional")}</p>
+              <p className="text-right font-bold" style={{ color: "#C8956C" }}>{t("savings.totalForma")}</p>
             </div>
           </div>
 
           <p className="text-center text-[11px] mt-5" style={{ color: "rgba(245,243,239,0.3)" }}>
-            * Priser er vejledende og kan variere afhængigt af leverandør, kompleksitet og geografi.
+            {t("savings.disclaimer")}
           </p>
         </div>
       </section>
@@ -1916,10 +1800,10 @@ export default function BoligpotentialeLanding() {
       <section id="pricing" className="px-6" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-pricing">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-10">
-            <Overline light>Priser</Overline>
-            <H2 light>Vælg din plan</H2>
+            <Overline light>{t("pricing.overline")}</Overline>
+            <H2 light>{t("pricing.headline")}</H2>
             <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.65)", fontSize: 16, lineHeight: 1.6 }}>
-              Vælg den plan der passer til dig og kom i gang med det samme.
+              {t("pricing.subline")}
             </p>
 
             {/* Billing toggle */}
@@ -1937,7 +1821,7 @@ export default function BoligpotentialeLanding() {
                 }}
                 data-testid="bolig-billing-monthly"
               >
-                Månedlig
+                {t("pricing.monthly")}
               </button>
               <button
                 onClick={() => setBilling("yearly")}
@@ -1952,7 +1836,7 @@ export default function BoligpotentialeLanding() {
                 }}
                 data-testid="bolig-billing-yearly"
               >
-                Årlig
+                {t("pricing.yearly")}
                 <span
                   className="uppercase"
                   style={{
@@ -1965,7 +1849,7 @@ export default function BoligpotentialeLanding() {
                     fontWeight: 600,
                   }}
                 >
-                  Spar 20%
+                  {t("pricing.save20")}
                 </span>
               </button>
             </div>
@@ -2008,7 +1892,7 @@ export default function BoligpotentialeLanding() {
                         letterSpacing: "0.12em",
                       }}
                     >
-                      Mest populær
+                      {t("pricing.mostPopular")}
                     </div>
                   )}
                   <div className="uppercase" style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{plan.name}</div>
@@ -2017,23 +1901,23 @@ export default function BoligpotentialeLanding() {
                       <>
                         {billing === "yearly" && plan.monthly !== null && (
                           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, textDecoration: "line-through", marginBottom: 2 }}>
-                            {plan.monthly.toLocaleString("da-DK")} kr./md.
+                            {plan.monthly.toLocaleString("da-DK")} {t("pricing.perMonth")}
                           </div>
                         )}
                         <div className="flex items-end gap-2">
                           <span style={{ fontFamily: SERIF, fontWeight: 500, color: C.white, fontSize: 40, lineHeight: 1 }}>{price}</span>
                           <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 4 }}>
-                            kr./{billing === "monthly" ? "md." : "md., årligt"}
+                            {billing === "monthly" ? t("pricing.perMonth") : t("pricing.perMonthYearly")}
                           </span>
                         </div>
                         {billing === "yearly" && plan.monthly !== null && (
                           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 4 }}>
-                            faktureres {(Math.round(plan.monthly * 0.8) * 12).toLocaleString("da-DK")} kr. årligt
+                            {t("pricing.billedYearly", { amount: (Math.round(plan.monthly * 0.8) * 12).toLocaleString("da-DK") })}
                           </div>
                         )}
                       </>
                     ) : (
-                      <span style={{ fontFamily: SERIF, fontWeight: 500, color: C.white, fontSize: 40, lineHeight: 1 }}>Custom</span>
+                      <span style={{ fontFamily: SERIF, fontWeight: 500, color: C.white, fontSize: 40, lineHeight: 1 }}>{t("pricing.custom")}</span>
                     )}
                   </div>
                   <ul className="space-y-3 mt-8 mb-10 flex-1">
@@ -2078,7 +1962,7 @@ export default function BoligpotentialeLanding() {
                     }}
                     data-testid={`bolig-pricing-cta-${plan.name.toLowerCase()}`}
                   >
-                    {checkoutLoading === plan.name ? "Åbner Stripe…" : plan.cta}
+                    {checkoutLoading === plan.name ? t("pricing.openingStripe") : plan.cta}
                   </button>
                 </motion.div>
               );
@@ -2090,7 +1974,7 @@ export default function BoligpotentialeLanding() {
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
             <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest whitespace-nowrap"
               style={{ border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>
-              Enterprise — byg din plan
+              {t("pricing.enterprise")}
             </div>
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
           </div>
@@ -2103,8 +1987,8 @@ export default function BoligpotentialeLanding() {
       <section id="faq" className="px-6" style={{ background: C.champagne, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-faq">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
-            <Overline>FAQ</Overline>
-            <H2>Ofte stillede spørgsmål</H2>
+            <Overline>{t("faq.overline")}</Overline>
+            <H2>{t("faq.headline")}</H2>
           </div>
           <div className="grid lg:grid-cols-[3fr_2fr] gap-12">
             <div>
@@ -2122,9 +2006,9 @@ export default function BoligpotentialeLanding() {
                   boxShadow: C.shadowCard,
                 }}
               >
-                <h3 style={{ color: C.navy, fontSize: 20, fontWeight: 600 }}>Står du med spørgsmål?</h3>
+                <h3 style={{ color: C.navy, fontSize: 20, fontWeight: 600 }}>{t("faq.sideTitle")}</h3>
                 <p className="mt-3 mb-6" style={{ color: C.muted, fontSize: 15, lineHeight: 1.6 }}>
-                  Vi sidder klar til at hjælpe dig. Send os en besked, så vender vi tilbage inden for 24 timer.
+                  {t("faq.sideText")}
                 </p>
                 <a href="mailto:kontakt@formaestates.com">
                   <button
@@ -2141,7 +2025,7 @@ export default function BoligpotentialeLanding() {
                     }}
                     data-testid="bolig-faq-contact"
                   >
-                    Skriv til os
+                    {t("faq.sideButton")}
                   </button>
                 </a>
               </div>
@@ -2153,9 +2037,9 @@ export default function BoligpotentialeLanding() {
       {/* ── PRE-FOOTER CTA ── */}
       <section className="px-6" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-footer-cta">
         <div className="mx-auto max-w-3xl text-center">
-          <H2 light style={{ fontSize: "clamp(28px, 4vw, 42px)" }}>Klar til at vise boligens potentiale?</H2>
+          <H2 light style={{ fontSize: "clamp(28px, 4vw, 42px)" }}>{t("footerCta.headline")}</H2>
           <p className="mt-5 mb-10" style={{ color: "rgba(255,255,255,0.7)", fontSize: 18, lineHeight: 1.6 }}>
-            Opret en konto på under 1 minut — ingen kreditkort nødvendigt.
+            {t("footerCta.subline")}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/opret">
@@ -2173,7 +2057,7 @@ export default function BoligpotentialeLanding() {
                 }}
                 data-testid="bolig-footer-cta-button"
               >
-                Opret konto gratis
+                {t("footerCta.cta")}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </Link>
@@ -2193,7 +2077,7 @@ export default function BoligpotentialeLanding() {
                 }}
                 data-testid="bolig-footer-cta-secondary"
               >
-                Se priser
+                {t("footerCta.secondary")}
               </button>
             </a>
           </div>
@@ -2226,7 +2110,7 @@ export default function BoligpotentialeLanding() {
                 FORMA ESTATES
               </div>
               <p className="mx-auto md:mx-0 mb-5" style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, lineHeight: 1.6, maxWidth: 280 }}>
-                AI-drevet visualisering, 3D plantegninger og videoer til ejendomsbranchen i Danmark.
+                {t("footer.tagline")}
               </p>
               <div
                 className="flex items-center justify-center md:justify-start"
@@ -2245,27 +2129,36 @@ export default function BoligpotentialeLanding() {
               </div>
             </div>
             <div>
-              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Produkt</div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{t("footer.product")}</div>
               <ul className="space-y-3">
-                {[["Sådan virker det", "#how-it-works"], ["Eksempler", "/boligpotentiale/eksempler"], ["Priser", "#pricing"]].map(([l, h]) => (
-                  <li key={l}>
+                {[
+                  [t("footer.howItWorks"), "#how-it-works"],
+                  [t("footer.examples"), "/boligpotentiale/eksempler"],
+                  [t("footer.prices"), "#pricing"],
+                ].map(([l, h]) => (
+                  <li key={h}>
                     <a href={h} className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>{l}</a>
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Support</div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{t("footer.support")}</div>
               <ul className="space-y-3">
-                {[["FAQ", "#faq"], ["Kontakt", "mailto:kontakt@formaestates.com"], ["Privatlivspolitik", "/privatlivspolitik"], ["Handelsbetingelser", "/handelsbetingelser"]].map(([l, h]) => (
-                  <li key={l}>
+                {[
+                  ["FAQ", "#faq"],
+                  [t("footer.contact"), "mailto:kontakt@formaestates.com"],
+                  [t("footer.privacy"), "/privatlivspolitik"],
+                  [t("footer.terms"), "/handelsbetingelser"],
+                ].map(([l, h]) => (
+                  <li key={h}>
                     <a href={h} className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>{l}</a>
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Kom i gang</div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{t("footer.getStarted")}</div>
               <Link href="/opret">
                 <button
                   className="w-full transition-colors hover:bg-[color:var(--gold-h)]"
@@ -2280,14 +2173,14 @@ export default function BoligpotentialeLanding() {
                   }}
                   data-testid="bolig-footer-nav-cta"
                 >
-                  Opret konto gratis
+                  {t("footer.createAccount")}
                 </button>
               </Link>
             </div>
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }}>
             <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-              © 2026 Forma Estates · CVR: 46551796 · Danskudviklet og bygget i Danmark · All rights reserved
+              {t("footer.copyright")}
             </span>
           </div>
         </div>

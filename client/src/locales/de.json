@@ -1,0 +1,193 @@
+{
+  "nav": {
+    "home": "START",
+    "prices": "PREISE",
+    "examples": "BEISPIELE",
+    "about": "ÜBER UNS",
+    "faq": "FAQ",
+    "contact": "Kontakt",
+    "login": "Anmelden",
+    "getStarted": "Loslegen"
+  },
+  "hero": {
+    "headline": "Professionelle Immobilienvisualisierungen in wenigen Sekunden",
+    "subline": "Erstellen Sie KI-generierte Immobilienvisualisierungen, 3D-Grundrisse und Verkaufsvideos — direkt in Ihrem Browser",
+    "cta": "Kostenlos starten",
+    "ctaSecondary": "Beispiele ansehen",
+    "trial": "2 kostenlose KI-Visualisierungen · keine Kreditkarte",
+    "prev": "Zurück",
+    "next": "Weiter"
+  },
+  "slides": [
+    { "title": "Cinematisches Video", "caption": "Ein Standbild wird zu einem 5-sekündigen lebendigen Video — bereit für die Anzeige.", "meta": "" },
+    { "title": "Transformationsvideo", "caption": "Sehen Sie, wie der Raum in einer fließenden Animation von vorher zu nachher wechselt — perfekt für Anzeigen und soziale Medien.", "meta": "Küche · Transformation" },
+    { "title": "Vorher & Nachher", "caption": "Laden Sie ein Raumfoto hoch — die KI redesignt die Einrichtung in unter 20 Sekunden.", "meta": "Esszimmer · Skandinavisch", "beforeLabel": "Vorher", "afterLabel": "Nachher" },
+    { "title": "Vorher & Nachher", "caption": "Laden Sie ein Foto hoch — die KI transformiert die Immobilie in unter 20 Sekunden.", "meta": "Stall · KI Design Agent", "beforeLabel": "Vorher", "afterLabel": "Nachher" },
+    { "title": "3D Grundriss", "caption": "Vom flachen Grundriss zum lebendigen 3D-Raum, den der Käufer erleben kann.", "meta": "3D Grundriss", "beforeLabel": "2D Plan", "afterLabel": "3D" }
+  ],
+  "savingsNudge": {
+    "text": "Sparen Sie bis zu 18.000 kr+ an Nachproduktion pro Immobilie —",
+    "link": "Berechnung ansehen"
+  },
+  "categoryTabs": {
+    "howItWorks": "So funktioniert es",
+    "examples": "Beispiele",
+    "prices": "Preise"
+  },
+  "why": {
+    "overline": "Warum Visualisierung",
+    "headline": "Zeigen Sie das Potenzial",
+    "headlineLine2": "Nicht den leeren Raum",
+    "seeMore": "Mehr ansehen",
+    "tiles": [
+      { "eyebrow": "Vorher / Nachher", "title": "KI-Inszenierung", "desc": "Ein leerer Raum wird in Sekunden zum Zuhause." },
+      { "eyebrow": "3D Grundriss", "title": "Den Grundriss verstehen", "desc": "Lassen Sie den Käufer den Raum vor der ersten Besichtigung erkunden." },
+      { "eyebrow": "Immobilienvideo", "title": "Cinematisches Storytelling", "desc": "Wecken Sie Emotionen mit einem lebendigen Video-Rundgang." },
+      { "eyebrow": "KI Design Agent", "title": "Beschreiben Sie Ihre Vision", "desc": "Sagen Sie der KI, was Sie möchten — sie verwandelt es in ein fertiges Design." },
+      { "eyebrow": "Immobilien Showcase", "title": "Potenzial zeigen", "desc": "Präsentieren Sie das volle Potenzial der Immobilie mit professionellen Visualisierungen." }
+    ]
+  },
+  "howItWorks": {
+    "overline": "So funktioniert es",
+    "headline": "Drei Schritte — unter einer Minute",
+    "subline": "Keine Software, kein technisches Wissen — nur ein Foto und ein Klick.",
+    "steps": [
+      { "title": "Raumfoto hochladen", "desc": "Machen Sie ein Foto des Raums mit Ihrem Telefon oder Ihrer Kamera. Keine professionelle Fotografie erforderlich." },
+      { "title": "Raumtyp und Stil wählen", "desc": "Geben Sie den Raumtyp an und wählen Sie einen unserer Designstile — von skandinavischem Minimalismus bis moderner Luxus." },
+      { "title": "Visualisierung herunterladen", "desc": "Die KI generiert Ihr Bild in unter 20 Sekunden. Fertig zum Download in voller Qualität." }
+    ]
+  },
+  "stats": {
+    "overline": "Schneller verkaufen",
+    "headline": "Die Zahlen sprechen für sich.",
+    "subline": "Immobilien mit professioneller Visualisierung werden schneller, zu höheren Preisen und mit mehr Online-Besichtigungen verkauft.",
+    "sources": "Quellen: NAR Profile of Home Staging 2023 · RESA · Boligsiden Marktdaten · ROOMAGEN · Capitalize Home",
+    "items": [
+      { "stat": "73%", "label": "schnellerer Verkauf", "desc": "Inszenierte Immobilien werden durchschnittlich 73% schneller verkauft als nicht-inszenierte." },
+      { "stat": "+8%", "label": "höherer Verkaufspreis", "desc": "Käufer bieten typischerweise 1–8% mehr für professionell visualisierte Immobilien." },
+      { "stat": "3×", "label": "mehr Online-Ansichten", "desc": "Anzeigen mit Staging-Bildern erhalten bis zu dreimal so viele Klicks auf Portalen." },
+      { "stat": "95%", "label": "der Käufer suchen online", "desc": "Der erste Eindruck entsteht auf dem Bildschirm — nicht bei der Besichtigung." }
+    ]
+  },
+  "features": {
+    "overline": "Funktionen",
+    "headline": "Alles was Sie brauchen",
+    "readMore": "Mehr lesen",
+    "readLess": "Weniger anzeigen",
+    "items": [
+      { "title": "Naturgetreue Visualisierung", "desc": "Bewahrt die Wände, Fenster und das Licht des Raums — nur die Einrichtung ändert sich.", "more": "Das Ergebnis sieht aus wie ein echtes Foto der Immobilie. Proportionen, Perspektive und Tageslicht bleiben erhalten, damit der Käufer das fertige Zuhause vor sich sehen kann." },
+      { "title": "8 Designstile", "desc": "Skandinavisch, modern, industriell, Boho, klassisch und mehr." },
+      { "title": "3D Grundriss", "desc": "Erhalten Sie einen übersichtlichen 3D-Grundriss, der die Raumaufteilung und den Fluss zeigt.", "more": "Der Grundriss hilft dem Käufer, das Layout und die Größenverhältnisse der Immobilie zu verstehen — ein klarer Vorteil in der Anzeige." },
+      { "title": "Transformationsvideo", "desc": "Ein kurzes Video, das zeigt, wie der Raum von vorher zu nachher übergeht.", "more": "Das kleine Vorher-/Nachher-Video zieht die Aufmerksamkeit auf Immobilienportalen und sozialen Medien auf sich und macht die Anzeige lebendiger." },
+      { "title": "Design Agent", "desc": "Beschreiben Sie in einfachen Worten, was Sie ändern möchten — wir erledigen den Rest.", "more": "Z.B. \"Tauschen Sie das Sofa gegen ein helles Leinensofa aus und fügen Sie eine große Topfpflanze hinzu\". Sie brauchen kein Design- oder Technikwissen." },
+      { "title": "Fertig in unter 20 Sek.", "desc": "Keine Wartezeit. Die Visualisierung ist fertig, während Sie noch im Raum sind." },
+      { "title": "Direkt im Browser", "desc": "Keine Software oder Installation. Alles läuft online." },
+      { "title": "Download in hoher Auflösung", "desc": "Fertig für Immobilienportale, soziale Medien und Drucksachen." },
+      { "title": "Dänischer Support", "desc": "Wir sitzen in Dänemark und beantworten Ihre Fragen an Werktagen." }
+    ]
+  },
+  "savings": {
+    "overline": "Was sparen Sie?",
+    "headline": "Bis zu 18.000 kr+ gespart bei der Nachproduktion — pro Immobilie",
+    "subline": "Wir ersetzen nicht den Fotografen. Wir ersetzen den teuren Teil danach: Staging, Video und 3D.",
+    "colService": "Nachproduktion",
+    "colTraditional": "Traditionell (ca.)",
+    "colForma": "Mit Forma Estates",
+    "included": "Inklusive",
+    "totalLabel": "Nachproduktion gesamt",
+    "totalTraditional": "21.000 kr",
+    "totalForma": "Ab 2.999 kr/Monat",
+    "disclaimer": "* Preise sind Richtwerte und können je nach Anbieter, Komplexität und Geografie variieren.",
+    "rows": [
+      { "label": "4 KI-Visualisierungen", "traditional": "2.500 kr" },
+      { "label": "1 3D-Grundriss", "traditional": "2.500 kr" },
+      { "label": "2 Transformationsvideos", "traditional": "10.000 kr" },
+      { "label": "1 Showcase-Video", "traditional": "6.000 kr" }
+    ]
+  },
+  "pricing": {
+    "overline": "Preise",
+    "headline": "Wählen Sie Ihren Plan",
+    "subline": "Wählen Sie den Plan, der zu Ihnen passt, und starten Sie sofort.",
+    "monthly": "Monatlich",
+    "yearly": "Jährlich",
+    "save20": "20% sparen",
+    "mostPopular": "Am beliebtesten",
+    "perMonth": "kr./Monat",
+    "perMonthYearly": "kr./Monat, jährlich",
+    "billedYearly": "{{amount}} kr. jährlich abgerechnet",
+    "openingStripe": "Stripe wird geöffnet…",
+    "checkoutFailed": "Checkout fehlgeschlagen. Bitte erneut versuchen.",
+    "enterprise": "Enterprise — erstellen Sie Ihren Plan",
+    "custom": "Individuell",
+    "plans": {
+      "Start": { "cta": "Start wählen", "features": ["10 KI-Visualisierungen / Monat", "2 3D-Grundrisse / Monat", "2 Transformationsvideos / Monat", "1 Immobilien Showcase / Monat", "HD 1080p · JPG + PNG", "Logo-Branding (ein/aus)", "Standard-Support"] },
+      "Pro": { "cta": "Pro wählen", "features": ["25 KI-Visualisierungen / Monat", "5 3D-Grundrisse / Monat", "5 Transformationsvideos / Monat", "3 Immobilien Showcase / Monat", "4K · JPG + PNG + PDF", "Volle Branding-Kontrolle", "Priorisierter Support"] },
+      "Business": { "cta": "Business wählen", "features": ["60 KI-Visualisierungen / Monat", "12 3D-Grundrisse / Monat", "12 Transformationsvideos / Monat", "8 Immobilien Showcase / Monat", "4K · JPG + PNG + PDF", "Volle Branding-Kontrolle", "Dedizierter Support"] }
+    }
+  },
+  "faq": {
+    "overline": "FAQ",
+    "headline": "Häufig gestellte Fragen",
+    "sideTitle": "Haben Sie Fragen?",
+    "sideText": "Wir sind für Sie da. Schicken Sie uns eine Nachricht, wir melden uns innerhalb von 24 Stunden.",
+    "sideButton": "Schreiben Sie uns",
+    "items": [
+      { "q": "Was ist Forma Estates?", "a": "Forma Estates ist eine KI-Plattform für professionelle Immobilienvisualisierung. Sie laden Bilder einer Immobilie hoch und erhalten in wenigen Sekunden: stilvolle KI-Visualisierungen der Räume in bis zu 8 Designstilen, ein cinematisches Immobilienvideo mit KI-Kamerabewegungen und beat-synchronisierter Musik, ein Transformationsvideo das den Übergang von vorher zu nachher animiert, einen 3D-Grundriss aus Ihrem 2D-Grundriss, und professionelle PDF-Präsentationen mit Vorher/Nachher-Vergleich." },
+      { "q": "Wer nutzt Forma Estates?", "a": "Die Plattform wird von Immobilienmaklern, Immobilienentwicklern, Bauunternehmen, Wohnungseigentümergemeinschaften und anderen Fachleuten der Immobilienbranche genutzt. Egal ob Sie verkaufen, vermieten, renovieren oder ein Projekt präsentieren — Forma Estates gibt Ihnen professionelle Visualisierungen in Sekunden." },
+      { "q": "Was sind KI-Visualisierungen und Transformationsvideos?", "a": "KI-Visualisierungen sind Standbilder, bei denen die KI den Raum in einem gewählten Stil neu gestaltet — Wände, Boden und Fenster bleiben unverändert, während Möbel, Beleuchtung und Oberflächen ausgetauscht werden. Transformationsvideos sind 5-Sekunden-Videoclips, die den Übergang vom ursprünglichen zum neu gestalteten Raum animieren." },
+      { "q": "Was sind die Immobilienvideos (Showcase)?", "a": "Das Showcase-Video fasst Ihre Immobilienbilder zu einem vertikalen 9:16-Video mit KI-generierten Kamerabewegungen und beat-synchronisierter Hintergrundmusik zusammen. Das Ergebnis ist ein professioneller Reel für Instagram, Facebook und Immobilienportale — ohne Filmteam oder Videobearbeitung." },
+      { "q": "Was kostet es?", "a": "Abonnements beginnen ab 2.999 kr./Monat und geben Zugang zu allen Funktionen: KI-Visualisierungen, Transformationsvideos, Immobilienvideos, 3D-Grundrisse und PDF-Präsentationen. Kontaktieren Sie uns für ein auf Ihr Unternehmen oder Team zugeschnittenes Angebot." },
+      { "q": "Welche Dateiformate kann ich hochladen?", "a": "Wir unterstützen JPG und PNG. Für beste Ergebnisse sollte das Bild mindestens 800×600 Pixel groß sein und bei gutem natürlichem Licht aufgenommen worden sein. Vermeiden Sie starkes Gegenlicht oder sehr dunkle Räume — je besser der Input, desto besser der Output." },
+      { "q": "Kann ich das Material in Marketing und Präsentationen verwenden?", "a": "Ja. Alle generierten Visualisierungen, Videos und PDFs können heruntergeladen und frei in Anzeigen, Projektmaterial, sozialen Medien und Kundenpräsentationen verwendet werden. Wir empfehlen, KI-generierte Bilder gemäß den Branchenrichtlinien deutlich zu kennzeichnen." },
+      { "q": "Bewahrt die KI die Raumstruktur?", "a": "Ja. Wände, Fenster, Boden und die Proportionen des Raums bleiben unverändert. Nur Möbel, Beleuchtung und Oberflächen werden neu gestaltet, damit das Ergebnis für potenzielle Käufer, Mieter und Investoren realistisch und glaubwürdig aussieht." },
+      { "q": "Sind meine Bilder vertraulich?", "a": "Ja. Hochgeladene Bilder werden ausschließlich zur Erstellung Ihrer Visualisierung verwendet und nicht an Dritte weitergegeben. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">Sehen Sie unsere Datenschutzrichtlinie</a> für vollständige Details zum Datenschutz." }
+    ]
+  },
+  "footerCta": {
+    "headline": "Bereit, das Potenzial Ihrer Immobilie zu zeigen?",
+    "subline": "Erstellen Sie in unter 1 Minute ein Konto — keine Kreditkarte erforderlich.",
+    "cta": "Konto kostenlos erstellen",
+    "secondary": "Preise ansehen"
+  },
+  "footer": {
+    "tagline": "KI-gestützte Visualisierung, 3D-Grundrisse und Videos für die Immobilienbranche.",
+    "product": "Produkt",
+    "support": "Support",
+    "getStarted": "Loslegen",
+    "createAccount": "Konto kostenlos erstellen",
+    "howItWorks": "So funktioniert es",
+    "examples": "Beispiele",
+    "prices": "Preise",
+    "contact": "Kontakt",
+    "privacy": "Datenschutz",
+    "terms": "AGB",
+    "copyright": "© 2026 Forma Estates · CVR: 46551796 · Entwickelt in Dänemark · All rights reserved"
+  },
+  "cookie": {
+    "title": "Wir verwenden Cookies",
+    "text": "Wir verwenden Cookies, damit unsere Website funktioniert, den Datenverkehr messen und Ihre Einstellungen speichern können. Sie entscheiden, was Sie akzeptieren.",
+    "necessary": "Notwendige (immer aktiv)",
+    "statistics": "Statistik",
+    "preferences": "Präferenzen",
+    "save": "Auswahl speichern",
+    "acceptAll": "Alle akzeptieren",
+    "reject": "Optionale ablehnen"
+  },
+  "slider": {
+    "before": "Vorher",
+    "after": "Nachher",
+    "aiEdited": "KI-bearbeitet",
+    "dragToCompare": "Ziehen zum Vergleichen"
+  },
+  "trustMarquee": [
+    "Für den europäischen Immobilienmarkt entwickelt",
+    "DSGVO-konform — Ihre Daten bleiben in der EU",
+    "Keine Bindung — jederzeit kündbar",
+    "Professionelle Qualität in 30 Sekunden",
+    "Vom leeren Raum zur Verkaufsreife — sofort",
+    "KI-Visualisierungen · 3D-Grundrisse · Showcase-Videos",
+    "Keine versteckten Gebühren — transparente Preisgestaltung",
+    "Dokumentierte Einsparung pro Immobilie"
+  ]
+}
