@@ -1679,6 +1679,7 @@ export async function registerRoutes(
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
 
       // Accept either a new file upload or an existing server-side URL (locked image re-adjust)
+      const isReadjust = !req.file && !!req.body.existingOriginalUrl;
       const originalImageUrl: string = req.file
         ? `/uploads/${req.file.filename}`
         : (req.body.existingOriginalUrl || "");
@@ -1686,17 +1687,28 @@ export async function registerRoutes(
 
       const uploadUrl = `${protocol}://${host}${originalImageUrl}`;
 
-      // 5 free uses per original image per user; paid credits needed beyond that
-      const FREE_LIMIT = 5;
-      const existingCount = userId !== null
-        ? await storage.countAgentDesignsByOriginalUrl(userId, originalImageUrl)
-        : 0;
-      const isFreeUse = existingCount < FREE_LIMIT;
+      // New generation: costs a credit (existing 2-free-visualization quota unchanged)
+      // Re-adjustment of same image: first 5 are free, beyond that costs a credit
+      const FREE_ADJUSTMENTS = 5;
+      let freeUsesRemaining = FREE_ADJUSTMENTS;
 
-      if (userId !== null && !isAdmin && !isFreeUse) {
-        const deducted = await storage.deductCredit(userId, "AI Design Agent generation");
-        if (!deducted) {
-          return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
+      if (userId !== null && !isAdmin) {
+        if (isReadjust) {
+          // existingCount = number of designs already saved for this image (incl. the original)
+          const existingCount = await storage.countAgentDesignsByOriginalUrl(userId, originalImageUrl);
+          freeUsesRemaining = Math.max(0, FREE_ADJUSTMENTS - existingCount);
+          if (freeUsesRemaining === 0) {
+            const deducted = await storage.deductCredit(userId, "AI Design Agent re-justering");
+            if (!deducted) {
+              return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
+            }
+          }
+        } else {
+          // Normal new generation — use credits as before
+          const deducted = await storage.deductCredit(userId, "AI Design Agent generering");
+          if (!deducted) {
+            return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
+          }
         }
       }
 
@@ -1707,7 +1719,8 @@ export async function registerRoutes(
         status: "processing",
       });
 
-      const freeUsesRemaining = Math.max(0, FREE_LIMIT - (existingCount + 1));
+      // After creation, decrement remaining count by 1 (this generation just consumed one slot)
+      if (isReadjust) freeUsesRemaining = Math.max(0, freeUsesRemaining - 1);
 
       try {
         const uuid = await sendCollovAgentTask(uploadUrl, prompt);
