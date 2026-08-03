@@ -10,17 +10,11 @@ import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
 
-// ─── One-time migration ───────────────────────────────────────────────────────
-// Previous versions of i18n used `caches: ["localStorage"]`, which meant the
-// LanguageDetector silently wrote the auto-detected language to localStorage on
-// first visit. If that auto-detection produced "en" (e.g. before i18n was
-// properly configured, or due to a Vite SSR quirk), Danish users got stuck in
-// English permanently — their stored "en" took priority over navigator.language.
-//
-// Rule: only trust localStorage if the user EXPLICITLY chose a language via the
-// language switcher (marked by `forma-lang-explicit = "1"`). Otherwise, clear
-// any cached value and let navigator.language re-detect on every visit.
-// The switcher must call setExplicitLang() below so the flag is preserved.
+// ─── One-time migration ────────────────────────────────────────────────────────
+// Previous versions used `caches: ["localStorage"]`, which silently wrote the
+// auto-detected language to localStorage. If that produced "en" before i18n was
+// properly configured, Danish users got stuck in English. Clear any cached value
+// that wasn't set explicitly by the user (marked by forma-lang-explicit = "1").
 (function migrateStaleLanguageCache() {
   try {
     const cached = localStorage.getItem("forma-lang");
@@ -29,22 +23,34 @@ import fr from "./locales/fr.json";
       localStorage.removeItem("forma-lang");
     }
   } catch {
-    // localStorage not available (e.g. SSR/incognito with storage blocked)
+    /* localStorage blocked (e.g. incognito strict mode) */
   }
 })();
 
-/** Call this (and only this) when the user explicitly picks a language in the UI. */
+/**
+ * Call this (and ONLY this) when the user explicitly picks a language in the UI.
+ * Sets the explicit flag so the migration code won't clear it.
+ */
 export function setExplicitLang(lang: string) {
   try {
     localStorage.setItem("forma-lang", lang);
     localStorage.setItem("forma-lang-explicit", "1");
   } catch {
-    // ignore
+    /* ignore */
   }
   i18n.changeLanguage(lang);
 }
 
 // ─── i18n init ────────────────────────────────────────────────────────────────
+// Detection order:
+//   1. localStorage  — only present when user explicitly switched (see above)
+//   2. cookie        — "fe-locale" cookie set by the Express server from the
+//                      OS-accurate Accept-Language header (works even when the
+//                      browser UI language differs from the OS language)
+//   3. navigator     — browser JS language (fallback; may differ from OS)
+//
+// We do NOT cache back to localStorage automatically (caches:[]) — that's what
+// caused stale "en" values to get stuck for Danish users in the first place.
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -58,28 +64,22 @@ i18n
       es: { translation: es },
       fr: { translation: fr },
     },
-    // Fallback chain: missing key → Danish (home language of the product)
     fallbackLng: "da",
-    // Strip region tags: "da-DK" → "da", "nb-NO" → "nb"
-    load: "languageOnly",
+    load: "languageOnly",          // "da-DK" → "da", "nb-NO" → "nb"
     supportedLngs: ["da", "sv", "de", "nb", "en", "es", "fr"],
     nonExplicitSupportedLngs: true,
     detection: {
-      // 1. localStorage  — only present when user explicitly switched (see above)
-      // 2. navigator     — OS/browser language = best proxy for user locale
-      order: ["localStorage", "navigator"],
+      order: ["localStorage", "cookie", "navigator"],
       lookupLocalStorage: "forma-lang",
-      // NO automatic caching — we write to localStorage only via setExplicitLang()
-      // so we never overwrite an explicit choice with an auto-detected one.
-      caches: [],
+      lookupCookie: "fe-locale",
+      caches: [], // never auto-write — only setExplicitLang() writes
     },
     interpolation: {
-      escapeValue: false, // React already escapes
+      escapeValue: false,
     },
   });
 
-// Normalise "no" / "nn" → "nb" so Norwegian users get the right translations.
-// Do this after init so the resolved language is available.
+// Normalise "no" / "nn" → "nb" for Norwegian users
 if (i18n.language?.startsWith("no") || i18n.language?.startsWith("nn")) {
   i18n.changeLanguage("nb");
 }

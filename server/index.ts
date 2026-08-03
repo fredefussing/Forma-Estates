@@ -30,6 +30,33 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// ─── Locale cookie from Accept-Language ───────────────────────────────────────
+// navigator.language in the browser reflects the browser's own UI language list
+// (e.g. Chrome stays English even if macOS is Danish). Accept-Language is set by
+// the OS for every HTTP request and is therefore always accurate. We surface it
+// as an httpOnly:false cookie (fe-locale) so the client i18n module can read it
+// synchronously — without a fetch round-trip — before the first render.
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const accept = req.headers["accept-language"] ?? "";
+  const supported = ["da", "sv", "de", "nb", "en", "es", "fr"];
+  const langMap: Record<string, string> = { no: "nb", nn: "nb" };
+  const detected =
+    accept
+      .split(",")
+      .map(p => {
+        const base = p.trim().split(";")[0].split("-")[0].toLowerCase();
+        return langMap[base] ?? base;
+      })
+      .find(l => supported.includes(l)) ?? "da";
+  res.cookie("fe-locale", detected, {
+    maxAge: 365 * 24 * 60 * 60 * 1000,
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
+  });
+  next();
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",

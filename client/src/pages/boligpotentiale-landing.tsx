@@ -27,7 +27,9 @@ import {
   Instagram,
   Linkedin,
   Upload,
+  Globe,
 } from "lucide-react";
+import { setExplicitLang } from "@/i18n";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 import formaEstatesMonogram from "@assets/forma-estates-monogram.png";
 
@@ -50,6 +52,16 @@ const C = {
 
 const SERIF = "'Playfair Display', Georgia, serif";
 const SANS = "'Inter', system-ui, -apple-system, sans-serif";
+
+const LANGUAGES = [
+  { code: "da", flag: "🇩🇰", name: "Dansk" },
+  { code: "en", flag: "🇬🇧", name: "English" },
+  { code: "sv", flag: "🇸🇪", name: "Svenska" },
+  { code: "de", flag: "🇩🇪", name: "Deutsch" },
+  { code: "nb", flag: "🇳🇴", name: "Norsk" },
+  { code: "es", flag: "🇪🇸", name: "Español" },
+  { code: "fr", flag: "🇫🇷", name: "Français" },
+] as const;
 
 // Nav keys map to t('nav.xxx') inside the component
 const NAV_LINKS_BASE = [
@@ -1058,11 +1070,23 @@ function TileCarousel({ images }: { images: string[] }) {
 }
 
 export default function BoligpotentialeLanding() {
-  const { t } = useTranslation();
+  const { t, i18n: i18nCtx } = useTranslation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("home");
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+
+  // Close language dropdown on outside click
+  useEffect(() => {
+    if (!langOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [langOpen]);
   const [openFeature, setOpenFeature] = useState<number | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
@@ -1253,6 +1277,35 @@ export default function BoligpotentialeLanding() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            {/* Language switcher */}
+            <div className="relative" ref={langRef}>
+              <button
+                onClick={() => setLangOpen(o => !o)}
+                className="flex items-center gap-1 transition-colors hover:bg-[color:var(--bg-warm)]"
+                style={{ ['--bg-warm' as any]: C.warm, padding: "10px 12px", borderRadius: 8, border: `1px solid transparent`, color: C.muted, fontSize: 13, fontFamily: SANS }}
+                title="Change language"
+                aria-label="Select language"
+                data-testid="bolig-nav-lang-btn"
+              >
+                <Globe className="w-4 h-4" />
+                <span className="text-base leading-none">{LANGUAGES.find(l => l.code === i18nCtx.language)?.flag ?? "🌐"}</span>
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 top-full mt-1 z-[200] rounded-xl shadow-xl overflow-hidden" style={{ background: C.champagne, border: `1px solid ${C.border}`, minWidth: 160 }} data-testid="bolig-lang-dropdown">
+                  {LANGUAGES.map(lang => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setExplicitLang(lang.code); setLangOpen(false); }}
+                      className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 text-sm hover:bg-white transition-colors"
+                      style={{ color: i18nCtx.language === lang.code ? C.navy : C.muted, fontWeight: i18nCtx.language === lang.code ? 600 : 400, fontFamily: SANS }}
+                      data-testid={`bolig-lang-${lang.code}`}
+                    >
+                      <span>{lang.flag}</span>{lang.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Link href="/kontakt">
               <button
                 className="transition-colors hover:bg-[color:var(--bg-warm)]"
@@ -1322,6 +1375,25 @@ export default function BoligpotentialeLanding() {
                   {l.label}
                 </a>
               ))}
+              {/* Mobile language switcher */}
+              <div className="flex flex-wrap gap-2 pb-1">
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => { setExplicitLang(lang.code); setMobileOpen(false); }}
+                    className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1.5 border transition-colors"
+                    style={{
+                      background: i18nCtx.language === lang.code ? C.navy : "transparent",
+                      color: i18nCtx.language === lang.code ? "white" : C.muted,
+                      border: `1px solid ${i18nCtx.language === lang.code ? C.navy : C.border}`,
+                      fontFamily: SANS,
+                    }}
+                    data-testid={`bolig-mobile-lang-${lang.code}`}
+                  >
+                    {lang.flag} {lang.name}
+                  </button>
+                ))}
+              </div>
               <Link href="/login?redirect=/boligpotentiale/dashboard">
                 <button className="w-full mt-2" style={{ padding: "12px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent" }} data-testid="bolig-mobile-login">
                   {t("nav.login")}
