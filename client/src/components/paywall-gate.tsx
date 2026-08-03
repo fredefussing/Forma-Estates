@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Lock, ArrowRight, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,6 +49,7 @@ const EXAMPLE_PAIRS = [
 ];
 
 export function PaywallPage({ children, allowFreeTrial = false }: { children: React.ReactNode; allowFreeTrial?: boolean }) {
+  const { t } = useTranslation();
   const isSubscribed = useIsSubscribed();
   const hasFreeTrialCredits = useFreeTrialGateState();
   const [, setLocation] = useLocation();
@@ -70,13 +72,13 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
           <Lock className="w-7 h-7" style={{ color: "#C8956C" }} />
         </div>
         <div className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3" style={{ color: "#C8956C" }}>
-          Abonnement påkrævet
+          {t("dashboard.paywall.subscriptionRequired")}
         </div>
         <h1 className="text-2xl font-semibold mb-3" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
-          Lås op for alle AI-værktøjer
+          {t("dashboard.paywall.unlockAll")}
         </h1>
         <p className="text-sm mb-7 leading-relaxed" style={{ color: "#6B6B6B" }}>
-          Få adgang til AI-staging, 3D plantegninger, transformeringsvideoer, showcase-videoer og meget mere — og sælg boliger hurtigere.
+          {t("dashboard.paywall.unlockDesc")}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
@@ -85,7 +87,7 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
             style={{ background: "#C8956C", color: "white" }}
             data-testid="paywall-upgrade-btn"
           >
-            Se abonnementer <ArrowRight className="w-4 h-4" />
+            {t("dashboard.paywall.seeSubscriptions")} <ArrowRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => setLocation("/boligpotentiale/dashboard")}
@@ -93,7 +95,7 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
             style={{ background: "white", color: "#0F1D2F", borderColor: "#E8E4DE" }}
             data-testid="paywall-back-btn"
           >
-            Tilbage til dashboard
+            {t("dashboard.paywall.backToDashboard")}
           </button>
         </div>
       </div>
@@ -101,7 +103,7 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
       {/* Example images */}
       <div className="w-full max-w-2xl">
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-center mb-4" style={{ color: "#9B9690" }}>
-          Eksempler på hvad du får adgang til
+          {t("dashboard.paywall.examplesTitle")}
         </p>
         <div className="grid grid-cols-3 gap-3 mb-4">
           {EXAMPLE_PAIRS.map((p) => (
@@ -123,7 +125,7 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
               <img src="/bolig-images/floorplan-3d.jpg" alt="3D" className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
             </div>
             <div className="px-3 py-2 text-center">
-              <span className="text-[11px] font-medium" style={{ color: "#9B9690" }}>3D plantegning · AI-genereret</span>
+              <span className="text-[11px] font-medium" style={{ color: "#9B9690" }}>{t("dashboard.paywall.floorPlanLabel")}</span>
             </div>
           </div>
           <div className="rounded-2xl overflow-hidden border border-[#E8E4DE] bg-white shadow-sm">
@@ -133,7 +135,7 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
               <img src="/bolig-images/dining-after.jpg" alt="Spisestue" className="w-full object-cover" style={{ aspectRatio: "9/16" }} />
             </div>
             <div className="px-3 py-2 text-center">
-              <span className="text-[11px] font-medium" style={{ color: "#9B9690" }}>Bolig showcase · 9:16 video</span>
+              <span className="text-[11px] font-medium" style={{ color: "#9B9690" }}>{t("dashboard.paywall.showcaseLabel")}</span>
             </div>
           </div>
         </div>
@@ -143,6 +145,7 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
 }
 
 export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
+  const { t } = useTranslation();
   const isSubscribed = useIsSubscribed();
   const { user, loading, creditsRemaining } = useAuth();
   const quotaData = useQuotaData();
@@ -169,8 +172,8 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
         <div className="flex items-center gap-2.5 min-w-0">
           <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: "#C8956C" }} />
           <span className="truncate" style={{ color: "rgba(245,243,239,0.85)", fontSize: "0.8rem" }}>
-            <span className="font-semibold" style={{ color: "#C8956C" }}>Gratis prøve:</span>{" "}
-            {aiLeft === 1 ? "1 AI-visualisering tilbage" : `${aiLeft} AI-visualiseringer tilbage`} — prøv Før/Efter eller AI Design Agent uden abonnement
+            <span className="font-semibold" style={{ color: "#C8956C" }}>{t("dashboard.paywall.freeTrialLabel")}</span>{" "}
+            {t("dashboard.paywall.freeLeft", { count: aiLeft })} {t("dashboard.paywall.freeTrialSuffix")}
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -180,7 +183,7 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
             style={{ background: "#C8956C", color: "white" }}
             data-testid="button-banner-generate"
           >
-            Generér nu
+            {t("dashboard.paywall.generateNow")}
           </button>
           <button
             onClick={() => setLocation("/boligpotentiale#pricing")}
@@ -188,7 +191,7 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
             style={{ color: "rgba(245,243,239,0.75)", borderColor: "rgba(245,243,239,0.25)" }}
             data-testid="button-upgrade"
           >
-            Opgrader
+            {t("dashboard.paywall.upgrade")}
           </button>
         </div>
       </div>
@@ -197,8 +200,8 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
 
   // Free trial used up: honest state + upgrade path.
   const bannerText = isFreeTrial && aiLeft === 0
-    ? "Din gratis prøve er brugt op — opgradér for at fortsætte med alle AI-værktøjer"
-    : "Du er på en gratis konto — alle funktioner kræver et aktivt abonnement";
+    ? t("dashboard.paywall.trialUsedUp")
+    : t("dashboard.paywall.freeAccountDesc");
 
   return (
     <div
@@ -218,7 +221,7 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
         style={{ background: "#C8956C", color: "white" }}
         data-testid="button-upgrade"
       >
-        Opgrader
+        {t("dashboard.paywall.upgrade")}
       </button>
     </div>
   );
@@ -233,6 +236,7 @@ export function PaywallAction({
   className?: string;
   allowFreeTrial?: boolean;
 }) {
+  const { t } = useTranslation();
   const isSubscribed = useIsSubscribed();
   const hasFreeTrialCredits = useFreeTrialGateState();
   const [, setLocation] = useLocation();
@@ -268,7 +272,7 @@ export function PaywallAction({
           style={{ background: "#0F1D2F", color: "white" }}
         >
           <Lock className="w-3.5 h-3.5" />
-          Kræver abonnement
+          {t("dashboard.paywall.requiresSubscription")}
         </span>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 import { BarChart3, Sparkles, Box, Video, Film, Users, Copy, Check, Lock } from "lucide-react";
 
@@ -35,13 +36,6 @@ function QuotaBar({ used, limit, color = "#C8956C" }: { used: number; limit: num
   );
 }
 
-const FEATURES = [
-  { key: "ai",            label: "AI Visualiseringer",  icon: Sparkles },
-  { key: "floorPlan",     label: "3D Plantegninger",     icon: Box },
-  { key: "transformVideo",label: "Transformering Video", icon: Video },
-  { key: "showcase",      label: "Bolig Showcase",       icon: Film },
-] as const;
-
 const TIER_LABELS: Record<string, string> = {
   start: "Start",
   pro: "Pro",
@@ -50,6 +44,7 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
     try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
@@ -64,7 +59,7 @@ function CopyButton({ text }: { text: string }) {
       data-testid="button-copy-invite-link"
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-      {copied ? "Kopieret!" : "Kopier link"}
+      {copied ? t("dashboard.team.copied") : t("dashboard.team.copyInviteLink")}
     </button>
   );
 }
@@ -105,6 +100,7 @@ export function useQuotaData(): QuotaData | null {
 }
 
 export function QuotaWidget() {
+  const { t } = useTranslation();
   const data = useQuotaData();
 
   if (!data) return null;
@@ -113,7 +109,7 @@ export function QuotaWidget() {
   const isUnlimitedUser = isAdmin || quota.teamPlan === "unlimited";
   const isFreeTrial = !!quota.isFreeTrial && !isAdmin;
   const planLabel = isAdmin
-    ? "Admin · Ubegrænset"
+    ? t("dashboard.quota.adminUnlimited")
     : quota.teamPlan
     ? `${TIER_LABELS[quota.teamPlan] ?? quota.teamPlan} plan`
     : null;
@@ -126,6 +122,13 @@ export function QuotaWidget() {
     ? Math.max(0, Math.ceil((resetsAtDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : null;
 
+  const FEATURES = [
+    { key: "ai",            label: t("dashboard.quota.productLabels.aiVisual"),      icon: Sparkles },
+    { key: "floorPlan",     label: t("dashboard.quota.productLabels.plan3d"),         icon: Box },
+    { key: "transformVideo",label: t("dashboard.quota.productLabels.transformVideo"), icon: Video },
+    { key: "showcase",      label: t("dashboard.quota.productLabels.showcase"),       icon: Film },
+  ] as const;
+
   return (
     <div className="bg-white rounded-2xl p-5 border border-[#E8E4DE] shadow-sm" data-testid="quota-widget">
       {/* Header */}
@@ -133,10 +136,10 @@ export function QuotaWidget() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
-            <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>{isFreeTrial ? "Gratis prøve" : "Månedlig kvota"}</h3>
+            <h3 className="text-sm font-semibold" style={{ color: "#1A1A1A" }}>{isFreeTrial ? t("dashboard.quota.freeTrial") : t("dashboard.quota.monthlyQuota")}</h3>
             {isFreeTrial ? (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
-                Gratis
+                {t("dashboard.quota.free")}
               </span>
             ) : planLabel && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>
@@ -149,7 +152,7 @@ export function QuotaWidget() {
           {quota.teamName && quota.memberCount !== null && quota.maxMembers !== null && (
             <div className="flex items-center gap-1 mb-1 justify-end">
               <Users className="w-3 h-3" style={{ color: "#9B9690" }} />
-              <span className="text-[11px]" style={{ color: "#9B9690" }}>{quota.memberCount}/{quota.maxMembers} medl.</span>
+              <span className="text-[11px]" style={{ color: "#9B9690" }}>{t("dashboard.quota.members", { count: quota.memberCount, max: quota.maxMembers })}</span>
             </div>
           )}
         </div>
@@ -163,9 +166,9 @@ export function QuotaWidget() {
           </div>
           <div>
             <p className="text-xs font-semibold leading-tight" style={{ color: daysRemaining <= 5 ? "#EF4444" : "#1A1A1A" }}>
-              {daysRemaining === 1 ? "1 dag tilbage" : `${daysRemaining} dage tilbage`}
+              {t("dashboard.quota.daysLeft", { count: daysRemaining })}
             </p>
-            <p className="text-[11px] leading-tight" style={{ color: "#9B9690" }}>Kvota nulstilles {resetDate}</p>
+            <p className="text-[11px] leading-tight" style={{ color: "#9B9690" }}>{t("dashboard.quota.quotaResetsOn", { date: resetDate })}</p>
           </div>
         </div>
       )}
@@ -190,14 +193,14 @@ export function QuotaWidget() {
                   <span className="text-xs font-medium" style={{ color: danger ? "#EF4444" : locked ? "#9B9690" : "#1A1A1A" }}>{label}</span>
                 </div>
                 <span className="text-[11px] font-semibold" style={{ color: danger ? "#EF4444" : locked ? "#B0ABA5" : "#6B6B6B" }}>
-                  {unlimited ? "Ubegrænset" : locked ? "Kun i pakker" : danger ? "Brugt op" : `${remaining} tilbage`}
+                  {unlimited ? t("dashboard.quota.unlimited") : locked ? t("dashboard.quota.onlyInPackages") : danger ? t("dashboard.quota.usedUp") : t("dashboard.quota.remaining", { count: remaining })}
                 </span>
               </div>
               <QuotaBar used={locked ? 0 : f.used} limit={unlimited ? null : (locked ? 0 : f.limit)} color={danger ? "#EF4444" : "#C8956C"} />
               {!unlimited && !locked && (
                 <div className="flex justify-between mt-0.5">
-                  <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{f.used} brugt</span>
-                  <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{f.limit ?? 0} i alt</span>
+                  <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{t("dashboard.quota.used", { count: f.used })}</span>
+                  <span className="text-[10px]" style={{ color: "#B0ABA5" }}>{t("dashboard.quota.total", { count: f.limit ?? 0 })}</span>
                 </div>
               )}
             </div>
@@ -209,7 +212,7 @@ export function QuotaWidget() {
       {isFreeTrial && (
         <div className="mt-4 pt-4 border-t border-[#F0EDE8]">
           <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: "#6B6B6B" }}>
-            Du er på en gratis prøve med {quota.ai.limit ?? 2} AI-visualiseringer. Opgradér for at låse 3D-plantegninger, videoer og mere op.
+            {t("dashboard.quota.trialDesc", { limit: quota.ai.limit ?? 2 })}
           </p>
           <a
             href="/boligpotentiale#pricing"
@@ -217,7 +220,7 @@ export function QuotaWidget() {
             className="inline-flex items-center justify-center gap-1.5 w-full px-4 py-2 rounded-full text-xs font-semibold text-white transition-all hover:opacity-90"
             style={{ background: "#C8956C" }}
           >
-            Opgradér nu →
+            {t("dashboard.quota.upgradeNow")}
           </a>
         </div>
       )}
@@ -228,15 +231,15 @@ export function QuotaWidget() {
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
-              <span className="text-xs font-semibold" style={{ color: "#1A1A1A" }}>Team invite-link</span>
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>Max 15 medl.</span>
+              <span className="text-xs font-semibold" style={{ color: "#1A1A1A" }}>{t("dashboard.quota.teamInviteLink")}</span>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.1)", color: "#C8956C" }}>{t("dashboard.quota.maxMembers")}</span>
             </div>
             <CopyButton text={inviteLink} />
           </div>
           <p className="text-[11px] leading-relaxed" style={{ color: "#9B9690" }}>
-            Del med kolleger — gratis adgang under dit team. Mere end 15?{" "}
-            <a href="mailto:support@formaestates.dk" className="underline" style={{ color: "#C8956C" }}>Skriv til support</a>
-            {" "}og vi fikser det.
+            {t("dashboard.quota.shareWithColleagues")}{" "}
+            <a href="mailto:support@formaestates.dk" className="underline" style={{ color: "#C8956C" }}>{t("dashboard.quota.contactSupport")}</a>
+            {t("dashboard.quota.contactSupportSuffix")}
           </p>
         </div>
       )}
@@ -247,12 +250,6 @@ export function QuotaWidget() {
 // ── QuotaGate ────────────────────────────────────────────────────────────────
 // Wraps a generate button — shows a lock banner when the user's quota is
 // exhausted (used >= limit) or when they have no plan (limit=0).
-const QUOTA_GATE_LABELS: Record<string, string> = {
-  ai: "AI-visualiseringer",
-  floorPlan: "3D-plantegninger",
-  transformVideo: "transformeringsvideoer",
-  showcase: "showcase-videoer",
-};
 
 export function QuotaGate({
   feature,
@@ -261,6 +258,7 @@ export function QuotaGate({
   feature: "ai" | "floorPlan" | "transformVideo" | "showcase";
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const data = useQuotaData();
   if (!data) return <>{children}</>;
   const { isAdmin, quota } = data;
@@ -274,17 +272,24 @@ export function QuotaGate({
   // Feature the free plan never included (limit 0) vs. an allowance that ran out.
   const locked = (f.limit ?? 0) === 0;
 
+  const QUOTA_GATE_LABELS: Record<string, string> = {
+    ai: t("dashboard.quota.aiVisualizations"),
+    floorPlan: t("dashboard.quota.floorPlans"),
+    transformVideo: t("dashboard.quota.transformVideos"),
+    showcase: t("dashboard.quota.showcaseVideos"),
+  };
+
   const title = locked
-    ? `${QUOTA_GATE_LABELS[feature]} kræver et abonnement`
+    ? t("dashboard.paywall.featureNeedsSubscription", { feature: QUOTA_GATE_LABELS[feature] })
     : isFreeTrial
-    ? `Du har brugt dine ${f.limit} gratis AI-visualiseringer`
-    : `Alle dine ${QUOTA_GATE_LABELS[feature]} er brugt op`;
+    ? t("dashboard.paywall.freeUsedUp", { count: f.limit, limit: f.limit })
+    : t("dashboard.paywall.featureAllUsedUp", { feature: QUOTA_GATE_LABELS[feature] });
 
   const subtitle = locked
-    ? "Lås denne funktion op ved at vælge en pakke"
+    ? t("dashboard.paywall.unlockWithPlan")
     : isFreeTrial
-    ? "Opgradér for at fortsætte — og lås alle funktioner op"
-    : "Opgradér din pakke for at generere flere";
+    ? t("dashboard.paywall.upgradeToUnlock")
+    : t("dashboard.paywall.upgradeForMore");
 
   return (
     <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col items-center gap-3 text-center" data-testid={`quota-gate-${feature}`}>
@@ -301,7 +306,7 @@ export function QuotaGate({
         className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
         style={{ background: "#C8956C" }}
       >
-        Opgradér nu →
+        {t("dashboard.quota.upgradeNow")}
       </a>
     </div>
   );
