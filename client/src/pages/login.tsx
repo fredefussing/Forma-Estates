@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, LogIn, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   usePageTitle("Log ind", "Log ind på din Forma Estates-konto og fortsæt arbejdet med dine boligvisualiseringer.");
   const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
@@ -37,21 +40,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       await signInWithEmailAndPassword(auth, email, password);
       setLocation(redirect);
     } catch (err: any) {
       if (err.code === "auth/user-not-found") {
-        setError("Bruger ikke fundet. Tjek email eller opret konto.");
+        setError(t("loginPage.errors.userNotFound"));
       } else if (err.code === "auth/wrong-password") {
-        setError("Forkert password. Prøv igen.");
+        setError(t("loginPage.errors.wrongPassword"));
       } else if (err.code === "auth/invalid-credential") {
-        setError("Forkert email eller password. Prøv igen.");
+        setError(t("loginPage.errors.invalidCredential"));
       } else if (err.code === "auth/too-many-requests") {
-        setError("For mange forsøg. Prøv igen senere.");
+        setError(t("loginPage.errors.tooManyRequests"));
       } else {
-        setError("Der skete en fejl. Prøv igen.");
+        setError(t("loginPage.errors.generic"));
       }
     } finally {
       setLoading(false);
@@ -63,20 +65,18 @@ export default function LoginPage() {
     setResetError("");
     setResetLoading(true);
     try {
-      // Går via vores egen server, så hvert forsøg logges (fejlsøgning af
-      // "mailen kommer aldrig"-sager). Selve mailen sendes af Firebase.
       const r = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim() }),
+        body: JSON.stringify({ email: resetEmail.trim(), lang: i18n.language }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.success) {
-        throw new Error(j.message || "Der skete en fejl. Prøv igen.");
+        throw new Error(j.message || t("loginPage.errors.generic"));
       }
       setResetSent(true);
     } catch (err: any) {
-      setResetError(err.message || "Der skete en fejl. Prøv igen.");
+      setResetError(err.message || t("loginPage.errors.generic"));
     } finally {
       setResetLoading(false);
     }
@@ -92,8 +92,8 @@ export default function LoginPage() {
             </span>
           </Link>
 
-          <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">Nulstil password</h1>
-          <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Vi sender dig et link til at oprette nyt password</p>
+          <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">{t("loginPage.reset.title")}</h1>
+          <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">{t("loginPage.reset.subtitle")}</p>
 
           {resetSent ? (
             <div className="text-center space-y-4">
@@ -102,14 +102,14 @@ export default function LoginPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-sm text-muted-foreground">Vi har sendt et nulstillingslink til <strong>{resetEmail}</strong>.</p>
-              <p className="text-xs text-muted-foreground">Mailen kommer fra <strong>kontakt@formaestates.com</strong> — tjek evt. din spam-mappe hvis den ikke dukker op inden for et par minutter.</p>
+              <p className="text-sm text-muted-foreground">{t("loginPage.reset.sentPre")} <strong>{resetEmail}</strong>.</p>
+              <p className="text-xs text-muted-foreground">{t("loginPage.reset.spamNote")}</p>
               <button
                 onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
                 className="text-sm text-[#1a1a1a] underline"
                 data-testid="link-back-to-login"
               >
-                Tilbage til log ind
+                {t("loginPage.reset.backToLogin")}
               </button>
             </div>
           ) : (
@@ -128,11 +128,9 @@ export default function LoginPage() {
                   data-testid="input-reset-email"
                 />
               </div>
-
               <Button type="submit" className="w-full h-12 text-base" disabled={resetLoading} data-testid="button-send-reset">
-                {resetLoading ? "Sender..." : "Send nulstillingslink"}
+                {resetLoading ? t("loginPage.reset.sending") : t("loginPage.reset.sendButton")}
               </Button>
-
               {resetError && (
                 <p className="text-destructive text-sm text-center" data-testid="text-reset-error">{resetError}</p>
               )}
@@ -146,7 +144,7 @@ export default function LoginPage() {
               data-testid="link-back-to-login-bottom"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Tilbage til log ind
+              {t("loginPage.reset.backToLogin")}
             </button>
           )}
         </div>
@@ -163,8 +161,8 @@ export default function LoginPage() {
           </span>
         </Link>
 
-        <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">Log ind</h1>
-        <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Få adgang til dine AI-billeder</p>
+        <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">{t("loginPage.title")}</h1>
+        <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">{t("loginPage.subtitle")}</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -190,7 +188,7 @@ export default function LoginPage() {
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
                 data-testid="link-forgot-password"
               >
-                Glemt password?
+                {t("loginPage.forgotPassword")}
               </button>
             </div>
             <div className="relative">
@@ -209,7 +207,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showPassword ? "Skjul password" : "Vis password"}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 data-testid="button-toggle-password"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -219,7 +217,7 @@ export default function LoginPage() {
 
           <Button type="submit" className="w-full h-12 text-base" disabled={loading} data-testid="button-login">
             <LogIn className="w-4 h-4 mr-2" />
-            {loading ? "Logger ind..." : "Log ind"}
+            {loading ? t("loginPage.loggingIn") : t("loginPage.loginButton")}
           </Button>
 
           {error && (
@@ -228,16 +226,16 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center mt-6 text-sm text-muted-foreground">
-          Har du ikke en konto?{" "}
+          {t("loginPage.noAccount")}{" "}
           <Link href="/opret">
-            <span className="text-[#1a1a1a] underline cursor-pointer font-medium" data-testid="link-signup">Opret bruger</span>
+            <span className="text-[#1a1a1a] underline cursor-pointer font-medium" data-testid="link-signup">{t("loginPage.createAccount")}</span>
           </Link>
         </p>
 
         <Link href="/">
           <span className="flex items-center justify-center gap-1.5 mt-4 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors" data-testid="link-back">
             <ArrowLeft className="w-3.5 h-3.5" />
-            Tilbage til forsiden
+            {t("loginPage.backToFront")}
           </span>
         </Link>
       </div>

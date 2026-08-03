@@ -19,11 +19,37 @@
     "next": "Siguiente"
   },
   "slides": [
-    { "title": "Vídeo cinematográfico", "caption": "Una sola imagen se convierte en un vídeo vivo de 5 segundos — listo para tu anuncio.", "meta": "" },
-    { "title": "Vídeo de transformación", "caption": "Observa cómo la habitación pasa del antes al después en una animación fluida — perfecto para anuncios y redes sociales.", "meta": "Cocina · Transformación" },
-    { "title": "Antes y después", "caption": "Sube una foto de la habitación — la IA rediseña el interior en menos de 20 segundos.", "meta": "Comedor · Escandinavo", "beforeLabel": "Antes", "afterLabel": "Después" },
-    { "title": "Antes y después", "caption": "Sube una foto — la IA transforma la propiedad en menos de 20 segundos.", "meta": "Granero · AI Design Agent", "beforeLabel": "Antes", "afterLabel": "Después" },
-    { "title": "Plano 3D", "caption": "Del plano plano a un espacio 3D vivo que el comprador puede sentir.", "meta": "Plano 3D", "beforeLabel": "Plano 2D", "afterLabel": "3D" }
+    {
+      "title": "Vídeo cinematográfico",
+      "caption": "Una sola imagen se convierte en un vídeo vivo de 5 segundos — listo para tu anuncio.",
+      "meta": ""
+    },
+    {
+      "title": "Vídeo de transformación",
+      "caption": "Observa cómo la habitación pasa del antes al después en una animación fluida — perfecto para anuncios y redes sociales.",
+      "meta": "Cocina · Transformación"
+    },
+    {
+      "title": "Antes y después",
+      "caption": "Sube una foto de la habitación — la IA rediseña el interior en menos de 20 segundos.",
+      "meta": "Comedor · Escandinavo",
+      "beforeLabel": "Antes",
+      "afterLabel": "Después"
+    },
+    {
+      "title": "Antes y después",
+      "caption": "Sube una foto — la IA transforma la propiedad en menos de 20 segundos.",
+      "meta": "Granero · AI Design Agent",
+      "beforeLabel": "Antes",
+      "afterLabel": "Después"
+    },
+    {
+      "title": "Plano 3D",
+      "caption": "Del plano plano a un espacio 3D vivo que el comprador puede sentir.",
+      "meta": "Plano 3D",
+      "beforeLabel": "Plano 2D",
+      "afterLabel": "3D"
+    }
   ],
   "savingsNudge": {
     "text": "Ahorra hasta 18.000 DKK+ en postproducción por propiedad —",
@@ -40,11 +66,31 @@
     "headlineLine2": "No la habitación vacía",
     "seeMore": "Ver más",
     "tiles": [
-      { "eyebrow": "Antes / Después", "title": "Staging con IA", "desc": "Una habitación vacía se convierte en un hogar en segundos." },
-      { "eyebrow": "Plano 3D", "title": "Comprende la distribución", "desc": "Deja que el comprador recorra la estancia antes de la primera visita." },
-      { "eyebrow": "Vídeo inmobiliario", "title": "Narrativa cinematográfica", "desc": "Despierta emociones con un recorrido en vídeo envolvente." },
-      { "eyebrow": "AI Design Agent", "title": "Describe tu visión", "desc": "Dile a la IA lo que quieres — lo convierte en un diseño acabado." },
-      { "eyebrow": "Property Showcase", "title": "Muestra el potencial", "desc": "Presenta todo el potencial de la propiedad con visualizaciones profesionales." }
+      {
+        "eyebrow": "Antes / Después",
+        "title": "Staging con IA",
+        "desc": "Una habitación vacía se convierte en un hogar en segundos."
+      },
+      {
+        "eyebrow": "Plano 3D",
+        "title": "Comprende la distribución",
+        "desc": "Deja que el comprador recorra la estancia antes de la primera visita."
+      },
+      {
+        "eyebrow": "Vídeo inmobiliario",
+        "title": "Narrativa cinematográfica",
+        "desc": "Despierta emociones con un recorrido en vídeo envolvente."
+      },
+      {
+        "eyebrow": "AI Design Agent",
+        "title": "Describe tu visión",
+        "desc": "Dile a la IA lo que quieres — lo convierte en un diseño acabado."
+      },
+      {
+        "eyebrow": "Property Showcase",
+        "title": "Muestra el potencial",
+        "desc": "Presenta todo el potencial de la propiedad con visualizaciones profesionales."
+      }
     ]
   },
   "howItWorks": {
@@ -52,9 +98,18 @@
     "headline": "Tres pasos — menos de un minuto",
     "subline": "Sin software, sin conocimientos técnicos — solo una foto y un clic.",
     "steps": [
-      { "title": "Sube una foto de la habitación", "desc": "Haz una foto con tu móvil o cámara. No se necesita fotografía profesional." },
-      { "title": "Elige el tipo de habitación y el estilo", "desc": "Selecciona el tipo de habitación y elige uno de nuestros estilos de diseño — desde el minimalismo escandinavo hasta el lujo moderno." },
-      { "title": "Descarga tu visualización", "desc": "La IA genera tu imagen en menos de 20 segundos. Lista para descargar en alta calidad." }
+      {
+        "title": "Sube una foto de la habitación",
+        "desc": "Haz una foto con tu móvil o cámara. No se necesita fotografía profesional."
+      },
+      {
+        "title": "Elige el tipo de habitación y el estilo",
+        "desc": "Selecciona el tipo de habitación y elige uno de nuestros estilos de diseño — desde el minimalismo escandinavo hasta el lujo moderno."
+      },
+      {
+        "title": "Descarga tu visualización",
+        "desc": "La IA genera tu imagen en menos de 20 segundos. Lista para descargar en alta calidad."
+      }
     ]
   },
   "stats": {
@@ -63,10 +118,26 @@
     "subline": "Las propiedades con visualización profesional se venden más rápido, a mejor precio y atraen más visitas online.",
     "sources": "Fuentes: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
     "items": [
-      { "stat": "73%", "label": "ventas más rápidas", "desc": "Las propiedades staging se venden de media un 73% más rápido que las no staging." },
-      { "stat": "+8%", "label": "mayor precio de venta", "desc": "Los compradores suelen ofrecer entre un 1 y un 8% más por una propiedad profesionalmente visualizada." },
-      { "stat": "3×", "label": "más visitas online", "desc": "Los anuncios con imágenes de staging reciben hasta tres veces más clics en los portales." },
-      { "stat": "95%", "label": "de los compradores buscan online", "desc": "La primera impresión se crea en pantalla — no en la visita." }
+      {
+        "stat": "73%",
+        "label": "ventas más rápidas",
+        "desc": "Las propiedades staging se venden de media un 73% más rápido que las no staging."
+      },
+      {
+        "stat": "+8%",
+        "label": "mayor precio de venta",
+        "desc": "Los compradores suelen ofrecer entre un 1 y un 8% más por una propiedad profesionalmente visualizada."
+      },
+      {
+        "stat": "3×",
+        "label": "más visitas online",
+        "desc": "Los anuncios con imágenes de staging reciben hasta tres veces más clics en los portales."
+      },
+      {
+        "stat": "95%",
+        "label": "de los compradores buscan online",
+        "desc": "La primera impresión se crea en pantalla — no en la visita."
+      }
     ]
   },
   "features": {
@@ -75,15 +146,46 @@
     "readMore": "Leer más",
     "readLess": "Mostrar menos",
     "items": [
-      { "title": "Visualización realista", "desc": "Conserva las paredes, ventanas y la luz natural de la habitación — solo cambia el interior.", "more": "El resultado parece una foto real de la propiedad. Las proporciones, la perspectiva y la luz del día se preservan para que el comprador pueda imaginar el hogar terminado." },
-      { "title": "8 estilos de diseño", "desc": "Escandinavo, moderno, industrial, boho, clásico y más." },
-      { "title": "Plano 3D", "desc": "Obtén un plano 3D claro que muestra la distribución y el flujo de la habitación.", "more": "El plano ayuda a los compradores a entender la distribución y la escala de la propiedad — una ventaja clara en el anuncio." },
-      { "title": "Vídeo de transformación", "desc": "Un vídeo corto que muestra la habitación pasando del antes al después.", "more": "El pequeño vídeo antes/después capta la atención en los portales inmobiliarios y las redes sociales, haciendo que el anuncio cobre vida." },
-      { "title": "Design Agent", "desc": "Escribe en palabras simples lo que quieres cambiar — nosotros nos encargamos del resto.", "more": "Por ejemplo: «cambia el sofá por uno de lino claro y añade una planta grande». No se necesitan conocimientos de diseño ni técnicos." },
-      { "title": "Lista en menos de 20 seg.", "desc": "Sin esperas. La visualización está lista mientras sigues en la habitación." },
-      { "title": "Directamente en el navegador", "desc": "Sin software ni instalación. Todo ocurre online." },
-      { "title": "Descarga en alta resolución", "desc": "Lista para portales inmobiliarios, redes sociales e impresión." },
-      { "title": "Soporte en danés", "desc": "Estamos en Dinamarca y respondemos tus preguntas en días laborables." }
+      {
+        "title": "Visualización realista",
+        "desc": "Conserva las paredes, ventanas y la luz natural de la habitación — solo cambia el interior.",
+        "more": "El resultado parece una foto real de la propiedad. Las proporciones, la perspectiva y la luz del día se preservan para que el comprador pueda imaginar el hogar terminado."
+      },
+      {
+        "title": "8 estilos de diseño",
+        "desc": "Escandinavo, moderno, industrial, boho, clásico y más."
+      },
+      {
+        "title": "Plano 3D",
+        "desc": "Obtén un plano 3D claro que muestra la distribución y el flujo de la habitación.",
+        "more": "El plano ayuda a los compradores a entender la distribución y la escala de la propiedad — una ventaja clara en el anuncio."
+      },
+      {
+        "title": "Vídeo de transformación",
+        "desc": "Un vídeo corto que muestra la habitación pasando del antes al después.",
+        "more": "El pequeño vídeo antes/después capta la atención en los portales inmobiliarios y las redes sociales, haciendo que el anuncio cobre vida."
+      },
+      {
+        "title": "Design Agent",
+        "desc": "Escribe en palabras simples lo que quieres cambiar — nosotros nos encargamos del resto.",
+        "more": "Por ejemplo: «cambia el sofá por uno de lino claro y añade una planta grande». No se necesitan conocimientos de diseño ni técnicos."
+      },
+      {
+        "title": "Lista en menos de 20 seg.",
+        "desc": "Sin esperas. La visualización está lista mientras sigues en la habitación."
+      },
+      {
+        "title": "Directamente en el navegador",
+        "desc": "Sin software ni instalación. Todo ocurre online."
+      },
+      {
+        "title": "Descarga en alta resolución",
+        "desc": "Lista para portales inmobiliarios, redes sociales e impresión."
+      },
+      {
+        "title": "Soporte en danés",
+        "desc": "Estamos en Dinamarca y respondemos tus preguntas en días laborables."
+      }
     ]
   },
   "savings": {
@@ -99,10 +201,22 @@
     "totalForma": "Desde 2.999 DKK/mes",
     "disclaimer": "* Los precios son orientativos y pueden variar según el proveedor, la complejidad y la ubicación.",
     "rows": [
-      { "label": "4 visualizaciones IA", "traditional": "2.500 DKK" },
-      { "label": "1 plano 3D", "traditional": "2.500 DKK" },
-      { "label": "2 vídeos de transformación", "traditional": "10.000 DKK" },
-      { "label": "1 vídeo showcase", "traditional": "6.000 DKK" }
+      {
+        "label": "4 visualizaciones IA",
+        "traditional": "2.500 DKK"
+      },
+      {
+        "label": "1 plano 3D",
+        "traditional": "2.500 DKK"
+      },
+      {
+        "label": "2 vídeos de transformación",
+        "traditional": "10.000 DKK"
+      },
+      {
+        "label": "1 vídeo showcase",
+        "traditional": "6.000 DKK"
+      }
     ]
   },
   "pricing": {
@@ -121,9 +235,42 @@
     "enterprise": "Empresa — diseña tu plan",
     "custom": "Personalizado",
     "plans": {
-      "Start": { "cta": "Elegir Start", "features": ["10 visualizaciones IA / mes", "2 planos 3D / mes", "2 vídeos de transformación / mes", "1 Property Showcase / mes", "HD 1080p · JPG + PNG", "Marca con logo (activar/desactivar)", "Soporte estándar"] },
-      "Pro": { "cta": "Elegir Pro", "features": ["25 visualizaciones IA / mes", "5 planos 3D / mes", "5 vídeos de transformación / mes", "3 Property Showcase / mes", "4K · JPG + PNG + PDF", "Control total de marca", "Soporte prioritario"] },
-      "Business": { "cta": "Elegir Business", "features": ["60 visualizaciones IA / mes", "12 planos 3D / mes", "12 vídeos de transformación / mes", "8 Property Showcase / mes", "4K · JPG + PNG + PDF", "Control total de marca", "Soporte dedicado"] }
+      "Start": {
+        "cta": "Elegir Start",
+        "features": [
+          "10 visualizaciones IA / mes",
+          "2 planos 3D / mes",
+          "2 vídeos de transformación / mes",
+          "1 Property Showcase / mes",
+          "HD 1080p · JPG + PNG",
+          "Marca con logo (activar/desactivar)",
+          "Soporte estándar"
+        ]
+      },
+      "Pro": {
+        "cta": "Elegir Pro",
+        "features": [
+          "25 visualizaciones IA / mes",
+          "5 planos 3D / mes",
+          "5 vídeos de transformación / mes",
+          "3 Property Showcase / mes",
+          "4K · JPG + PNG + PDF",
+          "Control total de marca",
+          "Soporte prioritario"
+        ]
+      },
+      "Business": {
+        "cta": "Elegir Business",
+        "features": [
+          "60 visualizaciones IA / mes",
+          "12 planos 3D / mes",
+          "12 vídeos de transformación / mes",
+          "8 Property Showcase / mes",
+          "4K · JPG + PNG + PDF",
+          "Control total de marca",
+          "Soporte dedicado"
+        ]
+      }
     }
   },
   "faq": {
@@ -133,15 +280,42 @@
     "sideText": "Estamos aquí para ayudarte. Envíanos un mensaje y te responderemos en un plazo de 24 horas.",
     "sideButton": "Escríbenos",
     "items": [
-      { "q": "¿Qué es Forma Estates?", "a": "Forma Estates es una plataforma de IA para la visualización profesional de propiedades. Subes imágenes de una propiedad y obtienes en segundos: visualizaciones IA de las habitaciones en hasta 8 estilos de diseño, un vídeo cinematográfico con movimientos de cámara IA y música sincronizada, un vídeo de transformación con la transición del antes al después, un plano 3D a partir de tu plano 2D y presentaciones PDF profesionales con comparación antes/después — todo listo para anuncios, redes sociales, materiales de proyecto y presentaciones a clientes." },
-      { "q": "¿Quién usa Forma Estates?", "a": "La plataforma la usan agentes inmobiliarios, promotores, constructoras, comunidades de propietarios, empresas de alquiler y otros profesionales del sector inmobiliario. Tanto si vendes, alquilas, reformas o presentas un proyecto, Forma Estates te ofrece visualizaciones profesionales en segundos." },
-      { "q": "¿Qué son las visualizaciones IA y los vídeos de transformación?", "a": "Las visualizaciones IA son imágenes fijas en las que la IA rediseña la habitación en el estilo elegido — las paredes, el suelo y las ventanas permanecen iguales mientras se reemplazan los muebles, la iluminación y los acabados. Los vídeos de transformación son clips de 5 segundos que animan la transición del espacio original al rediseñado — ideales para mostrar el potencial de la propiedad en Instagram, en presentaciones de proyectos y en anuncios." },
-      { "q": "¿Qué son los vídeos de propiedad (Showcase)?", "a": "El vídeo Showcase combina tus imágenes de la propiedad en un vídeo vertical 9:16 con movimientos de cámara generados por IA (dolly, órbita, paneo) y música de fondo sincronizada con el ritmo. El resultado es un reel profesional listo para Instagram, Facebook, portales inmobiliarios y webs de proyectos — sin equipo de cámara ni edición de vídeo." },
-      { "q": "¿Cuánto cuesta?", "a": "Las suscripciones empiezan desde 2.999 DKK/mes y dan acceso a todas las funcionalidades: visualizaciones IA, vídeos de transformación, vídeos de propiedad, planos 3D y presentaciones PDF. Contáctanos para un presupuesto adaptado a tu empresa o equipo." },
-      { "q": "¿Qué formatos de archivo puedo subir?", "a": "Admitimos JPG y PNG. Para mejores resultados, la imagen debe tener al menos 800×600 píxeles y estar tomada con buena luz natural. Evita el contraluz intenso o las habitaciones muy oscuras — cuanto mejor sea la entrada, mejor será el resultado." },
-      { "q": "¿Puedo usar el material en marketing y presentaciones?", "a": "Sí. Todas las visualizaciones, vídeos y PDF generados se pueden descargar y usar libremente en anuncios, materiales de proyecto, redes sociales y presentaciones a clientes. Recomendamos etiquetar claramente las imágenes generadas por IA de acuerdo con las directrices del sector." },
-      { "q": "¿La IA conserva la estructura de la habitación?", "a": "Sí. Las paredes, ventanas, suelo y proporciones de la habitación se mantienen intactas. Solo se rediseñan los muebles, la iluminación y los acabados, por lo que el resultado tiene un aspecto realista y creíble para posibles compradores, inquilinos e inversores." },
-      { "q": "¿Son confidenciales mis imágenes?", "a": "Sí. Las imágenes subidas se usan únicamente para generar tu visualización y no se comparten con terceros. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">Consulta nuestra política de privacidad</a> para más detalles sobre la protección de datos." }
+      {
+        "q": "¿Qué es Forma Estates?",
+        "a": "Forma Estates es una plataforma de IA para la visualización profesional de propiedades. Subes imágenes de una propiedad y obtienes en segundos: visualizaciones IA de las habitaciones en hasta 8 estilos de diseño, un vídeo cinematográfico con movimientos de cámara IA y música sincronizada, un vídeo de transformación con la transición del antes al después, un plano 3D a partir de tu plano 2D y presentaciones PDF profesionales con comparación antes/después — todo listo para anuncios, redes sociales, materiales de proyecto y presentaciones a clientes."
+      },
+      {
+        "q": "¿Quién usa Forma Estates?",
+        "a": "La plataforma la usan agentes inmobiliarios, promotores, constructoras, comunidades de propietarios, empresas de alquiler y otros profesionales del sector inmobiliario. Tanto si vendes, alquilas, reformas o presentas un proyecto, Forma Estates te ofrece visualizaciones profesionales en segundos."
+      },
+      {
+        "q": "¿Qué son las visualizaciones IA y los vídeos de transformación?",
+        "a": "Las visualizaciones IA son imágenes fijas en las que la IA rediseña la habitación en el estilo elegido — las paredes, el suelo y las ventanas permanecen iguales mientras se reemplazan los muebles, la iluminación y los acabados. Los vídeos de transformación son clips de 5 segundos que animan la transición del espacio original al rediseñado — ideales para mostrar el potencial de la propiedad en Instagram, en presentaciones de proyectos y en anuncios."
+      },
+      {
+        "q": "¿Qué son los vídeos de propiedad (Showcase)?",
+        "a": "El vídeo Showcase combina tus imágenes de la propiedad en un vídeo vertical 9:16 con movimientos de cámara generados por IA (dolly, órbita, paneo) y música de fondo sincronizada con el ritmo. El resultado es un reel profesional listo para Instagram, Facebook, portales inmobiliarios y webs de proyectos — sin equipo de cámara ni edición de vídeo."
+      },
+      {
+        "q": "¿Cuánto cuesta?",
+        "a": "Las suscripciones empiezan desde 2.999 DKK/mes y dan acceso a todas las funcionalidades: visualizaciones IA, vídeos de transformación, vídeos de propiedad, planos 3D y presentaciones PDF. Contáctanos para un presupuesto adaptado a tu empresa o equipo."
+      },
+      {
+        "q": "¿Qué formatos de archivo puedo subir?",
+        "a": "Admitimos JPG y PNG. Para mejores resultados, la imagen debe tener al menos 800×600 píxeles y estar tomada con buena luz natural. Evita el contraluz intenso o las habitaciones muy oscuras — cuanto mejor sea la entrada, mejor será el resultado."
+      },
+      {
+        "q": "¿Puedo usar el material en marketing y presentaciones?",
+        "a": "Sí. Todas las visualizaciones, vídeos y PDF generados se pueden descargar y usar libremente en anuncios, materiales de proyecto, redes sociales y presentaciones a clientes. Recomendamos etiquetar claramente las imágenes generadas por IA de acuerdo con las directrices del sector."
+      },
+      {
+        "q": "¿La IA conserva la estructura de la habitación?",
+        "a": "Sí. Las paredes, ventanas, suelo y proporciones de la habitación se mantienen intactas. Solo se rediseñan los muebles, la iluminación y los acabados, por lo que el resultado tiene un aspecto realista y creíble para posibles compradores, inquilinos e inversores."
+      },
+      {
+        "q": "¿Son confidenciales mis imágenes?",
+        "a": "Sí. Las imágenes subidas se usan únicamente para generar tu visualización y no se comparten con terceros. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">Consulta nuestra política de privacidad</a> para más detalles sobre la protección de datos."
+      }
     ]
   },
   "footerCta": {
@@ -189,5 +363,177 @@
     "Visualizaciones IA · Planos 3D · Vídeos Showcase",
     "Sin costes ocultos — precios transparentes",
     "Ahorro documentado por propiedad"
-  ]
+  ],
+  "loginPage": {
+    "title": "Iniciar sesión",
+    "subtitle": "Accede a tus imágenes IA",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "loginButton": "Iniciar sesión",
+    "loggingIn": "Iniciando sesión...",
+    "noAccount": "¿No tienes una cuenta?",
+    "createAccount": "Crear cuenta",
+    "backToFront": "Volver a la página de inicio",
+    "reset": {
+      "title": "Restablecer contraseña",
+      "subtitle": "Te enviaremos un enlace para crear una nueva contraseña",
+      "sentPre": "Hemos enviado un enlace de restablecimiento a",
+      "spamNote": "El correo viene de kontakt@formaestates.com — revisa la carpeta de spam si no aparece.",
+      "backToLogin": "Volver al inicio de sesión",
+      "sendButton": "Enviar enlace de restablecimiento",
+      "sending": "Enviando..."
+    },
+    "errors": {
+      "userNotFound": "Usuario no encontrado. Comprueba el email o crea una cuenta.",
+      "wrongPassword": "Contraseña incorrecta. Inténtalo de nuevo.",
+      "invalidCredential": "Email o contraseña incorrectos. Inténtalo de nuevo.",
+      "tooManyRequests": "Demasiados intentos. Inténtalo más tarde.",
+      "generic": "Algo salió mal. Inténtalo de nuevo."
+    }
+  },
+  "signupPage": {
+    "title": "Crear cuenta",
+    "subtitle": "Crea tu cuenta y obtén 2 visualizaciones IA gratuitas de inmediato",
+    "name": "Tu nombre",
+    "namePlaceholder": "P. ej. Juan García",
+    "passwordPlaceholder": "Mín. 6 caracteres",
+    "confirmPassword": "Repetir contraseña",
+    "confirmPasswordPlaceholder": "Repetir contraseña",
+    "createButton": "Crear cuenta",
+    "creating": "Creando...",
+    "hasAccount": "¿Ya tienes una cuenta?",
+    "login": "Iniciar sesión",
+    "backToFront": "Volver a la página de inicio",
+    "success": "¡Cuenta creada! Confirma tu email con el código que hemos enviado...",
+    "errors": {
+      "nameTooShort": "Escribe tu nombre completo (mínimo 2 caracteres).",
+      "passwordMismatch": "Las contraseñas no coinciden. Inténtalo de nuevo.",
+      "emailInUse": "El email ya está en uso. Intenta iniciar sesión.",
+      "invalidEmail": "Email inválido. Comprueba que lo has escrito correctamente.",
+      "weakPassword": "La contraseña es demasiado débil. Usa al menos 6 caracteres.",
+      "generic": "Algo salió mal. Inténtalo de nuevo."
+    }
+  },
+  "aiAgent": {
+    "nav": {
+      "pricing": "Precios",
+      "myDesigns": "Mis diseños",
+      "myAccount": "Mi cuenta",
+      "login": "Iniciar sesión"
+    },
+    "hero": {
+      "title": "Describe tu habitación ideal",
+      "subtitle": "Sube una foto de tu habitación y escribe exactamente qué quieres cambiar — sin límites."
+    },
+    "upload": {
+      "click": "Haz clic para subir una imagen",
+      "dragDrop": "o arrastra y suelta aquí · JPG, PNG, WEBP · máx. 10 MB",
+      "satelliteClick": "Sube tu imagen de satélite aquí",
+      "satelliteNote": "Captura de pantalla de Google Maps, Apple Maps, etc. · JPG, PNG, WEBP · máx. 10 MB"
+    },
+    "image": {
+      "label": "Tu imagen",
+      "locked": "Bloqueada",
+      "change": "Cambiar",
+      "freeRemaining": "{{count}} de 5 ajustes gratuitos restantes",
+      "freeUsed": "Los 5 ajustes gratuitos agotados"
+    },
+    "prompt": {
+      "label": "Describe lo que quieres",
+      "placeholder": "P. ej. Cocina oscura y moderna con vinoteca y encimera de mármol..."
+    },
+    "library": {
+      "title": "Biblioteca de prompts",
+      "note": "Haz clic en un prompt para insertarlo en el campo.",
+      "satellite": "Satélite"
+    },
+    "satellite": {
+      "back": "Volver",
+      "label": "Imagen de satélite",
+      "timeOfDay": "Momento del día"
+    },
+    "satelliteTimes": [
+      {
+        "label": "Amanecer",
+        "emoji": "🌄"
+      },
+      {
+        "label": "Media mañana",
+        "emoji": "🌤️"
+      },
+      {
+        "label": "Mediodía",
+        "emoji": "☀️"
+      },
+      {
+        "label": "Atardecer temprano",
+        "emoji": "🌅"
+      },
+      {
+        "label": "Hora azul",
+        "emoji": "🌆"
+      }
+    ],
+    "examplePrompts": [
+      "Cocina oscura y moderna con vinoteca y encimera de mármol",
+      "Dormitorio luminoso y ventilado con plantas y materiales naturales",
+      "Salón industrial con ladrillo visto y sofá de cuero",
+      "Baño escandinavo con detalles de madera y diseño minimalista",
+      "Salón bohemio con textiles coloridos, lámparas colgantes y plantas verdes"
+    ],
+    "generate": {
+      "button": "Generar diseño"
+    },
+    "generating": {
+      "title": "La IA está diseñando tu habitación...",
+      "subtitle": "Esto suele tardar 15–45 segundos",
+      "cancel": "Cancelar"
+    },
+    "result": {
+      "title": "Tu diseño generado por IA",
+      "freeRemaining": "{{count}} ajustes gratuitos restantes",
+      "freeExhausted": "Ajustes gratuitos agotados",
+      "adjust": "Ajustar de nuevo",
+      "newImage": "Nueva imagen",
+      "download": "Descargar imagen",
+      "tryStyled": "Probar con selección de estilo",
+      "aiLabelOn": "Las imágenes descargadas se etiquetan automáticamente con \"Editado con IA\" según lo exige la ley.",
+      "aiLabelOff": "La marca de agua está desactivada — las imágenes se descargan sin \"Editado con IA\"."
+    },
+    "watermark": {
+      "label": "Marca de agua:",
+      "on": "ACTIVADA",
+      "off": "DESACTIVADA"
+    },
+    "noWatermark": {
+      "title": "Descargar sin marca de agua",
+      "body": "Estás a punto de descargar sin la etiqueta \"Editado con IA\". ¿Estás seguro?",
+      "confirm": "Sí, descargar",
+      "cancel": "Cancelar"
+    },
+    "loginPrompt": {
+      "createAccount": "Crear cuenta",
+      "or": "o",
+      "login": "inicia sesión",
+      "suffix": "para generar diseños"
+    },
+    "credits": {
+      "unlimited": "∞ imágenes (admin)",
+      "remaining": "{{count}} imagen restante",
+      "remainingPlural": "{{count}} imágenes restantes"
+    },
+    "errors": {
+      "imageOnly": "Solo imágenes",
+      "imageOnlyDesc": "Por favor sube un archivo de imagen (JPG, PNG, WEBP)",
+      "tooLarge": "Archivo demasiado grande",
+      "tooLargeDesc": "Máx. 10 MB",
+      "loginRequired": "Iniciar sesión",
+      "loginRequiredDesc": "Debes iniciar sesión para generar diseños",
+      "noCredits": "No hay suficientes imágenes",
+      "noCreditsDesc": "Compra un paquete para continuar",
+      "error": "Error",
+      "generic": "Algo salió mal",
+      "timeout": "La generación tardó demasiado. Inténtalo de nuevo.",
+      "generationFailed": "La generación de IA falló. Inténtalo de nuevo en un momento."
+    }
+  }
 }

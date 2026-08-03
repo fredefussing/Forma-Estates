@@ -108,57 +108,107 @@ export async function sendTestEmail(to: string) {
   });
 }
 
-export async function sendVerificationCodeEmail(email: string, code: string) {
+// ─── Multilingual email helpers ─────────────────────────────────────────────
+type Lang = "da" | "sv" | "de" | "nb" | "en" | "es" | "fr";
+function normalizeLang(lang?: string): Lang {
+  const l = (lang || "da").toLowerCase().split("-")[0];
+  if (l === "no" || l === "nn") return "nb";
+  const supported: Lang[] = ["da", "sv", "de", "nb", "en", "es", "fr"];
+  return supported.includes(l as Lang) ? (l as Lang) : "en";
+}
+const FOOTER: Record<Lang, string> = {
+  da: "© Forma Estates · Danskudviklet i Danmark",
+  en: "© Forma Estates · Built in Denmark",
+  sv: "© Forma Estates · Byggt i Danmark",
+  de: "© Forma Estates · Entwickelt in Dänemark",
+  nb: "© Forma Estates · Bygget i Danmark",
+  es: "© Forma Estates · Fabricado en Dinamarca",
+  fr: "© Forma Estates · Fabriqué au Danemark",
+};
+const VERIFY_STRINGS: Record<Lang, { subject: (c: string) => string; intro: string; validity: string }> = {
+  da: { subject: c => `${c} er din aktiveringskode — Forma Estates`, intro: "Indtast denne kode for at aktivere din konto:", validity: "Koden er gyldig i 15 minutter. Har du ikke oprettet en konto hos Forma Estates, kan du ignorere denne mail." },
+  en: { subject: c => `${c} is your activation code — Forma Estates`, intro: "Enter this code to activate your account:", validity: "The code is valid for 15 minutes. If you didn't create a Forma Estates account, you can ignore this email." },
+  sv: { subject: c => `${c} är din aktiveringskod — Forma Estates`, intro: "Ange den här koden för att aktivera ditt konto:", validity: "Koden är giltig i 15 minuter. Har du inte skapat ett Forma Estates-konto kan du ignorera det här mejlet." },
+  de: { subject: c => `${c} ist dein Aktivierungscode — Forma Estates`, intro: "Gib diesen Code ein, um dein Konto zu aktivieren:", validity: "Der Code ist 15 Minuten gültig. Falls du kein Forma Estates-Konto erstellt hast, kannst du diese E-Mail ignorieren." },
+  nb: { subject: c => `${c} er din aktiveringskode — Forma Estates`, intro: "Skriv inn denne koden for å aktivere kontoen din:", validity: "Koden er gyldig i 15 minutter. Har du ikke opprettet en Forma Estates-konto, kan du ignorere denne e-posten." },
+  es: { subject: c => `${c} es tu código de activación — Forma Estates`, intro: "Introduce este código para activar tu cuenta:", validity: "El código es válido durante 15 minutos. Si no has creado una cuenta en Forma Estates, puedes ignorar este correo." },
+  fr: { subject: c => `${c} est votre code d'activation — Forma Estates`, intro: "Entrez ce code pour activer votre compte :", validity: "Le code est valable 15 minutes. Si vous n'avez pas créé de compte Forma Estates, vous pouvez ignorer cet e-mail." },
+};
+const RESET_STRINGS: Record<Lang, { subject: string; intro: string; button: string; altLink: string }> = {
+  da: { subject: "Nulstil dit password — Forma Estates", intro: "Vi har modtaget en anmodning om at nulstille passwordet til din Forma Estates-konto. Klik på knappen nedenfor for at vælge et nyt password:", button: "Nulstil password", altLink: "Kan du ikke klikke på knappen? Kopiér dette link ind i din browser:" },
+  en: { subject: "Reset your password — Forma Estates", intro: "We received a request to reset the password for your Forma Estates account. Click the button below to choose a new password:", button: "Reset password", altLink: "Can't click the button? Copy this link into your browser:" },
+  sv: { subject: "Återställ ditt lösenord — Forma Estates", intro: "Vi fick en begäran om att återställa lösenordet till ditt Forma Estates-konto. Klicka på knappen nedan för att välja ett nytt lösenord:", button: "Återställ lösenord", altLink: "Kan du inte klicka på knappen? Kopiera den här länken till din webbläsare:" },
+  de: { subject: "Passwort zurücksetzen — Forma Estates", intro: "Wir haben eine Anfrage zum Zurücksetzen des Passworts für dein Forma Estates-Konto erhalten. Klicke auf die Schaltfläche unten, um ein neues Passwort zu wählen:", button: "Passwort zurücksetzen", altLink: "Kannst du nicht auf die Schaltfläche klicken? Kopiere diesen Link in deinen Browser:" },
+  nb: { subject: "Tilbakestill passordet ditt — Forma Estates", intro: "Vi mottok en forespørsel om å tilbakestille passordet til Forma Estates-kontoen din. Klikk på knappen nedenfor for å velge et nytt passord:", button: "Tilbakestill passord", altLink: "Kan du ikke klikke på knappen? Kopier denne lenken til nettleseren din:" },
+  es: { subject: "Restablece tu contraseña — Forma Estates", intro: "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de Forma Estates. Haz clic en el botón de abajo para elegir una nueva contraseña:", button: "Restablecer contraseña", altLink: "¿No puedes hacer clic en el botón? Copia este enlace en tu navegador:" },
+  fr: { subject: "Réinitialisez votre mot de passe — Forma Estates", intro: "Nous avons reçu une demande de réinitialisation du mot de passe de votre compte Forma Estates. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :", button: "Réinitialiser le mot de passe", altLink: "Vous ne pouvez pas cliquer sur le bouton ? Copiez ce lien dans votre navigateur :" },
+};
+const WELCOME_STRINGS: Record<Lang, { subject: string; headline: string; body1: string; featTitle: string; feats: [string, string][]; upgradeText: string; dashCta: string; priceCta: string; closing: string }> = {
+  da: { subject: "Velkommen til Forma Estates!", headline: "Velkommen til Forma Estates!", body1: "Tak fordi du oprettede en konto. Forma Estates hjælper professionelle i hele ejendomsbranchen med at præsentere ejendomme på deres allerbedste med fotorealistiske AI-visualiseringer.", featTitle: "Det kan du med Forma Estates", feats: [["AI-indretningsdesign", "Foto af et rum → fotorealistisk redesign på sekunder"], ["3D-plantegninger", "2D-plantegning → flot 3D-version"], ["Videoer & showcases", "Før/efter-videoer og præsentationsvideoer til annoncer og SoMe"], ["AI Design Agent", "Beskriv frit hvad du ønsker — fuld kreativ frihed"]], upgradeText: "Vil du have fuld adgang til 3D-plantegninger, videoer, showcases og flere månedlige visualiseringer? <strong style=\"color:#0F1923;\">Opgradér til et abonnement</strong> — fra 2.999 kr/md.", dashCta: "Start dit første design →", priceCta: "Se abonnementer & opgradér nu", closing: "Spørgsmål? Svar blot på denne mail — vi sidder klar." },
+  en: { subject: "Welcome to Forma Estates!", headline: "Welcome to Forma Estates!", body1: "Thank you for creating an account. Forma Estates helps property professionals present their listings at their very best with photorealistic AI visualizations.", featTitle: "What you can do with Forma Estates", feats: [["AI Interior Design", "Room photo → photorealistic redesign in seconds"], ["3D Floor Plans", "2D plan → stunning 3D version"], ["Videos & Showcases", "Before/after videos and presentation videos for listings and social media"], ["AI Design Agent", "Describe freely what you want — full creative freedom"]], upgradeText: "Want full access to 3D floor plans, videos, showcases and more monthly visualizations? <strong style=\"color:#0F1923;\">Upgrade to a subscription</strong> — from 2,999 DKK/mo.", dashCta: "Start your first design →", priceCta: "View subscriptions & upgrade", closing: "Questions? Just reply to this email — we're here to help." },
+  sv: { subject: "Välkommen till Forma Estates!", headline: "Välkommen till Forma Estates!", body1: "Tack för att du skapade ett konto. Forma Estates hjälper fastighetsproffs att presentera sina objekt på bästa möjliga sätt med fotorealistiska AI-visualiseringar.", featTitle: "Det här kan du göra med Forma Estates", feats: [["AI-inredningsdesign", "Rumsfoto → fotorealistisk omdesign på sekunder"], ["3D-planlösningar", "2D-ritning → snygg 3D-version"], ["Videor & Showcases", "Före/efter-videor för annonser och sociala medier"], ["AI Design Agent", "Beskriv fritt vad du vill ha — full kreativ frihet"]], upgradeText: "Vill du ha full tillgång till 3D-planlösningar, videor och showcases? <strong style=\"color:#0F1923;\">Uppgradera till en prenumeration</strong> — från 2 999 DKK/mån.", dashCta: "Starta din första design →", priceCta: "Se prenumerationer & uppgradera", closing: "Frågor? Svara på det här mejlet — vi finns här." },
+  de: { subject: "Willkommen bei Forma Estates!", headline: "Willkommen bei Forma Estates!", body1: "Danke, dass du ein Konto erstellt hast. Forma Estates hilft Immobilienprofis, ihre Objekte mit fotorealistischen KI-Visualisierungen von ihrer besten Seite zu präsentieren.", featTitle: "Das kannst du mit Forma Estates machen", feats: [["KI-Innenraumdesign", "Raumfoto → fotorealistisches Redesign in Sekunden"], ["3D-Grundrisse", "2D-Plan → tolle 3D-Version"], ["Videos & Showcases", "Vorher/Nachher-Videos für Inserate und Social Media"], ["KI Design Agent", "Beschreibe frei, was du willst — volle kreative Freiheit"]], upgradeText: "Möchtest du vollen Zugang zu 3D-Grundrissen, Videos und Showcases? <strong style=\"color:#0F1923;\">Upgrade auf ein Abonnement</strong> — ab 2.999 DKK/Monat.", dashCta: "Erstes Design starten →", priceCta: "Abonnements ansehen & upgraden", closing: "Fragen? Antworte einfach auf diese E-Mail — wir helfen gerne." },
+  nb: { subject: "Velkommen til Forma Estates!", headline: "Velkommen til Forma Estates!", body1: "Takk for at du opprettet en konto. Forma Estates hjelper eiendomsprofesjonelle med å presentere eiendommene sine på sitt aller beste med fotorealistiske AI-visualiseringer.", featTitle: "Det kan du gjøre med Forma Estates", feats: [["AI-interiørdesign", "Romfoto → fotorealistisk redesign på sekunder"], ["3D-plantegninger", "2D-tegning → flott 3D-versjon"], ["Videoer & Showcases", "Før/etter-videoer for annonser og sosiale medier"], ["AI Design Agent", "Beskriv fritt hva du ønsker — full kreativ frihet"]], upgradeText: "Vil du ha full tilgang til 3D-plantegninger, videoer og showcases? <strong style=\"color:#0F1923;\">Oppgrader til et abonnement</strong> — fra 2 999 DKK/mnd.", dashCta: "Start din første design →", priceCta: "Se abonnementer & oppgrader", closing: "Spørsmål? Svar bare på denne e-posten — vi er her." },
+  es: { subject: "¡Bienvenido a Forma Estates!", headline: "¡Bienvenido a Forma Estates!", body1: "Gracias por crear una cuenta. Forma Estates ayuda a los profesionales inmobiliarios a presentar sus propiedades en su mejor versión con visualizaciones IA fotorrealistas.", featTitle: "Lo que puedes hacer con Forma Estates", feats: [["Diseño de interiores IA", "Foto de habitación → rediseño fotorrealista en segundos"], ["Planos 3D", "Plano 2D → impresionante versión 3D"], ["Vídeos & Showcases", "Vídeos antes/después para anuncios y redes sociales"], ["AI Design Agent", "Describe libremente lo que quieres — total libertad creativa"]], upgradeText: "¿Quieres acceso completo a planos 3D, vídeos y showcases? <strong style=\"color:#0F1923;\">Actualiza a una suscripción</strong> — desde 2.999 DKK/mes.", dashCta: "Empieza tu primer diseño →", priceCta: "Ver suscripciones y actualizar", closing: "¿Preguntas? Responde a este correo — estamos aquí para ayudarte." },
+  fr: { subject: "Bienvenue sur Forma Estates !", headline: "Bienvenue sur Forma Estates !", body1: "Merci d'avoir créé un compte. Forma Estates aide les professionnels de l'immobilier à présenter leurs biens sous leur meilleur jour avec des visualisations IA photoréalistes.", featTitle: "Ce que vous pouvez faire avec Forma Estates", feats: [["Design d'intérieur IA", "Photo de pièce → redesign photoréaliste en quelques secondes"], ["Plans 3D", "Plan 2D → superbe version 3D"], ["Vidéos & Showcases", "Vidéos avant/après pour annonces et réseaux sociaux"], ["AI Design Agent", "Décrivez librement ce que vous souhaitez — liberté créative totale"]], upgradeText: "Vous voulez un accès complet aux plans 3D, vidéos et showcases ? <strong style=\"color:#0F1923;\">Passez à un abonnement</strong> — à partir de 2 999 DKK/mois.", dashCta: "Commencer votre premier design →", priceCta: "Voir les abonnements et mettre à niveau", closing: "Des questions ? Répondez à cet e-mail — nous sommes là pour vous aider." },
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function sendVerificationCodeEmail(email: string, code: string, lang?: string) {
+  const l = normalizeLang(lang);
+  const s = VERIFY_STRINGS[l];
   await sendBrevoEmail({
     to: email,
-    subject: `${code} er din aktiveringskode — Forma Estates`,
+    subject: s.subject(code),
     senderEmail: KONTAKT_EMAIL,
     replyTo: KONTAKT_EMAIL,
     html: `
       <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
         <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
           <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
-          <h1 style="color:#0F1923;font-size:24px;margin:10px 0 18px;font-weight:500;">Bekræft din email</h1>
-          <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Indtast denne kode for at aktivere din konto:</p>
+          <p style="color:#555;font-size:15px;line-height:1.65;margin:18px 0 20px;">${s.intro}</p>
           <div style="text-align:center;margin:24px 0;">
             <span style="display:inline-block;background:#0F1923;color:#fff;font-size:32px;letter-spacing:0.3em;font-weight:700;padding:16px 28px 16px 36px;border-radius:10px;">${code}</span>
           </div>
-          <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;">Koden er gyldig i 15 minutter. Har du ikke oprettet en konto hos Forma Estates, kan du ignorere denne mail.</p>
+          <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;">${s.validity}</p>
         </div>
-        <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+        <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">${FOOTER[l]}</div>
       </div>
     `,
   });
-  log(`Verification code email sent to ${email}`);
+  log(`Verification code email sent to ${email} (lang: ${l})`);
 }
 
-export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+export async function sendPasswordResetEmail(email: string, resetUrl: string, lang?: string) {
+  const l = normalizeLang(lang);
+  const s = RESET_STRINGS[l];
   await sendBrevoEmail({
     to: email,
-    subject: "Nulstil dit password — Forma Estates",
+    subject: s.subject,
     senderEmail: KONTAKT_EMAIL,
     replyTo: KONTAKT_EMAIL,
     html: `
       <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
         <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
           <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
-          <h1 style="color:#0F1923;font-size:24px;margin:10px 0 18px;font-weight:500;">Nulstil dit password</h1>
-          <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Vi har modtaget en anmodning om at nulstille passwordet til din Forma Estates-konto. Klik på knappen nedenfor for at vælge et nyt password:</p>
+          <p style="color:#555;font-size:15px;line-height:1.65;margin:18px 0 20px;">${s.intro}</p>
           <div style="text-align:center;margin:28px 0;">
-            <a href="${resetUrl}" style="display:inline-block;background:#0F1923;color:#fff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.02em;">Nulstil password</a>
+            <a href="${resetUrl}" style="display:inline-block;background:#0F1923;color:#fff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.02em;">${s.button}</a>
           </div>
-          <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;">Linket er gyldigt i 15 minutter. Har du ikke bedt om at nulstille dit password, kan du ignorere denne mail — din konto er stadig sikker.</p>
+          <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;">Linket er gyldigt i 15 minutter.</p>
           <hr style="border:none;border-top:1px solid #E8DFD0;margin:24px 0 16px;">
-          <p style="color:#aaa;font-size:11px;margin:0;">Kan du ikke klikke på knappen? Kopiér dette link ind i din browser:<br><span style="color:#C9A96E;word-break:break-all;">${resetUrl}</span></p>
+          <p style="color:#aaa;font-size:11px;margin:0;">${s.altLink}<br><span style="color:#C9A96E;word-break:break-all;">${resetUrl}</span></p>
         </div>
-        <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+        <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">${FOOTER[l]}</div>
       </div>
     `,
   });
-  log(`Password reset email sent to ${email}`);
+  log(`Password reset email sent to ${email} (lang: ${l})`);
 }
 
-export async function sendWelcomeEmail(email: string, source?: string) {
+export async function sendWelcomeEmail(email: string, source?: string, lang?: string) {
+  const l = normalizeLang(lang);
+  const s = WELCOME_STRINGS[l];
   const now = new Date();
   const timestamp = now.toLocaleDateString("da-DK", {
     day: "numeric",
@@ -170,49 +220,44 @@ export async function sendWelcomeEmail(email: string, source?: string) {
   });
   const sourceLabel = source || "Direkte signup (/opret)";
 
+  const featureRows = s.feats.map(([title, desc]) =>
+    `<tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;width:45%;">${title}</td><td style="padding:6px 0;color:#777;font-size:13px;">${desc}</td></tr>`
+  ).join("\n");
+
   // Send welcome + admin notification in parallel — halves total time when
   // using SMTP (each send is a separate TCP round-trip).
   const [welcomeResult, adminResult] = await Promise.allSettled([
     sendBrevoEmail({
       to: email,
-      subject: "Velkommen til Forma Estates!",
+      subject: s.subject,
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
         <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
           <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
             <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
-            <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">Velkommen til Forma Estates!</h1>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Tak fordi du oprettede en konto. Forma Estates hjælper professionelle i hele ejendomsbranchen — ejendomsmæglere, boligudlejere, byggefirmaer, ejendomsudviklere og ejerforeninger — med at præsentere ejendomme på deres allerbedste med fotorealistiske AI-visualiseringer.</p>
-
+            <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">${s.headline}</h1>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">${s.body1}</p>
             <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:20px 22px;margin:0 0 22px;">
-              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:10px;">Det kan du med Forma Estates</div>
-              <table style="width:100%;border-collapse:collapse;">
-                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;width:45%;">AI-indretningsdesign</td><td style="padding:6px 0;color:#777;font-size:13px;">Foto af et rum → fotorealistisk redesign på sekunder</td></tr>
-                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;">3D-plantegninger</td><td style="padding:6px 0;color:#777;font-size:13px;">2D-plantegning → flot 3D-version</td></tr>
-                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;">Videoer & showcases</td><td style="padding:6px 0;color:#777;font-size:13px;">Før/efter-videoer og præsentationsvideoer til annoncer og SoMe</td></tr>
-                <tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;">AI Design Agent</td><td style="padding:6px 0;color:#777;font-size:13px;">Beskriv frit hvad du ønsker — fuld kreativ frihed</td></tr>
-              </table>
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:10px;">${s.featTitle}</div>
+              <table style="width:100%;border-collapse:collapse;">${featureRows}</table>
             </div>
-
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 6px;">Din konto starter med <strong style="color:#0F1923;">gratis AI-visualiseringer</strong>, så du kan prøve platformen af med det samme.</p>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Vil du have fuld adgang til 3D-plantegninger, videoer, showcases og flere månedlige visualiseringer? <strong style="color:#0F1923;">Opgradér til et abonnement</strong> — fra 2.999 kr/md.</p>
-
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">${s.upgradeText}</p>
             <p style="text-align:center;margin:26px 0 10px;">
               <a href="https://formaestates.com/boligpotentiale/dashboard"
                  style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
-                Start dit første design →
+                ${s.dashCta}
               </a>
             </p>
             <p style="text-align:center;margin:0 0 24px;">
               <a href="https://formaestates.com/pris"
                  style="background:#C9A96E;color:white;padding:12px 26px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:14px;">
-                Se abonnementer & opgradér nu
+                ${s.priceCta}
               </a>
             </p>
-            <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">Spørgsmål? Svar blot på denne mail — vi sidder klar.<br/><br/>Venlig hilsen<br/><strong style="color:#0F1923;">Forma Estates</strong></p>
+            <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">${s.closing}<br/><br/>Forma Estates</p>
           </div>
-          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">© Forma Estates · Danskudviklet i Danmark</div>
+          <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">${FOOTER[l]}</div>
         </div>
       `,
     }),
@@ -244,7 +289,7 @@ export async function sendWelcomeEmail(email: string, source?: string) {
   ]);
 
   if (welcomeResult.status === "rejected") log(`Failed to send welcome email to ${email}: ${(welcomeResult as PromiseRejectedResult).reason?.message}`);
-  else log(`Welcome email sent to ${email}`);
+  else log(`Welcome email sent to ${email} (lang: ${l})`);
   if (adminResult.status === "rejected") log(`Failed to send admin signup notification for ${email}: ${(adminResult as PromiseRejectedResult).reason?.message}`);
   else log(`Admin signup notification sent for ${email}`);
 }

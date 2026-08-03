@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function SignupPage() {
+  const { t } = useTranslation();
   usePageTitle("Opret konto", "Opret en gratis konto hos Forma Estates og få 2 gratis AI-boligvisualiseringer — intet kreditkort.");
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, emailVerified, isAdmin } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +31,6 @@ export default function SignupPage() {
     if (prefillEmail && !email) setEmail(prefillEmail);
   }, [prefillEmail]);
 
-  const { emailVerified, isAdmin } = useAuth();
-
   useEffect(() => {
     if (!authLoading && user && (emailVerified === true || isAdmin)) {
       setLocation(redirect);
@@ -46,34 +46,31 @@ export default function SignupPage() {
     setSuccess("");
 
     if (!displayName.trim() || displayName.trim().length < 2) {
-      setError("Skriv dit fulde navn (mindst 2 tegn).");
+      setError(t("signupPage.errors.nameTooShort"));
       return;
     }
-
     if (password !== confirmPassword) {
-      setError("Passwords matcher ikke. Prøv igen.");
+      setError(t("signupPage.errors.passwordMismatch"));
       return;
     }
 
     setLoading(true);
-
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: displayName.trim() });
-
-      setSuccess("Bruger oprettet! Bekræft din email med koden vi har sendt...");
+      setSuccess(t("signupPage.success"));
       setTimeout(() => {
         setLocation(`/verificer-email?redirect=${encodeURIComponent(redirect)}`);
       }, 1200);
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {
-        setError("Email er allerede i brug. Prøv at logge ind.");
+        setError(t("signupPage.errors.emailInUse"));
       } else if (err.code === "auth/invalid-email") {
-        setError("Ugyldig email. Tjek at du har skrevet rigtigt.");
+        setError(t("signupPage.errors.invalidEmail"));
       } else if (err.code === "auth/weak-password") {
-        setError("Password er for svagt. Brug mindst 6 tegn.");
+        setError(t("signupPage.errors.weakPassword"));
       } else {
-        setError("Der skete en fejl. Prøv igen.");
+        setError(t("signupPage.errors.generic"));
       }
     } finally {
       setLoading(false);
@@ -89,17 +86,17 @@ export default function SignupPage() {
           </span>
         </Link>
 
-        <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">Opret bruger</h1>
-        <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">Opret din konto og få 2 gratis AI-visualiseringer med det samme</p>
+        <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">{t("signupPage.title")}</h1>
+        <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">{t("signupPage.subtitle")}</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <Label htmlFor="displayName">Dit navn</Label>
+            <Label htmlFor="displayName">{t("signupPage.name")}</Label>
             <Input
               id="displayName"
               type="text"
               required
-              placeholder="F.eks. John Doe"
+              placeholder={t("signupPage.namePlaceholder")}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className="mt-1.5"
@@ -127,7 +124,7 @@ export default function SignupPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="Min. 6 tegn"
+                placeholder={t("signupPage.passwordPlaceholder")}
                 autoComplete="new-password"
                 minLength={6}
                 value={password}
@@ -139,7 +136,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showPassword ? "Skjul password" : "Vis password"}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 data-testid="button-toggle-password"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -147,13 +144,13 @@ export default function SignupPage() {
             </div>
           </div>
           <div>
-            <Label htmlFor="confirmPassword">Gentag password</Label>
+            <Label htmlFor="confirmPassword">{t("signupPage.confirmPassword")}</Label>
             <div className="relative mt-1.5">
               <Input
                 id="confirmPassword"
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="Gentag password"
+                placeholder={t("signupPage.confirmPasswordPlaceholder")}
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -164,7 +161,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showPassword ? "Skjul password" : "Vis password"}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 data-testid="button-toggle-confirm-password"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -174,7 +171,7 @@ export default function SignupPage() {
 
           <Button type="submit" className="w-full h-12 text-base" disabled={loading} data-testid="button-signup">
             <UserPlus className="w-4 h-4 mr-2" />
-            {loading ? "Opretter..." : "Opret bruger"}
+            {loading ? t("signupPage.creating") : t("signupPage.createButton")}
           </Button>
 
           {error && (
@@ -186,16 +183,16 @@ export default function SignupPage() {
         </form>
 
         <p className="text-center mt-6 text-sm text-muted-foreground">
-          Har du allerede en konto?{" "}
+          {t("signupPage.hasAccount")}{" "}
           <Link href="/login">
-            <span className="text-[#1a1a1a] underline cursor-pointer font-medium" data-testid="link-login">Log ind</span>
+            <span className="text-[#1a1a1a] underline cursor-pointer font-medium" data-testid="link-login">{t("signupPage.login")}</span>
           </Link>
         </p>
 
         <Link href="/">
           <span className="flex items-center justify-center gap-1.5 mt-4 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors" data-testid="link-back">
             <ArrowLeft className="w-3.5 h-3.5" />
-            Tilbage til forsiden
+            {t("signupPage.backToFront")}
           </span>
         </Link>
       </div>

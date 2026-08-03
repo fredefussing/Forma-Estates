@@ -519,7 +519,8 @@ export async function registerRoutes(
           });
 
           log(`New user created: ${email} (uid: ${uid})`);
-          sendWelcomeEmail(email, "Server-side oprettelse (Firebase verify)");
+          const welcomeLang = String(req.headers["x-lang"] || req.body?.lang || "da");
+          sendWelcomeEmail(email, "Server-side oprettelse (Firebase verify)", welcomeLang);
         }
       }
 
@@ -672,7 +673,8 @@ export async function registerRoutes(
       const baseUrl = `${req.protocol}://${req.get("host")}`;
       const resetUrl = `${baseUrl}/nulstil-password?token=${rawToken}`;
       // Fire-and-forget — respond immediately
-      sendPasswordResetEmail(email, resetUrl).catch((err: any) =>
+      const resetLang = String(req.body?.lang || "da");
+      sendPasswordResetEmail(email, resetUrl, resetLang).catch((err: any) =>
         log(`[PasswordReset] email-fejl for ${email}: ${err.message}`)
       );
       log(`[PasswordReset] token genereret for bruger-id ${user.id}, email afsendt via Brevo`);
@@ -755,7 +757,8 @@ export async function registerRoutes(
       });
       // Fire-and-forget — code is already saved to DB, respond immediately so
       // the client shows "kode sendt" without waiting for the SMTP round-trip.
-      sendVerificationCodeEmail(user.email, code).catch((err: any) =>
+      const verifyLang = String(req.body?.lang || req.headers["x-lang"] || "da");
+      sendVerificationCodeEmail(user.email, code, verifyLang).catch((err: any) =>
         log(`[auth] send-verification-code email failed: ${err.message}`)
       );
       return res.json({ success: true });

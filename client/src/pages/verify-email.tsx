@@ -38,9 +38,10 @@ export default function VerifyEmailPage() {
     setError("");
     try {
       const token = await user.getIdToken();
+      const currentLang = localStorage.getItem("forma-lang") || "da";
       const res = await fetch("/api/auth/send-verification-code", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "X-Lang": currentLang },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {

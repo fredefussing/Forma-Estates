@@ -19,11 +19,37 @@
     "next": "Nästa"
   },
   "slides": [
-    { "title": "Cinematisk video", "caption": "En stillbild förvandlas till 5 sekunders levande video — klar för annonsen.", "meta": "" },
-    { "title": "Transformationsvideo", "caption": "Se rummet gå från före till efter i en flytande animation — perfekt för annonser och sociala medier.", "meta": "Kök · Transformation" },
-    { "title": "Före & efter", "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på under 20 sekunder.", "meta": "Matsal · Skandinavisk", "beforeLabel": "Före", "afterLabel": "Efter" },
-    { "title": "Före & efter", "caption": "Ladda upp ett foto — AI transformerar fastigheten på under 20 sekunder.", "meta": "Stall · AI Design Agent", "beforeLabel": "Före", "afterLabel": "Efter" },
-    { "title": "3D Planritning", "caption": "Från platt planritning till levande 3D-rum som köparen kan uppleva.", "meta": "3D Planritning", "beforeLabel": "2D plan", "afterLabel": "3D" }
+    {
+      "title": "Cinematisk video",
+      "caption": "En stillbild förvandlas till 5 sekunders levande video — klar för annonsen.",
+      "meta": ""
+    },
+    {
+      "title": "Transformationsvideo",
+      "caption": "Se rummet gå från före till efter i en flytande animation — perfekt för annonser och sociala medier.",
+      "meta": "Kök · Transformation"
+    },
+    {
+      "title": "Före & efter",
+      "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på under 20 sekunder.",
+      "meta": "Matsal · Skandinavisk",
+      "beforeLabel": "Före",
+      "afterLabel": "Efter"
+    },
+    {
+      "title": "Före & efter",
+      "caption": "Ladda upp ett foto — AI transformerar fastigheten på under 20 sekunder.",
+      "meta": "Stall · AI Design Agent",
+      "beforeLabel": "Före",
+      "afterLabel": "Efter"
+    },
+    {
+      "title": "3D Planritning",
+      "caption": "Från platt planritning till levande 3D-rum som köparen kan uppleva.",
+      "meta": "3D Planritning",
+      "beforeLabel": "2D plan",
+      "afterLabel": "3D"
+    }
   ],
   "savingsNudge": {
     "text": "Spara upp till 18 000 kr+ på efterproduktion per bostad —",
@@ -40,11 +66,31 @@
     "headlineLine2": "Inte det tomma rummet",
     "seeMore": "Se mer",
     "tiles": [
-      { "eyebrow": "Före / Efter", "title": "AI-iscensättning", "desc": "Ett tomt rum förvandlas till ett hem på sekunder." },
-      { "eyebrow": "3D Planritning", "title": "Förstå flödet", "desc": "Låt köparen gå igenom rummet före första visningen." },
-      { "eyebrow": "Fastighetsvideo", "title": "Cinematiskt berättande", "desc": "Väck känslor med en levande videogenomgång." },
-      { "eyebrow": "AI Design Agent", "title": "Beskriv din vision", "desc": "Berätta för AI vad du önskar — den omvandlar det till ett färdigt design." },
-      { "eyebrow": "Bostad Showcase", "title": "Visa potentialen", "desc": "Presentera bostadens fulla potential med professionella visualiseringar." }
+      {
+        "eyebrow": "Före / Efter",
+        "title": "AI-iscensättning",
+        "desc": "Ett tomt rum förvandlas till ett hem på sekunder."
+      },
+      {
+        "eyebrow": "3D Planritning",
+        "title": "Förstå flödet",
+        "desc": "Låt köparen gå igenom rummet före första visningen."
+      },
+      {
+        "eyebrow": "Fastighetsvideo",
+        "title": "Cinematiskt berättande",
+        "desc": "Väck känslor med en levande videogenomgång."
+      },
+      {
+        "eyebrow": "AI Design Agent",
+        "title": "Beskriv din vision",
+        "desc": "Berätta för AI vad du önskar — den omvandlar det till ett färdigt design."
+      },
+      {
+        "eyebrow": "Bostad Showcase",
+        "title": "Visa potentialen",
+        "desc": "Presentera bostadens fulla potential med professionella visualiseringar."
+      }
     ]
   },
   "howItWorks": {
@@ -52,9 +98,18 @@
     "headline": "Tre steg — under en minut",
     "subline": "Ingen mjukvara, ingen teknisk kunskap — bara ett foto och ett klick.",
     "steps": [
-      { "title": "Ladda upp ett rumsfoto", "desc": "Ta ett foto av rummet med din telefon eller kamera. Ingen professionell fotografering behövs." },
-      { "title": "Välj rumstyp och stil", "desc": "Ange rumstyp och välj en av våra designstilar — från skandinavisk minimalism till modern lyx." },
-      { "title": "Ladda ner din visualisering", "desc": "AI genererar din bild på under 20 sekunder. Klar att ladda ner i full kvalitet." }
+      {
+        "title": "Ladda upp ett rumsfoto",
+        "desc": "Ta ett foto av rummet med din telefon eller kamera. Ingen professionell fotografering behövs."
+      },
+      {
+        "title": "Välj rumstyp och stil",
+        "desc": "Ange rumstyp och välj en av våra designstilar — från skandinavisk minimalism till modern lyx."
+      },
+      {
+        "title": "Ladda ner din visualisering",
+        "desc": "AI genererar din bild på under 20 sekunder. Klar att ladda ner i full kvalitet."
+      }
     ]
   },
   "stats": {
@@ -63,10 +118,26 @@
     "subline": "Bostäder med professionell visualisering säljs snabbare, till högre priser och lockar fler visningar online.",
     "sources": "Källor: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
     "items": [
-      { "stat": "73%", "label": "snabbare försäljning", "desc": "Iscensatta bostäder säljs i genomsnitt 73% snabbare än icke-iscensatta." },
-      { "stat": "+8%", "label": "högre försäljningspris", "desc": "Köparna bjuder typiskt 1–8% mer för en bostad som är professionellt visualiserad." },
-      { "stat": "3×", "label": "fler visningar online", "desc": "Annonser med staging-bilder får upp till tre gånger så många klick på portalerna." },
-      { "stat": "95%", "label": "av köparna söker online", "desc": "Förstahandsintrycket skapas på skärmen — inte vid visningen." }
+      {
+        "stat": "73%",
+        "label": "snabbare försäljning",
+        "desc": "Iscensatta bostäder säljs i genomsnitt 73% snabbare än icke-iscensatta."
+      },
+      {
+        "stat": "+8%",
+        "label": "högre försäljningspris",
+        "desc": "Köparna bjuder typiskt 1–8% mer för en bostad som är professionellt visualiserad."
+      },
+      {
+        "stat": "3×",
+        "label": "fler visningar online",
+        "desc": "Annonser med staging-bilder får upp till tre gånger så många klick på portalerna."
+      },
+      {
+        "stat": "95%",
+        "label": "av köparna söker online",
+        "desc": "Förstahandsintrycket skapas på skärmen — inte vid visningen."
+      }
     ]
   },
   "features": {
@@ -75,15 +146,46 @@
     "readMore": "Läs mer",
     "readLess": "Visa mindre",
     "items": [
-      { "title": "Naturtrogen visualisering", "desc": "Bevarar rummets väggar, fönster och ljusinsläpp — bara inredningen ändras.", "more": "Resultatet liknar ett riktigt foto av bostaden. Proportioner, perspektiv och dagsljus bevaras så att köparen kan se det färdiga hemmet." },
-      { "title": "8 designstilar", "desc": "Skandinavisk, modern, industriell, boho, klassisk och mer." },
-      { "title": "3D planritning", "desc": "Få en tydlig 3D-planritning som visar rummens inredning och flöde.", "more": "Planritningen hjälper köparen att förstå bostadens layout och storleksförhållanden — en tydlig fördel i annonsen." },
-      { "title": "Transformationsvideo", "desc": "En kort video som visar rummet gå från före till efter.", "more": "Den lilla före-/eftervideon fångar uppmärksamheten på bostadsportaler och sociala medier och gör annonsen mer levande." },
-      { "title": "Design Agent", "desc": "Beskriv med vanliga ord vad du vill ändra — vi sköter resten.", "more": "T.ex. \"byt ut soffan mot en ljus linnesoffa och lägg till en stor krukväxt\". Du behöver inte kunna design eller teknik." },
-      { "title": "Klar på under 20 sek.", "desc": "Ingen väntetid. Visualiseringen är klar medan du fortfarande är i rummet." },
-      { "title": "Direkt i webbläsaren", "desc": "Ingen mjukvara eller installation. Allt sker online." },
-      { "title": "Nedladdning i hög upplösning", "desc": "Klar att använda på bostadsportaler, sociala medier och trycksaker." },
-      { "title": "Dansk support", "desc": "Vi sitter i Danmark och svarar på dina frågor på vardagar." }
+      {
+        "title": "Naturtrogen visualisering",
+        "desc": "Bevarar rummets väggar, fönster och ljusinsläpp — bara inredningen ändras.",
+        "more": "Resultatet liknar ett riktigt foto av bostaden. Proportioner, perspektiv och dagsljus bevaras så att köparen kan se det färdiga hemmet."
+      },
+      {
+        "title": "8 designstilar",
+        "desc": "Skandinavisk, modern, industriell, boho, klassisk och mer."
+      },
+      {
+        "title": "3D planritning",
+        "desc": "Få en tydlig 3D-planritning som visar rummens inredning och flöde.",
+        "more": "Planritningen hjälper köparen att förstå bostadens layout och storleksförhållanden — en tydlig fördel i annonsen."
+      },
+      {
+        "title": "Transformationsvideo",
+        "desc": "En kort video som visar rummet gå från före till efter.",
+        "more": "Den lilla före-/eftervideon fångar uppmärksamheten på bostadsportaler och sociala medier och gör annonsen mer levande."
+      },
+      {
+        "title": "Design Agent",
+        "desc": "Beskriv med vanliga ord vad du vill ändra — vi sköter resten.",
+        "more": "T.ex. \"byt ut soffan mot en ljus linnesoffa och lägg till en stor krukväxt\". Du behöver inte kunna design eller teknik."
+      },
+      {
+        "title": "Klar på under 20 sek.",
+        "desc": "Ingen väntetid. Visualiseringen är klar medan du fortfarande är i rummet."
+      },
+      {
+        "title": "Direkt i webbläsaren",
+        "desc": "Ingen mjukvara eller installation. Allt sker online."
+      },
+      {
+        "title": "Nedladdning i hög upplösning",
+        "desc": "Klar att använda på bostadsportaler, sociala medier och trycksaker."
+      },
+      {
+        "title": "Dansk support",
+        "desc": "Vi sitter i Danmark och svarar på dina frågor på vardagar."
+      }
     ]
   },
   "savings": {
@@ -99,10 +201,22 @@
     "totalForma": "Från 2 999 kr/mån",
     "disclaimer": "* Priser är vägledande och kan variera beroende på leverantör, komplexitet och geografi.",
     "rows": [
-      { "label": "4 AI-visualiseringar", "traditional": "2 500 kr" },
-      { "label": "1 3D-planritning", "traditional": "2 500 kr" },
-      { "label": "2 transformationsvideor", "traditional": "10 000 kr" },
-      { "label": "1 showcase-video", "traditional": "6 000 kr" }
+      {
+        "label": "4 AI-visualiseringar",
+        "traditional": "2 500 kr"
+      },
+      {
+        "label": "1 3D-planritning",
+        "traditional": "2 500 kr"
+      },
+      {
+        "label": "2 transformationsvideor",
+        "traditional": "10 000 kr"
+      },
+      {
+        "label": "1 showcase-video",
+        "traditional": "6 000 kr"
+      }
     ]
   },
   "pricing": {
@@ -121,9 +235,42 @@
     "enterprise": "Enterprise — bygg din plan",
     "custom": "Custom",
     "plans": {
-      "Start": { "cta": "Välj Start", "features": ["10 AI-visualiseringar / mån.", "2 3D-planritningar / mån.", "2 transformationsvideor / mån.", "1 Bostad Showcase / mån.", "HD 1080p · JPG + PNG", "Logotyp-branding (på/av)", "Standard support"] },
-      "Pro": { "cta": "Välj Pro", "features": ["25 AI-visualiseringar / mån.", "5 3D-planritningar / mån.", "5 transformationsvideor / mån.", "3 Bostad Showcase / mån.", "4K · JPG + PNG + PDF", "Full brandingkontroll", "Prioriterad support"] },
-      "Business": { "cta": "Välj Business", "features": ["60 AI-visualiseringar / mån.", "12 3D-planritningar / mån.", "12 transformationsvideor / mån.", "8 Bostad Showcase / mån.", "4K · JPG + PNG + PDF", "Full brandingkontroll", "Dedikerad support"] }
+      "Start": {
+        "cta": "Välj Start",
+        "features": [
+          "10 AI-visualiseringar / mån.",
+          "2 3D-planritningar / mån.",
+          "2 transformationsvideor / mån.",
+          "1 Bostad Showcase / mån.",
+          "HD 1080p · JPG + PNG",
+          "Logotyp-branding (på/av)",
+          "Standard support"
+        ]
+      },
+      "Pro": {
+        "cta": "Välj Pro",
+        "features": [
+          "25 AI-visualiseringar / mån.",
+          "5 3D-planritningar / mån.",
+          "5 transformationsvideor / mån.",
+          "3 Bostad Showcase / mån.",
+          "4K · JPG + PNG + PDF",
+          "Full brandingkontroll",
+          "Prioriterad support"
+        ]
+      },
+      "Business": {
+        "cta": "Välj Business",
+        "features": [
+          "60 AI-visualiseringar / mån.",
+          "12 3D-planritningar / mån.",
+          "12 transformationsvideor / mån.",
+          "8 Bostad Showcase / mån.",
+          "4K · JPG + PNG + PDF",
+          "Full brandingkontroll",
+          "Dedikerad support"
+        ]
+      }
     }
   },
   "faq": {
@@ -133,15 +280,42 @@
     "sideText": "Vi finns här för att hjälpa dig. Skicka ett meddelande så återkommer vi inom 24 timmar.",
     "sideButton": "Skriv till oss",
     "items": [
-      { "q": "Vad är Forma Estates?", "a": "Forma Estates är en AI-plattform för professionell fastighetsvisualisering. Du laddar upp bilder av en fastighet och får på några sekunder: stilfulla AI-visualiseringar av rummen i upp till 8 designstilar, en cinematisk fastighetsvideo med AI-kamerarörelser och beatsynkroniserad musik, en transformationsvideo som animerar övergången från före till efter, en 3D-planritning utifrån din 2D-grundplan, och professionella PDF-presentationer med före/efter-jämförelse." },
-      { "q": "Vem använder Forma Estates?", "a": "Plattformen används av fastighetsmäklare, fastighetsutvecklare, byggföretag, bostadsrättsföreningar och andra professionella inom fastighetsbranschen. Oavsett om du säljer, hyr ut, renoverar eller presenterar ett projekt ger Forma Estates dig professionella visualiseringar på sekunder." },
-      { "q": "Vad är AI-visualiseringar och transformationsvideor?", "a": "AI-visualiseringar är stillbilder där AI omdesignar rummet i en vald stil — väggar, golv och fönster förblir oförändrade medan möbler, belysning och ytor byts ut. Transformationsvideor är 5-sekunders videoklipp som animerar övergången från det ursprungliga rummet till det omdesignade." },
-      { "q": "Vad är fastighetsvideos (Showcase)?", "a": "Showcase-videon samlar dina fastighetbilder till en vertikal 9:16-video med AI-genererade kamerarörelser och beatsynkroniserad bakgrundsmusik. Resultatet är en professionell reel klar för Instagram, Facebook och bostadsportaler — utan filmteam eller videoredigering." },
-      { "q": "Vad kostar det?", "a": "Abonnemang börjar från 2 999 kr/mån. och ger tillgång till alla funktioner: AI-visualiseringar, transformationsvideor, fastighetsvideos, 3D-planritningar och PDF-presentationer. Kontakta oss för ett erbjudande anpassat till ditt företag eller team." },
-      { "q": "Vilka filformat kan jag ladda upp?", "a": "Vi stödjer JPG och PNG. För bästa resultat bör bilden vara minst 800×600 pixlar och tagen i bra naturligt ljus. Undvik starkt motljus eller mycket mörka rum — ju bättre input, desto bättre output." },
-      { "q": "Kan jag använda materialet i marknadsföring?", "a": "Ja. Alla genererade visualiseringar, videor och PDF:er kan laddas ned och användas fritt i annonser, projektmaterial, sociala medier och kundpresentationer. Vi rekommenderar att tydligt märka AI-genererade bilder i enlighet med branschens riktlinjer." },
-      { "q": "Bevarar AI rummets struktur?", "a": "Ja. Väggar, fönster, golv och rummets proportioner förblir oförändrade. Bara möbler, belysning och ytor omdesignas så att resultatet ser realistiskt och trovärdigt ut." },
-      { "q": "Är mina bilder konfidentiella?", "a": "Ja. Uppladdade bilder används enbart för att generera din visualisering och delas inte med tredje part. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">Se vår integritetspolicy</a> för fullständiga detaljer om dataskydd." }
+      {
+        "q": "Vad är Forma Estates?",
+        "a": "Forma Estates är en AI-plattform för professionell fastighetsvisualisering. Du laddar upp bilder av en fastighet och får på några sekunder: stilfulla AI-visualiseringar av rummen i upp till 8 designstilar, en cinematisk fastighetsvideo med AI-kamerarörelser och beatsynkroniserad musik, en transformationsvideo som animerar övergången från före till efter, en 3D-planritning utifrån din 2D-grundplan, och professionella PDF-presentationer med före/efter-jämförelse."
+      },
+      {
+        "q": "Vem använder Forma Estates?",
+        "a": "Plattformen används av fastighetsmäklare, fastighetsutvecklare, byggföretag, bostadsrättsföreningar och andra professionella inom fastighetsbranschen. Oavsett om du säljer, hyr ut, renoverar eller presenterar ett projekt ger Forma Estates dig professionella visualiseringar på sekunder."
+      },
+      {
+        "q": "Vad är AI-visualiseringar och transformationsvideor?",
+        "a": "AI-visualiseringar är stillbilder där AI omdesignar rummet i en vald stil — väggar, golv och fönster förblir oförändrade medan möbler, belysning och ytor byts ut. Transformationsvideor är 5-sekunders videoklipp som animerar övergången från det ursprungliga rummet till det omdesignade."
+      },
+      {
+        "q": "Vad är fastighetsvideos (Showcase)?",
+        "a": "Showcase-videon samlar dina fastighetbilder till en vertikal 9:16-video med AI-genererade kamerarörelser och beatsynkroniserad bakgrundsmusik. Resultatet är en professionell reel klar för Instagram, Facebook och bostadsportaler — utan filmteam eller videoredigering."
+      },
+      {
+        "q": "Vad kostar det?",
+        "a": "Abonnemang börjar från 2 999 kr/mån. och ger tillgång till alla funktioner: AI-visualiseringar, transformationsvideor, fastighetsvideos, 3D-planritningar och PDF-presentationer. Kontakta oss för ett erbjudande anpassat till ditt företag eller team."
+      },
+      {
+        "q": "Vilka filformat kan jag ladda upp?",
+        "a": "Vi stödjer JPG och PNG. För bästa resultat bör bilden vara minst 800×600 pixlar och tagen i bra naturligt ljus. Undvik starkt motljus eller mycket mörka rum — ju bättre input, desto bättre output."
+      },
+      {
+        "q": "Kan jag använda materialet i marknadsföring?",
+        "a": "Ja. Alla genererade visualiseringar, videor och PDF:er kan laddas ned och användas fritt i annonser, projektmaterial, sociala medier och kundpresentationer. Vi rekommenderar att tydligt märka AI-genererade bilder i enlighet med branschens riktlinjer."
+      },
+      {
+        "q": "Bevarar AI rummets struktur?",
+        "a": "Ja. Väggar, fönster, golv och rummets proportioner förblir oförändrade. Bara möbler, belysning och ytor omdesignas så att resultatet ser realistiskt och trovärdigt ut."
+      },
+      {
+        "q": "Är mina bilder konfidentiella?",
+        "a": "Ja. Uppladdade bilder används enbart för att generera din visualisering och delas inte med tredje part. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">Se vår integritetspolicy</a> för fullständiga detaljer om dataskydd."
+      }
     ]
   },
   "footerCta": {
@@ -189,5 +363,177 @@
     "AI-visualiseringar · 3D-planritningar · Showcase-videor",
     "Inga dolda avgifter — transparent prissättning",
     "Dokumenterad besparing per bostad"
-  ]
+  ],
+  "loginPage": {
+    "title": "Logga in",
+    "subtitle": "Få tillgång till dina AI-bilder",
+    "forgotPassword": "Glömt lösenord?",
+    "loginButton": "Logga in",
+    "loggingIn": "Loggar in...",
+    "noAccount": "Har du inget konto?",
+    "createAccount": "Skapa konto",
+    "backToFront": "Tillbaka till startsidan",
+    "reset": {
+      "title": "Återställ lösenord",
+      "subtitle": "Vi skickar dig en länk för att skapa ett nytt lösenord",
+      "sentPre": "Vi har skickat en återställningslänk till",
+      "spamNote": "Mejlet kommer från kontakt@formaestates.com — kolla skräpposten om det inte dyker upp.",
+      "backToLogin": "Tillbaka till inloggning",
+      "sendButton": "Skicka återställningslänk",
+      "sending": "Skickar..."
+    },
+    "errors": {
+      "userNotFound": "Användaren hittades inte. Kontrollera e-posten eller skapa ett konto.",
+      "wrongPassword": "Fel lösenord. Försök igen.",
+      "invalidCredential": "Fel e-post eller lösenord. Försök igen.",
+      "tooManyRequests": "För många försök. Försök igen senare.",
+      "generic": "Något gick fel. Försök igen."
+    }
+  },
+  "signupPage": {
+    "title": "Skapa konto",
+    "subtitle": "Skapa ditt konto och få 2 gratis AI-visualiseringar direkt",
+    "name": "Ditt namn",
+    "namePlaceholder": "T.ex. Johan Svensson",
+    "passwordPlaceholder": "Min. 6 tecken",
+    "confirmPassword": "Bekräfta lösenord",
+    "confirmPasswordPlaceholder": "Bekräfta lösenord",
+    "createButton": "Skapa konto",
+    "creating": "Skapar...",
+    "hasAccount": "Har du redan ett konto?",
+    "login": "Logga in",
+    "backToFront": "Tillbaka till startsidan",
+    "success": "Konto skapat! Bekräfta din e-post med koden vi skickade...",
+    "errors": {
+      "nameTooShort": "Ange ditt fullständiga namn (minst 2 tecken).",
+      "passwordMismatch": "Lösenorden matchar inte. Försök igen.",
+      "emailInUse": "E-postadressen används redan. Försök logga in.",
+      "invalidEmail": "Ogiltig e-postadress. Kontrollera att du skrivit rätt.",
+      "weakPassword": "Lösenordet är för svagt. Använd minst 6 tecken.",
+      "generic": "Något gick fel. Försök igen."
+    }
+  },
+  "aiAgent": {
+    "nav": {
+      "pricing": "Priser",
+      "myDesigns": "Mina designer",
+      "myAccount": "Mitt konto",
+      "login": "Logga in"
+    },
+    "hero": {
+      "title": "Beskriv ditt drömrum",
+      "subtitle": "Ladda upp ett foto av ditt rum och skriv exakt vad du vill ändra — inga begränsningar."
+    },
+    "upload": {
+      "click": "Klicka för att ladda upp en bild",
+      "dragDrop": "eller dra och släpp här · JPG, PNG, WEBP · max 10 MB",
+      "satelliteClick": "Ladda upp din satellitbild här",
+      "satelliteNote": "Skärmbild från Google Maps, Apple Maps etc. · JPG, PNG, WEBP · max 10 MB"
+    },
+    "image": {
+      "label": "Din bild",
+      "locked": "Låst",
+      "change": "Byt",
+      "freeRemaining": "{{count}} av 5 gratis justeringar kvar",
+      "freeUsed": "Alla 5 gratis justeringar använda"
+    },
+    "prompt": {
+      "label": "Beskriv vad du vill ha",
+      "placeholder": "T.ex. Mörkt modernt kök med vinkylare och marmorarbetsbänk..."
+    },
+    "library": {
+      "title": "Promptbibliotek",
+      "note": "Klicka på en prompt för att infoga den i fältet.",
+      "satellite": "Satellit"
+    },
+    "satellite": {
+      "back": "Tillbaka",
+      "label": "Satellitbild",
+      "timeOfDay": "Tid på dagen"
+    },
+    "satelliteTimes": [
+      {
+        "label": "Soluppgång",
+        "emoji": "🌄"
+      },
+      {
+        "label": "Förmiddag",
+        "emoji": "🌤️"
+      },
+      {
+        "label": "Middag",
+        "emoji": "☀️"
+      },
+      {
+        "label": "Tidig solnedgång",
+        "emoji": "🌅"
+      },
+      {
+        "label": "Blå timmen",
+        "emoji": "🌆"
+      }
+    ],
+    "examplePrompts": [
+      "Mörkt modernt kök med vinkylare och marmorarbetsbänk",
+      "Ljust och luftigt sovrum med växter och naturliga material",
+      "Industriell vardagsrum med rå tegelsten och skinnsoffa",
+      "Skandinaviskt badrum med trädetaljer och minimalistisk design",
+      "Bohemisk vardagsrum med färgglada textilier, hänglampor och gröna växter"
+    ],
+    "generate": {
+      "button": "Generera design"
+    },
+    "generating": {
+      "title": "AI designar ditt rum...",
+      "subtitle": "Det tar normalt 15–45 sekunder",
+      "cancel": "Avbryt"
+    },
+    "result": {
+      "title": "Din AI-genererade design",
+      "freeRemaining": "{{count}} gratis justeringar kvar",
+      "freeExhausted": "Gratis justeringar slut",
+      "adjust": "Justera igen",
+      "newImage": "Ny bild",
+      "download": "Ladda ner bild",
+      "tryStyled": "Prova med stilval",
+      "aiLabelOn": "Nedladdade bilder märks automatiskt med \"AI-redigerad\" som krävs enligt lag.",
+      "aiLabelOff": "Vattenstämpel är av — bilder laddas ner utan \"AI-redigerad\"."
+    },
+    "watermark": {
+      "label": "Vattenstämpel:",
+      "on": "PÅ",
+      "off": "AV"
+    },
+    "noWatermark": {
+      "title": "Ladda ner utan vattenstämpel",
+      "body": "Du håller på att ladda ner utan \"AI-redigerad\"-märket. Är du säker?",
+      "confirm": "Ja, ladda ner",
+      "cancel": "Avbryt"
+    },
+    "loginPrompt": {
+      "createAccount": "Skapa konto",
+      "or": "eller",
+      "login": "logga in",
+      "suffix": "för att generera designer"
+    },
+    "credits": {
+      "unlimited": "∞ bilder (admin)",
+      "remaining": "{{count}} bild kvar",
+      "remainingPlural": "{{count}} bilder kvar"
+    },
+    "errors": {
+      "imageOnly": "Endast bilder",
+      "imageOnlyDesc": "Vänligen ladda upp en bildfil (JPG, PNG, WEBP)",
+      "tooLarge": "Filen är för stor",
+      "tooLargeDesc": "Max 10 MB",
+      "loginRequired": "Logga in",
+      "loginRequiredDesc": "Du måste logga in för att generera designer",
+      "noCredits": "Inte tillräckligt med bilder",
+      "noCreditsDesc": "Köp ett paket för att fortsätta",
+      "error": "Fel",
+      "generic": "Något gick fel",
+      "timeout": "Genereringen tog för lång tid. Försök igen.",
+      "generationFailed": "AI-generering misslyckades. Försök igen om ett ögonblick."
+    }
+  }
 }

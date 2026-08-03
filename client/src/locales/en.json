@@ -19,11 +19,37 @@
     "next": "Next"
   },
   "slides": [
-    { "title": "Cinematic video", "caption": "A single still image becomes a 5-second living video — ready for your listing.", "meta": "" },
-    { "title": "Transformation video", "caption": "Watch the room transition from before to after in one fluid animation — perfect for listings and social media.", "meta": "Kitchen · Transformation" },
-    { "title": "Before & after", "caption": "Upload a room photo — AI redesigns the interior in under 20 seconds.", "meta": "Dining room · Scandinavian", "beforeLabel": "Before", "afterLabel": "After" },
-    { "title": "Before & after", "caption": "Upload a photo — AI transforms the property in under 20 seconds.", "meta": "Barn · AI Design Agent", "beforeLabel": "Before", "afterLabel": "After" },
-    { "title": "3D Floor Plan", "caption": "From flat floor plan to a living 3D space the buyer can feel.", "meta": "3D Floor Plan", "beforeLabel": "2D plan", "afterLabel": "3D" }
+    {
+      "title": "Cinematic video",
+      "caption": "A single still image becomes a 5-second living video — ready for your listing.",
+      "meta": ""
+    },
+    {
+      "title": "Transformation video",
+      "caption": "Watch the room transition from before to after in one fluid animation — perfect for listings and social media.",
+      "meta": "Kitchen · Transformation"
+    },
+    {
+      "title": "Before & after",
+      "caption": "Upload a room photo — AI redesigns the interior in under 20 seconds.",
+      "meta": "Dining room · Scandinavian",
+      "beforeLabel": "Before",
+      "afterLabel": "After"
+    },
+    {
+      "title": "Before & after",
+      "caption": "Upload a photo — AI transforms the property in under 20 seconds.",
+      "meta": "Barn · AI Design Agent",
+      "beforeLabel": "Before",
+      "afterLabel": "After"
+    },
+    {
+      "title": "3D Floor Plan",
+      "caption": "From flat floor plan to a living 3D space the buyer can feel.",
+      "meta": "3D Floor Plan",
+      "beforeLabel": "2D plan",
+      "afterLabel": "3D"
+    }
   ],
   "savingsNudge": {
     "text": "Save up to 18,000 DKK+ on post-production per property —",
@@ -40,11 +66,31 @@
     "headlineLine2": "Not the empty room",
     "seeMore": "See more",
     "tiles": [
-      { "eyebrow": "Before / After", "title": "AI Staging", "desc": "An empty room becomes a home in seconds." },
-      { "eyebrow": "3D Floor Plan", "title": "Understand the layout", "desc": "Let the buyer walk through the room before the first showing." },
-      { "eyebrow": "Property Video", "title": "Cinematic storytelling", "desc": "Evoke emotions with a vivid video walkthrough." },
-      { "eyebrow": "AI Design Agent", "title": "Describe your vision", "desc": "Tell the AI what you want — it turns it into a finished design." },
-      { "eyebrow": "Property Showcase", "title": "Show the potential", "desc": "Present the property's full potential with professional visualizations." }
+      {
+        "eyebrow": "Before / After",
+        "title": "AI Staging",
+        "desc": "An empty room becomes a home in seconds."
+      },
+      {
+        "eyebrow": "3D Floor Plan",
+        "title": "Understand the layout",
+        "desc": "Let the buyer walk through the room before the first showing."
+      },
+      {
+        "eyebrow": "Property Video",
+        "title": "Cinematic storytelling",
+        "desc": "Evoke emotions with a vivid video walkthrough."
+      },
+      {
+        "eyebrow": "AI Design Agent",
+        "title": "Describe your vision",
+        "desc": "Tell the AI what you want — it turns it into a finished design."
+      },
+      {
+        "eyebrow": "Property Showcase",
+        "title": "Show the potential",
+        "desc": "Present the property's full potential with professional visualizations."
+      }
     ]
   },
   "howItWorks": {
@@ -52,9 +98,18 @@
     "headline": "Three steps — under one minute",
     "subline": "No software, no technical knowledge — just a photo and a click.",
     "steps": [
-      { "title": "Upload a room photo", "desc": "Take a photo of the room with your phone or camera. No professional photography needed." },
-      { "title": "Choose room type and style", "desc": "Select the room type and choose one of our design styles — from Scandinavian minimalism to modern luxury." },
-      { "title": "Download your visualization", "desc": "The AI generates your image in under 20 seconds. Ready to download in full quality." }
+      {
+        "title": "Upload a room photo",
+        "desc": "Take a photo of the room with your phone or camera. No professional photography needed."
+      },
+      {
+        "title": "Choose room type and style",
+        "desc": "Select the room type and choose one of our design styles — from Scandinavian minimalism to modern luxury."
+      },
+      {
+        "title": "Download your visualization",
+        "desc": "The AI generates your image in under 20 seconds. Ready to download in full quality."
+      }
     ]
   },
   "stats": {
@@ -63,10 +118,26 @@
     "subline": "Properties with professional visualization sell faster, at higher prices and attract more online views.",
     "sources": "Sources: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
     "items": [
-      { "stat": "73%", "label": "faster sales", "desc": "Staged properties sell on average 73% faster than non-staged ones." },
-      { "stat": "+8%", "label": "higher sale price", "desc": "Buyers typically offer 1–8% more for a professionally visualized property." },
-      { "stat": "3×", "label": "more online views", "desc": "Listings with staging images receive up to three times as many clicks on portals." },
-      { "stat": "95%", "label": "of buyers search online", "desc": "The first impression is created on screen — not at the viewing." }
+      {
+        "stat": "73%",
+        "label": "faster sales",
+        "desc": "Staged properties sell on average 73% faster than non-staged ones."
+      },
+      {
+        "stat": "+8%",
+        "label": "higher sale price",
+        "desc": "Buyers typically offer 1–8% more for a professionally visualized property."
+      },
+      {
+        "stat": "3×",
+        "label": "more online views",
+        "desc": "Listings with staging images receive up to three times as many clicks on portals."
+      },
+      {
+        "stat": "95%",
+        "label": "of buyers search online",
+        "desc": "The first impression is created on screen — not at the viewing."
+      }
     ]
   },
   "features": {
@@ -75,15 +146,46 @@
     "readMore": "Read more",
     "readLess": "Show less",
     "items": [
-      { "title": "True-to-life visualization", "desc": "Preserves the room's walls, windows and natural light — only the interior changes.", "more": "The result looks like a real photo of the property. Proportions, perspective and daylight are preserved so the buyer can envision the finished home." },
-      { "title": "8 design styles", "desc": "Scandinavian, modern, industrial, boho, classic and more." },
-      { "title": "3D floor plan", "desc": "Get a clear 3D floor plan showing the room layout and flow.", "more": "The floor plan helps buyers understand the property's layout and scale — a clear advantage in the listing." },
-      { "title": "Transformation video", "desc": "A short video showing the room go from before to after.", "more": "The small before/after video captures attention on property portals and social media, making the listing come alive." },
-      { "title": "Design Agent", "desc": "Write in plain words what you want to change — we handle the rest.", "more": "E.g. \"swap the sofa for a light linen sofa and add a large potted plant\". No design or technical knowledge needed." },
-      { "title": "Ready in under 20 sec.", "desc": "No waiting. The visualization is ready while you're still in the room." },
-      { "title": "Directly in the browser", "desc": "No software or installation. Everything happens online." },
-      { "title": "High-resolution download", "desc": "Ready for property portals, social media and print." },
-      { "title": "Danish support", "desc": "We're based in Denmark and answer your questions on weekdays." }
+      {
+        "title": "True-to-life visualization",
+        "desc": "Preserves the room's walls, windows and natural light — only the interior changes.",
+        "more": "The result looks like a real photo of the property. Proportions, perspective and daylight are preserved so the buyer can envision the finished home."
+      },
+      {
+        "title": "8 design styles",
+        "desc": "Scandinavian, modern, industrial, boho, classic and more."
+      },
+      {
+        "title": "3D floor plan",
+        "desc": "Get a clear 3D floor plan showing the room layout and flow.",
+        "more": "The floor plan helps buyers understand the property's layout and scale — a clear advantage in the listing."
+      },
+      {
+        "title": "Transformation video",
+        "desc": "A short video showing the room go from before to after.",
+        "more": "The small before/after video captures attention on property portals and social media, making the listing come alive."
+      },
+      {
+        "title": "Design Agent",
+        "desc": "Write in plain words what you want to change — we handle the rest.",
+        "more": "E.g. \"swap the sofa for a light linen sofa and add a large potted plant\". No design or technical knowledge needed."
+      },
+      {
+        "title": "Ready in under 20 sec.",
+        "desc": "No waiting. The visualization is ready while you're still in the room."
+      },
+      {
+        "title": "Directly in the browser",
+        "desc": "No software or installation. Everything happens online."
+      },
+      {
+        "title": "High-resolution download",
+        "desc": "Ready for property portals, social media and print."
+      },
+      {
+        "title": "Danish support",
+        "desc": "We're based in Denmark and answer your questions on weekdays."
+      }
     ]
   },
   "savings": {
@@ -99,10 +201,22 @@
     "totalForma": "From 2,999 DKK/mo",
     "disclaimer": "* Prices are indicative and may vary depending on provider, complexity and geography.",
     "rows": [
-      { "label": "4 AI visualizations", "traditional": "2,500 DKK" },
-      { "label": "1 3D floor plan", "traditional": "2,500 DKK" },
-      { "label": "2 transformation videos", "traditional": "10,000 DKK" },
-      { "label": "1 showcase video", "traditional": "6,000 DKK" }
+      {
+        "label": "4 AI visualizations",
+        "traditional": "2,500 DKK"
+      },
+      {
+        "label": "1 3D floor plan",
+        "traditional": "2,500 DKK"
+      },
+      {
+        "label": "2 transformation videos",
+        "traditional": "10,000 DKK"
+      },
+      {
+        "label": "1 showcase video",
+        "traditional": "6,000 DKK"
+      }
     ]
   },
   "pricing": {
@@ -121,9 +235,42 @@
     "enterprise": "Enterprise — build your plan",
     "custom": "Custom",
     "plans": {
-      "Start": { "cta": "Choose Start", "features": ["10 AI visualizations / mo.", "2 3D floor plans / mo.", "2 transformation videos / mo.", "1 Property Showcase / mo.", "HD 1080p · JPG + PNG", "Logo branding (on/off)", "Standard support"] },
-      "Pro": { "cta": "Choose Pro", "features": ["25 AI visualizations / mo.", "5 3D floor plans / mo.", "5 transformation videos / mo.", "3 Property Showcase / mo.", "4K · JPG + PNG + PDF", "Full branding control", "Priority support"] },
-      "Business": { "cta": "Choose Business", "features": ["60 AI visualizations / mo.", "12 3D floor plans / mo.", "12 transformation videos / mo.", "8 Property Showcase / mo.", "4K · JPG + PNG + PDF", "Full branding control", "Dedicated support"] }
+      "Start": {
+        "cta": "Choose Start",
+        "features": [
+          "10 AI visualizations / mo.",
+          "2 3D floor plans / mo.",
+          "2 transformation videos / mo.",
+          "1 Property Showcase / mo.",
+          "HD 1080p · JPG + PNG",
+          "Logo branding (on/off)",
+          "Standard support"
+        ]
+      },
+      "Pro": {
+        "cta": "Choose Pro",
+        "features": [
+          "25 AI visualizations / mo.",
+          "5 3D floor plans / mo.",
+          "5 transformation videos / mo.",
+          "3 Property Showcase / mo.",
+          "4K · JPG + PNG + PDF",
+          "Full branding control",
+          "Priority support"
+        ]
+      },
+      "Business": {
+        "cta": "Choose Business",
+        "features": [
+          "60 AI visualizations / mo.",
+          "12 3D floor plans / mo.",
+          "12 transformation videos / mo.",
+          "8 Property Showcase / mo.",
+          "4K · JPG + PNG + PDF",
+          "Full branding control",
+          "Dedicated support"
+        ]
+      }
     }
   },
   "faq": {
@@ -133,15 +280,42 @@
     "sideText": "We're here to help. Send us a message and we'll get back to you within 24 hours.",
     "sideButton": "Write to us",
     "items": [
-      { "q": "What is Forma Estates?", "a": "Forma Estates is an AI platform for professional property visualization. You upload images of a property and get within seconds: stylish AI visualizations of the rooms in up to 8 design styles, a cinematic property video with AI camera movements and beat-synchronized music, a transformation video animating the transition from before to after, a 3D floor plan from your 2D floor plan, and professional PDF presentations with before/after comparison — all ready for listings, social media, project materials and client presentations." },
-      { "q": "Who uses Forma Estates?", "a": "The platform is used by real estate agents, property developers, construction companies, homeowner associations, rental companies and other property industry professionals. Whether you're selling, renting, renovating or presenting a project, Forma Estates gives you professional visualizations in seconds." },
-      { "q": "What are AI visualizations and transformation videos?", "a": "AI visualizations are still images where the AI redesigns the room in a chosen style — walls, floor and windows remain unchanged while furniture, lighting and surfaces are replaced. Transformation videos are 5-second video clips animating the transition from the original room to the redesigned one — ideal for showing the property's potential on Instagram, in project presentations and in listings." },
-      { "q": "What are the property videos (Showcase)?", "a": "The Showcase video combines your property images into a vertical 9:16 video with AI-generated camera movements (dolly, orbit, panning) and beat-synchronized background music. The result is a professional reel ready for Instagram, Facebook, property portals and project websites — without a camera crew or video editing." },
-      { "q": "What does it cost?", "a": "Subscriptions start from 2,999 DKK/month and give access to all features: AI visualizations, transformation videos, property videos, 3D floor plans and PDF presentations. Contact us for a quote tailored to your company or team." },
-      { "q": "What file formats can I upload?", "a": "We support JPG and PNG. For best results the image should be at least 800×600 pixels and taken in good natural light. Avoid strong backlighting or very dark rooms — the better the input, the better the output." },
-      { "q": "Can I use the material in marketing and presentations?", "a": "Yes. All generated visualizations, videos and PDFs can be downloaded and used freely in ads, project material, social media and client presentations. We recommend clearly labeling AI-generated images in accordance with industry guidelines." },
-      { "q": "Does the AI preserve the room's structure?", "a": "Yes. Walls, windows, floor and the room's proportions remain unchanged. Only furniture, lighting and surfaces are redesigned, so the result looks realistic and credible to potential buyers, tenants and investors." },
-      { "q": "Are my images confidential?", "a": "Yes. Uploaded images are used solely to generate your visualization and are not shared with third parties. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">See our privacy policy</a> for full details on data protection." }
+      {
+        "q": "What is Forma Estates?",
+        "a": "Forma Estates is an AI platform for professional property visualization. You upload images of a property and get within seconds: stylish AI visualizations of the rooms in up to 8 design styles, a cinematic property video with AI camera movements and beat-synchronized music, a transformation video animating the transition from before to after, a 3D floor plan from your 2D floor plan, and professional PDF presentations with before/after comparison — all ready for listings, social media, project materials and client presentations."
+      },
+      {
+        "q": "Who uses Forma Estates?",
+        "a": "The platform is used by real estate agents, property developers, construction companies, homeowner associations, rental companies and other property industry professionals. Whether you're selling, renting, renovating or presenting a project, Forma Estates gives you professional visualizations in seconds."
+      },
+      {
+        "q": "What are AI visualizations and transformation videos?",
+        "a": "AI visualizations are still images where the AI redesigns the room in a chosen style — walls, floor and windows remain unchanged while furniture, lighting and surfaces are replaced. Transformation videos are 5-second video clips animating the transition from the original room to the redesigned one — ideal for showing the property's potential on Instagram, in project presentations and in listings."
+      },
+      {
+        "q": "What are the property videos (Showcase)?",
+        "a": "The Showcase video combines your property images into a vertical 9:16 video with AI-generated camera movements (dolly, orbit, panning) and beat-synchronized background music. The result is a professional reel ready for Instagram, Facebook, property portals and project websites — without a camera crew or video editing."
+      },
+      {
+        "q": "What does it cost?",
+        "a": "Subscriptions start from 2,999 DKK/month and give access to all features: AI visualizations, transformation videos, property videos, 3D floor plans and PDF presentations. Contact us for a quote tailored to your company or team."
+      },
+      {
+        "q": "What file formats can I upload?",
+        "a": "We support JPG and PNG. For best results the image should be at least 800×600 pixels and taken in good natural light. Avoid strong backlighting or very dark rooms — the better the input, the better the output."
+      },
+      {
+        "q": "Can I use the material in marketing and presentations?",
+        "a": "Yes. All generated visualizations, videos and PDFs can be downloaded and used freely in ads, project material, social media and client presentations. We recommend clearly labeling AI-generated images in accordance with industry guidelines."
+      },
+      {
+        "q": "Does the AI preserve the room's structure?",
+        "a": "Yes. Walls, windows, floor and the room's proportions remain unchanged. Only furniture, lighting and surfaces are redesigned, so the result looks realistic and credible to potential buyers, tenants and investors."
+      },
+      {
+        "q": "Are my images confidential?",
+        "a": "Yes. Uploaded images are used solely to generate your visualization and are not shared with third parties. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">See our privacy policy</a> for full details on data protection."
+      }
     ]
   },
   "footerCta": {
@@ -189,5 +363,177 @@
     "AI visualizations · 3D floor plans · Showcase videos",
     "No hidden fees — transparent pricing",
     "Documented savings per property"
-  ]
+  ],
+  "loginPage": {
+    "title": "Log in",
+    "subtitle": "Access your AI images",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Log in",
+    "loggingIn": "Logging in...",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create account",
+    "backToFront": "Back to front page",
+    "reset": {
+      "title": "Reset password",
+      "subtitle": "We'll send you a link to create a new password",
+      "sentPre": "We've sent a reset link to",
+      "spamNote": "The email comes from kontakt@formaestates.com — check your spam folder if it doesn't arrive.",
+      "backToLogin": "Back to log in",
+      "sendButton": "Send reset link",
+      "sending": "Sending..."
+    },
+    "errors": {
+      "userNotFound": "User not found. Check your email or create an account.",
+      "wrongPassword": "Wrong password. Try again.",
+      "invalidCredential": "Wrong email or password. Try again.",
+      "tooManyRequests": "Too many attempts. Try again later.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "signupPage": {
+    "title": "Create account",
+    "subtitle": "Create your account and get 2 free AI visualizations right away",
+    "name": "Your name",
+    "namePlaceholder": "E.g. John Doe",
+    "passwordPlaceholder": "Min. 6 characters",
+    "confirmPassword": "Confirm password",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "createButton": "Create account",
+    "creating": "Creating...",
+    "hasAccount": "Already have an account?",
+    "login": "Log in",
+    "backToFront": "Back to front page",
+    "success": "Account created! Confirm your email with the code we sent...",
+    "errors": {
+      "nameTooShort": "Enter your full name (at least 2 characters).",
+      "passwordMismatch": "Passwords do not match. Try again.",
+      "emailInUse": "Email is already in use. Try logging in.",
+      "invalidEmail": "Invalid email. Check that you typed it correctly.",
+      "weakPassword": "Password is too weak. Use at least 6 characters.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "aiAgent": {
+    "nav": {
+      "pricing": "Pricing",
+      "myDesigns": "My designs",
+      "myAccount": "My account",
+      "login": "Log in"
+    },
+    "hero": {
+      "title": "Describe your dream room",
+      "subtitle": "Upload a photo of your room and write exactly what you want changed — no limits."
+    },
+    "upload": {
+      "click": "Click to upload an image",
+      "dragDrop": "or drag and drop here · JPG, PNG, WEBP · max 10 MB",
+      "satelliteClick": "Upload your satellite image here",
+      "satelliteNote": "Screenshot from Google Maps, Apple Maps etc. · JPG, PNG, WEBP · max 10 MB"
+    },
+    "image": {
+      "label": "Your image",
+      "locked": "Locked",
+      "change": "Change",
+      "freeRemaining": "{{count}} of 5 free adjustments left",
+      "freeUsed": "All 5 free adjustments used"
+    },
+    "prompt": {
+      "label": "Describe what you want",
+      "placeholder": "E.g. Dark modern kitchen with wine cooler and marble countertop..."
+    },
+    "library": {
+      "title": "Prompt library",
+      "note": "Click a prompt to insert it into the field.",
+      "satellite": "Satellite"
+    },
+    "satellite": {
+      "back": "Back",
+      "label": "Satellite image",
+      "timeOfDay": "Time of day"
+    },
+    "satelliteTimes": [
+      {
+        "label": "Sunrise",
+        "emoji": "🌄"
+      },
+      {
+        "label": "Mid-morning",
+        "emoji": "🌤️"
+      },
+      {
+        "label": "Midday",
+        "emoji": "☀️"
+      },
+      {
+        "label": "Early sunset",
+        "emoji": "🌅"
+      },
+      {
+        "label": "Blue hour",
+        "emoji": "🌆"
+      }
+    ],
+    "examplePrompts": [
+      "Dark modern kitchen with wine cooler and marble countertop",
+      "Bright and airy bedroom with plants and natural materials",
+      "Industrial living room with exposed brick and leather sofa",
+      "Scandinavian bathroom with wood details and minimalist design",
+      "Bohemian living room with colorful textiles, pendant lamps and green plants"
+    ],
+    "generate": {
+      "button": "Generate design"
+    },
+    "generating": {
+      "title": "AI is designing your room...",
+      "subtitle": "This usually takes 15–45 seconds",
+      "cancel": "Cancel"
+    },
+    "result": {
+      "title": "Your AI-generated design",
+      "freeRemaining": "{{count}} free adjustments left",
+      "freeExhausted": "Free adjustments exhausted",
+      "adjust": "Adjust again",
+      "newImage": "New image",
+      "download": "Download image",
+      "tryStyled": "Try with style selection",
+      "aiLabelOn": "Downloaded images are automatically labeled \"AI-edited\" as required by law.",
+      "aiLabelOff": "Watermark is off — images download without \"AI-edited\" label."
+    },
+    "watermark": {
+      "label": "Watermark:",
+      "on": "ON",
+      "off": "OFF"
+    },
+    "noWatermark": {
+      "title": "Download without watermark",
+      "body": "You are about to download without the \"AI-edited\" label. Are you sure?",
+      "confirm": "Yes, download",
+      "cancel": "Cancel"
+    },
+    "loginPrompt": {
+      "createAccount": "Create account",
+      "or": "or",
+      "login": "log in",
+      "suffix": "to generate designs"
+    },
+    "credits": {
+      "unlimited": "∞ images (admin)",
+      "remaining": "{{count}} image left",
+      "remainingPlural": "{{count}} images left"
+    },
+    "errors": {
+      "imageOnly": "Images only",
+      "imageOnlyDesc": "Please upload an image file (JPG, PNG, WEBP)",
+      "tooLarge": "File too large",
+      "tooLargeDesc": "Max 10 MB",
+      "loginRequired": "Log in",
+      "loginRequiredDesc": "You need to log in to generate designs",
+      "noCredits": "Not enough images",
+      "noCreditsDesc": "Buy a package to continue",
+      "error": "Error",
+      "generic": "Something went wrong",
+      "timeout": "Generation timed out. Try again.",
+      "generationFailed": "AI generation failed. Try again in a moment."
+    }
+  }
 }
