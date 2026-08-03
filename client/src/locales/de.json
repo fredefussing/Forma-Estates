@@ -535,5 +535,30 @@
       "timeout": "Generierung hat zu lange gedauert. Bitte erneut versuchen.",
       "generationFailed": "KI-Generierung fehlgeschlagen. Bitte in einem Moment erneut versuchen."
     }
+  },
+  "enterpriseCalc": {
+    "title": "Paket zusammenstellen",
+    "oneTimePayment": "EINMALZAHLUNG",
+    "totalDiscount": "Gesamtrabatt",
+    "subtitle": "Wählen Sie die Anzahl jeder Leistung — der Preis sinkt automatisch, je mehr Sie bestellen.",
+    "unit": "Stk.",
+    "base": "Basis {{price}} DKK/Stk.",
+    "savePerUnit": "· sparen Sie {{amount}} DKK pro Stk.",
+    "nextTier": "+{{count}} Stk. → −{{pct}}%",
+    "loadingCheckout": "Checkout wird geladen…",
+    "payOnce": "Einmalig bezahlen",
+    "noSubscription": "Einmalzahlung · kein Abonnement",
+    "checkoutFailed": "Checkout fehlgeschlagen: {{error}}",
+    "youSave": "Sie sparen {{amount}} DKK ({{pct}}% Gesamtrabatt)",
+    "addMoreDiscount": "Mehr hinzufügen, um Mengenrabatt zu aktivieren",
+    "dragSliders": "Nutzen Sie die Schieberegler oben, um Ihren Preis zu berechnen",
+    "totalDiscountLabel": "Gesamtrabatt",
+    "unknownError": "Unbekannter Fehler",
+    "products": {
+      "aiVisual": "KI-Visualisierung",
+      "plan3d": "3D-Grundriss",
+      "transformVideo": "Transformationsvideo",
+      "showcase": "Immobilien-Showcase-Video"
+    }
   }
 }

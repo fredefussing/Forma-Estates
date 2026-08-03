@@ -535,5 +535,30 @@
       "timeout": "Generering tog for lang tid. Prøv igen.",
       "generationFailed": "AI generering fejlede. Prøv igen om lidt."
     }
+  },
+  "enterpriseCalc": {
+    "title": "Sammensæt din pakke",
+    "oneTimePayment": "ENGANGSBETALING",
+    "totalDiscount": "samlet rabat",
+    "subtitle": "Vælg antal af hver ydelse — prisen falder automatisk jo mere du bestiller.",
+    "unit": "stk.",
+    "base": "Basis {{price}} kr./stk.",
+    "savePerUnit": "· du sparer {{amount}} kr. pr. stk.",
+    "nextTier": "+{{count}} stk. → −{{pct}}%",
+    "loadingCheckout": "Henter checkout…",
+    "payOnce": "Betal engang",
+    "noSubscription": "Engangsbetaling · ingen abonnement",
+    "checkoutFailed": "Checkout fejlede: {{error}}",
+    "youSave": "Du sparer {{amount}} kr. ({{pct}}% samlet rabat)",
+    "addMoreDiscount": "Tilføj flere for at aktivere mængderabat",
+    "dragSliders": "Træk i sliderne ovenfor for at beregne din pris",
+    "totalDiscountLabel": "Samlet rabat",
+    "unknownError": "Ukendt fejl",
+    "products": {
+      "aiVisual": "AI Visualisering",
+      "plan3d": "3D Plantegning",
+      "transformVideo": "Transformering Video",
+      "showcase": "Bolig Showcase Video"
+    }
   }
 }

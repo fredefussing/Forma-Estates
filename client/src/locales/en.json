@@ -535,5 +535,30 @@
       "timeout": "Generation timed out. Try again.",
       "generationFailed": "AI generation failed. Try again in a moment."
     }
+  },
+  "enterpriseCalc": {
+    "title": "Compose your package",
+    "oneTimePayment": "ONE-TIME PAYMENT",
+    "totalDiscount": "total discount",
+    "subtitle": "Choose the quantity of each service — the price drops automatically the more you order.",
+    "unit": "pcs.",
+    "base": "Base {{price}} DKK/pcs.",
+    "savePerUnit": "· save {{amount}} DKK per pcs.",
+    "nextTier": "+{{count}} pcs. → −{{pct}}%",
+    "loadingCheckout": "Loading checkout…",
+    "payOnce": "Pay once",
+    "noSubscription": "One-time payment · no subscription",
+    "checkoutFailed": "Checkout failed: {{error}}",
+    "youSave": "You save {{amount}} DKK ({{pct}}% total discount)",
+    "addMoreDiscount": "Add more to activate volume discount",
+    "dragSliders": "Use the sliders above to calculate your price",
+    "totalDiscountLabel": "Total discount",
+    "unknownError": "Unknown error",
+    "products": {
+      "aiVisual": "AI Visualization",
+      "plan3d": "3D Floor Plan",
+      "transformVideo": "Transformation Video",
+      "showcase": "Property Showcase Video"
+    }
   }
 }

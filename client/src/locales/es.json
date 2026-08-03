@@ -535,5 +535,30 @@
       "timeout": "La generación tardó demasiado. Inténtalo de nuevo.",
       "generationFailed": "La generación de IA falló. Inténtalo de nuevo en un momento."
     }
+  },
+  "enterpriseCalc": {
+    "title": "Crea tu paquete",
+    "oneTimePayment": "PAGO ÚNICO",
+    "totalDiscount": "descuento total",
+    "subtitle": "Elige la cantidad de cada servicio — el precio baja automáticamente cuanto más pidas.",
+    "unit": "uds.",
+    "base": "Base {{price}} DKK/ud.",
+    "savePerUnit": "· ahorra {{amount}} DKK por ud.",
+    "nextTier": "+{{count}} uds. → −{{pct}}%",
+    "loadingCheckout": "Cargando pago…",
+    "payOnce": "Pagar una vez",
+    "noSubscription": "Pago único · sin suscripción",
+    "checkoutFailed": "Error en el pago: {{error}}",
+    "youSave": "Ahorras {{amount}} DKK ({{pct}}% descuento total)",
+    "addMoreDiscount": "Añade más para activar el descuento por volumen",
+    "dragSliders": "Usa los controles deslizantes para calcular tu precio",
+    "totalDiscountLabel": "Descuento total",
+    "unknownError": "Error desconocido",
+    "products": {
+      "aiVisual": "Visualización IA",
+      "plan3d": "Plano 3D",
+      "transformVideo": "Vídeo de transformación",
+      "showcase": "Vídeo Showcase de propiedad"
+    }
   }
 }

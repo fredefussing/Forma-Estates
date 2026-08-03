@@ -535,5 +535,30 @@
       "timeout": "La génération a pris trop de temps. Réessayez.",
       "generationFailed": "La génération IA a échoué. Réessayez dans un instant."
     }
+  },
+  "enterpriseCalc": {
+    "title": "Composez votre forfait",
+    "oneTimePayment": "PAIEMENT UNIQUE",
+    "totalDiscount": "remise totale",
+    "subtitle": "Choisissez la quantité de chaque service — le prix baisse automatiquement plus vous commandez.",
+    "unit": "pcs",
+    "base": "Base {{price}} DKK/pc.",
+    "savePerUnit": "· économisez {{amount}} DKK par pièce",
+    "nextTier": "+{{count}} pcs → −{{pct}}%",
+    "loadingCheckout": "Chargement du paiement…",
+    "payOnce": "Payer une fois",
+    "noSubscription": "Paiement unique · sans abonnement",
+    "checkoutFailed": "Échec du paiement : {{error}}",
+    "youSave": "Vous économisez {{amount}} DKK ({{pct}}% de remise totale)",
+    "addMoreDiscount": "Ajoutez-en plus pour activer la remise sur volume",
+    "dragSliders": "Utilisez les curseurs ci-dessus pour calculer votre prix",
+    "totalDiscountLabel": "Remise totale",
+    "unknownError": "Erreur inconnue",
+    "products": {
+      "aiVisual": "Visualisation IA",
+      "plan3d": "Plan 3D",
+      "transformVideo": "Vidéo de transformation",
+      "showcase": "Vidéo Showcase immobilier"
+    }
   }
 }

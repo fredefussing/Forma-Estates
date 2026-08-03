@@ -535,5 +535,30 @@
       "timeout": "Genereringen tog för lång tid. Försök igen.",
       "generationFailed": "AI-generering misslyckades. Försök igen om ett ögonblick."
     }
+  },
+  "enterpriseCalc": {
+    "title": "Sätt ihop ditt paket",
+    "oneTimePayment": "ENGÅNGSBETALNING",
+    "totalDiscount": "total rabatt",
+    "subtitle": "Välj antal av varje tjänst — priset sjunker automatiskt ju mer du beställer.",
+    "unit": "st.",
+    "base": "Bas {{price}} kr./st.",
+    "savePerUnit": "· spara {{amount}} kr. per st.",
+    "nextTier": "+{{count}} st. → −{{pct}}%",
+    "loadingCheckout": "Laddar checkout…",
+    "payOnce": "Betala en gång",
+    "noSubscription": "Engångsbetalning · ingen prenumeration",
+    "checkoutFailed": "Checkout misslyckades: {{error}}",
+    "youSave": "Du sparar {{amount}} kr. ({{pct}}% total rabatt)",
+    "addMoreDiscount": "Lägg till fler för att aktivera volymrabatt",
+    "dragSliders": "Dra i reglagen ovan för att beräkna ditt pris",
+    "totalDiscountLabel": "Total rabatt",
+    "unknownError": "Okänt fel",
+    "products": {
+      "aiVisual": "AI Visualisering",
+      "plan3d": "3D Planlösning",
+      "transformVideo": "Transformationsvideo",
+      "showcase": "Fastighets Showcase Video"
+    }
   }
 }

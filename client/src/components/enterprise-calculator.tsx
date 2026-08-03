@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowRight, Building2, Zap, Box, Video, Home, Loader2, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -23,74 +24,76 @@ type CalcResult = {
   totalDiscountPercent: number;
 };
 
-// ── Product definitions (for sliders + tier display) ─────────────────────────
+// ── Product definitions ────────────────────────────────────────────────────────
+// "apiName" is the server-side name used in /api/calculate-package responses
+// (always Danish); "labelKey" is the i18n translation key shown to the user.
 const PRODUCTS: {
   key: ProductKey;
-  label: string;
+  apiName: string;
+  labelKey: string;
   icon: typeof Zap;
   basePrice: number;
   max: number;
-  unit: string;
-  tiers: Array<{ from: number; to: number; label: string; pct: number }>;
+  tiers: Array<{ from: number; to: number; range: string; pct: number }>;
 }[] = [
   {
     key: "aiVisual",
-    label: "AI Visualisering",
+    apiName: "AI Visualisering",
+    labelKey: "enterpriseCalc.products.aiVisual",
     icon: Zap,
     basePrice: 100,
     max: 200,
-    unit: "stk.",
     tiers: [
-      { from: 1,   to: 15,  label: "1–15 stk.",    pct: 0  },
-      { from: 16,  to: 40,  label: "16–40 stk.",   pct: 10 },
-      { from: 41,  to: 80,  label: "41–80 stk.",   pct: 20 },
-      { from: 81,  to: 150, label: "81–150 stk.",  pct: 28 },
-      { from: 151, to: 200, label: "151–200 stk.", pct: 35 },
+      { from: 1,   to: 15,  range: "1–15",    pct: 0  },
+      { from: 16,  to: 40,  range: "16–40",   pct: 10 },
+      { from: 41,  to: 80,  range: "41–80",   pct: 20 },
+      { from: 81,  to: 150, range: "81–150",  pct: 28 },
+      { from: 151, to: 200, range: "151–200", pct: 35 },
     ],
   },
   {
     key: "plan3d",
-    label: "3D Plantegning",
+    apiName: "3D Plantegning",
+    labelKey: "enterpriseCalc.products.plan3d",
     icon: Box,
     basePrice: 300,
     max: 60,
-    unit: "stk.",
     tiers: [
-      { from: 1,  to: 5,  label: "1–5 stk.",   pct: 0  },
-      { from: 6,  to: 12, label: "6–12 stk.",  pct: 10 },
-      { from: 13, to: 25, label: "13–25 stk.", pct: 20 },
-      { from: 26, to: 40, label: "26–40 stk.", pct: 28 },
-      { from: 41, to: 60, label: "41–60 stk.", pct: 35 },
+      { from: 1,  to: 5,  range: "1–5",   pct: 0  },
+      { from: 6,  to: 12, range: "6–12",  pct: 10 },
+      { from: 13, to: 25, range: "13–25", pct: 20 },
+      { from: 26, to: 40, range: "26–40", pct: 28 },
+      { from: 41, to: 60, range: "41–60", pct: 35 },
     ],
   },
   {
     key: "transformVideo",
-    label: "Transformering Video",
+    apiName: "Transformering Video",
+    labelKey: "enterpriseCalc.products.transformVideo",
     icon: Video,
     basePrice: 300,
     max: 60,
-    unit: "stk.",
     tiers: [
-      { from: 1,  to: 5,  label: "1–5 stk.",   pct: 0  },
-      { from: 6,  to: 12, label: "6–12 stk.",  pct: 10 },
-      { from: 13, to: 25, label: "13–25 stk.", pct: 20 },
-      { from: 26, to: 40, label: "26–40 stk.", pct: 28 },
-      { from: 41, to: 60, label: "41–60 stk.", pct: 35 },
+      { from: 1,  to: 5,  range: "1–5",   pct: 0  },
+      { from: 6,  to: 12, range: "6–12",  pct: 10 },
+      { from: 13, to: 25, range: "13–25", pct: 20 },
+      { from: 26, to: 40, range: "26–40", pct: 28 },
+      { from: 41, to: 60, range: "41–60", pct: 35 },
     ],
   },
   {
     key: "showcase",
-    label: "Bolig Showcase Video",
+    apiName: "Bolig Showcase Video",
+    labelKey: "enterpriseCalc.products.showcase",
     icon: Home,
     basePrice: 500,
     max: 60,
-    unit: "stk.",
     tiers: [
-      { from: 1,  to: 5,  label: "1–5 stk.",   pct: 0  },
-      { from: 6,  to: 12, label: "6–12 stk.",  pct: 10 },
-      { from: 13, to: 25, label: "13–25 stk.", pct: 20 },
-      { from: 26, to: 40, label: "26–40 stk.", pct: 28 },
-      { from: 41, to: 60, label: "41–60 stk.", pct: 35 },
+      { from: 1,  to: 5,  range: "1–5",   pct: 0  },
+      { from: 6,  to: 12, range: "6–12",  pct: 10 },
+      { from: 13, to: 25, range: "13–25", pct: 20 },
+      { from: 26, to: 40, range: "26–40", pct: 28 },
+      { from: 41, to: 60, range: "41–60", pct: 35 },
     ],
   },
 ];
@@ -152,6 +155,7 @@ function ProductRow({
   item: CalcItem | undefined;
   onQtyChange: (key: ProductKey, val: number) => void;
 }) {
+  const { t } = useTranslation();
   const Icon = product.icon;
   const tierIdx = getCurrentTierIdx(product, qty);
   const nextTier = getNextTierInfo(product, qty);
@@ -160,6 +164,7 @@ function ProductRow({
   const lineTotal = item?.total ?? 0;
   const origLineTotal = item?.originalTotal ?? 0;
   const saving = origLineTotal - lineTotal;
+  const unit = t("enterpriseCalc.unit");
 
   return (
     <div
@@ -180,9 +185,9 @@ function ProductRow({
             <Icon className="w-4 h-4" style={{ color: qty > 0 ? "#c9a96e" : "rgba(255,255,255,0.4)" }} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{product.label}</p>
+            <p className="text-sm font-semibold text-white">{t(product.labelKey)}</p>
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Basis {fmt(product.basePrice)} kr./{product.unit}
+              {t("enterpriseCalc.base", { price: fmt(product.basePrice) })}
             </p>
           </div>
         </div>
@@ -210,7 +215,7 @@ function ProductRow({
             </>
           ) : (
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.35)" }}>
-              {fmt(product.basePrice)} kr./{product.unit}
+              {fmt(product.basePrice)} kr./{unit}
             </p>
           )}
         </div>
@@ -218,7 +223,7 @@ function ProductRow({
 
       {/* Tier badges */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {product.tiers.map((t, i) => {
+        {product.tiers.map((tier, i) => {
           const active = i === tierIdx;
           const passed = i < tierIdx;
           return (
@@ -235,7 +240,7 @@ function ProductRow({
                 border: active ? "1px solid rgba(34,197,94,0.35)" : "1px solid transparent",
               }}
             >
-              {t.pct > 0 ? `−${t.pct}%` : "0%"} · {t.label}
+              {tier.pct > 0 ? `−${tier.pct}%` : "0%"} · {tier.range} {unit}
             </span>
           );
         })}
@@ -291,16 +296,16 @@ function ProductRow({
       {qty > 0 && (
         <div className="mt-3 flex items-center justify-between">
           <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-            {fmt(unitPrice)} kr./{product.unit}
+            {fmt(unitPrice)} kr./{unit}
             {discPct > 0 && (
               <span style={{ color: "#22c55e" }}>
-                {" "}· du sparer {fmt(product.basePrice - unitPrice)} kr. pr. stk.
+                {" "}{t("enterpriseCalc.savePerUnit", { amount: fmt(product.basePrice - unitPrice) })}
               </span>
             )}
           </p>
           {nextTier && (
             <p className="text-[11px]" style={{ color: "#c9a96e" }}>
-              +{nextTier.stksLeft} stk. → −{nextTier.nextPct}%
+              {t("enterpriseCalc.nextTier", { count: nextTier.stksLeft, pct: nextTier.nextPct })}
             </p>
           )}
         </div>
@@ -314,6 +319,7 @@ type Props = { dark?: boolean };
 
 export function EnterpriseCalculator({ dark: _dark = true }: Props) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [quantities, setQuantities] = useState<Record<ProductKey, number>>({
     aiVisual: 0, plan3d: 0, transformVideo: 0, showcase: 0,
   });
@@ -368,9 +374,9 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else throw new Error(data.error ?? "Ukendt fejl");
+      else throw new Error(data.error ?? t("enterpriseCalc.unknownError"));
     } catch (e: any) {
-      setCheckoutError("Checkout fejlede: " + e.message);
+      setCheckoutError(t("enterpriseCalc.checkoutFailed", { error: e.message }));
     } finally {
       setCheckoutLoading(false);
     }
@@ -398,7 +404,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             <p className="text-xs font-semibold" style={{ color: "#c9a96e", letterSpacing: "0.08em" }}>
               ENTERPRISE
             </p>
-            <p className="text-sm font-bold text-white leading-tight">Sammensæt din pakke</p>
+            <p className="text-sm font-bold text-white leading-tight">{t("enterpriseCalc.title")}</p>
           </div>
           <span
             className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
@@ -406,7 +412,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             data-testid="badge-one-time-payment"
           >
             <ShieldCheck className="w-3 h-3" />
-            ENGANGSBETALING
+            {t("enterpriseCalc.oneTimePayment")}
           </span>
         </div>
 
@@ -426,7 +432,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             {discountPct > 0 ? `${discountPct}%` : "0%"}
           </p>
           <p className="text-[10px] font-semibold mt-0.5" style={{ color: discountPct > 0 ? "#22c55e" : "rgba(255,255,255,0.2)" }}>
-            samlet rabat
+            {t("enterpriseCalc.totalDiscount")}
           </p>
         </div>
       </div>
@@ -434,7 +440,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
       {/* Subtitle */}
       <div className="px-6 sm:px-10 pt-5 pb-2">
         <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-          Vælg antal af hver ydelse — prisen falder automatisk jo mere du bestiller.
+          {t("enterpriseCalc.subtitle")}
         </p>
       </div>
 
@@ -445,7 +451,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             key={product.key}
             product={product}
             qty={quantities[product.key]}
-            item={result?.items.find((i) => i.name === product.label)}
+            item={result?.items.find((i) => i.name === product.apiName)}
             onQtyChange={handleQtyChange}
           />
         ))}
@@ -472,12 +478,12 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
                 </div>
                 {savings > 0 && (
                   <p className="text-sm font-semibold mt-1" style={{ color: "#22c55e" }}>
-                    Du sparer <AnimatedNumber value={savings} /> kr. ({discountPct}% samlet rabat)
+                    {t("enterpriseCalc.youSave", { amount: fmt(savings), pct: discountPct })}
                   </p>
                 )}
                 {savings === 0 && (
                   <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    Tilføj flere for at aktivere mængderabat
+                    {t("enterpriseCalc.addMoreDiscount")}
                   </p>
                 )}
               </>
@@ -485,7 +491,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
               <>
                 <p className="text-3xl font-black" style={{ color: "rgba(255,255,255,0.15)" }}>0 kr.</p>
                 <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  Træk i sliderne ovenfor for at beregne din pris
+                  {t("enterpriseCalc.dragSliders")}
                 </p>
               </>
             )}
@@ -505,13 +511,13 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
               data-testid="button-enterprise-get-quote"
             >
               {checkoutLoading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Henter checkout…</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> {t("enterpriseCalc.loadingCheckout")}</>
               ) : (
-                <>Betal engang <ArrowRight className="w-4 h-4" /></>
+                <>{t("enterpriseCalc.payOnce")} <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
             <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
-              Engangsbetaling · ingen abonnement
+              {t("enterpriseCalc.noSubscription")}
             </p>
           </div>
         </div>
@@ -533,24 +539,30 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
             className="mt-5 pt-5 space-y-2"
             style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
           >
-            {result.items.filter((i) => i.quantity > 0).map((item) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  {item.name} × {item.quantity}
-                </span>
-                <div className="flex items-center gap-2">
-                  {item.discountPercent > 0 && (
-                    <span className="text-xs line-through" style={{ color: "#64748b" }}>
-                      {fmt(item.originalTotal)} kr.
-                    </span>
-                  )}
-                  <span className="text-xs font-semibold text-white">{fmt(item.total)} kr.</span>
+            {result.items.filter((i) => i.quantity > 0).map((item) => {
+              const productMatch = PRODUCTS.find((p) => p.apiName === item.name);
+              const displayName = productMatch ? t(productMatch.labelKey) : item.name;
+              return (
+                <div key={item.name} className="flex items-center justify-between">
+                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    {displayName} × {item.quantity}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {item.discountPercent > 0 && (
+                      <span className="text-xs line-through" style={{ color: "#64748b" }}>
+                        {fmt(item.originalTotal)} kr.
+                      </span>
+                    )}
+                    <span className="text-xs font-semibold text-white">{fmt(item.total)} kr.</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {savings > 0 && (
               <div className="flex items-center justify-between pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                <span className="text-xs font-semibold" style={{ color: "#22c55e" }}>Samlet rabat</span>
+                <span className="text-xs font-semibold" style={{ color: "#22c55e" }}>
+                  {t("enterpriseCalc.totalDiscountLabel")}
+                </span>
                 <span className="text-xs font-bold" style={{ color: "#22c55e" }}>−{fmt(savings)} kr.</span>
               </div>
             )}
