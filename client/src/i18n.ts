@@ -7,11 +7,14 @@ import sv from "./locales/sv.json";
 import de from "./locales/de.json";
 import nb from "./locales/nb.json";
 import en from "./locales/en.json";
+import es from "./locales/es.json";
+import fr from "./locales/fr.json";
 
 // Country-code → i18next language mapping.
-// navigator.language returns tags like "sv-SE", "de-AT", "nb-NO".
-// The LanguageDetector uses the first segment automatically (e.g. "sv", "de", "nb").
-// We map: da → Danish, sv → Swedish, de → German, nb/no/nn → Norwegian, * → English.
+// navigator.language returns tags like "sv-SE", "de-AT", "nb-NO", "es-ES", "fr-FR".
+// The LanguageDetector uses the first segment automatically (e.g. "sv", "de", "nb", "es", "fr").
+// We map: da → Danish, sv → Swedish, de → German, nb/no/nn → Norwegian,
+//         es → Spanish, fr → French, * → English.
 
 i18n
   .use(LanguageDetector)
@@ -23,12 +26,14 @@ i18n
       de: { translation: de },
       nb: { translation: nb },
       en: { translation: en },
+      es: { translation: es },
+      fr: { translation: fr },
     },
     // Fallback chain: missing key → Danish (home language of the product)
     fallbackLng: "da",
     // Map "no" and "nn" (Nynorsk) to the "nb" resource
     load: "languageOnly",
-    supportedLngs: ["da", "sv", "de", "nb", "en"],
+    supportedLngs: ["da", "sv", "de", "nb", "en", "es", "fr"],
     nonExplicitSupportedLngs: true,
     detection: {
       // 1. Check localStorage (returning visitors keep their detected language)

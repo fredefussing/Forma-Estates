@@ -1,0 +1,193 @@
+{
+  "nav": {
+    "home": "ACCUEIL",
+    "prices": "TARIFS",
+    "examples": "EXEMPLES",
+    "about": "À PROPOS",
+    "faq": "FAQ",
+    "contact": "Nous contacter",
+    "login": "Se connecter",
+    "getStarted": "Commencer"
+  },
+  "hero": {
+    "headline": "Visualisations Immobilières Professionnelles en Quelques Secondes",
+    "subline": "Créez des visualisations de biens par IA, des plans 3D et des vidéos de vente — directement dans votre navigateur",
+    "cta": "Commencer gratuitement",
+    "ctaSecondary": "Voir les exemples",
+    "trial": "2 visualisations IA gratuites · sans carte de crédit",
+    "prev": "Précédent",
+    "next": "Suivant"
+  },
+  "slides": [
+    { "title": "Vidéo cinématographique", "caption": "Une seule image fixe devient une vidéo vivante de 5 secondes — prête pour votre annonce.", "meta": "" },
+    { "title": "Vidéo de transformation", "caption": "Regardez la pièce passer de l'avant à l'après en une animation fluide — idéal pour les annonces et les réseaux sociaux.", "meta": "Cuisine · Transformation" },
+    { "title": "Avant & après", "caption": "Téléchargez une photo de la pièce — l'IA redessine l'intérieur en moins de 20 secondes.", "meta": "Salle à manger · Scandinave", "beforeLabel": "Avant", "afterLabel": "Après" },
+    { "title": "Avant & après", "caption": "Téléchargez une photo — l'IA transforme le bien en moins de 20 secondes.", "meta": "Grange · AI Design Agent", "beforeLabel": "Avant", "afterLabel": "Après" },
+    { "title": "Plan 3D", "caption": "D'un plan plat à un espace 3D vivant que l'acheteur peut ressentir.", "meta": "Plan 3D", "beforeLabel": "Plan 2D", "afterLabel": "3D" }
+  ],
+  "savingsNudge": {
+    "text": "Économisez jusqu'à 18 000 DKK+ en post-production par bien —",
+    "link": "voir le calcul"
+  },
+  "categoryTabs": {
+    "howItWorks": "Comment ça marche",
+    "examples": "Exemples",
+    "prices": "Tarifs"
+  },
+  "why": {
+    "overline": "Pourquoi visualiser",
+    "headline": "Montrez le potentiel",
+    "headlineLine2": "Pas la pièce vide",
+    "seeMore": "Voir plus",
+    "tiles": [
+      { "eyebrow": "Avant / Après", "title": "Staging par IA", "desc": "Une pièce vide devient un foyer en quelques secondes." },
+      { "eyebrow": "Plan 3D", "title": "Comprendre la disposition", "desc": "Laissez l'acheteur parcourir les espaces avant la première visite." },
+      { "eyebrow": "Vidéo immobilière", "title": "Narration cinématographique", "desc": "Suscitez des émotions avec une visite vidéo immersive." },
+      { "eyebrow": "AI Design Agent", "title": "Décrivez votre vision", "desc": "Dites à l'IA ce que vous voulez — elle le transforme en design finalisé." },
+      { "eyebrow": "Property Showcase", "title": "Montrez le potentiel", "desc": "Présentez tout le potentiel du bien avec des visualisations professionnelles." }
+    ]
+  },
+  "howItWorks": {
+    "overline": "Comment ça marche",
+    "headline": "Trois étapes — moins d'une minute",
+    "subline": "Pas de logiciel, pas de compétences techniques — juste une photo et un clic.",
+    "steps": [
+      { "title": "Téléchargez une photo de la pièce", "desc": "Prenez une photo avec votre téléphone ou votre appareil photo. Aucune photographie professionnelle nécessaire." },
+      { "title": "Choisissez le type de pièce et le style", "desc": "Sélectionnez le type de pièce et choisissez l'un de nos styles de design — du minimalisme scandinave au luxe moderne." },
+      { "title": "Téléchargez votre visualisation", "desc": "L'IA génère votre image en moins de 20 secondes. Prête à télécharger en haute qualité." }
+    ]
+  },
+  "stats": {
+    "overline": "Vendez plus vite",
+    "headline": "Les chiffres parlent d'eux-mêmes.",
+    "subline": "Les biens avec une visualisation professionnelle se vendent plus vite, à un meilleur prix et attirent plus de vues en ligne.",
+    "sources": "Sources : NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
+    "items": [
+      { "stat": "73%", "label": "ventes plus rapides", "desc": "Les biens stagés se vendent en moyenne 73% plus vite que les biens non stagés." },
+      { "stat": "+8%", "label": "prix de vente plus élevé", "desc": "Les acheteurs offrent généralement 1 à 8% de plus pour un bien professionnellement visualisé." },
+      { "stat": "3×", "label": "plus de vues en ligne", "desc": "Les annonces avec des photos de staging reçoivent jusqu'à trois fois plus de clics sur les portails." },
+      { "stat": "95%", "label": "des acheteurs cherchent en ligne", "desc": "La première impression se crée sur écran — pas lors de la visite." }
+    ]
+  },
+  "features": {
+    "overline": "Fonctionnalités",
+    "headline": "Tout ce dont vous avez besoin",
+    "readMore": "Lire la suite",
+    "readLess": "Afficher moins",
+    "items": [
+      { "title": "Visualisation fidèle à la réalité", "desc": "Conserve les murs, les fenêtres et la lumière naturelle de la pièce — seul l'intérieur change.", "more": "Le résultat ressemble à une vraie photo du bien. Les proportions, la perspective et la lumière du jour sont préservées pour que l'acheteur puisse imaginer le logement terminé." },
+      { "title": "8 styles de design", "desc": "Scandinave, moderne, industriel, bohème, classique et plus encore." },
+      { "title": "Plan 3D", "desc": "Obtenez un plan 3D clair montrant la disposition et la circulation de la pièce.", "more": "Le plan aide les acheteurs à comprendre la disposition et l'échelle du bien — un avantage clair dans l'annonce." },
+      { "title": "Vidéo de transformation", "desc": "Une courte vidéo montrant la pièce passer de l'avant à l'après.", "more": "La petite vidéo avant/après capte l'attention sur les portails immobiliers et les réseaux sociaux, rendant l'annonce vivante." },
+      { "title": "Design Agent", "desc": "Écrivez en langage courant ce que vous souhaitez modifier — nous nous occupons du reste.", "more": "Par exemple : « remplacez le canapé par un canapé en lin clair et ajoutez une grande plante ». Aucune compétence en design ou technique n'est requise." },
+      { "title": "Prête en moins de 20 sec.", "desc": "Sans attente. La visualisation est prête pendant que vous êtes encore dans la pièce." },
+      { "title": "Directement dans le navigateur", "desc": "Pas de logiciel ni d'installation. Tout se passe en ligne." },
+      { "title": "Téléchargement haute résolution", "desc": "Prête pour les portails immobiliers, les réseaux sociaux et l'impression." },
+      { "title": "Support danois", "desc": "Nous sommes basés au Danemark et répondons à vos questions en jours ouvrables." }
+    ]
+  },
+  "savings": {
+    "overline": "Que économisez-vous ?",
+    "headline": "Jusqu'à 18 000 DKK+ économisés en post-production — par bien",
+    "subline": "Nous ne remplaçons pas le photographe. Nous remplaçons la partie coûteuse qui suit : staging, vidéo et 3D.",
+    "colService": "Post-production",
+    "colTraditional": "Traditionnel (approx.)",
+    "colForma": "Avec Forma Estates",
+    "included": "Inclus",
+    "totalLabel": "Total post-production",
+    "totalTraditional": "21 000 DKK",
+    "totalForma": "À partir de 2 999 DKK/mois",
+    "disclaimer": "* Les prix sont indicatifs et peuvent varier selon le prestataire, la complexité et la géographie.",
+    "rows": [
+      { "label": "4 visualisations IA", "traditional": "2 500 DKK" },
+      { "label": "1 plan 3D", "traditional": "2 500 DKK" },
+      { "label": "2 vidéos de transformation", "traditional": "10 000 DKK" },
+      { "label": "1 vidéo showcase", "traditional": "6 000 DKK" }
+    ]
+  },
+  "pricing": {
+    "overline": "Tarifs",
+    "headline": "Choisissez votre plan",
+    "subline": "Choisissez le plan qui vous convient et commencez immédiatement.",
+    "monthly": "Mensuel",
+    "yearly": "Annuel",
+    "save20": "Économisez 20%",
+    "mostPopular": "Le plus populaire",
+    "perMonth": "DKK/mois",
+    "perMonthYearly": "DKK/mois, facturé annuellement",
+    "billedYearly": "facturé {{amount}} DKK par an",
+    "openingStripe": "Ouverture de Stripe…",
+    "checkoutFailed": "Échec du paiement. Veuillez réessayer.",
+    "enterprise": "Entreprise — créez votre plan",
+    "custom": "Sur mesure",
+    "plans": {
+      "Start": { "cta": "Choisir Start", "features": ["10 visualisations IA / mois", "2 plans 3D / mois", "2 vidéos de transformation / mois", "1 Property Showcase / mois", "HD 1080p · JPG + PNG", "Branding logo (activé/désactivé)", "Support standard"] },
+      "Pro": { "cta": "Choisir Pro", "features": ["25 visualisations IA / mois", "5 plans 3D / mois", "5 vidéos de transformation / mois", "3 Property Showcase / mois", "4K · JPG + PNG + PDF", "Contrôle total de la marque", "Support prioritaire"] },
+      "Business": { "cta": "Choisir Business", "features": ["60 visualisations IA / mois", "12 plans 3D / mois", "12 vidéos de transformation / mois", "8 Property Showcase / mois", "4K · JPG + PNG + PDF", "Contrôle total de la marque", "Support dédié"] }
+    }
+  },
+  "faq": {
+    "overline": "FAQ",
+    "headline": "Questions fréquentes",
+    "sideTitle": "Vous avez des questions ?",
+    "sideText": "Nous sommes là pour vous aider. Envoyez-nous un message et nous vous répondrons dans les 24 heures.",
+    "sideButton": "Nous écrire",
+    "items": [
+      { "q": "Qu'est-ce que Forma Estates ?", "a": "Forma Estates est une plateforme IA pour la visualisation professionnelle de biens immobiliers. Vous téléchargez des images d'un bien et obtenez en quelques secondes : des visualisations IA des pièces dans jusqu'à 8 styles de design, une vidéo cinématographique avec des mouvements de caméra IA et une musique synchronisée, une vidéo de transformation animant la transition de l'avant à l'après, un plan 3D à partir de votre plan 2D et des présentations PDF professionnelles avec comparaison avant/après — tout prêt pour les annonces, les réseaux sociaux, les documents de projet et les présentations clients." },
+      { "q": "Qui utilise Forma Estates ?", "a": "La plateforme est utilisée par les agents immobiliers, les promoteurs, les constructeurs, les copropriétés, les sociétés de location et d'autres professionnels du secteur immobilier. Que vous vendiez, louiez, rénroviez ou présentiez un projet, Forma Estates vous offre des visualisations professionnelles en quelques secondes." },
+      { "q": "Que sont les visualisations IA et les vidéos de transformation ?", "a": "Les visualisations IA sont des images fixes dans lesquelles l'IA redessine la pièce dans le style choisi — les murs, le sol et les fenêtres restent inchangés tandis que les meubles, l'éclairage et les surfaces sont remplacés. Les vidéos de transformation sont des clips de 5 secondes animant la transition de la pièce originale vers la pièce redessinée — idéales pour montrer le potentiel du bien sur Instagram, dans les présentations de projets et dans les annonces." },
+      { "q": "Que sont les vidéos de bien (Showcase) ?", "a": "La vidéo Showcase combine vos images du bien en une vidéo verticale 9:16 avec des mouvements de caméra générés par IA (travelling, orbite, panoramique) et une musique de fond synchronisée avec le rythme. Le résultat est un reel professionnel prêt pour Instagram, Facebook, les portails immobiliers et les sites de projets — sans équipe de tournage ni montage vidéo." },
+      { "q": "Combien ça coûte ?", "a": "Les abonnements commencent à partir de 2 999 DKK/mois et donnent accès à toutes les fonctionnalités : visualisations IA, vidéos de transformation, vidéos de bien, plans 3D et présentations PDF. Contactez-nous pour un devis adapté à votre entreprise ou équipe." },
+      { "q": "Quels formats de fichier puis-je télécharger ?", "a": "Nous prenons en charge JPG et PNG. Pour de meilleurs résultats, l'image doit faire au moins 800×600 pixels et être prise dans une bonne lumière naturelle. Évitez le contre-jour intense ou les pièces très sombres — meilleure est l'entrée, meilleur est le résultat." },
+      { "q": "Puis-je utiliser le contenu en marketing et présentations ?", "a": "Oui. Toutes les visualisations, vidéos et PDF générés peuvent être téléchargés et utilisés librement dans les publicités, documents de projet, réseaux sociaux et présentations clients. Nous recommandons d'étiqueter clairement les images générées par IA conformément aux directives du secteur." },
+      { "q": "L'IA préserve-t-elle la structure de la pièce ?", "a": "Oui. Les murs, fenêtres, sol et proportions de la pièce restent inchangés. Seuls les meubles, l'éclairage et les surfaces sont redessinés, de sorte que le résultat soit réaliste et crédible pour les acheteurs, locataires et investisseurs potentiels." },
+      { "q": "Mes images sont-elles confidentielles ?", "a": "Oui. Les images téléchargées sont utilisées uniquement pour générer votre visualisation et ne sont pas partagées avec des tiers. <a href=\"/privatlivspolitik\" style=\"color:inherit;text-decoration:underline;\">Consultez notre politique de confidentialité</a> pour tous les détails sur la protection des données." }
+    ]
+  },
+  "footerCta": {
+    "headline": "Prêt à montrer le potentiel du bien ?",
+    "subline": "Créez un compte en moins d'1 minute — sans carte de crédit.",
+    "cta": "Créer un compte gratuitement",
+    "secondary": "Voir les tarifs"
+  },
+  "footer": {
+    "tagline": "Visualisation par IA, plans 3D et vidéos pour le secteur immobilier.",
+    "product": "Produit",
+    "support": "Support",
+    "getStarted": "Commencer",
+    "createAccount": "Créer un compte gratuitement",
+    "howItWorks": "Comment ça marche",
+    "examples": "Exemples",
+    "prices": "Tarifs",
+    "contact": "Contact",
+    "privacy": "Politique de confidentialité",
+    "terms": "Conditions générales",
+    "copyright": "© 2026 Forma Estates · CVR: 46551796 · Fabriqué au Danemark · Tous droits réservés"
+  },
+  "cookie": {
+    "title": "Nous utilisons des cookies",
+    "text": "Nous utilisons des cookies pour faire fonctionner notre site, mesurer le trafic et mémoriser vos préférences. Vous choisissez ce que vous acceptez.",
+    "necessary": "Nécessaires (toujours actifs)",
+    "statistics": "Statistiques",
+    "preferences": "Préférences",
+    "save": "Enregistrer la sélection",
+    "acceptAll": "Tout accepter",
+    "reject": "Refuser les optionnels"
+  },
+  "slider": {
+    "before": "Avant",
+    "after": "Après",
+    "aiEdited": "Modifié par IA",
+    "dragToCompare": "Glissez pour comparer"
+  },
+  "trustMarquee": [
+    "Conçu pour le marché immobilier européen",
+    "Conforme au RGPD — vos données restent dans l'UE",
+    "Sans engagement — annulez à tout moment",
+    "Qualité professionnelle en 30 secondes",
+    "De bien vide à prêt pour l'annonce — instantanément",
+    "Visualisations IA · Plans 3D · Vidéos Showcase",
+    "Sans frais cachés — tarification transparente",
+    "Économies documentées par bien"
+  ]
+}
