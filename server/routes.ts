@@ -2037,7 +2037,7 @@ export async function registerRoutes(
       const cases = await storage.getBoligCasesByUser(user.id);
       const enriched = await Promise.all(cases.map(async (c) => {
         const imgs = await storage.getGeneratedImagesByCaseId(c.id, user.id);
-        const thumbs = imgs.filter((i) => i.style !== "transform-video");
+        const thumbs = imgs.filter((i) => i.style !== "transform-video" && i.style !== "3d-interactive");
         return { ...c, imageCount: imgs.length, latestImageUrl: thumbs[0]?.imageUrl ?? null };
       }));
       return res.json(enriched);
