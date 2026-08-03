@@ -1672,22 +1672,33 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid token" });
       }
 
-      if (!req.file) return res.status(400).json({ error: "No image uploaded" });
-
       const prompt = (req.body.prompt || "").trim();
       if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-      if (userId !== null && !isAdmin) {
+      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+
+      // Accept either a new file upload or an existing server-side URL (locked image re-adjust)
+      const originalImageUrl: string = req.file
+        ? `/uploads/${req.file.filename}`
+        : (req.body.existingOriginalUrl || "");
+      if (!originalImageUrl) return res.status(400).json({ error: "No image provided" });
+
+      const uploadUrl = `${protocol}://${host}${originalImageUrl}`;
+
+      // 5 free uses per original image per user; paid credits needed beyond that
+      const FREE_LIMIT = 5;
+      const existingCount = userId !== null
+        ? await storage.countAgentDesignsByOriginalUrl(userId, originalImageUrl)
+        : 0;
+      const isFreeUse = existingCount < FREE_LIMIT;
+
+      if (userId !== null && !isAdmin && !isFreeUse) {
         const deducted = await storage.deductCredit(userId, "AI Design Agent generation");
         if (!deducted) {
           return res.status(403).json({ error: "Ikke nok billeder. Køb en pakke for at fortsætte.", requiresCredits: true });
         }
       }
-
-      const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
-      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
-      const uploadUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-      const originalImageUrl = `/uploads/${req.file.filename}`;
 
       const agentDesign = await storage.createAgentDesign({
         userId,
@@ -1696,11 +1707,13 @@ export async function registerRoutes(
         status: "processing",
       });
 
+      const freeUsesRemaining = Math.max(0, FREE_LIMIT - (existingCount + 1));
+
       try {
         const uuid = await sendCollovAgentTask(uploadUrl, prompt);
         await storage.updateAgentDesign(agentDesign.id, { collovUuid: uuid });
         backgroundPollAgent(agentDesign.id, uuid, userId, uploadUrl, prompt);
-        return res.status(201).json({ id: agentDesign.id, status: "processing" });
+        return res.status(201).json({ id: agentDesign.id, status: "processing", originalImageUrl, freeUsesRemaining });
       } catch (collovErr: any) {
         await storage.updateAgentDesign(agentDesign.id, { status: "failed", failReason: collovErr.message });
         log(`AgentDesign ${agentDesign.id} Collov send failed: ${collovErr.message}`);

@@ -98,6 +98,7 @@ export interface IStorage {
   getAgentDesign(id: number): Promise<AgentDesign | undefined>;
   getAgentDesignsByUser(userId: number): Promise<AgentDesign[]>;
   updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined>;
+  countAgentDesignsByOriginalUrl(userId: number, originalImageUrl: string): Promise<number>;
 
   createBoligCase(data: InsertBoligCase): Promise<BoligCase>;
   getBoligCasesByUser(userId: number): Promise<BoligCase[]>;
@@ -406,6 +407,13 @@ export class DatabaseStorage implements IStorage {
   async updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined> {
     const [result] = await db.update(agentDesigns).set(updates).where(eq(agentDesigns.id, id)).returning();
     return result;
+  }
+
+  async countAgentDesignsByOriginalUrl(userId: number, originalImageUrl: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(agentDesigns)
+      .where(and(eq(agentDesigns.userId, userId), eq(agentDesigns.originalImageUrl, originalImageUrl)));
+    return result[0]?.count ?? 0;
   }
 
   async createBoligCase(data: InsertBoligCase): Promise<BoligCase> {

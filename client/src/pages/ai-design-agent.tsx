@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { apiRequest } from "@/lib/queryClient";
-import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight, Globe, ChevronLeft, Sun, Sunrise, Sunset, Cloud, Moon } from "lucide-react";
+import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight, Globe, ChevronLeft, Sun, Sunrise, Sunset, Cloud, Moon, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 
@@ -113,6 +113,9 @@ export default function AIDesignAgentPage() {
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [mode, setMode] = useState<"normal" | "satellite">("normal");
   const [satelliteTimeIdx, setSatelliteTimeIdx] = useState(3); // default: tidlig solnedgang
+  const [imageLocked, setImageLocked] = useState(false);
+  const [lockedOriginalUrl, setLockedOriginalUrl] = useState<string | null>(null);
+  const [freeUsesRemaining, setFreeUsesRemaining] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,6 +156,18 @@ export default function AIDesignAgentPage() {
     setOriginalUrl(null);
     setMode("normal");
     setSatelliteTimeIdx(3);
+    setImageLocked(false);
+    setLockedOriginalUrl(null);
+    setFreeUsesRemaining(null);
+    pollAttemptsRef.current = 0;
+  };
+
+  // Go back to form keeping the same locked image
+  const handleAdjust = () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+    setStatus("idle");
+    setResultUrl(null);
+    setErrorMsg(null);
     pollAttemptsRef.current = 0;
   };
 
@@ -216,7 +231,12 @@ export default function AIDesignAgentPage() {
       }
 
       const formData = new FormData();
-      formData.append("image", file);
+      if (imageLocked && lockedOriginalUrl) {
+        // Re-adjust: no re-upload, reuse the locked server-side URL
+        formData.append("existingOriginalUrl", lockedOriginalUrl);
+      } else {
+        formData.append("image", file);
+      }
       formData.append("prompt", prompt.trim());
 
       const response = await fetch("/api/agent-designs", {
@@ -235,6 +255,15 @@ export default function AIDesignAgentPage() {
         }
         setStatus("idle");
         return;
+      }
+
+      // Lock image after first successful submission
+      if (!imageLocked && data.originalImageUrl) {
+        setImageLocked(true);
+        setLockedOriginalUrl(data.originalImageUrl);
+      }
+      if (typeof data.freeUsesRemaining === "number") {
+        setFreeUsesRemaining(data.freeUsesRemaining);
       }
 
       setDesignId(data.id);
@@ -281,7 +310,8 @@ export default function AIDesignAgentPage() {
   };
 
   const isGenerating = status === "uploading" || status === "processing";
-  const canGenerate = !!file && !!prompt.trim() && !isGenerating;
+  // When image is locked, no new file upload is needed — reuse lockedOriginalUrl
+  const canGenerate = (!!file || (imageLocked && !!lockedOriginalUrl)) && !!prompt.trim() && !isGenerating;
 
   return (
     <div className="min-h-screen bg-background">
@@ -330,9 +360,21 @@ export default function AIDesignAgentPage() {
                     <h2 className="text-lg font-medium">Dit AI-genererede design</h2>
                     <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">"{prompt}"</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleReset} className="h-9 gap-1.5" data-testid="button-new-design">
-                    <RotateCcw className="w-3.5 h-3.5" /> Nyt design
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {freeUsesRemaining !== null && (
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {freeUsesRemaining > 0
+                          ? `${freeUsesRemaining} gratis justeringer tilbage`
+                          : "Gratis justeringer opbrugt"}
+                      </span>
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleAdjust} className="h-9 gap-1.5" data-testid="button-adjust">
+                      <Sparkles className="w-3.5 h-3.5" /> Juster igen
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleReset} className="h-9 gap-1.5" data-testid="button-new-design">
+                      <RotateCcw className="w-3.5 h-3.5" /> Nyt billede
+                    </Button>
+                  </div>
                 </div>
 
                 <BeforeAfterSlider beforeSrc={originalUrl} afterSrc={resultUrl} />
@@ -414,13 +456,36 @@ export default function AIDesignAgentPage() {
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs tracking-widest uppercase text-muted-foreground font-medium">Dit billede</p>
-                      <Button variant="ghost" size="sm" onClick={() => { setFile(null); setPreviewUrl(null); }} className="text-xs h-7 px-2 text-muted-foreground" data-testid="button-change-image">
-                        <X className="w-3.5 h-3.5 mr-1" /> Skift
-                      </Button>
+                      {imageLocked ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="text-image-locked">
+                          <Lock className="w-3 h-3" /> Låst
+                        </span>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => { setFile(null); setPreviewUrl(null); }} className="text-xs h-7 px-2 text-muted-foreground" data-testid="button-change-image">
+                          <X className="w-3.5 h-3.5 mr-1" /> Skift
+                        </Button>
+                      )}
                     </div>
                     <div className="rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex items-center justify-center">
                       <img src={previewUrl} alt="Uploaded room" className="w-full h-auto max-h-[360px] object-contain block" data-testid="img-preview" />
                     </div>
+                    {imageLocked && freeUsesRemaining !== null && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className={`h-1 w-5 rounded-full ${i < (5 - freeUsesRemaining) ? "bg-foreground/40" : "bg-foreground/10"}`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {freeUsesRemaining > 0
+                            ? `${freeUsesRemaining} af 5 gratis justeringer tilbage`
+                            : "Alle 5 gratis justeringer brugt"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
