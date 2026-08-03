@@ -2267,6 +2267,7 @@ export async function registerRoutes(
       const stats = await storage.getBoligStats(user.id);
       return res.json(stats);
     } catch (err: any) {
+      if (err.message === "Ingen token") return res.status(401).json({ message: "Unauthorized" });
       return res.status(500).json({ message: err.message });
     }
   });
@@ -2317,6 +2318,7 @@ export async function registerRoutes(
       const imgs = await storage.getAllGeneratedImages(user.id, 20);
       return res.json(imgs.filter((i) => i.style !== "transform-video").slice(0, 3));
     } catch (err: any) {
+      if (err.message === "Ingen token") return res.status(401).json({ message: "Unauthorized" });
       return res.status(500).json({ message: err.message });
     }
   });

@@ -374,7 +374,8 @@ export function FloorplanTripo3DViewer({
     const key=new THREE.DirectionalLight(0xffffff,2.8);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.width=key.shadow.mapSize.height=2048;scene.add(key);
     const fill=new THREE.DirectionalLight(0xffffff,0.9);fill.position.set(-3,2,-2);scene.add(fill);
     const controls=new OrbitControls(camera,renderer.domElement);
-    controls.enableDamping=true;controls.dampingFactor=0.05;controls.enablePan=true;
+    controls.enableDamping=true;controls.dampingFactor=0.08;controls.enablePan=true;
+    controls.minPolarAngle=Math.PI*0.02;controls.maxPolarAngle=Math.PI*0.98;
     const draco=new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     const loader=new GLTFLoader();loader.setDRACOLoader(draco);
     loader.load('${absModelUrl}',(gltf)=>{

@@ -108,13 +108,18 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
 
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
+      controls.dampingFactor = 0.08;
       controls.enablePan = true;
       controls.panSpeed = 0.8;
       controls.rotateSpeed = 0.8;
       controls.zoomSpeed = 1.0;
       controls.minDistance = 0.3;
       controls.maxDistance = 500;
+      // Prevent gimbal-lock singularity at the poles — without these limits,
+      // horizontal drags reverse direction when looking straight down/up,
+      // making continuous 360° rotation feel broken.
+      controls.minPolarAngle = Math.PI * 0.02; // ~4° from top
+      controls.maxPolarAngle = Math.PI * 0.98; // ~4° from bottom
 
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
