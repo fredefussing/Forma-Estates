@@ -577,7 +577,21 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
     const line = `📩 Svarede: ${label}${notePart}`;
     const updatedNotes = appendLog(line);
     setNotes(updatedNotes);
-    onQuickPatch({ notes: updatedNotes });
+
+    // For non-"Nej tak" replies: start a 2-day countdown to next contact
+    const patch: Record<string, unknown> = { notes: updatedNotes };
+    if (label !== "Nej tak") {
+      const inTwoDays = new Date(Date.now() + 2 * 864e5).toISOString();
+      if (!fu1Done) {
+        setFu1At(inTwoDays);
+        patch.follow_up_1_at = inTwoDays;
+      } else if (!fu2Done) {
+        setFu2At(inTwoDays);
+        patch.follow_up_2_at = inTwoDays;
+      }
+    }
+
+    onQuickPatch(patch);
     setReplyOpen(false);
     setReplyOtherActive(false);
     setReplyOtherText("");
