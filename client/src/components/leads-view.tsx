@@ -529,6 +529,14 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
     { icon: <Phone size={12} />,         label: "Ringet op",   log: "📞 Ringet op" },
   ];
 
+  function markResponded() {
+    setStatus("responded");
+    const line = "📩 Svarede på mail";
+    const updatedNotes = appendLog(line);
+    setNotes(updatedNotes);
+    onQuickPatch({ status: "responded", notes: updatedNotes });
+  }
+
   return (
     <form onSubmit={save} onClick={e => e.stopPropagation()} style={{
       background: "#07111A",
@@ -590,6 +598,25 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
               {b.icon} {b.label}
             </button>
           ))}
+          {/* Responded shortcut */}
+          <button
+            type="button"
+            onClick={markResponded}
+            disabled={status === "responded" || status === "won"}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: status === "responded" ? "#14532D" : "rgba(34,197,94,0.15)",
+              border: `1px solid ${status === "responded" ? "rgba(34,197,94,0.5)" : "rgba(34,197,94,0.35)"}`,
+              borderRadius: 6,
+              color: status === "responded" ? "#86EFAC" : "#4ADE80",
+              padding: "5px 12px", fontSize: 12, fontWeight: 700,
+              cursor: status === "responded" ? "default" : "pointer",
+              opacity: status === "won" ? 0.4 : 1,
+            }}
+          >
+            <Check size={12} />
+            {status === "responded" ? "Allerede svaret" : "Ja, svarede på mail"}
+          </button>
         </div>
       </div>
 
