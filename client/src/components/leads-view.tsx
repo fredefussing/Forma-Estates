@@ -73,11 +73,12 @@ const CAT_CFG: Record<LeadCategory, { short: string; emoji: string; color: strin
 };
 
 const PLATFORMS = [
-  { value: "instagram", label: "💬 Instagram DM" },
-  { value: "email",     label: "📧 Email" },
-  { value: "telefon",   label: "📞 Telefon" },
-  { value: "linkedin",  label: "💼 LinkedIn" },
-  { value: "andet",     label: "📌 Andet" },
+  { value: "instagram",    label: "💬 Instagram DM" },
+  { value: "email",        label: "📧 Email" },
+  { value: "telefon",      label: "📞 Telefon" },
+  { value: "linkedin",     label: "💼 LinkedIn" },
+  { value: "meta_annonce", label: "📣 Meta annonce" },
+  { value: "andet",        label: "📌 Andet" },
 ];
 
 const STATUS_CYCLE: LeadStatus[] = ["new", "contacted", "responded", "no"];
