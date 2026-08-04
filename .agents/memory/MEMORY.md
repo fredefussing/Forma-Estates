@@ -1,3 +1,4 @@
+- [Email deliverability debugging](email-deliverability.md) — missing-mail reports: check Brevo events API first; SPF lacks include:spf.brevo.com (Gmail 421 throttling); strict corporate MX can time out Brevo.
 - [Live hosting is Render, not Replit](live-hosting-render.md) — formaestates.com runs on Render (GitHub auto-deploy) but uses the Replit PROD database; schema only syncs on Publish.
 - [Drizzle-kit push interactive prompt](drizzle-push-prompt.md) — `npm run db:push` blocks on a "rename or create" prompt that doesn't accept piped input; fall back to direct `psql` DDL.
 - [Showcase paid-AI slot gating](showcase-paid-ai-gating.md) — gate paid fal.ai clip generation behind the render queue slot (acquire at top of render), bound per-job fan-out, clean partial temp clips.
