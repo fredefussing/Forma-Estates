@@ -1369,7 +1369,7 @@ function CaseDetailPanel({
       {/* GALLERY VIEW (genStep === 0) */}
       {/* ══════════════════════════════════════════════════════════════ */}
       {genStep === 0 && (
-        <div className="grid lg:grid-cols-[60%_40%] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-6 items-start">
 
           {/* LEFT: HISTORY GALLERY */}
           <div>
@@ -2979,7 +2979,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 
         {stage === "config" && (
           <motion.div key="config" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
-            <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-8 items-start">
               <div>
                 <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]" style={{ aspectRatio: "4/3" }}>
                   <img src={imagePreview!} alt="Preview" className="w-full h-full object-contain" />
@@ -7203,7 +7203,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-8 items-start max-w-6xl" style={{ order: 1 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-8 items-start max-w-6xl" style={{ order: 1 }}>
         {/* Left column: form + result */}
         <div className="grid gap-6 min-w-0">
         {/* Upload zone */}
@@ -9520,7 +9520,7 @@ export default function BoligpotentialeDashboard() {
         </AnimatePresence>
 
         {/* ── MAIN CONTENT ── */}
-        <main className="flex-1 md:ml-56 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)]" data-testid="bolig-main">
+        <main className="flex-1 md:ml-56 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)] min-w-0 max-w-full overflow-x-hidden" data-testid="bolig-main">
 
           {/* Dashboard overview */}
           {section === "dashboard" && (
