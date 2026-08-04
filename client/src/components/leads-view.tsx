@@ -92,30 +92,27 @@ function nextFU(lead: Lead): { at: string; n: 1 | 2 } | null {
 }
 
 function urgencyColor(lead: Lead): string {
-  // Responded / won → always positive green stripe
   if (lead.status === "responded" || lead.status === "won") return "#22C55E";
-  // Closed → neutral
   if (lead.status === "no") return "#2d3f54";
   const fu = nextFU(lead);
-  // All FUs done → positive
-  if (!fu) return "#22C55E";
+  if (!fu) return "#22C55E"; // all FUs done
   const diff = (new Date(fu.at).getTime() - Date.now()) / 864e5;
-  if (diff < 0)  return "#EF4444";
-  if (diff < 2)  return "#F59E0B";
-  return "#22C55E";
+  if (diff < 1)  return "#EF4444"; // today or overdue → red
+  if (diff < 2)  return "#F59E0B"; // 1 day away → yellow
+  return "#22C55E";                // 2+ days → green
 }
 
 function countdown(lead: Lead): { text: string; color: string; label: string } | null {
-  // Responded / won / no → no urgency chip
   if (lead.status === "responded" || lead.status === "won" || lead.status === "no") return null;
   const fu = nextFU(lead);
   if (!fu) return null;
-  const days = Math.round((new Date(fu.at).getTime() - Date.now()) / 864e5);
+  const diff = (new Date(fu.at).getTime() - Date.now()) / 864e5;
+  const days = Math.round(diff);
   const label = `FU${fu.n}`;
-  if (days < 0)   return { text: `${Math.abs(days)}d over`,  color: "#EF4444", label };
-  if (days === 0) return { text: "I dag!",                    color: "#F59E0B", label };
-  if (days === 1) return { text: "I morgen",                  color: "#FBBF24", label };
-  return           { text: `om ${days}d`,                     color: "#60A5FA", label };
+  if (diff < 0)  return { text: `${Math.abs(days)}d over`, color: "#EF4444", label };
+  if (diff < 1)  return { text: "I dag!",                   color: "#EF4444", label }; // red on the day
+  if (diff < 2)  return { text: "I morgen",                 color: "#F59E0B", label }; // yellow 1 day
+  return          { text: `om ${days}d`,                    color: "#22C55E", label }; // green 2+ days
 }
 
 /** Colour for a single FU dot */
@@ -123,9 +120,9 @@ function fuDotColor(done: boolean, at?: string): string {
   if (done) return "#22C55E";
   if (!at)  return "#3A4F64";
   const diff = (new Date(at).getTime() - Date.now()) / 864e5;
-  if (diff < 0) return "#EF4444";
-  if (diff < 2) return "#F59E0B";
-  return "#60A5FA";
+  if (diff < 1) return "#EF4444"; // today or overdue
+  if (diff < 2) return "#F59E0B"; // 1 day
+  return "#60A5FA";               // 2+ days (upcoming, not done)
 }
 
 function dkNow(): string {
@@ -365,6 +362,21 @@ function AddLeadForm({ onClose, onAdd }: {
 }
 
 // ── FURow (single follow-up checkbox + date inside EditPanel) ─────────────────
+type FUUrgency = "done" | "red" | "amber" | "ok" | "none";
+
+function fuUrgency(done: boolean, at?: string): FUUrgency {
+  if (done) return "done";
+  if (!at)  return "none";
+  const diff = (new Date(at).getTime() - Date.now()) / 864e5;
+  if (diff < 1) return "red";   // today or overdue
+  if (diff < 2) return "amber"; // 1 day away
+  return "ok";                  // 2+ days
+}
+
+const FU_BG:     Record<FUUrgency, string> = { done:"#0E2A1A", red:"#2A110E", amber:"#2A1B08", ok:"#102030", none:"#102030" };
+const FU_BORDER: Record<FUUrgency, string> = { done:"rgba(34,197,94,0.35)", red:"rgba(239,68,68,0.35)", amber:"rgba(245,158,11,0.35)", ok:"rgba(255,255,255,0.18)", none:"rgba(255,255,255,0.18)" };
+const FU_COL:    Record<FUUrgency, string> = { done:"#22C55E", red:"#EF4444", amber:"#F59E0B", ok:"#60A5FA", none:MUTED };
+
 function FURow({
   n, sublabel, done, at,
   onToggle, onChangeAt,
@@ -376,16 +388,16 @@ function FURow({
   onToggle: () => void;
   onChangeAt: (iso: string | undefined) => void;
 }) {
-  const col    = fuDotColor(done, at);
-  const isPast = !done && !!at && new Date(at).getTime() < Date.now();
+  const urg = fuUrgency(done, at);
+  const col = FU_COL[urg];
 
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 12,
       padding: "10px 14px",
-      background: done ? "#0E2A1A" : isPast ? "#2A110E" : "#102030",
+      background: FU_BG[urg],
       borderRadius: 8,
-      border: `1px solid ${done ? "rgba(34,197,94,0.35)" : isPast ? "rgba(239,68,68,0.35)" : "rgba(255,255,255,0.18)"}`,
+      border: `1px solid ${FU_BORDER[urg]}`,
       transition: "all 0.15s",
     }}>
       {/* Checkbox */}
@@ -394,7 +406,7 @@ function FURow({
         onClick={onToggle}
         style={{
           width: 22, height: 22, borderRadius: 5, flexShrink: 0,
-          border: `2px solid ${done ? "#22C55E" : col}`,
+          border: `2px solid ${col}`,
           background: done ? "#22C55E22" : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
           cursor: "pointer", transition: "all 0.13s",
@@ -423,7 +435,7 @@ function FURow({
           background: `${col}18`, padding: "2px 8px", borderRadius: 99,
           whiteSpace: "nowrap", flexShrink: 0,
         }}>
-          {isPast ? "⚠ " : ""}
+          {urg === "red" && !done ? "⚠ " : ""}
           {fmtDate(at)}
         </span>
       )}
@@ -435,7 +447,6 @@ function FURow({
         value={at ? at.slice(0, 10) : ""}
         onChange={e => {
           if (!e.target.value) { onChangeAt(undefined); return; }
-          // keep time from existing or use noon
           const existing = at ? at.slice(11, 16) : "12:00";
           onChangeAt(new Date(`${e.target.value}T${existing}`).toISOString());
         }}
@@ -532,15 +543,22 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
     });
   }
 
+  const [respondedOpen, setRespondedOpen]   = useState(false);
+  const [respondedNote, setRespondedNote]   = useState("");
+  const respondedRef = useRef<HTMLInputElement>(null);
+
   const logBtns = [
     { icon: <Send size={12} />,         label: "Mail sendt",   log: "📧 Mail sendt" },
     { icon: <MessageSquare size={12} />, label: "DM sendt",    log: "💬 Instagram DM sendt" },
     { icon: <Phone size={12} />,         label: "Ringet op",   log: "📞 Ringet op" },
   ];
 
-  function markResponded() {
+  function markResponded(note: string) {
     setStatus("responded");
-    const line = "📩 Svarede på mail";
+    setRespondedOpen(false);
+    setRespondedNote("");
+    const notePart = note.trim() ? `: ${note.trim()}` : "";
+    const line = `📩 Svaret på mail${notePart}`;
     const updatedNotes = appendLog(line);
     setNotes(updatedNotes);
     onQuickPatch({ status: "responded", notes: updatedNotes });
@@ -588,6 +606,71 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
             Begge opfølgninger er gjort. Overvej at markere leadet som <strong>Nej</strong> eller <strong>Vundet</strong>.
           </div>
         )}
+
+        {/* ── Svaret på mail ── */}
+        {status !== "won" && (
+          <div style={{ marginTop: 8 }}>
+            {status === "responded" ? (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: "#0E2A1A", border: "1px solid rgba(34,197,94,0.3)",
+                borderRadius: 8, padding: "8px 14px",
+              }}>
+                <Check size={14} color="#22C55E" />
+                <span style={{ color: "#86EFAC", fontSize: 12, fontWeight: 600 }}>Svaret på mail — registreret</span>
+              </div>
+            ) : !respondedOpen ? (
+              <button
+                type="button"
+                onClick={() => { setRespondedOpen(true); setTimeout(() => respondedRef.current?.focus(), 50); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  background: "rgba(34,197,94,0.12)", border: "1px dashed rgba(34,197,94,0.4)",
+                  borderRadius: 8, color: "#4ADE80",
+                  padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                <Check size={13} /> Svaret på mail — skriv hvad de svarede
+              </button>
+            ) : (
+              <div style={{
+                background: "#0E2A1A", border: "1px solid rgba(34,197,94,0.35)",
+                borderRadius: 8, padding: "10px 14px",
+              }}>
+                <div style={{ color: "#86EFAC", fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+                  📩 Hvad svarede de?
+                </div>
+                <input
+                  ref={respondedRef}
+                  style={inp({ marginBottom: 8, fontSize: 13 })}
+                  placeholder="Fx: Interesseret, vil høre mere — på ferie til aug — brug for mere tid..."
+                  value={respondedNote}
+                  onChange={e => setRespondedNote(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") markResponded(respondedNote); if (e.key === "Escape") setRespondedOpen(false); }}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => markResponded(respondedNote)}
+                    style={{
+                      background: "#22C55E", border: "none", borderRadius: 6,
+                      color: "#0a1a0a", padding: "6px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    }}
+                  >
+                    Gem svar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRespondedOpen(false)}
+                    style={inp({ width: "auto", padding: "6px 12px", cursor: "pointer", color: MUTED })}
+                  >
+                    Annuller
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Quick log ── */}
@@ -607,25 +690,6 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
               {b.icon} {b.label}
             </button>
           ))}
-          {/* Responded shortcut */}
-          <button
-            type="button"
-            onClick={markResponded}
-            disabled={status === "responded" || status === "won"}
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              background: status === "responded" ? "#14532D" : "rgba(34,197,94,0.15)",
-              border: `1px solid ${status === "responded" ? "rgba(34,197,94,0.5)" : "rgba(34,197,94,0.35)"}`,
-              borderRadius: 6,
-              color: status === "responded" ? "#86EFAC" : "#4ADE80",
-              padding: "5px 12px", fontSize: 12, fontWeight: 700,
-              cursor: status === "responded" ? "default" : "pointer",
-              opacity: status === "won" ? 0.4 : 1,
-            }}
-          >
-            <Check size={12} />
-            {status === "responded" ? "Allerede svaret" : "Ja, svarede på mail"}
-          </button>
         </div>
       </div>
 
