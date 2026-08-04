@@ -83,17 +83,22 @@ const PLATFORMS = [
 const STATUS_CYCLE: LeadStatus[] = ["new", "contacted", "responded", "no"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-/** Returns the next undone follow-up (FU1 first, then FU2) */
+/** Returns the next undone follow-up — only for active (non-responded, non-closed) leads */
 function nextFU(lead: Lead): { at: string; n: 1 | 2 } | null {
-  if (lead.status === "no" || lead.status === "won") return null;
+  if (lead.status === "no" || lead.status === "won" || lead.status === "responded") return null;
   if (!lead.follow_up_1_done && lead.follow_up_1_at) return { at: lead.follow_up_1_at, n: 1 };
   if (!lead.follow_up_2_done && lead.follow_up_2_at) return { at: lead.follow_up_2_at, n: 2 };
   return null;
 }
 
 function urgencyColor(lead: Lead): string {
+  // Responded / won → always positive green stripe
+  if (lead.status === "responded" || lead.status === "won") return "#22C55E";
+  // Closed → neutral
+  if (lead.status === "no") return "#2d3f54";
   const fu = nextFU(lead);
-  if (!fu) return "#2d3f54";
+  // All FUs done → positive
+  if (!fu) return "#22C55E";
   const diff = (new Date(fu.at).getTime() - Date.now()) / 864e5;
   if (diff < 0)  return "#EF4444";
   if (diff < 2)  return "#F59E0B";
@@ -101,6 +106,8 @@ function urgencyColor(lead: Lead): string {
 }
 
 function countdown(lead: Lead): { text: string; color: string; label: string } | null {
+  // Responded / won / no → no urgency chip
+  if (lead.status === "responded" || lead.status === "won" || lead.status === "no") return null;
   const fu = nextFU(lead);
   if (!fu) return null;
   const days = Math.round((new Date(fu.at).getTime() - Date.now()) / 864e5);
@@ -206,8 +213,10 @@ function CategoryPill({ cat }: { cat: LeadCategory }) {
 // ── FU progress dots (mini, shown on main row) ────────────────────────────────
 function FUDots({ lead }: { lead: Lead }) {
   if (lead.status === "no" || lead.status === "won") return null;
+  const isResponded = lead.status === "responded";
   const dots = [
-    { done: !!lead.follow_up_1_done, at: lead.follow_up_1_at, label: "FU1" },
+    // FU1 always green for responded leads (they replied = FU1 succeeded)
+    { done: isResponded || !!lead.follow_up_1_done, at: lead.follow_up_1_at, label: "FU1" },
     { done: !!lead.follow_up_2_done, at: lead.follow_up_2_at, label: "FU2" },
   ];
   return (
