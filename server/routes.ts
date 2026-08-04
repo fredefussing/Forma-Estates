@@ -5554,12 +5554,17 @@ export async function registerRoutes(
     try {
       const admin = await requireOwner(req, res);
       if (!admin) return;
-      const { name, category = "ejendomsmaegler", instagram_handle, email, phone, status = "new", notes, first_contact_at, follow_up_at } = req.body;
+      const { name, category = "ejendomsmaegler", instagram_handle, email, phone, notes, first_contact_at, follow_up_at, platform } = req.body;
       if (!name) return res.status(400).json({ error: "name required" });
+      // Meta annonce: mail is always sent immediately → auto-respond + 3-day FU1
+      const isMeta = platform === "meta_annonce";
+      const status = isMeta ? "responded" : (req.body.status || "new");
+      const fu1Days = isMeta ? 3 : 2;
+      const fu2Days = isMeta ? 10 : 9;
       const fu = follow_up_at || (first_contact_at ? new Date(new Date(first_contact_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null);
       const fc = first_contact_at || null;
-      const fu1 = fc ? new Date(new Date(fc).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString() : null;
-      const fu2 = fc ? new Date(new Date(fc).getTime() + 9 * 24 * 60 * 60 * 1000).toISOString() : null;
+      const fu1 = fc ? new Date(new Date(fc).getTime() + fu1Days * 24 * 60 * 60 * 1000).toISOString() : null;
+      const fu2 = fc ? new Date(new Date(fc).getTime() + fu2Days * 24 * 60 * 60 * 1000).toISOString() : null;
       const result = await pool.query(
         `INSERT INTO leads (name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_2_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,

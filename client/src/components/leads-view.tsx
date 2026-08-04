@@ -248,6 +248,14 @@ function AddLeadForm({ onClose, onAdd }: {
   const [cat, setCat]           = useState<LeadCategory>("ejendomsmaegler");
   const [status, setStatus]     = useState<LeadStatus>("contacted");
   const [platform, setPlatform] = useState("instagram");
+
+  function handlePlatformChange(val: string) {
+    setPlatform(val);
+    // Meta annonce: mail sendes altid med det samme → sæt direkte til Svaret
+    if (val === "meta_annonce") setStatus("responded");
+    // Hvis brugeren skifter VÆK fra meta_annonce, reset til contacted
+    else if (platform === "meta_annonce") setStatus("contacted");
+  }
   const [dtLocal, setDtLocal]   = useState(now);
   const [email, setEmail]       = useState("");
   const [ig, setIg]             = useState("");
@@ -263,6 +271,7 @@ function AddLeadForm({ onClose, onAdd }: {
     const finalNotes = notes.trim() ? `${autoNote}\n${notes.trim()}` : autoNote;
     const body: Record<string, string> = {
       name: name.trim(), category: cat, status, notes: finalNotes,
+      platform,
     };
     if (dtLocal) body.first_contact_at = ts;
     if (email.trim()) body.email = email.trim();
@@ -312,7 +321,7 @@ function AddLeadForm({ onClose, onAdd }: {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>Skrevet via</label>
-          <select style={inp({ cursor: "pointer" })} value={platform} onChange={e => setPlatform(e.target.value)}>
+          <select style={inp({ cursor: "pointer" })} value={platform} onChange={e => handlePlatformChange(e.target.value)}>
             {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
