@@ -5516,10 +5516,22 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
-  // ── Leads (fredefussing admin only) ──────────────────────────────────────────
+  // ── Owner-only guard (fredefussing@gmail.com exclusively) ────────────────────
+  async function requireOwner(req: any, res: any): Promise<{ dbUser: any } | null> {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser?.isAdmin || dbUser.email !== "fredefussing@gmail.com") {
+        res.status(403).json({ error: "Owner only" }); return null;
+      }
+      return { dbUser };
+    } catch { res.status(401).json({ error: "Unauthorized" }); return null; }
+  }
+
+  // ── Leads (fredefussing@gmail.com only) ──────────────────────────────────────
   app.get("/api/leads", async (req, res) => {
     try {
-      const admin = await requireAdmin(req, res);
+      const admin = await requireOwner(req, res);
       if (!admin) return;
       const result = await pool.query(`
         SELECT * FROM leads
@@ -5540,7 +5552,7 @@ export async function registerRoutes(
 
   app.post("/api/leads", async (req, res) => {
     try {
-      const admin = await requireAdmin(req, res);
+      const admin = await requireOwner(req, res);
       if (!admin) return;
       const { name, category = "ejendomsmaegler", instagram_handle, email, phone, status = "new", notes, first_contact_at, follow_up_at } = req.body;
       if (!name) return res.status(400).json({ error: "name required" });
@@ -5556,7 +5568,7 @@ export async function registerRoutes(
 
   app.patch("/api/leads/:id", async (req, res) => {
     try {
-      const admin = await requireAdmin(req, res);
+      const admin = await requireOwner(req, res);
       if (!admin) return;
       const id = parseInt(req.params.id);
       const fields = ["name", "category", "instagram_handle", "email", "phone", "status", "notes", "first_contact_at", "follow_up_at", "last_contacted_at"];
@@ -5582,7 +5594,7 @@ export async function registerRoutes(
 
   app.delete("/api/leads/:id", async (req, res) => {
     try {
-      const admin = await requireAdmin(req, res);
+      const admin = await requireOwner(req, res);
       if (!admin) return;
       await pool.query("DELETE FROM leads WHERE id = $1", [parseInt(req.params.id)]);
       return res.json({ ok: true });

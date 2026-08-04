@@ -9189,7 +9189,7 @@ export default function BoligpotentialeDashboard() {
     { id: "historik" as Section, label: t("dashboard.nav.history"), icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: t("dashboard.nav.team"), icon: <Users className="w-[18px] h-[18px]" /> },
     ...(isAdmin ? [{ id: "crm" as Section, label: t("dashboard.nav.crm"), icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
-    ...(isAdmin ? [{ id: "leads" as Section, label: "Leads", icon: <Target className="w-[18px] h-[18px]" /> }] : []),
+    ...(isOwner ? [{ id: "leads" as Section, label: "Leads", icon: <Target className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -9436,6 +9436,14 @@ export default function BoligpotentialeDashboard() {
                 data-testid="bolig-topbar-crm"
               >
                 <Shield className="w-3.5 h-3.5" /> CRM
+              </button>
+              <button
+                onClick={() => setSection("leads")}
+                className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+                style={{ background: section === "leads" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "leads" ? "#fff" : "#C8956C" }}
+                data-testid="bolig-topbar-leads"
+              >
+                <Target className="w-3.5 h-3.5" /> Leads
               </button>
             </>
           )}
@@ -10155,8 +10163,8 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {/* Leads — admin only */}
-          {section === "leads" && isAdmin && (
+          {/* Leads — fredefussing only */}
+          {section === "leads" && isOwner && (
             <motion.div key="leads-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
               <LeadsView />
             </motion.div>
