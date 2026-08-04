@@ -85,14 +85,19 @@ const STATUS_CYCLE: LeadStatus[] = ["new", "contacted", "responded", "no"];
 // ── Helpers ───────────────────────────────────────────────────────────────────
 /** Returns the next undone follow-up — only for active (non-responded, non-closed) leads */
 function nextFU(lead: Lead): { at: string; n: 1 | 2 } | null {
-  if (lead.status === "no" || lead.status === "won" || lead.status === "responded") return null;
+  if (lead.status === "no" || lead.status === "won") return null;
+  // Responded: FU1 is implicitly done — only track FU2 if still pending
+  if (lead.status === "responded") {
+    if (!lead.follow_up_2_done && lead.follow_up_2_at) return { at: lead.follow_up_2_at, n: 2 };
+    return null;
+  }
   if (!lead.follow_up_1_done && lead.follow_up_1_at) return { at: lead.follow_up_1_at, n: 1 };
   if (!lead.follow_up_2_done && lead.follow_up_2_at) return { at: lead.follow_up_2_at, n: 2 };
   return null;
 }
 
 function urgencyColor(lead: Lead): string {
-  if (lead.status === "responded" || lead.status === "won") return "#22C55E";
+  if (lead.status === "won") return "#22C55E";
   if (lead.status === "no") return "#2d3f54";
   const fu = nextFU(lead);
   if (!fu) return "#22C55E"; // all FUs done
@@ -102,17 +107,18 @@ function urgencyColor(lead: Lead): string {
   return "#22C55E";                // 2+ days → green
 }
 
-function countdown(lead: Lead): { text: string; color: string; label: string } | null {
-  if (lead.status === "responded" || lead.status === "won" || lead.status === "no") return null;
+function countdown(lead: Lead): { text: string; color: string; label: string; date: string } | null {
+  if (lead.status === "won" || lead.status === "no") return null;
   const fu = nextFU(lead);
   if (!fu) return null;
   const diff = (new Date(fu.at).getTime() - Date.now()) / 864e5;
   const days = Math.round(diff);
   const label = `FU${fu.n}`;
-  if (diff < 0)  return { text: `${Math.abs(days)}d over`, color: "#EF4444", label };
-  if (diff < 1)  return { text: "I dag!",                   color: "#EF4444", label }; // red on the day
-  if (diff < 2)  return { text: "I morgen",                 color: "#F59E0B", label }; // yellow 1 day
-  return          { text: `om ${days}d`,                    color: "#22C55E", label }; // green 2+ days
+  const date  = fmtDate(fu.at);
+  if (diff < 0)  return { text: `${Math.abs(days)}d over`, color: "#EF4444", label, date };
+  if (diff < 1)  return { text: "I dag!",                   color: "#EF4444", label, date };
+  if (diff < 2)  return { text: "I morgen",                 color: "#F59E0B", label, date };
+  return          { text: `om ${days}d`,                    color: "#22C55E", label, date };
 }
 
 /** Colour for a single FU dot */
@@ -855,13 +861,19 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onQuickPatch, onDel
         {cd && (
           <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
             <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: cd.color, background: `${cd.color}22`,
-              padding: "2px 8px", borderRadius: 99,
-              display: "flex", alignItems: "center", gap: 4,
+              fontSize: 12, fontWeight: 700,
+              color: cd.color, background: `${cd.color}20`,
+              border: `1px solid ${cd.color}40`,
+              padding: "3px 10px", borderRadius: 99,
+              display: "flex", alignItems: "center", gap: 5,
               whiteSpace: "nowrap",
             }}>
-              <Clock size={10} /> {cd.label} {cd.text}
+              <Clock size={11} />
+              <span style={{ opacity: 0.75 }}>{cd.label}</span>
+              <span>·</span>
+              <span>{cd.date}</span>
+              <span style={{ opacity: 0.75 }}>·</span>
+              <span>{cd.text}</span>
             </span>
           </div>
         )}
