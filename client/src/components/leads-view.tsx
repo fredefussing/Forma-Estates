@@ -1,12 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Plus, X, Trash2, ChevronDown, Mail, Check, Instagram,
-  Building2, Hammer, Home, Search, Filter,
+  Plus, X, Trash2, Mail, Search, Clock,
+  MessageSquare, Phone, Send, ChevronDown,
+  Building2, Check, AlertTriangle,
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
-// ── Auth fetch ────────────────────────────────────────────────────────────────
+// ── Auth fetch ─────────────────────────────────────────────────────────────────
 async function cf(url: string, opts?: RequestInit) {
   const token = await auth.currentUser?.getIdToken();
   const headers: Record<string, string> = {
@@ -43,201 +44,202 @@ type Lead = {
   updated_at: string;
 };
 
-type NewLead = {
-  name: string;
-  category: LeadCategory;
-  instagram_handle?: string;
-  email?: string;
-  phone?: string;
-  status?: LeadStatus;
-  notes?: string;
-  first_contact_at?: string;
-};
-
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const BG_ROW = "rgba(255,255,255,0.04)";
-const BG_ROW_HOVER = "rgba(255,255,255,0.07)";
-const BORDER = "rgba(255,255,255,0.08)";
-const TEXT_PRIMARY = "#E8E0D5";
-const TEXT_MUTED = "rgba(255,255,255,0.45)";
 const AMBER = "#C8956C";
+const ROW    = "#16293f";
+const ROW_H  = "#1c3454";
+const BORDER = "rgba(255,255,255,0.12)";
+const TEXT   = "#E2DAD0";
+const MUTED  = "#7A9BBD";
+const INPUT_BG = "#0f1e30";
 
-const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string }> = {
-  new:       { label: "Ny",        color: "rgba(255,255,255,0.85)", bg: "rgba(255,255,255,0.12)" },
-  contacted: { label: "Kontaktet", color: "#4A9EFF",                bg: "rgba(74,158,255,0.15)"  },
-  responded: { label: "Svaret",    color: "#4CAF7D",                bg: "rgba(76,175,125,0.15)"  },
-  no:        { label: "Nej",       color: "#EF5350",                bg: "rgba(239,83,80,0.15)"   },
-  won:       { label: "Vundet",    color: AMBER,                    bg: "rgba(200,149,108,0.15)" },
+const STATUS_CFG: Record<LeadStatus, { label: string; fg: string; bg: string; dot: string }> = {
+  new:       { label: "Ny",        fg: "#94A3B8", bg: "#1E293B", dot: "#64748B" },
+  contacted: { label: "Kontaktet", fg: "#93C5FD", bg: "#1E3A8A", dot: "#3B82F6" },
+  responded: { label: "Svaret",    fg: "#86EFAC", bg: "#14532D", dot: "#22C55E" },
+  no:        { label: "Nej",       fg: "#FCA5A5", bg: "#7F1D1D", dot: "#EF4444" },
+  won:       { label: "Vundet",    fg: "#FDE68A", bg: "#78350F", dot: "#F59E0B" },
 };
 
-const CATEGORY_CONFIG: Record<LeadCategory, { label: string; emoji: string }> = {
-  ejendomsmaegler: { label: "Ejendomsmæglere", emoji: "🏠" },
-  arkitekt:        { label: "Arkitekter",       emoji: "🏗️" },
-  toemrerfirma:    { label: "Tømrerfirmaer",    emoji: "🔨" },
-  byggefirma:      { label: "Byggefirmaer",     emoji: "🏢" },
+const CAT_CFG: Record<LeadCategory, { short: string; emoji: string; color: string }> = {
+  ejendomsmaegler: { short: "Mægler",    emoji: "🏠", color: "#60A5FA" },
+  arkitekt:        { short: "Arkitekt",  emoji: "🏗️", color: "#A78BFA" },
+  toemrerfirma:    { short: "Tømrer",    emoji: "🔨", color: "#FB923C" },
+  byggefirma:      { short: "Byggefirma",emoji: "🏢", color: "#34D399" },
 };
+
+const PLATFORMS = [
+  { value: "instagram", label: "💬 Instagram DM" },
+  { value: "email",     label: "📧 Email" },
+  { value: "telefon",   label: "📞 Telefon" },
+  { value: "linkedin",  label: "💼 LinkedIn" },
+  { value: "andet",     label: "📌 Andet" },
+];
 
 const STATUS_CYCLE: LeadStatus[] = ["new", "contacted", "responded", "no"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function getUrgencyBorder(lead: Lead): string {
-  if (lead.status === "no" || lead.status === "won" || lead.status === "new") return "#4B5563";
-  if (!lead.follow_up_at) return "#4B5563";
-  const now = new Date();
-  const due = new Date(lead.follow_up_at);
-  const diffMs = due.getTime() - now.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  if (diffDays < 0) return "#EF5350";   // overdue → red
-  if (diffDays < 2) return "#F59E0B";   // soon → amber
-  return "#4CAF7D";                      // ok → green
+function urgencyColor(lead: Lead): string {
+  if (lead.status === "no" || lead.status === "won") return "#2d3f54";
+  if (!lead.follow_up_at) return "#2d3f54";
+  const diff = (new Date(lead.follow_up_at).getTime() - Date.now()) / 864e5;
+  if (diff < 0)  return "#EF4444";
+  if (diff < 2)  return "#F59E0B";
+  return "#22C55E";
 }
 
-function getCountdownChip(lead: Lead): { label: string; color: string; bg: string } | null {
-  if (!lead.follow_up_at) return null;
-  if (lead.status === "no" || lead.status === "won") return null;
-  const now = new Date();
-  const due = new Date(lead.follow_up_at);
-  const diffMs = due.getTime() - now.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) {
-    return { label: `${Math.abs(diffDays)} dage over`, color: "#EF5350", bg: "rgba(239,83,80,0.15)" };
-  }
-  if (diffDays === 0) return { label: "I dag",   color: "#F59E0B", bg: "rgba(245,158,11,0.15)" };
-  if (diffDays === 1) return { label: "I morgen", color: "#F59E0B", bg: "rgba(245,158,11,0.15)" };
-  return { label: `om ${diffDays} dage`, color: "#4A9EFF", bg: "rgba(74,158,255,0.15)" };
+function countdown(lead: Lead): { text: string; color: string } | null {
+  if (!lead.follow_up_at || lead.status === "no" || lead.status === "won") return null;
+  const days = Math.round((new Date(lead.follow_up_at).getTime() - Date.now()) / 864e5);
+  if (days < 0)  return { text: `${Math.abs(days)}d over`,  color: "#EF4444" };
+  if (days === 0) return { text: "I dag!",                   color: "#F59E0B" };
+  if (days === 1) return { text: "I morgen",                 color: "#FBBF24" };
+  return          { text: `om ${days}d`,                     color: "#60A5FA" };
 }
 
-function truncate(str: string, len: number) {
-  return str.length > len ? str.slice(0, len) + "…" : str;
+function dkNow(): string {
+  const d = new Date();
+  const mo = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][d.getMonth()];
+  return `${d.getDate()}. ${mo} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+function toLocal(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function fmtDT(iso?: string): string {
+  if (!iso) return "–";
+  const d = new Date(iso);
+  const mo = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][d.getMonth()];
+  return `${d.getDate()}. ${mo} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
+// shared input/label styles
+const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
+  background: INPUT_BG,
+  border: `1px solid ${BORDER}`,
+  borderRadius: 6,
+  color: TEXT,
+  padding: "7px 10px",
+  fontSize: 13,
+  width: "100%",
+  outline: "none",
+  ...extra,
+});
+
+const lbl: React.CSSProperties = {
+  color: MUTED,
+  fontSize: 10,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  display: "block",
+  marginBottom: 4,
+};
+
+// ── StatusBadge ───────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: LeadStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  const c = STATUS_CFG[status];
   return (
-    <span
-      className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
-      style={{ color: cfg.color, background: cfg.bg }}
-    >
-      {cfg.label}
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      background: c.bg, color: c.fg,
+      fontSize: 11, fontWeight: 700,
+      padding: "3px 9px", borderRadius: 99,
+      whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot, flexShrink: 0 }} />
+      {c.label}
     </span>
   );
 }
 
-function CategoryBadge({ category }: { category: LeadCategory }) {
-  const cfg = CATEGORY_CONFIG[category];
+// ── CategoryPill ──────────────────────────────────────────────────────────────
+function CategoryPill({ cat }: { cat: LeadCategory }) {
+  const c = CAT_CFG[cat];
   return (
-    <span
-      className="text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap"
-      style={{ color: TEXT_MUTED, background: "rgba(255,255,255,0.06)" }}
-    >
-      {cfg.emoji} {cfg.label}
+    <span style={{
+      fontSize: 11, fontWeight: 600,
+      color: c.color, background: `${c.color}18`,
+      padding: "2px 8px", borderRadius: 99,
+      whiteSpace: "nowrap",
+    }}>
+      {c.emoji} {c.short}
     </span>
   );
 }
 
-// ── Add Lead Form ─────────────────────────────────────────────────────────────
-function AddLeadForm({
-  onClose,
-  onAdd,
-}: {
+// ── AddLeadForm ───────────────────────────────────────────────────────────────
+function AddLeadForm({ onClose, onAdd }: {
   onClose: () => void;
-  onAdd: (lead: NewLead) => void;
+  onAdd: (body: Record<string, string>) => void;
 }) {
-  const [form, setForm] = useState<NewLead>({
-    name: "",
-    category: "ejendomsmaegler",
-    status: "new",
-  });
+  const now = toLocal(new Date().toISOString());
+  const [name, setName]         = useState("");
+  const [cat, setCat]           = useState<LeadCategory>("ejendomsmaegler");
+  const [status, setStatus]     = useState<LeadStatus>("contacted");
+  const [platform, setPlatform] = useState("instagram");
+  const [dtLocal, setDtLocal]   = useState(now);
+  const [email, setEmail]       = useState("");
+  const [ig, setIg]             = useState("");
+  const [phone, setPhone]       = useState("");
+  const [notes, setNotes]       = useState("");
 
-  function set(field: keyof NewLead, value: string) {
-    setForm(prev => ({ ...prev, [field]: value }));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
-    const payload = { ...form };
-    if (!payload.instagram_handle) delete payload.instagram_handle;
-    if (!payload.email) delete payload.email;
-    if (!payload.phone) delete payload.phone;
-    if (!payload.notes) delete payload.notes;
-    if (!payload.first_contact_at) {
-      if (form.status === "contacted") payload.first_contact_at = new Date().toISOString();
-      else delete payload.first_contact_at;
-    }
-    onAdd(payload);
+    if (!name.trim()) return;
+    const ts = dtLocal ? new Date(dtLocal).toISOString() : new Date().toISOString();
+    const platformLabel = PLATFORMS.find(p => p.value === platform)?.label ?? platform;
+    const autoNote = `[${dkNow()}] ${platformLabel}`;
+    const finalNotes = notes.trim() ? `${autoNote}\n${notes.trim()}` : autoNote;
+    const body: Record<string, string> = {
+      name: name.trim(),
+      category: cat,
+      status,
+      notes: finalNotes,
+    };
+    if (dtLocal) body.first_contact_at = ts;
+    if (email.trim()) body.email = email.trim();
+    if (ig.trim())    body.instagram_handle = ig.trim();
+    if (phone.trim()) body.phone = phone.trim();
+    onAdd(body);
   }
-
-  const inputStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.06)",
-    border: `1px solid ${BORDER}`,
-    borderRadius: 6,
-    color: TEXT_PRIMARY,
-    padding: "6px 10px",
-    fontSize: 13,
-    width: "100%",
-    outline: "none",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    color: TEXT_MUTED,
-    fontSize: 11,
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    display: "block",
-    marginBottom: 4,
-  };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        background: "rgba(255,255,255,0.04)",
-        border: `1px solid ${BORDER}`,
-        borderRadius: 10,
-        padding: "20px",
-        marginBottom: 12,
-      }}
-    >
+    <form onSubmit={submit} style={{
+      background: "#112236",
+      border: `1px solid ${AMBER}50`,
+      borderRadius: 10,
+      padding: 20,
+      marginBottom: 12,
+    }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <span style={{ color: TEXT_PRIMARY, fontWeight: 600, fontSize: 14 }}>Tilføj nyt lead</span>
-        <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED }}>
+        <span style={{ color: AMBER, fontWeight: 700, fontSize: 14 }}>✚ Nyt lead</span>
+        <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: MUTED }}>
           <X size={16} />
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+      {/* Row 1: Navn, Kategori, Status */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
-          <label style={labelStyle}>Navn *</label>
-          <input
-            style={inputStyle}
-            value={form.name}
-            onChange={e => set("name", e.target.value)}
-            placeholder="Firmanavn"
-            required
-          />
+          <label style={lbl}>Navn *</label>
+          <input style={inp()} value={name} onChange={e => setName(e.target.value)} placeholder="Firmanavn eller person" autoFocus required />
         </div>
         <div>
-          <label style={labelStyle}>Kategori</label>
-          <select
-            style={{ ...inputStyle, cursor: "pointer" }}
-            value={form.category}
-            onChange={e => set("category", e.target.value)}
-          >
-            {Object.entries(CATEGORY_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.emoji} {v.label}</option>
+          <label style={lbl}>Kategori</label>
+          <select style={inp({ cursor: "pointer" })} value={cat} onChange={e => setCat(e.target.value as LeadCategory)}>
+            {(Object.entries(CAT_CFG) as [LeadCategory, typeof CAT_CFG[LeadCategory]][]).map(([k, v]) => (
+              <option key={k} value={k}>{v.emoji} {v.short}</option>
             ))}
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Status</label>
-          <select
-            style={{ ...inputStyle, cursor: "pointer" }}
-            value={form.status}
-            onChange={e => set("status", e.target.value as LeadStatus)}
-          >
+          <label style={lbl}>Status</label>
+          <select style={inp({ cursor: "pointer" })} value={status} onChange={e => setStatus(e.target.value as LeadStatus)}>
             <option value="new">Ny</option>
             <option value="contacted">Kontaktet</option>
             <option value="responded">Svaret</option>
@@ -245,306 +247,241 @@ function AddLeadForm({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+      {/* Row 2: Kanal + Tidspunkt */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
-          <label style={labelStyle}>Instagram</label>
-          <input
-            style={inputStyle}
-            value={form.instagram_handle ?? ""}
-            onChange={e => set("instagram_handle", e.target.value)}
-            placeholder="@handle"
-          />
+          <label style={lbl}>Skrevet via</label>
+          <select style={inp({ cursor: "pointer" })} value={platform} onChange={e => setPlatform(e.target.value)}>
+            {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
         </div>
         <div>
-          <label style={labelStyle}>Email</label>
+          <label style={lbl}>Kontaktet tidspunkt</label>
           <input
-            style={inputStyle}
-            type="email"
-            value={form.email ?? ""}
-            onChange={e => set("email", e.target.value)}
-            placeholder="email@firma.dk"
-          />
-        </div>
-        <div>
-          <label style={labelStyle}>Første kontakt</label>
-          <input
-            style={inputStyle}
-            type="date"
-            value={form.first_contact_at ? form.first_contact_at.slice(0, 10) : ""}
-            onChange={e => set("first_contact_at", e.target.value ? new Date(e.target.value).toISOString() : "")}
+            style={inp()}
+            type="datetime-local"
+            value={dtLocal}
+            onChange={e => setDtLocal(e.target.value)}
           />
         </div>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Noter</label>
+      {/* Row 3: Email, Instagram, Telefon */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <div>
+          <label style={lbl}>Email</label>
+          <input style={inp()} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="firma@dk.dk" />
+        </div>
+        <div>
+          <label style={lbl}>Instagram</label>
+          <input style={inp()} value={ig} onChange={e => setIg(e.target.value)} placeholder="@handle" />
+        </div>
+        <div>
+          <label style={lbl}>Telefon</label>
+          <input style={inp()} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+45 12 34 56 78" />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={lbl}>Note (valgfri)</label>
         <textarea
-          style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
-          value={form.notes ?? ""}
-          onChange={e => set("notes", e.target.value)}
-          placeholder="Notater om leadet..."
+          style={inp({ resize: "vertical", minHeight: 56 })}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Fx: Autosvar, virkede interesseret, send demo-link..."
         />
       </div>
 
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            border: `1px solid ${BORDER}`,
-            borderRadius: 6,
-            color: TEXT_MUTED,
-            padding: "7px 16px",
-            fontSize: 13,
-            cursor: "pointer",
-          }}
-        >
+        <button type="button" onClick={onClose} style={inp({ width: "auto", cursor: "pointer", padding: "8px 18px", color: MUTED })}>
           Annuller
         </button>
-        <button
-          type="submit"
-          style={{
-            background: AMBER,
-            border: "none",
-            borderRadius: 6,
-            color: "#0F1D2F",
-            padding: "7px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Tilføj
+        <button type="submit" style={{
+          background: AMBER, border: "none", borderRadius: 6,
+          color: "#0F1D2F", padding: "8px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+        }}>
+          Tilføj lead
         </button>
       </div>
     </form>
   );
 }
 
-// ── Edit Panel ─────────────────────────────────────────────────────────────────
-function EditPanel({
-  lead,
-  onSave,
-  onDelete,
-  onClose,
-}: {
+// ── EditPanel ─────────────────────────────────────────────────────────────────
+function EditPanel({ lead, onSave, onDelete, onClose }: {
   lead: Lead;
-  onSave: (fields: Partial<Lead>) => void;
+  onSave: (fields: Record<string, string | null>) => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
-  const [form, setForm] = useState<Partial<Lead>>({ ...lead });
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [name, setName]         = useState(lead.name);
+  const [cat, setCat]           = useState(lead.category);
+  const [status, setStatus]     = useState(lead.status);
+  const [email, setEmail]       = useState(lead.email ?? "");
+  const [ig, setIg]             = useState(lead.instagram_handle ?? "");
+  const [phone, setPhone]       = useState(lead.phone ?? "");
+  const [notes, setNotes]       = useState(lead.notes ?? "");
+  const [fcLocal, setFcLocal]   = useState(toLocal(lead.first_contact_at));
+  const [fuLocal, setFuLocal]   = useState(toLocal(lead.follow_up_at));
+  const [confirmDel, setCDel]   = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
-  function set(field: keyof Lead, value: string) {
-    setForm(prev => ({ ...prev, [field]: value }));
+  function appendLog(line: string) {
+    const newNotes = notes ? `${notes}\n[${dkNow()}] ${line}` : `[${dkNow()}] ${line}`;
+    setNotes(newNotes);
+    setTimeout(() => {
+      if (notesRef.current) {
+        notesRef.current.scrollTop = notesRef.current.scrollHeight;
+        notesRef.current.focus();
+      }
+    }, 0);
   }
 
-  function handleSave(e: React.FormEvent) {
+  function save(e: React.FormEvent) {
     e.preventDefault();
-    const payload: Partial<Lead> = {};
-    const fields: (keyof Lead)[] = [
-      "name", "category", "status", "instagram_handle", "email",
-      "phone", "notes", "first_contact_at", "follow_up_at", "last_contacted_at",
-    ];
-    for (const f of fields) {
-      if (form[f] !== undefined) (payload as Record<string, unknown>)[f] = form[f] || null;
-    }
-    onSave(payload);
+    const fields: Record<string, string | null> = {
+      name, category: cat, status,
+      email: email || null,
+      instagram_handle: ig || null,
+      phone: phone || null,
+      notes: notes || null,
+      first_contact_at: fcLocal ? new Date(fcLocal).toISOString() : null,
+      follow_up_at: fuLocal ? new Date(fuLocal).toISOString() : null,
+    };
+    onSave(fields);
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.06)",
-    border: `1px solid ${BORDER}`,
-    borderRadius: 6,
-    color: TEXT_PRIMARY,
-    padding: "6px 10px",
-    fontSize: 13,
-    width: "100%",
-    outline: "none",
-  };
-  const labelStyle: React.CSSProperties = {
-    color: TEXT_MUTED,
-    fontSize: 11,
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    display: "block",
-    marginBottom: 4,
-  };
+  const logBtns = [
+    { icon: <Send size={12} />,        label: "Mail sendt",    log: "📧 Mail sendt" },
+    { icon: <MessageSquare size={12}/>, label: "DM sendt",     log: "💬 Instagram DM sendt" },
+    { icon: <Phone size={12} />,        label: "Ringet op",    log: "📞 Ringet op" },
+    { icon: <Check size={12} />,        label: "Opfølgning",   log: "✅ Opfølgning gennemført" },
+  ];
 
   return (
-    <form
-      onSubmit={handleSave}
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        borderTop: `1px solid ${BORDER}`,
-        padding: "16px 20px",
-      }}
-      onClick={e => e.stopPropagation()}
-    >
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 10 }}>
+    <form onSubmit={save} onClick={e => e.stopPropagation()} style={{
+      background: "#0f1e30",
+      borderTop: `2px solid ${AMBER}`,
+      padding: "16px 18px",
+    }}>
+
+      {/* Quick log buttons */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ ...lbl, marginBottom: 8 }}>Hurtig log</label>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {logBtns.map(b => (
+            <button
+              key={b.log}
+              type="button"
+              onClick={() => appendLog(b.log)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: "#1c3254", border: `1px solid ${BORDER}`,
+                borderRadius: 6, color: TEXT,
+                padding: "5px 12px", fontSize: 12, cursor: "pointer",
+              }}
+            >
+              {b.icon} {b.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid row 1 */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
-          <label style={labelStyle}>Navn</label>
-          <input style={inputStyle} value={form.name ?? ""} onChange={e => set("name", e.target.value)} />
+          <label style={lbl}>Navn</label>
+          <input style={inp()} value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div>
-          <label style={labelStyle}>Kategori</label>
-          <select
-            style={{ ...inputStyle, cursor: "pointer" }}
-            value={form.category ?? "ejendomsmaegler"}
-            onChange={e => set("category", e.target.value)}
-          >
-            {Object.entries(CATEGORY_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.emoji} {v.label}</option>
+          <label style={lbl}>Kategori</label>
+          <select style={inp({ cursor: "pointer" })} value={cat} onChange={e => setCat(e.target.value as LeadCategory)}>
+            {(Object.entries(CAT_CFG) as [LeadCategory, typeof CAT_CFG[LeadCategory]][]).map(([k, v]) => (
+              <option key={k} value={k}>{v.emoji} {v.short}</option>
             ))}
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Status</label>
-          <select
-            style={{ ...inputStyle, cursor: "pointer" }}
-            value={form.status ?? "new"}
-            onChange={e => set("status", e.target.value)}
-          >
-            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+          <label style={lbl}>Status</label>
+          <select style={inp({ cursor: "pointer" })} value={status} onChange={e => setStatus(e.target.value as LeadStatus)}>
+            {(Object.entries(STATUS_CFG) as [LeadStatus, typeof STATUS_CFG[LeadStatus]][]).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Instagram</label>
-          <input style={inputStyle} value={form.instagram_handle ?? ""} onChange={e => set("instagram_handle", e.target.value)} placeholder="@handle" />
+          <label style={lbl}>Email</label>
+          <input style={inp()} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="firma@dk.dk" />
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 10 }}>
+      {/* Grid row 2 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
-          <label style={labelStyle}>Email</label>
-          <input style={inputStyle} type="email" value={form.email ?? ""} onChange={e => set("email", e.target.value)} />
+          <label style={lbl}>Instagram</label>
+          <input style={inp()} value={ig} onChange={e => setIg(e.target.value)} placeholder="@handle" />
         </div>
         <div>
-          <label style={labelStyle}>Telefon</label>
-          <input style={inputStyle} value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} />
+          <label style={lbl}>Telefon</label>
+          <input style={inp()} value={phone} onChange={e => setPhone(e.target.value)} />
         </div>
         <div>
-          <label style={labelStyle}>Første kontakt</label>
-          <input
-            style={inputStyle}
-            type="date"
-            value={form.first_contact_at ? form.first_contact_at.slice(0, 10) : ""}
-            onChange={e => set("first_contact_at", e.target.value ? new Date(e.target.value).toISOString() : "")}
-          />
+          <label style={lbl}>Første kontakt</label>
+          <input style={inp()} type="datetime-local" value={fcLocal} onChange={e => setFcLocal(e.target.value)} />
         </div>
         <div>
-          <label style={labelStyle}>Opfølgning</label>
-          <input
-            style={inputStyle}
-            type="date"
-            value={form.follow_up_at ? form.follow_up_at.slice(0, 10) : ""}
-            onChange={e => set("follow_up_at", e.target.value ? new Date(e.target.value).toISOString() : "")}
-          />
+          <label style={lbl}>Opfølgning</label>
+          <input style={inp()} type="datetime-local" value={fuLocal} onChange={e => setFuLocal(e.target.value)} />
         </div>
       </div>
 
-      <div style={{ marginBottom: 12 }}>
-        <label style={labelStyle}>Noter</label>
+      {/* Notes */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={lbl}>Notater / log</label>
         <textarea
-          style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
-          value={form.notes ?? ""}
-          onChange={e => set("notes", e.target.value)}
+          ref={notesRef}
+          style={inp({ resize: "vertical", minHeight: 80, fontFamily: "inherit" })}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Notater, logbog..."
         />
       </div>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+      {/* Actions */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          {!confirmDelete ? (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              style={{
-                background: "rgba(239,83,80,0.12)",
-                border: "1px solid rgba(239,83,80,0.3)",
-                borderRadius: 6,
-                color: "#EF5350",
-                padding: "6px 14px",
-                fontSize: 12,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
+          {!confirmDel ? (
+            <button type="button" onClick={() => setCDel(true)} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)",
+              borderRadius: 6, color: "#FCA5A5",
+              padding: "6px 14px", fontSize: 12, cursor: "pointer",
+            }}>
               <Trash2 size={13} /> Slet lead
             </button>
           ) : (
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span style={{ color: TEXT_MUTED, fontSize: 12 }}>Er du sikker?</span>
-              <button
-                type="button"
-                onClick={onDelete}
-                style={{
-                  background: "#EF5350",
-                  border: "none",
-                  borderRadius: 6,
-                  color: "white",
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                Ja, slet
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: `1px solid ${BORDER}`,
-                  borderRadius: 6,
-                  color: TEXT_MUTED,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                Annuller
+              <span style={{ color: MUTED, fontSize: 12 }}>Sikker?</span>
+              <button type="button" onClick={onDelete} style={{
+                background: "#EF4444", border: "none", borderRadius: 6,
+                color: "white", padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}>Ja, slet</button>
+              <button type="button" onClick={() => setCDel(false)} style={inp({ width: "auto", cursor: "pointer", padding: "5px 12px", color: MUTED })}>
+                Nej
               </button>
             </div>
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 6,
-              color: TEXT_MUTED,
-              padding: "6px 14px",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            Annuller
+          <button type="button" onClick={onClose} style={inp({ width: "auto", cursor: "pointer", padding: "7px 16px", color: MUTED })}>
+            Luk
           </button>
-          <button
-            type="submit"
-            style={{
-              background: AMBER,
-              border: "none",
-              borderRadius: 6,
-              color: "#0F1D2F",
-              padding: "6px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Gem ændringer
+          <button type="submit" style={{
+            background: AMBER, border: "none", borderRadius: 6,
+            color: "#0F1D2F", padding: "7px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+          }}>
+            Gem
           </button>
         </div>
       </div>
@@ -552,95 +489,82 @@ function EditPanel({
   );
 }
 
-// ── Lead Row ──────────────────────────────────────────────────────────────────
-function LeadRow({
-  lead,
-  expanded,
-  onClick,
-  onStatusCycle,
-  onSave,
-  onDelete,
-  onCollapse,
-}: {
+// ── LeadRow ───────────────────────────────────────────────────────────────────
+function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollapse }: {
   lead: Lead;
   expanded: boolean;
   onClick: () => void;
-  onStatusCycle: (e: React.MouseEvent) => void;
-  onSave: (fields: Partial<Lead>) => void;
+  onCycle: (e: React.MouseEvent) => void;
+  onSave: (f: Record<string, string | null>) => void;
   onDelete: () => void;
   onCollapse: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
-  const urgencyColor = getUrgencyBorder(lead);
-  const countdown = getCountdownChip(lead);
-  const nextStatus = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status) + 1) % STATUS_CYCLE.length];
+  const [hov, setHov] = useState(false);
+  const urg    = urgencyColor(lead);
+  const cd     = countdown(lead);
+  const next   = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status) + 1) % STATUS_CYCLE.length];
+  const nextCfg = STATUS_CFG[next];
 
   return (
-    <div
-      style={{
-        borderRadius: 8,
-        marginBottom: 2,
-        overflow: "hidden",
-        border: expanded ? `1px solid ${BORDER}` : `1px solid transparent`,
-      }}
-    >
+    <div style={{
+      borderRadius: 8, marginBottom: 3, overflow: "hidden",
+      border: expanded ? `1px solid ${AMBER}55` : `1px solid transparent`,
+    }}>
       <div
         onClick={onClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "10px 14px 10px 0",
-          background: hovered || expanded ? BG_ROW_HOVER : BG_ROW,
+          display: "flex", alignItems: "center", gap: 0,
+          background: hov || expanded ? ROW_H : ROW,
           cursor: "pointer",
-          position: "relative",
+          transition: "background 0.12s",
           borderRadius: expanded ? "8px 8px 0 0" : 8,
-          transition: "background 0.15s",
+          minHeight: 42,
         }}
       >
-        {/* Urgency border */}
-        <div style={{ width: 4, alignSelf: "stretch", background: urgencyColor, borderRadius: "4px 0 0 4px", flexShrink: 0 }} />
+        {/* Urgency stripe */}
+        <div style={{ width: 5, alignSelf: "stretch", background: urg, flexShrink: 0, borderRadius: "8px 0 0 8px" }} />
 
         {/* Name */}
-        <div style={{ width: 180, flexShrink: 0 }}>
-          <span style={{ color: TEXT_PRIMARY, fontWeight: 600, fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ padding: "8px 12px", minWidth: 0, flex: "0 0 190px" }}>
+          <div style={{ color: TEXT, fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {lead.name}
-          </span>
+          </div>
           {lead.instagram_handle && (
-            <span style={{ color: TEXT_MUTED, fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-              <Instagram size={10} /> {lead.instagram_handle}
-            </span>
+            <div style={{ color: MUTED, fontSize: 10 }}>@{lead.instagram_handle.replace(/^@/, "")}</div>
           )}
         </div>
 
-        {/* Category badge */}
-        <div style={{ flexShrink: 0 }}>
-          <CategoryBadge category={lead.category} />
+        {/* Category */}
+        <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
+          <CategoryPill cat={lead.category} />
         </div>
 
-        {/* Status badge */}
-        <div style={{ flexShrink: 0 }}>
+        {/* Status */}
+        <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
           <StatusBadge status={lead.status} />
         </div>
 
-        {/* Countdown chip */}
-        {countdown && (
-          <div style={{ flexShrink: 0 }}>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                padding: "2px 8px",
-                borderRadius: 99,
-                color: countdown.color,
-                background: countdown.bg,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {countdown.label}
+        {/* Countdown */}
+        {cd && (
+          <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              color: cd.color, background: `${cd.color}22`,
+              padding: "2px 8px", borderRadius: 99,
+              display: "flex", alignItems: "center", gap: 4,
+              whiteSpace: "nowrap",
+            }}>
+              <Clock size={10} /> {cd.text}
             </span>
+          </div>
+        )}
+
+        {/* First contact */}
+        {lead.first_contact_at && (
+          <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
+            <span style={{ color: MUTED, fontSize: 11, whiteSpace: "nowrap" }}>{fmtDT(lead.first_contact_at)}</span>
           </div>
         )}
 
@@ -649,326 +573,227 @@ function LeadRow({
           <a
             href={`mailto:${lead.email}`}
             onClick={e => e.stopPropagation()}
-            style={{ color: TEXT_MUTED, fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+            style={{ color: "#60A5FA", fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, flexShrink: 0, paddingRight: 10 }}
           >
-            <Mail size={12} /> {lead.email}
+            <Mail size={11} />
+            <span style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lead.email}</span>
           </a>
         )}
 
-        {/* Notes */}
-        {lead.notes && (
-          <span style={{ color: TEXT_MUTED, fontSize: 12, fontStyle: "italic", flexGrow: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {truncate(lead.notes, 60)}
+        {/* Notes preview */}
+        {lead.notes && !lead.email && (
+          <span style={{ color: MUTED, fontSize: 11, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+            {lead.notes.replace(/\[.*?\]\s*/g, "").slice(0, 70)}
           </span>
         )}
 
-        {/* Spacer */}
-        <div style={{ flexGrow: 1 }} />
+        <div style={{ flex: 1 }} />
 
-        {/* Actions */}
+        {/* Hover actions */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            opacity: hovered || expanded ? 1 : 0,
-            transition: "opacity 0.15s",
-            flexShrink: 0,
-          }}
           onClick={e => e.stopPropagation()}
+          style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 12, opacity: hov || expanded ? 1 : 0, transition: "opacity 0.15s", flexShrink: 0 }}
         >
           {lead.status !== "won" && (
             <button
-              onClick={onStatusCycle}
-              title={`→ ${STATUS_CONFIG[nextStatus]?.label}`}
+              onClick={onCycle}
               style={{
-                background: "rgba(255,255,255,0.08)",
-                border: `1px solid ${BORDER}`,
-                borderRadius: 5,
-                color: TEXT_MUTED,
-                padding: "4px 8px",
-                fontSize: 11,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                whiteSpace: "nowrap",
+                display: "flex", alignItems: "center", gap: 4,
+                background: nextCfg.bg, border: `1px solid ${nextCfg.dot}50`,
+                borderRadius: 5, color: nextCfg.fg,
+                padding: "4px 9px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
               }}
             >
-              <ChevronDown size={11} /> {STATUS_CONFIG[nextStatus]?.label}
+              → {nextCfg.label}
             </button>
           )}
-          <button
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            style={{
-              background: "rgba(239,83,80,0.1)",
-              border: "1px solid rgba(239,83,80,0.2)",
-              borderRadius: 5,
-              color: "#EF5350",
-              padding: "4px 6px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <Trash2 size={13} />
-          </button>
         </div>
       </div>
 
-      {/* Expand panel */}
       {expanded && (
-        <EditPanel
-          lead={lead}
-          onSave={onSave}
-          onDelete={onDelete}
-          onClose={onCollapse}
-        />
+        <EditPanel lead={lead} onSave={onSave} onDelete={onDelete} onClose={onCollapse} />
       )}
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export function LeadsView() {
   const qc = useQueryClient();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<LeadCategory | "alle">("alle");
-  const [statusFilter, setStatusFilter] = useState<"alle" | "aktive" | "svaret" | "nej">("alle");
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [showAdd, setShowAdd]     = useState(false);
+  const [expanded, setExpanded]   = useState<number | null>(null);
+  const [catFilter, setCatFilter] = useState<LeadCategory | "alle">("alle");
+  const [stFilter, setStFilter]   = useState<"alle" | "aktive" | "svaret" | "nej">("alle");
+  const [search, setSearch]       = useState("");
 
-  // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: leads = [], isLoading, isError, error } = useQuery<Lead[]>({
     queryKey: ["leads"],
     queryFn: () => cf("/api/leads"),
   });
 
-  // ── Mutations ────────────────────────────────────────────────────────────────
-  const addMutation = useMutation({
-    mutationFn: (body: NewLead) => cf("/api/leads", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setShowAddForm(false); },
+  const addM = useMutation({
+    mutationFn: (body: Record<string, string>) =>
+      cf("/api/leads", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setShowAdd(false); },
   });
 
-  const patchMutation = useMutation({
-    mutationFn: ({ id, fields }: { id: number; fields: Partial<Lead> }) =>
+  const patchM = useMutation({
+    mutationFn: ({ id, fields }: { id: number; fields: Record<string, string | null> }) =>
       cf(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify(fields) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setExpandedId(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setExpanded(null); },
   });
 
-  const deleteMutation = useMutation({
+  const delM = useMutation({
     mutationFn: (id: number) => cf(`/api/leads/${id}`, { method: "DELETE" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setExpandedId(null); setDeleteConfirmId(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setExpanded(null); },
   });
 
-  // ── Filters ──────────────────────────────────────────────────────────────────
-  const filteredLeads = leads.filter(lead => {
-    if (categoryFilter !== "alle" && lead.category !== categoryFilter) return false;
-    if (statusFilter === "aktive" && (lead.status === "no" || lead.status === "won" || lead.status === "responded")) return false;
-    if (statusFilter === "svaret" && lead.status !== "responded") return false;
-    if (statusFilter === "nej" && lead.status !== "no") return false;
-    return true;
+  // ── Filter + search ───────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return leads.filter(l => {
+      if (catFilter !== "alle" && l.category !== catFilter) return false;
+      if (stFilter === "aktive"  && (l.status === "no" || l.status === "won" || l.status === "responded")) return false;
+      if (stFilter === "svaret"  && l.status !== "responded") return false;
+      if (stFilter === "nej"     && l.status !== "no")        return false;
+      if (q) {
+        const hay = [l.name, l.email, l.instagram_handle, l.notes, l.phone].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [leads, catFilter, stFilter, search]);
+
+  const catCounts = useMemo(() =>
+    leads.reduce<Record<string, number>>((a, l) => { a[l.category] = (a[l.category] ?? 0) + 1; return a; }, {}),
+  [leads]);
+
+  const overdue = leads.filter(l =>
+    l.follow_up_at && l.status !== "no" && l.status !== "won" &&
+    new Date(l.follow_up_at).getTime() < Date.now()
+  ).length;
+
+  // ── Tab style ─────────────────────────────────────────────────────────────
+  const tab = (active: boolean): React.CSSProperties => ({
+    background: active ? `${AMBER}22` : "transparent",
+    border: active ? `1px solid ${AMBER}55` : `1px solid transparent`,
+    borderRadius: 6, cursor: "pointer",
+    fontSize: 12, fontWeight: active ? 700 : 400,
+    color: active ? AMBER : MUTED,
+    padding: "5px 12px", whiteSpace: "nowrap", transition: "all 0.13s",
   });
 
-  // ── Category counts ───────────────────────────────────────────────────────────
-  const catCounts = leads.reduce<Record<string, number>>((acc, l) => {
-    acc[l.category] = (acc[l.category] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  // ── Handlers ─────────────────────────────────────────────────────────────────
-  function handleStatusCycle(lead: Lead) {
-    const idx = STATUS_CYCLE.indexOf(lead.status);
-    const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
-    patchMutation.mutate({ id: lead.id, fields: { status: next } });
-  }
-
-  function handleSave(id: number, fields: Partial<Lead>) {
-    patchMutation.mutate({ id, fields });
-  }
-
-  function handleDelete(id: number) {
-    deleteMutation.mutate(id);
-  }
-
-  // ── Styles ───────────────────────────────────────────────────────────────────
-  const tabBase: React.CSSProperties = {
-    background: "none",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 12,
-    padding: "5px 12px",
-    transition: "all 0.15s",
-    whiteSpace: "nowrap",
-  };
-
-  function tabStyle(active: boolean): React.CSSProperties {
-    return {
-      ...tabBase,
-      background: active ? "rgba(200,149,108,0.15)" : "transparent",
-      color: active ? AMBER : TEXT_MUTED,
-      fontWeight: active ? 600 : 400,
-    };
-  }
-
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
-      {/* Header */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 0 16px 0",
-        flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ color: TEXT_PRIMARY, fontSize: 18, fontWeight: 700 }}>Leads</span>
-          <span style={{
-            background: "rgba(200,149,108,0.15)",
-            color: AMBER,
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "2px 8px",
-            borderRadius: 99,
-          }}>
-            {leads.length}
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: "wrap" }}>
+        <span style={{ color: TEXT, fontSize: 18, fontWeight: 800, letterSpacing: "-0.3px" }}>Leads</span>
+        <span style={{ background: `${AMBER}22`, color: AMBER, fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 99 }}>
+          {leads.length}
+        </span>
+        {overdue > 0 && (
+          <span style={{ background: "rgba(239,68,68,0.2)", color: "#FCA5A5", fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, display: "flex", alignItems: "center", gap: 4 }}>
+            <AlertTriangle size={11} /> {overdue} forfaldne
           </span>
+        )}
+
+        {/* Search */}
+        <div style={{ position: "relative", flex: 1, minWidth: 180, maxWidth: 340 }}>
+          <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: MUTED, pointerEvents: "none" }} />
+          <input
+            style={inp({ paddingLeft: 30, width: "100%" })}
+            placeholder="Søg navn, email, note…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button onClick={() => setSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: MUTED, padding: 0 }}>
+              <X size={12} />
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => setShowAddForm(v => !v)}
-          style={{
-            background: AMBER,
-            border: "none",
-            borderRadius: 7,
-            color: "#0F1D2F",
-            padding: "8px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <Plus size={15} /> Tilføj lead
-        </button>
+
+        <div style={{ marginLeft: "auto" }}>
+          <button
+            onClick={() => setShowAdd(v => !v)}
+            style={{
+              background: showAdd ? "rgba(200,149,108,0.15)" : AMBER,
+              border: showAdd ? `1px solid ${AMBER}` : "none",
+              borderRadius: 7, cursor: "pointer",
+              color: showAdd ? AMBER : "#0F1D2F",
+              padding: "8px 16px", fontSize: 13, fontWeight: 700,
+              display: "flex", alignItems: "center", gap: 6,
+            }}
+          >
+            {showAdd ? <X size={14} /> : <Plus size={14} />}
+            {showAdd ? "Luk" : "Tilføj lead"}
+          </button>
+        </div>
       </div>
 
-      {/* Category filter tabs */}
-      <div style={{
-        display: "flex",
-        gap: 4,
-        marginBottom: 8,
-        flexShrink: 0,
-        borderBottom: `1px solid ${BORDER}`,
-        paddingBottom: 8,
-        flexWrap: "wrap",
-      }}>
-        <button style={tabStyle(categoryFilter === "alle")} onClick={() => setCategoryFilter("alle")}>
+      {/* ── Category tabs ── */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 8, flexShrink: 0, flexWrap: "wrap" }}>
+        <button style={tab(catFilter === "alle")} onClick={() => setCatFilter("alle")}>
           Alle ({leads.length})
         </button>
-        {(Object.entries(CATEGORY_CONFIG) as [LeadCategory, { label: string; emoji: string }][]).map(([k, v]) => (
-          <button key={k} style={tabStyle(categoryFilter === k)} onClick={() => setCategoryFilter(k)}>
-            {v.emoji} {v.label} ({catCounts[k] ?? 0})
+        {(Object.entries(CAT_CFG) as [LeadCategory, typeof CAT_CFG[LeadCategory]][]).map(([k, v]) => (
+          <button key={k} style={tab(catFilter === k)} onClick={() => setCatFilter(k)}>
+            {v.emoji} {v.short} ({catCounts[k] ?? 0})
           </button>
         ))}
       </div>
 
-      {/* Status filter row */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 12, flexShrink: 0 }}>
-        {([
-          ["alle", "Alle"],
-          ["aktive", "Aktive"],
-          ["svaret", "Svaret"],
-          ["nej", "Nej"],
-        ] as const).map(([val, label]) => (
-          <button
-            key={val}
-            style={tabStyle(statusFilter === val)}
-            onClick={() => setStatusFilter(val)}
-          >
-            {label}
-          </button>
+      {/* ── Status filter ── */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 12, flexShrink: 0, paddingBottom: 12, borderBottom: `1px solid ${BORDER}` }}>
+        {([ ["alle","Alle"], ["aktive","Aktive"], ["svaret","Svaret ✅"], ["nej","Nej ✗"] ] as const).map(([v, l]) => (
+          <button key={v} style={tab(stFilter === v)} onClick={() => setStFilter(v)}>{l}</button>
         ))}
+        {search && (
+          <span style={{ color: MUTED, fontSize: 12, alignSelf: "center", marginLeft: 6 }}>
+            {filtered.length} af {leads.length} resultater
+          </span>
+        )}
       </div>
 
-      {/* Add form */}
-      {showAddForm && (
-        <AddLeadForm
-          onClose={() => setShowAddForm(false)}
-          onAdd={fields => addMutation.mutate(fields)}
-        />
+      {/* ── Add form ── */}
+      {showAdd && (
+        <AddLeadForm onClose={() => setShowAdd(false)} onAdd={body => addM.mutate(body)} />
       )}
 
-      {/* Lead list */}
-      <div style={{ flexGrow: 1, overflowY: "auto", paddingRight: 4 }}>
+      {/* ── Lead list ── */}
+      <div style={{ flexGrow: 1, overflowY: "auto", paddingRight: 2 }}>
         {isLoading && (
-          <div style={{ color: TEXT_MUTED, fontSize: 13, padding: 20, textAlign: "center" }}>
-            Indlæser leads…
-          </div>
+          <div style={{ color: MUTED, fontSize: 13, padding: 24, textAlign: "center" }}>Henter leads…</div>
         )}
         {isError && (
-          <div style={{
-            color: "#EF5350",
-            fontSize: 13,
-            padding: 16,
-            background: "rgba(239,83,80,0.08)",
-            borderRadius: 8,
-            border: "1px solid rgba(239,83,80,0.2)",
-          }}>
+          <div style={{ color: "#FCA5A5", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: 14, fontSize: 13 }}>
             Fejl: {(error as Error)?.message ?? "Kunne ikke hente leads"}
           </div>
         )}
-        {!isLoading && !isError && filteredLeads.length === 0 && (
-          <div style={{
-            color: TEXT_MUTED,
-            fontSize: 13,
-            padding: 40,
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 10,
-          }}>
-            <Filter size={32} style={{ opacity: 0.3 }} />
-            <span>Ingen leads matcher filteret</span>
-            {leads.length === 0 && (
-              <span style={{ fontSize: 12 }}>Klik "Tilføj lead" for at komme i gang</span>
-            )}
+        {!isLoading && !isError && filtered.length === 0 && (
+          <div style={{ color: MUTED, fontSize: 13, padding: 40, textAlign: "center" }}>
+            {leads.length === 0 ? "Ingen leads endnu — tryk Tilføj lead" : "Ingen leads matcher søgning / filter"}
           </div>
         )}
-        {filteredLeads.map(lead => (
+        {filtered.map(lead => (
           <LeadRow
             key={lead.id}
             lead={lead}
-            expanded={expandedId === lead.id}
-            onClick={() => setExpandedId(prev => prev === lead.id ? null : lead.id)}
-            onStatusCycle={e => { e.stopPropagation(); handleStatusCycle(lead); }}
-            onSave={fields => handleSave(lead.id, fields)}
-            onDelete={() => handleDelete(lead.id)}
-            onCollapse={() => setExpandedId(null)}
+            expanded={expanded === lead.id}
+            onClick={() => setExpanded(p => p === lead.id ? null : lead.id)}
+            onCycle={e => { e.stopPropagation(); const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status)+1)%STATUS_CYCLE.length]; patchM.mutate({ id: lead.id, fields: { status: next } }); }}
+            onSave={fields => patchM.mutate({ id: lead.id, fields })}
+            onDelete={() => delM.mutate(lead.id)}
+            onCollapse={() => setExpanded(null)}
           />
         ))}
       </div>
 
-      {/* Mutation error toast */}
-      {(addMutation.isError || patchMutation.isError || deleteMutation.isError) && (
-        <div style={{
-          position: "fixed",
-          bottom: 20,
-          right: 20,
-          background: "rgba(239,83,80,0.9)",
-          color: "white",
-          padding: "10px 16px",
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 500,
-          zIndex: 9999,
-        }}>
-          {((addMutation.error || patchMutation.error || deleteMutation.error) as Error)?.message ?? "Fejl"}
+      {/* ── Error toast ── */}
+      {(addM.isError || patchM.isError || delM.isError) && (
+        <div style={{ position: "fixed", bottom: 20, right: 20, background: "#EF4444", color: "white", padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, zIndex: 9999 }}>
+          {((addM.error || patchM.error || delM.error) as Error)?.message ?? "Fejl"}
         </div>
       )}
     </div>
