@@ -459,6 +459,7 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
   const [fu2Done, setFu2Done] = useState(!!lead.follow_up_2_done);
 
   const [confirmDel, setCDel] = useState(false);
+  const [fuBusy, setFuBusy]   = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
   function appendLog(line: string, toNotes?: string): string {
@@ -477,9 +478,15 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
     }, 0);
   }
 
-  // Immediate-save toggle for FU checkboxes
+  // Immediate-save toggle for FU checkboxes (guarded against double-click)
   function toggleFU(n: 1 | 2) {
-    const newDone = n === 1 ? !fu1Done : !fu2Done;
+    if (fuBusy) return;
+    setFuBusy(true);
+
+    // Read current done-value directly from state at call time
+    const currentDone = n === 1 ? fu1Done : fu2Done;
+    const newDone = !currentDone;
+
     if (n === 1) setFu1Done(newDone);
     else         setFu2Done(newDone);
 
@@ -495,6 +502,9 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
       notes: updatedNotes,
       ...(newDone ? { last_contacted_at: new Date().toISOString() } : {}),
     });
+
+    // Re-enable after 1.2 s (enough time for PATCH + refetch to complete)
+    setTimeout(() => setFuBusy(false), 1200);
   }
 
   function save(e: React.FormEvent) {
