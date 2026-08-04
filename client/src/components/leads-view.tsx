@@ -118,6 +118,15 @@ function countdown(lead: Lead): { text: string; color: string; label: string; da
   return          { text: `om ${days}d`,                    color: "#22C55E", label, date };
 }
 
+/** Extract last logged reply from notes (📩 Svarede: …) */
+function lastReply(lead: Lead): string | null {
+  if (!lead.notes) return null;
+  const lines = lead.notes.split("\n").filter(l => l.includes("📩 Svarede:"));
+  if (!lines.length) return null;
+  const m = lines[lines.length - 1].match(/📩 Svarede:\s*(.+)/);
+  return m ? m[1].trim() : null;
+}
+
 /** Colour for a single FU dot */
 function fuDotColor(done: boolean, at?: string): string {
   if (done) return "#22C55E";
@@ -997,8 +1006,32 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onQuickPatch, onDel
           </div>
         )}
 
-        {/* Email */}
-        {lead.email && (
+        {/* Reply chip — shown when a reply has been logged via the reply panel */}
+        {(() => {
+          const reply = lastReply(lead);
+          if (!reply) return null;
+          const replyColor =
+            reply.startsWith("Nej tak")    ? "#EF4444" :
+            reply.startsWith("Vil se mere") ? "#60A5FA" :
+            reply.startsWith("Tester")     ? "#A78BFA" :
+            "#F59E0B";
+          return (
+            <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700,
+                color: replyColor, background: `${replyColor}18`,
+                border: `1px solid ${replyColor}35`,
+                padding: "2px 9px", borderRadius: 99, whiteSpace: "nowrap",
+                display: "inline-flex", alignItems: "center", gap: 4,
+              }}>
+                💬 {reply.length > 30 ? reply.slice(0, 28) + "…" : reply}
+              </span>
+            </div>
+          );
+        })()}
+
+        {/* Email (hidden when reply chip shown to save space) */}
+        {lead.email && !lastReply(lead) && (
           <a
             href={`mailto:${lead.email}`}
             onClick={e => e.stopPropagation()}
@@ -1009,8 +1042,8 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onQuickPatch, onDel
           </a>
         )}
 
-        {/* Notes preview (only if no email) */}
-        {lead.notes && !lead.email && (
+        {/* Notes preview (only if no email and no reply) */}
+        {lead.notes && !lead.email && !lastReply(lead) && (
           <span style={{ color: MUTED, fontSize: 11, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {lead.notes.replace(/\[.*?\]\s*/g, "").slice(0, 70)}
           </span>
@@ -1058,7 +1091,7 @@ export function LeadsView() {
   const [showAdd, setShowAdd]     = useState(false);
   const [expanded, setExpanded]   = useState<number | null>(null);
   const [catFilter, setCatFilter] = useState<LeadCategory | "alle">("alle");
-  const [stFilter, setStFilter]   = useState<"alle" | "aktive" | "svaret" | "nej">("alle");
+  const [stFilter, setStFilter]   = useState<"alle" | "aktive" | "svaret" | "besvaret" | "nej">("alle");
   const [search, setSearch]       = useState("");
 
   const { data: leads = [], isLoading, isError, error } = useQuery<Lead[]>({
@@ -1096,9 +1129,10 @@ export function LeadsView() {
     const q = search.trim().toLowerCase();
     return leads.filter(l => {
       if (catFilter !== "alle" && l.category !== catFilter) return false;
-      if (stFilter === "aktive"  && (l.status === "no" || l.status === "won" || l.status === "responded")) return false;
-      if (stFilter === "svaret"  && l.status !== "responded") return false;
-      if (stFilter === "nej"     && l.status !== "no")        return false;
+      if (stFilter === "aktive"   && (l.status === "no" || l.status === "won" || l.status === "responded")) return false;
+      if (stFilter === "svaret"   && l.status !== "responded") return false;
+      if (stFilter === "besvaret" && !l.notes?.includes("📩 Svarede:")) return false;
+      if (stFilter === "nej"      && l.status !== "no")        return false;
       if (q) {
         const hay = [l.name, l.email, l.instagram_handle, l.notes, l.phone].join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
@@ -1189,7 +1223,7 @@ export function LeadsView() {
 
       {/* ── Status filter ── */}
       <div style={{ display: "flex", gap: 4, marginBottom: 12, flexShrink: 0, paddingBottom: 12, borderBottom: `1px solid ${BORDER}` }}>
-        {([["alle","Alle"], ["aktive","Aktive"], ["svaret","Svaret ✅"], ["nej","Nej ✗"]] as const).map(([v, l]) => (
+        {([["alle","Alle"], ["aktive","Aktive"], ["svaret","Svaret ✅"], ["besvaret","Besvaret mail 💬"], ["nej","Nej ✗"]] as const).map(([v, l]) => (
           <button key={v} style={tab(stFilter === v)} onClick={() => setStFilter(v)}>{l}</button>
         ))}
         {search && (
