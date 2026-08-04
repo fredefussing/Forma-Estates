@@ -86,11 +86,7 @@ const STATUS_CYCLE: LeadStatus[] = ["new", "contacted", "responded", "no"];
 /** Returns the next undone follow-up — only for active (non-responded, non-closed) leads */
 function nextFU(lead: Lead): { at: string; n: 1 | 2 } | null {
   if (lead.status === "no" || lead.status === "won") return null;
-  // Responded: FU1 is implicitly done — only track FU2 if still pending
-  if (lead.status === "responded") {
-    if (!lead.follow_up_2_done && lead.follow_up_2_at) return { at: lead.follow_up_2_at, n: 2 };
-    return null;
-  }
+  // Always use the actual done-flags — "responded" doesn't auto-skip FU1
   if (!lead.follow_up_1_done && lead.follow_up_1_at) return { at: lead.follow_up_1_at, n: 1 };
   if (!lead.follow_up_2_done && lead.follow_up_2_at) return { at: lead.follow_up_2_at, n: 2 };
   return null;
@@ -216,10 +212,8 @@ function CategoryPill({ cat }: { cat: LeadCategory }) {
 // ── FU progress dots (mini, shown on main row) ────────────────────────────────
 function FUDots({ lead }: { lead: Lead }) {
   if (lead.status === "no" || lead.status === "won") return null;
-  const isResponded = lead.status === "responded";
   const dots = [
-    // FU1 always green for responded leads (they replied = FU1 succeeded)
-    { done: isResponded || !!lead.follow_up_1_done, at: lead.follow_up_1_at, label: "FU1" },
+    { done: !!lead.follow_up_1_done, at: lead.follow_up_1_at, label: "FU1" },
     { done: !!lead.follow_up_2_done, at: lead.follow_up_2_at, label: "FU2" },
   ];
   return (
