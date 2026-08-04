@@ -557,6 +557,23 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
   const [respondedNote, setRespondedNote]   = useState("");
   const respondedRef = useRef<HTMLInputElement>(null);
 
+  // Reply-panel (for already-responded leads)
+  const [replyOpen, setReplyOpen]           = useState(false);
+  const [replyOtherActive, setReplyOtherActive] = useState(false);
+  const [replyOtherText, setReplyOtherText] = useState("");
+  const replyOtherRef = useRef<HTMLInputElement>(null);
+
+  function logReply(label: string, note?: string) {
+    const notePart = note?.trim() ? `: ${note.trim()}` : "";
+    const line = `📩 Svarede: ${label}${notePart}`;
+    const updatedNotes = appendLog(line);
+    setNotes(updatedNotes);
+    onQuickPatch({ notes: updatedNotes });
+    setReplyOpen(false);
+    setReplyOtherActive(false);
+    setReplyOtherText("");
+  }
+
   const logBtns = [
     { icon: <Send size={12} />,         label: "Mail sendt",   log: "📧 Mail sendt" },
     { icon: <MessageSquare size={12} />, label: "DM sendt",    log: "💬 Instagram DM sendt" },
@@ -621,13 +638,104 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
         {status !== "won" && (
           <div style={{ marginTop: 8 }}>
             {status === "responded" ? (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: "#0E2A1A", border: "1px solid rgba(34,197,94,0.3)",
-                borderRadius: 8, padding: "8px 14px",
-              }}>
-                <Check size={14} color="#22C55E" />
-                <span style={{ color: "#86EFAC", fontSize: 12, fontWeight: 600 }}>Svaret på mail — registreret</span>
+              <div>
+                {/* Clickable header */}
+                <button
+                  type="button"
+                  onClick={() => { setReplyOpen(v => !v); setReplyOtherActive(false); }}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    background: "#0E2A1A", border: "1px solid rgba(34,197,94,0.3)",
+                    borderRadius: replyOpen ? "8px 8px 0 0" : 8, padding: "9px 14px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Check size={14} color="#22C55E" />
+                    <span style={{ color: "#86EFAC", fontSize: 12, fontWeight: 600 }}>Svaret på mail</span>
+                  </div>
+                  <span style={{ color: "#4ADE80", fontSize: 11 }}>
+                    Registrér svar {replyOpen ? "▲" : "▼"}
+                  </span>
+                </button>
+
+                {/* Expanded reply panel */}
+                {replyOpen && (
+                  <div style={{
+                    background: "#071510", border: "1px solid rgba(34,197,94,0.25)",
+                    borderTop: "none", borderRadius: "0 0 8px 8px", padding: "12px 14px",
+                  }}>
+                    <div style={{ color: MUTED, fontSize: 11, marginBottom: 8 }}>
+                      Hvad svarede de?
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {[
+                        { icon: "🙅", label: "Nej tak" },
+                        { icon: "👀", label: "Vil se mere" },
+                        { icon: "🧪", label: "Tester" },
+                      ].map(opt => (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          onClick={() => logReply(opt.label)}
+                          style={{
+                            background: "#132B1E", border: "1px solid rgba(34,197,94,0.3)",
+                            borderRadius: 6, color: "#86EFAC",
+                            padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          {opt.icon} {opt.label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyOtherActive(v => !v);
+                          setTimeout(() => replyOtherRef.current?.focus(), 50);
+                        }}
+                        style={{
+                          background: replyOtherActive ? "#132B1E" : "#102030",
+                          border: `1px solid ${replyOtherActive ? "rgba(34,197,94,0.4)" : "rgba(255,255,255,0.15)"}`,
+                          borderRadius: 6,
+                          color: replyOtherActive ? "#86EFAC" : TEXT,
+                          padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        ✏️ Andet
+                      </button>
+                    </div>
+
+                    {replyOtherActive && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <input
+                          ref={replyOtherRef}
+                          style={inp({ flex: 1, fontSize: 12 })}
+                          placeholder="Skriv hvad de svarede..."
+                          value={replyOtherText}
+                          onChange={e => setReplyOtherText(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && replyOtherText.trim()) logReply("Andet", replyOtherText);
+                            if (e.key === "Escape") setReplyOtherActive(false);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => logReply("Andet", replyOtherText)}
+                          disabled={!replyOtherText.trim()}
+                          style={{
+                            background: replyOtherText.trim() ? "#22C55E" : "#1A2C1A",
+                            border: "none", borderRadius: 6,
+                            color: replyOtherText.trim() ? "#0a1a0a" : MUTED,
+                            padding: "6px 16px", fontSize: 12, fontWeight: 700,
+                            cursor: replyOtherText.trim() ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          Gem
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : !respondedOpen ? (
               <button
