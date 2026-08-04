@@ -27,3 +27,4 @@ uploads/tripo-model-7a490565-b805-429f-9269-8de3c63ab064.glb filter=lfs diff=lfs
 uploads/tripo-model-68b4d915-3512-474d-b4fa-2553e503b097.glb filter=lfs diff=lfs merge=lfs -text
 attached_assets/video-4-243ad977-0e75-4279-b4aa-537ba1d4ad9b_1785358935337.mp4 filter=lfs diff=lfs merge=lfs -text
 attached_assets/video-5-4dd89717-3028-496f-93c3-414797c6e243_1785358948079.mp4 filter=lfs diff=lfs merge=lfs -text
+attached_assets/What_I_Need_1785873946539.mp4 filter=lfs diff=lfs merge=lfs -text
