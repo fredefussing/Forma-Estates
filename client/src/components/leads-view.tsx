@@ -374,9 +374,9 @@ function FURow({
     <div style={{
       display: "flex", alignItems: "center", gap: 12,
       padding: "10px 14px",
-      background: done ? "rgba(34,197,94,0.06)" : isPast ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.03)",
+      background: done ? "#0E2A1A" : isPast ? "#2A110E" : "#102030",
       borderRadius: 8,
-      border: `1px solid ${done ? "rgba(34,197,94,0.2)" : isPast ? "rgba(239,68,68,0.2)" : BORDER}`,
+      border: `1px solid ${done ? "rgba(34,197,94,0.35)" : isPast ? "rgba(239,68,68,0.35)" : "rgba(255,255,255,0.18)"}`,
       transition: "all 0.15s",
     }}>
       {/* Checkbox */}
@@ -521,7 +521,7 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
 
   return (
     <form onSubmit={save} onClick={e => e.stopPropagation()} style={{
-      background: "#17263480",
+      background: "#07111A",
       borderTop: `2px solid ${AMBER}`,
       padding: "16px 18px",
     }}>
