@@ -5557,10 +5557,13 @@ export async function registerRoutes(
       const { name, category = "ejendomsmaegler", instagram_handle, email, phone, status = "new", notes, first_contact_at, follow_up_at } = req.body;
       if (!name) return res.status(400).json({ error: "name required" });
       const fu = follow_up_at || (first_contact_at ? new Date(new Date(first_contact_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null);
+      const fc = first_contact_at || null;
+      const fu1 = fc ? new Date(new Date(fc).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString() : null;
+      const fu2 = fc ? new Date(new Date(fc).getTime() + 9 * 24 * 60 * 60 * 1000).toISOString() : null;
       const result = await pool.query(
-        `INSERT INTO leads (name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [name, category, instagram_handle || null, email || null, phone || null, status, notes || null, first_contact_at || null, fu]
+        `INSERT INTO leads (name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_2_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [name, category, instagram_handle || null, email || null, phone || null, status, notes || null, fc, fu, fu1, fu2]
       );
       return res.json(result.rows[0]);
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
@@ -5571,7 +5574,10 @@ export async function registerRoutes(
       const admin = await requireOwner(req, res);
       if (!admin) return;
       const id = parseInt(req.params.id);
-      const fields = ["name", "category", "instagram_handle", "email", "phone", "status", "notes", "first_contact_at", "follow_up_at", "last_contacted_at"];
+      const fields = ["name", "category", "instagram_handle", "email", "phone", "status", "notes",
+                       "first_contact_at", "follow_up_at", "last_contacted_at",
+                       "follow_up_1_at", "follow_up_2_at"];
+      const boolFields = ["follow_up_1_done", "follow_up_2_done"];
       const sets: string[] = ["updated_at = NOW()"];
       const vals: any[] = [];
       let idx = 1;
@@ -5581,9 +5587,23 @@ export async function registerRoutes(
           vals.push(req.body[f] === "" ? null : req.body[f]);
         }
       }
+      for (const f of boolFields) {
+        if (req.body[f] !== undefined) {
+          sets.push(`${f} = $${idx++}`);
+          vals.push(Boolean(req.body[f]));
+        }
+      }
       if (req.body.first_contact_at && req.body.follow_up_at === undefined) {
         sets.push(`follow_up_at = $${idx++}`);
         vals.push(new Date(new Date(req.body.first_contact_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString());
+      }
+      if (req.body.first_contact_at && req.body.follow_up_1_at === undefined) {
+        sets.push(`follow_up_1_at = $${idx++}`);
+        vals.push(new Date(new Date(req.body.first_contact_at).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString());
+      }
+      if (req.body.first_contact_at && req.body.follow_up_2_at === undefined) {
+        sets.push(`follow_up_2_at = $${idx++}`);
+        vals.push(new Date(new Date(req.body.first_contact_at).getTime() + 9 * 24 * 60 * 60 * 1000).toISOString());
       }
       vals.push(id);
       const result = await pool.query(`UPDATE leads SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`, vals);

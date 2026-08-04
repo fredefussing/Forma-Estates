@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, X, Trash2, Mail, Search, Clock,
-  MessageSquare, Phone, Send, ChevronDown,
-  Building2, Check, AlertTriangle,
+  MessageSquare, Phone, Send, Check,
+  Building2, AlertTriangle,
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
@@ -25,7 +25,7 @@ async function cf(url: string, opts?: RequestInit) {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type LeadStatus = "new" | "contacted" | "responded" | "no" | "won";
+type LeadStatus   = "new" | "contacted" | "responded" | "no" | "won";
 type LeadCategory = "ejendomsmaegler" | "arkitekt" | "toemrerfirma" | "byggefirma";
 
 type Lead = {
@@ -39,6 +39,10 @@ type Lead = {
   notes?: string;
   first_contact_at?: string;
   follow_up_at?: string;
+  follow_up_1_at?: string;
+  follow_up_1_done?: boolean;
+  follow_up_2_at?: string;
+  follow_up_2_done?: boolean;
   last_contacted_at?: string;
   created_at: string;
   updated_at: string;
@@ -62,10 +66,10 @@ const STATUS_CFG: Record<LeadStatus, { label: string; fg: string; bg: string; do
 };
 
 const CAT_CFG: Record<LeadCategory, { short: string; emoji: string; color: string }> = {
-  ejendomsmaegler: { short: "Mægler",    emoji: "🏠", color: "#60A5FA" },
-  arkitekt:        { short: "Arkitekt",  emoji: "🏗️", color: "#A78BFA" },
-  toemrerfirma:    { short: "Tømrer",    emoji: "🔨", color: "#FB923C" },
-  byggefirma:      { short: "Byggefirma",emoji: "🏢", color: "#34D399" },
+  ejendomsmaegler: { short: "Mægler",     emoji: "🏠", color: "#60A5FA" },
+  arkitekt:        { short: "Arkitekt",   emoji: "🏗️", color: "#A78BFA" },
+  toemrerfirma:    { short: "Tømrer",     emoji: "🔨", color: "#FB923C" },
+  byggefirma:      { short: "Byggefirma", emoji: "🏢", color: "#34D399" },
 };
 
 const PLATFORMS = [
@@ -79,26 +83,46 @@ const PLATFORMS = [
 const STATUS_CYCLE: LeadStatus[] = ["new", "contacted", "responded", "no"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+/** Returns the next undone follow-up (FU1 first, then FU2) */
+function nextFU(lead: Lead): { at: string; n: 1 | 2 } | null {
+  if (lead.status === "no" || lead.status === "won") return null;
+  if (!lead.follow_up_1_done && lead.follow_up_1_at) return { at: lead.follow_up_1_at, n: 1 };
+  if (!lead.follow_up_2_done && lead.follow_up_2_at) return { at: lead.follow_up_2_at, n: 2 };
+  return null;
+}
+
 function urgencyColor(lead: Lead): string {
-  if (lead.status === "no" || lead.status === "won") return "#2d3f54";
-  if (!lead.follow_up_at) return "#2d3f54";
-  const diff = (new Date(lead.follow_up_at).getTime() - Date.now()) / 864e5;
+  const fu = nextFU(lead);
+  if (!fu) return "#2d3f54";
+  const diff = (new Date(fu.at).getTime() - Date.now()) / 864e5;
   if (diff < 0)  return "#EF4444";
   if (diff < 2)  return "#F59E0B";
   return "#22C55E";
 }
 
-function countdown(lead: Lead): { text: string; color: string } | null {
-  if (!lead.follow_up_at || lead.status === "no" || lead.status === "won") return null;
-  const days = Math.round((new Date(lead.follow_up_at).getTime() - Date.now()) / 864e5);
-  if (days < 0)  return { text: `${Math.abs(days)}d over`,  color: "#EF4444" };
-  if (days === 0) return { text: "I dag!",                   color: "#F59E0B" };
-  if (days === 1) return { text: "I morgen",                 color: "#FBBF24" };
-  return          { text: `om ${days}d`,                     color: "#60A5FA" };
+function countdown(lead: Lead): { text: string; color: string; label: string } | null {
+  const fu = nextFU(lead);
+  if (!fu) return null;
+  const days = Math.round((new Date(fu.at).getTime() - Date.now()) / 864e5);
+  const label = `FU${fu.n}`;
+  if (days < 0)   return { text: `${Math.abs(days)}d over`,  color: "#EF4444", label };
+  if (days === 0) return { text: "I dag!",                    color: "#F59E0B", label };
+  if (days === 1) return { text: "I morgen",                  color: "#FBBF24", label };
+  return           { text: `om ${days}d`,                     color: "#60A5FA", label };
+}
+
+/** Colour for a single FU dot */
+function fuDotColor(done: boolean, at?: string): string {
+  if (done) return "#22C55E";
+  if (!at)  return "#3A4F64";
+  const diff = (new Date(at).getTime() - Date.now()) / 864e5;
+  if (diff < 0) return "#EF4444";
+  if (diff < 2) return "#F59E0B";
+  return "#60A5FA";
 }
 
 function dkNow(): string {
-  const d = new Date();
+  const d  = new Date();
   const mo = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][d.getMonth()];
   return `${d.getDate()}. ${mo} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
@@ -110,14 +134,21 @@ function toLocal(iso?: string): string {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function fmtDate(iso?: string): string {
+  if (!iso) return "–";
+  const d  = new Date(iso);
+  const mo = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][d.getMonth()];
+  return `${d.getDate()}. ${mo}`;
+}
+
 function fmtDT(iso?: string): string {
   if (!iso) return "–";
-  const d = new Date(iso);
+  const d  = new Date(iso);
   const mo = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][d.getMonth()];
   return `${d.getDate()}. ${mo} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-// shared input/label styles
+// ── Shared styles ─────────────────────────────────────────────────────────────
 const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
   background: INPUT_BG,
   border: `1px solid ${BORDER}`,
@@ -172,6 +203,34 @@ function CategoryPill({ cat }: { cat: LeadCategory }) {
   );
 }
 
+// ── FU progress dots (mini, shown on main row) ────────────────────────────────
+function FUDots({ lead }: { lead: Lead }) {
+  if (lead.status === "no" || lead.status === "won") return null;
+  const dots = [
+    { done: !!lead.follow_up_1_done, at: lead.follow_up_1_at, label: "FU1" },
+    { done: !!lead.follow_up_2_done, at: lead.follow_up_2_at, label: "FU2" },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 5, alignItems: "center", paddingRight: 8, flexShrink: 0 }}>
+      {dots.map(({ done, at, label }) => {
+        const col = fuDotColor(done, at);
+        return (
+          <div key={label} title={`${label}: ${done ? "Gjort ✓" : at ? fmtDate(at) : "ingen dato"}`}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <div style={{
+              width: 9, height: 9, borderRadius: "50%",
+              background: done ? col : "transparent",
+              border: `2px solid ${col}`,
+              flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 8, color: col, fontWeight: 700, lineHeight: 1 }}>{label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── AddLeadForm ───────────────────────────────────────────────────────────────
 function AddLeadForm({ onClose, onAdd }: {
   onClose: () => void;
@@ -196,10 +255,7 @@ function AddLeadForm({ onClose, onAdd }: {
     const autoNote = `[${dkNow()}] ${platformLabel}`;
     const finalNotes = notes.trim() ? `${autoNote}\n${notes.trim()}` : autoNote;
     const body: Record<string, string> = {
-      name: name.trim(),
-      category: cat,
-      status,
-      notes: finalNotes,
+      name: name.trim(), category: cat, status, notes: finalNotes,
     };
     if (dtLocal) body.first_contact_at = ts;
     if (email.trim()) body.email = email.trim();
@@ -223,7 +279,6 @@ function AddLeadForm({ onClose, onAdd }: {
         </button>
       </div>
 
-      {/* Row 1: Navn, Kategori, Status */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>Navn *</label>
@@ -247,7 +302,6 @@ function AddLeadForm({ onClose, onAdd }: {
         </div>
       </div>
 
-      {/* Row 2: Kanal + Tidspunkt */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>Skrevet via</label>
@@ -257,16 +311,10 @@ function AddLeadForm({ onClose, onAdd }: {
         </div>
         <div>
           <label style={lbl}>Kontaktet tidspunkt</label>
-          <input
-            style={inp()}
-            type="datetime-local"
-            value={dtLocal}
-            onChange={e => setDtLocal(e.target.value)}
-          />
+          <input style={inp()} type="datetime-local" value={dtLocal} onChange={e => setDtLocal(e.target.value)} />
         </div>
       </div>
 
-      {/* Row 3: Email, Instagram, Telefon */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>Email</label>
@@ -282,7 +330,6 @@ function AddLeadForm({ onClose, onAdd }: {
         </div>
       </div>
 
-      {/* Notes */}
       <div style={{ marginBottom: 14 }}>
         <label style={lbl}>Note (valgfri)</label>
         <textarea
@@ -308,27 +355,119 @@ function AddLeadForm({ onClose, onAdd }: {
   );
 }
 
-// ── EditPanel ─────────────────────────────────────────────────────────────────
-function EditPanel({ lead, onSave, onDelete, onClose }: {
-  lead: Lead;
-  onSave: (fields: Record<string, string | null>) => void;
-  onDelete: () => void;
-  onClose: () => void;
+// ── FURow (single follow-up checkbox + date inside EditPanel) ─────────────────
+function FURow({
+  n, sublabel, done, at,
+  onToggle, onChangeAt,
+}: {
+  n: 1 | 2;
+  sublabel: string;
+  done: boolean;
+  at?: string;
+  onToggle: () => void;
+  onChangeAt: (iso: string | undefined) => void;
 }) {
-  const [name, setName]         = useState(lead.name);
-  const [cat, setCat]           = useState(lead.category);
-  const [status, setStatus]     = useState(lead.status);
-  const [email, setEmail]       = useState(lead.email ?? "");
-  const [ig, setIg]             = useState(lead.instagram_handle ?? "");
-  const [phone, setPhone]       = useState(lead.phone ?? "");
-  const [notes, setNotes]       = useState(lead.notes ?? "");
-  const [fcLocal, setFcLocal]   = useState(toLocal(lead.first_contact_at));
-  const [fuLocal, setFuLocal]   = useState(toLocal(lead.follow_up_at));
-  const [confirmDel, setCDel]   = useState(false);
+  const col    = fuDotColor(done, at);
+  const isPast = !done && !!at && new Date(at).getTime() < Date.now();
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12,
+      padding: "10px 14px",
+      background: done ? "rgba(34,197,94,0.06)" : isPast ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.03)",
+      borderRadius: 8,
+      border: `1px solid ${done ? "rgba(34,197,94,0.2)" : isPast ? "rgba(239,68,68,0.2)" : BORDER}`,
+      transition: "all 0.15s",
+    }}>
+      {/* Checkbox */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: 22, height: 22, borderRadius: 5, flexShrink: 0,
+          border: `2px solid ${done ? "#22C55E" : col}`,
+          background: done ? "#22C55E22" : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", transition: "all 0.13s",
+        }}
+        aria-label={done ? "Marker som ikke gjort" : "Marker som gjort"}
+      >
+        {done && <Check size={13} color="#22C55E" />}
+      </button>
+
+      {/* Label */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          color: done ? MUTED : TEXT,
+          fontSize: 13, fontWeight: 600,
+          textDecoration: done ? "line-through" : "none",
+        }}>
+          Opfølgning {n}
+        </div>
+        <div style={{ color: MUTED, fontSize: 10, marginTop: 1 }}>{sublabel}</div>
+      </div>
+
+      {/* Due label */}
+      {at && (
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: col,
+          background: `${col}18`, padding: "2px 8px", borderRadius: 99,
+          whiteSpace: "nowrap", flexShrink: 0,
+        }}>
+          {isPast ? "⚠ " : ""}
+          {fmtDate(at)}
+        </span>
+      )}
+
+      {/* Date picker */}
+      <input
+        type="date"
+        style={inp({ width: 140, fontSize: 12, flexShrink: 0, padding: "5px 8px" })}
+        value={at ? at.slice(0, 10) : ""}
+        onChange={e => {
+          if (!e.target.value) { onChangeAt(undefined); return; }
+          // keep time from existing or use noon
+          const existing = at ? at.slice(11, 16) : "12:00";
+          onChangeAt(new Date(`${e.target.value}T${existing}`).toISOString());
+        }}
+      />
+    </div>
+  );
+}
+
+// ── EditPanel ─────────────────────────────────────────────────────────────────
+function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose }: {
+  lead: Lead;
+  onSave:  (fields: Record<string, unknown>) => void;
+  onQuickPatch: (fields: Record<string, unknown>) => void;
+  onDelete: () => void;
+  onClose:  () => void;
+}) {
+  const [name, setName]     = useState(lead.name);
+  const [cat, setCat]       = useState(lead.category);
+  const [status, setStatus] = useState(lead.status);
+  const [email, setEmail]   = useState(lead.email ?? "");
+  const [ig, setIg]         = useState(lead.instagram_handle ?? "");
+  const [phone, setPhone]   = useState(lead.phone ?? "");
+  const [notes, setNotes]   = useState(lead.notes ?? "");
+  const [fcLocal, setFcLocal] = useState(toLocal(lead.first_contact_at));
+
+  // Follow-up state (dates + done flags)
+  const [fu1At, setFu1At]   = useState<string | undefined>(lead.follow_up_1_at);
+  const [fu1Done, setFu1Done] = useState(!!lead.follow_up_1_done);
+  const [fu2At, setFu2At]   = useState<string | undefined>(lead.follow_up_2_at);
+  const [fu2Done, setFu2Done] = useState(!!lead.follow_up_2_done);
+
+  const [confirmDel, setCDel] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
-  function appendLog(line: string) {
-    const newNotes = notes ? `${notes}\n[${dkNow()}] ${line}` : `[${dkNow()}] ${line}`;
+  function appendLog(line: string, toNotes?: string): string {
+    const base = toNotes ?? notes;
+    return base ? `${base}\n[${dkNow()}] ${line}` : `[${dkNow()}] ${line}`;
+  }
+
+  function appendLogState(line: string) {
+    const newNotes = appendLog(line);
     setNotes(newNotes);
     setTimeout(() => {
       if (notesRef.current) {
@@ -338,25 +477,46 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
     }, 0);
   }
 
+  // Immediate-save toggle for FU checkboxes
+  function toggleFU(n: 1 | 2) {
+    const newDone = n === 1 ? !fu1Done : !fu2Done;
+    if (n === 1) setFu1Done(newDone);
+    else         setFu2Done(newDone);
+
+    const logLine = newDone
+      ? `✅ Opfølgning ${n} gennemført`
+      : `↩️ Opfølgning ${n} markeret som ikke gjort`;
+    const updatedNotes = appendLog(logLine);
+    setNotes(updatedNotes);
+
+    // Immediate PATCH without closing panel
+    onQuickPatch({
+      [`follow_up_${n}_done`]: newDone,
+      notes: updatedNotes,
+      ...(newDone ? { last_contacted_at: new Date().toISOString() } : {}),
+    });
+  }
+
   function save(e: React.FormEvent) {
     e.preventDefault();
-    const fields: Record<string, string | null> = {
+    onSave({
       name, category: cat, status,
       email: email || null,
       instagram_handle: ig || null,
       phone: phone || null,
       notes: notes || null,
       first_contact_at: fcLocal ? new Date(fcLocal).toISOString() : null,
-      follow_up_at: fuLocal ? new Date(fuLocal).toISOString() : null,
-    };
-    onSave(fields);
+      follow_up_1_at: fu1At ?? null,
+      follow_up_1_done: fu1Done,
+      follow_up_2_at: fu2At ?? null,
+      follow_up_2_done: fu2Done,
+    });
   }
 
   const logBtns = [
-    { icon: <Send size={12} />,        label: "Mail sendt",    log: "📧 Mail sendt" },
-    { icon: <MessageSquare size={12}/>, label: "DM sendt",     log: "💬 Instagram DM sendt" },
-    { icon: <Phone size={12} />,        label: "Ringet op",    log: "📞 Ringet op" },
-    { icon: <Check size={12} />,        label: "Opfølgning",   log: "✅ Opfølgning gennemført" },
+    { icon: <Send size={12} />,         label: "Mail sendt",   log: "📧 Mail sendt" },
+    { icon: <MessageSquare size={12} />, label: "DM sendt",    log: "💬 Instagram DM sendt" },
+    { icon: <Phone size={12} />,         label: "Ringet op",   log: "📞 Ringet op" },
   ];
 
   return (
@@ -366,15 +526,50 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
       padding: "16px 18px",
     }}>
 
-      {/* Quick log buttons */}
+      {/* ── Opfølgningsplan ── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <label style={{ ...lbl, marginBottom: 0 }}>📅 Opfølgningsplan</label>
+          <span style={{ fontSize: 10, color: MUTED, fontStyle: "italic" }}>
+            Maks 2-3 gange — marker af når du har gjort det
+          </span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <FURow
+            n={1}
+            sublabel="2-3 dage efter første kontakt"
+            done={fu1Done}
+            at={fu1At}
+            onToggle={() => toggleFU(1)}
+            onChangeAt={setFu1At}
+          />
+          <FURow
+            n={2}
+            sublabel="1 uge efter opfølgning 1"
+            done={fu2Done}
+            at={fu2At}
+            onToggle={() => toggleFU(2)}
+            onChangeAt={setFu2At}
+          />
+        </div>
+        {fu1Done && fu2Done && (
+          <div style={{
+            marginTop: 6, fontSize: 11, color: "#F59E0B",
+            background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)",
+            borderRadius: 6, padding: "6px 10px",
+          }}>
+            Begge opfølgninger er gjort. Overvej at markere leadet som <strong>Nej</strong> eller <strong>Vundet</strong>.
+          </div>
+        )}
+      </div>
+
+      {/* ── Quick log ── */}
       <div style={{ marginBottom: 14 }}>
         <label style={{ ...lbl, marginBottom: 8 }}>Hurtig log</label>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {logBtns.map(b => (
             <button
-              key={b.log}
-              type="button"
-              onClick={() => appendLog(b.log)}
+              key={b.log} type="button" onClick={() => appendLogState(b.log)}
               style={{
                 display: "flex", alignItems: "center", gap: 5,
                 background: "#1c3254", border: `1px solid ${BORDER}`,
@@ -388,7 +583,7 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
         </div>
       </div>
 
-      {/* Grid row 1 */}
+      {/* ── Fields row 1 ── */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>Navn</label>
@@ -416,8 +611,8 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
         </div>
       </div>
 
-      {/* Grid row 2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+      {/* ── Fields row 2 ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>Instagram</label>
           <input style={inp()} value={ig} onChange={e => setIg(e.target.value)} placeholder="@handle" />
@@ -430,13 +625,9 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
           <label style={lbl}>Første kontakt</label>
           <input style={inp()} type="datetime-local" value={fcLocal} onChange={e => setFcLocal(e.target.value)} />
         </div>
-        <div>
-          <label style={lbl}>Opfølgning</label>
-          <input style={inp()} type="datetime-local" value={fuLocal} onChange={e => setFuLocal(e.target.value)} />
-        </div>
       </div>
 
-      {/* Notes */}
+      {/* ── Notes ── */}
       <div style={{ marginBottom: 14 }}>
         <label style={lbl}>Notater / log</label>
         <textarea
@@ -448,7 +639,7 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
         />
       </div>
 
-      {/* Actions */}
+      {/* ── Actions ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           {!confirmDel ? (
@@ -490,20 +681,21 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
 }
 
 // ── LeadRow ───────────────────────────────────────────────────────────────────
-function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollapse }: {
+function LeadRow({ lead, expanded, onClick, onCycle, onSave, onQuickPatch, onDelete, onCollapse }: {
   lead: Lead;
   expanded: boolean;
   onClick: () => void;
   onCycle: (e: React.MouseEvent) => void;
-  onSave: (f: Record<string, string | null>) => void;
+  onSave:  (f: Record<string, unknown>) => void;
+  onQuickPatch: (f: Record<string, unknown>) => void;
   onDelete: () => void;
   onCollapse: () => void;
 }) {
-  const [hov, setHov] = useState(false);
-  const urg    = urgencyColor(lead);
-  const cd     = countdown(lead);
-  const next   = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status) + 1) % STATUS_CYCLE.length];
-  const nextCfg = STATUS_CFG[next];
+  const [hov, setHov]   = useState(false);
+  const urg             = urgencyColor(lead);
+  const cd              = countdown(lead);
+  const next            = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status) + 1) % STATUS_CYCLE.length];
+  const nextCfg         = STATUS_CFG[next];
 
   return (
     <div style={{
@@ -546,7 +738,10 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollaps
           <StatusBadge status={lead.status} />
         </div>
 
-        {/* Countdown */}
+        {/* FU progress dots */}
+        <FUDots lead={lead} />
+
+        {/* Countdown chip */}
         {cd && (
           <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
             <span style={{
@@ -556,12 +751,12 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollaps
               display: "flex", alignItems: "center", gap: 4,
               whiteSpace: "nowrap",
             }}>
-              <Clock size={10} /> {cd.text}
+              <Clock size={10} /> {cd.label} {cd.text}
             </span>
           </div>
         )}
 
-        {/* First contact */}
+        {/* First contact date */}
         {lead.first_contact_at && (
           <div style={{ flex: "0 0 auto", paddingRight: 10 }}>
             <span style={{ color: MUTED, fontSize: 11, whiteSpace: "nowrap" }}>{fmtDT(lead.first_contact_at)}</span>
@@ -580,7 +775,7 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollaps
           </a>
         )}
 
-        {/* Notes preview */}
+        {/* Notes preview (only if no email) */}
         {lead.notes && !lead.email && (
           <span style={{ color: MUTED, fontSize: 11, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {lead.notes.replace(/\[.*?\]\s*/g, "").slice(0, 70)}
@@ -589,7 +784,7 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollaps
 
         <div style={{ flex: 1 }} />
 
-        {/* Hover actions */}
+        {/* Hover: cycle status button */}
         <div
           onClick={e => e.stopPropagation()}
           style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 12, opacity: hov || expanded ? 1 : 0, transition: "opacity 0.15s", flexShrink: 0 }}
@@ -611,7 +806,13 @@ function LeadRow({ lead, expanded, onClick, onCycle, onSave, onDelete, onCollaps
       </div>
 
       {expanded && (
-        <EditPanel lead={lead} onSave={onSave} onDelete={onDelete} onClose={onCollapse} />
+        <EditPanel
+          lead={lead}
+          onSave={onSave}
+          onQuickPatch={onQuickPatch}
+          onDelete={onDelete}
+          onClose={onCollapse}
+        />
       )}
     </div>
   );
@@ -637,10 +838,18 @@ export function LeadsView() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setShowAdd(false); },
   });
 
+  // Full save — closes panel
   const patchM = useMutation({
-    mutationFn: ({ id, fields }: { id: number; fields: Record<string, string | null> }) =>
+    mutationFn: ({ id, fields }: { id: number; fields: Record<string, unknown> }) =>
       cf(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify(fields) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setExpanded(null); },
+  });
+
+  // Quick patch (FU toggle) — keeps panel open
+  const quickM = useMutation({
+    mutationFn: ({ id, fields }: { id: number; fields: Record<string, unknown> }) =>
+      cf(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify(fields) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); },
   });
 
   const delM = useMutation({
@@ -648,7 +857,7 @@ export function LeadsView() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setExpanded(null); },
   });
 
-  // ── Filter + search ───────────────────────────────────────────────────────
+  // ── Filters ───────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return leads.filter(l => {
@@ -668,12 +877,12 @@ export function LeadsView() {
     leads.reduce<Record<string, number>>((a, l) => { a[l.category] = (a[l.category] ?? 0) + 1; return a; }, {}),
   [leads]);
 
-  const overdue = leads.filter(l =>
-    l.follow_up_at && l.status !== "no" && l.status !== "won" &&
-    new Date(l.follow_up_at).getTime() < Date.now()
-  ).length;
+  // Overdue = next pending FU is in the past
+  const overdue = leads.filter(l => {
+    const fu = nextFU(l);
+    return fu && new Date(fu.at).getTime() < Date.now();
+  }).length;
 
-  // ── Tab style ─────────────────────────────────────────────────────────────
   const tab = (active: boolean): React.CSSProperties => ({
     background: active ? `${AMBER}22` : "transparent",
     border: active ? `1px solid ${AMBER}55` : `1px solid transparent`,
@@ -694,7 +903,7 @@ export function LeadsView() {
         </span>
         {overdue > 0 && (
           <span style={{ background: "rgba(239,68,68,0.2)", color: "#FCA5A5", fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, display: "flex", alignItems: "center", gap: 4 }}>
-            <AlertTriangle size={11} /> {overdue} forfaldne
+            <AlertTriangle size={11} /> {overdue} forfaldne opfølgninger
           </span>
         )}
 
@@ -746,7 +955,7 @@ export function LeadsView() {
 
       {/* ── Status filter ── */}
       <div style={{ display: "flex", gap: 4, marginBottom: 12, flexShrink: 0, paddingBottom: 12, borderBottom: `1px solid ${BORDER}` }}>
-        {([ ["alle","Alle"], ["aktive","Aktive"], ["svaret","Svaret ✅"], ["nej","Nej ✗"] ] as const).map(([v, l]) => (
+        {([["alle","Alle"], ["aktive","Aktive"], ["svaret","Svaret ✅"], ["nej","Nej ✗"]] as const).map(([v, l]) => (
           <button key={v} style={tab(stFilter === v)} onClick={() => setStFilter(v)}>{l}</button>
         ))}
         {search && (
@@ -782,8 +991,13 @@ export function LeadsView() {
             lead={lead}
             expanded={expanded === lead.id}
             onClick={() => setExpanded(p => p === lead.id ? null : lead.id)}
-            onCycle={e => { e.stopPropagation(); const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status)+1)%STATUS_CYCLE.length]; patchM.mutate({ id: lead.id, fields: { status: next } }); }}
+            onCycle={e => {
+              e.stopPropagation();
+              const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(lead.status)+1) % STATUS_CYCLE.length];
+              quickM.mutate({ id: lead.id, fields: { status: next } });
+            }}
             onSave={fields => patchM.mutate({ id: lead.id, fields })}
+            onQuickPatch={fields => quickM.mutate({ id: lead.id, fields })}
             onDelete={() => delM.mutate(lead.id)}
             onCollapse={() => setExpanded(null)}
           />
