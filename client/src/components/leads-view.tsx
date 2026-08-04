@@ -46,12 +46,12 @@ type Lead = {
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const AMBER    = "#C8956C";
-const ROW      = "#F7F3EE";
-const ROW_H    = "#EDE6DD";
-const BORDER   = "rgba(0,0,0,0.10)";
-const TEXT     = "#1C2B3C";
-const MUTED    = "#6B8099";
-const INPUT_BG = "#FFFFFF";
+const ROW      = "#1F2E3D";
+const ROW_H    = "#2A3C4F";
+const BORDER   = "rgba(255,255,255,0.10)";
+const TEXT     = "#E2DAD0";
+const MUTED    = "#8AAABB";
+const INPUT_BG = "#16253380";
 
 const STATUS_CFG: Record<LeadStatus, { label: string; fg: string; bg: string; dot: string }> = {
   new:       { label: "Ny",        fg: "#94A3B8", bg: "#1E293B", dot: "#64748B" },
@@ -210,12 +210,11 @@ function AddLeadForm({ onClose, onAdd }: {
 
   return (
     <form onSubmit={submit} style={{
-      background: "#FFFFFF",
-      border: `1px solid ${AMBER}80`,
+      background: "#1A2C3D",
+      border: `1px solid ${AMBER}60`,
       borderRadius: 10,
       padding: 20,
       marginBottom: 12,
-      boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <span style={{ color: AMBER, fontWeight: 700, fontSize: 14 }}>✚ Nyt lead</span>
@@ -362,7 +361,7 @@ function EditPanel({ lead, onSave, onDelete, onClose }: {
 
   return (
     <form onSubmit={save} onClick={e => e.stopPropagation()} style={{
-      background: "#F0EBE3",
+      background: "#17263480",
       borderTop: `2px solid ${AMBER}`,
       padding: "16px 18px",
     }}>
