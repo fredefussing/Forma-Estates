@@ -543,6 +543,26 @@ export type InsertCrmInteraction = z.infer<typeof insertCrmInteractionSchema>;
 export type CrmUserOverride = typeof crmUserOverrides.$inferSelect;
 export type InsertCrmUserOverride = z.infer<typeof insertCrmUserOverrideSchema>;
 
+// ── Leads (admin-only sales pipeline) ────────────────────────────────────────
+export const leads = pgTable("leads", {
+  id:               integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name:             text("name").notNull(),
+  category:         text("category").notNull().default("ejendomsmaegler"), // ejendomsmaegler | arkitekt | toemrerfirma | byggefirma | andet
+  instagramHandle:  text("instagram_handle"),
+  email:            text("email"),
+  phone:            text("phone"),
+  status:           text("status").notNull().default("new"), // new | contacted | responded | no | won
+  notes:            text("notes"),
+  firstContactAt:   timestamp("first_contact_at"),
+  followUpAt:       timestamp("follow_up_at"),
+  lastContactedAt:  timestamp("last_contacted_at"),
+  createdAt:        timestamp("created_at").defaultNow().notNull(),
+  updatedAt:        timestamp("updated_at").defaultNow().notNull(),
+});
+export const insertLeadSchema = createInsertSchema(leads).omit({ createdAt: true as never, updatedAt: true as never });
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+
 // ── Password reset tokens ─────────────────────────────────────────────────────
 // Server-generated tokens for the custom Brevo-based password reset flow.
 // The raw token is emailed to the user; only the SHA-256 hash is stored.

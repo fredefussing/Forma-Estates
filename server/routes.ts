@@ -5516,6 +5516,79 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
+  // ── Leads (fredefussing admin only) ──────────────────────────────────────────
+  app.get("/api/leads", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const result = await pool.query(`
+        SELECT * FROM leads
+        ORDER BY
+          CASE
+            WHEN status IN ('no','won') THEN 4
+            WHEN follow_up_at IS NOT NULL AND follow_up_at < NOW() THEN 0
+            WHEN follow_up_at IS NOT NULL AND follow_up_at < NOW() + interval '2 days' THEN 1
+            WHEN follow_up_at IS NOT NULL THEN 2
+            ELSE 3
+          END ASC,
+          follow_up_at ASC NULLS LAST,
+          created_at DESC
+      `);
+      return res.json(result.rows);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/leads", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const { name, category = "ejendomsmaegler", instagram_handle, email, phone, status = "new", notes, first_contact_at, follow_up_at } = req.body;
+      if (!name) return res.status(400).json({ error: "name required" });
+      const fu = follow_up_at || (first_contact_at ? new Date(new Date(first_contact_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null);
+      const result = await pool.query(
+        `INSERT INTO leads (name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [name, category, instagram_handle || null, email || null, phone || null, status, notes || null, first_contact_at || null, fu]
+      );
+      return res.json(result.rows[0]);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.patch("/api/leads/:id", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      const id = parseInt(req.params.id);
+      const fields = ["name", "category", "instagram_handle", "email", "phone", "status", "notes", "first_contact_at", "follow_up_at", "last_contacted_at"];
+      const sets: string[] = ["updated_at = NOW()"];
+      const vals: any[] = [];
+      let idx = 1;
+      for (const f of fields) {
+        if (req.body[f] !== undefined) {
+          sets.push(`${f} = $${idx++}`);
+          vals.push(req.body[f] === "" ? null : req.body[f]);
+        }
+      }
+      if (req.body.first_contact_at && req.body.follow_up_at === undefined) {
+        sets.push(`follow_up_at = $${idx++}`);
+        vals.push(new Date(new Date(req.body.first_contact_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString());
+      }
+      vals.push(id);
+      const result = await pool.query(`UPDATE leads SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`, vals);
+      if (!result.rows[0]) return res.status(404).json({ error: "Not found" });
+      return res.json(result.rows[0]);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete("/api/leads/:id", async (req, res) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+      await pool.query("DELETE FROM leads WHERE id = $1", [parseInt(req.params.id)]);
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
   app.post("/api/chat", async (req, res) => {
     try {
       const { messages } = req.body;

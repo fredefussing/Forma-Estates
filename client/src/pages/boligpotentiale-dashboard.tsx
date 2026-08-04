@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as R
 import { useTranslation } from "react-i18next";
 import { setExplicitLang } from "@/i18n";
 import { CrmView } from "@/components/crm-view";
+import { LeadsView } from "@/components/leads-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
@@ -27,10 +28,11 @@ import {
   FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play,
   Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink, MessageSquare,
   Globe,
+  Target,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "crm";
+type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "crm" | "leads";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
@@ -9187,6 +9189,7 @@ export default function BoligpotentialeDashboard() {
     { id: "historik" as Section, label: t("dashboard.nav.history"), icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: t("dashboard.nav.team"), icon: <Users className="w-[18px] h-[18px]" /> },
     ...(isAdmin ? [{ id: "crm" as Section, label: t("dashboard.nav.crm"), icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
+    ...(isAdmin ? [{ id: "leads" as Section, label: "Leads", icon: <Target className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -10149,6 +10152,13 @@ export default function BoligpotentialeDashboard() {
           {section === "crm" && isAdmin && (
             <motion.div key="crm-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
               <CrmView isOwner={isAdmin} />
+            </motion.div>
+          )}
+
+          {/* Leads — admin only */}
+          {section === "leads" && isAdmin && (
+            <motion.div key="leads-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
+              <LeadsView />
             </motion.div>
           )}
 
