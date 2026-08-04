@@ -1216,18 +1216,20 @@ function CaseDetailPanel({
     <motion.div key="case-detail" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div className="flex items-start gap-4 min-w-0">
-          <button
-            onClick={onBack}
-            className="mt-1.5 flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity flex-shrink-0"
-            style={{ color: "#6B6B6B" }}
-            data-testid="bolig-case-back"
-          >
-            <ChevronLeft className="w-4 h-4" /> {t("dashboard.case.back")}
-          </button>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold truncate mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{caseData.address}</h1>
+      <div className="mb-6">
+        {/* Back */}
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity mb-3"
+          style={{ color: "#6B6B6B" }}
+          data-testid="bolig-case-back"
+        >
+          <ChevronLeft className="w-4 h-4" /> {t("dashboard.case.back")}
+        </button>
+        {/* Title row + action buttons */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold truncate mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{caseData.address}</h1>
             {caseData.caseNo && <p className="text-xs mb-1.5" style={{ color: "#6B6B6B" }}>{t("dashboard.case.caseNumber")} {caseData.caseNo}</p>}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: caseData.status === "active" ? "rgba(45,106,79,0.1)" : "rgba(200,149,108,0.1)", color: caseData.status === "active" ? "#2D6A4F" : "#C8956C" }}>
@@ -1284,8 +1286,8 @@ function CaseDetailPanel({
             </div>
             {caseData.notes && <p className="text-xs mt-1.5 max-w-xl" style={{ color: "#6B6B6B" }}>{caseData.notes}</p>}
           </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Action buttons — wrap below title on mobile */}
+          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           {seasonSources.length > 0 && (
             <button
               onClick={async () => {
@@ -1305,13 +1307,14 @@ function CaseDetailPanel({
                 }
               }}
               disabled={sellerPdfBusy}
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full text-xs sm:text-sm font-medium border transition-colors disabled:opacity-60"
               style={{ borderColor: "rgba(15,29,47,0.25)", color: "#0F1D2F", background: "rgba(15,29,47,0.04)" }}
               title="Download en samlet PDF med alle visualiseringer til sælgermødet"
               data-testid="bolig-seller-report-btn"
             >
               <FileText className="w-3.5 h-3.5" />
-              {sellerPdfBusy ? "..." : t("dashboard.case.sellerReport")}
+              <span className="hidden sm:inline">{sellerPdfBusy ? "..." : t("dashboard.case.sellerReport")}</span>
+              <span className="sm:hidden">{sellerPdfBusy ? "..." : "PDF"}</span>
             </button>
           )}
           {caseData.status === "active" ? (
@@ -1324,18 +1327,19 @@ function CaseDetailPanel({
                 onConfirm: () => { statusMutation.mutate("sold"); setConfirmDialog(null); },
               })}
               disabled={statusMutation.isPending}
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full text-xs sm:text-sm font-medium border transition-colors disabled:opacity-60"
               style={{ borderColor: "rgba(45,106,79,0.3)", color: "#2D6A4F", background: "rgba(45,106,79,0.06)" }}
               data-testid="bolig-case-mark-sold-btn"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              {statusMutation.isPending ? "..." : t("dashboard.case.markSold")}
+              <span className="hidden sm:inline">{statusMutation.isPending ? "..." : t("dashboard.case.markSold")}</span>
+              <span className="sm:hidden">{statusMutation.isPending ? "..." : "Solgt"}</span>
             </button>
           ) : (
             <button
               onClick={() => statusMutation.mutate("active")}
               disabled={statusMutation.isPending}
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium border transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full text-xs sm:text-sm font-medium border transition-colors disabled:opacity-60"
               style={{ borderColor: "rgba(200,149,108,0.4)", color: "#C8956C", background: "rgba(200,149,108,0.08)" }}
               data-testid="bolig-case-reactivate-btn"
             >
@@ -1354,8 +1358,10 @@ function CaseDetailPanel({
             style={{ color: "#DC2626" }}
             data-testid="bolig-case-delete-btn"
           >
-            <Trash2 className="w-3.5 h-3.5" /> {t("dashboard.case.deleteCase")}
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t("dashboard.case.deleteCase")}</span>
           </button>
+          </div>
         </div>
       </div>
 
@@ -1416,12 +1422,12 @@ function CaseDetailPanel({
                         ) : (
                           <img src={img.src} alt={img.room} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(15,29,47,0.4)" }}>
+                        <div className="absolute inset-0 flex items-center justify-center transition-opacity opacity-0 md:opacity-0 md:group-hover:opacity-100 group-hover:opacity-100" style={{ background: "rgba(15,29,47,0.4)" }}>
                           <span className="text-white text-[11px] font-semibold px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
                             {isVideoUrl(img.src) ? "Afspil video" : img.style === "3d-interactive" ? "Vis 3D model" : img.beforeSrc ? "Vis Før / Efter" : "Åbn"}
                           </span>
                         </div>
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-2 right-2 flex gap-1 transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100">
                           {img.style?.startsWith("showcase-video-") ? (
                             <>
                               <button
@@ -2105,14 +2111,14 @@ function CaseDetailPanel({
               ) : (
                 <img src={lightboxImg.src} alt={lightboxImg.room} className="w-full h-auto" style={{ maxHeight: "70vh", objectFit: "contain" }} />
               )}
-              <div className="flex items-center justify-between px-5 py-3" style={{ background: "#0F1D2F" }}>
-                <div className="flex gap-2 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 px-4 py-3" style={{ background: "#0F1D2F" }}>
+                <div className="flex gap-2 min-w-0 flex-1">
                   <span className="text-[11px] font-semibold text-white truncate">{lightboxImg.room}</span>
-                  <span className="text-[11px] text-white/60">·</span>
-                  <span className="text-[11px] text-white/70 truncate">{lightboxImg.style === "3d-interactive" ? "Interaktiv 3D model" : lightboxImg.style}</span>
-                  {lightboxImg.tier && <><span className="text-[11px] text-white/60">·</span><span className="text-[11px] text-white/70">{tierLabel(lightboxImg.tier)}</span></>}
+                  <span className="text-[11px] text-white/60 hidden sm:inline">·</span>
+                  <span className="text-[11px] text-white/70 truncate hidden sm:inline">{lightboxImg.style === "3d-interactive" ? "Interaktiv 3D model" : lightboxImg.style}</span>
+                  {lightboxImg.tier && <><span className="text-[11px] text-white/60 hidden sm:inline">·</span><span className="text-[11px] text-white/70 hidden sm:inline">{tierLabel(lightboxImg.tier)}</span></>}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
                   {lightboxImg.style === "3d-interactive" && lightboxImg.beforeSrc ? (
                     <button
                       type="button"
@@ -9345,7 +9351,7 @@ export default function BoligpotentialeDashboard() {
             src={formaEstatesLogo}
             alt="Forma Estates – tilbage til forsiden"
             title="Tilbage til forsiden"
-            className="h-10 md:h-16 w-auto max-w-[160px] md:max-w-[240px] object-contain select-none cursor-pointer"
+            className="h-12 md:h-16 w-auto max-w-[170px] md:max-w-[240px] object-contain select-none cursor-pointer"
             style={{ filter: "brightness(0) invert(1)" }}
             data-testid="bolig-topbar-logo"
           />
@@ -9514,7 +9520,7 @@ export default function BoligpotentialeDashboard() {
         </AnimatePresence>
 
         {/* ── MAIN CONTENT ── */}
-        <main className="flex-1 md:ml-56 p-6 md:p-8 min-h-[calc(100vh-64px)]" data-testid="bolig-main">
+        <main className="flex-1 md:ml-56 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)]" data-testid="bolig-main">
 
           {/* Dashboard overview */}
           {section === "dashboard" && (
