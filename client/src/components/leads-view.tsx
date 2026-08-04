@@ -1145,6 +1145,18 @@ export function LeadsView() {
     leads.reduce<Record<string, number>>((a, l) => { a[l.category] = (a[l.category] ?? 0) + 1; return a; }, {}),
   [leads]);
 
+  // Status tab counts — respect catFilter but ignore stFilter/search
+  const stCounts = useMemo(() => {
+    const base = catFilter === "alle" ? leads : leads.filter(l => l.category === catFilter);
+    return {
+      alle:      base.length,
+      aktive:    base.filter(l => l.status !== "no" && l.status !== "won" && l.status !== "responded").length,
+      svaret:    base.filter(l => l.status === "responded").length,
+      besvaret:  base.filter(l => !!l.notes?.includes("📩 Svarede:")).length,
+      nej:       base.filter(l => l.status === "no").length,
+    };
+  }, [leads, catFilter]);
+
   // Overdue = next pending FU is in the past
   const overdue = leads.filter(l => {
     const fu = nextFU(l);
@@ -1224,7 +1236,9 @@ export function LeadsView() {
       {/* ── Status filter ── */}
       <div style={{ display: "flex", gap: 4, marginBottom: 12, flexShrink: 0, paddingBottom: 12, borderBottom: `1px solid ${BORDER}` }}>
         {([["alle","Alle"], ["aktive","Aktive"], ["svaret","Svaret ✅"], ["besvaret","Besvaret mail 💬"], ["nej","Nej ✗"]] as const).map(([v, l]) => (
-          <button key={v} style={tab(stFilter === v)} onClick={() => setStFilter(v)}>{l}</button>
+          <button key={v} style={tab(stFilter === v)} onClick={() => setStFilter(v)}>
+            {l} <span style={{ opacity: 0.65, fontWeight: 400 }}>({stCounts[v]})</span>
+          </button>
         ))}
         {search && (
           <span style={{ color: MUTED, fontSize: 12, alignSelf: "center", marginLeft: 6 }}>
