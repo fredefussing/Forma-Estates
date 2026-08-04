@@ -1236,7 +1236,7 @@ function CaseDetailPanel({
                 {caseData.status === "active" ? t("dashboard.case.statusActive") : t("dashboard.case.statusSold")}
               </span>
               {editingMarketDate ? (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
                   <input
                     type="date"
                     value={marketDateDraft}
