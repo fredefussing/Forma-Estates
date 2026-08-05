@@ -359,6 +359,50 @@ async function runSolid10AndGetResult(
   throw lastErr || new Error("SOLID10_FAILED");
 }
 
+// ── EU AI Act Art. 50 — XMP-injection via JPEG APP1-marker ────────────────────
+// Sharp v0.34.x embedder JPEG XMP pålideligt med withMetadata({ xmp }), men
+// libvips dropper det under visse pipeline-konfigurationer. Manuel injektion via
+// standard JPEG APP1-marker (samme teknik som Lightroom/Adobe Bridge) er garanteret.
+// Spec: https://wwwimages2.adobe.com/www.adobe.com/content/dam/acom/en/devnet/xmp/pdfs/XMPSpecificationPart3.pdf
+function injectXmpIntoJpeg(jpegBuf: Buffer, xmpPacket: string): Buffer {
+  if (!jpegBuf || jpegBuf.length < 4) return jpegBuf;
+  if (jpegBuf[0] !== 0xFF || jpegBuf[1] !== 0xD8) return jpegBuf; // ikke JPEG
+  // JPEG XMP APP1: FF E1 [2-byte length] [namespace 30 bytes] [XMP data]
+  // length-felt inkluderer sig selv (2 bytes) + namespace + data.
+  const ns  = Buffer.from("http://ns.adobe.com/xap/1.0/\0", "ascii"); // 30 bytes
+  const xmp = Buffer.from(xmpPacket, "utf8");
+  const segLen = 2 + ns.length + xmp.length;
+  if (segLen > 65533) return jpegBuf; // for stor til én APP1-segment (bør aldrig ske)
+  const hdr = Buffer.alloc(4);
+  hdr[0] = 0xFF; hdr[1] = 0xE1;
+  hdr[2] = (segLen >> 8) & 0xFF;
+  hdr[3] = segLen & 0xFF;
+  // Indsæt direkte efter SOI (FF D8) — dvs. foran alle andre markører.
+  return Buffer.concat([jpegBuf.slice(0, 2), hdr, ns, xmp, jpegBuf.slice(2)]);
+}
+
+// Generér et EU AI Act-kompatibelt XMP/C2PA-pakke til en specifik handling.
+function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix = ""): string {
+  return (
+    `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
+    `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
+    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+    `<rdf:Description rdf:about=""` +
+    ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
+    ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
+    ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
+    `>` +
+    `<dc:creator>Forma Estates AI</dc:creator>` +
+    `<xmp:CreatorTool>Forma Estates AI${toolSuffix ? " " + toolSuffix : ""} (formaestates.com)</xmp:CreatorTool>` +
+    `<xmp:CreateDate>${new Date().toISOString()}</xmp:CreateDate>` +
+    `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
+    `<c2pa:action>${action}</c2pa:action>` +
+    `<c2pa:softwareAgent>Forma Estates AI</c2pa:softwareAgent>` +
+    `</rdf:Description></rdf:RDF></x:xmpmeta>` +
+    `<?xpacket end="w"?>`
+  );
+}
+
 // ── VST finalize: download (curl) + sharp post-processing + R2 upload ─────────
 // Uses spawn("curl") because Node.js fetch is intercepted by Replit's network layer.
 async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
@@ -373,33 +417,15 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
     curl.on("error", reject);
   });
   if (buffer.length < 1000) throw new Error("VST: image buffer too small — fetch likely failed");
-  // EU AI Act Art. 50: XMP/C2PA-metadata bages ind i alle disk-gemte filer — selv dem
-  // der ikke bliver downloadet via proxy-image. Sikrer at filen altid bærer sin mærkning.
-  const vstXmp = Buffer.from(
-    `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
-    `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
-    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
-    `<rdf:Description rdf:about=""` +
-    ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
-    ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
-    ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
-    `>` +
-    `<dc:creator>Forma Estates AI</dc:creator>` +
-    `<xmp:CreatorTool>Forma Estates AI Staging (formaestates.com)</xmp:CreatorTool>` +
-    `<xmp:CreateDate>${new Date().toISOString()}</xmp:CreateDate>` +
-    `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
-    `<c2pa:action>c2pa.modified</c2pa:action>` +
-    `<c2pa:softwareAgent>Forma Estates AI</c2pa:softwareAgent>` +
-    `</rdf:Description></rdf:RDF></x:xmpmeta>` +
-    `<?xpacket end="w"?>`
-  );
-  const enhanced = await (sharp(buffer) as any)
-    .withMetadata({ xmp: vstXmp })
+  // EU AI Act Art. 50: XMP/C2PA-metadata injiceres manuelt via JPEG APP1-marker.
+  // Bruger injectXmpIntoJpeg() fremfor Sharp withMetadata — garanteret embedding.
+  const rawEnhanced = await (sharp(buffer) as any)
     .sharpen({ sigma: 1.0, flat: 0.5, jagged: 2 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
     .modulate({ saturation: 1.05, brightness: 1.02 })
     .jpeg({ quality: 96, mozjpeg: true })
     .toBuffer();
+  const enhanced = injectXmpIntoJpeg(rawEnhanced, buildEuXmpPacket("c2pa.modified", "Staging"));
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const localFilePath = path.join(uploadDir, filename);
   fs.writeFileSync(localFilePath, enhanced);
@@ -2715,25 +2741,9 @@ export async function registerRoutes(
         // ── EU AI Act (Art. 50) — tvungen mærkning, kan ALDRIG frakobles ────────
         // Synlig: EU-standardiseret "AI Modified" badge med AI-cirkel-ikon.
         // Usynlig: XMP/C2PA-kompatibel metadata bages ind i filen.
-        const now = new Date();
-        const xmpData = Buffer.from(
-          `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
-          `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
-          `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
-          `<rdf:Description rdf:about=""` +
-          ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
-          ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
-          ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
-          `>` +
-          `<dc:creator>Forma Estates AI</dc:creator>` +
-          `<xmp:CreatorTool>Forma Estates AI Staging (formaestates.com)</xmp:CreatorTool>` +
-          `<xmp:CreateDate>${now.toISOString()}</xmp:CreateDate>` +
-          `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
-          `<c2pa:action>c2pa.modified</c2pa:action>` +
-          `<c2pa:softwareAgent>Forma Estates AI</c2pa:softwareAgent>` +
-          `</rdf:Description></rdf:RDF></x:xmpmeta>` +
-          `<?xpacket end="w"?>`
-        );
+        // EU AI Act Art. 50 Regel 1: XMP/C2PA-pakke — injiceres EFTER Sharp-encoding
+        // via injectXmpIntoJpeg() for garanteret embedding (Sharp withMetadata er upålidelig for JPEG).
+        const xmpPacket = buildEuXmpPacket("c2pa.modified", "Staging");
 
         // EU AI Act Art. 50 Regel 3+4: "AI Modified" badge (redigeret foto, ikke fuldt genereret).
         // Minimumshøjde: 64px (EU-krav for ca. 2-5% af mediets areal).
@@ -2763,8 +2773,8 @@ export async function registerRoutes(
         const wmFont = `Georgia,'DejaVu Serif','Times New Roman',serif`;
         const iconFontSize = Math.round(iconR * 0.95);
         let svgParts =
-          // Pill baggrund
-          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(15,25,35,0.58)" stroke="rgba(255,255,255,0.26)" stroke-width="1"/>` +
+          // Pill baggrund — EU Regel 4: mindst 85% opacity for tilstrækkelig kontrast
+          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(10,18,28,0.88)" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>` +
           // EU AI-cirkel ikon
           `<circle cx="${iconCX}" cy="${iconCY}" r="${iconR}" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.50)" stroke-width="1"/>` +
           `<text x="${iconCX}" y="${iconCY + Math.round(iconFontSize * 0.35)}" ` +
@@ -2794,17 +2804,21 @@ export async function registerRoutes(
           `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` + svgParts + `</svg>`
         );
 
-        // XMP/C2PA metadata bages ALTID ind — også ved admin plain=1.
-        // skipWatermark fjerner kun det synlige overlay, ikke metadata.
-        let pipeline = sharp(buf).withMetadata({ xmp: xmpData });
+        // Synlig overlay composites med Sharp; XMP injiceres MANUELT efter encoding
+        // via injectXmpIntoJpeg() — garanteret embedding (Sharp withMetadata er upålidelig for JPEG).
+        // skipWatermark (admin) fjerner KUN det synlige badge — XMP altid til stede.
+        let pipeline = sharp(buf);
         if (!skipWatermark) pipeline = pipeline.composite([{ input: svgWatermark, blend: "over" }]);
         if (format === "png") {
-          const out = await pipeline.png().toBuffer();
+          // PNG: Sharp withMetadata virker stabilt for PNG — brug det her.
+          const out = await pipeline.withMetadata({ xmp: Buffer.from(xmpPacket) }).png().toBuffer();
           res.setHeader("Content-Type", "image/png");
           res.setHeader("Cache-Control", "private, max-age=86400");
           res.end(out);
         } else {
-          const out = await pipeline.jpeg({ quality: 92 }).toBuffer();
+          const rawJpeg = await pipeline.jpeg({ quality: 92 }).toBuffer();
+          // EU Art. 50 Regel 1: XMP/C2PA injiceres via standard JPEG APP1-marker.
+          const out = injectXmpIntoJpeg(rawJpeg, xmpPacket);
           res.setHeader("Content-Type", "image/jpeg");
           res.setHeader("Cache-Control", "private, max-age=86400");
           res.end(out);
@@ -3357,24 +3371,6 @@ export async function registerRoutes(
       // bak XMP/C2PA-metadata ind, så filen bærer sin mærkning uanset adgangsmetode.
       let imageUrl = falFloorplanUrl;
       try {
-        const fp3dXmp = Buffer.from(
-          `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
-          `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
-          `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
-          `<rdf:Description rdf:about=""` +
-          ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
-          ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
-          ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
-          `>` +
-          `<dc:creator>Forma Estates AI</dc:creator>` +
-          `<xmp:CreatorTool>Forma Estates AI 3D Floorplan (formaestates.com)</xmp:CreatorTool>` +
-          `<xmp:CreateDate>${new Date().toISOString()}</xmp:CreateDate>` +
-          `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
-          `<c2pa:action>c2pa.created</c2pa:action>` +
-          `<c2pa:softwareAgent>Forma Estates AI 3D</c2pa:softwareAgent>` +
-          `</rdf:Description></rdf:RDF></x:xmpmeta>` +
-          `<?xpacket end="w"?>`
-        );
         const fpRaw = await new Promise<Buffer>((resolve, reject) => {
           const chunks: Buffer[] = [];
           const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", falFloorplanUrl]);
@@ -3383,13 +3379,15 @@ export async function registerRoutes(
           curl.on("error", reject);
         });
         if (fpRaw.length > 1000) {
-          const fpWithMeta = await (sharp(fpRaw) as any).withMetadata({ xmp: fp3dXmp }).jpeg({ quality: 95 }).toBuffer();
+          // EU AI Act Art. 50: manuelt XMP APP1-marker injection (buildEuXmpPacket + injectXmpIntoJpeg).
+          const fpJpeg = await (sharp(fpRaw) as any).jpeg({ quality: 95 }).toBuffer();
+          const fpWithMeta = injectXmpIntoJpeg(fpJpeg, buildEuXmpPacket("c2pa.created", "3D Floorplan"));
           const fpFilename = `floorplan-3d-${Date.now()}.jpg`;
           const fpLocalPath = path.join(uploadDir, fpFilename);
           fs.writeFileSync(fpLocalPath, fpWithMeta);
           r2UploadFile(fpLocalPath).catch((e: any) => log(`[R2] 3D floorplan upload failed: ${e?.message}`));
           imageUrl = `/uploads/${fpFilename}`;
-          log(`[3D] saved locally with XMP metadata → ${imageUrl}`);
+          log(`[3D] saved locally with XMP APP1 metadata → ${imageUrl}`);
         }
       } catch (e: any) {
         log(`[3D] local XMP save failed, fallback to fal url: ${e.message}`);
