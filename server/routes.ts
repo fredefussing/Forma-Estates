@@ -1218,9 +1218,17 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/designs", async (_req, res) => {
-    const allDesigns = await storage.getAllDesigns();
-    return res.json(allDesigns);
+  app.get("/api/designs", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Ukendt bruger" });
+      if (!user.isAdmin) return res.status(403).json({ message: "Adgang nægtet" });
+      const allDesigns = await storage.getAllDesigns();
+      return res.json(allDesigns);
+    } catch {
+      return res.status(401).json({ message: "Ugyldig token" });
+    }
   });
 
   app.get("/api/designs/:id", async (req, res) => {
@@ -1251,6 +1259,17 @@ export async function registerRoutes(
 
       const design = await storage.getDesign(id);
       if (!design) return res.status(404).json({ status: "error", error: "Design not found", resultUrl: null });
+
+      // Auth + ownership check
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const user = await storage.getUserByFirebaseUid(uid);
+        if (!user || (!user.isAdmin && design.userId !== user.id)) {
+          return res.status(403).json({ status: "error", error: "Adgang nægtet", resultUrl: null });
+        }
+      } catch {
+        return res.status(401).json({ status: "error", error: "Ugyldig token", resultUrl: null });
+      }
 
       if (design.status === "completed") {
         return res.json({
