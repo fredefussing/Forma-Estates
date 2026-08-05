@@ -5553,6 +5553,38 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
+  // ── TEMP: diag + fix for ark leads on Render ──────────────────────────────
+  app.get("/api/diag/f1ark-check-z9x", async (_req, res) => {
+    try {
+      const r = await pool.query(
+        `SELECT id, name, follow_up_1_done, follow_up_2_at FROM leads
+         WHERE follow_up_1_done=false AND category IN ('arkitekt','byggefirma','tomrer','toemrer')
+         ORDER BY id LIMIT 50`
+      );
+      return res.json(r.rows);
+    } catch(e: any) { return res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/diag/f1ark-fix2-z9x", async (req, res) => {
+    try {
+      const secret = req.body?.secret ?? req.query?.s;
+      if (secret !== "ark5aug26") return res.status(403).json({ error: "forbidden" });
+      // Update by category + f1=false (catches all ark/builder leads from Jul 30 batch)
+      const r = await pool.query(
+        `UPDATE leads SET
+          follow_up_1_done=true,
+          follow_up_2_at='2026-08-12 10:00:00+00',
+          notes=COALESCE(notes || chr(10), '') || '[5. aug] ✅ Opfølgning 1 gennemført - 💬 Instagram DM',
+          updated_at=NOW()
+         WHERE follow_up_1_done=false
+           AND category IN ('arkitekt','byggefirma','tomrer','toemrer')
+           AND first_contact_at >= '2026-07-30'
+           AND first_contact_at < '2026-08-01'`
+      );
+      return res.json({ updated: r.rowCount });
+    } catch(e: any) { return res.status(500).json({ error: e.message }); }
+  });
+  // ── END TEMP ───────────────────────────────────────────────────────────────
+
   app.post("/api/leads", async (req, res) => {
     try {
       const admin = await requireOwner(req, res);
