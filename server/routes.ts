@@ -5553,24 +5553,6 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
-  // ── TEMP: one-time f1 fix for 33 ark/builder leads on Render DB ──────────
-  app.post("/api/diag/f1ark-fix-z9x", async (req, res) => {
-    try {
-      const secret = req.body?.secret ?? req.query?.s;
-      if (secret !== "ark5aug26") return res.status(403).json({ error: "forbidden" });
-      const names33 = ['ag5','Arkitektfirma Hune & Elkjær','ardess_','Alex Poulsen Arkitekter A/S','BBP Arkitekter','Kjaer & Richter','Berg Arkitekter Nordsjælland','BIOSIS','arkitektfirmaet_vest','cco_architects','Bjerg Arkitektur','Birch & Rasmussen','BRIXVAL','Cornelius Vöge','Pia Dyrendahl Staven','creo Arkitekter A/S','Fogh & Følner Arkitekter','Gottlieb Paludan Architects','Juul Frost Arkitekter','KRADS','Sjæl Arkitekter ApS','Danielsen Spaceplanning','N+P ARKITEKTUR','Nøhr & Sigsgaard','Novaform','Monitz Architecture Studio','ESJA Architecture','Mæglerfirmaet Henrik Ejby','Lezibo Tømrer & Snedker ApS','Thomas Blues Aaby','Damgaard Byg v. Mads Carøe','Nybolig Galten-Skovby-Harlev','Brædstrup, Tørring & Jelling'];
-      const r = await pool.query(
-        `UPDATE leads SET follow_up_1_done=true, follow_up_2_at='2026-08-12 10:00:00+00',
-          notes=COALESCE(notes || chr(10), '') || '[5. aug] ✅ Opfølgning 1 gennemført - 💬 Instagram DM',
-          updated_at=NOW()
-         WHERE name=ANY($1) AND follow_up_1_done=false`,
-        [names33]
-      );
-      return res.json({ updated: r.rowCount });
-    } catch(e: any) { return res.status(500).json({ error: e.message }); }
-  });
-  // ── END TEMP ───────────────────────────────────────────────────────────────
-
   app.post("/api/leads", async (req, res) => {
     try {
       const admin = await requireOwner(req, res);
