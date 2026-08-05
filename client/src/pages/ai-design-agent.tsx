@@ -238,16 +238,16 @@ export default function AIDesignAgentPage() {
 
   const doDownload = async () => {
     if (!resultUrl) return;
+    // EU AI Act Art. 50: altid via proxy-image — uanset om URL er http eller /uploads/
+    let proxyUrl = `/api/proxy-image?url=${encodeURIComponent(resultUrl)}&format=jpg&lang=${i18n.language}`;
+    const fetchInit: RequestInit = {};
+    // plain=1 (uden synligt badge) — SS-vandmærke + XMP altid til stede.
+    if (!watermark) {
+      proxyUrl += "&plain=1";
+      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+      if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
+    }
     try {
-      let proxyUrl = resultUrl.startsWith("http")
-        ? `/api/proxy-image?url=${encodeURIComponent(resultUrl)}&format=jpg&lang=${i18n.language}`
-        : resultUrl;
-      const fetchInit: RequestInit = {};
-      if (!watermark && resultUrl.startsWith("http")) {
-        proxyUrl += "&plain=1";
-        const token = await auth.currentUser?.getIdToken().catch(() => undefined);
-        if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
-      }
       const r = await fetch(proxyUrl, fetchInit);
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
@@ -257,7 +257,8 @@ export default function AIDesignAgentPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      window.open(resultUrl, "_blank");
+      // Fallback: stadig via proxy så badge altid er til stede
+      window.open(proxyUrl, "_blank");
     }
   };
 

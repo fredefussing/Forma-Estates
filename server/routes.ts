@@ -420,6 +420,10 @@ function injectXmpIntoPng(pngBuf: Buffer, xmpPacket: string): Buffer {
 
 // Generér et EU AI Act-kompatibelt XMP/C2PA-pakke til en specifik handling.
 function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix = ""): string {
+  // Deterministisk UUID v4 baseret på tidsstempel + tilfældig del
+  const now = Date.now();
+  const r = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, "0");
+  const docId = `xxxxxxxx-${r()}-4${r().slice(1)}-${(8 + Math.floor(Math.random() * 4)).toString(16)}${r().slice(1)}-${r()}${r()}${r()}`;
   return (
     `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
     `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
@@ -427,11 +431,14 @@ function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix =
     `<rdf:Description rdf:about=""` +
     ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
     ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
+    ` xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"` +
     ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
     `>` +
     `<dc:creator>Forma Estates AI</dc:creator>` +
     `<xmp:CreatorTool>Forma Estates AI${toolSuffix ? " " + toolSuffix : ""} (formaestates.com)</xmp:CreatorTool>` +
     `<xmp:CreateDate>${new Date().toISOString()}</xmp:CreateDate>` +
+    `<xmpMM:DocumentID>xmp.did:${docId}</xmpMM:DocumentID>` +
+    `<xmpMM:InstanceID>xmp.iid:${now.toString(16)}-fe${r()}</xmpMM:InstanceID>` +
     `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
     `<c2pa:action>${action}</c2pa:action>` +
     `<c2pa:softwareAgent>Forma Estates AI</c2pa:softwareAgent>` +

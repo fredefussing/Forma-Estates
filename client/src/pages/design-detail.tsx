@@ -165,12 +165,11 @@ export default function DesignDetailPage() {
 
   const doDownload = async () => {
     if (!design.resultImageUrl) return;
-    let fetchUrl = design.resultImageUrl.startsWith("http")
-      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg&lang=${i18n.language}`
-      : design.resultImageUrl;
+    // EU AI Act Art. 50: altid via proxy-image — uanset om URL er http eller /uploads/
+    let fetchUrl = `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg&lang=${i18n.language}`;
     const fetchInit: RequestInit = {};
-    // plain=1 (uden synligt vandmærke) — KUN for admin, jf. EU AI Act Art. 50
-    if (isAdmin && !watermark && design.resultImageUrl.startsWith("http")) {
+    // plain=1 (uden synligt badge) — KUN for admin. SS-vandmærke + XMP altid til stede.
+    if (isAdmin && !watermark) {
       fetchUrl += "&plain=1";
       const token = await auth.currentUser?.getIdToken().catch(() => undefined);
       if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
@@ -182,13 +181,14 @@ export default function DesignDetailPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nordic-homebuild-${design.roomType}-${design.style}.jpg`;
+      a.download = `forma-estates-${design.roomType}-${design.style}.jpg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      window.open(design.resultImageUrl, "_blank");
+      // Fallback: stadig via proxy så badge altid er til stede
+      window.open(fetchUrl, "_blank");
     }
   };
 
