@@ -1423,6 +1423,7 @@ async function render(
   mood?: string,
   cutStyle?: CutStyle,
   moods?: string[],
+  lang = "da",
 ): Promise<void> {
   // If the slot isn't free yet, tell the client we're queued so they don't
   // think it's frozen. acquireSlot resolves as soon as a slot opens up.
@@ -1807,6 +1808,7 @@ export async function assembleFilmFromClips(
   outDir: string,
   address?: string,
   mood: string = "calm",
+  lang = "da",
 ): Promise<string> {
   const sizes: Array<{ w: number; h: number }> = [];
   const durations: number[] = [];

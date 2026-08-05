@@ -3180,6 +3180,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 
 // ── 3D Plantegning Flow (fal.ai nano-banana-2/edit — 2D plan → 3D dollhouse) ─
 function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isOwner = user?.email === "fredefussing@gmail.com";
@@ -5338,7 +5339,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               )}
               {listingId && (
                 <button
-                  onClick={handleExport}
+                  onClick={() => handleExport()}
                   disabled={isExporting}
                   className="h-9 px-4 rounded-full text-sm font-semibold border inline-flex items-center gap-1.5 transition-opacity disabled:opacity-50"
                   style={{ borderColor: "#0F1D2F", color: "#0F1D2F", background: "#fff" }}
@@ -5799,6 +5800,7 @@ const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string; labelKey: string }
 ];
 
 function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [rooms, setRooms] = useState<DraftRoom[]>([]);
   const [saving, setSaving] = useState(false);
@@ -7026,6 +7028,7 @@ function recordAgentPrompt(text: string) {
 }
 
 function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCase[] }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [imageFile, setImageFile] = useState<File | null>(null);
