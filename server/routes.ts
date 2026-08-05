@@ -2665,15 +2665,17 @@ export async function registerRoutes(
     const isDemo = req.query.demo === "1";
     if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
 
-    // plain=1 + gyldigt Firebase-token: spring det indbrændte vandmærke over.
-    // Bruges af PDF-generatoren, som selv tegner sit vandmærke (og hvor FØR-
-    // billedet ikke skal brandes som AI). Uden gyldigt login brændes vandmærket
-    // ALTID ind, så den åbne proxy ikke kan misbruges til rene billeder.
+    // plain=1: KUN admin (is_admin=true i DB) kan springe vandmærket over.
+    // EU AI Act (Art. 50) kræver tvungen automatisk mærkning — ingen bruger
+    // må have mulighed for at slå det fra. Undtagelse: ejerkonto til intern brug.
     let skipWatermark = false;
     if (req.query.plain === "1") {
       try {
-        await verifyFirebaseToken(req.headers.authorization);
-        skipWatermark = true;
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const r = await pool.query(
+          `SELECT is_admin FROM users WHERE firebase_uid = $1`, [uid]
+        );
+        if (r.rows[0]?.is_admin === true) skipWatermark = true;
       } catch {}
     }
 
@@ -2689,32 +2691,65 @@ export async function registerRoutes(
         const imgW = meta.width || 1600;
         const imgH = meta.height || 1067;
 
-        // ── Watermark: brændes ALTID ind — kan ikke frakobles ─────────────────
-        // Elegant badge: serif (Georgia/DejaVu Serif findes på både Replit og
-        // Render), let vægt, luft mellem bogstaverne, mørk navy-scrim i brandfarve.
-        const wmText = "AI-redigeret";
-        const fontSize = Math.max(24, Math.round(imgH * 0.028));
-        const letterSpacing = Math.round(fontSize * 0.09);
+        // ── EU AI Act (Art. 50) — tvungen mærkning, kan ALDRIG frakobles ────────
+        // Synlig: EU-standardiseret "AI Modified" badge med AI-cirkel-ikon.
+        // Usynlig: XMP/C2PA-kompatibel metadata bages ind i filen.
+        const now = new Date();
+        const xmpData = Buffer.from(
+          `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
+          `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
+          `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+          `<rdf:Description rdf:about=""` +
+          ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
+          ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
+          ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
+          `>` +
+          `<dc:creator>Forma Estates AI</dc:creator>` +
+          `<xmp:CreatorTool>Forma Estates AI Staging (formaestates.com)</xmp:CreatorTool>` +
+          `<xmp:CreateDate>${now.toISOString()}</xmp:CreateDate>` +
+          `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
+          `<c2pa:action>c2pa.modified</c2pa:action>` +
+          `<c2pa:softwareAgent>Forma Estates AI</c2pa:softwareAgent>` +
+          `</rdf:Description></rdf:RDF></x:xmpmeta>` +
+          `<?xpacket end="w"?>`
+        );
+
+        // EU-standard label: "AI Modified" (redigeret foto, ikke fuldt genereret)
+        const wmText = "AI Modified";
+        const fontSize = Math.max(22, Math.round(imgH * 0.026));
+        const letterSpacing = Math.round(fontSize * 0.07);
         const padRight = Math.round(imgW * 0.022);
         const padBottom = Math.round(imgH * 0.022);
-        const hPad = Math.round(fontSize * 0.85);
-        // Serif glyphs are narrower than the old Arial-bold estimate (~0.52× font
-        // per char) — plus explicit letter-spacing between the 11 gaps.
+        const hPad = Math.round(fontSize * 0.8);
+        // AI-cirkel ikon (EU basic icon) + tekst
+        const iconR = Math.round(fontSize * 0.55);
+        const iconD = iconR * 2;
         const approxTextW = Math.round(fontSize * 0.52 * wmText.length) + letterSpacing * (wmText.length - 1);
-        const boxW = approxTextW + hPad * 2;
-        const boxH = Math.round(fontSize * 1.9);
-        const rx = Math.round(boxH / 2); // fuldt afrundet pill
+        const gap = Math.round(fontSize * 0.4);
+        const boxW = hPad + iconD + gap + approxTextW + hPad;
+        const boxH = Math.round(fontSize * 1.85);
+        const rx = Math.round(boxH / 2);
         const boxX = imgW - boxW - padRight;
         const boxY = imgH - boxH - padBottom;
-        const textX = boxX + boxW / 2;
-        const textY = boxY + Math.round(boxH * 0.68);
+        const iconCX = boxX + hPad + iconR;
+        const iconCY = boxY + Math.round(boxH / 2);
+        const textX = iconCX + iconR + gap + approxTextW / 2;
+        const textY = boxY + Math.round(boxH * 0.67);
 
         const wmFont = `Georgia,'DejaVu Serif','Times New Roman',serif`;
+        const iconFontSize = Math.round(iconR * 0.95);
         let svgParts =
-          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(15,25,35,0.52)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>` +
+          // Pill baggrund
+          `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${rx}" fill="rgba(15,25,35,0.58)" stroke="rgba(255,255,255,0.26)" stroke-width="1"/>` +
+          // EU AI-cirkel ikon
+          `<circle cx="${iconCX}" cy="${iconCY}" r="${iconR}" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.50)" stroke-width="1"/>` +
+          `<text x="${iconCX}" y="${iconCY + Math.round(iconFontSize * 0.35)}" ` +
+          `font-family="Arial,Helvetica,sans-serif" font-size="${iconFontSize}" font-weight="700" ` +
+          `fill="#FFFFFF" text-anchor="middle">AI</text>` +
+          // "Modified" label
           `<text x="${textX}" y="${textY}" ` +
           `font-family="${wmFont}" font-size="${fontSize}" font-weight="500" ` +
-          `letter-spacing="${letterSpacing}" fill="#F5F1E8" text-anchor="middle">${wmText}</text>`;
+          `letter-spacing="${letterSpacing}" fill="#F5F1E8" text-anchor="middle">${wmText.replace("AI ", "")}</text>`;
 
         // Demo-variant (gratis prøve uden login): ekstra tydelig branding, så
         // billedet reklamerer for Forma Estates, hvis det deles videre.
@@ -2735,7 +2770,9 @@ export async function registerRoutes(
           `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}">` + svgParts + `</svg>`
         );
 
-        let pipeline = sharp(buf);
+        // XMP/C2PA metadata bages ALTID ind — også ved admin plain=1.
+        // skipWatermark fjerner kun det synlige overlay, ikke metadata.
+        let pipeline = sharp(buf).withMetadata({ xmp: xmpData });
         if (!skipWatermark) pipeline = pipeline.composite([{ input: svgWatermark, blend: "over" }]);
         if (format === "png") {
           const out = await pipeline.png().toBuffer();

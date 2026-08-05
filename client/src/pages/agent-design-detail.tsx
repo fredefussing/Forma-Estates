@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { AIBadge } from "@/components/ai-badge";
 import { Flame, ArrowLeft, Loader2, Download, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentDesign } from "@shared/schema";
@@ -66,7 +67,7 @@ function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => vo
 
 export default function AgentDesignDetailPage() {
   const [match, params] = useRoute("/agent-design/:id");
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const [design, setDesign] = useState<AgentDesign | null>(null);
   const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
@@ -99,7 +100,8 @@ export default function AgentDesignDetailPage() {
       ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
       : design.resultImageUrl;
     const fetchInit: RequestInit = {};
-    if (!watermark && design.resultImageUrl.startsWith("http")) {
+    // plain=1 (uden synligt vandmærke) — KUN for admin, jf. EU AI Act Art. 50
+    if (isAdmin && !watermark && design.resultImageUrl.startsWith("http")) {
       fetchUrl += "&plain=1";
       const token = await auth.currentUser?.getIdToken().catch(() => undefined);
       if (token) fetchInit.headers = { Authorization: `Bearer ${token}` };
@@ -122,7 +124,8 @@ export default function AgentDesignDetailPage() {
   };
 
   const handleDownload = () => {
-    if (!watermark) { setShowWmConfirm(true); return; }
+    // Kun admin kan vælge at downloade uden synligt brændemærke
+    if (isAdmin && !watermark) { setShowWmConfirm(true); return; }
     doDownload();
   };
 
@@ -205,7 +208,8 @@ export default function AgentDesignDetailPage() {
           </p>
         </div>
 
-        {showWmConfirm && (
+        {/* KUN admin ser bekræftelsesdialog — EU AI Act kræver tvungen mærkning for alle andre */}
+        {isAdmin && showWmConfirm && (
           <NoWatermarkConfirmDialog
             onConfirm={() => { setShowWmConfirm(false); doDownload(); }}
             onCancel={() => setShowWmConfirm(false)}
@@ -224,7 +228,9 @@ export default function AgentDesignDetailPage() {
                 <Download className="w-3.5 h-3.5 mr-1.5" />
                 Download
               </Button>
-              <WatermarkToggle />
+              {/* Brændemærke-toggle: KUN synlig for admin — EU AI Act Art. 50 */}
+              {isAdmin && <WatermarkToggle />}
+              <AIBadge createdAt={design.createdAt?.toString()} action="modified" />
             </div>
           )}
         </div>
