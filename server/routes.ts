@@ -469,8 +469,7 @@ export async function registerRoutes(
   // ── ONE-TIME leads migration — remove after running ───────────────────────
   app.post("/api/admin/migrate-leads", async (req, res) => {
     const { password } = req.body || {};
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "forma-migrate-2026";
-    if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Forbidden" });
+    if (password !== "fe-leads-migrate-x9k2p7") return res.status(403).json({ error: "Forbidden" });
     try {
       const { LEADS_MIGRATION_DATA } = await import("./leads-migration-data.js");
       let inserted = 0, skipped = 0;
