@@ -466,40 +466,6 @@ export async function registerRoutes(
 
   app.get("/api/health/live-diag", (_req, res) => res.status(404).json({ message: "Not found" }));
 
-  // ── Temp: leads count probe ───────────────────────────────────────────────
-  app.get("/api/diag/leads-count-z9x", async (_req, res) => {
-    try {
-      const r = await pool.query("SELECT COUNT(*) AS n FROM leads");
-      return res.json({ count: r.rows[0].n });
-    } catch(e: any) { return res.status(500).json({ error: e.message }); }
-  });
-
-  // ── Temp: leads migration via parameterised inserts ───────────────────────
-  app.post("/api/diag/migrate-leads-z9x", async (req, res) => {
-    if ((req.body?.token) !== "fe-z9x-2026") return res.status(403).json({ error: "no" });
-    try {
-      const { LEADS_DATA } = await import("./leads-seed.js" as any);
-      let inserted = 0, skipped = 0, errors: string[] = [];
-      for (const r of LEADS_DATA) {
-        try {
-          await pool.query(
-            `INSERT INTO leads (name,category,instagram_handle,email,phone,status,notes,
-              first_contact_at,follow_up_at,follow_up_1_at,follow_up_1_done,
-              follow_up_2_at,follow_up_2_done,last_contacted_at,created_at,updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-            [r.name, r.category, r.instagram_handle||null, r.email||null, r.phone||null,
-             r.status, r.notes||null,
-             r.first_contact_at||null, r.follow_up_at||null, r.follow_up_1_at||null,
-             r.follow_up_1_done ?? false, r.follow_up_2_at||null, r.follow_up_2_done ?? false,
-             r.last_contacted_at||null, r.created_at||null, r.updated_at||null]
-          );
-          inserted++;
-        } catch(e: any) { errors.push(r.name + ": " + e.message); skipped++; }
-      }
-      return res.json({ inserted, skipped, errors: errors.slice(0, 5) });
-    } catch(e: any) { return res.status(500).json({ error: e.message }); }
-  });
-  // ── end temp migration ────────────────────────────────────────────────────
 
 
 
