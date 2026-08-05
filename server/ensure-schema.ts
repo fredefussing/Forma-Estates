@@ -281,6 +281,29 @@ export async function ensureSchema(): Promise<void> {
     },
   ];
 
+  // ── One-time: insert leads added after the bulk migration ─────────────────
+  const missingLeads = [
+    { name: 'Mads Werner Bolig', category: 'ejendomsmaegler', email: 'info@wernerboliger.dk',
+      status: 'responded', notes: '[5. aug 10:22] Instagram DM',
+      first_contact_at: '2026-08-05T08:21:00Z', follow_up_at: '2026-08-12T08:21:00Z',
+      follow_up_1_at: '2026-08-07T08:21:00Z', follow_up_2_at: '2026-08-14T08:21:00Z',
+      created_at: '2026-08-05T08:22:16.938Z', updated_at: '2026-08-05T08:22:16.938Z' },
+  ];
+  for (const r of missingLeads) {
+    try {
+      await pool.query(
+        `INSERT INTO leads (name,category,email,status,notes,first_contact_at,follow_up_at,
+          follow_up_1_at,follow_up_1_done,follow_up_2_at,follow_up_2_done,created_at,updated_at)
+         SELECT $1,$2,$3,$4,$5,$6,$7,$8,false,$9,false,$10,$11
+         WHERE NOT EXISTS (SELECT 1 FROM leads WHERE name=$1)`,
+        [r.name, r.category, r.email, r.status, r.notes,
+         r.first_contact_at, r.follow_up_at, r.follow_up_1_at, r.follow_up_2_at,
+         r.created_at, r.updated_at]
+      );
+    } catch(e: any) { console.error(`[ensure-schema] seed lead ${r.name}: ${e.message}`); }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   for (const { step, sql } of statements) {
     try {
       await pool.query(sql);
