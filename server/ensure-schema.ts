@@ -280,3 +280,13 @@ export async function ensureSchema(): Promise<void> {
       )`,
     },
   ];
+
+  for (const { step, sql } of statements) {
+    try {
+      await pool.query(sql);
+    } catch (e: any) {
+      console.error(`[ensure-schema] ${step} failed: ${e.message}`);
+    }
+  }
+  console.log("[ensure-schema] additive schema check completed");
+}
