@@ -1141,7 +1141,7 @@ export function LeadsView() {
   // ── Filters ───────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return leads.filter(l => {
+    const list = leads.filter(l => {
       if (catFilter !== "alle" && l.category !== catFilter) return false;
       if (stFilter === "aktive"   && (l.status === "no" || l.status === "won" || l.status === "responded")) return false;
       if (stFilter === "svaret"   && l.status !== "responded") return false;
@@ -1153,6 +1153,18 @@ export function LeadsView() {
       }
       return true;
     });
+    // Sort aktive: rød (forfaldne) øverst → gul (i morgen) → grøn (2+ dage) → ingen FU
+    if (stFilter === "aktive" || stFilter === "alle") {
+      list.sort((a, b) => {
+        const score = (l: Lead) => {
+          const fu = nextFU(l);
+          if (!fu) return 1e9; // ingen FU → bund
+          return (new Date(fu.at).getTime() - Date.now()) / 864e5; // negativ = forfaldne
+        };
+        return score(a) - score(b);
+      });
+    }
+    return list;
   }, [leads, catFilter, stFilter, search]);
 
   const catCounts = useMemo(() =>

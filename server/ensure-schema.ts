@@ -337,6 +337,35 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] f1update:', e.message); }
   // ── end one-time f1 update ─────────────────────────────────────────────────
 
+  // ── One-time: mark f1 done for 33 architect/builder leads (5. aug) ─────────
+  try {
+    await pool.query(`
+      DO $f1ark$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM leads WHERE name='ag5' AND follow_up_1_done=false) THEN
+          UPDATE leads SET
+            follow_up_1_done=true,
+            follow_up_2_at='2026-08-12 10:00:00+00',
+            notes=COALESCE(notes || chr(10), '') || '[5. aug] ✅ Opfølgning 1 gennemført - 💬 Instagram DM',
+            updated_at=NOW()
+          WHERE name IN (
+            'ag5','Arkitektfirma Hune & Elkjær','ardess_','Alex Poulsen Arkitekter A/S',
+            'BBP Arkitekter','Kjaer & Richter','Berg Arkitekter Nordsjælland','BIOSIS',
+            'arkitektfirmaet_vest','cco_architects','Bjerg Arkitektur','Birch & Rasmussen',
+            'BRIXVAL','Cornelius Vöge','Pia Dyrendahl Staven','creo Arkitekter A/S',
+            'Fogh & Følner Arkitekter','Gottlieb Paludan Architects','Juul Frost Arkitekter',
+            'KRADS','Sjæl Arkitekter ApS','Danielsen Spaceplanning','N+P ARKITEKTUR',
+            'Nøhr & Sigsgaard','Novaform','Monitz Architecture Studio','ESJA Architecture',
+            'Mæglerfirmaet Henrik Ejby','Lezibo Tømrer & Snedker ApS',
+            'Thomas Blues Aaby','Damgaard Byg v. Mads Carøe',
+            'Nybolig Galten-Skovby-Harlev','Brædstrup, Tørring & Jelling'
+          ) AND follow_up_1_done=false;
+        END IF;
+      END $f1ark$
+    `);
+  } catch(e: any) { console.error('[ensure-schema] f1ark:', e.message); }
+  // ── end one-time architect f1 update ─────────────────────────────────────
+
   // ── One-time: insert leads added after the bulk migration ─────────────────
   const missingLeads = [
     { name: 'Mads Werner Bolig', category: 'ejendomsmaegler', email: 'info@wernerboliger.dk',
