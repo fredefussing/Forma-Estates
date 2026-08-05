@@ -25,3 +25,5 @@
 - [Dashboard banner overlay](dashboard-banner-overlay.md) — top-strip elements are covered by the -mt sibling's transparent padding: visible but unclickable; fix with relative z-10 on the element, never the wrapper.
 - [Prompt lock sync](prompt-lock-sync.md) — editing shared/structuralPrompt.ts requires tsx-syncing promptLock.json to byte-identical or ALL generations throw; restart server after.
 - [Server-side URL fetch allowlist](server-side-url-fetch-allowlist.md) — stored/user-influenced URLs must pass a host allowlist before server-side download (SSRF); settle paid-job credits in the job's then/catch, not only via polling routes.
+- [Video jobs DB registry](video-jobs-db.md) — video_jobs table (requestId, userId, feature, refundCount, status) persists in-flight jobs; boot reset in index.ts refunds stuck pending rows; all 5 job types write on start + mark complete/failed.
+- [Cookie banner is global](cookie-banner-global.md) — CookieBanner lives in client/src/components/cookie-banner.tsx and is mounted once in App.tsx; localStorage key "forma-cookie-consent"; all 7 locale files have cookie.* keys.

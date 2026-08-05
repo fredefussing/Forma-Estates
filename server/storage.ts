@@ -22,6 +22,7 @@ import {
   type ShareLink, shareLinks,
   dripEmails,
   SUBSCRIPTION_QUOTAS, FREE_TRIAL_QUOTAS,
+  videoJobs,
 } from "@shared/schema";
 import { db } from "./db";
 import { pool } from "./db";
@@ -99,6 +100,13 @@ export interface IStorage {
   getAgentDesignsByUser(userId: number): Promise<AgentDesign[]>;
   updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined>;
   countAgentDesignsByOriginalUrl(userId: number, originalImageUrl: string): Promise<number>;
+  countGeneratedImageRefinements(userId: number, sourceImageUrl: string): Promise<number>;
+
+  // Video job registry (persisted for restart-safe refunds)
+  createVideoJob(data: { requestId: string; userId: number; feature: string; refundCount?: number }): Promise<void>;
+  completeVideoJob(requestId: string): Promise<void>;
+  failVideoJob(requestId: string): Promise<void>;
+  getStuckVideoJobs(olderThanMs: number): Promise<Array<{ requestId: string; userId: number; feature: string; refundCount: number }>>;
 
   createBoligCase(data: InsertBoligCase): Promise<BoligCase>;
   getBoligCasesByUser(userId: number): Promise<BoligCase[]>;
@@ -1577,6 +1585,47 @@ export class DatabaseStorage implements IStorage {
       `UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1`,
       [id]
     );
+  }
+
+  // ── Bolig refinement counting ────────────────────────────────────────────────
+  // Counts how many generated images already exist where originalImageUrl equals
+  // the given source image URL — i.e. direct refinements of a given result image.
+  async countGeneratedImageRefinements(userId: number, sourceImageUrl: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(generatedImages)
+      .where(and(eq(generatedImages.userId, userId), eq(generatedImages.originalImageUrl, sourceImageUrl)));
+    return result[0]?.count ?? 0;
+  }
+
+  // ── Video job registry ───────────────────────────────────────────────────────
+  async createVideoJob(data: { requestId: string; userId: number; feature: string; refundCount?: number }): Promise<void> {
+    await db.insert(videoJobs).values({
+      requestId: data.requestId,
+      userId: data.userId,
+      feature: data.feature,
+      refundCount: data.refundCount ?? 1,
+      status: "pending",
+    }).onConflictDoNothing();
+  }
+
+  async completeVideoJob(requestId: string): Promise<void> {
+    await db.update(videoJobs).set({ status: "completed" }).where(eq(videoJobs.requestId, requestId));
+  }
+
+  async failVideoJob(requestId: string): Promise<void> {
+    await db.update(videoJobs).set({ status: "failed" }).where(eq(videoJobs.requestId, requestId));
+  }
+
+  async getStuckVideoJobs(olderThanMs: number): Promise<Array<{ requestId: string; userId: number; feature: string; refundCount: number }>> {
+    const cutoff = new Date(Date.now() - olderThanMs);
+    const rows = await db.select({
+      requestId: videoJobs.requestId,
+      userId: videoJobs.userId,
+      feature: videoJobs.feature,
+      refundCount: videoJobs.refundCount,
+    }).from(videoJobs)
+      .where(and(eq(videoJobs.status, "pending"), sql`${videoJobs.createdAt} < ${cutoff}`));
+    return rows;
   }
 }
 

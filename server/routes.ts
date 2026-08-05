@@ -38,6 +38,7 @@ function refundTransformVideo(requestId: string) {
   if (uid == null) return;
   transformVideoRefunds.delete(requestId);
   storage.refundQuota(uid, "transformVideo").catch(() => {});
+  storage.failVideoJob(requestId).catch(() => {});
 }
 
 function refundShowcaseVideo(jobId: string) {
@@ -45,6 +46,7 @@ function refundShowcaseVideo(jobId: string) {
   if (uid == null) return;
   showcaseVideoRefunds.delete(jobId);
   storage.refundQuota(uid, "showcase").catch(() => {});
+  storage.failVideoJob(jobId).catch(() => {});
 }
 
 function refundWalkthroughVideo(jobId: string) {
@@ -52,6 +54,7 @@ function refundWalkthroughVideo(jobId: string) {
   if (uid == null) return;
   walkthroughVideoRefunds.delete(jobId);
   storage.refundQuota(uid, "showcase").catch(() => {});
+  storage.failVideoJob(jobId).catch(() => {});
 }
 
 // Forvandlingsfilm: 1 transformVideo-kredit pr. rum. `count` er den RESTERENDE
@@ -66,6 +69,7 @@ function refundTransformFilm(jobId: string) {
   for (let i = 0; i < entry.count; i++) {
     storage.refundQuota(entry.userId, "transformVideo").catch(() => {});
   }
+  storage.failVideoJob(jobId).catch(() => {});
 }
 
 // SSRF-værn: galleri-URL'er må kun hentes server-side fra vores egne kilder
@@ -90,6 +94,7 @@ function refundGuidedTour(jobId: string) {
   if (uid == null) return;
   guidedTourRefunds.delete(jobId);
   storage.refundQuota(uid, "showcase").catch(() => {});
+  storage.failVideoJob(jobId).catch(() => {});
 }
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -3274,9 +3279,10 @@ export async function registerRoutes(
         }
       }
 
-      // Refinements (isRefinement=true + sourceCaseImageId) are free — we already charged
-      // for the original generation. Up to 5 per image, enforced client-side; server skips quota.
+      // Refinements (isRefinement=true + sourceCaseImageId) are free up to 5 per
+      // source image — beyond that a quota credit is required. Now enforced server-side.
       const isRefinement = (req.body.isRefinement === "true" || req.body.isRefinement === true) && !!sourceCaseImageId;
+      const FREE_BOLIG_REFINEMENTS = 5;
 
       // Quota check — blocks non-admin users who have exhausted their AI visualization quota
       if (authedUserId && !isRefinement) {
@@ -3304,6 +3310,29 @@ export async function registerRoutes(
           await storage.refundQuota(authedUserId, "ai").catch(() => {});
           return res.status(srcImg ? 403 : 404).json({ success: false, message: "Kildebilledet blev ikke fundet" });
         }
+
+        // Server-side enforcement of the 5-free-refinements limit.
+        // Count how many generated images already use srcImg.imageUrl as their
+        // originalImageUrl (i.e. direct refinements of this result image).
+        if (isRefinement && !season) {
+          const authedUser = await storage.getUserById(authedUserId);
+          if (authedUser && !authedUser.isAdmin) {
+            const refinementCount = await storage.countGeneratedImageRefinements(authedUserId, srcImg.imageUrl);
+            if (refinementCount >= FREE_BOLIG_REFINEMENTS) {
+              // Beyond the free limit — charge an AI quota credit
+              const q = await storage.checkAndIncrementQuota(authedUserId, "ai");
+              if (!q.allowed) {
+                return res.status(403).json({
+                  success: false,
+                  quotaExceeded: true,
+                  feature: q.feature,
+                  message: `Du har brugt alle ${FREE_BOLIG_REFINEMENTS} gratis rettelser til dette billede og har nået din månedlige kvota.`,
+                });
+              }
+            }
+          }
+        }
+
         originalForRecord = srcImg.imageUrl;
         publicUrl = srcImg.imageUrl.startsWith("http") ? srcImg.imageUrl : `${protocol}://${host}${srcImg.imageUrl}`;
         if (season) room = srcImg.roomType || room;
@@ -3819,6 +3848,7 @@ export async function registerRoutes(
         log(`[Video] submitted request_id=${requestId}`);
         // Track for a quota refund if the job later fails at the poll stage.
         if (transformUserId) transformVideoRefunds.set(requestId, transformUserId);
+        if (transformUserId) storage.createVideoJob({ requestId, userId: transformUserId, feature: "transformVideo" }).catch(() => {});
         if (transformUserId) storage.logCrmActivity(transformUserId, "video", `Transformeringsvideo · ${mode}`).catch(() => {});
 
         return res.json({
@@ -3848,6 +3878,7 @@ export async function registerRoutes(
       const result = await getAnimationVideoStatus(requestId);
       if (result.status === "COMPLETED" && result.videoUrl) {
         transformVideoRefunds.delete(requestId);
+        storage.completeVideoJob(requestId).catch(() => {});
         let localVideoUrl = result.videoUrl;
         try {
           localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
@@ -4014,6 +4045,7 @@ export async function registerRoutes(
       log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
       const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
+      if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
       if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase (Rendy) · ${files.length} billeder`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
@@ -4189,6 +4221,7 @@ export async function registerRoutes(
         return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
       if (walkthroughUserId) walkthroughVideoRefunds.set(jobId, walkthroughUserId);
+      if (walkthroughUserId) storage.createVideoJob({ requestId: jobId, userId: walkthroughUserId, feature: "walkthrough" }).catch(() => {});
       log(`[Walkthrough] started job=${jobId} images=${files.length}`);
       if (walkthroughUserId) storage.logCrmActivity(walkthroughUserId, "video", `Cinematisk walkthrough · ${files.length} billeder`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
@@ -4427,6 +4460,7 @@ export async function registerRoutes(
         return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
       transformFilmRefunds.set(jobId, { userId, count: charged });
+      storage.createVideoJob({ requestId: jobId, userId, feature: "transformVideo", refundCount: charged }).catch(() => {});
       log(`[Film] started job=${jobId} rooms=${pairs.length} user=${userId}`);
       storage.logCrmActivity(userId, "video", `Forvandlingsfilm · ${pairs.length} rum`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
@@ -4730,6 +4764,7 @@ export async function registerRoutes(
         return res.status(429).json({ message: "Serveren er optaget lige nu. Prøv igen om lidt." });
       }
       guidedTourRefunds.set(jobId, user.id);
+      storage.createVideoJob({ requestId: jobId, userId: user.id, feature: "showcase" }).catch(() => {});
       storage.logCrmActivity(user.id, "video", `Guidet AI-rundvisning · ${ordered.length} rum`).catch(() => {});
       log(`[GuidedTour] started job=${jobId} property=${propertyId} rooms=${ordered.length}`);
       return res.json({ success: true, jobId, totalClips: Math.min(ordered.length, 10) });

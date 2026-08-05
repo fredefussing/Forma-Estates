@@ -170,6 +170,18 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
 
+      // On boot: refund any video jobs that were still 'pending' from before the
+      // last restart (in-memory maps were cleared; DB is the source of truth).
+      storage.getStuckVideoJobs(30 * 60 * 1000).then(async (stuck) => {
+        if (stuck.length > 0) log(`[Boot] Refunding ${stuck.length} stuck video job(s) from previous boot`);
+        for (const job of stuck) {
+          for (let i = 0; i < job.refundCount; i++) {
+            await storage.refundQuota(job.userId, job.feature as any).catch(() => {});
+          }
+          await storage.failVideoJob(job.requestId).catch(() => {});
+        }
+      }).catch(() => {});
+
       // Start system tracker (isolated background loops)
       setTimeout(() => startTracker(), 5000);
 

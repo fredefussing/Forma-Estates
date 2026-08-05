@@ -24,6 +24,7 @@ import VerifyEmailPage from "@/pages/verify-email";
 import NulstilPasswordPage from "@/pages/nulstil-password";
 import AccountPage from "@/pages/account";
 import MyDesignsPage from "@/pages/my-designs";
+import { CookieBanner } from "@/components/cookie-banner";
 import AgentDesignDetailPage from "@/pages/agent-design-detail";
 import KontaktPage from "@/pages/kontakt";
 import PrivatlivspolitikPage from "@/pages/privatlivspolitik";
@@ -215,6 +216,7 @@ function App() {
           <Toaster />
           <Router />
           <SupportChatWrapper />
+          <CookieBanner />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

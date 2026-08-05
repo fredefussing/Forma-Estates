@@ -2297,7 +2297,6 @@ export default function BoligpotentialeLanding() {
         </div>
       </footer>
 
-      <CookieBanner />
     </div>
   );
 }

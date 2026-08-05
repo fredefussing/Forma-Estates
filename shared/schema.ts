@@ -580,3 +580,20 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 });
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+// ── Video job registry (persisted so refunds survive server restarts) ─────────
+// Each in-flight video generation writes a row here. On boot, rows still
+// 'pending' are failed and their quota is refunded.
+export const videoJobs = pgTable("video_jobs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  requestId: text("request_id").notNull().unique(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  // 'transformVideo' | 'showcase' | 'walkthrough' | 'transformFilm'
+  feature: text("feature").notNull(),
+  // For transformFilm: number of clips (each costs 1 quota). Otherwise 1.
+  refundCount: integer("refund_count").notNull().default(1),
+  status: text("status").notNull().default("pending"), // 'pending' | 'completed' | 'failed'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type VideoJob = typeof videoJobs.$inferSelect;
