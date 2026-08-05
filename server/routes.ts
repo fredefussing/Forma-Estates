@@ -6008,6 +6008,14 @@ Kreditter kan også købes enkeltvist på /pris.
 - Billeder til Showcase skal være i tilstrækkelig opløsning — platformen advarer automatisk hvis et billede er for lille
 - Ved fejl: prøv igen – det er oftest midlertidigt
 
+## EU AI Act (Artikel 50) — lovpligtig AI-mærkning
+Forma Estates er 100% compliant med EU AI Act, Forordning (EU) 2024/1689, Artikel 50. ALLE AI-genererede billeder og videoer mærkes automatisk med tre lovpligtige lag:
+1. **Synligt AI-badge** — "AI Redigeret"-ikon brændt ind i billedet/videoen (min. 64 px, 88% opacity). Lokaliseret til brugerens sprog. Kan ikke fjernes af kunden.
+2. **C2PA/XMP-metadata** — maskinlæsbar metadata indlejret i alle JPEG og PNG-filer. Indeholder skaber (Forma Estates AI), tidsstempel og handling (c2pa.modified). Verificerbar af myndigheder.
+3. **Usynligt vandmærke** — kryptografisk spread-spectrum-vandmærke i alle billeder. Overlever rekomprimering og skærmfoto.
+Disse tre lag er obligatoriske og kan ALDRIG frakobles. Forma Estates er klassificeret som "deployer" af et lav-risiko AI-system og overholder fuldt ud alle krav i Artikel 50.
+Se handelsbetingelserne afsnit 14 og privatlivspolitikken afsnit 10 for fuld juridisk detalje.
+
 ## Vigtige regler
 - Omtal KUN platformen som "Forma Estates" — aldrig "Nordic Homebuild" eller andre navne
 - Nævn ALDRIG Shopify – kreditter og pakker købes kun via /pris

@@ -74,7 +74,7 @@ export default function PrivatlivspolitikPage() {
             Privatlivspolitik
           </h1>
           <p style={{ color: C.muted, fontSize: 14 }}>
-            Senest opdateret: juni 2026 &middot; Forma Estates &middot; CVR: 46551796
+            Senest opdateret: august 2026 &middot; Forma Estates &middot; CVR: 46551796
           </p>
         </div>
 
@@ -408,7 +408,39 @@ export default function PrivatlivspolitikPage() {
           </Section>
 
           {/* 10 */}
-          <Section title="10. Ændringer til denne politik">
+          <Section title="10. EU AI Act (Artikel 50) — AI-behandling og gennemsigtighed">
+            <InfoBox>
+              <p className="text-sm font-semibold" style={{ color: C.navy }}>
+                🔒 Forma Estates opfylder EU AI Act, Artikel 50 (Forordning (EU) 2024/1689) — ingen undtagelser
+              </p>
+            </InfoBox>
+            <P>
+              Forma Estates behandler uploadede ejendomsbilleder til AI-generering af visualiseringer, plantegninger og videoer.
+              I henhold til EU's AI-forordning er vi forpligtet til at mærke alt AI-genereret og AI-modificeret indhold klart og utvetydigt. Vi bekræfter, at:
+            </P>
+            <Ul items={[
+              "Alle AI-genererede billeder og videoer forsynes automatisk med et synligt 'AI Redigeret'-ikon brændt ind i filen (minimum 64 px, 88 % opacity)",
+              "Alle JPEG- og PNG-filer indlejres med maskinlæsbar C2PA/XMP-metadata der identificerer indholdet som AI-genereret, angiver tidsstempel og skaber",
+              "Alle billeder indlejres med et usynligt kryptografisk spread-spectrum-vandmærke der overlever rekomprimering og skærmfoto",
+              "Disse tre lag er permanente og kan ikke fjernes — hverken af kunden eller tredjeparter uden at beskadige filen",
+              "AI-genererede videoer (Showcase, Forvandlingsfilm, Transformering) brændes med et lokaliseret AI-badge i alle frames, hele videorens varighed",
+            ]} />
+            <P>
+              Behandlingen af uploadede ejendomsbilleder sker udelukkende med det formål at levere den aftalte tjeneste — retsgrundlag: GDPR art. 6(1)(b) (opfyldelse af aftale).
+              Billeder overføres til AI-leverandørerne Collov AI og fal.ai — se afsnit 5 og 6 for databehandlerroller og tredjelandsoverførsler.
+            </P>
+            <InfoBox>
+              <p className="text-sm" style={{ color: C.text }}>
+                Forma Estates er klassificeret som <strong>deployer</strong> af et lav-risiko AI-system under EU AI Act.
+                Vi har ingen registreringspligt, men opfylder frivilligt og fuldt ud alle gennemsigtighedskrav i Artikel 50.
+                Referencegrundlag: Forordning (EU) 2024/1689, Artikel 50 &middot; C2PA-standard:{" "}
+                <a href="https://c2pa.org" target="_blank" rel="noreferrer" className="underline" style={{ color: C.gold }}>c2pa.org</a>.
+              </p>
+            </InfoBox>
+          </Section>
+
+          {/* 11 */}
+          <Section title="11. Ændringer til denne politik">
             <P>
               Vi kan opdatere denne privatlivspolitik ved ændringer i vores tjeneste eller gældende lovgivning.
               Væsentlige ændringer meddeles via e-mail eller et synligt banner på hjemmesiden mindst 14 dage inden de træder i kraft.
@@ -419,8 +451,8 @@ export default function PrivatlivspolitikPage() {
             </P>
           </Section>
 
-          {/* 11 */}
-          <Section title="11. Kontakt">
+          {/* 12 */}
+          <Section title="12. Kontakt">
             <P>
               Har du spørgsmål til denne politik eller til vores behandling af dine personoplysninger, kontakt os:
             </P>
@@ -456,7 +488,7 @@ export default function PrivatlivspolitikPage() {
         </div>
         <p className="text-xs" style={{ color: C.muted }}>
           © {new Date().getFullYear()} Forma Estates &middot; CVR: 46551796 &middot;{" "}
-          Senest opdateret juni 2026
+          Senest opdateret august 2026
         </p>
       </footer>
     </div>

@@ -78,7 +78,7 @@ export default function HandelsbetingelserPage() {
             Handelsbetingelser
           </h1>
           <p style={{ color: C.muted, fontSize: 14 }}>
-            Senest opdateret: juni 2026 &middot; Forma Estates &middot; CVR: 46551796
+            Senest opdateret: august 2026 &middot; Forma Estates &middot; CVR: 46551796
           </p>
         </div>
 
@@ -211,14 +211,13 @@ export default function HandelsbetingelserPage() {
             <P>
               Du bevarer alle rettigheder til de billeder og øvrige filer, du uploader til platformen ("Kundens Indhold"). Du giver Forma Estates en begrænset licens til at behandle Kundens Indhold med det formål at levere Tjenesten.
             </P>
-            <p className="font-semibold mb-1.5" style={{ color: C.navy }}>Genererede billeder</p>
+            <p className="font-semibold mb-1.5" style={{ color: C.navy }}>Genererede billeder og videoer</p>
             <P>
               De AI-genererede visualiseringer, der produceres på grundlag af dit uploadede billede, tilhører dig og må frit anvendes til erhvervsmæssige formål, herunder boligsalg, markedsføring og præsentationer.
               Forma Estates forbeholder sig ret til at anvende anonymiserede og aggregerede eksempler fra platformen til markedsføring — aldrig identificerbare boliger eller kundespecifikke data uden udtrykkelig tilladelse.
             </P>
             <P>
-              Alle billeder downloadet via platformens officielle formater (JPG, PNG og PDF) mærkes automatisk med "AI-redigeret" i overensstemmelse med markedsføringsloven.
-              Hvis der downloades uden for vores officielle formater (JPG/PNG/PDF m.v.), sker det på eget ansvar, og der garanteres ikke for automatisk AI-mærkning.
+              I overensstemmelse med EU AI Act (Forordning (EU) 2024/1689, Artikel 50) forsynes alle AI-genererede og AI-modificerede billeder og videoer automatisk med tre lovpligtige lag af mærkning — se afsnit 14. Det er Kundens ansvar ikke at fjerne eller manipulere disse markeringer efter levering.
             </P>
           </Section>
 
@@ -342,7 +341,39 @@ export default function HandelsbetingelserPage() {
           </Section>
 
           {/* 14 */}
-          <Section title="14. Kontakt">
+          <Section title="14. EU AI Act (Artikel 50) — AI-mærkning og gennemsigtighed">
+            <InfoBox>
+              <p className="text-sm font-semibold" style={{ color: C.navy }}>
+                🔒 Forma Estates er 100% compliant med EU AI Act, Artikel 50 (Forordning (EU) 2024/1689)
+              </p>
+            </InfoBox>
+            <P>
+              EU's AI-forordning (Forordning (EU) 2024/1689, Artikel 50) kræver, at systemer der genererer eller manipulerer billeder og videoer, mærker outputtet klart og utvetydigt.
+              Forma Estates opfylder og overgår disse krav via tre obligatoriske lag, der er aktive på alle AI-genererede visualiseringer, 3D-plantegninger og videoer — uden undtagelse.
+            </P>
+            <p className="font-semibold mb-2" style={{ color: C.navy }}>De tre obligatoriske lag</p>
+            <Ul items={[
+              <><strong>Synligt AI-badge (Regel 3+4):</strong> Et "AI Redigeret"-ikon brændes automatisk ind i alle billeder og videoer (minimum 64 px, 88 % uigennemsigtighed). Teksten lokaliseres til brugerens sprog (dansk, engelsk, svensk, tysk m.fl.). Kan ikke frakobles af kunden.</>,
+              <><strong>Maskinlæsbar C2PA/XMP-metadata (Regel 1):</strong> Alle JPEG- og PNG-filer indlejres automatisk med XMP-metadata kompatibel med C2PA-standarden (Content Credentials). Indeholder: skaber (<em>Forma Estates AI</em>), tidsstempel, handling (<em>c2pa.modified</em>) og kildeangivelse. Verificerbar af professionelle verifikationsværktøjer og myndigheder.</>,
+              <><strong>Usynligt kryptografisk vandmærke (Regel 2):</strong> Alle billeder indlejres med et spread-spectrum-vandmærke (PSNR ≈ 51 dB — visuelt usynligt) der overlever JPEG-rekomprimering og skærmfoto. Vandmærket kan verificeres af Forma Estates og kompetente myndigheder.</>,
+            ]} />
+            <p className="font-semibold mb-2" style={{ color: C.navy }}>Kundens forpligtelser</p>
+            <P>
+              Kunden forpligter sig til ikke at fjerne, sløre eller manipulere AI-mærkningerne i strid med EU AI-forordningen.
+              Forma Estates hæfter ikke for markeringer der er fjernet eller manipuleret efter levering til Kunden.
+              Kunden er ansvarlig for, at materiale videredistribueret via tredjeparts-kanaler ikke er blevet behandlet på en måde, der fjerner de lovpligtige markeringer.
+            </P>
+            <InfoBox variant="navy">
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                <strong style={{ color: C.gold }}>Referencegrundlag:</strong> Forordning (EU) 2024/1689 (EU AI Act), Artikel 50 — Forpligtelser til gennemsigtighed for visse udbydere og deployere af AI-systemer.{" "}
+                C2PA (Coalition for Content Provenance and Authenticity) — <a href="https://c2pa.org" target="_blank" rel="noreferrer" className="underline" style={{ color: C.gold }}>c2pa.org</a>.
+                Forma Estates er klassificeret som <em>deployer</em> af et lav-risiko AI-system og opfylder frivilligt og fuldt ud alle gennemsigtighedskrav i Artikel 50.
+              </p>
+            </InfoBox>
+          </Section>
+
+          {/* 15 */}
+          <Section title="15. Kontakt">
             <P>
               Har du spørgsmål til disse Betingelser, er du velkommen til at kontakte os:
             </P>
@@ -382,7 +413,7 @@ export default function HandelsbetingelserPage() {
 
       <footer className="border-t py-6 px-6 text-center" style={{ borderColor: C.border }}>
         <p className="text-xs" style={{ color: C.muted }}>
-          © {new Date().getFullYear()} Forma Estates &middot; CVR: 46551796 &middot; Senest opdateret juni 2026
+          © {new Date().getFullYear()} Forma Estates &middot; CVR: 46551796 &middot; Senest opdateret august 2026
         </p>
       </footer>
     </div>
