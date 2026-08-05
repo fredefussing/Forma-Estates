@@ -5566,8 +5566,9 @@ export async function registerRoutes(
       const fu2Days = isMeta ? 10 : 9;
       const fc = first_contact_at || new Date().toISOString(); // always have a base date
       const fu = follow_up_at || new Date(new Date(fc).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const fu1 = new Date(new Date(fc).getTime() + fu1Days * 24 * 60 * 60 * 1000).toISOString();
-      const fu2 = new Date(new Date(fc).getTime() + fu2Days * 24 * 60 * 60 * 1000).toISOString();
+      // fu1/fu2 from NOW so a retroactively-logged lead still shows "om 2d" not "I morgen"
+      const fu1 = new Date(Date.now() + fu1Days * 24 * 60 * 60 * 1000).toISOString();
+      const fu2 = new Date(Date.now() + fu2Days * 24 * 60 * 60 * 1000).toISOString();
       const result = await pool.query(
         `INSERT INTO leads (name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_2_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
