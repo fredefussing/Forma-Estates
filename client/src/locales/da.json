@@ -51,6 +51,12 @@
       "afterLabel": "3D"
     }
   ],
+  "euCompliance": {
+    "title": "100% EU AI Act Compliant",
+    "body": "Vores system opfylder alle krav i EU's AI-forordning (Artikel 50). Alle billeder og videoer forsynes automatisk med lovpligtige visuelle ikoner og usynlige kryptografiske C2PA-metadata, der sikrer fuld gennemsigtighed.",
+    "badge1": "AI Act (Artikel 50)",
+    "badge2": "C2PA Content Credentials"
+  },
   "savingsNudge": {
     "text": "Spar op til 18.000 kr+ på post-produktion per bolig —",
     "link": "se beregningen her"
@@ -356,6 +362,7 @@
   },
   "trustMarquee": [
     "Bygget til det danske ejendomsmarked",
+    "🔒 100% EU AI Act Compliant — Artikel 50",
     "GDPR-compliant — dine data forbliver i EU",
     "Ingen binding — afmeld hvornår du vil",
     "Professionel kvalitet på 30 sekunder",

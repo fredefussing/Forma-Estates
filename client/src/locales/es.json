@@ -51,6 +51,12 @@
       "afterLabel": "3D"
     }
   ],
+  "euCompliance": {
+    "title": "100% conforme con la Ley IA de la UE",
+    "body": "Nuestro sistema cumple todos los requisitos del Reglamento de IA de la UE (Artículo 50). Todas las imágenes y vídeos incluyen automáticamente indicadores visuales obligatorios y metadatos criptográficos C2PA invisibles.",
+    "badge1": "Ley IA (Artículo 50)",
+    "badge2": "C2PA Content Credentials"
+  },
   "savingsNudge": {
     "text": "Ahorra hasta 18.000 DKK+ en postproducción por propiedad —",
     "link": "ver el cálculo"
@@ -356,6 +362,7 @@
   },
   "trustMarquee": [
     "Diseñado para el mercado inmobiliario europeo",
+    "🔒 100% conforme con la Ley IA de la UE — Art. 50",
     "Cumple con el RGPD — tus datos permanecen en la UE",
     "Sin ataduras — cancela cuando quieras",
     "Calidad profesional en 30 segundos",

@@ -51,6 +51,12 @@
       "afterLabel": "3D"
     }
   ],
+  "euCompliance": {
+    "title": "100% EU-KI-Verordnung konform",
+    "body": "Unser System erfüllt alle Anforderungen der EU-KI-Verordnung (Artikel 50). Alle Bilder und Videos werden automatisch mit Pflichtindikatoren und unsichtbaren kryptografischen C2PA-Metadaten versehen.",
+    "badge1": "KI-Verordnung Art. 50",
+    "badge2": "C2PA Content Credentials"
+  },
   "savingsNudge": {
     "text": "Sparen Sie bis zu 18.000 kr+ an Nachproduktion pro Immobilie —",
     "link": "Berechnung ansehen"
@@ -356,6 +362,7 @@
   },
   "trustMarquee": [
     "Für den europäischen Immobilienmarkt entwickelt",
+    "🔒 100% EU-KI-Verordnung konform — Art. 50",
     "DSGVO-konform — Ihre Daten bleiben in der EU",
     "Keine Bindung — jederzeit kündbar",
     "Professionelle Qualität in 30 Sekunden",

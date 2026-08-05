@@ -51,6 +51,12 @@
       "afterLabel": "3D"
     }
   ],
+  "euCompliance": {
+    "title": "100% EU AI Act Compliant",
+    "body": "Our system meets all requirements of the EU AI Act (Article 50). All images and videos are automatically equipped with mandatory visual indicators and invisible cryptographic C2PA metadata, ensuring full transparency.",
+    "badge1": "AI Act (Article 50)",
+    "badge2": "C2PA Content Credentials"
+  },
   "savingsNudge": {
     "text": "Save up to 18,000 DKK+ on post-production per property —",
     "link": "see the calculation"
@@ -356,6 +362,7 @@
   },
   "trustMarquee": [
     "Built for the European property market",
+    "🔒 100% EU AI Act Compliant — Article 50",
     "GDPR-compliant — your data stays in the EU",
     "No lock-in — cancel anytime",
     "Professional quality in 30 seconds",

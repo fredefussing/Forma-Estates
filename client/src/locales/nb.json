@@ -51,6 +51,12 @@
       "afterLabel": "3D"
     }
   ],
+  "euCompliance": {
+    "title": "100% EU AI Act Compliant",
+    "body": "Systemet vårt oppfyller alle krav i EU's AI-forordning (Artikkel 50). Alle bilder og videoer forsynes automatisk med lovpålagte visuelle indikatorer og usynlige kryptografiske C2PA-metadata.",
+    "badge1": "AI Act (Artikkel 50)",
+    "badge2": "C2PA Content Credentials"
+  },
   "savingsNudge": {
     "text": "Spar opptil 18 000 kr+ på etterproduksjon per bolig —",
     "link": "se beregningen her"
@@ -356,6 +362,7 @@
   },
   "trustMarquee": [
     "Bygget for det skandinaviske eiendomsmarkedet",
+    "🔒 100% EU AI Act Compliant — Artikkel 50",
     "GDPR-compliant — dine data forblir i EU",
     "Ingen binding — avslutt når du vil",
     "Profesjonell kvalitet på 30 sekunder",

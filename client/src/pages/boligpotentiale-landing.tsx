@@ -1430,6 +1430,45 @@ export default function BoligpotentialeLanding() {
 
       <TrustMarquee />
 
+      {/* ── EU AI ACT COMPLIANCE STRIP ── */}
+      <div style={{ background: "#080F1A", borderBottom: "1px solid rgba(200,149,108,0.14)", padding: "18px 24px" }}>
+        <div className="mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-10" style={{ maxWidth: 1080 }}>
+          {/* Ikon + tekst */}
+          <div className="flex items-start gap-4" style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%", flexShrink: 0, marginTop: 1,
+              background: "rgba(200,149,108,0.10)", border: "1px solid rgba(200,149,108,0.28)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
+            }}>🔒</div>
+            <div>
+              <div style={{ color: "#C8956C", fontSize: 11, fontWeight: 700, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 5, fontFamily: SANS }}>
+                {t("euCompliance.title")}
+              </div>
+              <div style={{ color: "rgba(245,243,239,0.55)", fontSize: 12, lineHeight: 1.6, fontFamily: SANS, maxWidth: 640 }}>
+                {t("euCompliance.body")}
+              </div>
+            </div>
+          </div>
+          {/* Compliance badges */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap" style={{ flexShrink: 0, paddingLeft: 52 }} >
+            {[t("euCompliance.badge1"), t("euCompliance.badge2")].map((badge) => (
+              <span key={badge} style={{
+                background: "rgba(200,149,108,0.08)",
+                border: "1px solid rgba(200,149,108,0.28)",
+                borderRadius: 4,
+                padding: "4px 10px",
+                fontSize: 10,
+                color: "#C8956C",
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                whiteSpace: "nowrap",
+                fontFamily: SANS,
+              }}>{badge}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* ── SAVINGS NUDGE ── */}
       <div style={{ background: "#0B1929", borderBottom: "1px solid rgba(200,149,108,0.12)", padding: "8px 24px" }}>
         <div className="flex justify-center">

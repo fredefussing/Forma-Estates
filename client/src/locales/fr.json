@@ -51,6 +51,12 @@
       "afterLabel": "3D"
     }
   ],
+  "euCompliance": {
+    "title": "100% conforme au règlement IA de l'UE",
+    "body": "Notre système répond à toutes les exigences du règlement IA de l'UE (Article 50). Toutes les images et vidéos sont automatiquement dotées d'indicateurs visuels obligatoires et de métadonnées C2PA cryptographiques invisibles.",
+    "badge1": "Règlement IA (Article 50)",
+    "badge2": "C2PA Content Credentials"
+  },
   "savingsNudge": {
     "text": "Économisez jusqu'à 18 000 DKK+ en post-production par bien —",
     "link": "voir le calcul"
@@ -356,6 +362,7 @@
   },
   "trustMarquee": [
     "Conçu pour le marché immobilier européen",
+    "🔒 100% conforme au règlement IA de l'UE — Art. 50",
     "Conforme au RGPD — vos données restent dans l'UE",
     "Sans engagement — annulez à tout moment",
     "Qualité professionnelle en 30 secondes",
