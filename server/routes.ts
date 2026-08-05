@@ -381,6 +381,43 @@ function injectXmpIntoJpeg(jpegBuf: Buffer, xmpPacket: string): Buffer {
   return Buffer.concat([jpegBuf.slice(0, 2), hdr, ns, xmp, jpegBuf.slice(2)]);
 }
 
+// ── EU AI Act Art. 50 — XMP-injection via PNG iTXt-chunk (manuel) ────────────
+// Sharp withMetadata({ xmp }) på raw-input PNG er upålidelig (bekræftet ❌ i test).
+// Manuel injection via standard PNG iTXt-chunk — spec: PNG §11.3.4 + Adobe XMP Pt.3.
+function injectXmpIntoPng(pngBuf: Buffer, xmpPacket: string): Buffer {
+  const SIG = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  if (!pngBuf || pngBuf.length < 12 || !pngBuf.slice(0, 8).equals(SIG)) return pngBuf;
+  // CRC32 (kræves for hvert PNG-chunk)
+  const crcT = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    crcT[i] = c;
+  }
+  const crc32 = (b: Buffer): number => {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  };
+  // iTXt-chunk: keyword\0 comp_flag(0) comp_method(0) lang\0 trans_kw\0 text
+  const kw   = Buffer.from("XML:com.adobe.xmp\0", "ascii");
+  const body = Buffer.concat([Buffer.from([0, 0, 0, 0]), Buffer.from(xmpPacket, "utf8")]);
+  const cd   = Buffer.concat([kw, body]);
+  const ct   = Buffer.from("iTXt", "ascii");
+  const lb   = Buffer.alloc(4); lb.writeUInt32BE(cd.length, 0);
+  const cb   = Buffer.alloc(4); cb.writeUInt32BE(crc32(Buffer.concat([ct, cd])), 0);
+  const iTXt = Buffer.concat([lb, ct, cd, cb]);
+  // Indsæt FØR første IDAT-chunk
+  let pos = 8;
+  while (pos + 12 <= pngBuf.length) {
+    const len  = pngBuf.readUInt32BE(pos);
+    const type = pngBuf.slice(pos + 4, pos + 8).toString("ascii");
+    if (type === "IDAT") return Buffer.concat([pngBuf.slice(0, pos), iTXt, pngBuf.slice(pos)]);
+    pos += 12 + len;
+  }
+  return pngBuf;
+}
+
 // Generér et EU AI Act-kompatibelt XMP/C2PA-pakke til en specifik handling.
 function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix = ""): string {
   return (
@@ -2883,11 +2920,12 @@ export async function registerRoutes(
         if (!skipWatermark) pipeline = pipeline.composite([{ input: svgWatermark, blend: "over" }]);
 
         if (format === "png") {
-          // PNG: SS-vandmærke via raw pixels, XMP via withMetadata (virker for PNG).
+          // PNG: SS-vandmærke via raw pixels + XMP via manuel iTXt-chunk injection.
           const { data: pngRaw, info: pngInfo } = await pipeline.flatten().raw().toBuffer({ resolveWithObject: true });
           const pngMarked = ssWatermarkEmbed(pngRaw, pngInfo.width, pngInfo.height, pngInfo.channels);
-          const out = await sharp(pngMarked, { raw: { width: pngInfo.width, height: pngInfo.height, channels: pngInfo.channels } })
-            .withMetadata({ xmp: Buffer.from(xmpPacket) }).png().toBuffer();
+          const rawPng = await sharp(pngMarked, { raw: { width: pngInfo.width, height: pngInfo.height, channels: pngInfo.channels } })
+            .png().toBuffer();
+          const out = injectXmpIntoPng(rawPng, xmpPacket);
           res.setHeader("Content-Type", "image/png");
           res.setHeader("Cache-Control", "private, max-age=86400");
           res.end(out);
@@ -3794,7 +3832,8 @@ export async function registerRoutes(
           try {
             const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
             const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-            await burnEuWatermark(rawMp4, wmTmp);
+            const wmLang = String(req.query.lang || "da");
+            await burnEuWatermark(rawMp4, wmTmp, wmLang);
             fs.renameSync(wmTmp, rawMp4);
             log(`[Video] EU Art.50 watermark burned → ${localVideoUrl}`);
           } catch (wmErr: any) {
@@ -4117,7 +4156,7 @@ export async function registerRoutes(
       }
       const paths = files.map((f) => path.join(uploadDir, f.filename));
       const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 80) : undefined;
-      const jobId = startWalkthroughVideo(paths, uploadDir, address);
+      const jobId = startWalkthroughVideo(paths, uploadDir, address, String(req.body?.lang || req.headers["x-lang"] || "da"));
       if (!jobId) {
         if (walkthroughUserId) storage.refundQuota(walkthroughUserId, "showcase").catch(() => {});
         for (const p of paths) fs.promises.unlink(p).catch(() => {});
@@ -4339,6 +4378,7 @@ export async function registerRoutes(
       //    og nedskriver refusionssaldoen, så SSE-fejl-refusionen ikke dobbelttæller.
       const userId = filmUser.id;
       let jobId: string | null = null;
+      const filmLang = String(req.body?.lang || req.headers["x-lang"] || "da");
       jobId = startTransformFilm(pairs, uploadDir, address, () => {
         storage.refundQuota(userId, "transformVideo").catch(() => {});
         if (jobId) {
@@ -4354,7 +4394,7 @@ export async function registerRoutes(
         if (!jobId) return;
         if (failed) refundTransformFilm(jobId);
         else transformFilmRefunds.delete(jobId);
-      }, filmPublicBaseUrl);
+      }, filmPublicBaseUrl, filmLang);
       if (!jobId) {
         for (let j = 0; j < charged; j++) storage.refundQuota(userId, "transformVideo").catch(() => {});
         cleanupCopies();

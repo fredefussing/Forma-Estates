@@ -877,10 +877,20 @@ const CONTACT_TEXT =
 // Bruges til MP4-filer der IKKE samles af assembleVideo() (f.eks. fal.ai transform-video).
 // Brænder "AI Modified"-badge ind i alle rammer via FFmpeg drawbox+drawtext.
 // Badge-højde: 66px (over EU-minimumskrav på 64px). Mørk baggrund 88% opacity for kontrast.
-export async function burnEuWatermark(inputPath: string, outputPath: string): Promise<void> {
+const VIDEO_EU_LABELS: Record<string, string> = {
+  da: "AI Redigeret", en: "AI Modified", sv: "AI Redigerad",
+  de: "AI Bearbeitet", nb: "AI Redigert", no: "AI Redigert",
+  es: "AI Modificado", fr: "AI Modifie",
+};
+function euBadgeText(lang = "da"): string {
+  return VIDEO_EU_LABELS[lang.split("-")[0].toLowerCase()] ?? "AI Modified";
+}
+
+export async function burnEuWatermark(inputPath: string, outputPath: string, lang = "da"): Promise<void> {
+  const label = euBadgeText(lang);
   const euFilter = [
-    `drawbox=x=iw-310:y=ih-76:w=300:h=66:color=0x0A0A14@0.88:t=fill`,
-    `drawtext=fontfile=${FONT_BOLD}:text='AI Modified':fontsize=32:fontcolor=white:x=iw-290:y=ih-54`,
+    `drawbox=x=iw-320:y=ih-76:w=310:h=66:color=0x0A0A14@0.88:t=fill`,
+    `drawtext=fontfile=${FONT_BOLD}:text='${label}':fontsize=32:fontcolor=white:x=iw-300:y=ih-54`,
   ].join(",");
   await runFfmpeg(["-y", "-i", inputPath, "-vf", euFilter, "-c:a", "copy", outputPath]);
 }
@@ -1236,6 +1246,7 @@ async function assembleVideo(
   moodKey: string,
   startText?: string,
   endText?: string,
+  lang = "da",
 ): Promise<string> {
   const { inputPaths, slideCount, slideDur, musicSeek, filter } = inputs;
   const ts = Date.now();
@@ -1319,12 +1330,11 @@ async function assembleVideo(
   }
 
   const videoFadeOut = Math.max(0, videoTotal - 1.0).toFixed(2);
-  // EU AI Act Art. 50 Regel 3+4: "AI Modified" badge bages ind i ALLE videorammer,
-  // hele varighed. Kan ikke frakobles. Badge-højde 66px > 64px-minimum. Mørk boks
-  // med 88% opacity sikrer kontrast-kravet uanset baggrundsbilledet.
+  // EU AI Act Art. 50 Regel 3+4: lokaliseret badge bages ind i ALLE videorammer,
+  // hele varighed. Badge-højde 66px > 64px-minimum. Mørk boks 88% opacity = kontrast OK.
   const euBadge =
-    `drawbox=x=iw-310:y=ih-76:w=300:h=66:color=0x0A0A14@0.88:t=fill,` +
-    `drawtext=fontfile=${FONT_BOLD}:text='AI Modified':fontsize=32:fontcolor=white:x=iw-290:y=ih-54`;
+    `drawbox=x=iw-320:y=ih-76:w=310:h=66:color=0x0A0A14@0.88:t=fill,` +
+    `drawtext=fontfile=${FONT_BOLD}:text='${euBadgeText(lang)}':fontsize=32:fontcolor=white:x=iw-300:y=ih-54`;
   const videoFadeChain =
     `;[vout]fade=t=in:st=0:d=0.5:color=black,` +
     `fade=t=out:st=${videoFadeOut}:d=1.0:color=black,` +
@@ -1475,8 +1485,8 @@ async function render(
         ]);
       }
       // Sekventielt — to samtidige FFmpeg-processer + R2-uploads sprængte 512MB.
-      const main  = await assembleVideo(inputs,      outDir, address, m,            startText, endText);
-      const clean = await assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText);
+      const main  = await assembleVideo(inputs,      outDir, address, m,            startText, endText, lang);
+      const clean = await assembleVideo(cleanInputs, outDir, address, `${m}-clean`, startText, endText, lang);
       videoUrls[m] = main;
       cleanVideoUrls[m] = clean;
     });
@@ -1567,6 +1577,7 @@ async function renderWalkthrough(
   imagePaths: string[],
   outDir: string,
   address?: string,
+  lang = "da",
 ): Promise<void> {
   await acquireSlot();
   try {
@@ -1597,7 +1608,7 @@ async function renderWalkthrough(
       } else {
         inputs = await buildLocalInputs(imagePaths, mood);
       }
-      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, undefined, undefined);
+      videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, undefined, undefined, lang);
 
       let cleanInputs: RenderInputs;
       if (clipData) {
@@ -1605,7 +1616,7 @@ async function renderWalkthrough(
       } else {
         cleanInputs = await buildLocalInputsCleanLandscape(imagePaths, mood);
       }
-      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`, undefined, undefined);
+      cleanVideoUrls[mood] = await assembleVideo(cleanInputs, outDir, address, `${mood}-clean`, undefined, undefined, lang);
     }
 
     if (clipData) {
@@ -1629,6 +1640,7 @@ export function startWalkthroughVideo(
   imagePaths: string[],
   outDir: string,
   address?: string,
+  lang = "da",
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) return null;
@@ -1640,7 +1652,7 @@ export function startWalkthroughVideo(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  renderWalkthrough(jobId, imagePaths, outDir, address)
+  renderWalkthrough(jobId, imagePaths, outDir, address, lang)
     .catch((err: any) => {
       const cur = jobs.get(jobId);
       jobs.set(jobId, {
@@ -1803,7 +1815,7 @@ export async function assembleFilmFromClips(
     durations.push(await ffprobeDuration(c));
   }
   const inputs = makeRenderInputsFilm({ clipPaths, sizes, durations });
-  return assembleVideo(inputs, outDir, address, mood, undefined, undefined);
+  return assembleVideo(inputs, outDir, address, mood, undefined, undefined, lang);
 }
 
 async function renderTransformFilm(
@@ -1813,6 +1825,7 @@ async function renderTransformFilm(
   address?: string,
   onClipFailed?: () => void,
   publicBaseUrl?: string,
+  lang = "da",
 ): Promise<void> {
   if (activeRenders >= MAX_CONCURRENT) {
     setProgress(jobId, { stage: "uploading", currentClip: 0, totalClips: pairs.length, message: "Venter på ledig plads… (1-2 job kører allerede)" });
@@ -1835,7 +1848,7 @@ async function renderTransformFilm(
       const videoUrls: Record<string, string> = {};
       for (const mood of FILM_MOODS) {
         emit({ stage: "compositing", currentClip: n, totalClips: n, message: `Sammensætter ${MOOD_LABELS[mood]}…` });
-        videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, undefined, undefined);
+        videoUrls[mood] = await assembleVideo(inputs, outDir, address, mood, undefined, undefined, lang);
       }
 
       const doneMsg = n < pairs.length ? `Film klar (${n} af ${pairs.length} rum lykkedes)` : "4 film klar!";
@@ -1863,6 +1876,7 @@ export function startTransformFilm(
   onClipFailed?: () => void,
   onDone?: (failed: boolean) => void,
   publicBaseUrl?: string,
+  lang = "da",
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) return null;
@@ -1874,7 +1888,7 @@ export function startTransformFilm(
     progress: { stage: "uploading", currentClip: 0, totalClips, message: "Starter op…" },
   });
 
-  renderTransformFilm(jobId, pairs.slice(0, MAX_FILM_PAIRS), outDir, address, onClipFailed, publicBaseUrl)
+  renderTransformFilm(jobId, pairs.slice(0, MAX_FILM_PAIRS), outDir, address, onClipFailed, publicBaseUrl, lang)
     .then(() => {
       // Server-side afregning ved succes — afhænger ikke af at klienten poller.
       onDone?.(false);
