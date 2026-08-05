@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { setExplicitLang } from "@/i18n";
+import i18n, { setExplicitLang } from "@/i18n";
 import { CrmView } from "@/components/crm-view";
 import { LeadsView } from "@/components/leads-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
@@ -203,7 +203,7 @@ async function fetchImageAsDataUrl(url: string): Promise<{ dataUrl: string; w: n
     let init: RequestInit = { mode: "cors", credentials: "omit" };
     if (url.startsWith("http") && !url.startsWith(window.location.origin)) {
       const token = await auth.currentUser?.getIdToken().catch(() => undefined);
-      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&plain=1`;
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&plain=1&lang=${i18n.language}`;
       init = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     }
     const res = await fetch(fetchUrl, init);
@@ -440,10 +440,10 @@ async function downloadImageFile(
   if (url.startsWith("http")) {
     if (opts.skipWatermark) {
       const token = await auth.currentUser?.getIdToken().catch(() => undefined);
-      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}&plain=1`;
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}&plain=1&lang=${i18n.language}`;
       if (token) fetchInit = { headers: { Authorization: `Bearer ${token}` } };
     } else {
-      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}`;
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}&lang=${i18n.language}`;
     }
   } else {
     fetchUrl = url;

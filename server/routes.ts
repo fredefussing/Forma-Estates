@@ -2805,9 +2805,21 @@ export async function registerRoutes(
         // via injectXmpIntoJpeg() for garanteret embedding (Sharp withMetadata er upålidelig for JPEG).
         const xmpPacket = buildEuXmpPacket("c2pa.modified", "Staging");
 
-        // EU AI Act Art. 50 Regel 3+4: "AI Modified" badge (redigeret foto, ikke fuldt genereret).
-        // Minimumshøjde: 64px (EU-krav for ca. 2-5% af mediets areal).
-        const wmText = "AI Modified";
+        // EU AI Act Art. 50 Regel 3+4: lokaliseret badge-tekst ud fra brugerens sprog.
+        // Minimumshøjde: 64px. Sproget sendes som ?lang= fra klienten.
+        const AI_BADGE_LABELS: Record<string, string> = {
+          da: "AI Redigeret",
+          en: "AI Modified",
+          sv: "AI Redigerad",
+          de: "AI Bearbeitet",
+          nb: "AI Redigert",
+          no: "AI Redigert",
+          es: "AI Modificado",
+          fr: "AI Modifié",
+        };
+        const badgeLang = (typeof req.query.lang === "string" ? req.query.lang : "da")
+          .split("-")[0].toLowerCase();
+        const wmText = AI_BADGE_LABELS[badgeLang] ?? "AI Modified";
         // EU Regel 4: minimumstext-størrelse sikrer badge-højde over 64px på alle billedstørrelser
         const fontSize = Math.max(25, Math.round(imgH * 0.032));
         const letterSpacing = Math.round(fontSize * 0.07);

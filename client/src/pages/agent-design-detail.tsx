@@ -7,6 +7,7 @@ import { Flame, ArrowLeft, Loader2, Download, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentDesign } from "@shared/schema";
 import { auth } from "@/lib/firebase";
+import i18n from "@/i18n";
 
 function useWatermarkPreference() {
   const [watermark, setWatermarkState] = useState<boolean>(() =>
@@ -97,7 +98,7 @@ export default function AgentDesignDetailPage() {
   const doDownload = async () => {
     if (!design?.resultImageUrl) return;
     let fetchUrl = design.resultImageUrl.startsWith("http")
-      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
+      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg&lang=${i18n.language}`
       : design.resultImageUrl;
     const fetchInit: RequestInit = {};
     // plain=1 (uden synligt vandmærke) — KUN for admin, jf. EU AI Act Art. 50

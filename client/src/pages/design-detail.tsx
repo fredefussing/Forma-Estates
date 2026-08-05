@@ -10,6 +10,7 @@ import type { Design } from "@shared/schema";
 import { styleVocabulary, type BudgetTier } from "@shared/styleVocabulary";
 import { formatDKK, getTierLabel } from "@shared/budgetUtils";
 import { auth } from "@/lib/firebase";
+import i18n from "@/i18n";
 
 function useWatermarkPreference() {
   const [watermark, setWatermarkState] = useState<boolean>(() =>
@@ -165,7 +166,7 @@ export default function DesignDetailPage() {
   const doDownload = async () => {
     if (!design.resultImageUrl) return;
     let fetchUrl = design.resultImageUrl.startsWith("http")
-      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg`
+      ? `/api/proxy-image?url=${encodeURIComponent(design.resultImageUrl)}&format=jpg&lang=${i18n.language}`
       : design.resultImageUrl;
     const fetchInit: RequestInit = {};
     // plain=1 (uden synligt vandmærke) — KUN for admin, jf. EU AI Act Art. 50

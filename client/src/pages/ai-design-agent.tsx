@@ -11,6 +11,7 @@ import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight, Globe, Chev
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 function useWatermarkPreference() {
   const [watermark, setWatermarkState] = useState<boolean>(() =>
@@ -239,7 +240,7 @@ export default function AIDesignAgentPage() {
     if (!resultUrl) return;
     try {
       let proxyUrl = resultUrl.startsWith("http")
-        ? `/api/proxy-image?url=${encodeURIComponent(resultUrl)}&format=jpg`
+        ? `/api/proxy-image?url=${encodeURIComponent(resultUrl)}&format=jpg&lang=${i18n.language}`
         : resultUrl;
       const fetchInit: RequestInit = {};
       if (!watermark && resultUrl.startsWith("http")) {
