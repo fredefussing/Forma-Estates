@@ -5554,7 +5554,7 @@ export async function registerRoutes(
   });
 
   // ── TEMP: one-time f1 fix for 33 ark/builder leads on Render DB ──────────
-  app.post("/api/diag/f1ark-fix-z9x", async (req, res) => {
+  app.post("/internal/f1ark-fix-z9x", async (req, res) => {
     try {
       if (req.body?.secret !== "ark5aug26") return res.status(403).json({ error: "forbidden" });
       const names33 = ['ag5','Arkitektfirma Hune & Elkjær','ardess_','Alex Poulsen Arkitekter A/S','BBP Arkitekter','Kjaer & Richter','Berg Arkitekter Nordsjælland','BIOSIS','arkitektfirmaet_vest','cco_architects','Bjerg Arkitektur','Birch & Rasmussen','BRIXVAL','Cornelius Vöge','Pia Dyrendahl Staven','creo Arkitekter A/S','Fogh & Følner Arkitekter','Gottlieb Paludan Architects','Juul Frost Arkitekter','KRADS','Sjæl Arkitekter ApS','Danielsen Spaceplanning','N+P ARKITEKTUR','Nøhr & Sigsgaard','Novaform','Monitz Architecture Studio','ESJA Architecture','Mæglerfirmaet Henrik Ejby','Lezibo Tømrer & Snedker ApS','Thomas Blues Aaby','Damgaard Byg v. Mads Carøe','Nybolig Galten-Skovby-Harlev','Brædstrup, Tørring & Jelling'];
