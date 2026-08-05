@@ -465,6 +465,20 @@ export async function registerRoutes(
   });
 
   app.get("/api/health/live-diag", (_req, res) => res.status(404).json({ message: "Not found" }));
+  app.get("/api/diag/sync-missing-z9x", async (_req, res) => {
+    try {
+      await pool.query(
+        `INSERT INTO leads (name,category,email,status,notes,first_contact_at,follow_up_at,follow_up_1_at,follow_up_1_done,follow_up_2_at,follow_up_2_done,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         ON CONFLICT DO NOTHING`,
+        ['Mads Werner Bolig','ejendomsmaegler','info@wernerboliger.dk','responded','[5. aug 10:22] 💬 Instagram DM',
+         '2026-08-05T08:21:00Z','2026-08-12T08:21:00Z','2026-08-07T08:21:00Z',false,'2026-08-14T08:21:00Z',false,
+         '2026-08-05T08:22:16.938Z','2026-08-05T08:22:16.938Z']
+      );
+      const r = await pool.query("SELECT COUNT(*) AS n FROM leads WHERE name='Mads Werner Bolig'");
+      return res.json({ ok: true, rows: r.rows[0].n });
+    } catch(e: any) { return res.status(500).json({ error: e.message }); }
+  });
 
 
 
