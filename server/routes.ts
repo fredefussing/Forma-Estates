@@ -466,33 +466,6 @@ export async function registerRoutes(
 
   app.get("/api/health/live-diag", (_req, res) => res.status(404).json({ message: "Not found" }));
 
-  // ── ONE-TIME leads migration — remove after running ───────────────────────
-  app.post("/api/admin/migrate-leads", async (req, res) => {
-    const { password } = req.body || {};
-    if (password !== "fe-leads-migrate-x9k2p7") return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { LEADS_MIGRATION_DATA } = await import("./leads-migration-data.js");
-      let inserted = 0, skipped = 0;
-      for (const r of LEADS_MIGRATION_DATA as any[]) {
-        try {
-          await pool.query(
-            `INSERT INTO leads (name,category,instagram_handle,email,phone,status,notes,first_contact_at,follow_up_at,follow_up_1_at,follow_up_1_done,follow_up_2_at,follow_up_2_done,last_contacted_at,created_at,updated_at)
-             OVERRIDING SYSTEM VALUE VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-             ON CONFLICT DO NOTHING`,
-            [r.name,r.category,r.instagram_handle||null,r.email||null,r.phone||null,r.status,r.notes||null,
-             r.first_contact_at||null,r.follow_up_at||null,r.follow_up_1_at||null,
-             r.follow_up_1_done==='t'||r.follow_up_1_done===true,
-             r.follow_up_2_at||null,
-             r.follow_up_2_done==='t'||r.follow_up_2_done===true,
-             r.last_contacted_at||null,r.created_at||null,r.updated_at||null]
-          );
-          inserted++;
-        } catch(e: any) { log(`[migrate-leads] skip ${r.name}: ${e.message}`); skipped++; }
-      }
-      return res.json({ success: true, inserted, skipped, total: (LEADS_MIGRATION_DATA as any[]).length });
-    } catch(e: any) { return res.status(500).json({ error: e.message }); }
-  });
-  // ── end ONE-TIME migration ────────────────────────────────────────────────
 
 
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
