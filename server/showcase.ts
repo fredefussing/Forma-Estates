@@ -873,6 +873,18 @@ const FONT      = FONT_BOLD; // legacy alias
 const CONTACT_TEXT =
   "Forma Estates  |  +45 70 70 70 70  |  kontakt@formaestates.com";
 
+// ── EU AI Act Art. 50 — ekstern video-vandmærkning ───────────────────────────
+// Bruges til MP4-filer der IKKE samles af assembleVideo() (f.eks. fal.ai transform-video).
+// Brænder "AI Modified"-badge ind i alle rammer via FFmpeg drawbox+drawtext.
+// Badge-højde: 66px (over EU-minimumskrav på 64px). Mørk baggrund 88% opacity for kontrast.
+export async function burnEuWatermark(inputPath: string, outputPath: string): Promise<void> {
+  const euFilter = [
+    `drawbox=x=iw-310:y=ih-76:w=300:h=66:color=0x0A0A14@0.88:t=fill`,
+    `drawtext=fontfile=${FONT_BOLD}:text='AI Modified':fontsize=32:fontcolor=white:x=iw-290:y=ih-54`,
+  ].join(",");
+  await runFfmpeg(["-y", "-i", inputPath, "-vf", euFilter, "-c:a", "copy", outputPath]);
+}
+
 // White text centred inside a thin semi-transparent dark box — the pill/bar look
 // seen on premium real-estate reels. `box=1` draws the background rect; `boxborderw`
 // adds padding inside the box around the text.
@@ -1307,9 +1319,16 @@ async function assembleVideo(
   }
 
   const videoFadeOut = Math.max(0, videoTotal - 1.0).toFixed(2);
+  // EU AI Act Art. 50 Regel 3+4: "AI Modified" badge bages ind i ALLE videorammer,
+  // hele varighed. Kan ikke frakobles. Badge-højde 66px > 64px-minimum. Mørk boks
+  // med 88% opacity sikrer kontrast-kravet uanset baggrundsbilledet.
+  const euBadge =
+    `drawbox=x=iw-310:y=ih-76:w=300:h=66:color=0x0A0A14@0.88:t=fill,` +
+    `drawtext=fontfile=${FONT_BOLD}:text='AI Modified':fontsize=32:fontcolor=white:x=iw-290:y=ih-54`;
   const videoFadeChain =
     `;[vout]fade=t=in:st=0:d=0.5:color=black,` +
-    `fade=t=out:st=${videoFadeOut}:d=1.0:color=black[vfinal]`;
+    `fade=t=out:st=${videoFadeOut}:d=1.0:color=black,` +
+    `${euBadge}[vfinal]`;
 
   let finalFilter = filter + overlayChain + videoFadeChain;
   if (musicPath) {

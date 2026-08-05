@@ -22,7 +22,7 @@ import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStri
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
-import { startWalkthroughVideo, startTransformFilm, getShowcaseJob } from "./showcase";
+import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
 
@@ -373,7 +373,28 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
     curl.on("error", reject);
   });
   if (buffer.length < 1000) throw new Error("VST: image buffer too small — fetch likely failed");
+  // EU AI Act Art. 50: XMP/C2PA-metadata bages ind i alle disk-gemte filer — selv dem
+  // der ikke bliver downloadet via proxy-image. Sikrer at filen altid bærer sin mærkning.
+  const vstXmp = Buffer.from(
+    `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
+    `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
+    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+    `<rdf:Description rdf:about=""` +
+    ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
+    ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
+    ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
+    `>` +
+    `<dc:creator>Forma Estates AI</dc:creator>` +
+    `<xmp:CreatorTool>Forma Estates AI Staging (formaestates.com)</xmp:CreatorTool>` +
+    `<xmp:CreateDate>${new Date().toISOString()}</xmp:CreateDate>` +
+    `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
+    `<c2pa:action>c2pa.modified</c2pa:action>` +
+    `<c2pa:softwareAgent>Forma Estates AI</c2pa:softwareAgent>` +
+    `</rdf:Description></rdf:RDF></x:xmpmeta>` +
+    `<?xpacket end="w"?>`
+  );
   const enhanced = await (sharp(buffer) as any)
+    .withMetadata({ xmp: vstXmp })
     .sharpen({ sigma: 1.0, flat: 0.5, jagged: 2 })
     .clahe({ width: 50, height: 50, maxSlope: 3 })
     .modulate({ saturation: 1.05, brightness: 1.02 })
@@ -2714,20 +2735,23 @@ export async function registerRoutes(
           `<?xpacket end="w"?>`
         );
 
-        // EU-standard label: "AI Modified" (redigeret foto, ikke fuldt genereret)
+        // EU AI Act Art. 50 Regel 3+4: "AI Modified" badge (redigeret foto, ikke fuldt genereret).
+        // Minimumshøjde: 64px (EU-krav for ca. 2-5% af mediets areal).
         const wmText = "AI Modified";
-        const fontSize = Math.max(22, Math.round(imgH * 0.026));
+        // EU Regel 4: minimumstext-størrelse sikrer badge-højde over 64px på alle billedstørrelser
+        const fontSize = Math.max(25, Math.round(imgH * 0.032));
         const letterSpacing = Math.round(fontSize * 0.07);
         const padRight = Math.round(imgW * 0.022);
         const padBottom = Math.round(imgH * 0.022);
         const hPad = Math.round(fontSize * 0.8);
-        // AI-cirkel ikon (EU basic icon) + tekst
+        // AI-cirkel ikon (EU basic icon-format) + tekst
         const iconR = Math.round(fontSize * 0.55);
         const iconD = iconR * 2;
         const approxTextW = Math.round(fontSize * 0.52 * wmText.length) + letterSpacing * (wmText.length - 1);
         const gap = Math.round(fontSize * 0.4);
         const boxW = hPad + iconD + gap + approxTextW + hPad;
-        const boxH = Math.round(fontSize * 1.85);
+        // EU Regel 4: mindst 64px høj — Math.max sikrer dette selv på lille input
+        const boxH = Math.max(64, Math.round(fontSize * 1.85));
         const rx = Math.round(boxH / 2);
         const boxX = imgW - boxW - padRight;
         const boxY = imgH - boxH - padBottom;
@@ -3324,10 +3348,53 @@ export async function registerRoutes(
 
       log(`[3D] floorplan input: ${inputUrl}`);
       const startTime = Date.now();
-      const { imageUrl } = await generate3DFloorplanFromUrl(inputUrl, imgWidth, imgHeight);
+      const { imageUrl: falFloorplanUrl } = await generate3DFloorplanFromUrl(inputUrl, imgWidth, imgHeight);
       const processingTime = Math.round((Date.now() - startTime) / 1000);
-      log(`[3D] floorplan done in ${processingTime}s → ${imageUrl.slice(0, 60)}`);
+      log(`[3D] floorplan done in ${processingTime}s → ${falFloorplanUrl.slice(0, 60)}`);
       if (floorPlanUserId) storage.logCrmActivity(floorPlanUserId, "visualization", "3D Plantegning").catch(() => {});
+
+      // EU AI Act Art. 50: fal.ai-URL må ikke leveres direkte — download lokalt og
+      // bak XMP/C2PA-metadata ind, så filen bærer sin mærkning uanset adgangsmetode.
+      let imageUrl = falFloorplanUrl;
+      try {
+        const fp3dXmp = Buffer.from(
+          `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
+          `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
+          `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+          `<rdf:Description rdf:about=""` +
+          ` xmlns:dc="http://purl.org/dc/elements/1.1/"` +
+          ` xmlns:xmp="http://ns.adobe.com/xap/1.0/"` +
+          ` xmlns:c2pa="http://c2pa.org/ns/c2pa/1.0/"` +
+          `>` +
+          `<dc:creator>Forma Estates AI</dc:creator>` +
+          `<xmp:CreatorTool>Forma Estates AI 3D Floorplan (formaestates.com)</xmp:CreatorTool>` +
+          `<xmp:CreateDate>${new Date().toISOString()}</xmp:CreateDate>` +
+          `<c2pa:claim_generator>Forma Estates/1.0</c2pa:claim_generator>` +
+          `<c2pa:action>c2pa.created</c2pa:action>` +
+          `<c2pa:softwareAgent>Forma Estates AI 3D</c2pa:softwareAgent>` +
+          `</rdf:Description></rdf:RDF></x:xmpmeta>` +
+          `<?xpacket end="w"?>`
+        );
+        const fpRaw = await new Promise<Buffer>((resolve, reject) => {
+          const chunks: Buffer[] = [];
+          const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", falFloorplanUrl]);
+          curl.stdout.on("data", (c: Buffer) => chunks.push(c));
+          curl.on("close", (code: number) => code !== 0 ? reject(new Error(`curl exit ${code}`)) : resolve(Buffer.concat(chunks)));
+          curl.on("error", reject);
+        });
+        if (fpRaw.length > 1000) {
+          const fpWithMeta = await (sharp(fpRaw) as any).withMetadata({ xmp: fp3dXmp }).jpeg({ quality: 95 }).toBuffer();
+          const fpFilename = `floorplan-3d-${Date.now()}.jpg`;
+          const fpLocalPath = path.join(uploadDir, fpFilename);
+          fs.writeFileSync(fpLocalPath, fpWithMeta);
+          r2UploadFile(fpLocalPath).catch((e: any) => log(`[R2] 3D floorplan upload failed: ${e?.message}`));
+          imageUrl = `/uploads/${fpFilename}`;
+          log(`[3D] saved locally with XMP metadata → ${imageUrl}`);
+        }
+      } catch (e: any) {
+        log(`[3D] local XMP save failed, fallback to fal url: ${e.message}`);
+      }
+
       return res.json({
         success: true,
         image_url: imageUrl,
@@ -3642,6 +3709,18 @@ export async function registerRoutes(
         try {
           localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
           log(`[Video] persisted → ${localVideoUrl}`);
+          // EU AI Act Art. 50 Regel 3+4: brænde "AI Modified" badge ind i ALLE rammer.
+          // Transform-video genereres eksternt (fal.ai), så assembleVideo() løber ikke.
+          // burnEuWatermark bruger FFmpeg drawbox+drawtext — badge synlig hele varighed.
+          try {
+            const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
+            const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+            await burnEuWatermark(rawMp4, wmTmp);
+            fs.renameSync(wmTmp, rawMp4);
+            log(`[Video] EU Art.50 watermark burned → ${localVideoUrl}`);
+          } catch (wmErr: any) {
+            log(`[Video] EU watermark burn failed (video stadig gyldig): ${wmErr.message}`);
+          }
         } catch (e: any) {
           log(`[Video] persist failed (using fal url): ${e.message}`);
         }
