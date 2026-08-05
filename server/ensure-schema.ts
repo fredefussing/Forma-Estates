@@ -281,6 +281,62 @@ export async function ensureSchema(): Promise<void> {
     },
   ];
 
+  // ── One-time: mark follow-up 1 done for all leads reached 5. aug ──────────
+  try {
+    await pool.query(`
+      DO $f1update$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM leads WHERE name='Werner Boliger' AND status='contacted' AND follow_up_1_done=false) THEN
+          UPDATE leads SET
+            follow_up_1_done=true,
+            follow_up_2_at='2026-08-12 10:00:00+00',
+            notes=COALESCE(notes || chr(10), '') || '[5. aug] ✅ Opfølgning 1 gennemført - 💬 Instagram DM',
+            updated_at=NOW()
+          WHERE name IN (
+            '2r Arkitekter','3T Totalbyggeri ApS','A1 Tegnestue','Aars Mægleren','Alecsander Delfs',
+            'Alexander Holm Hvidovre','danbolig Esbjerg','danbolig Frederiksværk','danboligGive',
+            'danbolig Herning','danbolig Odense C & Kerteminde','danbolig Søborg og Bagsværd',
+            'danbolig Stenløse','danbolig Vanløse','danbolig Viborg','danbolig Vordingborg',
+            'EDC BornholmerBo','EDC PEB Nørrebro/Nordvest','EDC Poul Erik Bech Aarhus C',
+            'EDC Poul Erik Bech Amagerbro','EDC Poul Erik Bech Frederiksberg',
+            'EDC Poul Erik Bech Jyllinge','EDC Poul Erik Bech Risskov','EDC Poul Erik Bech Rødovre',
+            'EDC Poul Erik Bech Silkeborg','EDC Poul Erik Bech Vordingborg',
+            'Ejendomsmæglerfirmaet Mogens Hansen','EjendomsmæglerKompagniet EMK',
+            'Ejendrøm Bramming','Ejendrøm Esbjerg','ejendrøm Varde','ejendrøm Vejen',
+            'Estate Frederiksberg C','Estate Hellerup Charlottenlund Klampenborg','Estate Hillerød',
+            'Færch Bolig','Fisker & Liljengren','KEC Bolig','Landbrugsmæglerne','LangelandsMægleren',
+            'Lintrup & Norgart A/S','LONE LEVIN Ejendom','Löwe Bruun Bornholm',
+            'Mæglerfirmaet FUR-SALLING-VESTHIMMERLAND','Meng Bolig & Erhverv',
+            'Nybolig Amager','Nybolig Esbjerg','Nybolig Fjord & Skov Vejen','Nybolig Haslev',
+            'Nybolig Herning','Nybolig Hillerød','Nybolig Holte-Vedbæk-Skodsborg-Nærum',
+            'Nybolig Ikast','Nybolig Silkeborg v. Jesper Lyngsø','Nybolig Skjern & Tarm',
+            'Nybolig Slagelse','Nybolig Svendborg','Nybolig Thisted','Nybolig v. Jan Milvertz',
+            'Nydan-Huse','Peter Due Bolig','Peter Hoe Ejendomme','Siesing Totalbyg',
+            'Signature Homes ApS','Stensbo Huse ApS','Storm & Dubourg I/S','TegnestuenFEM',
+            'Thobo-Carlsen & Partnere','Thomas Risager A/S','Thoustrup & Præstegaard','Tom Pedersen',
+            'Tømrerfirmaet Andreas Madsen','Tømrerfirmaet Lindinger ApS','Tømrerfirmaet MDM ApS',
+            'Tømrerfirmaet O.G','Tømrerfirmaet S.M Bang ApS','Trelleborg',
+            'Vejlemægleren','Winther Ejendomme','Wullf & Partnere'
+          ) AND follow_up_1_done=false;
+
+          UPDATE leads SET
+            status='responded', follow_up_1_done=true,
+            follow_up_2_at='2026-08-12 10:00:00+00',
+            notes=COALESCE(notes || chr(10), '') || '[5. aug] ✅ Opfølgning 1 gennemført - 💬 Instagram DM - Aftale! 🙌',
+            updated_at=NOW()
+          WHERE name='Werner Boliger' AND follow_up_1_done=false;
+
+          UPDATE leads SET
+            status='no',
+            notes=COALESCE(notes || chr(10), '') || '[5. aug] ❌ Takket nej',
+            updated_at=NOW()
+          WHERE name IN ('BoligOne Stine Kronvold','Nybolig Aarhus C Bruuns Bro','Linda Riis Ejendoms');
+        END IF;
+      END $f1update$
+    `);
+  } catch(e: any) { console.error('[ensure-schema] f1update:', e.message); }
+  // ── end one-time f1 update ─────────────────────────────────────────────────
+
   // ── One-time: insert leads added after the bulk migration ─────────────────
   const missingLeads = [
     { name: 'Mads Werner Bolig', category: 'ejendomsmaegler', email: 'info@wernerboliger.dk',
