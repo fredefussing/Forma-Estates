@@ -880,34 +880,34 @@ const SEASONS = [
 ] as const;
 
 const ROOM_TYPES = [
-  { value: "living room",      label: "Stue" },
-  { value: "bedroom",          label: "Soveværelse" },
-  { value: "kitchen",          label: "Køkken" },
-  { value: "bathroom",         label: "Badeværelse" },
-  { value: "dining room",      label: "Spisestue" },
-  { value: "home office",      label: "Hjemmekontor" },
-  { value: "kids room",        label: "Børneværelse" },
-  { value: "studio",           label: "Studio" },
-  { value: "game room",        label: "Spillerum" },
-  { value: "gym",              label: "Træningsrum" },
-  { value: "laundry room",     label: "Vaskerum" },
-  { value: "meeting room",     label: "Mødelokale" },
-  { value: "spa",              label: "Spa" },
-  { value: "outdoor",          label: "Udendørs" },
-  { value: "open plan living", label: "Åben stue/spisestue" },
-  { value: "entryway",         label: "Entré" },
+  { value: "living room",      label: "Stue",                labelKey: "dashboard.roomTypes.living_room" },
+  { value: "bedroom",          label: "Soveværelse",         labelKey: "dashboard.roomTypes.bedroom" },
+  { value: "kitchen",          label: "Køkken",              labelKey: "dashboard.roomTypes.kitchen" },
+  { value: "bathroom",         label: "Badeværelse",         labelKey: "dashboard.roomTypes.bathroom" },
+  { value: "dining room",      label: "Spisestue",           labelKey: "dashboard.roomTypes.dining_room" },
+  { value: "home office",      label: "Hjemmekontor",        labelKey: "dashboard.roomTypes.home_office" },
+  { value: "kids room",        label: "Børneværelse",        labelKey: "dashboard.roomTypes.kids_room" },
+  { value: "studio",           label: "Studio",              labelKey: "dashboard.roomTypes.studio" },
+  { value: "game room",        label: "Spillerum",           labelKey: "dashboard.roomTypes.game_room" },
+  { value: "gym",              label: "Træningsrum",         labelKey: "dashboard.roomTypes.gym" },
+  { value: "laundry room",     label: "Vaskerum",            labelKey: "dashboard.roomTypes.laundry_room" },
+  { value: "meeting room",     label: "Mødelokale",          labelKey: "dashboard.roomTypes.meeting_room" },
+  { value: "spa",              label: "Spa",                 labelKey: "dashboard.roomTypes.spa" },
+  { value: "outdoor",          label: "Udendørs",            labelKey: "dashboard.roomTypes.outdoor" },
+  { value: "open plan living", label: "Åben stue/spisestue", labelKey: "dashboard.roomTypes.open_plan_living" },
+  { value: "entryway",         label: "Entré",               labelKey: "dashboard.roomTypes.entryway" },
 ];
 
 const STYLES = [
-  { value: "scandinavian", label: "Skandinavisk" },
-  { value: "modern",       label: "Moderne" },
-  { value: "luxury",       label: "Luksus" },
-  { value: "industrial",   label: "Industriel" },
-  { value: "coastal",      label: "Kyst" },
-  { value: "bohemian",     label: "Bohemisk" },
-  { value: "japandi",      label: "Japandi" },
-  { value: "minimalist",   label: "Minimalistisk" },
-  { value: "farmhouse",    label: "Landlig" },
+  { value: "scandinavian", label: "Skandinavisk", labelKey: "dashboard.styles.scandinavian" },
+  { value: "modern",       label: "Moderne",      labelKey: "dashboard.styles.modern" },
+  { value: "luxury",       label: "Luksus",       labelKey: "dashboard.styles.luxury" },
+  { value: "industrial",   label: "Industriel",   labelKey: "dashboard.styles.industrial" },
+  { value: "coastal",      label: "Kyst",         labelKey: "dashboard.styles.coastal" },
+  { value: "bohemian",     label: "Bohemisk",     labelKey: "dashboard.styles.bohemian" },
+  { value: "japandi",      label: "Japandi",      labelKey: "dashboard.styles.japandi" },
+  { value: "minimalist",   label: "Minimalistisk",labelKey: "dashboard.styles.minimalist" },
+  { value: "farmhouse",    label: "Landlig",      labelKey: "dashboard.styles.farmhouse" },
 ];
 
 const BUDGET_TIERS = [
@@ -1379,14 +1379,14 @@ function CaseDetailPanel({
                   <Search className="w-7 h-7" style={{ color: "#C8956C" }} />
                 </div>
                 <p className="font-semibold mb-2" style={{ color: "#0F1D2F" }}>{t("dashboard.case.noImagesYet")}</p>
-                <p className="text-sm max-w-xs mb-6" style={{ color: "#6B6B6B" }}>Upload et rumfoto og generer dit første AI-potentialebillede</p>
+                <p className="text-sm max-w-xs mb-6" style={{ color: "#6B6B6B" }}>{t("dashboard.generate.emptySubtitle")}</p>
                 <button
                   onClick={() => setGenStep(1)}
                   className="h-10 px-6 rounded-full font-semibold text-white text-sm flex items-center gap-2 transition-all hover:-translate-y-0.5"
                   style={{ background: "#0F1D2F" }}
                   data-testid="bolig-gallery-empty-generate"
                 >
-                  <TrendingUp className="w-4 h-4" /> Generer første billede
+                  <TrendingUp className="w-4 h-4" /> {t("dashboard.generate.firstButton")}
                 </button>
               </div>
             ) : (
@@ -1581,14 +1581,14 @@ function CaseDetailPanel({
 
           <div className="rounded-2xl border border-[#E8E4DE] p-6 flex flex-col gap-5" style={{ background: "#fff" }}>
             <div>
-              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1" style={{ color: "#9B9690" }}>Generer nyt billede</p>
-              <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload et rumfoto og lad AI'en vise boligens fulde potentiale</p>
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1" style={{ color: "#9B9690" }}>{t("dashboard.generate.sectionTitle")}</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.generate.subtitle")}</p>
             </div>
             <div className="flex flex-col gap-2 text-sm" style={{ color: "#1A1A1A" }}>
               {[
-                { n: "1", label: "Upload et rumfoto" },
-                { n: "2", label: "Vælg rum, stil & budget" },
-                { n: "3", label: "Se AI-visualisering" },
+                { n: "1", label: t("dashboard.generate.step1") },
+                { n: "2", label: t("dashboard.generate.step2") },
+                { n: "3", label: t("dashboard.generate.step3") },
               ].map((s) => (
                 <div key={s.n} className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0" style={{ background: "#F0EDE7", color: "#C8956C" }}>{s.n}</span>
@@ -1602,10 +1602,10 @@ function CaseDetailPanel({
               style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.2)" }}
               data-testid="bolig-case-start-generate"
             >
-              <TrendingUp className="w-4 h-4" /> Generer potentialebillede
+              <TrendingUp className="w-4 h-4" /> {t("dashboard.generate.button")}
             </button>
             {images.length > 0 && (
-              <p className="text-center text-xs" style={{ color: "#9B9690" }}>{images.length} tidligere visual{images.length !== 1 ? "s" : ""} i galleriet</p>
+              <p className="text-center text-xs" style={{ color: "#9B9690" }}>{t("dashboard.generate.gallery", { count: images.length })}</p>
             )}
           </div>
 
@@ -1621,9 +1621,9 @@ function CaseDetailPanel({
           {/* Step indicator */}
           <div className="flex items-center justify-center gap-2 mb-8">
             {([
-              { n: 1, label: "Upload billede" },
-              { n: 2, label: "Vælg stil & budget" },
-              { n: 3, label: "Resultat" },
+              { n: 1, label: t("dashboard.wizard.step1") },
+              { n: 2, label: t("dashboard.wizard.step2") },
+              { n: 3, label: t("dashboard.wizard.step3") },
             ] as const).map(({ n, label }, idx) => (
               <div key={n} className="flex items-center gap-2">
                 {idx > 0 && (
@@ -1652,14 +1652,14 @@ function CaseDetailPanel({
               <motion.div key="gen-step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28, ease: "easeOut" }}>
                 <div className="max-w-xl mx-auto text-center pt-4 pb-10">
                   <h2 className="text-3xl sm:text-4xl font-semibold mb-4" style={{ color: "#0F1D2F", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-                    Upload et rumfoto
+                    {t("dashboard.wizard.uploadTitle")}
                   </h2>
                   <p className="text-[15px] mb-2 max-w-sm mx-auto" style={{ color: "#6B6B6B", lineHeight: 1.7 }}>
-                    Tag et foto af rummet — AI'en viser boligens fulde potentiale
+                    {t("dashboard.wizard.uploadSubtitle")}
                   </p>
                   <div className="flex items-center justify-center gap-4 text-[13px] mb-8">
-                    <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#0F1D2F" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> Klar på 30–60 sek</span>
-                    <span className="flex items-center gap-1.5" style={{ color: "#6B6B6B" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> Ingen design-erfaring nødvendig</span>
+                    <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#0F1D2F" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> {t("dashboard.wizard.ready")}</span>
+                    <span className="flex items-center gap-1.5" style={{ color: "#6B6B6B" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> {t("dashboard.wizard.noExperience")}</span>
                   </div>
 
                   {/* Upload box */}
@@ -1680,16 +1680,16 @@ function CaseDetailPanel({
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(15,29,47,0.04)" }}>
                       <Upload className="w-5 h-5" style={{ color: "#6B6B6B" }} />
                     </div>
-                    <p className="text-[15px] font-medium mb-1.5" style={{ color: "#0F1D2F" }}>Klik eller træk et billede hertil</p>
-                    <p className="text-sm mb-1" style={{ color: "#6B6B6B" }}>JPG, PNG eller HEIC</p>
-                    <p className="text-xs" style={{ color: "#9B9690" }}>Max 10 MB</p>
+                    <p className="text-[15px] font-medium mb-1.5" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.dropzone")}</p>
+                    <p className="text-sm mb-1" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.formats")}</p>
+                    <p className="text-xs" style={{ color: "#9B9690" }}>{t("dashboard.wizard.maxSize")}</p>
                   </div>
 
                   {error && <div className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded-xl">{error}</div>}
 
                   {/* Step guide */}
                   <div className="flex items-center justify-center gap-3 mt-8 text-xs" style={{ color: "#9B9690" }}>
-                    {["Upload foto", "Vælg stil", "Se resultat"].map((lbl, i) => (
+                    {[t("dashboard.wizard.breadcrumb1"), t("dashboard.wizard.breadcrumb2"), t("dashboard.wizard.breadcrumb3")].map((lbl, i) => (
                       <div key={lbl} className="flex items-center gap-3">
                         {i > 0 && <ArrowRight className="w-3 h-3 flex-shrink-0" />}
                         <div className="flex items-center gap-1.5">
@@ -1701,7 +1701,7 @@ function CaseDetailPanel({
                   </div>
 
                   {/* Example images */}
-                  <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>Eller prøv med et eksempelbillede:</p>
+                  <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.orTryExample")}</p>
                   <div className="flex gap-3 justify-center">
                     {[
                       { src: "/bolig-images/example-kitchen-scandi.jpg", label: "Køkken" },
@@ -1756,7 +1756,7 @@ function CaseDetailPanel({
 
                     {/* ① RUMTYPE */}
                     <div>
-                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>Rumtype</p>
+                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>{t("dashboard.wizard.roomTypeLabel")}</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {ROOM_TYPES.map((r) => (
                           <button
@@ -1770,7 +1770,7 @@ function CaseDetailPanel({
                             }}
                             data-testid={`bolig-room-${r.value}`}
                           >
-                            <span className="text-[13px] font-medium truncate block">{r.label}</span>
+                            <span className="text-[13px] font-medium truncate block">{t(r.labelKey)}</span>
                           </button>
                         ))}
                       </div>
@@ -1780,7 +1780,7 @@ function CaseDetailPanel({
 
                     {/* ② STIL */}
                     <div>
-                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>Stil</p>
+                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>{t("dashboard.wizard.styleLabel")}</p>
                       <div className="grid grid-cols-2 gap-2">
                         {STYLES.map((s) => (
                           <button
@@ -1794,7 +1794,7 @@ function CaseDetailPanel({
                             }}
                             data-testid={`bolig-style-${s.value}`}
                           >
-                            <span className="text-sm font-medium">{s.label}</span>
+                            <span className="text-sm font-medium">{t(s.labelKey)}</span>
                           </button>
                         ))}
                       </div>
@@ -1804,7 +1804,7 @@ function CaseDetailPanel({
 
                     {/* ③ BUDGET */}
                     <div>
-                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>Budget</p>
+                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>{t("dashboard.wizard.budgetLabel")}</p>
                       <div className="flex flex-col gap-2">
                         {BUDGET_TIERS.map((t) => (
                           <button
@@ -1867,12 +1867,12 @@ function CaseDetailPanel({
                       {isGenerating ? (
                         <>
                           <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
-                          Genererer visualisering...
+                          {t("dashboard.wizard.generating")}
                         </>
                       ) : (
                         <>
                           <TrendingUp className="w-4 h-4" />
-                          Se dit rums potentiale →
+                          {t("dashboard.generate.seePotenButton")}
                         </>
                       )}
                     </button>
@@ -1890,10 +1890,10 @@ function CaseDetailPanel({
                       <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: "#F0EDE7" }} />
                       <div className="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: "#C8956C", borderTopColor: "transparent" }} />
                     </div>
-                    <p className="text-lg font-semibold mb-1" style={{ color: "#0F1D2F" }}>Genererer visualisering...</p>
-                    <p className="text-sm" style={{ color: "#6B6B6B" }}>AI'en arbejder. Ca. 30–60 sekunder.</p>
+                    <p className="text-lg font-semibold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</p>
+                    <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
                     <div className="flex gap-8 mt-6">
-                      {["Analyserer rum", "Anvender stil", "Renderer"].map((step, i) => (
+                      {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
                         <div key={i} className="flex flex-col items-center gap-2">
                           <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
                           <span className="text-xs" style={{ color: "#9B9690" }}>{step}</span>
@@ -2702,7 +2702,7 @@ function HistoryView({
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>Ny designstil</label>
+                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.newDesignStyle")}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {STYLES.map((s) => (
                         <button
@@ -2716,7 +2716,7 @@ function HistoryView({
                           }}
                           data-testid={`bolig-history-regen-style-${s.value}`}
                         >
-                          {s.label}
+                          {t(s.labelKey)}
                         </button>
                       ))}
                     </div>
@@ -2938,15 +2938,15 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
     <div>
       <div className="flex items-center gap-3 mb-8">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity" style={{ color: "#6B6B6B" }} data-testid="bolig-upload-back">
-          <ChevronLeft className="w-4 h-4" /> Tilbage til Dashboard
+          <ChevronLeft className="w-4 h-4" /> {t("dashboard.wizard.backToDashboard")}
         </button>
       </div>
 
       <AnimatePresence mode="wait">
         {stage === "upload" && (
           <motion.div key="upload" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
-            <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Upload et rumfoto</h1>
-            <p className="text-sm mb-8" style={{ color: "#6B6B6B" }}>Vælg et foto af rummet du vil visualisere</p>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{t("dashboard.wizard.uploadTitle")}</h1>
+            <p className="text-sm mb-8" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.uploadPhotoSubtitle")}</p>
             <div
               className="rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-16 cursor-pointer group hover:bg-[#C8956C]/[0.02]"
               style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#fff" }}
@@ -2960,11 +2960,11 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
                 <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
               </div>
-              <p className="font-semibold mb-1 text-base" style={{ color: "#0F1D2F" }}>Klik eller træk et billede hertil</p>
-              <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG eller HEIC · Max 10 MB</p>
+              <p className="font-semibold mb-1 text-base" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.dropzone")}</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.formatsCombined")}</p>
             </div>
             {error && <div className="mt-4 text-sm text-red-600 text-center">{error}</div>}
-            <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>Eller prøv med et eksempelbillede:</p>
+            <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.orTryExample")}</p>
             <div className="flex gap-3 flex-wrap">
               {[{ src: "/bolig-images/example-kitchen-scandi.jpg", label: "Køkken" }, { src: "/bolig-images/example-dining-modern.png", label: "Spisestue" }, { src: "/bolig-images/example-bathroom-japandi.png", label: "Badeværelse" }].map((ex) => (
                 <button key={ex.src} onClick={async () => { const res = await fetch(ex.src); const blob = await res.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); }}
@@ -2989,36 +2989,36 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
               </div>
               <div className="space-y-8 rounded-2xl border border-[#E8E4DE] bg-white p-6 shadow-sm">
                 <div>
-                  <h2 className="text-xl font-bold mb-1.5" style={{ color: "#0F1D2F" }}>Konfigurer visualisering</h2>
-                  <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg rumtype og designstil</p>
+                  <h2 className="text-xl font-bold mb-1.5" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.configTitle")}</h2>
+                  <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.configSubtitle")}</p>
                 </div>
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Rumtype</label>
+                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.roomTypeLabel")}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {ROOM_TYPES.map((r) => (
                         <button key={r.value} onClick={() => setRoomType(r.value)}
                           className="h-10 px-3.5 rounded-xl text-xs font-semibold border transition-all hover:border-[#0F1D2F] text-left truncate"
                           style={{ background: roomType === r.value ? "#0F1D2F" : "#F8F6F3", borderColor: roomType === r.value ? "#0F1D2F" : "transparent", color: roomType === r.value ? "#fff" : "#1A1A1A" }}>
-                          {r.label}
+                          {t(r.labelKey)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Designstil</label>
+                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.styleLabel")}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {STYLES.map((s) => (
                         <button key={s.value} onClick={() => setStyle(s.value)}
                           className="h-10 px-3.5 rounded-xl text-xs font-semibold border transition-all hover:border-[#C8956C] text-left truncate"
                           style={{ background: style === s.value ? "#C8956C" : "#F8F6F3", borderColor: style === s.value ? "#C8956C" : "transparent", color: style === s.value ? "#fff" : "#1A1A1A" }}>
-                          {s.label}
+                          {t(s.labelKey)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>Budget niveau</label>
+                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.budgetLabel")}</label>
                     <div className="flex flex-col gap-2">
                       {BUDGET_TIERS.map((t) => (
                         <button key={t.value} onClick={() => setTier(t.value)}
@@ -3034,7 +3034,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                 {error && <div className="text-sm text-[#B91C1C] p-3 rounded-xl bg-[#FEF2F2] font-medium">{error}</div>}
                 <QuotaGate feature="ai">
                   <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 14px rgba(15,29,47,0.15)" }}>
-                    Generer visualisering →
+                    {t("dashboard.wizard.generateBtn")}
                   </button>
                 </QuotaGate>
               </div>
@@ -3049,10 +3049,10 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
               <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
               <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
             </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Genererer visualisering...</h2>
-            <p className="text-base" style={{ color: "#6B6B6B" }}>AI'en arbejder på dit rum. Ca. 30–60 sekunder.</p>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
+            <p className="text-base" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
             <div className="mt-8 flex gap-8">
-              {["Analyserer rum", "Anvender stil", "Renderer"].map((step, i) => (
+              {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
                 <div key={i} className="flex flex-col items-center gap-2">
                   <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
                   <div className="text-xs" style={{ color: "#6B6B6B" }}>{step}</div>
@@ -3353,8 +3353,8 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
                   <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
                 </div>
-                <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
-                <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
+                <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.floorplanDropzone")}</p>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.floorplanFormats")}</p>
               </label>
             ) : (
               <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm">
@@ -5786,16 +5786,16 @@ interface DraftRoom {
 
 // Global styles offered to the user. Keys match Collov / BOLIG_STYLE_LABELS;
 // labels are the Danish text shown in the picker.
-const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: "scandinavian", label: "Skandinavisk" },
-  { key: "modern",       label: "Moderne" },
-  { key: "luxury",       label: "Luksus" },
-  { key: "industrial",   label: "Industriel" },
-  { key: "coastal",      label: "Kyst" },
-  { key: "bohemian",     label: "Bohemisk" },
-  { key: "japandi",      label: "Japandi" },
-  { key: "minimalist",   label: "Minimalistisk" },
-  { key: "farmhouse",    label: "Landlig" },
+const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string; labelKey: string }> = [
+  { key: "scandinavian", label: "Skandinavisk",  labelKey: "dashboard.styles.scandinavian" },
+  { key: "modern",       label: "Moderne",       labelKey: "dashboard.styles.modern" },
+  { key: "luxury",       label: "Luksus",        labelKey: "dashboard.styles.luxury" },
+  { key: "industrial",   label: "Industriel",    labelKey: "dashboard.styles.industrial" },
+  { key: "coastal",      label: "Kyst",          labelKey: "dashboard.styles.coastal" },
+  { key: "bohemian",     label: "Bohemisk",      labelKey: "dashboard.styles.bohemian" },
+  { key: "japandi",      label: "Japandi",       labelKey: "dashboard.styles.japandi" },
+  { key: "minimalist",   label: "Minimalistisk", labelKey: "dashboard.styles.minimalist" },
+  { key: "farmhouse",    label: "Landlig",       labelKey: "dashboard.styles.farmhouse" },
 ];
 
 function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
@@ -6031,7 +6031,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                   <label className="absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-[#F0EDE7] transition-colors" data-testid={`dropzone-room-${r.id}`}>
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
                     <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
-                    <span className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>Upload billede</span>
+                    <span className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.uploadImageLabel")}</span>
                   </label>
                 )}
               </div>
@@ -7140,13 +7140,13 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
     <div className="flex flex-col">
       <div className="flex items-center gap-3 mb-8">
         <button onClick={handleBack} className="flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity" style={{ color: "#6B6B6B" }} data-testid="bolig-agent-back">
-          <ChevronLeft className="w-4 h-4" /> Tilbage til Dashboard
+          <ChevronLeft className="w-4 h-4" /> {t("dashboard.wizard.backToDashboard")}
         </button>
       </div>
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>AI Design Agent</h1>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Beskriv præcis hvad du vil ændre — AI'en følger dine instruktioner</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.agent.subtitle")}</p>
       </div>
 
       {/* Eksempel */}
@@ -7208,7 +7208,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         <div className="grid gap-6 min-w-0">
         {/* Upload zone */}
         <div>
-          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Upload billede</p>
+          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.uploadImageLabel")}</p>
           {imagePreview ? (
             <div className="relative rounded-2xl overflow-hidden border border-[#D9D5CF]">
               <img src={imagePreview} alt="Preview" className="w-full h-56 object-cover" />
@@ -7313,12 +7313,12 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         {/* Result */}
         {stage === "result" && resultUrl && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Resultat</p>
+            <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.resultLabel")}</p>
             <div className="rounded-2xl overflow-hidden border border-[#E8E4DE]">
               {imagePreview ? (
                 <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={resultUrl} />
               ) : (
-                <img src={resultUrl} alt="Genereret" className="w-full h-auto" />
+                <img src={resultUrl} alt={t("dashboard.wizard.resultLabel")} className="w-full h-auto" />
               )}
             </div>
             <div className="flex flex-wrap gap-3 mt-4">
@@ -9782,7 +9782,7 @@ export default function BoligpotentialeDashboard() {
                   <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Hurtige handlinger</h2>
                   <div className="flex flex-wrap gap-3 mb-6">
                     <button onClick={() => setSection("upload")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90" style={{ background: "#C8956C" }} data-testid="bolig-quick-upload">
-                      <Upload className="w-4 h-4" /> Upload billede
+                      <Upload className="w-4 h-4" /> {t("dashboard.wizard.uploadImageLabel")}
                     </button>
                     <button onClick={() => setModal("newSag")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm border transition-all hover:bg-[#F0EDE7]" style={{ color: "#1A1A1A", borderColor: "#D9D5CF" }} data-testid="bolig-quick-new-sag">
                       <Plus className="w-4 h-4" /> {t("dashboard.nav.newCase")}

@@ -685,15 +685,6 @@
       "showcaseVideos": "showcase videos",
       "trialDesc": "You're on a free trial with {{limit}} AI visualizations. Upgrade to unlock 3D floor plans, videos and more."
     },
-    "team": {
-      "paywallBanner": "Team features are locked — upgrade to unlock",
-      "ownerLabel": "Owner:",
-      "inviteCodeLabel": "INVITE CODE — Share with colleague",
-      "copyInviteLink": "Copy invite link",
-      "copied": "Copied!",
-      "teamPerformance": "TEAM PERFORMANCE",
-      "activeCasesTeam": "ACTIVE CASES — WHOLE TEAM"
-    },
     "paywall": {
       "featureNeedsSubscription": "{{feature}} requires a subscription",
       "freeUsedUp_one": "You've used your {{limit}} free AI visualization",
@@ -719,6 +710,87 @@
       "trialUsedUp": "Your free trial is used up — upgrade to continue with all AI tools",
       "freeAccountDesc": "You're on a free account — all features require an active subscription",
       "requiresSubscription": "Requires subscription"
+    },
+    "generate": {
+      "sectionTitle": "Generate new image",
+      "subtitle": "Upload a room photo and let the AI show the home's full potential",
+      "step1": "Upload a room photo",
+      "step2": "Choose room, style & budget",
+      "step3": "See AI visualization",
+      "button": "Generate potential image",
+      "gallery_one": "{{count}} previous visual in the gallery",
+      "gallery_other": "{{count}} previous visuals in the gallery",
+      "emptySubtitle": "Upload a room photo and generate your first AI potential image",
+      "firstButton": "Generate first image",
+      "seePotenButton": "See your room's potential →"
+    },
+    "wizard": {
+      "step1": "Upload image",
+      "step2": "Choose style & budget",
+      "step3": "Result",
+      "uploadTitle": "Upload a room photo",
+      "uploadSubtitle": "Take a photo of the room — AI shows the home's full potential",
+      "ready": "Ready in 30–60 sec",
+      "noExperience": "No design experience needed",
+      "dropzone": "Click or drag an image here",
+      "formats": "JPG, PNG or HEIC",
+      "maxSize": "Max 10 MB",
+      "breadcrumb1": "Upload photo",
+      "breadcrumb2": "Choose style",
+      "breadcrumb3": "See result",
+      "configTitle": "Configure visualization",
+      "configSubtitle": "Choose room type and design style",
+      "roomTypeLabel": "Room type",
+      "styleLabel": "Design style",
+      "budgetLabel": "Budget level",
+      "generateBtn": "Generate visualization →",
+      "generating": "Generating visualization...",
+      "generatingSubtitle": "AI is working on your room. About 30–60 seconds.",
+      "analysingRoom": "Analysing room",
+      "applyingStyle": "Applying style",
+      "rendering": "Rendering",
+      "backToDashboard": "Back to Dashboard",
+      "uploadPhotoSubtitle": "Choose a photo of the room you want to visualize",
+      "floorplanDropzone": "Drag floor plan here or click to select",
+      "floorplanFormats": "JPG, PNG · max 10 MB",
+      "uploadImageLabel": "Upload image",
+      "resultLabel": "Result",
+      "orTryExample": "Or try with a sample image:",
+      "dragImageHere": "Drag an image here",
+      "formatsCombined": "JPG, PNG or HEIC · Max 10 MB",
+      "newDesignStyle": "New design style"
+    },
+    "roomTypes": {
+      "living_room": "Living room",
+      "bedroom": "Bedroom",
+      "kitchen": "Kitchen",
+      "bathroom": "Bathroom",
+      "dining_room": "Dining room",
+      "home_office": "Home office",
+      "kids_room": "Kids' room",
+      "studio": "Studio",
+      "game_room": "Game room",
+      "gym": "Gym",
+      "laundry_room": "Laundry room",
+      "meeting_room": "Meeting room",
+      "spa": "Spa",
+      "outdoor": "Outdoor",
+      "open_plan_living": "Open plan living",
+      "entryway": "Entryway"
+    },
+    "styles": {
+      "scandinavian": "Scandinavian",
+      "modern": "Modern",
+      "luxury": "Luxury",
+      "industrial": "Industrial",
+      "coastal": "Coastal",
+      "bohemian": "Bohemian",
+      "japandi": "Japandi",
+      "minimalist": "Minimalist",
+      "farmhouse": "Farmhouse"
+    },
+    "agent": {
+      "subtitle": "Describe exactly what you want to change — the AI follows your instructions"
     }
   }
 }

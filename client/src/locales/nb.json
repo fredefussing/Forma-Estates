@@ -649,7 +649,7 @@
       "inviteCodeLabel": "INVITASJONSKODE — Del med kollega",
       "copyInviteLink": "Kopier invitasjonslenke",
       "copied": "Kopiert!",
-      "teamPerformance": "TEAM YTELSE",
+      "teamPerformance": "TEAMETS YTELSE",
       "activeCasesTeam": "AKTIVE SAKER — HELE TEAMET"
     },
     "quota": {
@@ -685,15 +685,6 @@
       "showcaseVideos": "showcase-videoer",
       "trialDesc": "Du er på en gratis prøveperiode med {{limit}} AI-visualiseringer. Oppgrader for å låse opp 3D-plantegninger, videoer og mer."
     },
-    "team": {
-      "paywallBanner": "Teamfunksjoner er låst — oppgrader for å låse opp",
-      "ownerLabel": "Eier:",
-      "inviteCodeLabel": "INVITASJONSKODE — Del med kollega",
-      "copyInviteLink": "Kopier invitasjonslenke",
-      "copied": "Kopiert!",
-      "teamPerformance": "TEAMETS YTELSE",
-      "activeCasesTeam": "AKTIVE SAKER — HELE TEAMET"
-    },
     "paywall": {
       "featureNeedsSubscription": "{{feature}} krever et abonnement",
       "freeUsedUp_one": "Du har brukt din {{limit}} gratis AI-visualisering",
@@ -719,6 +710,87 @@
       "trialUsedUp": "Din gratis prøveperiode er brukt opp — oppgrader for å fortsette med alle AI-verktøy",
       "freeAccountDesc": "Du er på en gratis konto — alle funksjoner krever et aktivt abonnement",
       "requiresSubscription": "Krever abonnement"
+    },
+    "generate": {
+      "sectionTitle": "Generer nytt bilde",
+      "subtitle": "Last opp et romfoto og la AI-en vise boligens fulle potensial",
+      "step1": "Last opp et romfoto",
+      "step2": "Velg rom, stil & budsjett",
+      "step3": "Se AI-visualisering",
+      "button": "Generer potensialsbilde",
+      "gallery_one": "{{count}} tidligere visual i galleriet",
+      "gallery_other": "{{count}} tidligere visuals i galleriet",
+      "emptySubtitle": "Last opp et romfoto og generer ditt første AI-potensialsbilde",
+      "firstButton": "Generer første bilde",
+      "seePotenButton": "Se rommets potensial →"
+    },
+    "wizard": {
+      "step1": "Last opp bilde",
+      "step2": "Velg stil & budsjett",
+      "step3": "Resultat",
+      "uploadTitle": "Last opp et romfoto",
+      "uploadSubtitle": "Ta et foto av rommet — AI-en viser boligens fulle potensial",
+      "ready": "Klar på 30–60 sek",
+      "noExperience": "Ingen designerfaring nødvendig",
+      "dropzone": "Klikk eller dra et bilde hit",
+      "formats": "JPG, PNG eller HEIC",
+      "maxSize": "Maks 10 MB",
+      "breadcrumb1": "Last opp foto",
+      "breadcrumb2": "Velg stil",
+      "breadcrumb3": "Se resultat",
+      "configTitle": "Konfigurer visualisering",
+      "configSubtitle": "Velg romtype og designstil",
+      "roomTypeLabel": "Romtype",
+      "styleLabel": "Designstil",
+      "budgetLabel": "Budsjettsnivå",
+      "generateBtn": "Generer visualisering →",
+      "generating": "Genererer visualisering...",
+      "generatingSubtitle": "AI-en jobber med rommet ditt. Ca. 30–60 sekunder.",
+      "analysingRoom": "Analyserer rom",
+      "applyingStyle": "Anvender stil",
+      "rendering": "Rendrer",
+      "backToDashboard": "Tilbake til Dashboard",
+      "uploadPhotoSubtitle": "Velg et foto av rommet du vil visualisere",
+      "floorplanDropzone": "Dra plantegning hit eller klikk for å velge",
+      "floorplanFormats": "JPG, PNG · maks 10 MB",
+      "uploadImageLabel": "Last opp bilde",
+      "resultLabel": "Resultat",
+      "orTryExample": "Eller prøv med et eksempelbilde:",
+      "dragImageHere": "Dra et bilde hit",
+      "formatsCombined": "JPG, PNG eller HEIC · Maks 10 MB",
+      "newDesignStyle": "Ny designstil"
+    },
+    "roomTypes": {
+      "living_room": "Stue",
+      "bedroom": "Soverom",
+      "kitchen": "Kjøkken",
+      "bathroom": "Baderom",
+      "dining_room": "Spisestue",
+      "home_office": "Hjemmekontor",
+      "kids_room": "Barnerom",
+      "studio": "Studio",
+      "game_room": "Spillerom",
+      "gym": "Treningsrom",
+      "laundry_room": "Vaskerom",
+      "meeting_room": "Møterom",
+      "spa": "Spa",
+      "outdoor": "Utendørs",
+      "open_plan_living": "Åpen stue/spisestue",
+      "entryway": "Inngang"
+    },
+    "styles": {
+      "scandinavian": "Skandinavisk",
+      "modern": "Moderne",
+      "luxury": "Luksus",
+      "industrial": "Industriell",
+      "coastal": "Kyst",
+      "bohemian": "Bohemsk",
+      "japandi": "Japandi",
+      "minimalist": "Minimalistisk",
+      "farmhouse": "Landlig"
+    },
+    "agent": {
+      "subtitle": "Beskriv nøyaktig hva du vil endre — AI-en følger instruksjonene dine"
     }
   }
 }

@@ -644,7 +644,7 @@
       "shareError": "Impossible de créer le lien"
     },
     "team": {
-      "paywallBanner": "Fonctionnalités d'équipe verrouillées — mettez à niveau pour déverrouiller",
+      "paywallBanner": "Les fonctions d'équipe sont verrouillées — passez à un plan supérieur pour les déverrouiller",
       "ownerLabel": "Propriétaire :",
       "inviteCodeLabel": "CODE D'INVITATION — Partager avec un collègue",
       "copyInviteLink": "Copier le lien d'invitation",
@@ -685,15 +685,6 @@
       "showcaseVideos": "vidéos showcase",
       "trialDesc": "Vous êtes en essai gratuit avec {{limit}} visualisations IA. Mettez à niveau pour débloquer les plans 3D, les vidéos et plus encore."
     },
-    "team": {
-      "paywallBanner": "Les fonctions d'équipe sont verrouillées — passez à un plan supérieur pour les déverrouiller",
-      "ownerLabel": "Propriétaire :",
-      "inviteCodeLabel": "CODE D'INVITATION — Partager avec un collègue",
-      "copyInviteLink": "Copier le lien d'invitation",
-      "copied": "Copié !",
-      "teamPerformance": "PERFORMANCE DE L'ÉQUIPE",
-      "activeCasesTeam": "DOSSIERS ACTIFS — TOUTE L'ÉQUIPE"
-    },
     "paywall": {
       "featureNeedsSubscription": "{{feature}} nécessite un abonnement",
       "freeUsedUp_one": "Vous avez utilisé votre {{limit}} visualisation IA gratuite",
@@ -719,6 +710,87 @@
       "trialUsedUp": "Votre essai gratuit est épuisé — mettez à niveau pour continuer avec tous les outils IA",
       "freeAccountDesc": "Vous avez un compte gratuit — toutes les fonctionnalités nécessitent un abonnement actif",
       "requiresSubscription": "Abonnement requis"
+    },
+    "generate": {
+      "sectionTitle": "Générer une nouvelle image",
+      "subtitle": "Téléchargez une photo de la pièce et laissez l'IA révéler le plein potentiel du bien",
+      "step1": "Télécharger une photo de la pièce",
+      "step2": "Choisir la pièce, le style et le budget",
+      "step3": "Voir la visualisation IA",
+      "button": "Générer l'image potentielle",
+      "gallery_one": "{{count}} visuel précédent dans la galerie",
+      "gallery_other": "{{count}} visuels précédents dans la galerie",
+      "emptySubtitle": "Téléchargez une photo de pièce et générez votre première image de potentiel IA",
+      "firstButton": "Générer la première image",
+      "seePotenButton": "Voir le potentiel de votre pièce →"
+    },
+    "wizard": {
+      "step1": "Télécharger l'image",
+      "step2": "Choisir le style et le budget",
+      "step3": "Résultat",
+      "uploadTitle": "Télécharger une photo de la pièce",
+      "uploadSubtitle": "Prenez une photo de la pièce — l'IA révélera son plein potentiel",
+      "ready": "Prêt en 30–60 sec",
+      "noExperience": "Aucune expérience en design requise",
+      "dropzone": "Cliquez ou faites glisser une image ici",
+      "formats": "JPG, PNG ou HEIC",
+      "maxSize": "Max. 10 Mo",
+      "breadcrumb1": "Télécharger la photo",
+      "breadcrumb2": "Choisir le style",
+      "breadcrumb3": "Voir le résultat",
+      "configTitle": "Configurer la visualisation",
+      "configSubtitle": "Choisir le type de pièce et le style de design",
+      "roomTypeLabel": "Type de pièce",
+      "styleLabel": "Style de design",
+      "budgetLabel": "Niveau de budget",
+      "generateBtn": "Générer la visualisation →",
+      "generating": "Génération en cours...",
+      "generatingSubtitle": "L'IA travaille sur votre pièce. Environ 30–60 secondes.",
+      "analysingRoom": "Analyse de la pièce",
+      "applyingStyle": "Application du style",
+      "rendering": "Rendu en cours",
+      "backToDashboard": "Retour au tableau de bord",
+      "uploadPhotoSubtitle": "Choisissez une photo de la pièce que vous souhaitez visualiser",
+      "floorplanDropzone": "Faites glisser le plan ici ou cliquez pour sélectionner",
+      "floorplanFormats": "JPG, PNG · max. 10 Mo",
+      "uploadImageLabel": "Télécharger l'image",
+      "resultLabel": "Résultat",
+      "orTryExample": "Ou essayez avec une image d'exemple :",
+      "dragImageHere": "Faites glisser une image ici",
+      "formatsCombined": "JPG, PNG ou HEIC · Max. 10 Mo",
+      "newDesignStyle": "Nouveau style de design"
+    },
+    "roomTypes": {
+      "living_room": "Salon",
+      "bedroom": "Chambre",
+      "kitchen": "Cuisine",
+      "bathroom": "Salle de bain",
+      "dining_room": "Salle à manger",
+      "home_office": "Bureau à domicile",
+      "kids_room": "Chambre d'enfant",
+      "studio": "Studio",
+      "game_room": "Salle de jeux",
+      "gym": "Salle de sport",
+      "laundry_room": "Buanderie",
+      "meeting_room": "Salle de réunion",
+      "spa": "Spa",
+      "outdoor": "Extérieur",
+      "open_plan_living": "Séjour ouvert",
+      "entryway": "Entrée"
+    },
+    "styles": {
+      "scandinavian": "Scandinave",
+      "modern": "Moderne",
+      "luxury": "Luxe",
+      "industrial": "Industriel",
+      "coastal": "Côtier",
+      "bohemian": "Bohème",
+      "japandi": "Japandi",
+      "minimalist": "Minimaliste",
+      "farmhouse": "Campagne"
+    },
+    "agent": {
+      "subtitle": "Décrivez exactement ce que vous voulez changer — l'IA suit vos instructions"
     }
   }
 }

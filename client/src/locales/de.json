@@ -644,13 +644,13 @@
       "shareError": "Link konnte nicht erstellt werden"
     },
     "team": {
-      "paywallBanner": "Teamfunktionen sind gesperrt — upgraden Sie, um zu entsperren",
-      "ownerLabel": "Eigentümer:",
+      "paywallBanner": "Team-Funktionen sind gesperrt — upgraden Sie zum Entsperren",
+      "ownerLabel": "Inhaber:",
       "inviteCodeLabel": "EINLADUNGSCODE — Mit Kollegen teilen",
       "copyInviteLink": "Einladungslink kopieren",
       "copied": "Kopiert!",
-      "teamPerformance": "TEAM LEISTUNG",
-      "activeCasesTeam": "AKTIVE FÄLLE — GANZES TEAM"
+      "teamPerformance": "TEAM-LEISTUNG",
+      "activeCasesTeam": "AKTIVE OBJEKTE — GANZES TEAM"
     },
     "quota": {
       "productLabels": {
@@ -685,15 +685,6 @@
       "showcaseVideos": "Showcase-Videos",
       "trialDesc": "Sie nutzen eine kostenlose Testversion mit {{limit}} KI-Visualisierungen. Upgraden Sie, um 3D-Grundrisse, Videos und mehr freizuschalten."
     },
-    "team": {
-      "paywallBanner": "Team-Funktionen sind gesperrt — upgraden Sie zum Entsperren",
-      "ownerLabel": "Inhaber:",
-      "inviteCodeLabel": "EINLADUNGSCODE — Mit Kollegen teilen",
-      "copyInviteLink": "Einladungslink kopieren",
-      "copied": "Kopiert!",
-      "teamPerformance": "TEAM-LEISTUNG",
-      "activeCasesTeam": "AKTIVE OBJEKTE — GANZES TEAM"
-    },
     "paywall": {
       "featureNeedsSubscription": "{{feature}} erfordert ein Abonnement",
       "freeUsedUp_one": "Sie haben Ihre {{limit}} kostenlose KI-Visualisierung verwendet",
@@ -719,6 +710,87 @@
       "trialUsedUp": "Ihre kostenlose Testversion ist aufgebraucht — upgraden Sie, um mit allen KI-Tools fortzufahren",
       "freeAccountDesc": "Sie haben ein kostenloses Konto — alle Funktionen erfordern ein aktives Abonnement",
       "requiresSubscription": "Abonnement erforderlich"
+    },
+    "generate": {
+      "sectionTitle": "Neues Bild generieren",
+      "subtitle": "Laden Sie ein Zimmerfoto hoch und lassen Sie die KI das volle Potenzial zeigen",
+      "step1": "Zimmerfoto hochladen",
+      "step2": "Zimmer, Stil & Budget wählen",
+      "step3": "KI-Visualisierung ansehen",
+      "button": "Potenzialbild generieren",
+      "gallery_one": "{{count}} früheres Visual in der Galerie",
+      "gallery_other": "{{count}} frühere Visuals in der Galerie",
+      "emptySubtitle": "Lade ein Raumfoto hoch und erstelle dein erstes KI-Potenzialbild",
+      "firstButton": "Erstes Bild generieren",
+      "seePotenButton": "Potenzial deines Raums sehen →"
+    },
+    "wizard": {
+      "step1": "Bild hochladen",
+      "step2": "Stil & Budget wählen",
+      "step3": "Ergebnis",
+      "uploadTitle": "Zimmerfoto hochladen",
+      "uploadSubtitle": "Fotografieren Sie das Zimmer — die KI zeigt das volle Potenzial",
+      "ready": "Fertig in 30–60 Sek.",
+      "noExperience": "Keine Designerfahrung nötig",
+      "dropzone": "Klicken oder Bild hierher ziehen",
+      "formats": "JPG, PNG oder HEIC",
+      "maxSize": "Max. 10 MB",
+      "breadcrumb1": "Foto hochladen",
+      "breadcrumb2": "Stil wählen",
+      "breadcrumb3": "Ergebnis ansehen",
+      "configTitle": "Visualisierung konfigurieren",
+      "configSubtitle": "Zimmertyp und Designstil wählen",
+      "roomTypeLabel": "Zimmertyp",
+      "styleLabel": "Designstil",
+      "budgetLabel": "Budgetstufe",
+      "generateBtn": "Visualisierung generieren →",
+      "generating": "Visualisierung wird generiert...",
+      "generatingSubtitle": "Die KI arbeitet an Ihrem Zimmer. Ca. 30–60 Sekunden.",
+      "analysingRoom": "Zimmer analysieren",
+      "applyingStyle": "Stil anwenden",
+      "rendering": "Rendern",
+      "backToDashboard": "Zurück zum Dashboard",
+      "uploadPhotoSubtitle": "Wählen Sie ein Foto des Zimmers aus",
+      "floorplanDropzone": "Grundriss hierher ziehen oder klicken",
+      "floorplanFormats": "JPG, PNG · max. 10 MB",
+      "uploadImageLabel": "Bild hochladen",
+      "resultLabel": "Ergebnis",
+      "orTryExample": "Oder mit einem Beispielbild versuchen:",
+      "dragImageHere": "Bild hierher ziehen",
+      "formatsCombined": "JPG, PNG oder HEIC · Max. 10 MB",
+      "newDesignStyle": "Neuer Designstil"
+    },
+    "roomTypes": {
+      "living_room": "Wohnzimmer",
+      "bedroom": "Schlafzimmer",
+      "kitchen": "Küche",
+      "bathroom": "Badezimmer",
+      "dining_room": "Esszimmer",
+      "home_office": "Heimarbeitszimmer",
+      "kids_room": "Kinderzimmer",
+      "studio": "Studio",
+      "game_room": "Spielzimmer",
+      "gym": "Fitnessraum",
+      "laundry_room": "Waschraum",
+      "meeting_room": "Besprechungsraum",
+      "spa": "Spa",
+      "outdoor": "Außenbereich",
+      "open_plan_living": "Offener Wohn-/Essbereich",
+      "entryway": "Eingangsbereich"
+    },
+    "styles": {
+      "scandinavian": "Skandinavisch",
+      "modern": "Modern",
+      "luxury": "Luxus",
+      "industrial": "Industrial",
+      "coastal": "Küstenstil",
+      "bohemian": "Böhmisch",
+      "japandi": "Japandi",
+      "minimalist": "Minimalistisch",
+      "farmhouse": "Landhausstil"
+    },
+    "agent": {
+      "subtitle": "Beschreibe genau, was du ändern möchtest — die KI folgt deinen Anweisungen"
     }
   }
 }

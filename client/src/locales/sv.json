@@ -685,15 +685,6 @@
       "showcaseVideos": "showcase-videor",
       "trialDesc": "Du är på en gratis provperiod med {{limit}} AI-visualiseringar. Uppgradera för att låsa upp 3D-planlösningar, videor och mer."
     },
-    "team": {
-      "paywallBanner": "Teamfunktioner är låsta — uppgradera för att låsa upp",
-      "ownerLabel": "Ägare:",
-      "inviteCodeLabel": "INBJUDNINGSKOD — Dela med kollega",
-      "copyInviteLink": "Kopiera inbjudningslänk",
-      "copied": "Kopierat!",
-      "teamPerformance": "TEAMETS PRESTANDA",
-      "activeCasesTeam": "AKTIVA ÄRENDEN — HELA TEAMET"
-    },
     "paywall": {
       "featureNeedsSubscription": "{{feature}} kräver en prenumeration",
       "freeUsedUp_one": "Du har använt din {{limit}} gratis AI-visualisering",
@@ -719,6 +710,87 @@
       "trialUsedUp": "Din gratis provperiod är slut — uppgradera för att fortsätta med alla AI-verktyg",
       "freeAccountDesc": "Du har ett gratis konto — alla funktioner kräver en aktiv prenumeration",
       "requiresSubscription": "Kräver prenumeration"
+    },
+    "generate": {
+      "sectionTitle": "Generera ny bild",
+      "subtitle": "Ladda upp ett rumsfoto och låt AI:n visa bostadens fulla potential",
+      "step1": "Ladda upp ett rumsfoto",
+      "step2": "Välj rum, stil & budget",
+      "step3": "Se AI-visualisering",
+      "button": "Generera potentialbild",
+      "gallery_one": "{{count}} tidigare visual i galleriet",
+      "gallery_other": "{{count}} tidigare visuals i galleriet",
+      "emptySubtitle": "Ladda upp ett rumsfoto och generera din första AI-potentialbild",
+      "firstButton": "Generera första bild",
+      "seePotenButton": "Se rummets potential →"
+    },
+    "wizard": {
+      "step1": "Ladda upp bild",
+      "step2": "Välj stil & budget",
+      "step3": "Resultat",
+      "uploadTitle": "Ladda upp ett rumsfoto",
+      "uploadSubtitle": "Ta ett foto av rummet — AI:n visar bostadens fulla potential",
+      "ready": "Klar på 30–60 sek",
+      "noExperience": "Ingen designerfarenhet behövs",
+      "dropzone": "Klicka eller dra en bild hit",
+      "formats": "JPG, PNG eller HEIC",
+      "maxSize": "Max 10 MB",
+      "breadcrumb1": "Ladda upp foto",
+      "breadcrumb2": "Välj stil",
+      "breadcrumb3": "Se resultat",
+      "configTitle": "Konfigurera visualisering",
+      "configSubtitle": "Välj rumstyp och designstil",
+      "roomTypeLabel": "Rumstyp",
+      "styleLabel": "Designstil",
+      "budgetLabel": "Budgetnivå",
+      "generateBtn": "Generera visualisering →",
+      "generating": "Genererar visualisering...",
+      "generatingSubtitle": "AI:n arbetar med ditt rum. Ca 30–60 sekunder.",
+      "analysingRoom": "Analyserar rum",
+      "applyingStyle": "Tillämpar stil",
+      "rendering": "Renderar",
+      "backToDashboard": "Tillbaka till Dashboard",
+      "uploadPhotoSubtitle": "Välj ett foto av rummet du vill visualisera",
+      "floorplanDropzone": "Dra planritning hit eller klicka för att välja",
+      "floorplanFormats": "JPG, PNG · max 10 MB",
+      "uploadImageLabel": "Ladda upp bild",
+      "resultLabel": "Resultat",
+      "orTryExample": "Eller prova med en exempelbild:",
+      "dragImageHere": "Dra en bild hit",
+      "formatsCombined": "JPG, PNG eller HEIC · Max 10 MB",
+      "newDesignStyle": "Ny designstil"
+    },
+    "roomTypes": {
+      "living_room": "Vardagsrum",
+      "bedroom": "Sovrum",
+      "kitchen": "Kök",
+      "bathroom": "Badrum",
+      "dining_room": "Matsal",
+      "home_office": "Hemmakontor",
+      "kids_room": "Barnrum",
+      "studio": "Studio",
+      "game_room": "Spelrum",
+      "gym": "Träningsrum",
+      "laundry_room": "Tvättstuga",
+      "meeting_room": "Mötesrum",
+      "spa": "Spa",
+      "outdoor": "Utomhus",
+      "open_plan_living": "Öppen planlösning",
+      "entryway": "Entré"
+    },
+    "styles": {
+      "scandinavian": "Skandinavisk",
+      "modern": "Modern",
+      "luxury": "Lyx",
+      "industrial": "Industriell",
+      "coastal": "Kust",
+      "bohemian": "Bohem",
+      "japandi": "Japandi",
+      "minimalist": "Minimalistisk",
+      "farmhouse": "Lantlig"
+    },
+    "agent": {
+      "subtitle": "Beskriv exakt vad du vill ändra — AI:n följer dina instruktioner"
     }
   }
 }
