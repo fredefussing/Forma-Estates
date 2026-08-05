@@ -2879,7 +2879,7 @@ export async function registerRoutes(
         const textX = iconCX + iconR + gap + approxTextW / 2;
         const textY = boxY + Math.round(boxH * 0.67);
 
-        const wmFont = `Georgia,'DejaVu Serif','Times New Roman',serif`;
+        const wmFont = `Arial,Helvetica,'Liberation Sans',sans-serif`;
         const iconFontSize = Math.round(iconR * 0.95);
         let svgParts =
           // Pill baggrund — EU Regel 4: mindst 85% opacity for tilstrækkelig kontrast
@@ -2887,12 +2887,12 @@ export async function registerRoutes(
           // EU AI-cirkel ikon
           `<circle cx="${iconCX}" cy="${iconCY}" r="${iconR}" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.50)" stroke-width="1"/>` +
           `<text x="${iconCX}" y="${iconCY + Math.round(iconFontSize * 0.35)}" ` +
-          `font-family="Arial,Helvetica,sans-serif" font-size="${iconFontSize}" font-weight="700" ` +
+          `font-family="${wmFont}" font-size="${iconFontSize}" font-weight="700" ` +
           `fill="#FFFFFF" text-anchor="middle">AI</text>` +
-          // "Modified" label
+          // label — sans-serif weight 700 for pixel-skarp rendering
           `<text x="${textX}" y="${textY}" ` +
-          `font-family="${wmFont}" font-size="${fontSize}" font-weight="500" ` +
-          `letter-spacing="${letterSpacing}" fill="#F5F1E8" text-anchor="middle">${wmText.replace("AI ", "")}</text>`;
+          `font-family="${wmFont}" font-size="${fontSize}" font-weight="700" ` +
+          `letter-spacing="${letterSpacing}" fill="#FFFFFF" text-anchor="middle">${wmText.replace("AI ", "")}</text>`;
 
         // Demo-variant (gratis prøve uden login): ekstra tydelig branding, så
         // billedet reklamerer for Forma Estates, hvis det deles videre.
