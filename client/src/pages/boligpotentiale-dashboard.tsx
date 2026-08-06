@@ -3999,7 +3999,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
-          {videoMode === "cinematic" ? "Vælg 2–8 af dine gemte AI-designs — hvert rum forvandler sig fra før til efter, og det hele samles i én film med musik." : videoMode === "morph" ? "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem." : "Upload ét boligfoto — Kling v1.6 Pro animerer rummet til en cinematisk transformation."}
+          {videoMode === "cinematic" ? "Vælg 2–8 af dine gemte AI-designs — hvert rum forvandler sig fra før til efter, og det hele samles i én film med musik." : videoMode === "morph" ? "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem." : "Upload et før- og et efter-billede — AI skaber en cinematisk transformation fra det ene til det andet."}
         </p>
       </div>
 
@@ -4354,7 +4354,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               <div className="rounded-xl overflow-hidden border border-[#E8E4DE] mb-4" data-testid="container-magic-result">
                 <video src={magicVideoUrl} controls autoPlay loop className="w-full block bg-black" style={{ maxHeight: "70vh", objectFit: "contain" }} data-testid="video-magic-result" />
                 <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
-                  <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />AI-genereret magisk transformation · Kling v1.6 Pro
+                  <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />AI-genereret magisk transformation · Forma Estates
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">

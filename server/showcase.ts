@@ -888,10 +888,13 @@ function euBadgeText(lang = "da"): string {
 
 export async function burnEuWatermark(inputPath: string, outputPath: string, lang = "da"): Promise<void> {
   const label = euBadgeText(lang);
-  const euFilter = [
-    `drawbox=x=iw-320:y=ih-76:w=310:h=66:color=0x0A0A14@0.88:t=fill`,
-    `drawtext=fontfile=${FONT_BOLD}:text='${label}':fontsize=32:fontcolor=white:x=iw-300:y=ih-54`,
-  ].join(",");
+  // Use drawtext's built-in box=1 so the background auto-sizes to the text — no
+  // fixed pixel offsets that can overflow small/portrait videos.
+  // x/y anchor 16px from bottom-right corner; boxborderw adds inner padding.
+  const euFilter =
+    `drawtext=fontfile=${FONT_BOLD}:text='${label}':fontsize=36:fontcolor=white:` +
+    `x=w-text_w-32:y=h-text_h-16:` +
+    `box=1:boxcolor=0x0A0A14@0.92:boxborderw=14`;
   await runFfmpeg(["-y", "-i", inputPath, "-vf", euFilter, "-c:a", "copy", outputPath]);
 }
 
