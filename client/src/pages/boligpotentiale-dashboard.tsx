@@ -3600,8 +3600,10 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const wtEsRef = useRef<EventSource | null>(null);
 
   // ── Magisk transformation state ───────────────────────────────────────────
-  const [magicFile, setMagicFile] = useState<File | null>(null);
-  const [magicPreview, setMagicPreview] = useState<string | null>(null);
+  const [magicBeforeFile, setMagicBeforeFile] = useState<File | null>(null);
+  const [magicBeforePreview, setMagicBeforePreview] = useState<string | null>(null);
+  const [magicAfterFile, setMagicAfterFile] = useState<File | null>(null);
+  const [magicAfterPreview, setMagicAfterPreview] = useState<string | null>(null);
   const [magicStyle, setMagicStyle] = useState<"magic" | "spring" | "evening" | "luxury">("magic");
   const [magicVideoUrl, setMagicVideoUrl] = useState<string | null>(null);
   const [magicGenerating, setMagicGenerating] = useState(false);
@@ -3777,28 +3779,30 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   // ── Magisk transformation handlers ──────────────────────────────────────────
-  const handleMagicFile = (file: File) => {
+  const handleMagicUpload = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMagicError("Vælg venligst en billedfil"); return; }
     if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
     setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
-    setMagicFile(file);
-    setMagicPreview(URL.createObjectURL(file));
+    if (side === "before") { setMagicBeforeFile(file); setMagicBeforePreview(URL.createObjectURL(file)); }
+    else { setMagicAfterFile(file); setMagicAfterPreview(URL.createObjectURL(file)); }
   };
 
   const handleMagicReset = () => {
     if (magicHasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
-    setMagicFile(null); setMagicPreview(null);
+    setMagicBeforeFile(null); setMagicBeforePreview(null);
+    setMagicAfterFile(null); setMagicAfterPreview(null);
     setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
   };
 
   const handleMagicGenerate = async () => {
-    if (!magicFile) return;
+    if (!magicBeforeFile || !magicAfterFile) return;
     if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
     setMagicGenerating(true); setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
     try {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
-      fd.append("image", magicFile);
+      fd.append("beforeImage", magicBeforeFile);
+      fd.append("afterImage", magicAfterFile);
       fd.append("style", magicStyle);
       const res = await fetch("/api/bolig/magic-transform-video", {
         method: "POST",
@@ -3849,7 +3853,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (magicResetTimerRef.current) clearTimeout(magicResetTimerRef.current);
       magicResetTimerRef.current = setTimeout(() => {
         magicResetTimerRef.current = null;
-        setMagicFile(null); setMagicPreview(null);
+        setMagicBeforeFile(null); setMagicBeforePreview(null);
+        setMagicAfterFile(null); setMagicAfterPreview(null);
         setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
       }, 1500);
     } catch { setMagicSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
@@ -4242,10 +4247,10 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Transformationsstil</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {([
-                { key: "magic",   label: "✨ Magisk",  desc: "Objekter animeres og flyver til nye pladser" },
-                { key: "spring",  label: "🌸 Forår",   desc: "Blomster blomstrer, lys og luft strømmer ind" },
-                { key: "evening", label: "🕯️ Aften",   desc: "Dag skifter til varm gyldenbrun aftenstemning" },
-                { key: "luxury",  label: "✦ Luksus",  desc: "Rummet opgraderes subtilt til showroom-niveau" },
+                { key: "magic",   label: "Magisk",  desc: "Objekter og farver transformeres med cinematisk fairy-tale bevægelse" },
+                { key: "spring",  label: "Forår",   desc: "Lys blomstrer op, atmosfæren åbner sig og varmes med friskhed" },
+                { key: "evening", label: "Aften",   desc: "Dagslys overgår til varm gyldenbrun aftenstemning" },
+                { key: "luxury",  label: "Luksus",  desc: "Rummet løftes subtilt til premium showroom-niveau" },
               ] as { key: "magic"|"spring"|"evening"|"luxury"; label: string; desc: string }[]).map(({ key, label, desc }) => (
                 <button
                   key={key}
@@ -4267,30 +4272,61 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             </div>
           </div>
 
-          {/* Billede-upload */}
+          {/* Billede-upload — før + efter */}
           <div className="mb-6">
-            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Dit boligfoto</label>
-            {!magicPreview ? (
-              <label
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleMagicFile(f); }}
-                className="block cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors"
-                style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
-                data-testid="dropzone-magic"
-              >
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMagicFile(f); }} data-testid="input-magic-image" />
-                <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
-                <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billede hertil eller klik for at vælge</p>
-                <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG eller PNG · bedst med stue, køkken eller soveværelse</p>
-              </label>
-            ) : (
-              <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
-                <img src={magicPreview} alt="Dit billede" className="w-full max-h-72 object-contain" data-testid="img-magic-preview" />
-                <button onClick={handleMagicReset} disabled={magicGenerating} aria-label="Fjern billede" className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic">
-                  <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
-                </button>
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Dine billeder</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* FØR */}
+              <div>
+                <div className="text-xs font-semibold mb-2" style={{ color: "#0F1D2F" }}>Før</div>
+                {!magicBeforePreview ? (
+                  <label
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleMagicUpload("before", f); }}
+                    className="block cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors"
+                    style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
+                    data-testid="dropzone-magic-before"
+                  >
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMagicUpload("before", f); }} data-testid="input-magic-before" />
+                    <Upload className="w-6 h-6 mx-auto mb-2" style={{ color: "#9B9690" }} />
+                    <p className="text-xs font-medium" style={{ color: "#0F1D2F" }}>Klik eller træk hertil</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>Originalt rum</p>
+                  </label>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
+                    <img src={magicBeforePreview} alt="Før-billede" className="w-full h-40 object-cover" data-testid="img-magic-before" />
+                    <button onClick={() => { setMagicBeforeFile(null); setMagicBeforePreview(null); }} disabled={magicGenerating} aria-label="Fjern før-billede" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-before">
+                      <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+              {/* EFTER */}
+              <div>
+                <div className="text-xs font-semibold mb-2" style={{ color: "#0F1D2F" }}>Efter</div>
+                {!magicAfterPreview ? (
+                  <label
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleMagicUpload("after", f); }}
+                    className="block cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors"
+                    style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
+                    data-testid="dropzone-magic-after"
+                  >
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMagicUpload("after", f); }} data-testid="input-magic-after" />
+                    <Upload className="w-6 h-6 mx-auto mb-2" style={{ color: "#9B9690" }} />
+                    <p className="text-xs font-medium" style={{ color: "#0F1D2F" }}>Klik eller træk hertil</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>Renoveret/AI-designet rum</p>
+                  </label>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
+                    <img src={magicAfterPreview} alt="Efter-billede" className="w-full h-40 object-cover" data-testid="img-magic-after" />
+                    <button onClick={() => { setMagicAfterFile(null); setMagicAfterPreview(null); }} disabled={magicGenerating} aria-label="Fjern efter-billede" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-after">
+                      <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {magicError && (
@@ -4303,13 +4339,13 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             <QuotaGate feature="transformVideo">
               <button
                 onClick={handleMagicGenerate}
-                disabled={!magicFile || magicGenerating}
+                disabled={!magicBeforeFile || !magicAfterFile || magicGenerating}
                 className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
                 style={{ background: "#C8956C", boxShadow: "0 4px 14px rgba(200,149,108,0.25)" }}
                 data-testid="button-generate-magic"
               >
                 {magicGenerating
-                  ? <><RotateCcw className="w-4 h-4 animate-spin" />Animerer din bolig… (~3–5 min)</>
+                  ? <><RotateCcw className="w-4 h-4 animate-spin" />Genererer transformation… (~3–5 min)</>
                   : <><Video className="w-4 h-4" />Generér magisk transformation</>}
               </button>
             </QuotaGate>

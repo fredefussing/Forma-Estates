@@ -616,39 +616,43 @@ export async function getAnimationVideoStatus(
   }
 }
 
-// ===== MAGIC TRANSFORM VIDEO (Kling v1.6 Pro — enkelt billede → cinematisk transformation) =====
-// Tager ét boligfoto og animerer det til en 10-sekunders cinematisk transformation.
-// Objekter kommer til live: malerier glider ned og folder sig ud som tæpper, lys
-// transformeres, blomster blomstrer — alt smooth og cinematisk, fairy-tale kvalitet.
-const MAGIC_TRANSFORM_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
-
+// ===== MAGIC TRANSFORM VIDEO (Seedance 2.0 — før → efter cinematisk transformation) =====
+// Tager et før- og et efter-billede og interpolerer en smooth cinematisk overgang.
+// Bruger Seedance 2.0 start→slut frame interpolation (samme som morph-mode) men
+// med cinematiske prompts der beskriver OVERGANGEN frem for kamerabevægelsen.
 const MAGIC_BASE_SUFFIX =
-  " Indistinguishable from professional luxury real estate footage (Sony A7S III, cinema lenses). Warm Scandinavian natural light, photorealistic materials and realistic shadows. 16:9 landscape format, 24fps cinematic, smooth continuous motion, no text overlays, no jump cuts, no abrupt changes.";
+  " Indistinguishable from professional luxury real estate footage (Sony A7S III, cinema lenses). Warm natural light, photorealistic materials and shadows. Camera holds static. 24fps cinematic, smooth single continuous shot, no jump cuts, no text overlays.";
 
 export const MAGIC_TRANSFORM_STYLES = {
   magic:
-    "Magical interior transformation: the room comes alive in a cinematic fairy tale — a framed painting on the wall gently lifts off its nail, glides gracefully through the air and unfurls itself as a soft woven rug on the floor; cushions and throws float up and settle into new elegant arrangements; a decorative vase slowly orbits and lands with a fresh arrangement of flowers; the curtains breathe softly. The camera holds steady with a subtle forward breathing push-in. All movements are fluid, smooth and hypnotic — like watching a dream." + MAGIC_BASE_SUFFIX,
+    "Magical cinematic transformation: the room in the first frame seamlessly morphs into the room in the second frame — furniture, colours and decor shift with fluid dreamlike motion, objects glide and settle into their new positions like a fairy tale. Every transition is smooth, hypnotic and elegant." + MAGIC_BASE_SUFFIX,
   spring:
-    "Spring awakening transformation: the room gradually brightens as warm morning sunlight floods in through the windows, a vase on the dining table blooms with fresh seasonal flowers that unfurl petal by petal, potted plants fill in lusciously with new green growth, light linen curtains billow gently in a warm spring breeze. The atmosphere transforms from still to alive with the warmth of a perfect spring morning. Camera gently and slowly pushes in." + MAGIC_BASE_SUFFIX,
+    "Spring transformation: the room transitions from the first frame to the second with the feeling of a spring awakening — light brightens, the atmosphere opens up, colours warm and the space comes alive with freshness. Gentle, smooth cinematic transition." + MAGIC_BASE_SUFFIX,
   evening:
-    "Day-to-evening transformation: the room transitions seamlessly from bright natural daylight to warm golden evening — light outside the windows deepens to amber, soft table lamps and floor lamps glow on one by one, candles flicker into life on coffee table and windowsills, shadows deepen beautifully around furniture. The atmosphere becomes intimate, cozy and aspirational. Slow cinematic single-shot transition." + MAGIC_BASE_SUFFIX,
+    "Day-to-evening transformation: the room transitions from the first frame to the second — ambient light shifts from bright daylight to warm golden evening tones, the mood becomes intimate and cozy. Smooth, continuous cinematic single-shot transition." + MAGIC_BASE_SUFFIX,
   luxury:
-    "Luxury elevation: the room subtly and elegantly transforms into its most aspirational version — a large bouquet of white peonies materialises on the dining table, brass and gold accents catch the light richly, soft cashmere throws drape themselves over the sofa, textiles and surfaces catch light more sumptuously. The space elevates to premium showroom quality. Camera gently and slowly pushes in." + MAGIC_BASE_SUFFIX,
+    "Luxury elevation transformation: the room elevates from the first frame to the second — surfaces catch light more richly, materials look more sumptuous, the space elevates to premium showroom quality. Smooth, aspirational cinematic transition." + MAGIC_BASE_SUFFIX,
 } as const;
 
 export type MagicTransformStyle = keyof typeof MAGIC_TRANSFORM_STYLES;
 
+// Uses Seedance 2.0 start→end frame interpolation (same engine as morph-video).
 export async function submitMagicTransformVideo(
-  imageUrl: string,
+  beforeImageUrl: string,
+  afterImageUrl: string,
   style: MagicTransformStyle = "magic",
 ): Promise<{ requestId: string }> {
   assertNotLockedDown();
-  const { request_id } = await fal.queue.submit(MAGIC_TRANSFORM_ENDPOINT, {
+  const { request_id } = await fal.queue.submit(VIDEO_ENDPOINT, {
     input: {
+      image_url: beforeImageUrl,
+      end_image_url: afterImageUrl,
       prompt: MAGIC_TRANSFORM_STYLES[style],
-      image_url: imageUrl,
-      aspect_ratio: "16:9" as const,
-      duration: "10" as const,
+      duration: "8" as "8",
+      resolution: "1080p" as const,
+      bitrate_mode: "high" as const,
+      generate_audio: false,
+      aspect_ratio: "auto" as const,
     },
   });
   return { requestId: request_id };
@@ -658,9 +662,9 @@ export async function getMagicTransformStatus(
   requestId: string,
 ): Promise<{ status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED"; videoUrl?: string; error?: string }> {
   try {
-    const s: any = await fal.queue.status(MAGIC_TRANSFORM_ENDPOINT, { requestId });
+    const s: any = await fal.queue.status(VIDEO_ENDPOINT, { requestId });
     if (s.status === "COMPLETED") {
-      const r: any = await fal.queue.result(MAGIC_TRANSFORM_ENDPOINT, { requestId });
+      const r: any = await fal.queue.result(VIDEO_ENDPOINT, { requestId });
       const videoUrl = r.data?.video?.url;
       if (!videoUrl) return { status: "FAILED", error: "No video in result" };
       return { status: "COMPLETED", videoUrl };

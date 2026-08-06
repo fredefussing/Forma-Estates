@@ -3915,41 +3915,51 @@ export async function registerRoutes(
   // ── Magisk Transformation Video (Kling v1.6 Pro — ét billede → cinematisk animation) ─
   const magicTransformRefunds = new Map<string, number>(); // requestId → userId
 
-  app.post("/api/bolig/magic-transform-video", upload.single("image"), async (req, res) => {
-    let magicUserId: number | null = null;
-    try {
-      if (!isFalConfigured()) return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
-      const file = req.file;
-      if (!file) return res.status(400).json({ success: false, message: "Upload venligst et billede" });
+  app.post(
+    "/api/bolig/magic-transform-video",
+    upload.fields([{ name: "beforeImage", maxCount: 1 }, { name: "afterImage", maxCount: 1 }]),
+    async (req, res) => {
+      let magicUserId: number | null = null;
       try {
-        const { uid } = await verifyFirebaseToken(req.headers.authorization);
-        const u = await storage.getUserByFirebaseUid(uid);
-        if (!u) return res.status(401).json({ success: false, message: "Log ind for at generere videoer." });
-        magicUserId = u.id;
-        const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
-        if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota.` });
-      } catch (authErr: any) {
-        if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
-        return res.status(401).json({ success: false, message: "Log ind for at generere videoer." });
+        if (!isFalConfigured()) return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+        const files = req.files as { [k: string]: Express.Multer.File[] } | undefined;
+        const beforeFile = files?.beforeImage?.[0];
+        const afterFile = files?.afterImage?.[0];
+        if (!beforeFile || !afterFile) return res.status(400).json({ success: false, message: "Upload både et før- og et efter-billede" });
+        try {
+          const { uid } = await verifyFirebaseToken(req.headers.authorization);
+          const u = await storage.getUserByFirebaseUid(uid);
+          if (!u) return res.status(401).json({ success: false, message: "Log ind for at generere videoer." });
+          magicUserId = u.id;
+          const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
+          if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota.` });
+        } catch (authErr: any) {
+          if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
+          return res.status(401).json({ success: false, message: "Log ind for at generere videoer." });
+        }
+        const validStyles = ["magic", "spring", "evening", "luxury"];
+        const style = (validStyles.includes(req.body?.style) ? req.body.style : "magic") as MagicTransformStyle;
+        const tvProto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0].trim() || req.protocol;
+        const tvPublicBaseUrl = `${tvProto}://${req.get("host")}`;
+        const { beforeUrl, afterUrl } = await uploadVideoPairToFal(
+          path.join(uploadDir, beforeFile.filename),
+          path.join(uploadDir, afterFile.filename),
+          { uploadDir, publicBaseUrl: tvPublicBaseUrl },
+        );
+        log(`[MagicTransform] submit style=${style} before=${beforeUrl.slice(0, 60)} after=${afterUrl.slice(0, 60)}`);
+        const { requestId } = await submitMagicTransformVideo(beforeUrl, afterUrl, style);
+        log(`[MagicTransform] submitted request_id=${requestId}`);
+        if (magicUserId) magicTransformRefunds.set(requestId, magicUserId);
+        if (magicUserId) storage.createVideoJob({ requestId, userId: magicUserId, feature: "transformVideo" }).catch(() => {});
+        if (magicUserId) storage.logCrmActivity(magicUserId, "video", `Magisk transformation · ${style}`).catch(() => {});
+        return res.json({ success: true, request_id: requestId });
+      } catch (err: any) {
+        log(`[MagicTransform] submit error: ${err.message}`);
+        if (magicUserId) storage.refundQuota(magicUserId, "transformVideo").catch(() => {});
+        return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
       }
-      const validStyles = ["magic", "spring", "evening", "luxury"];
-      const style = (validStyles.includes(req.body?.style) ? req.body.style : "magic") as MagicTransformStyle;
-      const tvProto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0].trim() || req.protocol;
-      const publicBaseUrl = `${tvProto}://${req.get("host")}`;
-      const imagePublicUrl = `${publicBaseUrl}/uploads/${file.filename}`;
-      log(`[MagicTransform] submit style=${style} image=${imagePublicUrl.slice(0, 80)}`);
-      const { requestId } = await submitMagicTransformVideo(imagePublicUrl, style);
-      log(`[MagicTransform] submitted request_id=${requestId}`);
-      if (magicUserId) magicTransformRefunds.set(requestId, magicUserId);
-      if (magicUserId) storage.createVideoJob({ requestId, userId: magicUserId, feature: "transformVideo" }).catch(() => {});
-      if (magicUserId) storage.logCrmActivity(magicUserId, "video", `Magisk transformation · ${style}`).catch(() => {});
-      return res.json({ success: true, request_id: requestId, image_url: `/uploads/${file.filename}` });
-    } catch (err: any) {
-      log(`[MagicTransform] submit error: ${err.message}`);
-      if (magicUserId) storage.refundQuota(magicUserId, "transformVideo").catch(() => {});
-      return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
-    }
-  });
+    },
+  );
 
   app.get("/api/bolig/magic-transform-video/status/:requestId", async (req, res) => {
     try {
