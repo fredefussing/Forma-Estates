@@ -3990,7 +3990,7 @@ export async function registerRoutes(
       if (result.status === "FAILED") {
         const uid = magicTransformRefunds.get(requestId);
         if (uid) { storage.refundQuota(uid, "transformVideo").catch(() => {}); magicTransformRefunds.delete(requestId); }
-        storage.failVideoJob(requestId, result.error || "Failed").catch(() => {});
+        storage.failVideoJob(requestId).catch(() => {});
         return res.json({ success: false, status: "FAILED", message: result.error || "Generering mislykkedes" });
       }
       return res.json({ success: true, status: result.status });
