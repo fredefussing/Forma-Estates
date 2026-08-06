@@ -1183,6 +1183,7 @@ function CaseDetailPanel({
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
       fd.append("sourceCaseImageId", String(caseSavedImageId));
+      fd.append("caseId", String(caseData.id));
       fd.append("isDesignAgent", "true");
       fd.append("isRefinement", "true");
       fd.append("promptText", caseRefinementPrompt.trim());
@@ -1194,9 +1195,16 @@ function CaseDetailPanel({
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || "Justering mislykkedes. Prøv igen.");
       setCaseRefinedUrl(data.image_url);
+      setResultUrl(data.image_url);
       if (data.generation_id) setCaseSavedImageId(data.generation_id);
       setCaseRefinementCount(c => c + 1);
       setCaseRefinementPrompt("");
+      // Refresh gallery so the refined image (not the original) appears in the folder
+      await refetchImages();
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
     } catch (err: any) {
       setCaseRefinementError(err.message || "Noget gik galt. Prøv igen.");
     } finally {
@@ -2918,9 +2926,16 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || "Justering mislykkedes. Prøv igen.");
       setRefinedUrl(data.image_url);
+      setResultUrl(data.image_url);
       if (data.generation_id) setSavedImageId(data.generation_id);
       setRefinementCount(c => c + 1);
       setRefinementPrompt("");
+      // Refresh gallery so the refined image (not the original) is what appears
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
     } catch (err: any) {
       setRefinementError(err.message || "Noget gik galt. Prøv igen.");
     } finally {
