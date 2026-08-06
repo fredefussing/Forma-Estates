@@ -21,7 +21,7 @@ import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, se
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
-import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
+import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
 import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
@@ -3908,6 +3908,84 @@ export async function registerRoutes(
       return res.json({ success: true, status: result.status });
     } catch (err: any) {
       log(`[Video] status error: ${err.message}`);
+      return res.status(500).json({ success: false, message: err.message || "Status mislykkedes" });
+    }
+  });
+
+  // ── Magisk Transformation Video (Kling v1.6 Pro — ét billede → cinematisk animation) ─
+  const magicTransformRefunds = new Map<string, number>(); // requestId → userId
+
+  app.post("/api/bolig/magic-transform-video", upload.single("image"), async (req, res) => {
+    let magicUserId: number | null = null;
+    try {
+      if (!isFalConfigured()) return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+      const file = req.file;
+      if (!file) return res.status(400).json({ success: false, message: "Upload venligst et billede" });
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (!u) return res.status(401).json({ success: false, message: "Log ind for at generere videoer." });
+        magicUserId = u.id;
+        const q = await storage.checkAndIncrementQuota(u.id, "transformVideo");
+        if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota.` });
+      } catch (authErr: any) {
+        if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
+        return res.status(401).json({ success: false, message: "Log ind for at generere videoer." });
+      }
+      const validStyles = ["magic", "spring", "evening", "luxury"];
+      const style = (validStyles.includes(req.body?.style) ? req.body.style : "magic") as MagicTransformStyle;
+      const tvProto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0].trim() || req.protocol;
+      const publicBaseUrl = `${tvProto}://${req.get("host")}`;
+      const imagePublicUrl = `${publicBaseUrl}/uploads/${file.filename}`;
+      log(`[MagicTransform] submit style=${style} image=${imagePublicUrl.slice(0, 80)}`);
+      const { requestId } = await submitMagicTransformVideo(imagePublicUrl, style);
+      log(`[MagicTransform] submitted request_id=${requestId}`);
+      if (magicUserId) magicTransformRefunds.set(requestId, magicUserId);
+      if (magicUserId) storage.createVideoJob({ requestId, userId: magicUserId, feature: "transformVideo" }).catch(() => {});
+      if (magicUserId) storage.logCrmActivity(magicUserId, "video", `Magisk transformation · ${style}`).catch(() => {});
+      return res.json({ success: true, request_id: requestId, image_url: `/uploads/${file.filename}` });
+    } catch (err: any) {
+      log(`[MagicTransform] submit error: ${err.message}`);
+      if (magicUserId) storage.refundQuota(magicUserId, "transformVideo").catch(() => {});
+      return res.status(500).json({ success: false, message: err.message || "Indsendelse mislykkedes" });
+    }
+  });
+
+  app.get("/api/bolig/magic-transform-video/status/:requestId", async (req, res) => {
+    try {
+      if (!isFalConfigured()) return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
+      const { requestId } = req.params;
+      const result = await getMagicTransformStatus(requestId);
+      if (result.status === "COMPLETED" && result.videoUrl) {
+        magicTransformRefunds.delete(requestId);
+        storage.completeVideoJob(requestId).catch(() => {});
+        let localVideoUrl = result.videoUrl;
+        try {
+          localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
+          log(`[MagicTransform] persisted → ${localVideoUrl}`);
+          try {
+            const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
+            const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+            await burnEuWatermark(rawMp4, wmTmp, String(req.query.lang || "da"));
+            fs.renameSync(wmTmp, rawMp4);
+            log(`[MagicTransform] EU Art.50 watermark burned`);
+          } catch (wmErr: any) {
+            log(`[MagicTransform] EU watermark failed (video stadig gyldig): ${wmErr.message}`);
+          }
+        } catch (e: any) {
+          log(`[MagicTransform] persist failed (using fal url): ${e.message}`);
+        }
+        return res.json({ success: true, status: "COMPLETED", video_url: localVideoUrl });
+      }
+      if (result.status === "FAILED") {
+        const uid = magicTransformRefunds.get(requestId);
+        if (uid) { storage.refundQuota(uid, "transformVideo").catch(() => {}); magicTransformRefunds.delete(requestId); }
+        storage.failVideoJob(requestId, result.error || "Failed").catch(() => {});
+        return res.json({ success: false, status: "FAILED", message: result.error || "Generering mislykkedes" });
+      }
+      return res.json({ success: true, status: result.status });
+    } catch (err: any) {
+      log(`[MagicTransform] status error: ${err.message}`);
       return res.status(500).json({ success: false, message: err.message || "Status mislykkedes" });
     }
   });

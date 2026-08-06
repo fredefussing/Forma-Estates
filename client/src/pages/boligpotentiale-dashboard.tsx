@@ -3563,7 +3563,7 @@ const ALL_MOODS_WT = ["calm", "uplifting", "modern", "tension"] as const;
 function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [videoMode, setVideoMode] = useState<"cinematic" | "morph">("cinematic");
+  const [videoMode, setVideoMode] = useState<"cinematic" | "morph" | "magic">("cinematic");
 
   // ── Morph mode state ────────────────────────────────────────────────────────
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
@@ -3599,11 +3599,25 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const wtDropdownRef = useRef<HTMLDivElement>(null);
   const wtEsRef = useRef<EventSource | null>(null);
 
+  // ── Magisk transformation state ───────────────────────────────────────────
+  const [magicFile, setMagicFile] = useState<File | null>(null);
+  const [magicPreview, setMagicPreview] = useState<string | null>(null);
+  const [magicStyle, setMagicStyle] = useState<"magic" | "spring" | "evening" | "luxury">("magic");
+  const [magicVideoUrl, setMagicVideoUrl] = useState<string | null>(null);
+  const [magicGenerating, setMagicGenerating] = useState(false);
+  const [magicError, setMagicError] = useState<string | null>(null);
+  const [magicSaveCaseId, setMagicSaveCaseId] = useState<number | null>(null);
+  const [magicShowCaseDropdown, setMagicShowCaseDropdown] = useState(false);
+  const [magicDownloading, setMagicDownloading] = useState(false);
+  const magicDropdownRef = useRef<HTMLDivElement>(null);
+  const magicResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const activeCases = cases.filter((c) => c.status !== "sold");
 
   const morphHasUnsaved = !!morphVideoUrl && morphSaveCaseId === null;
   const wtHasUnsaved = wtVideoUrls !== null && Object.keys(wtVideoUrls).length > 0 && wtSaveCaseId === null;
-  useUnsavedExitGuard(morphHasUnsaved || wtHasUnsaved);
+  const magicHasUnsaved = !!magicVideoUrl && magicSaveCaseId === null;
+  useUnsavedExitGuard(morphHasUnsaved || wtHasUnsaved || magicHasUnsaved);
 
   useEffect(() => {
     if (!morphShowCaseDropdown) return;
@@ -3644,7 +3658,16 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   // ── Morph handlers ──────────────────────────────────────────────────────────
   const morphResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wtResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (morphResetTimerRef.current) clearTimeout(morphResetTimerRef.current); if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current); }, []);
+  useEffect(() => () => { if (morphResetTimerRef.current) clearTimeout(morphResetTimerRef.current); if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current); if (magicResetTimerRef.current) clearTimeout(magicResetTimerRef.current); }, []);
+
+  useEffect(() => {
+    if (!magicShowCaseDropdown) return;
+    const onDown = (e: MouseEvent) => {
+      if (magicDropdownRef.current && !magicDropdownRef.current.contains(e.target as Node)) setMagicShowCaseDropdown(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [magicShowCaseDropdown]);
   const handleFile = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMorphError("Vælg venligst en billedfil"); return; }
     if (morphResetTimerRef.current) { clearTimeout(morphResetTimerRef.current); morphResetTimerRef.current = null; }
@@ -3751,6 +3774,92 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
     setMorphDownloading(true);
     try { await downloadFromUrl(morphVideoUrl, `forvandlingsvideo-${new Date().toISOString().slice(0, 10)}.mp4`); }
     finally { setMorphDownloading(false); }
+  };
+
+  // ── Magisk transformation handlers ──────────────────────────────────────────
+  const handleMagicFile = (file: File) => {
+    if (!file.type.startsWith("image/")) { setMagicError("Vælg venligst en billedfil"); return; }
+    if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
+    setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
+    setMagicFile(file);
+    setMagicPreview(URL.createObjectURL(file));
+  };
+
+  const handleMagicReset = () => {
+    if (magicHasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
+    setMagicFile(null); setMagicPreview(null);
+    setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
+  };
+
+  const handleMagicGenerate = async () => {
+    if (!magicFile) return;
+    if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
+    setMagicGenerating(true); setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("image", magicFile);
+      fd.append("style", magicStyle);
+      const res = await fetch("/api/bolig/magic-transform-video", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const ctype = res.headers.get("content-type") || "";
+      if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.request_id) throw new Error(data.message || "Indsendelse mislykkedes");
+      const requestId = data.request_id as string;
+      const maxAttempts = 120; // 120 × 5s = 10 min
+      let finalUrl: string | null = null;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const sres = await fetch(`/api/bolig/magic-transform-video/status/${requestId}`);
+        const sctype = sres.headers.get("content-type") || "";
+        if (!sctype.includes("application/json")) continue;
+        const sdata = await sres.json();
+        if (sdata.status === "COMPLETED" && sdata.video_url) { finalUrl = sdata.video_url; break; }
+        if (sdata.status === "FAILED") throw new Error(sdata.message || "Generering mislykkedes");
+      }
+      if (!finalUrl) throw new Error("Generering tog for lang tid. Prøv igen.");
+      setMagicVideoUrl(finalUrl);
+    } catch (err: any) {
+      setMagicError(err.message || "Noget gik galt");
+    } finally {
+      setMagicGenerating(false);
+    }
+  };
+
+  const magicSaveToCase = async (c: ApiCase) => {
+    if (!magicVideoUrl) return;
+    setMagicShowCaseDropdown(false);
+    setMagicSaveCaseId(c.id);
+    try {
+      const token = await user?.getIdToken();
+      const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ imageUrl: magicVideoUrl, originalImageUrl: null, roomType: "magic-transform", style: "magic-transform", budgetTier: "tier2", promptText: "Magisk transformation", isDesignAgent: true }),
+      });
+      if (!r.ok) { setMagicSaveCaseId(null); alert("Kunne ikke gemme til mappen."); return; }
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      if (magicResetTimerRef.current) clearTimeout(magicResetTimerRef.current);
+      magicResetTimerRef.current = setTimeout(() => {
+        magicResetTimerRef.current = null;
+        setMagicFile(null); setMagicPreview(null);
+        setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
+      }, 1500);
+    } catch { setMagicSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
+  };
+
+  const handleMagicDownload = async () => {
+    if (!magicVideoUrl || magicDownloading) return;
+    setMagicDownloading(true);
+    try { await downloadFromUrl(magicVideoUrl, `magisk-transformation-${new Date().toISOString().slice(0, 10)}.mp4`); }
+    finally { setMagicDownloading(false); }
   };
 
   // ── Forvandlingsfilm handlers ───────────────────────────────────────────────
@@ -3885,21 +3994,25 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
-          {videoMode === "cinematic" ? "Vælg 2–8 af dine gemte AI-designs — hvert rum forvandler sig fra før til efter, og det hele samles i én film med musik." : "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem."}
+          {videoMode === "cinematic" ? "Vælg 2–8 af dine gemte AI-designs — hvert rum forvandler sig fra før til efter, og det hele samles i én film med musik." : videoMode === "morph" ? "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem." : "Upload ét boligfoto — Kling v1.6 Pro animerer rummet til en cinematisk transformation."}
         </p>
       </div>
 
       {/* Mode picker */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 mb-8 shadow-sm">
         <div className="text-[11px] font-bold uppercase tracking-wider mb-4 block" style={{ color: "#9B9690" }}>Videostil</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <button type="button" onClick={() => setVideoMode("cinematic")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "cinematic" ? "#0F1D2F" : "white", color: videoMode === "cinematic" ? "white" : "#0F1D2F", boxShadow: videoMode === "cinematic" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-cinematic">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <button type="button" onClick={() => setVideoMode("cinematic")} disabled={morphGenerating || wtGenerating || magicGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "cinematic" ? "#0F1D2F" : "white", color: videoMode === "cinematic" ? "white" : "#0F1D2F", boxShadow: videoMode === "cinematic" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-cinematic">
             <div className="text-sm font-semibold mb-1">Forvandlingsfilm</div>
             <div className="text-xs leading-relaxed" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Vælg 2–8 af dine AI-designs · ét forvandlingsklip pr. rum · én samlet film med musik</div>
           </button>
-          <button type="button" onClick={() => setVideoMode("morph")} disabled={morphGenerating || wtGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "morph" ? "#0F1D2F" : "white", color: videoMode === "morph" ? "white" : "#0F1D2F", boxShadow: videoMode === "morph" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-morph">
+          <button type="button" onClick={() => setVideoMode("morph")} disabled={morphGenerating || wtGenerating || magicGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "morph" ? "#0F1D2F" : "white", color: videoMode === "morph" ? "white" : "#0F1D2F", boxShadow: videoMode === "morph" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-morph">
             <div className="text-sm font-semibold mb-1">Forvandling</div>
             <div className="text-xs leading-relaxed" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>1 før + 1 efter · statisk kamera · rummet ombygger sig på stedet</div>
+          </button>
+          <button type="button" onClick={() => setVideoMode("magic")} disabled={morphGenerating || wtGenerating || magicGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "magic" ? "#C8956C" : "#E8E4DE", background: videoMode === "magic" ? "rgba(200,149,108,0.08)" : "white", color: "#0F1D2F", boxShadow: videoMode === "magic" ? "0 4px 14px rgba(200,149,108,0.18)" : "none" }} data-testid="button-video-mode-magic">
+            <div className="text-sm font-semibold mb-1 flex items-center gap-1.5"><span>✨</span> Magisk transformation</div>
+            <div className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>1 billede · objekter animeres og transformeres · cinematisk fairy-tale effekt</div>
           </button>
         </div>
       </div>
@@ -4119,6 +4232,123 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             )}
           </div>
         </>
+      )}
+
+      {/* ── Magisk Transformation UI ── */}
+      {videoMode === "magic" && (
+        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 shadow-sm">
+          {/* Stil-vælger */}
+          <div className="mb-6">
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Transformationsstil</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                { key: "magic",   label: "✨ Magisk",  desc: "Objekter animeres og flyver til nye pladser" },
+                { key: "spring",  label: "🌸 Forår",   desc: "Blomster blomstrer, lys og luft strømmer ind" },
+                { key: "evening", label: "🕯️ Aften",   desc: "Dag skifter til varm gyldenbrun aftenstemning" },
+                { key: "luxury",  label: "✦ Luksus",  desc: "Rummet opgraderes subtilt til showroom-niveau" },
+              ] as { key: "magic"|"spring"|"evening"|"luxury"; label: string; desc: string }[]).map(({ key, label, desc }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setMagicStyle(key)}
+                  disabled={magicGenerating}
+                  className="text-left rounded-xl border p-3 transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                  style={{
+                    borderColor: magicStyle === key ? "#C8956C" : "#E8E4DE",
+                    background: magicStyle === key ? "rgba(200,149,108,0.08)" : "white",
+                    boxShadow: magicStyle === key ? "0 2px 8px rgba(200,149,108,0.18)" : "none",
+                  }}
+                  data-testid={`button-magic-style-${key}`}
+                >
+                  <div className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>{label}</div>
+                  <div className="text-[11px] leading-snug" style={{ color: "#6B6B6B" }}>{desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Billede-upload */}
+          <div className="mb-6">
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Dit boligfoto</label>
+            {!magicPreview ? (
+              <label
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleMagicFile(f); }}
+                className="block cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors"
+                style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
+                data-testid="dropzone-magic"
+              >
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMagicFile(f); }} data-testid="input-magic-image" />
+                <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
+                <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billede hertil eller klik for at vælge</p>
+                <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG eller PNG · bedst med stue, køkken eller soveværelse</p>
+              </label>
+            ) : (
+              <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
+                <img src={magicPreview} alt="Dit billede" className="w-full max-h-72 object-contain" data-testid="img-magic-preview" />
+                <button onClick={handleMagicReset} disabled={magicGenerating} aria-label="Fjern billede" className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic">
+                  <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {magicError && (
+            <div className="p-3 rounded-lg text-sm mb-4" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-magic-error">
+              {magicError}
+            </div>
+          )}
+
+          {!magicVideoUrl ? (
+            <QuotaGate feature="transformVideo">
+              <button
+                onClick={handleMagicGenerate}
+                disabled={!magicFile || magicGenerating}
+                className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
+                style={{ background: "#C8956C", boxShadow: "0 4px 14px rgba(200,149,108,0.25)" }}
+                data-testid="button-generate-magic"
+              >
+                {magicGenerating
+                  ? <><RotateCcw className="w-4 h-4 animate-spin" />Animerer din bolig… (~3–5 min)</>
+                  : <><Video className="w-4 h-4" />Generér magisk transformation</>}
+              </button>
+            </QuotaGate>
+          ) : (
+            <>
+              <div className="rounded-xl overflow-hidden border border-[#E8E4DE] mb-4" data-testid="container-magic-result">
+                <video src={magicVideoUrl} controls autoPlay loop className="w-full block bg-black" style={{ maxHeight: "70vh", objectFit: "contain" }} data-testid="video-magic-result" />
+                <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
+                  <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />AI-genereret magisk transformation · Kling v1.6 Pro
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={handleMagicDownload} disabled={magicDownloading} className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-50" style={{ background: "#0F1D2F" }} data-testid="button-download-magic">
+                  <Download className="w-4 h-4" />{magicDownloading ? "Henter…" : "Download MP4"}
+                </button>
+                {activeCases.length > 0 && (
+                  <div className="relative" ref={magicDropdownRef}>
+                    <button onClick={() => setMagicShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-magic-save-case">
+                      <Video className="w-4 h-4" />{magicSaveCaseId ? "Gemt til mappe ✓" : "Gem til mappe"}<ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    {magicShowCaseDropdown && (
+                      <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
+                        {activeCases.map((c) => (
+                          <button key={c.id} onClick={() => magicSaveToCase(c)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left" style={{ color: "#1A1A1A" }} data-testid={`button-magic-save-case-${c.id}`}>
+                            <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
+                            <span className="truncate">{c.address}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button onClick={handleMagicReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-magic-reset">
+                  <RotateCcw className="w-4 h-4" /> Prøv igen
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {showTransformEksempel && (
