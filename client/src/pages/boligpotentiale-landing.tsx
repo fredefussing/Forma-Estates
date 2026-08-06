@@ -451,27 +451,25 @@ function HeroStage() {
               {t("hero.subline")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/opret">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: C.gold, color: C.navy, padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
-                  data-testid="bolig-hero-cta"
-                >
-                  {t("hero.cta")} <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+              <Link
+                href="/opret"
+                className="inline-flex items-center gap-2 transition-all"
+                style={{ background: C.gold, color: C.navy, padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)", textDecoration: "none" }}
+                onMouseEnter={(e: any) => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e: any) => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                data-testid="bolig-hero-cta"
+              >
+                {t("hero.cta")} <ArrowRight className="w-3.5 h-3.5" />
               </Link>
-              <Link href="/boligpotentiale/eksempler">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
-                  data-testid="bolig-hero-cta-secondary"
-                >
-                  {t("hero.ctaSecondary")}
-                </button>
+              <Link
+                href="/boligpotentiale/eksempler"
+                className="inline-flex items-center gap-2 transition-all"
+                style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)", textDecoration: "none" }}
+                onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
+                onMouseLeave={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
+                data-testid="bolig-hero-cta-secondary"
+              >
+                {t("hero.ctaSecondary")}
               </Link>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS }}>
                 {t("hero.trial")}
@@ -726,8 +724,9 @@ function HeroSliderSection() {
   );
 }
 
-// ── Cookie consent banner ────────────────────────────────────────────────────
-function CookieBanner() {
+// ── Cookie consent banner — now in client/src/components/cookie-banner.tsx ───
+// (Global version mounted in App.tsx — this local definition has been removed.)
+function _CookieBannerLegacy_UNUSED() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [stats, setStats] = useState(false);
@@ -1394,15 +1393,21 @@ export default function BoligpotentialeLanding() {
                   </button>
                 ))}
               </div>
-              <Link href="/login?redirect=/boligpotentiale/dashboard">
-                <button className="w-full mt-2" style={{ padding: "12px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent" }} data-testid="bolig-mobile-login">
-                  {t("nav.login")}
-                </button>
+              <Link
+                href="/login?redirect=/boligpotentiale/dashboard"
+                className="block w-full mt-2 text-center"
+                style={{ padding: "12px 24px", borderRadius: 8, border: `1px solid ${C.navy}`, color: C.navy, fontSize: 13, fontWeight: 500, background: "transparent", textDecoration: "none" }}
+                data-testid="bolig-mobile-login"
+              >
+                {t("nav.login")}
               </Link>
-              <Link href="/opret">
-                <button className="w-full text-white" style={{ padding: "12px 24px", borderRadius: 8, background: C.gold, fontSize: 13, fontWeight: 500 }} data-testid="bolig-mobile-cta">
-                  {t("nav.getStarted")}
-                </button>
+              <Link
+                href="/opret"
+                className="block w-full text-center text-white"
+                style={{ padding: "12px 24px", borderRadius: 8, background: C.gold, fontSize: 13, fontWeight: 500, textDecoration: "none" }}
+                data-testid="bolig-mobile-cta"
+              >
+                {t("nav.getStarted")}
               </Link>
             </motion.div>
           )}

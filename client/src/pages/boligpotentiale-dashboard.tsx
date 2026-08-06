@@ -2983,7 +2983,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
               <div>
                 <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]" style={{ aspectRatio: "4/3" }}>
                   <img src={imagePreview!} alt="Preview" className="w-full h-full object-contain" />
-                  <button onClick={reset} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
+                  <button onClick={reset} aria-label="Fjern billede" className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
                 </div>
                 <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>{imageFile?.name}</p>
               </div>
@@ -5115,7 +5115,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Kamerabevægelse</span>
                       <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(panelImg) + 1}</span>
                     </div>
-                    <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                    <button type="button" aria-label="Luk panel" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
                       <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
                     </button>
                   </div>
@@ -5175,7 +5175,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         ))}
                       </div>
                     </div>
-                    <button type="button" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                    <button type="button" aria-label="Luk panel" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
                       <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
                     </button>
                   </div>
@@ -8323,7 +8323,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-bold" style={{ color: "#0F1D2F" }}>Tildel credits til medlem</h3>
-                <button onClick={() => setAllocateModal(false)} className="p-1 rounded-lg hover:bg-[#F0EDE7]"><X className="w-4 h-4" style={{ color: "#6B6B6B" }} /></button>
+                <button aria-label="Luk" onClick={() => setAllocateModal(false)} className="p-1 rounded-lg hover:bg-[#F0EDE7]"><X className="w-4 h-4" style={{ color: "#6B6B6B" }} /></button>
               </div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>VÆLG MEDLEM</label>
               <select value={allocateUserId ?? ""} onChange={(e) => setAllocateUserId(Number(e.target.value))}
