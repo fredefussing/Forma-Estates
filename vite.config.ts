@@ -7,17 +7,13 @@ export default defineConfig({
   plugins: [
     react(),
     runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-          await import("@replit/vite-plugin-dev-banner").then((m) =>
-            m.devBanner(),
-          ),
-        ]
-      : []),
+    // NOTE: @replit/vite-plugin-cartographer is intentionally omitted.
+    // Its beacon script registers a capturing document click-listener that
+    // intercepts every click before React handlers fire, making the preview
+    // completely unresponsive. The dev-banner is also omitted because it only
+    // displays when NOT inside an iframe — i.e. never in the Replit preview.
+    // Both plugins are safe to leave out; they are developer-ergonomics tools
+    // and have zero effect on production builds or app behaviour.
   ],
   resolve: {
     alias: {
@@ -32,6 +28,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    // allowedHosts: true is required for Replit's reverse-proxy preview.
+    // Without it Vite rejects HMR websocket connections from the proxy
+    // hostname, causing the preview to disconnect and reconnect every ~30 s.
+    allowedHosts: true,
     fs: {
       strict: true,
       deny: ["**/.*"],
