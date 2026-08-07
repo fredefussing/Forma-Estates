@@ -54,7 +54,15 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
   const hasFreeTrialCredits = useFreeTrialGateState();
   const [, setLocation] = useLocation();
 
-  if (isSubscribed || (allowFreeTrial && hasFreeTrialCredits === true)) return <>{children}</>;
+  // Once the user is allowed in (subscribed or has free-trial credits), latch
+  // that state for this mount's lifetime so a mid-generation quota poll can't
+  // rip the component out before the result image has been shown.
+  // The latch resets naturally on page refresh / component remount.
+  const [wasAllowedIn, setWasAllowedIn] = useState(false);
+  const isAllowedNow = isSubscribed || (allowFreeTrial && hasFreeTrialCredits === true);
+  useEffect(() => { if (isAllowedNow) setWasAllowedIn(true); }, [isAllowedNow]);
+
+  if (isAllowedNow || wasAllowedIn) return <>{children}</>;
 
   // Quota still loading → neutral blank state instead of flashing the paywall
   if (allowFreeTrial && hasFreeTrialCredits === null) {
