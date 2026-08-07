@@ -395,7 +395,11 @@
       "invalidCredential": "Email o contraseña incorrectos. Inténtalo de nuevo.",
       "tooManyRequests": "Demasiados intentos. Inténtalo más tarde.",
       "generic": "Algo salió mal. Inténtalo de nuevo."
-    }
+    },
+    "emailPlaceholder": "tu@correo.com",
+    "passwordPlaceholder": "Tu contraseña",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
   },
   "signupPage": {
     "title": "Crear cuenta",
@@ -1613,7 +1617,8 @@
       "ydelse": "Servicio",
       "subtotalEksklMoms": "Subtotal sin IVA",
       "momsRate": "IVA ({{rate}} %)",
-      "betaltDen": "Pagado el"
+      "betaltDen": "Pagado el",
+      "downloadPdf": "Descargar PDF"
     },
     "homeX": {
       "gennemgaaAlleFormaEstatesFunktioner": "Repásame brevemente todas las funciones de Forma Estates — ¿para qué puedo usar la plataforma?",

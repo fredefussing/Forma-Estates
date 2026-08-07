@@ -5465,7 +5465,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#7C3AED" }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>VFX Effekter</span>
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.showcase.vfxEffekter")}</span>
                       <span className="text-xs" style={{ color: "#9B9690" }}>— {i18n.t("dashboard.showcase.billedeNr", { num: images.indexOf(panelImg) + 1 })}</span>
                       <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>
                         {(["transitions","actors","staging"] as const).map((tab) => (
@@ -6359,7 +6359,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                   </button>
                 </div>
               </div>
-              {saving && <p className="text-[10px] px-4 pb-3" style={{ color: "#9B9690" }}>Gemmer…</p>}
+              {saving && <p className="text-[10px] px-4 pb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.common.gemmer")}</p>}
             </div>
           ))}
         </div>
@@ -9721,7 +9721,7 @@ export default function BoligpotentialeDashboard() {
             data-testid="bolig-nav-lang"
           >
             <Globe className="w-[18px] h-[18px] flex-shrink-0" />
-            <span className="flex-1 text-left">{DASH_LANGUAGES.find((l) => l.code === i18n.language)?.label ?? "Dansk"}</span>
+            <span className="flex-1 text-left">{DASH_LANGUAGES.find((l) => l.code === i18n.language)?.label ?? DASH_LANGUAGES[0].label}</span>
             <ChevronDown className="w-3.5 h-3.5 opacity-60" />
           </button>
           <AnimatePresence>
@@ -10053,8 +10053,8 @@ export default function BoligpotentialeDashboard() {
                 >
                   <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "#C8956C" }} />
                   <span className="text-sm flex-1" style={{ color: "#0F1D2F" }}>
-                    <span className="font-semibold">I tvivl om hvordan alle funktioner virker?</span>
-                    <span className="ml-1.5 font-normal" style={{ color: "#6B6B6B" }}>Klik her — AI-assistenten guider dig igennem</span>
+                    <span className="font-semibold">{i18n.t("dashboard.homeX.iTvivlOmHvordanAlle")}</span>
+                    <span className="ml-1.5 font-normal" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.homeX.klikHerAiAssistenten")}</span>
                   </span>
                   <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "#C8956C" }} />
                   <button
@@ -11145,7 +11145,7 @@ export default function BoligpotentialeDashboard() {
                   style={{ background: "#0F1D2F", color: "#fff" }}
                   data-testid="invoice-download-pdf"
                 >
-                  <Download className="w-4 h-4" /> Download PDF
+                  <Download className="w-4 h-4" /> {i18n.t("dashboard.billing.downloadPdf")}
                 </a>
               ) : (
                 <span className="text-xs" style={{ color: "#6B6B6B" }}>

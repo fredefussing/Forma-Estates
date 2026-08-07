@@ -117,8 +117,8 @@ export function PaywallPage({ children, allowFreeTrial = false }: { children: Re
           {EXAMPLE_PAIRS.map((p) => (
             <div key={p.label} className="rounded-2xl overflow-hidden border border-[#E8E4DE] bg-white shadow-sm">
               <div className="grid grid-cols-2">
-                <img src={p.before} alt="Før" className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
-                <img src={p.after} alt="Efter" className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
+                <img src={p.before} alt="Before" className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
+                <img src={p.after} alt="After" className="w-full object-cover" style={{ aspectRatio: "1/1" }} />
               </div>
               <div className="px-3 py-2 text-center">
                 <span className="text-[11px] font-medium" style={{ color: "#9B9690" }}>{p.label}</span>

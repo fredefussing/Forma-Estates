@@ -408,7 +408,11 @@
       "invalidCredential": "Forkert email eller password. Prøv igen.",
       "tooManyRequests": "For mange forsøg. Prøv igen senere.",
       "generic": "Der skete en fejl. Prøv igen."
-    }
+    },
+    "emailPlaceholder": "din@email.dk",
+    "passwordPlaceholder": "Dit password",
+    "showPassword": "Vis password",
+    "hidePassword": "Skjul password"
   },
   "signupPage": {
     "title": "Opret bruger",
@@ -1601,7 +1605,8 @@
       "ydelse": "Ydelse",
       "subtotalEksklMoms": "Subtotal ekskl. moms",
       "momsRate": "Moms ({{rate}}%)",
-      "betaltDen": "Betalt den"
+      "betaltDen": "Betalt den",
+      "downloadPdf": "Download PDF"
     },
     "homeX": {
       "gennemgaaAlleFormaEstatesFunktioner": "Gennemgå alle Forma Estates funktioner kort for mig — hvad kan jeg bruge platformen til?",

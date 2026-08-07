@@ -408,7 +408,11 @@
       "invalidCredential": "Falsche E-Mail oder Passwort. Bitte erneut versuchen.",
       "tooManyRequests": "Zu viele Versuche. Bitte später erneut versuchen.",
       "generic": "Ein Fehler ist aufgetreten. Bitte erneut versuchen."
-    }
+    },
+    "emailPlaceholder": "deine@email.de",
+    "passwordPlaceholder": "Ihr Passwort",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort ausblenden"
   },
   "signupPage": {
     "title": "Konto erstellen",
@@ -1626,7 +1630,8 @@
       "ydelse": "Leistung",
       "subtotalEksklMoms": "Zwischensumme exkl. MwSt.",
       "momsRate": "MwSt. ({{rate}} %)",
-      "betaltDen": "Bezahlt am"
+      "betaltDen": "Bezahlt am",
+      "downloadPdf": "PDF herunterladen"
     },
     "homeX": {
       "gennemgaaAlleFormaEstatesFunktioner": "Erklären Sie mir kurz alle Funktionen von Forma Estates — wofür kann ich die Plattform nutzen?",

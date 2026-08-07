@@ -408,7 +408,11 @@
       "invalidCredential": "Fel e-post eller lösenord. Försök igen.",
       "tooManyRequests": "För många försök. Försök igen senare.",
       "generic": "Något gick fel. Försök igen."
-    }
+    },
+    "emailPlaceholder": "din@email.se",
+    "passwordPlaceholder": "Ditt lösenord",
+    "showPassword": "Visa lösenord",
+    "hidePassword": "Dölj lösenord"
   },
   "signupPage": {
     "title": "Skapa konto",
@@ -1626,7 +1630,8 @@
       "ydelse": "Tjänst",
       "subtotalEksklMoms": "Delsumma exkl. moms",
       "momsRate": "Moms ({{rate}}%)",
-      "betaltDen": "Betald den"
+      "betaltDen": "Betald den",
+      "downloadPdf": "Ladda ned PDF"
     },
     "homeX": {
       "gennemgaaAlleFormaEstatesFunktioner": "Gå igenom alla Forma Estates funktioner kort för mig — vad kan jag använda plattformen till?",

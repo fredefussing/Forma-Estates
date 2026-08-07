@@ -408,7 +408,11 @@
       "invalidCredential": "Wrong email or password. Try again.",
       "tooManyRequests": "Too many attempts. Try again later.",
       "generic": "Something went wrong. Try again."
-    }
+    },
+    "emailPlaceholder": "your@email.com",
+    "passwordPlaceholder": "Your password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "signupPage": {
     "title": "Create account",
@@ -1626,7 +1630,8 @@
       "ydelse": "Service",
       "subtotalEksklMoms": "Subtotal excl. VAT",
       "momsRate": "VAT ({{rate}}%)",
-      "betaltDen": "Paid on"
+      "betaltDen": "Paid on",
+      "downloadPdf": "Download PDF"
     },
     "homeX": {
       "gennemgaaAlleFormaEstatesFunktioner": "Give me a brief overview of all Forma Estates features — what can I use the platform for?",

@@ -120,7 +120,7 @@ export default function LoginPage() {
                   id="reset-email"
                   type="email"
                   required
-                  placeholder="din@email.dk"
+                  placeholder={t("loginPage.emailPlaceholder")}
                   autoComplete="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
@@ -171,7 +171,7 @@ export default function LoginPage() {
               id="email"
               type="email"
               required
-              placeholder="din@email.dk"
+              placeholder={t("loginPage.emailPlaceholder")}
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -196,7 +196,7 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="Dit password"
+                placeholder={t("loginPage.passwordPlaceholder")}
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -207,7 +207,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("loginPage.hidePassword") : t("loginPage.showPassword")}
                 data-testid="button-toggle-password"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

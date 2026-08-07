@@ -408,7 +408,11 @@
       "invalidCredential": "Feil e-post eller passord. Prøv igjen.",
       "tooManyRequests": "For mange forsøk. Prøv igjen senere.",
       "generic": "Det oppstod en feil. Prøv igjen."
-    }
+    },
+    "emailPlaceholder": "din@email.no",
+    "passwordPlaceholder": "Ditt passord",
+    "showPassword": "Vis passord",
+    "hidePassword": "Skjul passord"
   },
   "signupPage": {
     "title": "Opprett bruker",
@@ -1626,7 +1630,8 @@
       "ydelse": "Ytelse",
       "subtotalEksklMoms": "Delsum ekskl. mva.",
       "momsRate": "Mva. ({{rate}} %)",
-      "betaltDen": "Betalt den"
+      "betaltDen": "Betalt den",
+      "downloadPdf": "Last ned PDF"
     },
     "homeX": {
       "gennemgaaAlleFormaEstatesFunktioner": "Gå gjennom alle Forma Estates-funksjoner kort for meg — hva kan jeg bruke plattformen til?",
