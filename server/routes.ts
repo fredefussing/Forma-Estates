@@ -1681,10 +1681,8 @@ export async function registerRoutes(
   // ── Reset a test-account's data (keeps the account, wipes all generated content + quota) ──
   app.post("/api/admin/reset-user-data", async (req, res) => {
     try {
-      const { uid } = await verifyFirebaseToken(req.headers.authorization);
-      const admin = await storage.getUserByFirebaseUid(uid);
-      if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
-      const { email } = req.body;
+      const { email, pw } = req.body;
+      if (pw !== process.env.ADMIN_PASSWORD) return res.status(401).json({ message: "Forkert adgangskode" });
       if (!email) return res.status(400).json({ message: "email required" });
       const target = await storage.getUserByEmail(email);
       if (!target) return res.status(404).json({ message: `Ingen bruger fundet med email: ${email}` });

@@ -67,6 +67,9 @@ export default function AdminDashboardPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [authError, setAuthError] = useState("");
   const [storedPassword, setStoredPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState("johndoe@gmail.com");
+  const [resetStatus, setResetStatus] = useState<{ ok: boolean; msg: string; keys?: string[] } | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const { data: stats, isLoading, refetch } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats", storedPassword],
@@ -77,6 +80,28 @@ export default function AdminDashboardPage() {
     },
     enabled: authenticated,
   });
+
+  const handleReset = async () => {
+    setResetting(true);
+    setResetStatus(null);
+    try {
+      const res = await fetch("/api/admin/reset-user-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail, pw: storedPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetStatus({ ok: true, msg: data.message, keys: data.localStorageKeys });
+      } else {
+        setResetStatus({ ok: false, msg: data.message || "Fejl" });
+      }
+    } catch {
+      setResetStatus({ ok: false, msg: "Netværksfejl" });
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,6 +307,41 @@ export default function AdminDashboardPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+            {/* ── Nulstil testkonto ─────────────────────────────────── */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm mt-8">
+              <h2 className="text-lg font-semibold mb-4">Nulstil testkonto</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Sletter alle billeder, sager og nulstiller kvota — kontoen beholder login og email-verificering.
+              </p>
+              <div className="flex gap-3 items-center">
+                <Input
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="email@eksempel.dk"
+                  className="max-w-xs"
+                />
+                <Button
+                  variant="destructive"
+                  onClick={handleReset}
+                  disabled={resetting || !resetEmail}
+                >
+                  {resetting ? "Nulstiller…" : "Nulstil konto"}
+                </Button>
+              </div>
+              {resetStatus && (
+                <div className={`mt-4 p-4 rounded-lg text-sm ${resetStatus.ok ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
+                  <p className="font-medium">{resetStatus.msg}</p>
+                  {resetStatus.ok && resetStatus.keys && (
+                    <div className="mt-3">
+                      <p className="mb-1 font-medium">Ryd guide-tilstand i browseren (kør i DevTools Console på formaestates.com):</p>
+                      <code className="block bg-black/10 rounded p-2 text-xs font-mono break-all">
+                        {resetStatus.keys.map(k => `localStorage.removeItem("${k}")`).join("; ")}
+                      </code>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : null}
