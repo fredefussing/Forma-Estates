@@ -7311,6 +7311,10 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   const [error, setError] = useState<string | null>(null);
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
+  // Tracks the DB id of the last generated result so re-prompts on the same
+  // image are sent as free refinements (isRefinement=true) instead of new
+  // quota-charged generations.
+  const [savedDesignId, setSavedDesignId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -7325,21 +7329,34 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
     setResultUrl(null);
     setOriginalUrl(null);
     setStage("idle");
+    setSavedDesignId(null); // new image → start fresh, clear refinement chain
   };
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) handleFile(f); };
 
   const handleGenerate = async () => {
-    if (!imageFile || !promptText.trim()) return;
+    if (!promptText.trim()) return;
+    if (!savedDesignId && !imageFile) return; // need at least one source
     if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setStage("loading"); setError(null);
     try {
       const token = await user?.getIdToken();
       const fd = new FormData();
-      fd.append("image", imageFile);
-      fd.append("isDesignAgent", "true");
-      fd.append("promptText", promptText.trim());
+
+      if (savedDesignId) {
+        // Re-prompt on existing result → free refinement (up to 5 per image)
+        fd.append("sourceCaseImageId", String(savedDesignId));
+        fd.append("isRefinement", "true");
+        fd.append("isDesignAgent", "true");
+        fd.append("promptText", promptText.trim());
+      } else {
+        // First generation → counts as one AI quota credit
+        fd.append("image", imageFile!);
+        fd.append("isDesignAgent", "true");
+        fd.append("promptText", promptText.trim());
+      }
+
       const res = await fetch("/api/bolig/generate", {
         method: "POST",
         body: fd,
@@ -7350,6 +7367,8 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       setResultUrl(data.image_url);
       setOriginalUrl(data.original_url ?? null);
       setStage("result");
+      // Track the new result id so next prompt is a free refinement
+      if (data.generation_id) setSavedDesignId(data.generation_id);
       recordAgentPrompt(promptText);
       setSavedPromptSuggestions((prev) => {
         const saved = getAgentSavedPrompts();
@@ -7362,10 +7381,11 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
-      window.dispatchEvent(new Event("quota:refresh"));
+      // Only refresh quota counter for first-generation (refinements are free)
+      if (!savedDesignId) window.dispatchEvent(new Event("quota:refresh"));
     } catch (err: any) {
       setError(err.message || "Noget gik galt. Prøv igen.");
-      setStage("idle");
+      setStage(savedDesignId ? "result" : "idle");
     }
   };
 
@@ -7378,7 +7398,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
   const handleReset = () => {
     if (!confirmDiscard()) return;
-    setStage("idle"); setResultUrl(null); setError(null); setSaveCaseId(null);
+    setStage("idle"); setResultUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null);
   };
 
   const handleBack = () => { if (confirmDiscard()) onBack(); };
@@ -7470,7 +7490,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             <div className="relative rounded-2xl overflow-hidden border border-[#D9D5CF]">
               <img src={imagePreview} alt="Preview" className="w-full h-56 object-cover" />
               <button
-                onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setStage("idle"); }}
+                onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setStage("idle"); setSavedDesignId(null); }}
                 className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                 data-testid="bolig-agent-remove-img"
               >
@@ -7542,12 +7562,14 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           </div>
         )}
 
-        {/* Generate button */}
+        {/* Generate button — QuotaGate only for first (quota-charging) generation;
+            re-prompts on an existing result are free refinements and bypass the gate. */}
         <div>
-          <QuotaGate feature="ai">
+          {savedDesignId ? (
+            // Refinement path: free, no quota gate
             <button
               onClick={handleGenerate}
-              disabled={!imageFile || !promptText.trim() || stage === "loading"}
+              disabled={!promptText.trim() || stage === "loading"}
               className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: "#0F1D2F" }}
               data-testid="bolig-agent-generate"
@@ -7558,13 +7580,36 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  Genererer billede...
+                  Tilpasser billede...
                 </>
               ) : (
-                <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
+                <><Sparkles className="w-4 h-4" /> Tilpas billede</>
               )}
             </button>
-          </QuotaGate>
+          ) : (
+            // First generation: costs 1 AI quota credit, gated by QuotaGate
+            <QuotaGate feature="ai">
+              <button
+                onClick={handleGenerate}
+                disabled={!imageFile || !promptText.trim() || stage === "loading"}
+                className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: "#0F1D2F" }}
+                data-testid="bolig-agent-generate"
+              >
+                {stage === "loading" ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Genererer billede...
+                  </>
+                ) : (
+                  <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
+                )}
+              </button>
+            </QuotaGate>
+          )}
         </div>
 
         {/* Result */}

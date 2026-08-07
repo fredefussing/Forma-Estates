@@ -762,6 +762,15 @@ export async function registerRoutes(
         log(`[auth] Pre-configured user applied: ${user.email} → tier=${preConfig.tier}, locked=${preConfig.lockedFeatures.join(",")}, showcase=${quotaUpdate.showcase}`);
       }
 
+      // Test accounts — always email-verified so they skip the activation screen.
+      // REMOVE these entries before a full public launch if desired.
+      const TEST_BYPASS_EMAILS = ["johndoe@gmail.com"];
+      if (TEST_BYPASS_EMAILS.includes((user.email ?? "").toLowerCase()) && !user.emailVerified) {
+        await storage.updateUser(user.id, { emailVerified: true });
+        user = { ...user, emailVerified: true };
+        log(`[auth] Test bypass: auto-verified ${user.email}`);
+      }
+
       // Auto-claim purchases made BEFORE the account existed (e.g. paid via
       // Stripe as guest, then signed up). Atomic claim → can never double-grant.
       try {
