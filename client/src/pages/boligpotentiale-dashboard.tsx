@@ -7495,7 +7495,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.uploadImageLabel")}</p>
           {imagePreview ? (
             <div className="relative rounded-2xl overflow-hidden border border-[#D9D5CF]">
-              <img src={imagePreview} alt="Preview" className="w-full h-56 object-cover" />
+              <img src={imagePreview} alt="Preview" className="w-full object-contain max-h-[480px]" style={{ display: "block" }} />
               <button
                 onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setStage("idle"); setSavedDesignId(null); }}
                 className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
