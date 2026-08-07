@@ -9249,6 +9249,7 @@ export default function BoligpotentialeDashboard() {
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
+  const isLeadsUser = ["fredefussing@gmail.com", "henrilasse@icloud.com"].includes(user?.email?.toLowerCase() ?? "");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
@@ -9626,7 +9627,7 @@ export default function BoligpotentialeDashboard() {
     { id: "historik" as Section, label: t("dashboard.nav.history"), icon: <Clock className="w-[18px] h-[18px]" /> },
     { id: "team" as Section, label: t("dashboard.nav.team"), icon: <Users className="w-[18px] h-[18px]" /> },
     ...(isAdmin ? [{ id: "crm" as Section, label: t("dashboard.nav.crm"), icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
-    ...(isOwner ? [{ id: "leads" as Section, label: "Leads", icon: <Target className="w-[18px] h-[18px]" /> }] : []),
+    ...(isLeadsUser ? [{ id: "leads" as Section, label: "Leads", icon: <Target className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -9874,15 +9875,17 @@ export default function BoligpotentialeDashboard() {
               >
                 <Shield className="w-3.5 h-3.5" /> CRM
               </button>
-              <button
-                onClick={() => setSection("leads")}
-                className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
-                style={{ background: section === "leads" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "leads" ? "#fff" : "#C8956C" }}
-                data-testid="bolig-topbar-leads"
-              >
-                <Target className="w-3.5 h-3.5" /> Leads
-              </button>
             </>
+          )}
+          {isLeadsUser && (
+            <button
+              onClick={() => setSection("leads")}
+              className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+              style={{ background: section === "leads" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "leads" ? "#fff" : "#C8956C" }}
+              data-testid="bolig-topbar-leads"
+            >
+              <Target className="w-3.5 h-3.5" /> Leads
+            </button>
           )}
           <span className="text-sm hidden sm:block truncate max-w-[130px]" style={{ color: "rgba(245,243,239,0.8)" }} data-testid="bolig-topbar-username">{displayName}</span>
           <button
@@ -10600,8 +10603,8 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {/* Leads — fredefussing only */}
-          {section === "leads" && isOwner && (
+          {/* Leads — owner + leads collaborators */}
+          {section === "leads" && isLeadsUser && (
             <motion.div key="leads-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
               <LeadsView />
             </motion.div>

@@ -632,7 +632,7 @@ export async function registerRoutes(
     if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
       return res.status(403).json({ error: "Forbidden" });
     }
-    const adminEmails = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com", "henrilasse@icloud.com"];
+    const adminEmails = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
     const results: any[] = [];
     for (const email of adminEmails) {
       const user = await storage.getUserByEmail(email);
@@ -699,7 +699,7 @@ export async function registerRoutes(
 
       // Super-admins are always elevated to full access on every login,
       // regardless of what the DB currently says. ONLY these two — no one else.
-      const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com", "henrilasse@icloud.com"];
+      const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
       if (
         SUPER_ADMIN_EMAILS.includes(user.email) &&
         (!user.isAdmin || user.subscriptionStatus !== "active" || user.subscriptionTier !== "unlimited")
@@ -723,6 +723,7 @@ export async function registerRoutes(
       };
       const PRE_CONFIGURED_USERS: Record<string, PreConfigEntry> = {
         "jove@atp-ejendomme.dk": { tier: "pro", lockedFeatures: ["transformVideos"], overrideQuotas: { showcase: 1 } },
+        "henrilasse@icloud.com": { tier: "unlimited", lockedFeatures: [] },
       };
       const preConfig = PRE_CONFIGURED_USERS[user.email?.toLowerCase() ?? ""];
       if (preConfig) {
@@ -5994,12 +5995,17 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
-  // ── Owner-only guard (fredefussing@gmail.com exclusively) ────────────────────
+  // ── Leads access guard (owner + leads collaborators) ─────────────────────────
+  const LEADS_EMAILS = ["fredefussing@gmail.com", "henrilasse@icloud.com"];
   async function requireOwner(req: any, res: any): Promise<{ dbUser: any } | null> {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const dbUser = await storage.getUserByFirebaseUid(uid);
-      if (!dbUser?.isAdmin || dbUser.email !== "fredefussing@gmail.com") {
+      if (!dbUser || !LEADS_EMAILS.includes(dbUser.email ?? "")) {
+        res.status(403).json({ error: "Leads access only" }); return null;
+      }
+      // Full owner (fredefussing) also requires isAdmin flag
+      if (dbUser.email === "fredefussing@gmail.com" && !dbUser.isAdmin) {
         res.status(403).json({ error: "Owner only" }); return null;
       }
       return { dbUser };
