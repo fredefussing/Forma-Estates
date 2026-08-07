@@ -1678,6 +1678,37 @@ export async function registerRoutes(
     });
   }
 
+  // ── Reset a test-account's data (keeps the account, wipes all generated content + quota) ──
+  app.post("/api/admin/reset-user-data", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const admin = await storage.getUserByFirebaseUid(uid);
+      if (!admin?.isAdmin) return res.status(403).json({ message: "Kun admins" });
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "email required" });
+      const target = await storage.getUserByEmail(email);
+      if (!target) return res.status(404).json({ message: `Ingen bruger fundet med email: ${email}` });
+      await storage.resetUserData(target.id);
+      return res.json({
+        success: true,
+        message: `Konto nulstillet: ${email}`,
+        localStorageKeys: [
+          "forma_agent_prompts_v1",
+          "forma_chat_guided_v1",
+          "hasSeenFurnitureOnboarding",
+          "bolig-accent",
+          "bolig-text-mode",
+          "bolig-theme",
+          "bolig-defaults",
+          "bolig-notif",
+          "fe-watermark",
+        ],
+      });
+    } catch (e: any) {
+      return res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/admin/stats", async (req, res) => {
     try {
       const pw = req.query.pw as string;

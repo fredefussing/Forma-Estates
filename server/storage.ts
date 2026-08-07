@@ -190,6 +190,7 @@ export interface IStorage {
   setAiTourRooms(propertyId: number, userId: number, rooms: Array<Omit<InsertAiTourRoom, "propertyId">>): Promise<AiTourRoom[]>;
   getAiTourRooms(propertyId: number, userId: number): Promise<AiTourRoom[]>;
   updateAiTourRoom(roomId: number, userId: number, updates: Partial<InsertAiTourRoom>): Promise<AiTourRoom | undefined>;
+  resetUserData(userId: number): Promise<void>;
   deleteUserAccount(userId: number): Promise<void>;
 }
 
@@ -983,6 +984,26 @@ export class DatabaseStorage implements IStorage {
     if (!owned) return undefined;
     const [row] = await db.update(aiTourRooms).set(updates).where(eq(aiTourRooms.id, roomId)).returning();
     return row;
+  }
+
+  async resetUserData(userId: number): Promise<void> {
+    // Delete all generated content but keep the account intact
+    const ownedProps = await db.select({ id: aiTourProperties.id }).from(aiTourProperties).where(eq(aiTourProperties.userId, userId));
+    for (const p of ownedProps) {
+      await db.delete(aiTourRooms).where(eq(aiTourRooms.propertyId, p.id));
+    }
+    await db.delete(aiTourProperties).where(eq(aiTourProperties.userId, userId));
+    const ownedCases = await db.select({ id: boligCases.id }).from(boligCases).where(eq(boligCases.userId, userId));
+    for (const c of ownedCases) {
+      await db.delete(boligCaseImages).where(eq(boligCaseImages.caseId, c.id));
+    }
+    await db.delete(boligCases).where(eq(boligCases.userId, userId));
+    await db.delete(generatedImages).where(eq(generatedImages.userId, userId));
+    await pool.query(`DELETE FROM video_jobs WHERE user_id = $1`, [userId]);
+    // Reset all quota counters to zero
+    await db.update(users)
+      .set({ usedAiVisualizations: 0, usedFloorPlans: 0, usedTransformVideos: 0, usedShowcaseVideos: 0 })
+      .where(eq(users.id, userId));
   }
 
   async deleteUserAccount(userId: number): Promise<void> {
