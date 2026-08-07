@@ -10606,7 +10606,7 @@ export default function BoligpotentialeDashboard() {
           {/* Leads — owner + leads collaborators */}
           {section === "leads" && isLeadsUser && (
             <motion.div key="leads-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
-              <LeadsView />
+              <LeadsView lang={isOwner ? "da" : "en"} />
             </motion.div>
           )}
 
