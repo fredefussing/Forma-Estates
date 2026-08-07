@@ -8917,13 +8917,13 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 mb-6 p-1 rounded-xl border" style={{ background: "#F5F3EF", borderColor: "#E8E4DE" }}>
+      <div className="flex gap-1 mb-6 p-1 rounded-xl border overflow-x-auto" style={{ background: "#F5F3EF", borderColor: "#E8E4DE", scrollbarWidth: "none" }}>
         {SETTINGS_TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex-1 min-w-[120px] justify-center"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex-shrink-0 whitespace-nowrap justify-center"
               style={{ background: active ? "#fff" : "transparent", color: active ? "#0F1D2F" : "#6B6B6B", boxShadow: active ? "0 1px 2px rgba(15,29,47,0.06)" : "none" }}
               data-testid={`bolig-settings-tab-${t.id}`}
             >
@@ -9678,7 +9678,7 @@ export default function BoligpotentialeDashboard() {
               title={isLocked ? i18n.t("dashboard.billing.denneFunktionErIkkeInkluderet") : undefined}
             >
               {item.icon}
-              <span className="md:inline flex-1">{item.label}</span>
+              <span className="md:inline flex-1 truncate min-w-0">{item.label}</span>
               {item.id === "ai-design-agent" && showOnboarding && !isActive && (
                 <span
                   className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
@@ -9705,7 +9705,7 @@ export default function BoligpotentialeDashboard() {
             style={{ background: section === item.id ? "rgba(200,149,108,0.18)" : "transparent", color: section === item.id ? "#C8956C" : "rgba(245,243,239,0.7)" }}
             data-testid={`bolig-nav-${item.id}`}
           >
-            {item.icon} <span className="md:inline">{item.label}</span>
+            {item.icon} <span className="md:inline truncate min-w-0">{item.label}</span>
           </button>
         ))}
       </nav>
@@ -9758,7 +9758,7 @@ export default function BoligpotentialeDashboard() {
             data-testid="bolig-nav-forside"
           >
             <Home className="w-[18px] h-[18px]" />
-            <span className="md:inline">{t("dashboard.nav.frontPage")}</span>
+            <span className="md:inline truncate min-w-0">{t("dashboard.nav.frontPage")}</span>
             <ArrowUpRight className="w-3.5 h-3.5 ml-auto opacity-60" />
           </button>
         </Link>
@@ -10621,7 +10621,7 @@ export default function BoligpotentialeDashboard() {
               <div className="inline-flex items-center rounded-full border p-1 gap-1 mb-6" style={{ borderColor: "#E5E2DC", background: "#F8F6F3" }} data-testid="settings-billing-toggle">
                 <button
                   onClick={() => setPlanBilling("monthly")}
-                  className="px-5 py-1.5 rounded-full text-sm font-medium transition-all"
+                  className="px-5 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap"
                   style={{ background: planBilling === "monthly" ? "#0F1D2F" : "transparent", color: planBilling === "monthly" ? "#fff" : "#6B6B6B" }}
                   data-testid="settings-billing-monthly"
                 >
@@ -10629,7 +10629,7 @@ export default function BoligpotentialeDashboard() {
                 </button>
                 <button
                   onClick={() => setPlanBilling("yearly")}
-                  className="px-5 py-1.5 rounded-full text-sm font-medium transition-all inline-flex items-center gap-2"
+                  className="px-5 py-1.5 rounded-full text-sm font-medium transition-all inline-flex items-center gap-2 whitespace-nowrap"
                   style={{ background: planBilling === "yearly" ? "#0F1D2F" : "transparent", color: planBilling === "yearly" ? "#fff" : "#6B6B6B" }}
                   data-testid="settings-billing-yearly"
                 >
