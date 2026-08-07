@@ -8774,6 +8774,8 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [resetDataOpen, setResetDataOpen] = useState(false);
+  const [resettingData, setResettingData] = useState(false);
   const handlePasswordReset = async () => {
     if (!user.email) return;
     try {
@@ -8796,6 +8798,25 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
     } catch (err: any) {
       setDeletingAccount(false);
       showToast(`Fejl: ${err.message ?? "Kunne ikke slette konto"}`);
+    }
+  };
+  const handleResetData = async () => {
+    setResettingData(true);
+    try {
+      const token = await user.getIdToken();
+      const r = await fetch("/api/bolig/reset-my-data", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error((await r.json()).message ?? "Fejl");
+      // Clear guide/preference state from localStorage
+      ["forma_agent_prompts_v1","forma_chat_guided_v1","hasSeenFurnitureOnboarding",
+       "bolig-accent","bolig-text-mode","bolig-theme","bolig-defaults","bolig-notif","fe-watermark"]
+        .forEach(k => localStorage.removeItem(k));
+      queryClient.invalidateQueries();
+      setResetDataOpen(false);
+      showToast("Alt indhold er nulstillet — du starter på en frisk 🎉");
+    } catch (err: any) {
+      showToast(`Fejl: ${err.message ?? "Kunne ikke nulstille"}`);
+    } finally {
+      setResettingData(false);
     }
   };
 
@@ -8980,6 +9001,13 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
               </div>
               <ArrowRight className="w-4 h-4" style={{ color: "#6B6B6B" }} />
             </button>
+            <button onClick={() => setResetDataOpen(true)} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-orange-50" style={{ borderColor: "#FED7AA" }} data-testid="bolig-settings-reset-data">
+              <div className="text-left">
+                <div className="text-sm font-semibold" style={{ color: "#C2410C" }}>Nulstil alt indhold</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Sletter alle billeder og sager — kontoen beholdes</div>
+              </div>
+              <RotateCcw className="w-4 h-4" style={{ color: "#C2410C" }} />
+            </button>
             <button onClick={() => setDeleteOpen(true)} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5" }} data-testid="bolig-settings-delete-account">
               <div className="text-left">
                 <div className="text-sm font-semibold" style={{ color: "#B91C1C" }}>Slet min konto</div>
@@ -9046,6 +9074,44 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
           </ul>
         )}
       </div>
+
+      {/* Reset data confirm */}
+      <AnimatePresence>
+        {resetDataOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,29,47,0.55)" }}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-orange-100">
+                  <RotateCcw className="w-5 h-5 text-orange-600" />
+                </div>
+                <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Nulstil alt indhold?</h3>
+              </div>
+              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>
+                Dette sletter alle dine billeder, sager og nulstiller din kvota til 0. Din konto og dit login beholdes. Handlingen kan <span className="font-semibold">ikke fortrydes</span>.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setResetDataOpen(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]"
+                  style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
+                  disabled={resettingData}
+                >
+                  Annuller
+                </button>
+                <button
+                  onClick={handleResetData}
+                  disabled={resettingData}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-40"
+                  style={{ background: "#C2410C" }}
+                >
+                  {resettingData ? "Nulstiller..." : "Ja, nulstil alt"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Delete account confirm */}
       <AnimatePresence>

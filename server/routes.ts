@@ -2879,6 +2879,19 @@ export async function registerRoutes(
     }
   });
 
+  // ── Nulstil alt indhold (beholder konto + login) ──────────────────────────
+  app.post("/api/bolig/reset-my-data", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      await storage.resetUserData(user.id);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Quota info endpoint ────────────────────────────────────────────────────
   // ── Image proxy — fetches external image server-side and streams to client ──
   // Fixes CORS issue where browser cannot directly fetch Cloudfront/S3 images.
