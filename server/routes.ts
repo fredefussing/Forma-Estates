@@ -3394,7 +3394,9 @@ export async function registerRoutes(
           }
         }
 
-        originalForRecord = srcImg.imageUrl;
+        // Always store the root original (the uploaded file) as the before-image,
+        // not the intermediate result, so the folder always shows the real before/after.
+        originalForRecord = srcImg.originalImageUrl ?? srcImg.imageUrl;
         publicUrl = srcImg.imageUrl.startsWith("http") ? srcImg.imageUrl : `${protocol}://${host}${srcImg.imageUrl}`;
         if (season) room = srcImg.roomType || room;
       } else {
