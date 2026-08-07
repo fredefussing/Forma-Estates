@@ -7685,7 +7685,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                               resetTimerRef.current = setTimeout(() => {
                                 resetTimerRef.current = null;
                                 setImageFile(null); setImagePreview(null); setPromptText("");
-                                setStage("idle"); setResultUrl(null); setOriginalUrl(null); setError(null); setSaveCaseId(null);
+                                setStage("idle"); setResultUrl(null); setOriginalUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null);
                               }, 1500);
                             } catch {
                               setSaveCaseId(null);

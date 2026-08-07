@@ -3480,6 +3480,17 @@ export async function registerRoutes(
             createdDate: todayStr,
           });
           generationId = genImg.id;
+
+          // When this is a refinement of an existing case image, remove the source
+          // image from the case gallery (set case_id = NULL) so the folder only
+          // ever shows the latest result — not both the original and the adjustment.
+          if (isRefinement && sourceCaseImageId && caseId && !isNaN(caseId)) {
+            await pool.query(
+              `UPDATE generated_images SET case_id = NULL WHERE id = $1 AND user_id = $2`,
+              [sourceCaseImageId, authedUserId]
+            );
+            log(`[BoligPotentiale] refinement: removed source img ${sourceCaseImageId} from case ${caseId} gallery`);
+          }
         } catch (saveErr: any) {
           log(`[BoligPotentiale] auto-save warning: ${saveErr.message}`);
         }
