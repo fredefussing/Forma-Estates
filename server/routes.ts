@@ -632,7 +632,7 @@ export async function registerRoutes(
     if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
       return res.status(403).json({ error: "Forbidden" });
     }
-    const adminEmails = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+    const adminEmails = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com", "henrilasse@icloud.com"];
     const results: any[] = [];
     for (const email of adminEmails) {
       const user = await storage.getUserByEmail(email);
@@ -699,7 +699,7 @@ export async function registerRoutes(
 
       // Super-admins are always elevated to full access on every login,
       // regardless of what the DB currently says. ONLY these two — no one else.
-      const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+      const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com", "henrilasse@icloud.com"];
       if (
         SUPER_ADMIN_EMAILS.includes(user.email) &&
         (!user.isAdmin || user.subscriptionStatus !== "active" || user.subscriptionTier !== "unlimited")

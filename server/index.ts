@@ -98,7 +98,7 @@ app.use((req, res, next) => {
   // Ensure both super-admin accounts always have full access on every deploy,
   // even if the production DB was reset or bootstrapped without them.
   // ONLY these two accounts — no one else.
-  const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
+  const SUPER_ADMIN_EMAILS = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com", "henrilasse@icloud.com"];
   for (const email of SUPER_ADMIN_EMAILS) {
     try {
       const user = await storage.getUserByEmail(email);
