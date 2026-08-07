@@ -266,6 +266,7 @@ export async function ensureSchema(): Promise<void> {
       step: "leads",
       sql: `CREATE TABLE IF NOT EXISTS leads (
         id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        owner_email text NOT NULL DEFAULT 'fredefussing@gmail.com',
         name text NOT NULL,
         category text NOT NULL DEFAULT 'ejendomsmaegler',
         instagram_handle text,

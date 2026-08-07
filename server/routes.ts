@@ -6012,13 +6012,14 @@ export async function registerRoutes(
     } catch { res.status(401).json({ error: "Unauthorized" }); return null; }
   }
 
-  // ── Leads (fredefussing@gmail.com only) ──────────────────────────────────────
+  // ── Leads (per-owner isolated) ───────────────────────────────────────────────
   app.get("/api/leads", async (req, res) => {
     try {
       const admin = await requireOwner(req, res);
       if (!admin) return;
       const result = await pool.query(`
         SELECT * FROM leads
+        WHERE owner_email = $1
         ORDER BY
           CASE
             WHEN status IN ('no','won') THEN 4
@@ -6029,7 +6030,7 @@ export async function registerRoutes(
           END ASC,
           follow_up_at ASC NULLS LAST,
           created_at DESC
-      `);
+      `, [admin.dbUser.email]);
       return res.json(result.rows);
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
@@ -6051,9 +6052,9 @@ export async function registerRoutes(
       const fu1 = new Date(Date.now() + fu1Days * 24 * 60 * 60 * 1000).toISOString();
       const fu2 = new Date(Date.now() + fu2Days * 24 * 60 * 60 * 1000).toISOString();
       const result = await pool.query(
-        `INSERT INTO leads (name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_2_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-        [name, category, instagram_handle || null, email || null, phone || null, status, notes || null, fc, fu, fu1, fu2]
+        `INSERT INTO leads (owner_email, name, category, instagram_handle, email, phone, status, notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_2_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        [admin.dbUser.email, name, category, instagram_handle || null, email || null, phone || null, status, notes || null, fc, fu, fu1, fu2]
       );
       return res.json(result.rows[0]);
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
@@ -6096,7 +6097,8 @@ export async function registerRoutes(
         vals.push(new Date(new Date(req.body.first_contact_at).getTime() + 9 * 24 * 60 * 60 * 1000).toISOString());
       }
       vals.push(id);
-      const result = await pool.query(`UPDATE leads SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`, vals);
+      vals.push(admin.dbUser.email);
+      const result = await pool.query(`UPDATE leads SET ${sets.join(", ")} WHERE id = $${idx} AND owner_email = $${idx + 1} RETURNING *`, vals);
       if (!result.rows[0]) return res.status(404).json({ error: "Not found" });
       return res.json(result.rows[0]);
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
@@ -6106,7 +6108,7 @@ export async function registerRoutes(
     try {
       const admin = await requireOwner(req, res);
       if (!admin) return;
-      await pool.query("DELETE FROM leads WHERE id = $1", [parseInt(req.params.id)]);
+      await pool.query("DELETE FROM leads WHERE id = $1 AND owner_email = $2", [parseInt(req.params.id), admin.dbUser.email]);
       return res.json({ ok: true });
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
