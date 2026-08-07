@@ -2969,8 +2969,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
           <motion.div key="config" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-8 items-start">
               <div>
-                <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]" style={{ aspectRatio: "4/3" }}>
-                  <img src={imagePreview!} alt="Preview" className="w-full h-full object-contain" />
+                <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]">
+                  <img src={imagePreview!} alt="Preview" className="w-full object-contain max-h-[520px]" style={{ display: "block" }} />
                   <button onClick={reset} aria-label="Fjern billede" className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
                 </div>
                 <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>{imageFile?.name}</p>
