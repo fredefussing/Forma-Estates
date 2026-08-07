@@ -287,6 +287,12 @@ export async function ensureSchema(): Promise<void> {
     },
   ];
 
+  // ── One-time: add owner_email to existing leads table and backfill ──────────
+  try {
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS owner_email text DEFAULT 'fredefussing@gmail.com'`);
+    await pool.query(`UPDATE leads SET owner_email = 'fredefussing@gmail.com' WHERE owner_email IS NULL`);
+  } catch { /* column already exists and fully populated — safe to ignore */ }
+
   // ── One-time: mark follow-up 1 done for all leads reached 5. aug ──────────
   try {
     await pool.query(`
