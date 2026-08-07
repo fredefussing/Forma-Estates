@@ -603,6 +603,7 @@ function HeroStage() {
 
 // ── Auto-play hero slider with smooth swipe animation ─────────────────────────
 function HeroSliderSection() {
+  const { t } = useTranslation();
   const [pairIndex, setPairIndex] = useState(0);
   const [pos, setPos] = useState(1);
   const [dragging, setDragging] = useState(false);
@@ -700,9 +701,9 @@ function HeroSliderSection() {
             <ChevronRight className="w-3.5 h-3.5 -ml-0.5" style={{ color: C.navy }} />
           </div>
         </div>
-        <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>Før</div>
-        <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>Efter</div>
-        <div className="absolute bottom-3 right-3 text-white text-[10px] font-semibold" style={{ background: "rgba(0,0,0,0.52)", padding: "3px 8px", borderRadius: 4, letterSpacing: "0.08em" }}>AI-redigeret</div>
+        <div className="absolute top-3 left-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{t("slider.before")}</div>
+        <div className="absolute top-3 right-3 text-white text-[11px] font-medium uppercase" style={{ background: C.navy, padding: "4px 10px", borderRadius: 4, letterSpacing: "0.1em" }}>{t("slider.after")}</div>
+        <div className="absolute bottom-3 right-3 text-white text-[10px] font-semibold" style={{ background: "rgba(0,0,0,0.52)", padding: "3px 8px", borderRadius: 4, letterSpacing: "0.08em" }}>{t("slider.aiEdited")}</div>
       </div>
 
       <div className="flex justify-center gap-2 mt-5">
@@ -719,7 +720,7 @@ function HeroSliderSection() {
           />
         ))}
       </div>
-      <p className="text-center text-[13px] mt-3" style={{ color: C.muted }}>{pair.label} · Træk for at sammenligne</p>
+      <p className="text-center text-[13px] mt-3" style={{ color: C.muted }}>{t(`heroSlider.pairs.${pairIndex}.label`)} · {t("slider.dragToCompare")}</p>
     </div>
   );
 }

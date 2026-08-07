@@ -360,6 +360,13 @@
     "aiEdited": "AI-redigert",
     "dragToCompare": "Dra for å sammenligne"
   },
+  "heroSlider": {
+    "pairs": [
+      { "label": "Stue · Skandinavisk" },
+      { "label": "Kjøkken · Moderne" },
+      { "label": "Stue · Moderne" }
+    ]
+  },
   "trustMarquee": [
     "Bygget for det skandinaviske eiendomsmarkedet",
     "🔒 100% EU AI Act Compliant — Artikkel 50",

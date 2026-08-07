@@ -360,6 +360,13 @@
     "aiEdited": "AI-redigerad",
     "dragToCompare": "Dra för att jämföra"
   },
+  "heroSlider": {
+    "pairs": [
+      { "label": "Vardagsrum · Skandinavisk" },
+      { "label": "Kök · Modern" },
+      { "label": "Vardagsrum · Modern" }
+    ]
+  },
   "trustMarquee": [
     "Byggt för den skandinaviska fastighetsmarknaden",
     "🔒 100% EU AI Act Compliant — Artikel 50",

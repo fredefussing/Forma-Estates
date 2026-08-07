@@ -360,6 +360,13 @@
     "aiEdited": "AI-edited",
     "dragToCompare": "Drag to compare"
   },
+  "heroSlider": {
+    "pairs": [
+      { "label": "Living room · Scandinavian" },
+      { "label": "Kitchen · Modern" },
+      { "label": "Living room · Modern" }
+    ]
+  },
   "trustMarquee": [
     "Built for the European property market",
     "🔒 100% EU AI Act Compliant — Article 50",

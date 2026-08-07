@@ -360,6 +360,13 @@
     "aiEdited": "KI-bearbeitet",
     "dragToCompare": "Ziehen zum Vergleichen"
   },
+  "heroSlider": {
+    "pairs": [
+      { "label": "Wohnzimmer · Skandinavisch" },
+      { "label": "Küche · Modern" },
+      { "label": "Wohnzimmer · Modern" }
+    ]
+  },
   "trustMarquee": [
     "Für den europäischen Immobilienmarkt entwickelt",
     "🔒 100% EU-KI-Verordnung konform — Art. 50",
