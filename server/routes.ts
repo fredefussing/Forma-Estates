@@ -3389,7 +3389,7 @@ export async function registerRoutes(
         if (isRefinement && !season) {
           const authedUser = await storage.getUserById(authedUserId);
           if (authedUser && !authedUser.isAdmin) {
-            const refinementCount = await storage.countGeneratedImageRefinements(authedUserId, srcImg.imageUrl);
+            const refinementCount = await storage.countGeneratedImageRefinements(authedUserId, srcImg.id);
             if (refinementCount >= FREE_BOLIG_REFINEMENTS) {
               // Beyond the free limit — charge an AI quota credit
               const q = await storage.checkAndIncrementQuota(authedUserId, "ai");
@@ -3529,6 +3529,7 @@ export async function registerRoutes(
             isQuickGeneration: isQuickGeneration || !caseId,
             isDesignAgent,
             isRefinement: !!isRefinement,
+            sourceImageId: isRefinement && sourceCaseImageId ? sourceCaseImageId : null,
             imageUrl: collovImageUrl,
             originalImageUrl: originalForRecord,
             roomType: room,

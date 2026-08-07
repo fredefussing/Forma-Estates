@@ -100,7 +100,7 @@ export interface IStorage {
   getAgentDesignsByUser(userId: number): Promise<AgentDesign[]>;
   updateAgentDesign(id: number, updates: Partial<InsertAgentDesign>): Promise<AgentDesign | undefined>;
   countAgentDesignsByOriginalUrl(userId: number, originalImageUrl: string): Promise<number>;
-  countGeneratedImageRefinements(userId: number, sourceImageUrl: string): Promise<number>;
+  countGeneratedImageRefinements(userId: number, sourceImageId: number): Promise<number>;
 
   // Video job registry (persisted for restart-safe refunds)
   createVideoJob(data: { requestId: string; userId: number; feature: string; refundCount?: number }): Promise<void>;
@@ -1612,10 +1612,13 @@ export class DatabaseStorage implements IStorage {
   // ── Bolig refinement counting ────────────────────────────────────────────────
   // Counts how many generated images already exist where originalImageUrl equals
   // the given source image URL — i.e. direct refinements of a given result image.
-  async countGeneratedImageRefinements(userId: number, sourceImageUrl: string): Promise<number> {
+  async countGeneratedImageRefinements(userId: number, sourceImageId: number): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)::int` })
       .from(generatedImages)
-      .where(and(eq(generatedImages.userId, userId), eq(generatedImages.originalImageUrl, sourceImageUrl)));
+      .where(and(
+        eq(generatedImages.userId, userId),
+        eq(generatedImages.sourceImageId, sourceImageId),
+      ));
     return result[0]?.count ?? 0;
   }
 
