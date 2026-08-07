@@ -7315,6 +7315,8 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   // image are sent as free refinements (isRefinement=true) instead of new
   // quota-charged generations.
   const [savedDesignId, setSavedDesignId] = useState<number | null>(null);
+  const [refinementCount, setRefinementCount] = useState(0);
+  const MAX_AGENT_REFINEMENTS = 5;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -7330,6 +7332,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
     setOriginalUrl(null);
     setStage("idle");
     setSavedDesignId(null); // new image → start fresh, clear refinement chain
+    setRefinementCount(0);
   };
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
@@ -7338,7 +7341,9 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   const handleGenerate = async () => {
     if (!promptText.trim()) return;
     if (!savedDesignId && !imageFile) return; // need at least one source
+    if (savedDesignId && refinementCount >= MAX_AGENT_REFINEMENTS) return; // client-side guard
     if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
+    const wasRefinement = !!savedDesignId; // capture before async state updates
     setStage("loading"); setError(null);
     try {
       const token = await user?.getIdToken();
@@ -7369,6 +7374,8 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       setStage("result");
       // Track the new result id so next prompt is a free refinement
       if (data.generation_id) setSavedDesignId(data.generation_id);
+      // Count refinements so client can enforce the 5-max cap
+      if (wasRefinement) setRefinementCount(prev => prev + 1);
       recordAgentPrompt(promptText);
       setSavedPromptSuggestions((prev) => {
         const saved = getAgentSavedPrompts();
@@ -7382,7 +7389,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       // Only refresh quota counter for first-generation (refinements are free)
-      if (!savedDesignId) window.dispatchEvent(new Event("quota:refresh"));
+      if (!wasRefinement) window.dispatchEvent(new Event("quota:refresh"));
     } catch (err: any) {
       setError(err.message || "Noget gik galt. Prøv igen.");
       setStage(savedDesignId ? "result" : "idle");
@@ -7398,7 +7405,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
   const handleReset = () => {
     if (!confirmDiscard()) return;
-    setStage("idle"); setResultUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null);
+    setStage("idle"); setResultUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null); setRefinementCount(0);
   };
 
   const handleBack = () => { if (confirmDiscard()) onBack(); };
@@ -7582,16 +7589,28 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               {savedDesignId ? "Tilpasser billede..." : "Genererer billede..."}
             </button>
           ) : savedDesignId ? (
-            // Refinement path: free, no quota gate
-            <button
-              onClick={handleGenerate}
-              disabled={!promptText.trim()}
-              className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: "#0F1D2F" }}
-              data-testid="bolig-agent-generate"
-            >
-              <Sparkles className="w-4 h-4" /> Tilpas billede
-            </button>
+            // Refinement path: free, no quota gate — max 5 per image
+            refinementCount >= MAX_AGENT_REFINEMENTS ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
+                <p className="text-sm font-semibold text-amber-900">Du har brugt alle {MAX_AGENT_REFINEMENTS} justeringer til dette billede</p>
+                <p className="text-xs text-amber-700 mt-1">Upload et nyt billede for at starte en ny generering.</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={handleGenerate}
+                  disabled={!promptText.trim()}
+                  className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: "#0F1D2F" }}
+                  data-testid="bolig-agent-generate"
+                >
+                  <Sparkles className="w-4 h-4" /> Tilpas billede
+                </button>
+                <span className="text-xs font-medium tabular-nums" style={{ color: refinementCount >= MAX_AGENT_REFINEMENTS - 1 ? "#DC2626" : "#9B9690" }}>
+                  {refinementCount}/{MAX_AGENT_REFINEMENTS} justeringer
+                </span>
+              </div>
+            )
           ) : (
             // First generation: costs 1 AI quota credit, gated by QuotaGate
             <QuotaGate feature="ai">
