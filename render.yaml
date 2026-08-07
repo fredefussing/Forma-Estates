@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: formaestates
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      # Firebase client (baked into Vite bundle at build time)
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyBywdC5dE2gevOx1hkwYZeDqn5jHaI2vzA
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: nordic-homebuilding.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: nordic-homebuilding
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: nordic-homebuilding.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: "1086068815265"
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:1086068815265:web:1fd2452f4946d97c5f47e0
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-5BRC2FMPNT
+
+      # Firebase Admin (server-side, runtime)
+      - key: FIREBASE_PROJECT_ID
+        value: nordic-homebuilding
+
+      # Must be set manually in Render dashboard → Environment (secret):
+      # FIREBASE_SERVICE_ACCOUNT_JSON  — service account JSON for nordic-homebuilding
