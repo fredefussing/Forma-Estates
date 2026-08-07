@@ -1,6 +1,18 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import i18n, { setExplicitLang } from "@/i18n";
+const LOCALE_TAGS: Record<string, string> = { da: "da-DK", en: "en-GB", sv: "sv-SE", de: "de-DE", nb: "nb-NO", es: "es-ES", fr: "fr-FR" };
+const localeTag = () => LOCALE_TAGS[(i18n.language || "da").split("-")[0]] ?? "da-DK";
+const ROOM_KEY_ALIASES: Record<string, string> = { hallway: "entryway", kontor: "home_office" };
+const roomLabelLocalized = (k: string): string => {
+  const slug = ROOM_KEY_ALIASES[k] ?? k.replace(/ /g, "_");
+  const key = `dashboard.roomTypes.${slug}`;
+  return i18n.exists(key) ? i18n.t(key) : (BOLIG_ROOM_LABELS[k] ?? k);
+};
+const styleLabelLocalized = (k: string): string => {
+  const key = `dashboard.styles.${k}`;
+  return i18n.exists(key) ? i18n.t(key) : (BOLIG_STYLE_LABELS[k] ?? k);
+};
 import { CrmView } from "@/components/crm-view";
 import { LeadsView } from "@/components/leads-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
@@ -129,7 +141,7 @@ function WatermarkToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => setWatermark(!watermark)}
-      title={watermark ? "Klik for at downloade uden brændemærke" : "Klik for at tilføje brændemærke igen"}
+      title={watermark ? i18n.t("dashboard.media.klikForAtDownloadeUden") : i18n.t("dashboard.media.klikForAtTilfoejeBraendemaerke")}
       className={`inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 transition-all ${className ?? ""}`}
       style={watermark
         ? { background: "rgba(15,29,47,0.07)", color: "#4B5563", border: "1px solid rgba(15,29,47,0.13)" }
@@ -137,7 +149,7 @@ function WatermarkToggle({ className }: { className?: string }) {
       }
     >
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${watermark ? "bg-slate-500" : "bg-[#C8956C]"}`} />
-      Brændemærke: <strong>{watermark ? "TIL" : "FRA"}</strong>
+      {i18n.t("dashboard.media.braendemaerke")} <strong>{watermark ? i18n.t("dashboard.media.til") : i18n.t("dashboard.media.fra")}</strong>
     </button>
   );
 }
@@ -146,10 +158,10 @@ function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => vo
   return (
     <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-[340px] shadow-2xl">
-        <p className="text-sm font-semibold text-[#0F1D2F] mb-1">Download uden brændemærke</p>
+        <p className="text-sm font-semibold text-[#0F1D2F] mb-1">{i18n.t("dashboard.media.downloadUdenBraendemaerke")}</p>
         <p className="text-sm text-[#4B5563] mb-5 leading-relaxed">
-          Du er ved at downloade <strong>uden</strong> "AI-redigeret"-mærket.<br />
-          Er du sikker på dette?
+          {i18n.t("dashboard.media.noWmBody1")} <strong>{i18n.t("dashboard.media.noWmBody2")}</strong> {i18n.t("dashboard.media.noWmBody3")}<br />
+          {i18n.t("dashboard.media.erDuSikkerPaaDette")}
         </p>
         <div className="flex gap-2">
           <button
@@ -158,14 +170,14 @@ function NoWatermarkConfirmDialog({ onConfirm, onCancel }: { onConfirm: () => vo
             className="flex-1 h-10 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             style={{ background: "#0F1D2F" }}
           >
-            Ja, download
+            {i18n.t("dashboard.common.jaDownload")}
           </button>
           <button
             type="button"
             onClick={onCancel}
             className="flex-1 h-10 rounded-xl text-sm font-semibold border border-[#D9D5CF] text-[#0F1D2F] hover:bg-slate-50 transition-colors"
           >
-            Annuller
+            {i18n.t("dashboard.common.annuller")}
           </button>
         </div>
       </div>
@@ -235,13 +247,13 @@ async function downloadCasePdf(opts: {
   mode?: "presentation" | "images-only";
   skipWatermark?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
-  if (!opts.url) return { ok: false, error: "Intet billede" };
+  if (!opts.url) return { ok: false, error: i18n.t("dashboard.media.intetBillede") };
   const mode = opts.mode ?? "presentation";
   const skipWm = opts.skipWatermark ?? false;
   try {
     const { jsPDF } = await import("jspdf");
     const after = await fetchImageAsDataUrl(opts.url);
-    if (!after) return { ok: false, error: "Kunne ikke hente billede" };
+    if (!after) return { ok: false, error: i18n.t("dashboard.media.kunneIkkeHenteBillede") };
     const before = opts.beforeUrl ? await fetchImageAsDataUrl(opts.beforeUrl) : null;
 
     // Images-only mode: a single PDF page that is exactly the after-image at
@@ -285,9 +297,9 @@ async function downloadCasePdf(opts: {
       return { ok: true };
     }
 
-    const roomLabel = opts.room ? (BOLIG_ROOM_LABELS[opts.room] || opts.room) : "";
-    const styleLabel = opts.style ? (BOLIG_STYLE_LABELS[opts.style] || opts.style) : "";
-    const dateStr = new Date().toLocaleDateString("da-DK", { day: "2-digit", month: "long", year: "numeric" });
+    const roomLabel = opts.room ? roomLabelLocalized(opts.room) : "";
+    const styleLabel = opts.style ? styleLabelLocalized(opts.style) : "";
+    const dateStr = new Date().toLocaleDateString(localeTag(), { day: "2-digit", month: "long", year: "numeric" });
 
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -325,11 +337,11 @@ async function downloadCasePdf(opts: {
       pdf.setFontSize(7.5);
       pdf.setTextColor(muted[0], muted[1], muted[2]);
       pdf.text(
-        "Billederne er AI-genererede visualiseringer og skal ses som inspiration. Det endelige resultat kan variere.",
+        i18n.t("dashboard.pdf.disclaimerFooter"),
         margin, pageH - 9, { maxWidth: pageW - margin * 2 }
       );
       const pageNo = (pdf as any).internal.getCurrentPageInfo?.().pageNumber;
-      pdf.text(pageNo ? `Forma Estates · Side ${pageNo}` : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
+      pdf.text(pageNo ? i18n.t("dashboard.pdf.formaEstatesSide", { page: pageNo }) : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
     };
 
     // ── Page 1: Cover ────────────────────────────────────────────────────────
@@ -338,12 +350,12 @@ async function downloadCasePdf(opts: {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
     pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text("AI BOLIGPOTENTIALE", margin, 22);
+    pdf.text(i18n.t("dashboard.pdf.aiBoligpotentiale"), margin, 22);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(28);
     pdf.setTextColor(navy[0], navy[1], navy[2]);
-    pdf.text("AI-visualisering", margin, 42, { maxWidth: pageW - margin * 2 });
-    pdf.text("af boligens potentiale", margin, 54, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.pdf.aiVisualisering"), margin, 42, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.pdf.afBoligensPotentiale"), margin, 54, { maxWidth: pageW - margin * 2 });
     pdf.setDrawColor(accent[0], accent[1], accent[2]);
     pdf.setLineWidth(0.8);
     pdf.line(margin, 62, margin + 40, 62);
@@ -379,7 +391,7 @@ async function downloadCasePdf(opts: {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(16);
     pdf.setTextColor(navy[0], navy[1], navy[2]);
-    pdf.text("Visualisering" + (roomLabel ? ` af ${roomLabel.toLowerCase()}` : "") + (styleLabel ? ` i ${styleLabel.toLowerCase()}` : ""), margin, 22, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.pdf.visualisering") + (roomLabel ? i18n.t("dashboard.pdf.afRoom", { room: roomLabel.toLowerCase() }) : "") + (styleLabel ? i18n.t("dashboard.pdf.iStyle", { style: styleLabel.toLowerCase() }) : ""), margin, 22, { maxWidth: pageW - margin * 2 });
     pdf.setDrawColor(accent[0], accent[1], accent[2]);
     pdf.setLineWidth(0.6);
     pdf.line(margin, 26, margin + 30, 26);
@@ -400,8 +412,8 @@ async function downloadCasePdf(opts: {
         pdf.setTextColor(accent[0], accent[1], accent[2]);
         pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
       };
-      drawHalf(before, margin, "FØR", false);
-      drawHalf(after, margin + half + 6, "EFTER", true);
+      drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
+      drawHalf(after, margin + half + 6, i18n.t("dashboard.pdf.efter"), true);
     } else {
       const maxW = pageW - margin * 2;
       const maxH = imgBottom - imgTop;
@@ -418,7 +430,7 @@ async function downloadCasePdf(opts: {
     pdf.save(filename);
     return { ok: true };
   } catch (e: any) {
-    return { ok: false, error: e?.message || "Ukendt fejl" };
+    return { ok: false, error: e?.message || i18n.t("dashboard.common.ukendtFejl") };
   }
 }
 function triggerBlobDownload(blob: Blob, filename: string) {
@@ -488,7 +500,7 @@ function DownloadMenu(props: {
       } else {
         const mode = kind === "pdf-images" ? "images-only" : "presentation";
         const r = await downloadCasePdf({ url, beforeUrl, address, room, style, mode, skipWatermark });
-        if (!r.ok) alert("PDF'en kunne ikke genereres. Prøv igen.");
+        if (!r.ok) alert(i18n.t("dashboard.pdf.pdfEnKunneIkkeGenereres"));
       }
     } finally {
       setBusy(null);
@@ -508,8 +520,8 @@ function DownloadMenu(props: {
   const items: { kind: DownloadKind; label: string; short: string; Icon: typeof Download; tone: "neutral" | "accent" }[] = [
     { kind: "jpg",              label: "JPG",                 short: "JPG", Icon: ImageIcon, tone: "neutral" },
     { kind: "png",              label: "PNG",                 short: "PNG", Icon: ImageIcon, tone: "neutral" },
-    { kind: "pdf-images",       label: "PDF (kun billeder)",  short: "PDF", Icon: FileImage, tone: "neutral" },
-    { kind: "pdf-presentation", label: "PDF præsentation",    short: "PDF+", Icon: FileText, tone: "accent" },
+    { kind: "pdf-images",       label: i18n.t("dashboard.share.pdfKunBilleder"),  short: "PDF", Icon: FileImage, tone: "neutral" },
+    { kind: "pdf-presentation", label: i18n.t("dashboard.share.pdfPraesentation"),    short: "PDF+", Icon: FileText, tone: "accent" },
   ];
 
   if (variant === "icon-dark") {
@@ -598,7 +610,7 @@ function DownloadMenu(props: {
                 style={s.style}
               >
                 <it.Icon className={iconSize} />
-                <span>{loading ? "Henter..." : it.label}</span>
+                <span>{loading ? i18n.t("dashboard.common.henter") : it.label}</span>
               </button>
             );
           })}
@@ -630,12 +642,12 @@ function ShareButton(props: {
         body: JSON.stringify({ generatedImageId: props.caseImageId }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.url) throw new Error(json.message || "Kunne ikke oprette link");
+      if (!res.ok || !json.url) throw new Error(json.message || i18n.t("dashboard.share.kunneIkkeOpretteLink"));
       const abs = json.url.startsWith("http") ? json.url : `${window.location.origin}${json.url}`;
       try {
         await navigator.clipboard.writeText(abs);
       } catch {
-        window.prompt("Kopiér linket:", abs);
+        window.prompt(i18n.t("dashboard.share.kopierLinket"), abs);
       }
       setState("copied");
       setTimeout(() => setState("idle"), 2500);
@@ -645,20 +657,20 @@ function ShareButton(props: {
     }
   };
 
-  const label = state === "copied" ? "Link kopieret!" : state === "error" ? "Fejl — prøv igen" : "Del";
+  const label = state === "copied" ? i18n.t("dashboard.share.linkKopieret") : state === "error" ? i18n.t("dashboard.share.fejlProevIgen") : i18n.t("dashboard.share.del");
   if (props.variant === "icon-dark") {
     return (
       <button
         type="button"
         onClick={share}
         disabled={state === "busy"}
-        title="Del før/efter-link"
+        title={i18n.t("dashboard.share.delFoerEfterLink")}
         data-testid={props.testId}
         className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold text-white disabled:opacity-50"
         style={{ background: state === "copied" ? "rgba(45,106,79,0.95)" : "rgba(15,29,47,0.85)" }}
       >
         {state === "copied" ? <CheckCheck className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
-        <span>{state === "busy" ? "…" : state === "copied" ? "Kopieret" : "Del"}</span>
+        <span>{state === "busy" ? "…" : state === "copied" ? i18n.t("dashboard.share.kopieret") : i18n.t("dashboard.share.del")}</span>
       </button>
     );
   }
@@ -676,7 +688,7 @@ function ShareButton(props: {
       }
     >
       {state === "copied" ? <CheckCheck className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
-      <span>{state === "busy" ? "Opretter…" : label}</span>
+      <span>{state === "busy" ? i18n.t("dashboard.common.opretter") : label}</span>
     </button>
   );
 }
@@ -693,7 +705,7 @@ async function downloadSellerReportPdf(opts: {
   const skipWm = opts.skipWatermark ?? false;
   try {
     const stills = opts.images.filter((i) => !isVideoUrl(i.src) && !i.style?.startsWith("showcase-video-")).slice(0, 10);
-    if (stills.length === 0) return { ok: false, error: "Sagen har ingen billeder til rapporten" };
+    if (stills.length === 0) return { ok: false, error: i18n.t("dashboard.share.sagenHarIngenBillederTil") };
     const { jsPDF } = await import("jspdf");
 
     const fetched: { img: ApiCaseImage; after: NonNullable<Awaited<ReturnType<typeof fetchImageAsDataUrl>>>; before: Awaited<ReturnType<typeof fetchImageAsDataUrl>> }[] = [];
@@ -703,7 +715,7 @@ async function downloadSellerReportPdf(opts: {
       const before = img.beforeSrc ? await fetchImageAsDataUrl(img.beforeSrc) : null;
       fetched.push({ img, after, before });
     }
-    if (fetched.length === 0) return { ok: false, error: "Billederne kunne ikke hentes" };
+    if (fetched.length === 0) return { ok: false, error: i18n.t("dashboard.report.billederneKunneIkkeHentes") };
 
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -712,8 +724,8 @@ async function downloadSellerReportPdf(opts: {
     const navy = [15, 29, 47] as const;
     const muted = [107, 107, 107] as const;
     const accent = [200, 149, 108] as const;
-    const dateStr = new Date().toLocaleDateString("da-DK", { day: "2-digit", month: "long", year: "numeric" });
-    const marketDateStr = new Date(opts.marketDateISO).toLocaleDateString("da-DK", { day: "2-digit", month: "long", year: "numeric" });
+    const dateStr = new Date().toLocaleDateString(localeTag(), { day: "2-digit", month: "long", year: "numeric" });
+    const marketDateStr = new Date(opts.marketDateISO).toLocaleDateString(localeTag(), { day: "2-digit", month: "long", year: "numeric" });
 
     const drawWatermark = (imgX: number, imgY: number, imgW: number, imgH: number) => {
       const label = "AI-redigeret";
@@ -743,11 +755,11 @@ async function downloadSellerReportPdf(opts: {
       pdf.setFontSize(7.5);
       pdf.setTextColor(muted[0], muted[1], muted[2]);
       pdf.text(
-        "Billederne er AI-genererede visualiseringer og skal ses som inspiration. Det endelige resultat kan variere.",
+        i18n.t("dashboard.pdf.disclaimerFooter"),
         margin, pageH - 9, { maxWidth: pageW - margin * 2 }
       );
       const pageNo = (pdf as any).internal.getCurrentPageInfo?.().pageNumber;
-      pdf.text(pageNo ? `Forma Estates · Side ${pageNo}` : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
+      pdf.text(pageNo ? i18n.t("dashboard.pdf.formaEstatesSide", { page: pageNo }) : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
     };
 
     // ── Forside ──────────────────────────────────────────────────────────────
@@ -756,11 +768,11 @@ async function downloadSellerReportPdf(opts: {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
     pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text("SÆLGERRAPPORT · AI BOLIGPOTENTIALE", margin, 22);
+    pdf.text(i18n.t("dashboard.report.saelgerrapportAiBoligpotentiale"), margin, 22);
     pdf.setFontSize(28);
     pdf.setTextColor(navy[0], navy[1], navy[2]);
-    pdf.text("Boligens fulde", margin, 42);
-    pdf.text("potentiale — visualiseret", margin, 54, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.report.boligensFulde"), margin, 42);
+    pdf.text(i18n.t("dashboard.report.potentialeVisualiseret"), margin, 54, { maxWidth: pageW - margin * 2 });
     pdf.setDrawColor(accent[0], accent[1], accent[2]);
     pdf.setLineWidth(0.8);
     pdf.line(margin, 62, margin + 40, 62);
@@ -771,9 +783,9 @@ async function downloadSellerReportPdf(opts: {
     pdf.setFontSize(10);
     pdf.setTextColor(muted[0], muted[1], muted[2]);
     let metaY = 82;
-    if (opts.caseNo) { pdf.text(`Sagsnr. ${opts.caseNo}`, margin, metaY); metaY += 6; }
-    pdf.text(`På markedet siden ${marketDateStr} (${opts.liveDays} dage)`, margin, metaY); metaY += 6;
-    pdf.text(`${fetched.length} AI-visualisering${fetched.length !== 1 ? "er" : ""} · Udarbejdet ${dateStr}`, margin, metaY); metaY += 4;
+    if (opts.caseNo) { pdf.text(i18n.t("dashboard.report.sagsnr", { caseNo: opts.caseNo }), margin, metaY); metaY += 6; }
+    pdf.text(i18n.t("dashboard.report.onMarketSince", { date: marketDateStr, days: opts.liveDays }), margin, metaY); metaY += 6;
+    pdf.text(i18n.t("dashboard.report.visualiseringCount", { count: fetched.length, date: dateStr }), margin, metaY); metaY += 4;
 
     const hero = fetched[0].after;
     const heroMaxW = pageW - margin * 2;
@@ -790,8 +802,8 @@ async function downloadSellerReportPdf(opts: {
     // ── Én side pr. visualisering ────────────────────────────────────────────
     for (const { img, after, before } of fetched) {
       pdf.addPage();
-      const roomLabel = BOLIG_ROOM_LABELS[img.room] || img.room;
-      const styleLabel = BOLIG_STYLE_LABELS[img.style] || img.style;
+      const roomLabel = roomLabelLocalized(img.room);
+      const styleLabel = styleLabelLocalized(img.style);
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(16);
       pdf.setTextColor(navy[0], navy[1], navy[2]);
@@ -802,7 +814,7 @@ async function downloadSellerReportPdf(opts: {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       pdf.setTextColor(muted[0], muted[1], muted[2]);
-      pdf.text(`Genereret dag ${img.daysAfterMarket} på markedet`, margin, 32);
+      pdf.text(i18n.t("dashboard.report.generatedDayOnMarket", { day: img.daysAfterMarket }), margin, 32);
       const imgTop = 38;
       const imgBottom = pageH - 22;
       if (before) {
@@ -820,8 +832,8 @@ async function downloadSellerReportPdf(opts: {
           pdf.setTextColor(accent[0], accent[1], accent[2]);
           pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
         };
-        drawHalf(before, margin, "FØR", false);
-        drawHalf(after, margin + half + 6, "EFTER", true);
+        drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
+        drawHalf(after, margin + half + 6, i18n.t("dashboard.pdf.efter"), true);
       } else {
         const maxW = pageW - margin * 2;
         const maxH = imgBottom - imgTop;
@@ -842,17 +854,17 @@ async function downloadSellerReportPdf(opts: {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
     pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text("NÆSTE SKRIDT", margin, 26);
+    pdf.text(i18n.t("dashboard.report.naesteSkridt"), margin, 26);
     pdf.setFontSize(20);
     pdf.setTextColor(navy[0], navy[1], navy[2]);
-    pdf.text("Klar til at vise potentialet frem?", margin, 38, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.report.klarTilAtVisePotentialet"), margin, 38, { maxWidth: pageW - margin * 2 });
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10.5);
     pdf.setTextColor(muted[0], muted[1], muted[2]);
     const bullets = [
-      "Brug visualiseringerne i boligannoncen og på sociale medier for at fange flere købere.",
-      "Vis før/efter-billederne til fremvisninger, så køberne ser boligens muligheder.",
-      "Opdater billederne løbende — fx med en sæsonopfriskning, hvis boligen har ligget længe.",
+      i18n.t("dashboard.report.brugVisualiseringerneIBoligannoncenOg"),
+      i18n.t("dashboard.report.visFoerEfterBillederneTil"),
+      i18n.t("dashboard.report.opdaterBillederneLoebendeFxMed"),
     ];
     let by = 50;
     for (const b of bullets) {
@@ -867,16 +879,16 @@ async function downloadSellerReportPdf(opts: {
     pdf.save(filename);
     return { ok: true };
   } catch (e: any) {
-    return { ok: false, error: e?.message || "Ukendt fejl" };
+    return { ok: false, error: e?.message || i18n.t("dashboard.common.ukendtFejl") };
   }
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SEASONS = [
-  { value: "spring", label: "Forår",   Icon: Flower2 },
-  { value: "summer", label: "Sommer",  Icon: Sun },
-  { value: "autumn", label: "Efterår", Icon: Leaf },
-  { value: "winter", label: "Vinter",  Icon: Snowflake },
+  { value: "spring", label: "dashboard.common.foraar",   Icon: Flower2 },
+  { value: "summer", label: "dashboard.common.sommer",  Icon: Sun },
+  { value: "autumn", label: "dashboard.common.efteraar", Icon: Leaf },
+  { value: "winter", label: "dashboard.common.vinter",  Icon: Snowflake },
 ] as const;
 
 const ROOM_TYPES = [
@@ -911,9 +923,9 @@ const STYLES = [
 ];
 
 const BUDGET_TIERS = [
-  { value: "tier1", label: "Tier 1 — Budget",   sub: "IKEA / JYSK niveau" },
-  { value: "tier2", label: "Tier 2 — Standard", sub: "Mellemklasse" },
-  { value: "tier3", label: "Tier 3 — Premium",  sub: "Designermøbler" },
+  { value: "tier1", label: "dashboard.budgetTiers.tier1Label", sub: "dashboard.budgetTiers.tier1Sub", short: "dashboard.budgetTiers.tier1Short" },
+  { value: "tier2", label: "dashboard.budgetTiers.tier2Label", sub: "dashboard.budgetTiers.tier2Sub", short: "dashboard.budgetTiers.tier2Short" },
+  { value: "tier3", label: "dashboard.budgetTiers.tier3Label", sub: "dashboard.budgetTiers.tier3Sub", short: "dashboard.budgetTiers.tier3Short" },
 ];
 
 const DEFAULT_THUMB = "/bolig-images/living-scandi-before.jpg";
@@ -928,12 +940,12 @@ function CaseThumb({ src, alt, className }: { src: string | null; alt?: string; 
 
 function timeAgo(dateStr: string | Date): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return "lige nu";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min siden`;
-  if (diff < 7200) return "1 time siden";
-  if (diff < 86400) return `${Math.floor(diff / 3600)} timer siden`;
-  if (diff < 172800) return "i går";
-  return `${Math.floor(diff / 86400)} dage siden`;
+  if (diff < 60) return i18n.t("dashboard.common.ligeNu");
+  if (diff < 3600) return i18n.t("dashboard.common.minSiden", { count: Math.floor(diff / 60) });
+  if (diff < 7200) return i18n.t("dashboard.common.timeSiden", { count: 1 });
+  if (diff < 86400) return i18n.t("dashboard.common.timeSiden", { count: Math.floor(diff / 3600) });
+  if (diff < 172800) return i18n.t("dashboard.budgetTiers.iGaar");
+  return i18n.t("dashboard.common.dageSiden", { count: Math.floor(diff / 86400) });
 }
 
 function liveDaysFromISO(iso: string, now: number): number {
@@ -1015,7 +1027,7 @@ function CaseDetailPanel({
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Kunne ikke slette sagen");
+      if (!res.ok) throw new Error(i18n.t("dashboard.caseView.kunneIkkeSletteSagen"));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
@@ -1031,7 +1043,7 @@ function CaseDetailPanel({
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Kunne ikke opdatere status");
+      if (!res.ok) throw new Error(i18n.t("dashboard.caseView.kunneIkkeOpdatereStatus"));
       return res.json() as Promise<ApiCase>;
     },
     onSuccess: (updatedCase) => {
@@ -1051,7 +1063,7 @@ function CaseDetailPanel({
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Kunne ikke slette billedet");
+      if (!res.ok) throw new Error(i18n.t("dashboard.caseView.kunneIkkeSletteBilledet"));
     },
     onSuccess: () => {
       refetchImages();
@@ -1070,7 +1082,7 @@ function CaseDetailPanel({
         body: JSON.stringify({ marketDateISO }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || "Kunne ikke opdatere datoen");
+      if (!res.ok) throw new Error(json.message || i18n.t("dashboard.caseView.kunneIkkeOpdatereDatoen"));
       return json as ApiCase;
     },
     onSuccess: (updatedCase) => {
@@ -1107,7 +1119,7 @@ function CaseDetailPanel({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Sæsonopdateringen mislykkedes. Prøv igen.");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.caseView.saesonopdateringenMislykkedesProevIgen"));
       await refetchImages();
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
@@ -1117,14 +1129,14 @@ function CaseDetailPanel({
       setSeasonDone(true);
       setTimeout(() => setSeasonDone(false), 5000);
     } catch (err: any) {
-      setSeasonError(err.message || "Noget gik galt. Prøv igen.");
+      setSeasonError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
     } finally {
       setSeasonBusy(null);
     }
   };
 
   const handleFile = (file: File) => {
-    if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    if (!file.type.startsWith("image/")) { setError(i18n.t("dashboard.upload.kunBilledfilerErTilladt")); return; }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setError(null);
@@ -1150,7 +1162,7 @@ function CaseDetailPanel({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
       setResultUrl(data.image_url);
       setPromptUsed(data.prompt_used ?? null);
       setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
@@ -1168,7 +1180,7 @@ function CaseDetailPanel({
       window.dispatchEvent(new Event("quota:refresh"));
       setGenStep(3);
     } catch (err: any) {
-      setError(err.message || "Noget gik galt. Prøv igen.");
+      setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
     } finally {
       setIsGenerating(false);
     }
@@ -1192,7 +1204,7 @@ function CaseDetailPanel({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Justering mislykkedes. Prøv igen.");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.justeringMislykkedesProevIgen"));
       setCaseRefinedUrl(data.image_url);
       setResultUrl(data.image_url);
       if (data.generation_id) setCaseSavedImageId(data.generation_id);
@@ -1205,7 +1217,7 @@ function CaseDetailPanel({
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
     } catch (err: any) {
-      setCaseRefinementError(err.message || "Noget gik galt. Prøv igen.");
+      setCaseRefinementError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
     } finally {
       setIsCaseRefining(false);
     }
@@ -1217,7 +1229,7 @@ function CaseDetailPanel({
     setLbPos(Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)));
   }, []);
 
-  const tierLabel = (t: string) => t === "tier1" ? "Budget" : t === "tier3" ? "Premium" : "Standard";
+  const tierLabel = (t: string) => i18n.t(t === "tier1" ? "dashboard.budgetTiers.tier1Short" : t === "tier3" ? "dashboard.budgetTiers.tier3Short" : "dashboard.budgetTiers.tier2Short");
 
   return (
     <motion.div key="case-detail" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
@@ -1260,7 +1272,7 @@ function CaseDetailPanel({
                     style={{ background: "#0F1D2F" }}
                     data-testid="bolig-market-date-save"
                   >
-                    {marketDateMutation.isPending ? "..." : "Gem"}
+                    {marketDateMutation.isPending ? "..." : i18n.t("dashboard.common.gem")}
                   </button>
                   <button
                     onClick={() => setEditingMarketDate(false)}
@@ -1268,7 +1280,7 @@ function CaseDetailPanel({
                     style={{ color: "#6B6B6B" }}
                     data-testid="bolig-market-date-cancel"
                   >
-                    Annuller
+                    {i18n.t("dashboard.common.annuller")}
                   </button>
                   {marketDateMutation.isError && (
                     <span className="text-[11px]" style={{ color: "#DC2626" }}>{(marketDateMutation.error as Error)?.message}</span>
@@ -1279,7 +1291,7 @@ function CaseDetailPanel({
                   onClick={() => { setMarketDateDraft(caseData.marketDateISO.slice(0, 10)); setEditingMarketDate(true); }}
                   className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D9D5CF] inline-flex items-center gap-1 hover:border-[#C8956C] transition-colors"
                   style={{ color: "#6B6B6B" }}
-                  title="Ret dato for salgsopstart"
+                  title={i18n.t("dashboard.caseView.retDatoForSalgsopstart")}
                   data-testid="bolig-market-date-edit"
                 >
                   <CalendarDays className="w-3 h-3" /> {liveDays} {t("dashboard.case.daysOnMarket")}
@@ -1308,7 +1320,7 @@ function CaseDetailPanel({
                     liveDays,
                     images,
                   });
-                  if (!r.ok) alert(r.error || "Sælgerrapporten kunne ikke genereres. Prøv igen.");
+                  if (!r.ok) alert(r.error || i18n.t("dashboard.caseView.saelgerrapportenKunneIkkeGenereresProev"));
                 } finally {
                   setSellerPdfBusy(false);
                 }
@@ -1316,7 +1328,7 @@ function CaseDetailPanel({
               disabled={sellerPdfBusy}
               className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full text-xs sm:text-sm font-medium border transition-colors disabled:opacity-60"
               style={{ borderColor: "rgba(15,29,47,0.25)", color: "#0F1D2F", background: "rgba(15,29,47,0.04)" }}
-              title="Download en samlet PDF med alle visualiseringer til sælgermødet"
+              title={i18n.t("dashboard.caseView.downloadEnSamletPdfMed")}
               data-testid="bolig-seller-report-btn"
             >
               <FileText className="w-3.5 h-3.5" />
@@ -1328,7 +1340,7 @@ function CaseDetailPanel({
             <button
               onClick={() => setConfirmDialog({
                 title: t("dashboard.case.markSold"),
-                desc: "Du sætter sagen som solgt. Den flyttes til Solgte sager.",
+                desc: i18n.t("dashboard.caseView.duSaetterSagenSomSolgt"),
                 confirmLabel: t("dashboard.case.markSold"),
                 variant: "success",
                 onConfirm: () => { statusMutation.mutate("sold"); setConfirmDialog(null); },
@@ -1340,7 +1352,7 @@ function CaseDetailPanel({
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{statusMutation.isPending ? "..." : t("dashboard.case.markSold")}</span>
-              <span className="sm:hidden">{statusMutation.isPending ? "..." : "Solgt"}</span>
+              <span className="sm:hidden">{statusMutation.isPending ? "..." : i18n.t("dashboard.caseView.solgtShort")}</span>
             </button>
           ) : (
             <button
@@ -1357,7 +1369,7 @@ function CaseDetailPanel({
           <button
             onClick={() => setConfirmDialog({
               title: t("dashboard.case.deleteCase"),
-              desc: `Du sletter nu sagen "${caseData.address}" og alle dens billeder permanent.`,
+              desc: i18n.t("dashboard.caseView.duSletterNuSagen", { address: caseData.address }),
               confirmLabel: t("dashboard.case.deleteCase"),
               onConfirm: () => deleteMutation.mutate(),
             })}
@@ -1401,7 +1413,7 @@ function CaseDetailPanel({
                 <div className="flex items-center gap-3 mb-4">
                   <p className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9B9690" }}>{t("dashboard.case.generatedImages")}</p>
                   <div className="flex-1 h-px" style={{ background: "#E8E4DE" }} />
-                  <span className="text-xs" style={{ color: "#9B9690" }}>{images.length} billede{images.length !== 1 ? "r" : ""}</span>
+                  <span className="text-xs" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.billedeCount", { count: images.length })}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {images.map((img) => (
@@ -1431,7 +1443,7 @@ function CaseDetailPanel({
                         )}
                         <div className="absolute inset-0 flex items-center justify-center transition-opacity opacity-0 md:opacity-0 md:group-hover:opacity-100 group-hover:opacity-100" style={{ background: "rgba(15,29,47,0.4)" }}>
                           <span className="text-white text-[11px] font-semibold px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
-                            {isVideoUrl(img.src) ? "Afspil video" : img.style === "3d-interactive" ? "Vis 3D model" : img.beforeSrc ? "Vis Før / Efter" : "Åbn"}
+                            {isVideoUrl(img.src) ? i18n.t("dashboard.caseView.afspilVideo") : img.style === "3d-interactive" ? i18n.t("dashboard.caseView.vis3dModel") : img.beforeSrc ? i18n.t("dashboard.caseView.visFoerEfter") : i18n.t("dashboard.caseView.aabn")}
                           </span>
                         </div>
                         <div className="absolute top-2 right-2 flex gap-1 transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100">
@@ -1440,12 +1452,12 @@ function CaseDetailPanel({
                               <button
                                 type="button"
                                 onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(img.src, `postklar-${img.style}-${ts}.mp4`); }}
-                                title="Download postklar (9:16)"
+                                title={i18n.t("dashboard.caseView.downloadPostklar916")}
                                 data-testid={`bolig-gallery-download-${img.id}-postklar`}
                                 className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold text-white"
                                 style={{ background: "rgba(15,29,47,0.85)" }}
                               >
-                                <Download className="w-3 h-3" /> Postklar
+                                <Download className="w-3 h-3" /> {i18n.t("dashboard.caseView.postklar")}
                               </button>
                               {(() => {
                                 const origUrl = img.beforeSrc ?? img.src.replace(/\.mp4$/, "-clean.mp4");
@@ -1453,12 +1465,12 @@ function CaseDetailPanel({
                                   <button
                                     type="button"
                                     onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(origUrl, `original-${img.style}-${ts}.mp4`); }}
-                                    title="Download original format"
+                                    title={i18n.t("dashboard.caseView.downloadOriginalFormat")}
                                     data-testid={`bolig-gallery-download-${img.id}-original`}
                                     className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold"
                                     style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
                                   >
-                                    <Download className="w-3 h-3" /> Original
+                                    <Download className="w-3 h-3" /> {i18n.t("dashboard.caseView.original")}
                                   </button>
                                 );
                               })()}
@@ -1467,7 +1479,7 @@ function CaseDetailPanel({
                             <button
                               type="button"
                               onClick={async (e) => { e.stopPropagation(); const ts = new Date().toISOString().slice(0,10); await downloadFromUrl(img.src, `video-${img.style ?? "download"}-${ts}.mp4`); }}
-                              title="Download video (MP4)"
+                              title={i18n.t("dashboard.caseView.downloadVideoMp4")}
                               data-testid={`bolig-gallery-download-${img.id}-mp4`}
                               className="h-7 px-2 rounded-full flex items-center gap-1 text-[10px] font-bold text-white"
                               style={{ background: "rgba(15,29,47,0.85)" }}
@@ -1490,7 +1502,7 @@ function CaseDetailPanel({
                           </>
                           )}
                           <button
-                            onClick={(e) => { e.stopPropagation(); setConfirmDialog({ title: "Slet billede", desc: "Vil du slette dette billede? Det kan ikke fortrydes.", confirmLabel: "Slet billede", onConfirm: () => deleteImageMutation.mutate(img.id) }); }}
+                            onClick={(e) => { e.stopPropagation(); setConfirmDialog({ title: i18n.t("dashboard.common.sletBillede"), desc: i18n.t("dashboard.caseView.vilDuSletteDetteBillede"), confirmLabel: i18n.t("dashboard.common.sletBillede"), onConfirm: () => deleteImageMutation.mutate(img.id) }); }}
                             className="w-7 h-7 rounded-full flex items-center justify-center"
                             style={{ background: "rgba(220,38,38,0.85)" }}
                             data-testid={`bolig-delete-image-btn-${img.id}`}
@@ -1504,7 +1516,7 @@ function CaseDetailPanel({
                         <div className="flex gap-1.5 flex-wrap">
                           <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{img.style}</span>
                           {img.tier && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(img.tier)}</span>}
-                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>Dag {img.daysAfterMarket}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>{i18n.t("dashboard.caseView.dag", { day: img.daysAfterMarket })}</span>
                         </div>
                       </div>
                     </div>
@@ -1529,7 +1541,7 @@ function CaseDetailPanel({
 
               {seasonSources.length > 1 && (
                 <div className="mb-4">
-                  <p className="text-[11px] font-semibold mb-1.5" style={{ color: "#9B9690" }}>Vælg billede</p>
+                  <p className="text-[11px] font-semibold mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.vaelgBillede")}</p>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {seasonSources.map((src) => {
                       const selected = (seasonSourceId ?? seasonSources[0].id) === src.id;
@@ -1566,18 +1578,18 @@ function CaseDetailPanel({
                       ) : (
                         <s.Icon className="w-3.5 h-3.5" />
                       )}
-                      {s.label}
+                      {i18n.t(s.label)}
                     </button>
                   );
                 })}
               </div>
 
               {seasonBusy && (
-                <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>AI'en arbejder — ca. 30–60 sekunder. Billedet gemmes i galleriet.</p>
+                <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.aienArbejderSeasons")}</p>
               )}
               {seasonDone && (
                 <p className="text-xs mt-3 text-center font-semibold flex items-center justify-center gap-1" style={{ color: "#2D6A4F" }} data-testid="bolig-season-done">
-                  <Check className="w-3.5 h-3.5" /> Sæsonbilledet er gemt i galleriet
+                  <Check className="w-3.5 h-3.5" /> {i18n.t("dashboard.caseView.seasonImageSaved")}
                 </p>
               )}
               {seasonError && (
@@ -1711,9 +1723,9 @@ function CaseDetailPanel({
                   <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.orTryExample")}</p>
                   <div className="flex gap-3 justify-center">
                     {[
-                      { src: "/bolig-images/example-kitchen-scandi.jpg", label: "Køkken" },
-                      { src: "/bolig-images/example-dining-modern.png", label: "Spisestue" },
-                      { src: "/bolig-images/example-bathroom-japandi.png", label: "Badeværelse" },
+                      { src: "/bolig-images/example-kitchen-scandi.jpg", label: i18n.t("dashboard.common.koekken") },
+                      { src: "/bolig-images/example-dining-modern.png", label: i18n.t("dashboard.common.spisestue") },
+                      { src: "/bolig-images/example-bathroom-japandi.png", label: i18n.t("dashboard.common.badevaerelse") },
                     ].map((ex) => (
                       <button key={ex.src}
                         onClick={async () => { const r = await fetch(ex.src); const blob = await r.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); setGenStep(2); }}
@@ -1730,7 +1742,7 @@ function CaseDetailPanel({
                 </div>
                 <div className="flex justify-center">
                   <button onClick={() => { setGenStep(0); setError(null); }} className="text-sm hover:opacity-70 transition-opacity" style={{ color: "#9B9690" }}>
-                    ← Annuller og gå tilbage
+                    {i18n.t("dashboard.caseView.annullerOgGaaTilbage")}
                   </button>
                 </div>
               </motion.div>
@@ -1743,14 +1755,14 @@ function CaseDetailPanel({
 
                   {/* LEFT col-span-5: image preview */}
                   <div className="lg:col-span-5">
-                    <p className="text-xs font-medium tracking-widest uppercase mb-2" style={{ color: "#9B9690" }}>Dit billede</p>
+                    <p className="text-xs font-medium tracking-widest uppercase mb-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.ditBillede")}</p>
                     <div className="flex items-center gap-2 mb-3">
                       <button
                         onClick={() => { setImageFile(null); setImagePreview(null); setGenStep(1); }}
                         className="h-7 px-2 rounded-lg text-xs hover:opacity-70 transition-opacity border border-[#D9D5CF]"
                         style={{ color: "#6B6B6B" }}
                       >
-                        Skift foto
+                        {i18n.t("dashboard.common.skiftFoto")}
                       </button>
                     </div>
                     {imagePreview && (
@@ -1825,8 +1837,8 @@ function CaseDetailPanel({
                             }}
                             data-testid={`bolig-tier-${t.value}`}
                           >
-                            <span className="text-sm font-medium">{t.label}</span>
-                            <span className="text-xs" style={{ opacity: 0.6 }}>{t.sub}</span>
+                            <span className="text-sm font-medium">{i18n.t(t.label)}</span>
+                            <span className="text-xs" style={{ opacity: 0.6 }}>{i18n.t(t.sub)}</span>
                           </button>
                         ))}
                       </div>
@@ -1887,7 +1899,7 @@ function CaseDetailPanel({
                 {!isGenerating && (
                   <div className="flex justify-center mt-6">
                     <button onClick={() => { setGenStep(1); setError(null); }} className="text-sm hover:opacity-70 transition-opacity" style={{ color: "#9B9690" }}>
-                      ← Skift billede
+                      ← {i18n.t("dashboard.common.skiftBillede")}
                     </button>
                   </div>
                 )}
@@ -1899,10 +1911,10 @@ function CaseDetailPanel({
               <motion.div key="gen-step3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>
                 <div className="mb-5">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>
-                    <Check className="w-3 h-3" /> {caseRefinedUrl ? "Justering klar" : `Gemt i galleri${processingTime ? ` · ${processingTime} sek` : ""}`}
+                    <Check className="w-3 h-3" /> {caseRefinedUrl ? i18n.t("dashboard.common.justeringKlar") : (processingTime ? i18n.t("dashboard.caseView.gemtIGalleriSek", { sec: processingTime }) : i18n.t("dashboard.caseView.gemtIGalleri"))}
                   </span>
-                  <h2 className="text-2xl font-semibold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Forvandlingen er klar!</h2>
-                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Træk slideren for at sammenligne før og efter</p>
+                  <h2 className="text-2xl font-semibold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.caseView.forvandlingenErKlar")}</h2>
+                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.common.traekSliderenForAtSammenligne")}</p>
                 </div>
                 <div>
                   <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={caseRefinedUrl ?? resultUrl} />
@@ -1919,15 +1931,15 @@ function CaseDetailPanel({
                       <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-[#E8E4DE]" style={{ background: "#FAF7F2" }}>
                         <div className="flex items-center gap-2 min-w-0">
                           <Sparkles className="w-4 h-4 shrink-0" style={{ color: "#C8956C" }} />
-                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forbedr resultatet</span>
-                          <span className="hidden sm:inline text-xs" style={{ color: "#9B9690" }}>— juster belysning, møbler, dekorationer og mere</span>
+                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.caseView.forbedrResultatet")}</span>
+                          <span className="hidden sm:inline text-xs" style={{ color: "#9B9690" }}>{i18n.t("dashboard.common.justerBelysningMoeblerDekorationerOg")}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs font-medium tabular-nums" style={{ color: caseRefinementCount >= CASE_MAX_REFINEMENTS ? "#DC2626" : "#9B9690" }}>
-                            {caseRefinementCount}/{CASE_MAX_REFINEMENTS} justeringer
+                            {i18n.t("dashboard.caseView.justeringerCount", { count: caseRefinementCount, max: CASE_MAX_REFINEMENTS })}
                           </span>
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a" }}>
-                            <Check className="w-3 h-3" /> Koster ikke ekstra kredit
+                            <Check className="w-3 h-3" /> {i18n.t("dashboard.caseView.kosterIkkeEkstraKredit")}
                           </span>
                         </div>
                       </div>
@@ -1936,7 +1948,7 @@ function CaseDetailPanel({
                         <div className="p-4">
                           {/* Quick suggestion chips — clicking appends, never replaces */}
                           <div className="flex flex-wrap gap-2 mb-3">
-                            {["Bedre belysning", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
+                            {[i18n.t("dashboard.caseView.bedreBelysning"), i18n.t("dashboard.common.tilfoejMaleri"), i18n.t("dashboard.caseView.skiftLampe"), i18n.t("dashboard.caseView.varmereFarver"), i18n.t("dashboard.caseView.mereDekorationer")].map((s) => {
                               const active = caseRefinementPrompt.toLowerCase().includes(s.toLowerCase());
                               return (
                               <button
@@ -1961,7 +1973,7 @@ function CaseDetailPanel({
                               value={caseRefinementPrompt}
                               onChange={(e) => setCaseRefinementPrompt(e.target.value)}
                               onKeyDown={(e) => { if (e.key === "Enter" && !isCaseRefining && caseRefinementPrompt.trim()) handleCaseRefinement(); }}
-                              placeholder="Fx: udskift stolene, gør himlen blå, tilføj en lampe..."
+                              placeholder={i18n.t("dashboard.caseView.fxUdskiftStoleneGoerHimlen")}
                               className="flex-1 h-10 px-3.5 text-sm rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#C8956C] disabled:opacity-50"
                               style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
                               disabled={isCaseRefining}
@@ -1974,8 +1986,8 @@ function CaseDetailPanel({
                               data-testid="bolig-case-refine-submit"
                             >
                               {isCaseRefining
-                                ? <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> Justerer...</>
-                                : <><Sparkles className="w-3.5 h-3.5" /> Juster</>}
+                                ? <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> {i18n.t("dashboard.caseView.justerer")}</>
+                                : <><Sparkles className="w-3.5 h-3.5" /> {i18n.t("dashboard.caseView.juster")}</>}
                             </button>
                           </div>
                           {caseRefinementError && (
@@ -1984,8 +1996,8 @@ function CaseDetailPanel({
                         </div>
                       ) : (
                         <div className="px-5 py-4 text-sm text-center" style={{ color: "#6B6B6B" }}>
-                          Du har brugt alle {CASE_MAX_REFINEMENTS} justeringer til dette billede.
-                          Generer et nyt billede for at starte forfra.
+                          {i18n.t("dashboard.caseView.duHarBrugtAlleJusteringer", { max: CASE_MAX_REFINEMENTS })}
+                          {i18n.t("dashboard.common.genererEtNytBilledeFor")}
                         </div>
                       )}
                     </motion.div>
@@ -2001,10 +2013,10 @@ function CaseDetailPanel({
                       <Check className="w-3.5 h-3.5" /> Se i galleri
                     </button>
                     <button onClick={() => { setResultUrl(null); setCaseRefinedUrl(null); setGenStep(2); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] text-sm transition-colors" style={{ color: "#0F1D2F" }}>
-                      Generer igen
+                      {i18n.t("dashboard.common.genererIgen")}
                     </button>
                     <button onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setCaseRefinedUrl(null); setGenStep(1); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] text-sm transition-colors" style={{ color: "#6B6B6B" }}>
-                      Nyt billede
+                      {i18n.t("dashboard.common.nytBillede")}
                     </button>
                     <DownloadMenu
                       url={caseRefinedUrl ?? resultUrl}
@@ -2070,11 +2082,11 @@ function CaseDetailPanel({
                   onPointerUp={() => {}}
                 >
                   <img src={lightboxImg.src} alt="" className="w-full h-auto block invisible" style={{ maxHeight: "70vh" }} draggable={false} />
-                  <img src={lightboxImg.src} alt="Efter" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                  <img src={lightboxImg.src} alt={i18n.t("dashboard.common.efter2")} className="absolute inset-0 w-full h-full object-contain" draggable={false} />
                   <div className="absolute top-0 left-0 bottom-0 overflow-hidden" style={{ width: `${lbPos}%` }}>
                     <img
                       src={lightboxImg.beforeSrc}
-                      alt="Før"
+                      alt={i18n.t("dashboard.common.foer2")}
                       className="absolute top-0 left-0 h-full object-contain"
                       style={{ width: lbRef.current ? `${lbRef.current.offsetWidth}px` : "800px", maxWidth: "none" }}
                       draggable={false}
@@ -2086,8 +2098,8 @@ function CaseDetailPanel({
                       <ChevronRight className="w-3 h-3" style={{ color: "#0F1D2F" }} />
                     </div>
                   </div>
-                  <span className="absolute bottom-3 left-3 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full font-medium z-10 pointer-events-none" style={{ opacity: lbPos > 15 ? 1 : 0 }}>Før</span>
-                  <span className="absolute bottom-3 right-3 text-white text-xs px-2.5 py-1 rounded-full font-medium z-10 pointer-events-none" style={{ background: "#C8956C", opacity: lbPos < 85 ? 1 : 0 }}>Efter</span>
+                  <span className="absolute bottom-3 left-3 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full font-medium z-10 pointer-events-none" style={{ opacity: lbPos > 15 ? 1 : 0 }}>{i18n.t("dashboard.common.foer2")}</span>
+                  <span className="absolute bottom-3 right-3 text-white text-xs px-2.5 py-1 rounded-full font-medium z-10 pointer-events-none" style={{ background: "#C8956C", opacity: lbPos < 85 ? 1 : 0 }}>{i18n.t("dashboard.common.efter2")}</span>
                 </div>
               ) : (
                 <img src={lightboxImg.src} alt={lightboxImg.room} className="w-full h-auto" style={{ maxHeight: "70vh", objectFit: "contain" }} />
@@ -2096,7 +2108,7 @@ function CaseDetailPanel({
                 <div className="flex gap-2 min-w-0 flex-1">
                   <span className="text-[11px] font-semibold text-white truncate">{lightboxImg.room}</span>
                   <span className="text-[11px] text-white/60 hidden sm:inline">·</span>
-                  <span className="text-[11px] text-white/70 truncate hidden sm:inline">{lightboxImg.style === "3d-interactive" ? "Interaktiv 3D model" : lightboxImg.style}</span>
+                  <span className="text-[11px] text-white/70 truncate hidden sm:inline">{lightboxImg.style === "3d-interactive" ? i18n.t("dashboard.caseView.interaktiv3dModel") : lightboxImg.style}</span>
                   {lightboxImg.tier && <><span className="text-[11px] text-white/60 hidden sm:inline">·</span><span className="text-[11px] text-white/70 hidden sm:inline">{tierLabel(lightboxImg.tier)}</span></>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
@@ -2106,7 +2118,7 @@ function CaseDetailPanel({
                       onClick={() => {
                         const raw = lightboxImg.beforeSrc!;
                         const glbSrc = raw.startsWith("http") ? raw : `${window.location.origin}${raw}`;
-                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>Forma Estates · 3D Plantegning</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}</script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif;overflow:hidden}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}#vp{flex:1;width:100%;background:radial-gradient(ellipse 120% 90% at 50% 38%,#464646 0%,#2b2b2b 55%,#171717 100%)}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>FORMA ESTATES · Interaktiv 3D Plantegning</span></header><div id="vp"></div><div class="hint">Klik og træk for at rotere &nbsp;·&nbsp; Scroll for at zoome &nbsp;·&nbsp; Højreklik for at panorere</div><script type="module">import*as THREE from'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{DRACOLoader}from'three/addons/loaders/DRACOLoader.js';import{OrbitControls}from'three/addons/controls/OrbitControls.js';const c=document.getElementById('vp');const dpr=Math.max(window.devicePixelRatio||1,2);const renderer=new THREE.WebGLRenderer({antialias:true,precision:'highp',powerPreference:'high-performance'});renderer.setPixelRatio(dpr);renderer.setSize(c.clientWidth,c.clientHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.outputColorSpace=THREE.SRGBColorSpace;c.appendChild(renderer.domElement);const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(38,c.clientWidth/c.clientHeight,0.01,1000);camera.position.set(3,2.5,3);scene.add(new THREE.HemisphereLight(0xffffff,0x222233,1.2));const key=new THREE.DirectionalLight(0xffffff,2.8);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.width=key.shadow.mapSize.height=2048;scene.add(key);const fill=new THREE.DirectionalLight(0xffffff,0.9);fill.position.set(-3,2,-2);scene.add(fill);const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.05;controls.enablePan=true;const draco=new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');const loader=new GLTFLoader();loader.setDRACOLoader(draco);loader.load('${glbSrc}',(gltf)=>{const model=gltf.scene;model.traverse(ch=>{if(ch.isMesh){ch.castShadow=true;ch.receiveShadow=true;}});scene.add(model);const box=new THREE.Box3().setFromObject(model);const center=box.getCenter(new THREE.Vector3());const size=box.getSize(new THREE.Vector3());const maxDim=Math.max(size.x,size.y,size.z);model.position.sub(center);camera.near=maxDim*0.005;camera.far=maxDim*300;camera.updateProjectionMatrix();const dist=maxDim*1.8;camera.position.set(dist*0.75,dist*0.55,dist*0.75);controls.minDistance=maxDim*0.15;controls.maxDistance=maxDim*20;controls.update();});function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();window.addEventListener('resize',()=>{const nw=c.clientWidth,nh=c.clientHeight;camera.aspect=nw/nh;camera.updateProjectionMatrix();renderer.setSize(nw,nh);});</script></body></html>`;
+                        const html = `<!DOCTYPE html><html lang="da"><head><meta charset="utf-8"/><title>${i18n.t("dashboard.caseView.formaEstates3dPlantegningTitle")}</title><meta name="viewport" content="width=device-width,initial-scale=1"/><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}</script><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#171717;height:100vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif;overflow:hidden}header{background:#111;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}header span{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:0.06em}#vp{flex:1;width:100%;background:radial-gradient(ellipse 120% 90% at 50% 38%,#464646 0%,#2b2b2b 55%,#171717 100%)}.hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(22,22,22,0.85);color:rgba(255,255,255,0.65);padding:7px 16px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.08);pointer-events:none}</style></head><body><header><span>${i18n.t("dashboard.caseView.formaEstatesInteraktiv3dPlantegning")}</span></header><div id="vp"></div><div class="hint">${i18n.t("dashboard.caseView.klikOgTraekForAt")}</div><script type="module">import*as THREE from'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{DRACOLoader}from'three/addons/loaders/DRACOLoader.js';import{OrbitControls}from'three/addons/controls/OrbitControls.js';const c=document.getElementById('vp');const dpr=Math.max(window.devicePixelRatio||1,2);const renderer=new THREE.WebGLRenderer({antialias:true,precision:'highp',powerPreference:'high-performance'});renderer.setPixelRatio(dpr);renderer.setSize(c.clientWidth,c.clientHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.outputColorSpace=THREE.SRGBColorSpace;c.appendChild(renderer.domElement);const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(38,c.clientWidth/c.clientHeight,0.01,1000);camera.position.set(3,2.5,3);scene.add(new THREE.HemisphereLight(0xffffff,0x222233,1.2));const key=new THREE.DirectionalLight(0xffffff,2.8);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.width=key.shadow.mapSize.height=2048;scene.add(key);const fill=new THREE.DirectionalLight(0xffffff,0.9);fill.position.set(-3,2,-2);scene.add(fill);const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.05;controls.enablePan=true;const draco=new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');const loader=new GLTFLoader();loader.setDRACOLoader(draco);loader.load('${glbSrc}',(gltf)=>{const model=gltf.scene;model.traverse(ch=>{if(ch.isMesh){ch.castShadow=true;ch.receiveShadow=true;}});scene.add(model);const box=new THREE.Box3().setFromObject(model);const center=box.getCenter(new THREE.Vector3());const size=box.getSize(new THREE.Vector3());const maxDim=Math.max(size.x,size.y,size.z);model.position.sub(center);camera.near=maxDim*0.005;camera.far=maxDim*300;camera.updateProjectionMatrix();const dist=maxDim*1.8;camera.position.set(dist*0.75,dist*0.55,dist*0.75);controls.minDistance=maxDim*0.15;controls.maxDistance=maxDim*20;controls.update();});function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();window.addEventListener('resize',()=>{const nw=c.clientWidth,nh=c.clientHeight;camera.aspect=nw/nh;camera.updateProjectionMatrix();renderer.setSize(nw,nh);});</script></body></html>`;
                         const blob = new Blob([html], { type: "text/html" });
                         window.open(URL.createObjectURL(blob), "_blank");
                       }}
@@ -2114,7 +2126,7 @@ function CaseDetailPanel({
                       style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
                       data-testid="bolig-lightbox-3d-open-tab"
                     >
-                      <ExternalLink className="w-3 h-3" /> Åbn i ny fane
+                      <ExternalLink className="w-3 h-3" /> {i18n.t("dashboard.caseView.aabnINyFane")}
                     </button>
                   ) : lightboxImg.style?.startsWith("showcase-video-") ? (
                     <>
@@ -2125,7 +2137,7 @@ function CaseDetailPanel({
                         style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
                         data-testid="bolig-lightbox-download-postklar"
                       >
-                        <Download className="w-3 h-3" /> Postklar ↓
+                        <Download className="w-3 h-3" /> {i18n.t("dashboard.caseView.postklar")} ↓
                       </button>
                       {(() => {
                         const origUrl = lightboxImg.beforeSrc ?? lightboxImg.src.replace(/\.mp4$/, "-clean.mp4");
@@ -2137,7 +2149,7 @@ function CaseDetailPanel({
                             style={{ background: "rgba(255,255,255,0.88)", color: "#1A1A1A" }}
                             data-testid="bolig-lightbox-download-original"
                           >
-                            <Download className="w-3 h-3" /> Original ↓
+                            <Download className="w-3 h-3" /> {i18n.t("dashboard.caseView.original")} ↓
                           </button>
                         );
                       })()}
@@ -2150,7 +2162,7 @@ function CaseDetailPanel({
                       style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
                       data-testid="bolig-lightbox-download-mp4"
                     >
-                      <Download className="w-3 h-3" /> Download MP4
+                      <Download className="w-3 h-3" /> {i18n.t("dashboard.caseView.downloadMp4")}
                     </button>
                   ) : (
                     <>
@@ -2213,7 +2225,7 @@ function CaseDetailPanel({
                   style={{ color: "#6B6B6B" }}
                   data-testid="bolig-confirm-cancel"
                 >
-                  Annuller
+                  {i18n.t("dashboard.common.annuller")}
                 </button>
                 <button
                   onClick={confirmDialog.onConfirm}
@@ -2222,7 +2234,7 @@ function CaseDetailPanel({
                   style={{ background: confirmDialog.variant === "success" ? "#2D6A4F" : "#DC2626" }}
                   data-testid="bolig-confirm-action"
                 >
-                  {(deleteMutation.isPending || deleteImageMutation.isPending || statusMutation.isPending) ? "Arbejder..." : confirmDialog.confirmLabel}
+                  {(deleteMutation.isPending || deleteImageMutation.isPending || statusMutation.isPending) ? i18n.t("dashboard.common.arbejder") : confirmDialog.confirmLabel}
                 </button>
               </div>
             </motion.div>
@@ -2245,7 +2257,7 @@ function CaseDetailPanel({
           >
             <img
               src={activityLightbox}
-              alt="Genereret billede"
+              alt={i18n.t("dashboard.common.genereretBillede")}
               className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />
@@ -2264,7 +2276,7 @@ function CaseDetailPanel({
   );
 }
 
-// ── Standalone Upload Flow (for "Upload Billede" section) ─────────────────────
+// ── Standalone Upload Flow (for i18n.t("dashboard.upload.uploadBillede") section) ─────────────────────
 // ── History (all generated visualizations across cases + standalone) ─────────
 interface ApiGeneration {
   id: number;
@@ -2310,7 +2322,7 @@ function HistoryView({
       const res = await fetch("/api/generations/all", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error("Kunne ikke hente historik");
+      if (!res.ok) throw new Error(i18n.t("dashboard.upload.kunneIkkeHenteHistorik"));
       return res.json();
     },
   });
@@ -2330,7 +2342,7 @@ function HistoryView({
       result = result.filter((it) => {
         const c = it.caseId ? caseById.get(it.caseId) : null;
         const addr = (c?.address ?? "").toLowerCase();
-        const date = new Date(it.createdAt).toLocaleDateString("da-DK").toLowerCase();
+        const date = new Date(it.createdAt).toLocaleDateString(localeTag()).toLowerCase();
         const room = (it.room ?? "").toLowerCase();
         return addr.includes(q) || date.includes(q) || room.includes(q);
       });
@@ -2345,10 +2357,10 @@ function HistoryView({
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error("Kunne ikke slette billede");
+      if (!res.ok) throw new Error(i18n.t("dashboard.upload.kunneIkkeSletteBillede"));
     },
     onSuccess: () => {
-      showToast("Billede slettet");
+      showToast(i18n.t("dashboard.upload.billedeSlettet"));
       queryClient.invalidateQueries({ queryKey: ["/api/generations/all"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
@@ -2368,14 +2380,14 @@ function HistoryView({
   const runRegen = async () => {
     if (!regen) return;
     if (!regen.beforeSrc) {
-      setRegenError("Det oprindelige rumfoto findes ikke længere, så vi kan ikke regenerere.");
+      setRegenError(i18n.t("dashboard.upload.detOprindeligeRumfotoFindesIkke"));
       return;
     }
     setRegenBusy(true);
     setRegenError(null);
     try {
       const origRes = await fetch(regen.beforeSrc);
-      if (!origRes.ok) throw new Error("Kunne ikke hente originalbilledet");
+      if (!origRes.ok) throw new Error(i18n.t("dashboard.upload.kunneIkkeHenteOriginalbilledet"));
       const blob = await origRes.blob();
       const file = new File([blob], "original.jpg", { type: blob.type || "image/jpeg" });
 
@@ -2397,7 +2409,7 @@ function HistoryView({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Regenerering mislykkedes");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.upload.regenereringMislykkedes"));
       setRegenResult({ url: data.image_url, id: data.generation_id ?? null });
       window.dispatchEvent(new Event("quota:refresh"));
       queryClient.invalidateQueries({ queryKey: ["/api/generations/all"] });
@@ -2408,7 +2420,7 @@ function HistoryView({
         queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", regenSaveCaseId, "images"] });
       }
     } catch (err: any) {
-      setRegenError(err?.message || "Noget gik galt");
+      setRegenError(err?.message || i18n.t("dashboard.common.nogetGikGalt"));
     } finally {
       setRegenBusy(false);
     }
@@ -2427,9 +2439,9 @@ function HistoryView({
     { id: "quick", label: t("dashboard.history.filterQuickUpload"), count: items.filter((i) => i.caseId === null).length },
   ];
 
-  const styleLabel = (v: string) => STYLES.find((s) => s.value === v)?.label || v;
-  const roomLabel = (v: string) => ROOM_TYPES.find((r) => r.value === v)?.label || v;
-  const tierLabel = (v: string | null) => BUDGET_TIERS.find((b) => b.value === v)?.label.replace(/^Tier \d — /, "") || v || "";
+  const styleLabel = (v: string) => { const s = STYLES.find((x) => x.value === v); return s ? i18n.t(s.labelKey) : v; };
+  const roomLabel = (v: string) => { const r = ROOM_TYPES.find((x) => x.value === v); return r ? i18n.t(r.labelKey) : v; };
+  const tierLabel = (v: string | null) => { const b = BUDGET_TIERS.find((x) => x.value === v); return b ? i18n.t(b.short) : (v || ""); };
 
   return (
     <motion.div key="historik-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
@@ -2513,7 +2525,7 @@ function HistoryView({
                     className="absolute top-2 left-2 text-[10px] font-semibold text-white px-2 py-0.5 rounded-full"
                     style={{ background: it.caseId ? "rgba(45,106,79,0.85)" : "rgba(200,149,108,0.95)" }}
                   >
-                    {it.caseId ? "Sag" : "Hurtig"}
+                    {it.caseId ? i18n.t("dashboard.upload.sag") : i18n.t("dashboard.upload.hurtig")}
                   </span>
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <DownloadMenu
@@ -2555,12 +2567,12 @@ function HistoryView({
                     <button
                       onClick={() => openRegen(it)}
                       disabled={!it.beforeSrc}
-                      title={it.beforeSrc ? "Generer igen med en anden stil" : "Originalbillede ikke tilgængeligt"}
+                      title={it.beforeSrc ? i18n.t("dashboard.upload.genererIgenMedEnAnden") : i18n.t("dashboard.upload.originalbilledeIkkeTilgaengeligt")}
                       className="flex-1 h-8 rounded-full text-[11px] font-semibold border-2 flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
                       data-testid={`bolig-history-regen-${it.id}`}
                     >
-                      <RotateCcw className="w-3 h-3" /> Anden stil
+                      <RotateCcw className="w-3 h-3" /> {i18n.t("dashboard.history.andenStil")}
                     </button>
                     <button
                       onClick={() => setConfirmDelete(it)}
@@ -2635,8 +2647,8 @@ function HistoryView({
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Generer igen</h3>
-                  <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Brug samme rum­foto med en ny stil eller budget.</p>
+                  <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.history.genererIgen")}</h3>
+                  <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.history.brugSammeRumfoto")}</p>
                 </div>
                 <button onClick={closeRegen} className="w-8 h-8 rounded-full hover:bg-[#F5F3EF] flex items-center justify-center" data-testid="bolig-history-regen-close">
                   <X className="w-4 h-4" />
@@ -2646,12 +2658,12 @@ function HistoryView({
               {regenResult ? (
                 <div>
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-3" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
-                    <Check className="w-3 h-3" /> Ny visualisering klar
+                    <Check className="w-3 h-3" /> {i18n.t("dashboard.history.nyVisualiseringKlar")}
                   </div>
                   {regen.beforeSrc ? (
                     <BeforeAfterSlider beforeSrc={regen.beforeSrc} afterSrc={regenResult.url} />
                   ) : (
-                    <img src={regenResult.url} alt="Resultat" className="w-full rounded-xl" />
+                    <img src={regenResult.url} alt={i18n.t("dashboard.history.resultat")} className="w-full rounded-xl" />
                   )}
                   <div className="flex flex-wrap gap-2 mt-4">
                     <DownloadMenu
@@ -2668,7 +2680,7 @@ function HistoryView({
                       style={{ background: "#0F1D2F" }}
                       data-testid="bolig-history-regen-done"
                     >
-                      Færdig
+                      {i18n.t("dashboard.upload.faerdig")}
                     </button>
                   </div>
                 </div>
@@ -2676,9 +2688,9 @@ function HistoryView({
                 <>
                   <div className="rounded-xl overflow-hidden border border-[#E8E4DE] mb-4">
                     {regen.beforeSrc ? (
-                      <img src={regen.beforeSrc} alt="Original" className="w-full max-h-48 object-cover" />
+                      <img src={regen.beforeSrc} alt={i18n.t("dashboard.history.original")} className="w-full max-h-48 object-cover" />
                     ) : (
-                      <div className="p-6 text-center text-sm" style={{ color: "#9B9690" }}>Originalbillede ikke tilgængeligt</div>
+                      <div className="p-6 text-center text-sm" style={{ color: "#9B9690" }}>{i18n.t("dashboard.upload.originalbilledeIkkeTilgaengeligt")}</div>
                     )}
                   </div>
 
@@ -2704,7 +2716,7 @@ function HistoryView({
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>Budget</label>
+                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.history.budget")}</label>
                     <div className="flex flex-col gap-2">
                       {BUDGET_TIERS.map((t) => (
                         <button
@@ -2718,8 +2730,8 @@ function HistoryView({
                           }}
                           data-testid={`bolig-history-regen-tier-${t.value}`}
                         >
-                          <span className="font-medium">{t.label}</span>
-                          <span className="text-xs opacity-60">{t.sub}</span>
+                          <span className="font-medium">{i18n.t(t.label)}</span>
+                          <span className="text-xs opacity-60">{i18n.t(t.sub)}</span>
                         </button>
                       ))}
                     </div>
@@ -2727,7 +2739,7 @@ function HistoryView({
 
                   {cases.filter((c) => c.status !== "sold").length > 0 && (
                     <div className="mb-4">
-                      <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>Gem til sag (valgfrit)</label>
+                      <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.history.gemTilSagValgfrit")}</label>
                       <select
                         value={regenSaveCaseId ?? ""}
                         onChange={(e) => setRegenSaveCaseId(e.target.value ? parseInt(e.target.value) : null)}
@@ -2735,7 +2747,7 @@ function HistoryView({
                         style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
                         data-testid="bolig-history-regen-case-select"
                       >
-                        <option value="">— Hurtig (ingen sag) —</option>
+                        <option value="">{i18n.t("dashboard.history.hurtigIngenSag")}</option>
                         {cases.filter((c) => c.status !== "sold").map((c) => (
                           <option key={c.id} value={c.id}>{c.address}</option>
                         ))}
@@ -2755,9 +2767,9 @@ function HistoryView({
                     data-testid="bolig-history-regen-submit"
                   >
                     {regenBusy ? (
-                      <><RotateCcw className="w-4 h-4 animate-spin" /> Genererer... (30-60 sek)</>
+                      <><RotateCcw className="w-4 h-4 animate-spin" /> {i18n.t("dashboard.history.genererer3060Sek")}</>
                     ) : (
-                      <><Sparkles className="w-4 h-4" /> Generer ny visualisering</>
+                      <><Sparkles className="w-4 h-4" /> {i18n.t("dashboard.history.genererNyVisualisering")}</>
                     )}
                   </button>
                 </>
@@ -2777,8 +2789,8 @@ function HistoryView({
             onClick={() => setConfirmDelete(null)}
           >
             <div className="bg-white rounded-2xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-base font-bold mb-2" style={{ color: "#0F1D2F" }}>Slet visualisering</h3>
-              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>Dette kan ikke fortrydes.</p>
+              <h3 className="text-base font-bold mb-2" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.history.sletVisualisering")}</h3>
+              <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.history.detteKanIkkeFortrydes")}</p>
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setConfirmDelete(null)}
@@ -2786,7 +2798,7 @@ function HistoryView({
                   style={{ color: "#1A1A1A" }}
                   data-testid="bolig-history-delete-cancel"
                 >
-                  Annuller
+                  {i18n.t("dashboard.common.annuller")}
                 </button>
                 <button
                   onClick={() => {
@@ -2797,7 +2809,7 @@ function HistoryView({
                   style={{ background: "#DC2626" }}
                   data-testid="bolig-history-delete-confirm"
                 >
-                  Slet
+                  {i18n.t("dashboard.common.slet")}
                 </button>
               </div>
             </div>
@@ -2830,7 +2842,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
-    if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    if (!file.type.startsWith("image/")) { setError(i18n.t("dashboard.upload.kunBilledfilerTilladt")); return; }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setStage("config");
@@ -2858,7 +2870,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
       setResultUrl(data.image_url);
       setSavedImageId(data.generation_id ?? null);
       setRefinedUrl(null);
@@ -2873,7 +2885,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       window.dispatchEvent(new Event("quota:refresh"));
       setStage("result");
     } catch (err: any) {
-      setError(err.message || "Noget gik galt. Prøv igen.");
+      setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
       setStage("config");
     }
   };
@@ -2897,7 +2909,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Justering mislykkedes. Prøv igen.");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.justeringMislykkedesProevIgen"));
       setRefinedUrl(data.image_url);
       setResultUrl(data.image_url);
       if (data.generation_id) setSavedImageId(data.generation_id);
@@ -2910,7 +2922,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
     } catch (err: any) {
-      setRefinementError(err.message || "Noget gik galt. Prøv igen.");
+      setRefinementError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
     } finally {
       setIsRefining(false);
     }
@@ -2954,7 +2966,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
             {error && <div className="mt-4 text-sm text-red-600 text-center">{error}</div>}
             <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.orTryExample")}</p>
             <div className="flex gap-3 flex-wrap">
-              {[{ src: "/bolig-images/example-kitchen-scandi.jpg", label: "Køkken" }, { src: "/bolig-images/example-dining-modern.png", label: "Spisestue" }, { src: "/bolig-images/example-bathroom-japandi.png", label: "Badeværelse" }].map((ex) => (
+              {[{ src: "/bolig-images/example-kitchen-scandi.jpg", label: i18n.t("dashboard.common.koekken") }, { src: "/bolig-images/example-dining-modern.png", label: i18n.t("dashboard.common.spisestue") }, { src: "/bolig-images/example-bathroom-japandi.png", label: i18n.t("dashboard.common.badevaerelse") }].map((ex) => (
                 <button key={ex.src} onClick={async () => { const res = await fetch(ex.src); const blob = await res.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); }}
                   className="relative rounded-xl overflow-hidden border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-all">
                   <img src={ex.src} alt={ex.label} className="w-24 h-16 object-cover" />
@@ -2971,7 +2983,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
               <div>
                 <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]">
                   <img src={imagePreview!} alt="Preview" className="w-full object-contain max-h-[520px]" style={{ display: "block" }} />
-                  <button onClick={reset} aria-label="Fjern billede" className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
+                  <button onClick={reset} aria-label={i18n.t("dashboard.upload.fjernBillede")} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
                 </div>
                 <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>{imageFile?.name}</p>
               </div>
@@ -3012,8 +3024,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                         <button key={t.value} onClick={() => setTier(t.value)}
                           className="flex items-center justify-between px-4 py-3 rounded-xl border transition-all hover:border-[#0F1D2F]"
                           style={{ background: tier === t.value ? "#0F1D2F" : "#F8F6F3", borderColor: tier === t.value ? "#0F1D2F" : "transparent", color: tier === t.value ? "#fff" : "#1A1A1A" }}>
-                          <span className="text-sm font-semibold">{t.label}</span>
-                          <span className="text-xs" style={{ opacity: tier === t.value ? 0.8 : 0.6 }}>{t.sub}</span>
+                          <span className="text-sm font-semibold">{i18n.t(t.label)}</span>
+                          <span className="text-xs" style={{ opacity: tier === t.value ? 0.8 : 0.6 }}>{i18n.t(t.sub)}</span>
                         </button>
                       ))}
                     </div>
@@ -3054,10 +3066,10 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
           <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <div className="mb-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-3" style={{ background: "rgba(200,149,108,0.12)", color: "#C8956C" }}>
-                <Check className="w-3 h-3" /> {refinedUrl ? "Justering klar" : `Visualisering klar${processingTime ? ` · ${processingTime} sek` : ""}`}
+                <Check className="w-3 h-3" /> {refinedUrl ? i18n.t("dashboard.common.justeringKlar") : (processingTime ? i18n.t("dashboard.upload.visualiseringKlarSek", { sec: processingTime }) : i18n.t("dashboard.upload.visualiseringKlar"))}
               </div>
-              <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Forvandlingen er klar!</h2>
-              <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Træk slideren for at sammenligne før og efter</p>
+              <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.upload.forvandlingenErKlar")}</h2>
+              <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.common.traekSliderenForAtSammenligne")}</p>
             </div>
             <div className="max-w-4xl">
               <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={refinedUrl ?? resultUrl} />
@@ -3074,15 +3086,15 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                   <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-[#E8E4DE]" style={{ background: "#FAF7F2" }}>
                     <div className="flex items-center gap-2 min-w-0">
                       <Sparkles className="w-4 h-4 shrink-0" style={{ color: "#C8956C" }} />
-                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forbedr resultatet</span>
-                      <span className="hidden sm:inline text-xs" style={{ color: "#9B9690" }}>— juster belysning, møbler, dekorationer og mere</span>
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.upload.forbedrResultatet")}</span>
+                      <span className="hidden sm:inline text-xs" style={{ color: "#9B9690" }}>{i18n.t("dashboard.common.justerBelysningMoeblerDekorationerOg")}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs font-medium tabular-nums" style={{ color: refinementCount >= MAX_REFINEMENTS ? "#DC2626" : "#9B9690" }}>
-                        {refinementCount}/{MAX_REFINEMENTS} justeringer
+                        {refinementCount}/{MAX_REFINEMENTS} {i18n.t("dashboard.upload.justeringer")}
                       </span>
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: "rgba(34,197,94,0.1)", color: "#16a34a" }}>
-                        <Check className="w-3 h-3" /> Koster ikke ekstra kredit
+                        <Check className="w-3 h-3" /> {i18n.t("dashboard.upload.kosterIkkeEkstraKredit")}
                       </span>
                     </div>
                   </div>
@@ -3091,7 +3103,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                     <div className="p-4">
                       {/* Quick suggestion chips — clicking appends, never replaces */}
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {["Bedre belysning", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
+                        {[i18n.t("dashboard.upload.bedreBelysning"), i18n.t("dashboard.common.tilfoejMaleri"), i18n.t("dashboard.upload.skiftLampe"), i18n.t("dashboard.upload.varmereFarver"), i18n.t("dashboard.upload.mereDekorationer")].map((s) => {
                           const active = refinementPrompt.toLowerCase().includes(s.toLowerCase());
                           return (
                           <button
@@ -3116,7 +3128,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                           value={refinementPrompt}
                           onChange={(e) => setRefinementPrompt(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter" && !isRefining && refinementPrompt.trim()) handleRefinement(); }}
-                          placeholder="Fx: tilføj en stående lampe ved sofaen, bedre belysning..."
+                          placeholder={i18n.t("dashboard.upload.fxTilfoejEnStaaendeLampe")}
                           className="flex-1 h-10 px-3.5 text-sm rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#C8956C] disabled:opacity-50"
                           style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
                           disabled={isRefining}
@@ -3129,8 +3141,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                           data-testid="bolig-refine-submit"
                         >
                           {isRefining
-                            ? <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> Justerer...</>
-                            : <><Sparkles className="w-3.5 h-3.5" /> Juster</>}
+                            ? <><RotateCcw className="w-3.5 h-3.5 animate-spin" /> {i18n.t("dashboard.upload.justererEllipsis")}</>
+                            : <><Sparkles className="w-3.5 h-3.5" /> {i18n.t("dashboard.upload.juster")}</>}
                         </button>
                       </div>
                       {refinementError && (
@@ -3139,8 +3151,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                     </div>
                   ) : (
                     <div className="px-5 py-4 text-sm text-center" style={{ color: "#6B6B6B" }}>
-                      Du har brugt alle {MAX_REFINEMENTS} justeringer til dette billede.
-                      Generer et nyt billede for at starte forfra.
+                      {i18n.t("dashboard.upload.duHarBrugtAlleJusteringer", { count: MAX_REFINEMENTS })}
+                      {i18n.t("dashboard.common.genererEtNytBilledeFor")}
                     </div>
                   )}
                 </motion.div>
@@ -3155,8 +3167,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                   variant="primary"
                   testIdPrefix="bolig-upload-result-download"
                 />
-                <button onClick={() => { setStage("config"); setResultUrl(null); setRefinedUrl(null); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }}>Prøv anden stil</button>
-                <button onClick={reset} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#6B6B6B" }}>Nyt billede</button>
+                <button onClick={() => { setStage("config"); setResultUrl(null); setRefinedUrl(null); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.upload.proevAndenStil")}</button>
+                <button onClick={reset} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.upload.nytBillede")}</button>
               </div>
             </div>
           </motion.div>
@@ -3201,7 +3213,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   }, [showCaseDropdown]);
 
   const confirmDiscardOr = (action: () => void) => {
-    if (hasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne 3D plantegning?")) return;
+    if (hasUnsaved && !window.confirm(i18n.t("dashboard.plan3d.erDuSikkerPaaDu"))) return;
     action();
   };
 
@@ -3209,7 +3221,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      setError("Vælg venligst en billedfil");
+      setError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil"));
       return;
     }
     if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
@@ -3241,15 +3253,15 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({ message: "Generering mislykkedes" }));
-        throw new Error(j.message || "Generering mislykkedes");
+        const j = await res.json().catch(() => ({ message: i18n.t("dashboard.common.genereringMislykkedes2") }));
+        throw new Error(j.message || i18n.t("dashboard.common.genereringMislykkedes2"));
       }
       const data = await res.json();
-      if (!data.success) throw new Error(data.message || "Generering mislykkedes");
+      if (!data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes2"));
       setResultUrl(data.image_url);
       setOriginalUrl(data.source_url ?? null);
     } catch (err: any) {
-      setError(err.message || "Noget gik galt");
+      setError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
     } finally {
       setIsGenerating(false);
     }
@@ -3258,8 +3270,8 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   return (
     <div className="max-w-5xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>3D plantegning</h1>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en 2D plantegning — AI bygger et møbleret 3D dukkehus set fra oven, baseret på rumlayoutet.</p>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.plan3d.treDPlantegningTitel")}</h1>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.plan3d.uploadEn2dPlantegningAi")}</p>
       </div>
 
       <div className="flex flex-col">
@@ -3269,28 +3281,28 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
         <div className="relative">
           <img
             src="/bolig-images/3d-model-showcase.png"
-            alt="Eksempel på interaktiv 3D model af bolig"
+            alt={i18n.t("dashboard.plan3d.eksempelPaaInteraktiv3dModel")}
             className="w-full object-cover"
             style={{ maxHeight: 320, objectPosition: "center top" }}
           />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 45%, #0F1D2F 100%)" }} />
         </div>
         <div className="px-6 pb-6 -mt-2">
-          <p className="text-[11px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C8956C" }}>Muligt med Forma Estates</p>
+          <p className="text-[11px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C8956C" }}>{i18n.t("dashboard.plan3d.muligtMedFormaEstates")}</p>
           <h2 className="text-xl font-bold mb-2 leading-snug" style={{ color: "#FFFFFF", letterSpacing: "-0.02em" }}>
-            Fra 2D tegning til interaktiv 3D model
+            {i18n.t("dashboard.common.fra2dTegningTilInteraktiv")}
           </h2>
           <p className="text-sm mb-5 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-            Upload din plantegning — AI omdanner den automatisk til et fuldt møbleret 3D dukkehus, som køber kan dreje og zoome i inden første visning.
+            {i18n.t("dashboard.plan3d.uploadDinPlantegningAiOmdanner")}
           </p>
           <div className="grid grid-cols-3 gap-3">
             {([
-              { step: "01", label: "2D plantegning", desc: "Upload en simpel plantegning — tegnet eller skannet" },
-              { step: "02", label: "AI genererer 3D billede", desc: "Artificial intelligence møblerer og bygger rummet op" },
-              { step: "03", label: "Interaktiv 3D model", desc: "Køber roterer og udforsker alle vinkler frit" },
+              { step: "01", label: i18n.t("dashboard.plan3d.tredjeDStep1Label"), desc: i18n.t("dashboard.plan3d.uploadEnSimpelPlantegningTegnet") },
+              { step: "02", label: i18n.t("dashboard.plan3d.aiGenererer3dBillede"), desc: i18n.t("dashboard.plan3d.artificialIntelligenceMoeblererOgBygger") },
+              { step: "03", label: i18n.t("dashboard.plan3d.interaktiv3dModel"), desc: i18n.t("dashboard.plan3d.koeberRotererOgUdforskerAlle") },
             ] as const).map(({ step, label, desc }) => (
               <div key={step} className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <p className="text-[10px] font-bold tracking-[0.14em] uppercase mb-1.5" style={{ color: "#C8956C" }}>Trin {step}</p>
+                <p className="text-[10px] font-bold tracking-[0.14em] uppercase mb-1.5" style={{ color: "#C8956C" }}>{i18n.t("dashboard.plan3d.trin")} {step}</p>
                 <p className="text-[13px] font-semibold mb-1 leading-tight" style={{ color: "#FFFFFF" }}>{label}</p>
                 <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>{desc}</p>
               </div>
@@ -3301,15 +3313,15 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
 
       {/* Eksempel */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{i18n.t("dashboard.plan3d.seEksempel")}</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Input — 2D plantegning</p>
-            <img src="/bolig-images/floorplan-2d.jpg" alt="2D plantegning eksempel" className="w-full rounded-xl object-contain bg-[#F8F6F3]" style={{ aspectRatio: "5/4" }} />
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.plan3d.inputTwoDPlantegning")}</p>
+            <img src="/bolig-images/floorplan-2d.jpg" alt={i18n.t("dashboard.plan3d.twoDPlantegningEksempel")} className="w-full rounded-xl object-contain bg-[#F8F6F3]" style={{ aspectRatio: "5/4" }} />
           </div>
           <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Output — 3D dukkehus</p>
-            <img src="/bolig-images/floorplan-3d.jpg" alt="3D plantegning eksempel" className="w-full rounded-xl object-contain bg-[#F8F6F3]" style={{ aspectRatio: "5/4" }} />
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.plan3d.outputThreeDDukkehus")}</p>
+            <img src="/bolig-images/floorplan-3d.jpg" alt={i18n.t("dashboard.plan3d.threeDPlantegningEksempel")} className="w-full rounded-xl object-contain bg-[#F8F6F3]" style={{ aspectRatio: "5/4" }} />
           </div>
         </div>
       </div>
@@ -3317,7 +3329,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
 
         <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm" style={{ order: 1 }}>
           <div>
-            <label className="text-xs font-semibold tracking-wider uppercase mb-3 block" style={{ color: "#0F1D2F" }}>Plantegning (2D)</label>
+            <label className="text-xs font-semibold tracking-wider uppercase mb-3 block" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.plan3d.plantegningTwoD")}</label>
             {!imagePreview ? (
               <label
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -3347,7 +3359,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               </label>
             ) : (
               <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm">
-                <img src={imagePreview} alt="Plantegning" className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
+                <img src={imagePreview} alt={i18n.t("dashboard.plan3d.plantegningAlt")} className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
                 <button
                   onClick={() => confirmDiscardOr(() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setSaveCaseId(null); })}
                   className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 flex items-center justify-center shadow-md hover:bg-white transition-transform hover:scale-105"
@@ -3370,12 +3382,12 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
             {isGenerating ? (
               <>
                 <RotateCcw className="w-4 h-4 animate-spin" />
-                Genererer 3D plantegning... (kan tage 30-90 sek)
+                {i18n.t("dashboard.plan3d.genererer3dPlantegning")}
               </>
             ) : (
               <>
                 <Box className="w-4 h-4" />
-                Generér 3D plantegning
+                {i18n.t("dashboard.plan3d.generer3dPlantegning")}
               </>
             )}
           </button>
@@ -3395,13 +3407,13 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                   <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={displayUrl!} />
                 </div>
               ) : (
-                <img src={displayUrl!} alt="3D plantegning" className="w-full block" data-testid="img-floorplan-result" />
+                <img src={displayUrl!} alt={i18n.t("dashboard.plan3d.tredjeDPlantegningAlt")} className="w-full block" data-testid="img-floorplan-result" />
               )}
               <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
                 <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
                 {tripoRenderedUrl
-                  ? "AI-render · Klar til 360° rotation"
-                  : imagePreview ? "Træk slideren for at sammenligne 2D og 3D" : "AI-genereret 3D render"}
+                  ? i18n.t("dashboard.plan3d.aiRenderKlarTil360")
+                  : imagePreview ? i18n.t("dashboard.plan3d.traekSliderenForAtSammenligne") : i18n.t("dashboard.plan3d.aiGenereret3dRender")}
               </div>
             </div>
 
@@ -3428,7 +3440,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                     data-testid="button-floorplan-save-case"
                   >
                     <ImageIcon className="w-4 h-4" />
-                    {saveCaseId ? "Gemt til mappe" : "Gem til mappe"}
+                    {saveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                   {showCaseDropdown && (
@@ -3460,7 +3472,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                               if (!r.ok) {
                                 setSaveCaseId(null);
                                 const msg = await r.text().catch(() => "");
-                                alert(`Kunne ikke gemme til mappen. ${msg}`);
+                                alert(`${i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")} ${msg}`);
                                 return;
                               }
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
@@ -3475,7 +3487,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                               }, 1500);
                             } catch (err) {
                               setSaveCaseId(null);
-                              alert("Kunne ikke gemme til mappen. Prøv igen.");
+                              alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen"));
                             }
                           }}
                           className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
@@ -3530,7 +3542,7 @@ async function downloadFromUrl(url: string, filename: string) {
 }
 
 interface FilmCandidate { id: number; before: string; after: string; roomType: string | null; style: string | null; createdAt?: string }
-const MOOD_LABELS_WT: Record<string, string> = { calm: "Rolig", uplifting: "Opløftende", modern: "Moderne", tension: "Spændt" };
+const MOOD_LABELS_WT: Record<string, string> = { calm: "dashboard.film.rolig", uplifting: "dashboard.film.oploeftende", modern: "dashboard.film.moderne", tension: "dashboard.film.spaendt" };
 const ALL_MOODS_WT = ["calm", "uplifting", "modern", "tension"] as const;
 
 function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
@@ -3644,7 +3656,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [magicShowCaseDropdown]);
   const handleFile = (side: "before" | "after", file: File) => {
-    if (!file.type.startsWith("image/")) { setMorphError("Vælg venligst en billedfil"); return; }
+    if (!file.type.startsWith("image/")) { setMorphError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
     if (morphResetTimerRef.current) { clearTimeout(morphResetTimerRef.current); morphResetTimerRef.current = null; }
     setMorphError(null);
     setMorphVideoUrl(null);
@@ -3682,9 +3694,9 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const ctype = res.headers.get("content-type") || "";
-      if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      if (!ctype.includes("application/json")) throw new Error(i18n.t("dashboard.common.serverfejl", { status: res.status }));
       const data = await res.json();
-      if (!res.ok || !data.success || !data.request_id) throw new Error(data.message || "Indsendelse mislykkedes");
+      if (!res.ok || !data.success || !data.request_id) throw new Error(data.message || i18n.t("dashboard.film.indsendelseMislykkedes"));
       const requestId = data.request_id as string;
       setMorphProgressStep(2);
       const maxAttempts = 120;
@@ -3697,12 +3709,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         if (!sctype.includes("application/json")) continue;
         const sdata = await sres.json();
         if (sdata.status === "COMPLETED" && sdata.video_url) { finalUrl = sdata.video_url; break; }
-        if (sdata.status === "FAILED") throw new Error(sdata.message || "Generering mislykkedes");
+        if (sdata.status === "FAILED") throw new Error(sdata.message || i18n.t("dashboard.common.genereringMislykkedes2"));
       }
-      if (!finalUrl) throw new Error("Generering tog for lang tid. Prøv igen.");
+      if (!finalUrl) throw new Error(i18n.t("dashboard.common.genereringTogForLangTid"));
       setMorphVideoUrl(finalUrl);
     } catch (err: any) {
-      setMorphError(err.message || "Noget gik galt");
+      setMorphError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
     } finally {
       setMorphGenerating(false);
       setMorphProgressStep(0);
@@ -3710,7 +3722,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   const handleMorphReset = () => {
-    if (morphHasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
+    if (morphHasUnsaved && !window.confirm(i18n.t("dashboard.film.erDuSikkerPaaDu"))) return;
     setBeforeFile(null); setBeforePreview(null);
     setAfterFile(null); setAfterPreview(null);
     setMorphVideoUrl(null);
@@ -3727,9 +3739,9 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ imageUrl: morphVideoUrl, originalImageUrl: null, roomType: "transform-video", style: "transform-video", budgetTier: "tier2", promptText: "Forvandlingsvideo (før → efter)", isDesignAgent: true }),
+        body: JSON.stringify({ imageUrl: morphVideoUrl, originalImageUrl: null, roomType: "transform-video", style: "transform-video", budgetTier: "tier2", promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"), isDesignAgent: true }),
       });
-      if (!r.ok) { setMorphSaveCaseId(null); alert(`Kunne ikke gemme til mappen.`); return; }
+      if (!r.ok) { setMorphSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); return; }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
@@ -3741,7 +3753,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         setAfterFile(null); setAfterPreview(null);
         setMorphVideoUrl(null); setMorphSaveCaseId(null); setMorphError(null);
       }, 1500);
-    } catch { setMorphSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
+    } catch { setMorphSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
   const handleMorphDownload = async () => {
@@ -3753,7 +3765,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   // ── Magisk transformation handlers ──────────────────────────────────────────
   const handleMagicUpload = (side: "before" | "after", file: File) => {
-    if (!file.type.startsWith("image/")) { setMagicError("Vælg venligst en billedfil"); return; }
+    if (!file.type.startsWith("image/")) { setMagicError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
     if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
     setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
     if (side === "before") { setMagicBeforeFile(file); setMagicBeforePreview(URL.createObjectURL(file)); }
@@ -3761,7 +3773,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   const handleMagicReset = () => {
-    if (magicHasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme denne video?")) return;
+    if (magicHasUnsaved && !window.confirm(i18n.t("dashboard.film.erDuSikkerPaaDu"))) return;
     setMagicBeforeFile(null); setMagicBeforePreview(null);
     setMagicAfterFile(null); setMagicAfterPreview(null);
     setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
@@ -3783,9 +3795,9 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const ctype = res.headers.get("content-type") || "";
-      if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      if (!ctype.includes("application/json")) throw new Error(i18n.t("dashboard.common.serverfejl", { status: res.status }));
       const data = await res.json();
-      if (!res.ok || !data.success || !data.request_id) throw new Error(data.message || "Indsendelse mislykkedes");
+      if (!res.ok || !data.success || !data.request_id) throw new Error(data.message || i18n.t("dashboard.film.indsendelseMislykkedes"));
       const requestId = data.request_id as string;
       const maxAttempts = 120; // 120 × 5s = 10 min
       let finalUrl: string | null = null;
@@ -3796,12 +3808,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         if (!sctype.includes("application/json")) continue;
         const sdata = await sres.json();
         if (sdata.status === "COMPLETED" && sdata.video_url) { finalUrl = sdata.video_url; break; }
-        if (sdata.status === "FAILED") throw new Error(sdata.message || "Generering mislykkedes");
+        if (sdata.status === "FAILED") throw new Error(sdata.message || i18n.t("dashboard.common.genereringMislykkedes2"));
       }
-      if (!finalUrl) throw new Error("Generering tog for lang tid. Prøv igen.");
+      if (!finalUrl) throw new Error(i18n.t("dashboard.common.genereringTogForLangTid"));
       setMagicVideoUrl(finalUrl);
     } catch (err: any) {
-      setMagicError(err.message || "Noget gik galt");
+      setMagicError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
     } finally {
       setMagicGenerating(false);
     }
@@ -3818,7 +3830,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ imageUrl: magicVideoUrl, originalImageUrl: null, roomType: "magic-transform", style: "magic-transform", budgetTier: "tier2", promptText: "Magisk transformation", isDesignAgent: true }),
       });
-      if (!r.ok) { setMagicSaveCaseId(null); alert("Kunne ikke gemme til mappen."); return; }
+      if (!r.ok) { setMagicSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeTilMappen")); return; }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
@@ -3830,7 +3842,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         setMagicAfterFile(null); setMagicAfterPreview(null);
         setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
       }, 1500);
-    } catch { setMagicSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
+    } catch { setMagicSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
   const handleMagicDownload = async () => {
@@ -3849,9 +3861,9 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   const handleWtGenerate = async () => {
-    if (tfSelected.length < 2) { setWtError("Vælg mindst 2 designs fra dit galleri"); return; }
+    if (tfSelected.length < 2) { setWtError(i18n.t("dashboard.film.vaelgMindst2DesignsFra")); return; }
     if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
-    setWtGenerating(true); setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtProgressMsg("Forbereder…");
+    setWtGenerating(true); setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtProgressMsg(i18n.t("dashboard.film.forbereder"));
     if (wtEsRef.current) { wtEsRef.current.close(); wtEsRef.current = null; }
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -3861,9 +3873,9 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         body: JSON.stringify({ imageIds: tfSelected, address: wtAddress.trim() || undefined }),
       });
       const ctype = res.headers.get("content-type") || "";
-      if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      if (!ctype.includes("application/json")) throw new Error(i18n.t("dashboard.common.serverfejl", { status: res.status }));
       const data = await res.json();
-      if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || "Indsendelse mislykkedes");
+      if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || i18n.t("dashboard.film.indsendelseMislykkedes"));
       const jobId = data.job_id as string;
       await new Promise<void>((resolve, reject) => {
         const TIMEOUT_MS = 60 * 60 * 1000;
@@ -3871,7 +3883,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         let retries = 0; let settled = false; let deadlineTimer: ReturnType<typeof setTimeout>;
         const resetDeadline = () => {
           clearTimeout(deadlineTimer);
-          deadlineTimer = setTimeout(() => { wtEsRef.current?.close(); wtEsRef.current = null; if (!settled) { settled = true; reject(new Error("Generering tog for lang tid. Prøv igen.")); } }, TIMEOUT_MS);
+          deadlineTimer = setTimeout(() => { wtEsRef.current?.close(); wtEsRef.current = null; if (!settled) { settled = true; reject(new Error(i18n.t("dashboard.common.genereringTogForLangTid"))); } }, TIMEOUT_MS);
         };
         const connect = () => {
           const es = new EventSource(`/api/bolig/transform-film/progress/${jobId}`);
@@ -3886,27 +3898,27 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 if (!settled) { settled = true; setWtVideoUrls(p.videoUrls); if (p.cleanVideoUrls) setWtCleanVideoUrls(p.cleanVideoUrls); resolve(); }
               } else if (p.stage === "failed") {
                 clearTimeout(deadlineTimer); es.close(); wtEsRef.current = null;
-                if (!settled) { settled = true; reject(new Error(p.message || "Generering mislykkedes")); }
+                if (!settled) { settled = true; reject(new Error(p.message || i18n.t("dashboard.common.genereringMislykkedes2"))); }
               }
             } catch {}
           };
           es.onerror = () => {
             es.close(); wtEsRef.current = null;
             if (settled) return;
-            if (retries >= MAX_RETRIES) { clearTimeout(deadlineTimer); settled = true; reject(new Error("Forbindelsesfejl. Prøv igen.")); return; }
+            if (retries >= MAX_RETRIES) { clearTimeout(deadlineTimer); settled = true; reject(new Error(i18n.t("dashboard.common.forbindelsesfejlProevIgen"))); return; }
             retries++;
-            setWtProgressMsg(`Genforbinder… (forsøg ${retries}/${MAX_RETRIES})`);
+            setWtProgressMsg(i18n.t("dashboard.film.genforbinder", { n: retries, max: MAX_RETRIES }));
             setTimeout(connect, Math.min(2000 * retries, 10000));
           };
         };
         resetDeadline(); connect();
       });
-    } catch (err: any) { setWtError(err.message || "Noget gik galt"); }
+    } catch (err: any) { setWtError(err.message || i18n.t("dashboard.common.nogetGikGalt")); }
     finally { setWtGenerating(false); setWtProgressMsg(""); }
   };
 
   const handleWtReset = () => {
-    if (wtHasUnsaved && !window.confirm("Er du sikker på du ikke vil gemme videoerne?")) return;
+    if (wtHasUnsaved && !window.confirm(i18n.t("dashboard.film.erDuSikkerPaaDu2"))) return;
     setTfSelected([]); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtError(null);
   };
 
@@ -3917,8 +3929,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       const token = await user?.getIdToken();
       const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
       for (const mood of ALL_MOODS_WT.filter((m) => wtVideoUrls[m])) {
-        const r = await fetch(`/api/bolig/cases/${c.id}/images`, { method: "POST", headers, body: JSON.stringify({ imageUrl: wtVideoUrls[mood], originalImageUrl: wtCleanVideoUrls?.[mood] ?? null, roomType: "transform-film", style: `transform-film-${mood}`, budgetTier: "tier2", promptText: `Forvandlingsfilm — ${MOOD_LABELS_WT[mood]} stemning`, isDesignAgent: true }) });
-        if (!r.ok) { setWtSaveCaseId(null); alert(`Kunne ikke gemme video til mappen.`); return; }
+        const r = await fetch(`/api/bolig/cases/${c.id}/images`, { method: "POST", headers, body: JSON.stringify({ imageUrl: wtVideoUrls[mood], originalImageUrl: wtCleanVideoUrls?.[mood] ?? null, roomType: "transform-film", style: `transform-film-${mood}`, budgetTier: "tier2", promptText: `Forvandlingsfilm — ${i18n.t(MOOD_LABELS_WT[mood])} stemning`, isDesignAgent: true }) });
+        if (!r.ok) { setWtSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeVideoTilMappen")); return; }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
@@ -3930,7 +3942,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         setTfSelected([]); setWtAddress(""); setWtVideoUrls(null); setWtCleanVideoUrls(null);
         setWtSaveCaseId(null); setWtError(null);
       }, 1500);
-    } catch { setWtSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
+    } catch { setWtSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
   const handleWtDownload = async (url: string, mood: string) => {
@@ -3953,7 +3965,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         >
           <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(side, f); }} data-testid={`input-video-${side}`} />
           <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: "#C8956C" }} />
-          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billede hertil</p>
+          <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.traekBilledeHertil")}</p>
           <p className="text-xs" style={{ color: "#6B6B6B" }}>JPG, PNG</p>
         </label>
       ) : (
@@ -3970,27 +3982,27 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   return (
     <div className="max-w-5xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Transformering video</h1>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.film.transformeringVideo")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
-          {videoMode === "cinematic" ? "Vælg 2–8 af dine gemte AI-designs — hvert rum forvandler sig fra før til efter, og det hele samles i én film med musik." : videoMode === "morph" ? "Upload et før-billede og et efter-billede — AI skaber en flydende overgang imellem dem." : "Upload et før- og et efter-billede — AI skaber en cinematisk transformation fra det ene til det andet."}
+          {videoMode === "cinematic" ? i18n.t("dashboard.film.vaelg28AfDine") : videoMode === "morph" ? i18n.t("dashboard.film.uploadEtFoerBilledeOg") : i18n.t("dashboard.film.uploadEtFoerOgEt")}
         </p>
       </div>
 
       {/* Mode picker */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 mb-8 shadow-sm">
-        <div className="text-[11px] font-bold uppercase tracking-wider mb-4 block" style={{ color: "#9B9690" }}>Videostil</div>
+        <div className="text-[11px] font-bold uppercase tracking-wider mb-4 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.videostil")}</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button type="button" onClick={() => setVideoMode("cinematic")} disabled={morphGenerating || wtGenerating || magicGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "cinematic" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "cinematic" ? "#0F1D2F" : "white", color: videoMode === "cinematic" ? "white" : "#0F1D2F", boxShadow: videoMode === "cinematic" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-cinematic">
-            <div className="text-sm font-semibold mb-1">Forvandlingsfilm</div>
-            <div className="text-xs leading-relaxed" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Vælg 2–8 af dine AI-designs · ét forvandlingsklip pr. rum · én samlet film med musik</div>
+            <div className="text-sm font-semibold mb-1">{i18n.t("dashboard.film.forvandlingsfilm")}</div>
+            <div className="text-xs leading-relaxed" style={{ color: videoMode === "cinematic" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{i18n.t("dashboard.film.vaelg28AfDine2")}</div>
           </button>
           <button type="button" onClick={() => setVideoMode("morph")} disabled={morphGenerating || wtGenerating || magicGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "morph" ? "#0F1D2F" : "#E8E4DE", background: videoMode === "morph" ? "#0F1D2F" : "white", color: videoMode === "morph" ? "white" : "#0F1D2F", boxShadow: videoMode === "morph" ? "0 4px 14px rgba(15,29,47,0.1)" : "none" }} data-testid="button-video-mode-morph">
-            <div className="text-sm font-semibold mb-1">Forvandling</div>
-            <div className="text-xs leading-relaxed" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>1 før + 1 efter · statisk kamera · rummet ombygger sig på stedet</div>
+            <div className="text-sm font-semibold mb-1">{i18n.t("dashboard.film.forvandling")}</div>
+            <div className="text-xs leading-relaxed" style={{ color: videoMode === "morph" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{i18n.t("dashboard.film.1Foer1EfterStatisk")}</div>
           </button>
           <button type="button" onClick={() => setVideoMode("magic")} disabled={morphGenerating || wtGenerating || magicGenerating} className="text-left rounded-xl border p-4 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: videoMode === "magic" ? "#C8956C" : "#E8E4DE", background: videoMode === "magic" ? "rgba(200,149,108,0.08)" : "white", color: "#0F1D2F", boxShadow: videoMode === "magic" ? "0 4px 14px rgba(200,149,108,0.18)" : "none" }} data-testid="button-video-mode-magic">
-            <div className="text-sm font-semibold mb-1 flex items-center gap-1.5"><span>✨</span> Magisk transformation</div>
-            <div className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>1 billede · objekter animeres og transformeres · cinematisk fairy-tale effekt</div>
+            <div className="text-sm font-semibold mb-1 flex items-center gap-1.5"><span>✨</span> {i18n.t("dashboard.film.magiskTransformation")}</div>
+            <div className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.film.magiskTransformationDesc")}</div>
           </button>
         </div>
       </div>
@@ -4000,13 +4012,13 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-8 shadow-sm">
           {/* Galleri-vælger: designs med både før- og efter-billede */}
           <div>
-            <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Vælg rum fra dit galleri · {tfSelected.length}/8 valgt</label>
+            <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.vaelgRumFraGalleri", { count: tfSelected.length })}</label>
             {tfCandidates === null ? (
-              <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-10 text-center text-sm" style={{ color: "#6B6B6B" }} data-testid="text-film-loading">Henter dine designs…</div>
+              <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-10 text-center text-sm" style={{ color: "#6B6B6B" }} data-testid="text-film-loading">{i18n.t("dashboard.film.henterDineDesigns")}</div>
             ) : tfCandidates.length === 0 ? (
               <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-10 text-center" data-testid="text-film-empty">
-                <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen designs med før- og efter-billede endnu</p>
-                <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>Lav først et AI-design under "Nyt design" — så dukker det op her og kan blive et rum i din forvandlingsfilm.</p>
+                <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.ingenDesignsMedFoerOg")}</p>
+                <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.film.lavFoerstEtDesign")}</p>
               </div>
             ) : (() => {
               const PREVIEW_COUNT = 6;
@@ -4025,7 +4037,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                         <button type="button" key={cand.id} onClick={() => tfToggle(cand.id)} disabled={wtGenerating} className="relative text-left rounded-xl overflow-hidden border-2 transition-all disabled:opacity-50 hover:-translate-y-0.5" style={{ borderColor: selected ? "#C8956C" : "#E8E4DE", boxShadow: selected ? "0 4px 14px rgba(200,149,108,0.25)" : "none" }} data-testid={`button-film-candidate-${cand.id}`}>
                           <div className="relative">
                             <img src={cand.after} alt={cand.roomType || "Design"} className="w-full object-cover" style={{ aspectRatio: "4/3" }} loading="lazy" />
-                            <img src={cand.before} alt="Før" className="absolute bottom-2 left-2 w-12 h-12 object-cover rounded-md border-2 border-white shadow-md" loading="lazy" />
+                            <img src={cand.before} alt={i18n.t("dashboard.common.foer2")} className="absolute bottom-2 left-2 w-12 h-12 object-cover rounded-md border-2 border-white shadow-md" loading="lazy" />
                             {selected && <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md" style={{ background: "#C8956C" }}>{order + 1}</div>}
                           </div>
                           <div className="px-2.5 py-1.5 bg-white text-[11px] font-medium truncate" style={{ color: "#6B6B6B" }}>{cand.roomType || cand.style || "Design"}</div>
@@ -4034,15 +4046,15 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                     })}
                   </div>
                   <div className="flex items-center justify-between mt-2.5">
-                    <p className="text-[11px]" style={{ color: "#9B9690" }}>Klik for at vælge 2–8 rum · rækkefølgen du klikker i, bliver filmens rækkefølge. Det lille billede er "før".</p>
+                    <p className="text-[11px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.klikForAtVaelgeRum")}</p>
                     {tfCandidates.length > PREVIEW_COUNT && (
                       <button type="button" onClick={() => setTfShowAll((v) => !v)} className="shrink-0 ml-4 text-[11px] font-semibold underline underline-offset-2 transition-opacity hover:opacity-70" style={{ color: "#C8956C" }} data-testid="button-film-show-all">
-                        {tfShowAll ? "Skjul" : `Se alle ${tfCandidates.length} generationer`}
+                        {tfShowAll ? i18n.t("dashboard.film.skjul") : i18n.t("dashboard.film.seAlleGenerationer", { count: tfCandidates.length })}
                       </button>
                     )}
                   </div>
                   {!tfShowAll && hiddenCount > 0 && (
-                    <p className="text-[11px]" style={{ color: "#9B9690" }}>Viser de 6 nyeste · {hiddenCount} ældre skjult</p>
+                    <p className="text-[11px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.viserDeNyeste", { count: hiddenCount })}</p>
                   )}
                 </>
               );
@@ -4050,23 +4062,23 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Adresse (valgfri)</label>
-            <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder="fx Strandvejen 42, 2900 Hellerup" className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white" style={{ borderColor: "transparent", color: "#0F1D2F" }} data-testid="input-film-address" maxLength={80} />
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.adresseValgfri")}</label>
+            <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder={i18n.t("dashboard.film.fxStrandvejenAdresse")} className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white" style={{ borderColor: "transparent", color: "#0F1D2F" }} data-testid="input-film-address" maxLength={80} />
           </div>
 
           <QuotaGate feature="transformVideo">
             <div>
               <button onClick={handleWtGenerate} disabled={tfSelected.length < 2 || wtGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0" style={{ background: "#C8956C", boxShadow: "0 4px 14px rgba(200,149,108,0.25)" }} data-testid="button-generate-film">
-                {wtGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{wtProgressMsg || "Genererer…"}</>) : (<><Video className="w-4 h-4" />Generér forvandlingsfilm{tfSelected.length >= 2 ? ` · ${tfSelected.length} rum` : ""}</>)}
+                {wtGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{wtProgressMsg || i18n.t("dashboard.film.genererer")}</>) : (<><Video className="w-4 h-4" />{i18n.t("dashboard.film.genererForvandlingsfilm")}{tfSelected.length >= 2 ? i18n.t("dashboard.film.rumSuffix", { count: tfSelected.length }) : ""}</>)}
               </button>
-              <p className="text-[11px] text-center mt-2" style={{ color: "#9B9690" }}>Bruger 1 Transformering-kredit pr. valgt rum</p>
+              <p className="text-[11px] text-center mt-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.bruger1TransformeringKreditPrRum")}</p>
             </div>
           </QuotaGate>
 
           {wtGenerating && (
             <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4 text-center">
-              <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>{wtProgressMsg || "Genererer…"}</p>
-              <p className="text-[11px]" style={{ color: "#9B9690" }}>Ca. 5–12 min for {tfSelected.length} rum · Luk ikke vinduet</p>
+              <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>{wtProgressMsg || i18n.t("dashboard.film.genererer")}</p>
+              <p className="text-[11px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.ca512MinForRum", { count: tfSelected.length })}</p>
             </div>
           )}
 
@@ -4079,7 +4091,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                   <div key={mood} className="rounded-xl overflow-hidden border border-[#E8E4DE]">
                     <video src={wtVideoUrls[mood]} controls autoPlay={mood === "calm"} muted loop className="w-full block bg-black" style={{ aspectRatio: "16/9" }} data-testid={`video-film-${mood}`} />
                     <div className="p-3 bg-[#F8F6F3] flex items-center justify-between">
-                      <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>{MOOD_LABELS_WT[mood]}</span>
+                      <span className="text-xs font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t(MOOD_LABELS_WT[mood])}</span>
                       <button onClick={() => handleWtDownload(wtVideoUrls[mood], mood)} disabled={wtDownloading} className="text-xs font-medium flex items-center gap-1 disabled:opacity-50" style={{ color: "#C8956C" }} data-testid={`button-download-walkthrough-${mood}`}>
                         <Download className="w-3 h-3" />{wtDownloading ? "…" : "MP4"}
                       </button>
@@ -4091,7 +4103,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 {activeCases.length > 0 && (
                   <div className="relative" ref={wtDropdownRef}>
                     <button onClick={() => setWtShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-walkthrough-save-case">
-                      <Video className="w-4 h-4" />{wtSaveCaseId ? "Gemt til mappe" : "Gem til mappe"}<ChevronDown className="w-3.5 h-3.5" />
+                      <Video className="w-4 h-4" />{wtSaveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}<ChevronDown className="w-3.5 h-3.5" />
                     </button>
                     {wtShowCaseDropdown && (
                       <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
@@ -4105,7 +4117,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                   </div>
                 )}
                 <button onClick={handleWtReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-walkthrough-reset">
-                  <RotateCcw className="w-4 h-4" /> Prøv igen
+                  <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
                 </button>
               </div>
             </>
@@ -4118,48 +4130,48 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         <>
           <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {renderMorphDrop("before", beforePreview, "Før-billede")}
-              {renderMorphDrop("after", afterPreview, "Efter-billede")}
+              {renderMorphDrop("before", beforePreview, i18n.t("dashboard.film.foerBillede"))}
+              {renderMorphDrop("after", afterPreview, i18n.t("dashboard.film.efterBillede"))}
             </div>
 
             <div>
-              <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Kvalitet & ventetid</label>
+              <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.kvalitetVentetid")}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button type="button" onClick={() => setMorphSpeed("premium")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphSpeed === "premium" ? "#0F1D2F" : "#E8E4DE", background: morphSpeed === "premium" ? "#0F1D2F" : "white", color: morphSpeed === "premium" ? "white" : "#0F1D2F" }} data-testid="button-morph-speed-premium">
-                  <div className="text-sm font-semibold mb-0.5">Premium · 8 sek</div>
-                  <div className="text-[11px]" style={{ color: morphSpeed === "premium" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Roligste forvandling · typisk 4–6 min ventetid</div>
+                  <div className="text-sm font-semibold mb-0.5">{i18n.t("dashboard.film.premium8Sek")}</div>
+                  <div className="text-[11px]" style={{ color: morphSpeed === "premium" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{i18n.t("dashboard.film.roligsteForvandling")}</div>
                 </button>
                 <button type="button" onClick={() => setMorphSpeed("hurtig")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphSpeed === "hurtig" ? "#0F1D2F" : "#E8E4DE", background: morphSpeed === "hurtig" ? "#0F1D2F" : "white", color: morphSpeed === "hurtig" ? "white" : "#0F1D2F" }} data-testid="button-morph-speed-hurtig">
-                  <div className="text-sm font-semibold mb-0.5">Hurtig · 5 sek</div>
-                  <div className="text-[11px]" style={{ color: morphSpeed === "hurtig" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Kortere video · typisk 2–4 min ventetid</div>
+                  <div className="text-sm font-semibold mb-0.5">{i18n.t("dashboard.film.hurtig5Sek")}</div>
+                  <div className="text-[11px]" style={{ color: morphSpeed === "hurtig" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{i18n.t("dashboard.film.kortereVideo")}</div>
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>Forvandlingsstil</label>
+              <label className="text-xs font-semibold tracking-wider uppercase mb-2 block" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.forvandlingsstil")}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button type="button" onClick={() => setMorphStyle("hård")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphStyle === "hård" ? "#0F1D2F" : "#E8E4DE", background: morphStyle === "hård" ? "#0F1D2F" : "white", color: morphStyle === "hård" ? "white" : "#0F1D2F" }} data-testid="button-morph-style-hard">
-                  <div className="text-sm font-semibold mb-0.5">Hård</div>
-                  <div className="text-[11px]" style={{ color: morphStyle === "hård" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Elementer bygger sig op ét ad gangen</div>
+                  <div className="text-sm font-semibold mb-0.5">{i18n.t("dashboard.film.haard2")}</div>
+                  <div className="text-[11px]" style={{ color: morphStyle === "hård" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{i18n.t("dashboard.film.morphHardDesc")}</div>
                 </button>
                 <button type="button" onClick={() => setMorphStyle("blød")} disabled={morphGenerating} className="text-left rounded-xl border p-3 transition-all disabled:opacity-50" style={{ borderColor: morphStyle === "blød" ? "#0F1D2F" : "#E8E4DE", background: morphStyle === "blød" ? "#0F1D2F" : "white", color: morphStyle === "blød" ? "white" : "#0F1D2F" }} data-testid="button-morph-style-soft">
-                  <div className="text-sm font-semibold mb-0.5">Blød</div>
-                  <div className="text-[11px]" style={{ color: morphStyle === "blød" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>Alt forvandles simultant og gradvist</div>
+                  <div className="text-sm font-semibold mb-0.5">{i18n.t("dashboard.film.bloed2")}</div>
+                  <div className="text-[11px]" style={{ color: morphStyle === "blød" ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{i18n.t("dashboard.film.morphSoftDesc")}</div>
                 </button>
               </div>
             </div>
 
             <QuotaGate feature="transformVideo">
               <button onClick={handleMorphGenerate} disabled={!beforeFile || !afterFile || morphGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50" style={{ background: "#C8956C" }} data-testid="button-generate-video">
-                {morphGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{morphProgressStep === 1 ? "Sender billeder..." : morphProgressStep === 3 ? "Færdiggør video..." : "Bygger video..."}</>) : (<><Video className="w-4 h-4" />Generér forvandlingsvideo</>)}
+                {morphGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{morphProgressStep === 1 ? i18n.t("dashboard.film.senderBilleder") : morphProgressStep === 3 ? i18n.t("dashboard.film.faerdiggoerVideo") : i18n.t("dashboard.film.byggerVideoEllipsis")}</>) : (<><Video className="w-4 h-4" />{i18n.t("dashboard.film.genererForvandlingsvideo")}</>)}
               </button>
             </QuotaGate>
 
             {morphGenerating && (
               <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4">
                 <div className="flex items-center justify-between mb-3">
-                  {[{ step: 1, label: "Analyserer billeder" }, { step: 2, label: "Bygger video" }, { step: 3, label: "Færdiggør" }].map(({ step, label }, i) => (
+                  {[{ step: 1, label: i18n.t("dashboard.film.analysererBilleder") }, { step: 2, label: i18n.t("dashboard.film.byggerVideo") }, { step: 3, label: i18n.t("dashboard.film.faerdiggoer") }].map(({ step, label }, i) => (
                     <div key={step} className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 transition-all" style={{ background: morphProgressStep >= step ? "#C8956C" : "#E8E4DE", color: morphProgressStep >= step ? "#fff" : "#9B9690" }}>
                         {morphProgressStep > step ? "✓" : step}
@@ -4169,7 +4181,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-center" style={{ color: "#9B9690" }}>{morphSpeed === "hurtig" ? "Ca. 2–4 minutter" : "Ca. 4–6 minutter"} · Luk ikke vinduet</p>
+                <p className="text-[11px] text-center" style={{ color: "#9B9690" }}>{morphSpeed === "hurtig" ? i18n.t("dashboard.film.ca24Minutter") : i18n.t("dashboard.film.ca46Minutter")} {i18n.t("dashboard.film.lukIkkeVinduetSuffix")}</p>
               </div>
             )}
 
@@ -4179,16 +4191,16 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               <>
                 <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
                   <video src={morphVideoUrl} controls autoPlay loop className="w-full block bg-black" style={{ maxHeight: "70vh", objectFit: "contain" }} data-testid="video-result" />
-                  <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}><Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />AI-genereret forvandlingsvideo</div>
+                  <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}><Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />{i18n.t("dashboard.film.aiGenereretForvandlingsvideo")}</div>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <button onClick={handleMorphDownload} disabled={morphDownloading} className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-50" style={{ background: "#0F1D2F" }} data-testid="button-download-video">
-                    <Download className="w-4 h-4" />{morphDownloading ? "Henter…" : "Download MP4"}
+                    <Download className="w-4 h-4" />{morphDownloading ? i18n.t("dashboard.common.henter2") : "Download MP4"}
                   </button>
                   {activeCases.length > 0 && (
                     <div className="relative" ref={morphDropdownRef}>
                       <button onClick={() => setMorphShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-video-save-case">
-                        <Video className="w-4 h-4" />{morphSaveCaseId ? "Gemt til mappe" : "Gem til mappe"}<ChevronDown className="w-3.5 h-3.5" />
+                        <Video className="w-4 h-4" />{morphSaveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}<ChevronDown className="w-3.5 h-3.5" />
                       </button>
                       {morphShowCaseDropdown && (
                         <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
@@ -4203,7 +4215,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                     </div>
                   )}
                   <button onClick={handleMorphReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-video-reset">
-                    <RotateCcw className="w-4 h-4" /> Prøv igen
+                    <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
                   </button>
                 </div>
               </>
@@ -4217,13 +4229,13 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
         <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 shadow-sm">
           {/* Stil-vælger */}
           <div className="mb-6">
-            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Transformationsstil</label>
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.transformationsstil")}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {([
-                { key: "magic",   label: "Magisk",  desc: "Objekter og farver transformeres med cinematisk fairy-tale bevægelse" },
-                { key: "spring",  label: "Forår",   desc: "Lys blomstrer op, atmosfæren åbner sig og varmes med friskhed" },
-                { key: "evening", label: "Aften",   desc: "Dagslys overgår til varm gyldenbrun aftenstemning" },
-                { key: "luxury",  label: "Luksus",  desc: "Rummet løftes subtilt til premium showroom-niveau" },
+                { key: "magic",   label: i18n.t("dashboard.film.magisk"),  desc: i18n.t("dashboard.film.objekterOgFarverTransformeresMed") },
+                { key: "spring",  label: i18n.t("dashboard.common.foraar"),   desc: i18n.t("dashboard.film.lysBlomstrerOpAtmosfaerenAabner") },
+                { key: "evening", label: i18n.t("dashboard.film.aften"),   desc: i18n.t("dashboard.film.dagslysOvergaarTilVarmGyldenbrun") },
+                { key: "luxury",  label: i18n.t("dashboard.film.luksus"),  desc: i18n.t("dashboard.film.rummetLoeftesSubtiltTilPremium") },
               ] as { key: "magic"|"spring"|"evening"|"luxury"; label: string; desc: string }[]).map(({ key, label, desc }) => (
                 <button
                   key={key}
@@ -4247,11 +4259,11 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
           {/* Billede-upload — før + efter */}
           <div className="mb-6">
-            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>Dine billeder</label>
+            <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.dineBilleder")}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* FØR */}
               <div>
-                <div className="text-xs font-semibold mb-2" style={{ color: "#0F1D2F" }}>Før</div>
+                <div className="text-xs font-semibold mb-2" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.common.foer2")}</div>
                 {!magicBeforePreview ? (
                   <label
                     onDragOver={(e) => e.preventDefault()}
@@ -4262,13 +4274,13 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                   >
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMagicUpload("before", f); }} data-testid="input-magic-before" />
                     <Upload className="w-6 h-6 mx-auto mb-2" style={{ color: "#9B9690" }} />
-                    <p className="text-xs font-medium" style={{ color: "#0F1D2F" }}>Klik eller træk hertil</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>Originalt rum</p>
+                    <p className="text-xs font-medium" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.klikEllerTraekHertil")}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.originaltRum")}</p>
                   </label>
                 ) : (
                   <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
-                    <img src={magicBeforePreview} alt="Før-billede" className="w-full h-40 object-cover" data-testid="img-magic-before" />
-                    <button onClick={() => { setMagicBeforeFile(null); setMagicBeforePreview(null); }} disabled={magicGenerating} aria-label="Fjern før-billede" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-before">
+                    <img src={magicBeforePreview} alt={i18n.t("dashboard.film.foerBillede")} className="w-full h-40 object-cover" data-testid="img-magic-before" />
+                    <button onClick={() => { setMagicBeforeFile(null); setMagicBeforePreview(null); }} disabled={magicGenerating} aria-label={i18n.t("dashboard.film.fjernFoerBillede")} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-before">
                       <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
                     </button>
                   </div>
@@ -4276,7 +4288,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               </div>
               {/* EFTER */}
               <div>
-                <div className="text-xs font-semibold mb-2" style={{ color: "#0F1D2F" }}>Efter</div>
+                <div className="text-xs font-semibold mb-2" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.efter")}</div>
                 {!magicAfterPreview ? (
                   <label
                     onDragOver={(e) => e.preventDefault()}
@@ -4287,13 +4299,13 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                   >
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMagicUpload("after", f); }} data-testid="input-magic-after" />
                     <Upload className="w-6 h-6 mx-auto mb-2" style={{ color: "#9B9690" }} />
-                    <p className="text-xs font-medium" style={{ color: "#0F1D2F" }}>Klik eller træk hertil</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>Renoveret/AI-designet rum</p>
+                    <p className="text-xs font-medium" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.film.klikEllerTraekHertil")}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.renoveretAiDesignetRum")}</p>
                   </label>
                 ) : (
                   <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
-                    <img src={magicAfterPreview} alt="Efter-billede" className="w-full h-40 object-cover" data-testid="img-magic-after" />
-                    <button onClick={() => { setMagicAfterFile(null); setMagicAfterPreview(null); }} disabled={magicGenerating} aria-label="Fjern efter-billede" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-after">
+                    <img src={magicAfterPreview} alt={i18n.t("dashboard.film.efterBillede")} className="w-full h-40 object-cover" data-testid="img-magic-after" />
+                    <button onClick={() => { setMagicAfterFile(null); setMagicAfterPreview(null); }} disabled={magicGenerating} aria-label={i18n.t("dashboard.film.fjernEfterBillede")} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-after">
                       <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
                     </button>
                   </div>
@@ -4318,8 +4330,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 data-testid="button-generate-magic"
               >
                 {magicGenerating
-                  ? <><RotateCcw className="w-4 h-4 animate-spin" />Genererer transformation… (~3–5 min)</>
-                  : <><Video className="w-4 h-4" />Generér magisk transformation</>}
+                  ? <><RotateCcw className="w-4 h-4 animate-spin" />{i18n.t("dashboard.film.genererTransformation35Min")}</>
+                  : <><Video className="w-4 h-4" />{i18n.t("dashboard.film.generMagiskTransformation")}</>}
               </button>
             </QuotaGate>
           ) : (
@@ -4327,17 +4339,17 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               <div className="rounded-xl overflow-hidden border border-[#E8E4DE] mb-4" data-testid="container-magic-result">
                 <video src={magicVideoUrl} controls autoPlay loop className="w-full block bg-black" style={{ maxHeight: "70vh", objectFit: "contain" }} data-testid="video-magic-result" />
                 <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
-                  <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />AI-genereret magisk transformation · Forma Estates
+                  <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />{i18n.t("dashboard.film.aiGenereretMagiskTransformation")}
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">
                 <button onClick={handleMagicDownload} disabled={magicDownloading} className="h-11 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 disabled:opacity-50" style={{ background: "#0F1D2F" }} data-testid="button-download-magic">
-                  <Download className="w-4 h-4" />{magicDownloading ? "Henter…" : "Download MP4"}
+                  <Download className="w-4 h-4" />{magicDownloading ? i18n.t("dashboard.common.henter2") : "Download MP4"}
                 </button>
                 {activeCases.length > 0 && (
                   <div className="relative" ref={magicDropdownRef}>
                     <button onClick={() => setMagicShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-magic-save-case">
-                      <Video className="w-4 h-4" />{magicSaveCaseId ? "Gemt til mappe ✓" : "Gem til mappe"}<ChevronDown className="w-3.5 h-3.5" />
+                      <Video className="w-4 h-4" />{magicSaveCaseId ? i18n.t("dashboard.common.gemtTilMappeCheck") : i18n.t("dashboard.common.gemTilMappe")}<ChevronDown className="w-3.5 h-3.5" />
                     </button>
                     {magicShowCaseDropdown && (
                       <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
@@ -4352,7 +4364,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                   </div>
                 )}
                 <button onClick={handleMagicReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-magic-reset">
-                  <RotateCcw className="w-4 h-4" /> Prøv igen
+                  <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
                 </button>
               </div>
             </>
@@ -4374,8 +4386,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           >
             <div className="flex items-center justify-between px-4 py-3">
               <div>
-                <div className="text-sm font-semibold text-white">Forvandling — eksempel</div>
-                <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI-genereret transformation fra original til nyt interiør</div>
+                <div className="text-sm font-semibold text-white">{i18n.t("dashboard.film.forvandlingEksempel")}</div>
+                <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{i18n.t("dashboard.film.aiGenereretTransformationFraOriginal")}</div>
               </div>
               <button
                 onClick={() => setShowTransformEksempel(false)}
@@ -4398,7 +4410,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
             />
             <div className="px-4 py-3 flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Dette er et eksempel på hvad Forvandling kan producere. Resultater varierer efter billedkvalitet og stil.
+              {i18n.t("dashboard.film.detteErEtEksempelPaa")}
             </div>
           </div>
         </div>
@@ -4615,7 +4627,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     try {
       const token = await user?.getIdToken();
       const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-      for (const [idx, video] of resultVideos.entries()) {
+      for (const [idx, video] of Array.from(resultVideos.entries())) {
         if (!video.url) continue;
         const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
           method: "POST", headers,
@@ -4629,7 +4641,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             isDesignAgent: true,
           }),
         });
-        if (!r.ok) { setShowcaseSaveCaseId(null); alert("Kunne ikke gemme video til mappen."); return; }
+        if (!r.ok) { setShowcaseSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeVideoTil")); return; }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
@@ -4642,7 +4654,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         setExportJobId(null); setError(null); setProgressPct(0); setProgressMsg("");
         setShowcaseSaveCaseId(null); setShowcaseShowCaseDropdown(false);
       }, 1500);
-    } catch { setShowcaseSaveCaseId(null); alert("Kunne ikke gemme til mappen. Prøv igen."); }
+    } catch { setShowcaseSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
   const effectsAdded = images.filter((i) => (i.presetKey && i.presetKey !== "DEFAULT") || i.vfxKey).length;
@@ -4654,7 +4666,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (arr.length === 0) { setError("Vælg venligst billedfiler"); return; }
+    if (arr.length === 0) { setError(i18n.t("dashboard.film.vaelgVenligstBilledfiler")); return; }
     if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setError(null);
     setResultVideos([]);
@@ -4818,7 +4830,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   const handleGenerate = async () => {
-    if (images.length < 1) { setError("Upload mindst 1 billede"); return; }
+    if (images.length < 1) { setError(i18n.t("dashboard.showcase.uploadMindst1Billede")); return; }
     if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setIsGenerating(true);
     setOpenPanelId(null);
@@ -4828,7 +4840,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setExportUrl(null);
     setExportJobId(null);
     setProgressPct(0);
-    setProgressMsg("Forbereder upload…");
+    setProgressMsg(i18n.t("dashboard.showcase.forbedederUpload"));
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -4847,9 +4859,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const ctype = res.headers.get("content-type") || "";
-      if (!ctype.includes("application/json")) throw new Error(`Serverfejl (${res.status}). Prøv igen.`);
+      if (!ctype.includes("application/json")) throw new Error(i18n.t("dashboard.common.serverfejl", { status: res.status }));
       const data = await res.json();
-      if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || "Indsendelse mislykkedes");
+      if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || i18n.t("dashboard.film.indsendelseMislykkedes"));
       const jobId = data.job_id as string;
 
       await new Promise<void>((resolve, reject) => {
@@ -4862,7 +4874,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           clearTimeout(deadlineTimer);
           deadlineTimer = setTimeout(() => {
             esRef.current?.close(); esRef.current = null;
-            if (!settled) { settled = true; reject(new Error("Generering tog for lang tid. Prøv igen.")); }
+            if (!settled) { settled = true; reject(new Error(i18n.t("dashboard.common.genereringTogForLangTid"))); }
           }, TIMEOUT_MS);
         };
         const connect = () => {
@@ -4890,7 +4902,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 }
               } else if (p.stage === "failed") {
                 clearTimeout(deadlineTimer); es.close(); esRef.current = null;
-                if (!settled) { settled = true; reject(new Error(p.message || "Generering mislykkedes")); }
+                if (!settled) { settled = true; reject(new Error(p.message || i18n.t("dashboard.common.genereringMislykkedes2"))); }
               } else { resetDeadline(); }
             } catch { /* ignore */ }
           };
@@ -4898,7 +4910,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             es.close(); esRef.current = null;
             if (settled) return;
             retries++;
-            if (retries >= MAX_RETRIES) { settled = true; reject(new Error("Mistede forbindelsen til serveren.")); return; }
+            if (retries >= MAX_RETRIES) { settled = true; reject(new Error(i18n.t("dashboard.showcase.mistedeForbindelsen"))); return; }
             setTimeout(connect, 2000 * retries);
           };
           resetDeadline();
@@ -4906,7 +4918,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         connect();
       });
     } catch (e: any) {
-      setError(e.message || "Noget gik galt");
+      setError(e.message || i18n.t("dashboard.common.nogetGikGalt"));
     } finally {
       setIsGenerating(false);
     }
@@ -4928,17 +4940,17 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         const sr = await fetch(`/api/bolig/rendy/export/${ej}`);
         const sd = await sr.json();
         if (sd.status === "ready" && sd.downloadUrl) { setExportUrl(sd.downloadUrl); break; }
-        if (sd.status === "error") throw new Error(sd.error || "Export fejlede");
+        if (sd.status === "error") throw new Error(sd.error || i18n.t("dashboard.showcase.exportFejlede"));
       }
     } catch (e: any) {
-      setError(e.message || "Export fejlede");
+      setError(e.message || i18n.t("dashboard.showcase.exportFejlede"));
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleReset = () => {
-    if (resultVideos.length > 0 && !window.confirm("Nulstil showcase og miste de genererede videoer?")) return;
+    if (resultVideos.length > 0 && !window.confirm(i18n.t("dashboard.showcase.nulstilShowcaseConfirm"))) return;
     setImages([]);
     setResultVideos([]);
     setListingId(null);
@@ -4983,12 +4995,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               className="h-9 px-4 rounded-full text-sm font-semibold border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-all"
               data-testid="button-crop-remove"
             >
-              Fjern afskæring
+              {i18n.t("dashboard.film.fjernAfskaering")}
             </button>
             <div className="flex items-center gap-2.5">
-              <span className="text-white font-semibold text-sm">Afskær billede</span>
+              <span className="text-white font-semibold text-sm">{i18n.t("dashboard.film.afskaerBillede")}</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.2)", color: "#C8956C" }}>
-                {ratio === "portrait" ? "9:16 · Lodret" : "16:9 · Vandret"}
+                {ratio === "portrait" ? i18n.t("dashboard.showcase.ratioLodret") : i18n.t("dashboard.showcase.ratioVandret")}
               </span>
             </div>
             <button
@@ -4999,7 +5011,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               style={{ background: "#C8956C" }}
               data-testid="button-crop-save"
             >
-              Gem afskæring
+              {i18n.t("dashboard.showcase.gemAfskaering")}
             </button>
           </div>
           <div className="flex-1 flex items-center justify-center p-6 select-none">
@@ -5007,7 +5019,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <img
                 ref={cropImgRef}
                 src={cropModalImg.url}
-                alt="Afskær"
+                alt={i18n.t("dashboard.showcase.afskaer")}
                 className="max-h-[70vh] max-w-full rounded-lg block"
                 draggable={false}
                 onLoad={(e) => initCropFrame(e.currentTarget)}
@@ -5048,21 +5060,21 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             </div>
           </div>
           <p className="text-center pb-5 shrink-0 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-            Flyt rammen for at vælge hvad der kommer med i videoen — træk i hjørnerne for at ændre størrelsen
+            {i18n.t("dashboard.showcase.flytRammenForAtVaelge")}
           </p>
         </div>
       )}
 
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Bolig Showcase</h1>
+          <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.showcase.boligShowcase")}</h1>
         </div>
-        <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload op til 20 boligbilleder. Vælg kamerabevægelse eller VFX-effekt per billede — eller lad AI'en vælge automatisk. Baggrundsmusik vælges automatisk til videoen.</p>
+        <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.showcase.introText")}</p>
       </div>
 
       {/* Eksempel */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-8 shadow-sm max-w-4xl" style={{ order: 2 }}>
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
         <div className="rounded-xl overflow-hidden border border-[#E8E4DE] flex justify-center" style={{ background: "#0F1D2F" }}>
           <video
             ref={exampleVideoRef}
@@ -5084,7 +5096,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         {/* ── Top bar: Address + Format ── */}
         <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex-1 min-w-0">
-            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>Boligadresse</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.boligadresse")}</span>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#C8956C" }} />
               <input
@@ -5092,7 +5104,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 disabled={isGenerating}
-                placeholder="F.eks. Strandvejen 12, 2900 Hellerup"
+                placeholder={i18n.t("dashboard.showcase.adressePlaceholder")}
                 maxLength={120}
                 className="w-full h-9 rounded-lg border pl-8 pr-3 text-sm outline-none disabled:opacity-50"
                 style={{ borderColor: "#E8E4DE", background: "#F8F6F3", color: "#0F1D2F" }}
@@ -5101,7 +5113,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             </div>
           </div>
           <div className="shrink-0">
-            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>Video Format</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.videoFormat")}</span>
             <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>
               {(["portrait", "landscape"] as const).map((r) => {
                 const active = ratio === r;
@@ -5127,7 +5139,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     ) : (
                       <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0.5" y="0.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill={active ? "currentColor" : "none"} opacity={active ? 0.25 : 1} /><rect x="0.5" y="0.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" /></svg>
                     )}
-                    {r === "portrait" ? "Lodret" : "Landskab"}
+                    {r === "portrait" ? i18n.t("dashboard.showcase.lodret") : i18n.t("dashboard.showcase.landskab")}
                   </button>
                 );
               })}
@@ -5150,8 +5162,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               data-testid="input-showcase-images"
             />
             <Upload className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
-            <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>Træk billeder hertil eller klik for at vælge</p>
-            <p className="text-xs" style={{ color: "#9B9690" }}>Op til 20 billeder · JPG, PNG, WebP</p>
+            <p className="text-sm font-medium mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.showcase.traekBillederHertilEllerKlik")}</p>
+            <p className="text-xs" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.opTil20Billeder")}</p>
           </label>
         )}
 
@@ -5192,7 +5204,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   {img.cropBox ? (
                     <img
                       src={img.url}
-                      alt={`Billede ${idx + 1}`}
+                      alt={i18n.t("dashboard.showcase.billedeNr", { num: idx + 1 })}
                       className="absolute block max-w-none"
                       style={{
                         width: `${(100 / img.cropBox.w)}%`,
@@ -5202,7 +5214,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       }}
                     />
                   ) : (
-                    <img src={img.url} alt={`Billede ${idx + 1}`} className="w-full h-full object-cover block" />
+                    <img src={img.url} alt={i18n.t("dashboard.showcase.billedeNr", { num: idx + 1 })} className="w-full h-full object-cover block" />
                   )}
 
                   {/* Number badge (Rendy-style solid dark badge) */}
@@ -5214,7 +5226,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   {img.tooSmall && (
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg px-1.5 py-1 shadow-md" style={{ background: "#C05621" }}>
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FED7AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                      <span className="text-[8px] font-bold leading-none whitespace-nowrap" style={{ color: "#FED7AA" }}>For lille</span>
+                      <span className="text-[8px] font-bold leading-none whitespace-nowrap" style={{ color: "#FED7AA" }}>{i18n.t("dashboard.showcase.forLille")}</span>
                     </div>
                   )}
 
@@ -5252,7 +5264,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     {hasCrop && (
                       <div className="rounded-lg shadow-md px-1.5 py-1 flex items-center gap-1" style={{ background: "#1D3A6B" }}>
                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#93C5FD" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/></svg>
-                        <span className="text-[8px] font-bold" style={{ color: "#93C5FD" }}>Afskåret</span>
+                        <span className="text-[8px] font-bold" style={{ color: "#93C5FD" }}>{i18n.t("dashboard.showcase.afskaaret")}</span>
                       </div>
                     )}
                   </div>
@@ -5287,7 +5299,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                           >
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/></svg>
                           </button>
-                          <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/crop:opacity-100 transition-opacity pointer-events-none">Afskær</span>
+                          <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover/crop:opacity-100 transition-opacity pointer-events-none">{i18n.t("dashboard.showcase.afskaer")}</span>
                         </div>
 
                         <div className="w-px h-5 bg-[#E8E4DE]" />
@@ -5370,7 +5382,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                             onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }}
                           />
                           <Upload className="w-5 h-5 mb-1" style={{ color: "#C8956C" }} />
-                          <span className="text-[10px] font-semibold" style={{ color: "#9B9690" }}>Tilføj</span>
+                          <span className="text-[10px] font-semibold" style={{ color: "#9B9690" }}>{i18n.t("dashboard.common.tilfoej")}</span>
                         </label>
                       )}
                     </div>
@@ -5402,10 +5414,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#0F1D2F" }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Kamerabevægelse</span>
-                      <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(panelImg) + 1}</span>
+                      <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.showcase.kamerabevaegelse")}</span>
+                      <span className="text-xs" style={{ color: "#9B9690" }}>— {i18n.t("dashboard.showcase.billedeNr", { num: images.indexOf(panelImg) + 1 })}</span>
                     </div>
-                    <button type="button" aria-label="Luk panel" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                    <button type="button" aria-label={i18n.t("dashboard.showcase.lukPanel")} onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
                       <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
                     </button>
                   </div>
@@ -5421,7 +5433,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                           <span style={{ fontSize:11, fontWeight:700, color:"#fff", background:"rgba(15,29,47,0.7)", borderRadius:6, padding:"3px 10px", letterSpacing:"0.06em" }}>AUTO</span>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>Auto</span>
+                      <span className="text-sm font-semibold" style={{ color: panelImg.presetKey === "DEFAULT" ? "#C8956C" : "#0F1D2F" }}>{i18n.t("dashboard.showcase.auto")}</span>
                     </button>
                     {CAMERA_PRESETS.map((p) => {
                       const isSelected = panelImg.presetKey === p.key;
@@ -5454,7 +5466,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
                       </div>
                       <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>VFX Effekter</span>
-                      <span className="text-xs" style={{ color: "#9B9690" }}>— Billede {images.indexOf(panelImg) + 1}</span>
+                      <span className="text-xs" style={{ color: "#9B9690" }}>— {i18n.t("dashboard.showcase.billedeNr", { num: images.indexOf(panelImg) + 1 })}</span>
                       <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>
                         {(["transitions","actors","staging"] as const).map((tab) => (
                           <button key={tab} type="button" onClick={() => setVfxSubTab(tab)}
@@ -5465,7 +5477,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         ))}
                       </div>
                     </div>
-                    <button type="button" aria-label="Luk panel" onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
+                    <button type="button" aria-label={i18n.t("dashboard.showcase.lukPanel")} onClick={() => setOpenPanelId(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#E8E4DE] transition-colors">
                       <X className="w-3.5 h-3.5" style={{ color: "#6B6B6B" }} />
                     </button>
                   </div>
@@ -5477,7 +5489,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <div className="w-full rounded-lg flex items-center justify-center" style={{ aspectRatio: "16/9", background: !panelImg.vfxKey ? "#EDE8FA" : "#F0EDE9" }}>
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={!panelImg.vfxKey ? "#7C3AED" : "#9B9690"} strokeWidth="1.5"><path d="M12 2L9.5 9.5H2l6.2 4.5-2.4 7.5L12 17l6.2 4.5-2.4-7.5L22 9.5h-7.5L12 2z"/></svg>
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: !panelImg.vfxKey ? "#7C3AED" : "#0F1D2F" }}>Ingen</span>
+                      <span className="text-sm font-semibold" style={{ color: !panelImg.vfxKey ? "#7C3AED" : "#0F1D2F" }}>{i18n.t("dashboard.common.ingen")}</span>
                     </button>
                     {vfxSubList.map((v) => {
                       const isSelected = panelImg.vfxKey === v.key;
@@ -5498,7 +5510,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                           <span className="text-sm font-semibold text-center leading-tight" style={{ color: isSelected ? "#7C3AED" : "#0F1D2F" }}>{v.name}</span>
                           {(v as any).durationHint && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(200,149,108,0.15)", color: "#9B6444" }}>
-                              {(v as any).durationHint} klip
+                              {(v as any).durationHint} {i18n.t("dashboard.showcase.klip")}
                             </span>
                           )}
                         </button>
@@ -5522,7 +5534,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         {isGenerating && (
           <div className="mx-5 mb-4 space-y-1.5">
             <div className="flex justify-between text-xs" style={{ color: "#6B6B6B" }}>
-              <span>{progressMsg || "Genererer videoer…"}</span>
+              <span>{progressMsg || i18n.t("dashboard.showcase.genererVideoer")}</span>
               <span className="font-semibold tabular-nums">{progressPct}%</span>
             </div>
             <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "#E8E4DE" }}>
@@ -5541,7 +5553,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <div>
                 <div className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4" style={{ color: "#0F1D2F" }} />
-                  <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }} data-testid="text-showcase-image-count">{images.length}/20 billeder valgt</span>
+                  <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }} data-testid="text-showcase-image-count">{i18n.t("dashboard.showcase.billederValgtAf20", { count: images.length })}</span>
                 </div>
                 <div className="mt-1.5 h-1 w-40 rounded-full overflow-hidden" style={{ background: "#E8E4DE" }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${(images.length / 20) * 100}%`, background: "#0F1D2F" }} />
@@ -5550,12 +5562,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4" style={{ color: effectsAdded > 0 ? "#C8956C" : "#9B9690" }} />
                 <span className="text-sm font-semibold" style={{ color: effectsAdded > 0 ? "#C8956C" : "#9B9690" }}>
-                  {effectsAdded}/{images.length} effekter valgt
+                  {i18n.t("dashboard.showcase.effekterValgt", { count: effectsAdded, total: images.length })}
                 </span>
               </div>
               <div className="hidden md:flex items-center gap-1.5">
                 <Music className="w-3.5 h-3.5" style={{ color: "#9B9690" }} />
-                <span className="text-xs" style={{ color: "#9B9690" }}>Musik vælges automatisk</span>
+                <span className="text-xs" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.musikVaelgesAutomatisk")}</span>
               </div>
             </div>
 
@@ -5568,7 +5580,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 style={{ borderColor: "#D9D5CF", color: "#6B6B6B", background: "#fff" }}
                 data-testid="button-showcase-clear-all"
               >
-                Annuller
+                {i18n.t("dashboard.common.annuller")}
               </button>
               <QuotaGate feature="showcase">
                 <button
@@ -5579,9 +5591,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   data-testid="button-generate-showcase"
                 >
                   {isGenerating ? (
-                    <><RotateCcw className="w-4 h-4 animate-spin" />Genererer…</>
+                    <><RotateCcw className="w-4 h-4 animate-spin" />{i18n.t("dashboard.showcase.genererer")}</>
                   ) : (
-                    <><Film className="w-4 h-4" />Generér listing</>
+                    <><Film className="w-4 h-4" />{i18n.t("dashboard.showcase.generToListing")}</>
                   )}
                 </button>
               </QuotaGate>
@@ -5601,7 +5613,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />
-              <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{resultVideos.length} video{resultVideos.length === 1 ? "" : "er"} genereret</span>
+              <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.showcase.videoerGenereret", { count: resultVideos.length })}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {cases.length > 0 && (
@@ -5613,7 +5625,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     data-testid="button-showcase-save-case"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    {showcaseSaveCaseId ? "Gemt til mappe" : "Gem til mappe"}
+                    {showcaseSaveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   {showcaseShowCaseDropdown && (
@@ -5636,7 +5648,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   data-testid="button-export-zip"
                 >
                   {isExporting ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                  {isExporting ? "Pakker…" : "Download alle (.zip)"}
+                  {isExporting ? i18n.t("dashboard.showcase.pakker") : i18n.t("dashboard.showcase.downloadAlleZip")}
                 </button>
               )}
               {exportUrl && (
@@ -5647,7 +5659,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   style={{ background: "#C8956C" }}
                   data-testid="link-download-zip"
                 >
-                  <Download className="w-3.5 h-3.5" /> Hent zip
+                  <Download className="w-3.5 h-3.5" /> {i18n.t("dashboard.showcase.hentZip")}
                 </a>
               )}
               <button
@@ -5656,7 +5668,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
                 data-testid="button-showcase-reset"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Ny showcase
+                <RotateCcw className="w-3.5 h-3.5" /> {i18n.t("dashboard.showcase.nyShowcase")}
               </button>
             </div>
           </div>
@@ -5691,7 +5703,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   />
                 ) : (
                   <div className={`w-full flex items-center justify-center ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`} style={{ background: "#1A1A2E", color: "#fff" }}>
-                    <span className="text-xs">Video ikke klar</span>
+                    <span className="text-xs">{i18n.t("dashboard.showcase.videoIkkeKlar")}</span>
                   </div>
                 )}
                 {video.url && (
@@ -5753,9 +5765,9 @@ interface AiTourRoom {
 // prompt tiers (tier1/tier2/tier3) on the server. "premium" is exposed in the
 // UI but stored as "luxury" so it aligns with BOLIG_STYLE_LABELS.
 const TOUR_TIER_OPTIONS: Array<{ key: "budget" | "standard" | "premium"; label: string; sub: string }> = [
-  { key: "budget",   label: "Budget",   sub: "Hurtigt overblik" },
-  { key: "standard", label: "Standard", sub: "Balanceret stil" },
-  { key: "premium",  label: "Premium",  sub: "Højest detalje" },
+  { key: "budget",   label: "dashboard.tour.tierBudget",   sub: "dashboard.tour.hurtigtOverblik" },
+  { key: "standard", label: "dashboard.tour.tierStandard", sub: "dashboard.tour.balanceretStil" },
+  { key: "premium",  label: "dashboard.tour.tierPremium",  sub: "dashboard.tour.hoejestDetalje" },
 ];
 
 const ROOM_COLORS = ["#C8956C", "#7A8F6F", "#6F8FA8", "#A87B6F", "#8B7AA8", "#A89E6F"];
@@ -5792,7 +5804,7 @@ function PropertyTourFlow() {
   };
 
   const handleFile = (f: File) => {
-    if (!f.type.startsWith("image/")) { setError("Vælg venligst en billedfil"); return; }
+    if (!f.type.startsWith("image/")) { setError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
     setFile(f);
     setError(null);
     const reader = new FileReader();
@@ -5815,7 +5827,7 @@ function PropertyTourFlow() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Kunne ikke oprette projekt");
+      if (!res.ok) throw new Error(data.message || i18n.t("dashboard.tour.kunneIkkeOpretteProjekt"));
       queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties"] });
       resetCreate();
       // Jump straight into the new project so the user can start marking
@@ -5828,14 +5840,14 @@ function PropertyTourFlow() {
         setMode("list");
       }
     } catch (err: any) {
-      setError(err.message || "Noget gik galt");
+      setError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Slet dette projekt?")) return;
+    if (!window.confirm(i18n.t("dashboard.tour.sletDetteProjekt"))) return;
     const token = await auth.currentUser?.getIdToken();
     await fetch(`/api/ai-boligfremvisning/properties/${id}`, {
       method: "DELETE",
@@ -5883,20 +5895,20 @@ function PropertyTourFlow() {
             style={{ color: "#6B6B6B" }}
             data-testid="button-back-to-tour-list"
           >
-            <ChevronLeft className="w-3.5 h-3.5" /> Tilbage
+            <ChevronLeft className="w-3.5 h-3.5" /> {i18n.t("dashboard.common.tilbage")}
           </button>
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Nyt boligfremvisnings-projekt</h1>
-          <p className="text-sm" style={{ color: "#6B6B6B" }}>Giv projektet et navn og upload plantegningen. Næste skridt bliver at markere rummene.</p>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.tour.nytBoligfremvisningsProjekt")}</h1>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.tour.givProjektetEtNavnOg")}</p>
         </div>
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm">
         <div>
-          <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Projektnavn</label>
+          <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.tour.projektnavn")}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="f.eks. Strandvejen 12"
+            placeholder={i18n.t("dashboard.tour.feksStrandvejen12")}
             className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white"
             style={{ borderColor: "transparent", color: "#0F1D2F" }}
             data-testid="input-tour-name"
@@ -5904,7 +5916,7 @@ function PropertyTourFlow() {
         </div>
 
         <div>
-          <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>Plantegning</label>
+          <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.tour.plantegning")}</label>
           {!preview ? (
             <label
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -5929,12 +5941,12 @@ function PropertyTourFlow() {
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform group-hover:scale-110 group-hover:bg-[#C8956C]/10" style={{ background: "#F0EDE7" }}>
                 <Upload className="w-6 h-6" style={{ color: "#C8956C" }} />
               </div>
-              <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk plantegning hertil eller klik for at vælge</p>
-              <p className="text-sm" style={{ color: "#6B6B6B" }}>JPG, PNG · maks 10 MB</p>
+              <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.tour.traekPlantegningHertilEllerKlik")}</p>
+              <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.tour.jpgPngMaks10Mb")}</p>
             </label>
           ) : (
             <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm">
-              <img src={preview} alt="Plantegning" className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-tour-floorplan-preview" />
+              <img src={preview} alt={i18n.t("dashboard.tour.plantegning")} className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-tour-floorplan-preview" />
               <button
                 onClick={() => { setFile(null); setPreview(null); }}
                 className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 flex items-center justify-center shadow-md hover:bg-white transition-transform hover:scale-105"
@@ -5953,7 +5965,7 @@ function PropertyTourFlow() {
           style={{ background: "#C8956C" }}
           data-testid="button-create-tour-project"
         >
-          {submitting ? (<><RotateCcw className="w-4 h-4 animate-spin" /> Opretter...</>) : (<>Opret projekt</>)}
+          {submitting ? (<><RotateCcw className="w-4 h-4 animate-spin" /> {i18n.t("dashboard.common.opretter")}</>) : (<>{i18n.t("dashboard.tour.opretProjekt")}</>)}
         </button>
 
         {error && (
@@ -5970,8 +5982,8 @@ function PropertyTourFlow() {
     <div className="max-w-5xl">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-ai-boligfremvisning">AI boligfremvisning</h1>
-          <p className="text-sm" style={{ color: "#6B6B6B" }}>Upload en plantegning, markér rum, vælg stil, og lad AI generere en komplet visuel boligfremvisning.</p>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-ai-boligfremvisning">{i18n.t("dashboard.tour.aiBoligfremvisning")}</h1>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.tour.uploadEnPlantegningMarkeR")}</p>
         </div>
         <button
           onClick={() => setMode("create")}
@@ -5979,26 +5991,26 @@ function PropertyTourFlow() {
           style={{ background: "#C8956C" }}
           data-testid="button-new-tour-project"
         >
-          <Upload className="w-4 h-4" /> Nyt projekt
+          <Upload className="w-4 h-4" /> {i18n.t("dashboard.tour.nytProjekt")}
         </button>
       </div>
 
       {isLoading ? (
-        <div className="text-sm font-medium animate-pulse" style={{ color: "#9B9690" }}>Indlæser projekter...</div>
+        <div className="text-sm font-medium animate-pulse" style={{ color: "#9B9690" }}>{i18n.t("dashboard.tour.indlaeserProjekter")}</div>
       ) : properties.length === 0 ? (
         <div className="rounded-3xl border border-dashed p-16 text-center" style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}>
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "white", boxShadow: "0 4px 14px rgba(15,29,47,0.05)" }}>
             <Home className="w-8 h-8" style={{ color: "#C8956C" }} />
           </div>
-          <p className="text-base font-semibold mb-2" style={{ color: "#0F1D2F" }}>Ingen projekter endnu</p>
-          <p className="text-sm max-w-sm mx-auto mb-6 leading-relaxed" style={{ color: "#6B6B6B" }}>Start dit første boligfremvisnings-projekt ved at uploade en plantegning. Det tager kun få minutter at opsætte.</p>
+          <p className="text-base font-semibold mb-2" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.tour.ingenProjekterEndnu")}</p>
+          <p className="text-sm max-w-sm mx-auto mb-6 leading-relaxed" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.tour.startDitFoersteBoligfremvisningsProjekt")}</p>
           <button
             onClick={() => setMode("create")}
             className="h-11 px-6 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2 transition-transform hover:-translate-y-0.5 shadow-sm"
             style={{ background: "#0F1D2F" }}
             data-testid="button-empty-new-tour-project"
           >
-            <Upload className="w-4 h-4" /> Opret dit første projekt
+            <Upload className="w-4 h-4" /> {i18n.t("dashboard.tour.opretDitFoersteProjekt")}
           </button>
         </div>
       ) : (
@@ -6021,7 +6033,7 @@ function PropertyTourFlow() {
                     onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
                     className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-[#FEF2F2] hover:text-[#B91C1C] transition-all flex-shrink-0 -mr-1 -mt-1"
                     data-testid={`button-delete-tour-${p.id}`}
-                    aria-label="Slet projekt"
+                    aria-label={i18n.t("dashboard.tour.sletProjekt")}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -6034,7 +6046,7 @@ function PropertyTourFlow() {
                   >
                     {p.status === "mapping" && <div className="w-1.5 h-1.5 rounded-full bg-[#9B9690]" />}
                     {p.status !== "mapping" && <div className="w-1.5 h-1.5 rounded-full bg-[#C8956C]" />}
-                    {p.status === "mapping" ? "Klar til rum" : p.status}
+                    {p.status === "mapping" ? i18n.t("dashboard.tour.klarTilRum") : p.status}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setCurrentId(p.id); setMode("tour"); }}
@@ -6042,7 +6054,7 @@ function PropertyTourFlow() {
                     style={{ background: "#F5F3EF", color: "#0F1D2F" }}
                     data-testid={`button-tour-walkthrough-${p.id}`}
                   >
-                    <Film className="w-3 h-3" /> Rundvisning
+                    <Film className="w-3 h-3" /> {i18n.t("dashboard.tour.rundvisning")}
                   </button>
                 </div>
               </div>
@@ -6182,7 +6194,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           })),
         }),
       });
-      if (!res.ok) throw new Error("Kunne ikke gemme");
+      if (!res.ok) throw new Error(i18n.t("dashboard.common.kunneIkkeGemme"));
       const body = await res.json();
       if (Array.isArray(body.rooms)) {
         setRooms(body.rooms.map((r: AiTourRoom) => ({
@@ -6226,7 +6238,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
   };
 
   const handlePhotoUpload = async (roomId: number, file: File) => {
-    if (roomId < 0) { alert("Vent et øjeblik — rummet gemmes automatisk."); return; }
+    if (roomId < 0) { alert(i18n.t("dashboard.tour.ventEtOejeblikRummetGemmes")); return; }
     const fd = new FormData();
     fd.append("photo", file);
     try {
@@ -6237,13 +6249,13 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json();
       setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, roomPhotoUrl: updated.roomPhotoUrl ?? r.roomPhotoUrl } : r));
-    } catch (err) { console.error(err); alert("Kunne ikke uploade billede"); }
+    } catch (err) { console.error(err); alert(i18n.t("dashboard.tour.kunneIkkeUploadeBillede")); }
   };
 
   const photoCount = rooms.filter((r) => r.roomPhotoUrl).length;
 
   if (isLoading || !property) {
-    return <div className="text-sm font-medium animate-pulse mt-8" style={{ color: "#9B9690" }}>Indlæser projekt...</div>;
+    return <div className="text-sm font-medium animate-pulse mt-8" style={{ color: "#9B9690" }}>{i18n.t("dashboard.tour.indlaeserProjekt")}</div>;
   }
 
   return (
@@ -6257,13 +6269,13 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
             style={{ color: "#9B9690" }}
             data-testid="button-back-to-tour-list-from-detail"
           >
-            <ChevronLeft className="w-3.5 h-3.5" /> Tilbage til projekter
+            <ChevronLeft className="w-3.5 h-3.5" /> {i18n.t("dashboard.tour.tilbageTilProjekter")}
           </button>
           <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-tour-detail">
             {property.name}
           </h1>
           <p className="text-sm" style={{ color: "#6B6B6B" }}>
-            Upload et foto af hvert rum — så sætter vi en AI-rundvisning sammen for dig.
+            {i18n.t("dashboard.tour.uploadEtFotoAfHvert")}
           </p>
         </div>
         <button
@@ -6273,14 +6285,14 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           disabled={photoCount === 0}
           data-testid="button-tour-finish"
         >
-          Lav AI-rundvisning <ChevronRight className="w-4 h-4" />
+          {i18n.t("dashboard.tour.lavAiRundvisning")} <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
       {/* Rooms header row */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "#9B9690" }}>
-          Rum ({rooms.length}){photoCount > 0 ? ` · ${photoCount} med billede` : ""}
+          {i18n.t("dashboard.tour.rumAntal", { count: rooms.length })}{photoCount > 0 ? ` · ${i18n.t("dashboard.tour.medBillede", { count: photoCount })}` : ""}
         </p>
         <button
           onClick={() => setShowAddRoom(true)}
@@ -6288,7 +6300,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
           style={{ borderColor: "#E8E4DE", color: "#0F1D2F", background: "white" }}
           data-testid="button-add-room"
         >
-          <Plus className="w-3.5 h-3.5" /> Tilføj rum
+          <Plus className="w-3.5 h-3.5" /> {i18n.t("dashboard.tour.tilfoejRum")}
         </button>
       </div>
 
@@ -6296,15 +6308,15 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
       {rooms.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}>
           <Home className="w-8 h-8 mx-auto mb-3" style={{ color: "#C8956C" }} />
-          <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Ingen rum endnu</p>
-          <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>Klik "Tilføj rum" for at tilføje stue, køkken, badeværelse osv.</p>
+          <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.tour.ingenRumEndnu")}</p>
+          <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.tour.klikTilfoejRumHint")}</p>
           <button
             onClick={() => setShowAddRoom(true)}
             className="h-10 px-5 rounded-full font-semibold text-sm text-white inline-flex items-center gap-2"
             style={{ background: "#C8956C" }}
             data-testid="button-add-first-room"
           >
-            <Plus className="w-4 h-4" /> Tilføj første rum
+            <Plus className="w-4 h-4" /> {i18n.t("dashboard.tour.tilfoejFoersteRum")}
           </button>
         </div>
       ) : (
@@ -6331,7 +6343,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                 <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }} data-testid={`text-room-name-${r.id}`}>{r.name}</p>
                 <div className="flex gap-2">
                   {r.roomPhotoUrl && (
-                    <label className="w-8 h-8 rounded-lg flex items-center justify-center border cursor-pointer hover:bg-[#F8F6F3] transition-colors" style={{ borderColor: "#E8E4DE", color: "#6B6B6B" }} title="Skift billede">
+                    <label className="w-8 h-8 rounded-lg flex items-center justify-center border cursor-pointer hover:bg-[#F8F6F3] transition-colors" style={{ borderColor: "#E8E4DE", color: "#6B6B6B" }} title={i18n.t("dashboard.tour.skiftBillede")}>
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(r.id, f); }} />
                       <Upload className="w-3.5 h-3.5" />
                     </label>
@@ -6341,7 +6353,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                     className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:border-[#FECACA] transition-colors"
                     style={{ borderColor: "#E8E4DE", color: "#9B9690" }}
                     data-testid={`button-remove-room-${r.id}`}
-                    aria-label="Slet rum"
+                    aria-label={i18n.t("dashboard.tour.sletRum")}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -6366,8 +6378,8 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
             style={{ borderColor: "#E8E4DE" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.01em" }}>Tilføj rum</div>
-            <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>Vælg et forslag eller skriv rumnavnet.</p>
+            <div className="text-xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.01em" }}>{i18n.t("dashboard.tour.tilfoejRum")}</div>
+            <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.tour.vaelgEtForslagEllerSkriv")}</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {ROOM_NAME_SUGGESTIONS.map((n) => (
                 <button
@@ -6388,7 +6400,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                 onChange={(e) => setNewRoomName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newRoomName.trim()) addRoom(newRoomName); }}
                 autoFocus
-                placeholder="Andet navn…"
+                placeholder={i18n.t("dashboard.tour.andetNavn")}
                 className="flex-1 h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none focus:border-[#C8956C] focus:bg-white transition-colors"
                 style={{ borderColor: "transparent", color: "#0F1D2F" }}
                 data-testid="input-new-room-name"
@@ -6400,7 +6412,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
                 style={{ background: "#C8956C" }}
                 data-testid="button-add-room-confirm"
               >
-                Tilføj
+                {i18n.t("dashboard.common.tilfoej")}
               </button>
             </div>
           </div>
@@ -6469,10 +6481,10 @@ function PropertyTourFinal({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Kunne ikke generere 3D plan");
+      if (!res.ok) throw new Error(data.message || i18n.t("dashboard.tour.kunneIkkeGenerere3dPlan"));
       invalidate();
     } catch (e: any) {
-      setError(e.message || "Fejl ved 3D generering");
+      setError(e.message || i18n.t("dashboard.tour.fejlVed3dGenerering"));
     } finally {
       setGenerating3D(false);
     }
@@ -6519,7 +6531,7 @@ function PropertyTourFinal({
           style={{ color: "#6B6B6B" }}
           data-testid="button-tour-final-back"
         >
-          <ArrowLeft className="w-4 h-4" /> Tilbage til rum
+          <ArrowLeft className="w-4 h-4" /> {i18n.t("dashboard.tour.tilbageTilRum")}
         </button>
         <button
           onClick={onClose}
@@ -6527,15 +6539,15 @@ function PropertyTourFinal({
           style={{ color: "#6B6B6B" }}
           data-testid="button-tour-final-close"
         >
-          Til projektliste
+          {i18n.t("dashboard.common.tilProjektliste")}
         </button>
       </div>
 
       <h1 className="text-3xl font-bold mb-2" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
-        {property?.name || "Indlæser..."} — 3D rundvisning
+        {property?.name || i18n.t("dashboard.common.indlaeser")} — {i18n.t("dashboard.tour.threedRundvisning")}
       </h1>
       <p className="text-sm mb-8" style={{ color: "#6B6B6B" }}>
-        Klik på et rum i 3D plantegningen for at zoome ind på det færdige design.
+        {i18n.t("dashboard.tour.klikPaaEtRumI")}
       </p>
 
       {error && (
@@ -6554,7 +6566,7 @@ function PropertyTourFinal({
             <>
               <img
                 src={property.threedPlanUrl}
-                alt="3D plantegning"
+                alt={i18n.t("dashboard.tour.threedPlantegning")}
                 className="w-full h-full object-contain"
                 data-testid="img-tour-3d-plan"
               />
@@ -6572,7 +6584,7 @@ function PropertyTourFinal({
                       className="absolute -translate-x-1/2 -translate-y-1/2 group"
                       style={{ left: `${cx}%`, top: `${cy}%` }}
                       data-testid={`hotspot-tour-room-${r.id}`}
-                      aria-label={`Vis ${r.name}`}
+                      aria-label={i18n.t("dashboard.tour.visRum", { name: r.name })}
                     >
                       <span
                         className="relative flex items-center justify-center w-10 h-10 rounded-full shadow-lg ring-2 ring-white transition-transform group-hover:scale-110"
@@ -6596,7 +6608,7 @@ function PropertyTourFinal({
             <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8 text-center">
               <RotateCcw className="w-6 h-6 animate-spin" style={{ color: "#C8956C" }} />
               <p className="text-sm" style={{ color: "#6B6B6B" }}>
-                3D plantegningen genereres… (ca. 30–60 sekunder)
+                {i18n.t("dashboard.tour.threedPlantegningenGenereres")}
               </p>
               <button
                 onClick={generate3D}
@@ -6605,14 +6617,14 @@ function PropertyTourFinal({
                 style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
                 data-testid="button-generate-3d-plan"
               >
-                {generating3D ? "Genererer..." : "Prøv igen"}
+                {generating3D ? i18n.t("dashboard.common.genererer") : i18n.t("dashboard.common.proevIgen")}
               </button>
             </div>
           )}
         </div>
         {tourRooms.length === 0 && property?.threedPlanUrl && (
           <p className="mt-3 text-xs text-center" style={{ color: "#9B9690" }}>
-            Ingen rum med efter-billede endnu — gå tilbage og generér rummene.
+            {i18n.t("dashboard.tour.ingenRumMedEfterBillede")}
           </p>
         )}
       </section>
@@ -6679,13 +6691,13 @@ function TourGeneratorPage({ propertyId, onBack }: { propertyId: number; onBack:
           style={{ color: "#9B9690" }}
           data-testid="button-back-from-tour"
         >
-          <ChevronLeft className="w-3.5 h-3.5" /> Tilbage til projekter
+          <ChevronLeft className="w-3.5 h-3.5" /> {i18n.t("dashboard.tour.tilbageTilProjekter")}
         </button>
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
-          {property?.name || "Indlæser…"}
+          {property?.name || i18n.t("dashboard.common.indlaeser2")}
         </h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
-          AI-genereret virtuel rundvisning — ét filmisk videoklip pr. rum, sammensat til en komplet fremvisningsfilm.
+          {i18n.t("dashboard.tour.aiGenereretVirtuelRundvisning")}
         </p>
       </div>
       <GuidedTourSection propertyId={propertyId} property={property} rooms={rooms} invalidate={invalidate} />
@@ -6741,11 +6753,11 @@ function GuidedTourSection({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Kunne ikke starte rundvisningen");
+      if (!res.ok) throw new Error(data.message || i18n.t("dashboard.tour.kunneIkkeStarteRundvisningen"));
       setJobId(data.jobId);
-      setProgress({ stage: "preparing", currentClip: 0, totalClips: data.totalClips || eligibleCount, message: "Starter op…" });
+      setProgress({ stage: "preparing", currentClip: 0, totalClips: data.totalClips || eligibleCount, message: i18n.t("dashboard.tour.starterOp") });
     } catch (e: any) {
-      setTourError(e.message || "Fejl ved start af rundvisning");
+      setTourError(e.message || i18n.t("dashboard.tour.fejlVedStartAfRundvisning"));
     } finally {
       setStarting(false);
     }
@@ -6769,7 +6781,7 @@ function GuidedTourSection({
           if (misses >= 5) {
             setJobId(null);
             setProgress(null);
-            setTourError("Forbindelsen til genereringen blev afbrudt (serveren genstartede muligvis). Allerede færdige klip er gemt — prøv igen for resten.");
+            setTourError(i18n.t("dashboard.tour.forbindelsenTilGenereringenBlevAfbrudt"));
             invalidate();
           }
           return;
@@ -6785,7 +6797,7 @@ function GuidedTourSection({
         } else if (data.status === "failed") {
           setJobId(null);
           setProgress(null);
-          setTourError(data.error || data.progress?.message || "Genereringen mislykkedes — din kvota er refunderet");
+          setTourError(data.error || data.progress?.message || i18n.t("dashboard.tour.genereringenMislykkedesKvotaRefunderet"));
         }
       } catch { /* netværkshik — prøv igen næste tick */ }
     }, 4000);
@@ -6812,11 +6824,11 @@ function GuidedTourSection({
                 <Film className="w-4.5 h-4.5" style={{ color: "#C8956C" }} />
               </span>
               <h2 className="text-xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
-                Guidet AI-rundvisning
+                {i18n.t("dashboard.tour.guidetAiRundvisning")}
               </h2>
             </div>
             <p className="text-sm max-w-xl" style={{ color: "#6B6B6B" }}>
-              AI'en fører køberen gennem boligen rum for rum med rolige, filmiske kamerabevægelser — som en ejendomsmægler der viser rundt.
+              {i18n.t("dashboard.tour.aiEnFoererKoeberenGennem")}
             </p>
           </div>
           {clipRooms.length === 0 && !generating && (
@@ -6828,7 +6840,7 @@ function GuidedTourSection({
               data-testid="button-generate-tour"
             >
               <Sparkles className="w-4 h-4" />
-              {starting ? "Starter…" : `Generér rundvisning (${eligibleCount} rum)`}
+              {starting ? i18n.t("dashboard.tour.starter") : i18n.t("dashboard.tour.generToRundvisningRum", { count: eligibleCount })}
             </button>
           )}
         </div>
@@ -6844,7 +6856,7 @@ function GuidedTourSection({
             <div className="flex items-center gap-3 mb-3">
               <RotateCcw className="w-4 h-4 animate-spin shrink-0" style={{ color: "#C8956C" }} />
               <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>
-                {progress?.message || "Genererer rundvisning…"}
+                {progress?.message || i18n.t("dashboard.tour.genererRundvisning")}
               </p>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "#E8E4DE" }}>
@@ -6854,14 +6866,14 @@ function GuidedTourSection({
               />
             </div>
             <p className="mt-2 text-xs" style={{ color: "#9B9690" }}>
-              Hvert rum tager 1–3 minutter. Du kan lukke siden — genereringen fortsætter på serveren.
+              {i18n.t("dashboard.tour.hvertRumTager13")}
             </p>
           </div>
         )}
 
         {eligibleCount === 0 && clipRooms.length === 0 && !generating && (
           <p className="px-6 md:px-8 pb-6 text-sm" style={{ color: "#9B9690" }}>
-            Upload rum-fotos og generér design for mindst ét rum først — derefter kan rundvisningen laves.
+            {i18n.t("dashboard.tour.uploadRumFotosOgGenere")}
           </p>
         )}
 
@@ -6892,7 +6904,7 @@ function GuidedTourSection({
                 />
               ) : null}
               <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white pointer-events-none" style={{ background: "rgba(15,29,47,0.75)" }}>
-                {showFullFilm ? "Samlet rundvisning" : activeRoom?.name}
+                {showFullFilm ? i18n.t("dashboard.tour.samletRundvisning") : activeRoom?.name}
               </div>
             </div>
 
@@ -6926,7 +6938,7 @@ function GuidedTourSection({
                   }}
                   data-testid="button-tour-full-film"
                 >
-                  <Play className="w-3.5 h-3.5" /> Hele filmen
+                  <Play className="w-3.5 h-3.5" /> {i18n.t("dashboard.tour.heleFilmen")}
                 </button>
               )}
             </div>
@@ -6940,7 +6952,7 @@ function GuidedTourSection({
                   style={{ background: "#0F1D2F" }}
                   data-testid="link-download-tour"
                 >
-                  <Download className="w-3.5 h-3.5" /> Download samlet film
+                  <Download className="w-3.5 h-3.5" /> {i18n.t("dashboard.tour.downloadSamletFilm")}
                 </a>
               )}
               {!generating && (
@@ -6952,7 +6964,7 @@ function GuidedTourSection({
                   data-testid="button-regenerate-tour"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  {starting ? "Starter…" : "Generér igen"}
+                  {starting ? i18n.t("dashboard.tour.starter") : i18n.t("dashboard.tour.generToIgen")}
                 </button>
               )}
             </div>
@@ -7051,13 +7063,13 @@ function Panorama360Viewer({ panoramaUrl, title, anchors, onClose }: { panoramaU
           className="text-white/80 hover:text-white text-sm font-medium px-4 py-1.5 rounded-full border border-white/30 shrink-0"
           data-testid="button-close-panorama"
         >
-          Luk
+          {i18n.t("dashboard.common.luk")}
         </button>
       </div>
       <div ref={containerRef} className="flex-1 w-full" />
       {error && (
         <div className="absolute inset-0 flex items-center justify-center text-white p-8 text-center">
-          <p>Kunne ikke indlæse 360° visning: {error}</p>
+          <p>{i18n.t("dashboard.tour.kunneIkkeIndlaese360")} {error}</p>
         </div>
       )}
     </div>
@@ -7135,13 +7147,13 @@ function ParallaxKenBurnsViewer({
             onClick={onClose}
             className="pointer-events-auto h-10 w-10 rounded-full bg-white/90 hover:bg-white inline-flex items-center justify-center shadow-lg"
             data-testid="button-close-parallax"
-            aria-label="Luk"
+            aria-label={i18n.t("dashboard.common.luk")}
           >
             <X className="w-5 h-5" style={{ color: "#0F1D2F" }} />
           </button>
         </div>
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs pointer-events-none">
-          Bevæg musen for at se rummet i 3D
+          {i18n.t("dashboard.tour.bevaegMusenForAtSe")}
         </div>
       </div>
       {/* Ken Burns keyframes — defined inline so we don't have to touch the
@@ -7158,15 +7170,15 @@ function ParallaxKenBurnsViewer({
   );
 }
 
-type AgentPromptItem = { title: string; text: string };
+type AgentPromptItem = { title: string; titleKey: string; text: string };
 type AgentPromptCategory = { id: string; label: string; blurb: string; items: AgentPromptItem[] };
 
 const SATELLITE_TIMES_DASH = [
-  { label: "Solopgang",         emoji: "🌄", phrase: "time of the day is sunrise" },
-  { label: "Formiddag",         emoji: "🌤️", phrase: "time of the day is mid-morning" },
-  { label: "Middag",            emoji: "☀️",  phrase: "time of the day is midday" },
-  { label: "Tidlig solnedgang", emoji: "🌅", phrase: "time of the day is early sundown" },
-  { label: "Blå time",          emoji: "🌆", phrase: "time of the day is blue hour at dusk" },
+  { label: "dashboard.agentX.satSolopgang",         emoji: "🌄", phrase: "time of the day is sunrise" },
+  { label: "dashboard.agentX.satFormiddag",         emoji: "🌤️", phrase: "time of the day is mid-morning" },
+  { label: "dashboard.agentX.satMiddag",            emoji: "☀️",  phrase: "time of the day is midday" },
+  { label: "dashboard.agentX.satTidligSolnedgang", emoji: "🌅", phrase: "time of the day is early sundown" },
+  { label: "dashboard.agentX.satBlaaTime",          emoji: "🌆", phrase: "time of the day is blue hour at dusk" },
 ] as const;
 
 const SATELLITE_PROMPT_DASH =
@@ -7184,123 +7196,123 @@ function buildSatellitePromptDash(phrase: string) {
 const AGENT_PROMPT_CATEGORIES: AgentPromptCategory[] = [
   {
     id: "tid",
-    label: "Tidspunkt på døgnet",
-    blurb: "Skift lyset og stemningen alt efter tid på dagen — kun belysningen ændres.",
+    label: "dashboard.agentX.tidspunktPaaDoegnet",
+    blurb: "dashboard.agentX.skiftLysetOgStemningenAlt",
     items: [
-      { title: "Morgen", text: "Skift tidspunktet til tidlig morgen. Blødt gyldent morgenlys gennem vinduerne. Friskt og lyst. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Middag", text: "Skift tidspunktet til lys middag. Stærkt naturligt dagslys fylder rummet. Klar og energisk stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Eftermiddag", text: "Skift tidspunktet til varm eftermiddag. Blødt varmt dagslys i en lavere vinkel. Afslappet stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Aften", text: "Skift tidspunktet til aften. Varmt, stemningsfuldt lys fra de eksisterende lamper. Blødt skær fra vinduerne der viser tusmørke. Hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Solnedgang", text: "Skift tidspunktet til gylden time ved solnedgang. Varmt orange og lyserødt lys strømmer gennem vinduerne. Magisk stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Nat", text: "Skift tidspunktet til nat. Mørkt udenfor vinduerne med svage bylys eller stjerner. Interiøret varmt oplyst med lamper og stearinlys. Hyggelig natstemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Skumring", text: "Skift tidspunktet til skumring — den blå time. Dybt blåviolet lys udenfor, varme indendørs lys der gløder. Rolig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Morgen", titleKey: "dashboard.agentX.itemMorgen", text: "Skift tidspunktet til tidlig morgen. Blødt gyldent morgenlys gennem vinduerne. Friskt og lyst. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Middag", titleKey: "dashboard.agentX.itemMiddag", text: "Skift tidspunktet til lys middag. Stærkt naturligt dagslys fylder rummet. Klar og energisk stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Eftermiddag", titleKey: "dashboard.agentX.itemEftermiddag", text: "Skift tidspunktet til varm eftermiddag. Blødt varmt dagslys i en lavere vinkel. Afslappet stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aften", titleKey: "dashboard.agentX.itemAften", text: "Skift tidspunktet til aften. Varmt, stemningsfuldt lys fra de eksisterende lamper. Blødt skær fra vinduerne der viser tusmørke. Hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Solnedgang", titleKey: "dashboard.agentX.itemSolnedgang", text: "Skift tidspunktet til gylden time ved solnedgang. Varmt orange og lyserødt lys strømmer gennem vinduerne. Magisk stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Nat", titleKey: "dashboard.agentX.itemNat", text: "Skift tidspunktet til nat. Mørkt udenfor vinduerne med svage bylys eller stjerner. Interiøret varmt oplyst med lamper og stearinlys. Hyggelig natstemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skumring", titleKey: "dashboard.agentX.itemSkumring", text: "Skift tidspunktet til skumring — den blå time. Dybt blåviolet lys udenfor, varme indendørs lys der gløder. Rolig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "aarstid",
-    label: "Årstid",
-    blurb: "Vis boligen i forskellige årstider — farvetemperatur og lys tilpasses.",
+    label: "dashboard.agentX.aarstid",
+    blurb: "dashboard.agentX.visBoligenIForskelligeAarstider",
     items: [
-      { title: "Forår", text: "Skift årstiden til forår. Friskt, mildt dagslys med et let grønligt skær. Fornyende og lys stemning. Varmere farvetemperatur. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Sommer", text: "Skift årstiden til sommer. Lyst, varmt dagslys — stærkere og mere gyldent. Varm og levende stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Sensommer", text: "Skift årstiden til sensommer. Varmt gyldent lys med en blødere, falmende kvalitet. Afslappet sensommerfølelse. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Efterår", text: "Skift årstiden til efterår. Varmt gyldenorange lys i en lavere vinkel. Rigere, varmere farvetoner. Hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Vinter", text: "Skift årstiden til vinter. Køligere, blødere dagslys med et let blågråt skær. Sprød og ren stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Vinter med sne", text: "Skift årstiden til vinter med sne. Lyst, hvidt, diffust lys der reflekteres ind i rummet. Køligt hvidt dagslys. Sprød vinterstemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Forår", titleKey: "dashboard.common.foraar", text: "Skift årstiden til forår. Friskt, mildt dagslys med et let grønligt skær. Fornyende og lys stemning. Varmere farvetemperatur. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sommer", titleKey: "dashboard.common.sommer", text: "Skift årstiden til sommer. Lyst, varmt dagslys — stærkere og mere gyldent. Varm og levende stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sensommer", titleKey: "dashboard.agentX.itemSensommer", text: "Skift årstiden til sensommer. Varmt gyldent lys med en blødere, falmende kvalitet. Afslappet sensommerfølelse. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Efterår", titleKey: "dashboard.common.efteraar", text: "Skift årstiden til efterår. Varmt gyldenorange lys i en lavere vinkel. Rigere, varmere farvetoner. Hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Vinter", titleKey: "dashboard.common.vinter", text: "Skift årstiden til vinter. Køligere, blødere dagslys med et let blågråt skær. Sprød og ren stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Vinter med sne", titleKey: "dashboard.agentX.vinterMedSne", text: "Skift årstiden til vinter med sne. Lyst, hvidt, diffust lys der reflekteres ind i rummet. Køligt hvidt dagslys. Sprød vinterstemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "aendringer",
-    label: "Stemning & ændringer",
-    blurb: "Små styling-greb der løfter rummet — belysning, planter, hygge og farver.",
+    label: "dashboard.agentX.stemningAendringer",
+    blurb: "dashboard.agentX.smaaStylingGrebDerLoefter",
     items: [
-      { title: "Tøm lokalet", text: "Fjern alle fritstående møbler og indretning. Vis det tomme rum med kun de oprindelige gulve, vægge, vinduer og døre. Tilføj ikke noget nyt. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Tilføj ild i pejs", text: "Hvis der er en pejs i rummet, så tilføj en varm glødende ild i den. Varmt flakkende pejselys der skaber en hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Opgrader belysning", text: "Tilføj moderne bordlamper og en gulvlampe. Varmt, lagdelt lys. Behold alle møbler på de samme positioner. Skift kun belysningen. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Tilføj planter", text: "Tilføj 2-3 potteplanter: én gulvplante i et hjørne, én på et bord og én lille hængeplante. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Gør hyggelig", text: "Tilføj bløde plaider på sofaen, tændte stearinlys på bordet og varme puder. Hyggelig stemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Lyst og luftigt", text: "Maksimer det naturlige lys, tilføj transparente gardiner, rene overflader og en frisk neutral farvepalet. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Mørkere væg", text: "Mal én væg i dyb skovgrøn eller koksgrå som accentvæg. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Skift vægfarve", text: "Skift vægfarven til en varm råhvid. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Nyt gulv", text: "Udskift gulvet med brede planker i lyst egetræ. Behold alle møbler og vægge uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Ryd op", text: "Gør rent og ryd op: fjern rod, red sengene, ryst puderne og organiser tingene. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Tilføj dekoration", text: "Tilføj smagfuld dekoration: en plante, bøger, et stearinlys, en plaid og kunst på væggen. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Fjern møbler", text: "Fjern alle fritstående møbler. Behold dekoration, planter og stylingelementer. Vis det som et bevidst stylet, tomt rum. Behold vægge og gulve uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tøm lokalet", titleKey: "dashboard.agentX.toemLokalet", text: "Fjern alle fritstående møbler og indretning. Vis det tomme rum med kun de oprindelige gulve, vægge, vinduer og døre. Tilføj ikke noget nyt. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tilføj ild i pejs", titleKey: "dashboard.agentX.tilfoejIldIPejs", text: "Hvis der er en pejs i rummet, så tilføj en varm glødende ild i den. Varmt flakkende pejselys der skaber en hyggelig stemning. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Opgrader belysning", titleKey: "dashboard.agentX.itemOpgraderBelysning", text: "Tilføj moderne bordlamper og en gulvlampe. Varmt, lagdelt lys. Behold alle møbler på de samme positioner. Skift kun belysningen. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tilføj planter", titleKey: "dashboard.agentX.tilfoejPlanter", text: "Tilføj 2-3 potteplanter: én gulvplante i et hjørne, én på et bord og én lille hængeplante. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Gør hyggelig", titleKey: "dashboard.agentX.goerHyggelig", text: "Tilføj bløde plaider på sofaen, tændte stearinlys på bordet og varme puder. Hyggelig stemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Lyst og luftigt", titleKey: "dashboard.agentX.itemLystOgLuftigt", text: "Maksimer det naturlige lys, tilføj transparente gardiner, rene overflader og en frisk neutral farvepalet. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Mørkere væg", titleKey: "dashboard.agentX.moerkereVaeg", text: "Mal én væg i dyb skovgrøn eller koksgrå som accentvæg. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skift vægfarve", titleKey: "dashboard.agentX.skiftVaegfarve", text: "Skift vægfarven til en varm råhvid. Behold alle møbler og indretning uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Nyt gulv", titleKey: "dashboard.agentX.itemNytGulv", text: "Udskift gulvet med brede planker i lyst egetræ. Behold alle møbler og vægge uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Ryd op", titleKey: "dashboard.agentX.itemRydOp", text: "Gør rent og ryd op: fjern rod, red sengene, ryst puderne og organiser tingene. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tilføj dekoration", titleKey: "dashboard.agentX.tilfoejDekoration", text: "Tilføj smagfuld dekoration: en plante, bøger, et stearinlys, en plaid og kunst på væggen. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Fjern møbler", titleKey: "dashboard.agentX.fjernMoebler", text: "Fjern alle fritstående møbler. Behold dekoration, planter og stylingelementer. Vis det som et bevidst stylet, tomt rum. Behold vægge og gulve uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "udsigter",
-    label: "Udsigter",
-    blurb: "Vis en attraktiv udsigt uden for vinduet — interiøret forbliver det samme.",
+    label: "dashboard.agentX.udsigter",
+    blurb: "dashboard.agentX.visEnAttraktivUdsigtUden",
     items: [
-      { title: "Sommerhave", text: "Vis en smuk grøn sommerhave udenfor vinduet. Frodige træer, velplejet græsplæne. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Byudsigt", text: "Vis en bysilhuet udenfor vinduet. Urbant landskab med arkitektur. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Søudsigt", text: "Vis en rolig sø- eller havudsigt udenfor vinduet. Blåt vand, rolig stemning. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Skovudsigt", text: "Vis en tæt grøn skov udenfor vinduet. Høje træer, fredfyldt stemning. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Gårdhave", text: "Vis en charmerende københavnsk gårdhave udenfor vinduet. Brosten, grønne planter, klassisk dansk arkitektur. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sommerhave", titleKey: "dashboard.agentX.itemSommerhave", text: "Vis en smuk grøn sommerhave udenfor vinduet. Frodige træer, velplejet græsplæne. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Byudsigt", titleKey: "dashboard.agentX.itemByudsigt", text: "Vis en bysilhuet udenfor vinduet. Urbant landskab med arkitektur. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Søudsigt", titleKey: "dashboard.agentX.soeudsigt", text: "Vis en rolig sø- eller havudsigt udenfor vinduet. Blåt vand, rolig stemning. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skovudsigt", titleKey: "dashboard.agentX.itemSkovudsigt", text: "Vis en tæt grøn skov udenfor vinduet. Høje træer, fredfyldt stemning. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Gårdhave", titleKey: "dashboard.agentX.gaardhave", text: "Vis en charmerende københavnsk gårdhave udenfor vinduet. Brosten, grønne planter, klassisk dansk arkitektur. Behold alle indvendige elementer uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "kombinationer",
-    label: "Stemningsfulde kombinationer",
-    blurb: "Færdige kombinationer af tid, årstid og lys til den helt rigtige stemning.",
+    label: "dashboard.agentX.stemningsfuldeKombinationer",
+    blurb: "dashboard.agentX.faerdigeKombinationerAfTidAarstid",
     items: [
-      { title: "Sensommeraften", text: "Sensommeraften omkring kl. 20. Varmt gyldent lys der langsomt falmer. Blødt orange-lyserødt skær gennem vinduerne. Varme indendørs lys er tændt, hyggelig kontrast til det falmende dagslys. Afslappet sensommerstemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Tidlig vinteraften", text: "Tidlig vinteraften omkring kl. 17. Mørkeblå himmel udenfor, de første aftenstjerner synlige. Interiøret varmt oplyst med eksisterende lamper og stearinlys. Nordisk hyggestemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Forårsmorgen", text: "Frisk forårsmorgen omkring kl. 7. Blødt friskt lys med en grøn-gylden kvalitet. Lys og fornyende stemning. Mildt naturligt lys. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Efterårssolnedgang", text: "Efterårssolnedgang omkring kl. 18. Dybt orange, rødt og gyldent lys strømmer gennem vinduerne. Rige varme farvetoner. Varm og stemningsfuld. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Vintermorgen med sne", text: "Vintermorgen omkring kl. 9. Lyst hvidt diffust dagslys. Køligt og sprødt. Varm hyggelig indendørs belysning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Sommernat", text: "Sommernat omkring kl. 23. Dyb blå tusmørkehimmel der stadig holder på lyset. Lun luftfornemmelse. Interiøret blødt oplyst med varmt stemningslys. Fredfyldt sommernat. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Regnvejrsdag", text: "Hyggelig regnvejrsdag. Blødt gråt diffust lys. Dæmpet og rolig stemning. Varm indendørs belysning der skaber en lun, beskyttet følelse. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Diset eftermiddag", text: "Diset eftermiddag. Blødt diffust lys med en grå-blå kvalitet. Dæmpede farver. Drømmende og rolig stemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sensommeraften", titleKey: "dashboard.agentX.itemSensommeraften", text: "Sensommeraften omkring kl. 20. Varmt gyldent lys der langsomt falmer. Blødt orange-lyserødt skær gennem vinduerne. Varme indendørs lys er tændt, hyggelig kontrast til det falmende dagslys. Afslappet sensommerstemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Tidlig vinteraften", titleKey: "dashboard.agentX.itemTidligVinteraften", text: "Tidlig vinteraften omkring kl. 17. Mørkeblå himmel udenfor, de første aftenstjerner synlige. Interiøret varmt oplyst med eksisterende lamper og stearinlys. Nordisk hyggestemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Forårsmorgen", titleKey: "dashboard.agentX.foraarsmorgen", text: "Frisk forårsmorgen omkring kl. 7. Blødt friskt lys med en grøn-gylden kvalitet. Lys og fornyende stemning. Mildt naturligt lys. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Efterårssolnedgang", titleKey: "dashboard.agentX.efteraarssolnedgang", text: "Efterårssolnedgang omkring kl. 18. Dybt orange, rødt og gyldent lys strømmer gennem vinduerne. Rige varme farvetoner. Varm og stemningsfuld. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Vintermorgen med sne", titleKey: "dashboard.agentX.itemVintermorgenMedSne", text: "Vintermorgen omkring kl. 9. Lyst hvidt diffust dagslys. Køligt og sprødt. Varm hyggelig indendørs belysning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Sommernat", titleKey: "dashboard.agentX.itemSommernat", text: "Sommernat omkring kl. 23. Dyb blå tusmørkehimmel der stadig holder på lyset. Lun luftfornemmelse. Interiøret blødt oplyst med varmt stemningslys. Fredfyldt sommernat. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Regnvejrsdag", titleKey: "dashboard.agentX.itemRegnvejrsdag", text: "Hyggelig regnvejrsdag. Blødt gråt diffust lys. Dæmpet og rolig stemning. Varm indendørs belysning der skaber en lun, beskyttet følelse. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Diset eftermiddag", titleKey: "dashboard.agentX.itemDisetEftermiddag", text: "Diset eftermiddag. Blødt diffust lys med en grå-blå kvalitet. Dæmpede farver. Drømmende og rolig stemning. Behold alle møbler uændret. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "have",
-    label: "Haveforvandling",
-    blurb: "Vis hvordan en tom eller vild have kan blive et præsentabelt uderum.",
+    label: "dashboard.agentX.haveforvandling",
+    blurb: "dashboard.agentX.visHvordanEnTomEller",
     items: [
-      { title: "Anlagt græsplæne", text: "Forvandl dette udeareal til en velplejet have med en velholdt grøn græsplæne, enkle bedplanter og en ren grus- eller stensti. Pæn og præsentabel familiehave. Skandinavisk enkelhed. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Terrasse med fliser", text: "Tilføj et enkelt sten- eller træterrasseområde med havemøbler. Ren, moderne terrasse med potteplanter og blød udendørsbelysning. Funktionel og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Nem vedligeholdt have", text: "Forvandl denne have til et udeareal med lav vedligeholdelse med dekorativ grus, tørketålende planter, et trædæk og rene linjer. Moderne og praktisk. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Børnevenlig have", text: "Forvandl denne have til et familievenligt udeareal med en flad græsplæne, en enkel legezone, højbede og en lille terrasse med havemøbler. Sikker og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Aftenhave med belysning", text: "Forvandl denne have til en aftenstemning. Blød udendørsbelysning langs stierne, varmt lys fra husets vinduer, hyggelig stemning. Velplejet have synlig i det varme skær. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Anlagt græsplæne", titleKey: "dashboard.agentX.anlagtGraesplaene", text: "Forvandl dette udeareal til en velplejet have med en velholdt grøn græsplæne, enkle bedplanter og en ren grus- eller stensti. Pæn og præsentabel familiehave. Skandinavisk enkelhed. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Terrasse med fliser", titleKey: "dashboard.agentX.itemTerrasseMedFliser", text: "Tilføj et enkelt sten- eller træterrasseområde med havemøbler. Ren, moderne terrasse med potteplanter og blød udendørsbelysning. Funktionel og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Nem vedligeholdt have", titleKey: "dashboard.agentX.itemNemVedligeholdtHave", text: "Forvandl denne have til et udeareal med lav vedligeholdelse med dekorativ grus, tørketålende planter, et trædæk og rene linjer. Moderne og praktisk. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Børnevenlig have", titleKey: "dashboard.agentX.boernevenligHave", text: "Forvandl denne have til et familievenligt udeareal med en flad græsplæne, en enkel legezone, højbede og en lille terrasse med havemøbler. Sikker og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aftenhave med belysning", titleKey: "dashboard.agentX.itemAftenhaveMedBelysning", text: "Forvandl denne have til en aftenstemning. Blød udendørsbelysning langs stierne, varmt lys fra husets vinduer, hyggelig stemning. Velplejet have synlig i det varme skær. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "altan",
-    label: "Altan & terrasse",
-    blurb: "Forvandl tomme altaner og terrasser til indbydende uderum.",
+    label: "dashboard.agentX.altanTerrasse",
+    blurb: "dashboard.agentX.blurbAltanTerrasse",
     items: [
-      { title: "Møbleret altan", text: "Forvandl denne tomme altan til et møbleret udeareal. Lille bistrobord med to stole, potteplanter, udendørstæppe og lyskæder. Hyggelig og indbydende byaltan. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Stor terrasse med lounge", text: "Forvandl denne terrasse til et moderne udendørs loungeområde. Kvalitetsudendørssofa, sofabord, store plantekasser og stemningsbelysning. Komfortabelt og stilfuldt opholdsområde. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Altan med planter", text: "Forvandl denne altan til en grøn oase. Flere potteplanter i forskellige størrelser, en lille siddeplads med puder, urtekasser på rækværket. Frisk og levende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Morgenterrasse", text: "Forvandl denne terrasse til en morgenmadssituation. Bord dækket til morgenmad, morgenlys, potteplanter og komfortable udendørsstole. Frisk og indbydende start på dagen. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Aftenterrasse", text: "Forvandl denne terrasse til et aftenopholdsområde. Varm stemningsbelysning, stearinlys, komfortable siddepladser og hyggelige tæpper. Stemningsfuld og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Møbleret altan", titleKey: "dashboard.agentX.moebleretAltan", text: "Forvandl denne tomme altan til et møbleret udeareal. Lille bistrobord med to stole, potteplanter, udendørstæppe og lyskæder. Hyggelig og indbydende byaltan. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Stor terrasse med lounge", titleKey: "dashboard.agentX.itemStorTerrasseMedLounge", text: "Forvandl denne terrasse til et moderne udendørs loungeområde. Kvalitetsudendørssofa, sofabord, store plantekasser og stemningsbelysning. Komfortabelt og stilfuldt opholdsområde. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Altan med planter", titleKey: "dashboard.agentX.itemAltanMedPlanter", text: "Forvandl denne altan til en grøn oase. Flere potteplanter i forskellige størrelser, en lille siddeplads med puder, urtekasser på rækværket. Frisk og levende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Morgenterrasse", titleKey: "dashboard.agentX.itemMorgenterrasse", text: "Forvandl denne terrasse til en morgenmadssituation. Bord dækket til morgenmad, morgenlys, potteplanter og komfortable udendørsstole. Frisk og indbydende start på dagen. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aftenterrasse", titleKey: "dashboard.agentX.itemAftenterrasse", text: "Forvandl denne terrasse til et aftenopholdsområde. Varm stemningsbelysning, stearinlys, komfortable siddepladser og hyggelige tæpper. Stemningsfuld og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "facade",
-    label: "Facade & indkørsel",
-    blurb: "Løft førstehåndsindtrykket — facade, indkørsel og indgangsparti.",
+    label: "dashboard.agentX.facadeIndkoersel",
+    blurb: "dashboard.agentX.loeftFoerstehaandsindtrykketFacadeIndkoe",
     items: [
-      { title: "Velholdt facade", text: "Forvandl denne facade til en velholdt, nymalet facade. Rene linjer, en moderne hoveddør, husnummer, postkasse og en indbydende indgang. Frisk og attraktivt førstehåndsindtryk. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Indkørsel med parkering", text: "Forvandl denne indkørsel til et rent, organiseret parkeringsområde. Frisk grus eller belægningssten, tydelig parkeringsplads, trimmede kanter. Praktisk og præsentabel. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Indgangsparti med lys", text: "Forvandl denne indgang til et indbydende indgangsparti. Moderne udendørsbelysning, en ren sti til døren, potteplanter ved indgangen og rent dørbeslag. Varm og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Eftermiddagsfacade", text: "Forvandl denne facadeudsigt til en varm eftermiddagsstemning. Gyldent lys på facaden, velplejet have synlig, indbydende indgang. Attraktiv og hjemlig. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Aftenfacade med belysning", text: "Forvandl denne facade til en aftenscene. Varm udendørsbelysning der oplyser facaden og indgangen, blødt skær fra vinduerne, indbydende stemning. Tryg og attraktiv. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Velholdt facade", titleKey: "dashboard.agentX.itemVelholdtFacade", text: "Forvandl denne facade til en velholdt, nymalet facade. Rene linjer, en moderne hoveddør, husnummer, postkasse og en indbydende indgang. Frisk og attraktivt førstehåndsindtryk. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Indkørsel med parkering", titleKey: "dashboard.agentX.indkoerselMedParkering", text: "Forvandl denne indkørsel til et rent, organiseret parkeringsområde. Frisk grus eller belægningssten, tydelig parkeringsplads, trimmede kanter. Praktisk og præsentabel. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Indgangsparti med lys", titleKey: "dashboard.agentX.itemIndgangspartiMedLys", text: "Forvandl denne indgang til et indbydende indgangsparti. Moderne udendørsbelysning, en ren sti til døren, potteplanter ved indgangen og rent dørbeslag. Varm og indbydende. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Eftermiddagsfacade", titleKey: "dashboard.agentX.itemEftermiddagsfacade", text: "Forvandl denne facadeudsigt til en varm eftermiddagsstemning. Gyldent lys på facaden, velplejet have synlig, indbydende indgang. Attraktiv og hjemlig. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Aftenfacade med belysning", titleKey: "dashboard.agentX.itemAftenfacadeMedBelysning", text: "Forvandl denne facade til en aftenscene. Varm udendørsbelysning der oplyser facaden og indgangen, blødt skær fra vinduerne, indbydende stemning. Tryg og attraktiv. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
   {
     id: "udvidelser",
-    label: "Udvidelser & tilbygninger",
-    blurb: "Vis mulige udvidelser — udestue, carport, overdækning og opbevaring.",
+    label: "dashboard.agentX.udvidelserTilbygninger",
+    blurb: "dashboard.agentX.visMuligeUdvidelserUdestueCarport",
     items: [
-      { title: "Udestue / orangeri", text: "Forvandl dette udeareal til at inkludere en udestue eller et orangeri i glas bygget til huset. Lyst rum med planter og siddepladser. Anvendeligt året rundt. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Overdækket terrasse", text: "Forvandl dette terrasseområde til en overdækket terrasse med en tagkonstruktion. Beskyttet udendørs siddeplads, anvendelig i let regn. Praktisk og komfortabel. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Carport", text: "Forvandl dette parkeringsområde til en moderne carport med en ren tagkonstruktion. Praktisk ly til bilen der komplementerer husets design. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Cykelparkering", text: "Forvandl dette udeareal til at inkludere en praktisk cykelparkering. Overdækket cykelopbevaring, rent design, funktionelt. En dansk livsstilsnødvendighed. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
-      { title: "Skur / redskabsrum", text: "Forvandl dette udeareal til at inkludere et lille haveskur eller redskabsrum. Rent moderne design, praktisk opbevaring. Organiseret og ryddelig have. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Udestue / orangeri", titleKey: "dashboard.agentX.itemUdestueOrangeri", text: "Forvandl dette udeareal til at inkludere en udestue eller et orangeri i glas bygget til huset. Lyst rum med planter og siddepladser. Anvendeligt året rundt. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Overdækket terrasse", titleKey: "dashboard.agentX.overdaekketTerrasse", text: "Forvandl dette terrasseområde til en overdækket terrasse med en tagkonstruktion. Beskyttet udendørs siddeplads, anvendelig i let regn. Praktisk og komfortabel. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Carport", titleKey: "dashboard.agentX.itemCarport", text: "Forvandl dette parkeringsområde til en moderne carport med en ren tagkonstruktion. Praktisk ly til bilen der komplementerer husets design. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Cykelparkering", titleKey: "dashboard.agentX.itemCykelparkering", text: "Forvandl dette udeareal til at inkludere en praktisk cykelparkering. Overdækket cykelopbevaring, rent design, funktionelt. En dansk livsstilsnødvendighed. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
+      { title: "Skur / redskabsrum", titleKey: "dashboard.agentX.itemSkurRedskabsrum", text: "Forvandl dette udeareal til at inkludere et lille haveskur eller redskabsrum. Rent moderne design, praktisk opbevaring. Organiseret og ryddelig have. Fotorealistisk gengivelse i 4K-kvalitet. Bevar den oprindelige kameravinkel, perspektiv og zoom præcist. Skift ikke synsvinkel." },
     ],
   },
 ];
@@ -7359,7 +7371,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
   const handleFile = (file: File) => {
-    if (!file.type.startsWith("image/")) { setError("Kun billedfiler er tilladt (JPG, PNG)."); return; }
+    if (!file.type.startsWith("image/")) { setError(i18n.t("dashboard.agentX.kunBilledfilerTilladt")); return; }
     if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
@@ -7404,7 +7416,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Generering mislykkedes.");
+      if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
       setResultUrl(data.image_url);
       setOriginalUrl(data.original_url ?? null);
       setStage("result");
@@ -7427,7 +7439,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       // Only refresh quota counter for first-generation (refinements are free)
       if (!wasRefinement) window.dispatchEvent(new Event("quota:refresh"));
     } catch (err: any) {
-      setError(err.message || "Noget gik galt. Prøv igen.");
+      setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
       setStage(savedDesignId ? "result" : "idle");
     }
   };
@@ -7437,7 +7449,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
   useUnsavedExitGuard(hasUnsaved);
 
   const confirmDiscard = () =>
-    !hasUnsaved || window.confirm("Er du sikker på du ikke vil gemme dette design?");
+    !hasUnsaved || window.confirm(i18n.t("dashboard.agentX.erDuSikkerPaaDu"));
 
   const handleReset = () => {
     if (!confirmDiscard()) return;
@@ -7471,35 +7483,35 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
       {/* Eksempel */}
       <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6" style={{ order: 2 }}>
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>Se eksempel</p>
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{i18n.t("dashboard.agentX.seEksempel")}</p>
         {satelliteMode ? (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Satellit screenshot</p>
-              <img src="/bolig-images/satellite-example-before.png" alt="Satellit billede før" className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.satellitScreenshot")}</p>
+              <img src="/bolig-images/satellite-example-before.png" alt={i18n.t("dashboard.agentX.satellitBilledeFoer")} className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
             </div>
             <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>AI dronefoto</p>
-              <img src="/bolig-images/satellite-example-after.jpg" alt="Satellit billede efter AI" className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.aiDronefoto")}</p>
+              <img src="/bolig-images/satellite-example-after.jpg" alt={i18n.t("dashboard.agentX.satellitBilledeEfterAi")} className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
-              <img src="/bolig-images/ai-agent-house-before.png" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.original")}</p>
+              <img src="/bolig-images/ai-agent-house-before.png" alt={i18n.t("dashboard.agentX.foerAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
             </div>
             <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
-              <img src="/bolig-images/ai-agent-house-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.efterAiPrompt")}</p>
+              <img src="/bolig-images/ai-agent-house-after.png" alt={i18n.t("dashboard.agentX.efterAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
             </div>
             <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Original</p>
-              <img src="/bolig-images/ai-agent-townhouse-before.jpg" alt="Før AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.original")}</p>
+              <img src="/bolig-images/ai-agent-townhouse-before.jpg" alt={i18n.t("dashboard.agentX.foerAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
             </div>
             <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>Efter AI-prompt</p>
-              <img src="/bolig-images/ai-agent-townhouse-after.png" alt="Efter AI Design Agent" className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.efterAiPrompt")}</p>
+              <img src="/bolig-images/ai-agent-townhouse-after.png" alt={i18n.t("dashboard.agentX.efterAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
             </div>
           </div>
         )}
@@ -7512,12 +7524,12 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Lav dine egne ændringer</p>
-            <p className="text-sm mb-3" style={{ color: "#6B6B6B" }}>Upload et billede og beskriv præcis hvad du vil ændre — fjern møbler, skift farver, tilføj detaljer, eller giv rummet helt nyt liv.</p>
-            <p className="text-xs font-semibold mb-1.5" style={{ color: "#9B9690" }}>Perfekt til:</p>
+            <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.agentX.lavDineEgneAendringer")}</p>
+            <p className="text-sm mb-3" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.agentX.uploadEtBilledeOgBeskriv")}</p>
+            <p className="text-xs font-semibold mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.perfektTil")}</p>
             <ul className="text-sm space-y-1" style={{ color: "#6B6B6B" }}>
-              <li className="flex items-start gap-2"><span style={{ color: "#C8956C", fontWeight: 600 }}>·</span> At fjerne eller tilføje elementer i et allerede genereret billede</li>
-              <li className="flex items-start gap-2"><span style={{ color: "#C8956C", fontWeight: 600 }}>·</span> At redesigne dit eget boligfoto efter dine egne instruktioner</li>
+              <li className="flex items-start gap-2"><span style={{ color: "#C8956C", fontWeight: 600 }}>·</span> {i18n.t("dashboard.agentX.atFjerneEllerTilfoejeElementer")}</li>
+              <li className="flex items-start gap-2"><span style={{ color: "#C8956C", fontWeight: 600 }}>·</span> {i18n.t("dashboard.agentX.atRedesigneDitEgetBoligfoto")}</li>
             </ul>
           </div>
         </div>
@@ -7555,10 +7567,10 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 <Upload className="w-5 h-5" style={{ color: "#C8956C" }} />
               </div>
               <p className="font-semibold text-sm mb-1" style={{ color: "#0F1D2F" }}>
-                {satelliteMode ? "Upload dit satellit billede her" : "Træk et billede hertil"}
+                {satelliteMode ? i18n.t("dashboard.agentX.uploadDitSatellitBilledeHer") : i18n.t("dashboard.agentX.traekEtBilledeHertil")}
               </p>
               <p className="text-xs" style={{ color: "#6B6B6B" }}>
-                {satelliteMode ? "Screenshot fra Google Maps, Apple Maps e.l. · JPG, PNG — Max 10 MB" : "eller klik for at vælge · JPG, PNG — Max 10 MB"}
+                {satelliteMode ? i18n.t("dashboard.agentX.screenshotFraGoogleMaps") : i18n.t("dashboard.agentX.ellerKlikForAtVaelge")}
               </p>
             </div>
           )}
@@ -7568,11 +7580,11 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         {/* Instructions — skjult i satellit-tilstand */}
         {!satelliteMode && (
         <div>
-          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Dine instruktioner</p>
+          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.dineInstruktioner")}</p>
           <textarea
             value={promptText}
             onChange={(e) => setPromptText(e.target.value.slice(0, 6000))}
-            placeholder={"Beskriv præcis hvad du vil ændre...\n\nEksempler:\n\"Fjern den røde sofa og tilføj en grå\"\n\"Skift gulvet til mørkt træ\"\n\"Tilføj en stor plante i hjørnet\"\n\"Lav hele rummet om til japansk stil\""}
+            placeholder={i18n.t("dashboard.agentX.promptPlaceholder")}
             rows={7}
             className="w-full px-4 py-3 rounded-2xl border text-sm resize-none outline-none transition-all"
             style={{ borderColor: "#D9D5CF", background: "#fff", color: "#1A1A1A", lineHeight: 1.6 }}
@@ -7580,14 +7592,14 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             onBlur={(e) => (e.target.style.borderColor = "#D9D5CF")}
             data-testid="bolig-agent-prompt"
           />
-          <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{promptText.length}/6000 tegn</p>
+          <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.tegnAf6000", { count: promptText.length })}</p>
         </div>
         )}
 
         {/* Saved prompt suggestions — only shown if user has 2+ uses of same prompt */}
         {savedPromptSuggestions.length > 0 && (
           <div>
-            <p className="text-[11px] font-bold tracking-[0.08em] uppercase mb-2" style={{ color: "#9B9690" }}>Dine tidligere prompts</p>
+            <p className="text-[11px] font-bold tracking-[0.08em] uppercase mb-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.dineTidligerePrompts")}</p>
             <div className="flex flex-wrap gap-2">
               {savedPromptSuggestions.map(({ text }) => (
                 <button
@@ -7622,14 +7634,14 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
-              {savedDesignId ? "Tilpasser billede..." : "Genererer billede..."}
+              {savedDesignId ? i18n.t("dashboard.agentX.tilpasserBillede") : i18n.t("dashboard.agentX.generererBillede")}
             </button>
           ) : savedDesignId ? (
             // Refinement path: free, no quota gate — max 5 per image
             refinementCount >= MAX_AGENT_REFINEMENTS ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
-                <p className="text-sm font-semibold text-amber-900">Du har brugt alle {MAX_AGENT_REFINEMENTS} justeringer til dette billede</p>
-                <p className="text-xs text-amber-700 mt-1">Upload et nyt billede for at starte en ny generering.</p>
+                <p className="text-sm font-semibold text-amber-900">{i18n.t("dashboard.agentX.duHarBrugtAlleJusteringer", { count: MAX_AGENT_REFINEMENTS })}</p>
+                <p className="text-xs text-amber-700 mt-1">{i18n.t("dashboard.agentX.uploadNytBilledeForNyGenerering")}</p>
               </div>
             ) : (
               <div className="flex items-center gap-3 flex-wrap">
@@ -7640,10 +7652,10 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                   style={{ background: "#0F1D2F" }}
                   data-testid="bolig-agent-generate"
                 >
-                  <Sparkles className="w-4 h-4" /> Tilpas billede
+                  <Sparkles className="w-4 h-4" /> {i18n.t("dashboard.agentX.tilpasBillede")}
                 </button>
                 <span className="text-xs font-medium tabular-nums" style={{ color: refinementCount >= MAX_AGENT_REFINEMENTS - 1 ? "#DC2626" : "#9B9690" }}>
-                  {refinementCount}/{MAX_AGENT_REFINEMENTS} justeringer
+                  {i18n.t("dashboard.agentX.justeringerAf", { count: refinementCount, total: MAX_AGENT_REFINEMENTS })}
                 </span>
               </div>
             )
@@ -7657,7 +7669,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 style={{ background: "#0F1D2F" }}
                 data-testid="bolig-agent-generate"
               >
-                <Sparkles className="w-4 h-4" /> Generer nyt billede
+                <Sparkles className="w-4 h-4" /> {i18n.t("dashboard.agentX.generNytBillede")}
               </button>
             </QuotaGate>
           )}
@@ -7693,7 +7705,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                     data-testid="bolig-agent-save-sag"
                   >
                     <ImageIcon className="w-4 h-4" />
-                    {saveCaseId ? `Gemt til sag` : "Gem til sag"}
+                    {saveCaseId ? i18n.t("dashboard.agentX.gemtTilSag") : i18n.t("dashboard.agentX.gemTilSag")}
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                   {showCaseDropdown && (
@@ -7725,7 +7737,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                               if (!r.ok) {
                                 setSaveCaseId(null);
                                 const msg = await r.text().catch(() => "");
-                                alert(`Kunne ikke gemme til sag. ${msg}`);
+                                alert(`${i18n.t("dashboard.agentX.kunneIkkeGemmeTilSag")} ${msg}`);
                                 return;
                               }
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
@@ -7740,7 +7752,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                               }, 1500);
                             } catch {
                               setSaveCaseId(null);
-                              alert("Kunne ikke gemme til sag. Prøv igen.");
+                              alert(i18n.t("dashboard.agentX.kunneIkkeGemmeTilSag"));
                             }
                           }}
                           className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
@@ -7762,7 +7774,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
                 data-testid="bolig-agent-retry"
               >
-                <RotateCcw className="w-4 h-4" /> Prøv igen
+                <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
               </button>
             </div>
           </motion.div>
@@ -7778,11 +7790,11 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                   <Sparkles className="w-3 h-3 text-white" />
                 </div>
                 <h3 className="text-sm font-bold tracking-[0.04em] uppercase" style={{ color: "#0F1D2F" }}>
-                  {satelliteMode ? "Satellit billede" : "Promptbibliotek"}
+                  {satelliteMode ? i18n.t("dashboard.agentX.satellitBillede") : i18n.t("dashboard.agentX.promptbibliotek")}
                 </h3>
               </div>
               <p className="text-xs" style={{ color: "#6B6B6B" }}>
-                {satelliteMode ? "Vælg tidspunkt på dagen for dronefotos." : "Klik på en prompt for at indsætte den i feltet."}
+                {satelliteMode ? i18n.t("dashboard.agentX.vaelgTidspunktPaaDagenFor") : i18n.t("dashboard.agentX.klikPaaEnPromptFor")}
               </p>
             </div>
 
@@ -7805,8 +7817,8 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                         <MapPin className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white leading-tight">Satellit billede</p>
-                        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>Forvandl et satellitkort til dronefoto</p>
+                        <p className="text-sm font-semibold text-white leading-tight">{i18n.t("dashboard.agentX.satellitBillede")}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{i18n.t("dashboard.agentX.forvandlSatellitkortTilDronefoto")}</p>
                       </div>
                       <ChevronRight className="w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "rgba(255,255,255,0.4)" }} />
                     </div>
@@ -7825,12 +7837,12 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                             : { background: "#fff", color: "#6B6B6B", borderColor: "#D9D5CF" }}
                           data-testid={`bolig-agent-cat-${cat.id}`}
                         >
-                          {cat.label}
+                          {i18n.t(cat.label)}
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{activeCategory.blurb}</p>
+                  <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{i18n.t(activeCategory.blurb)}</p>
                   <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 420px)" }}>
                     {activeCategory.items.map((item) => (
                       <button
@@ -7842,10 +7854,10 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                       >
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300" style={{ background: "linear-gradient(120deg, transparent, rgba(200,149,108,0.03), transparent)" }} />
                         <div className="flex items-center justify-between gap-3 mb-2 relative z-10">
-                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{item.title}</span>
+                          <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t(item.titleKey)}</span>
                           {justAdded === item.title ? (
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-[#C8956C]/10 flex-shrink-0" style={{ color: "#C8956C" }}>
-                              <Check className="w-3 h-3" /> Tilføjet
+                              <Check className="w-3 h-3" /> {i18n.t("dashboard.agentX.tilfoejet")}
                             </span>
                           ) : (
                             <div className="w-6 h-6 rounded-full border border-[#D9D5CF] flex items-center justify-center group-hover:border-[#C8956C] group-hover:bg-[#C8956C] transition-colors flex-shrink-0">
@@ -7879,7 +7891,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                         data-testid={`bolig-satellite-time-${idx}`}
                       >
                         <span className="text-base leading-none">{t.emoji}</span>
-                        {t.label}
+                        {i18n.t(t.label)}
                         {satelliteTimeIdx === idx && (
                           <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#0F1D2F" }} />
                         )}
@@ -7895,7 +7907,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                     className="w-full py-2 rounded-xl text-xs font-medium border transition-all"
                     style={{ borderColor: "#D9D5CF", color: "#6B6B6B", background: "#fff" }}
                   >
-                    ← Tilbage til promptbibliotek
+                    ← {i18n.t("dashboard.agentX.tilbageTilPromptbibliotek")}
                   </button>
                 </div>
               )}
@@ -7923,30 +7935,30 @@ function NewSagModal({ onClose, onCreated, isPending }: { onClose: () => void; o
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}
         className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()} data-testid="bolig-new-sag-modal">
         <div className="flex items-center justify-between p-6 pb-0">
-          <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>Opret ny sag</h3>
+          <h3 className="text-lg font-semibold" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.caseView.opretNySag")}</h3>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F0EDE7] transition-colors" style={{ color: "#6B6B6B" }} data-testid="bolig-new-sag-close"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>Boligadresse *</label>
-            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="fx Elm Street 42, 4000 Roskilde"
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.caseView.boligadresse")}</label>
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={i18n.t("dashboard.caseView.adressePlaceholder")}
               className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-[#C8956C]" style={{ borderColor: "#E8E4DE" }} data-testid="bolig-new-sag-address" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>Sagsnummer (valgfrit)</label>
-            <input value={caseNo} onChange={(e) => setCaseNo(e.target.value)} placeholder="fx 2024-001"
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.caseView.sagsnummerValgfrit")}</label>
+            <input value={caseNo} onChange={(e) => setCaseNo(e.target.value)} placeholder={i18n.t("dashboard.caseView.sagsnummerPlaceholder")}
               className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-[#C8956C]" style={{ borderColor: "#E8E4DE" }} data-testid="bolig-new-sag-caseno" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>Bemærkninger</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Noter om boligen..." rows={3}
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.agentX.bemaerkninger")}</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={i18n.t("dashboard.caseView.noterPlaceholder")} rows={3}
               className="w-full px-4 py-3 rounded-xl border text-sm outline-none resize-none transition-colors focus:border-[#C8956C]" style={{ borderColor: "#E8E4DE", fontFamily: "inherit" }} data-testid="bolig-new-sag-notes" />
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 pb-6">
-          <button onClick={onClose} className="h-10 px-5 rounded-full text-sm font-medium border border-[#D9D5CF] hover:bg-[#F0EDE7] transition-colors" style={{ color: "#6B6B6B" }} data-testid="bolig-new-sag-cancel">Annuller</button>
+          <button onClick={onClose} className="h-10 px-5 rounded-full text-sm font-medium border border-[#D9D5CF] hover:bg-[#F0EDE7] transition-colors" style={{ color: "#6B6B6B" }} data-testid="bolig-new-sag-cancel">{i18n.t("dashboard.common.annuller")}</button>
           <button onClick={handleCreate} disabled={!address.trim() || isPending} className="h-10 px-5 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60" style={{ background: "#C8956C" }} data-testid="bolig-new-sag-submit">
-            {isPending ? "Opretter..." : "Opret sag"}
+            {isPending ? i18n.t("dashboard.common.opretter2") : i18n.t("dashboard.agentX.opretSag")}
           </button>
         </div>
       </motion.div>
@@ -7981,7 +7993,7 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
     queryFn: async () => {
       const token = await user.getIdToken();
       const r = await fetch(`/api/bolig/team/cases/${caseInfo.id}/images`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error("Kunne ikke hente billeder");
+      if (!r.ok) throw new Error(i18n.t("dashboard.agentX.kunneIkkeHenteBilleder"));
       return r.json();
     },
   });
@@ -8017,9 +8029,9 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold truncate" style={{ color: "#0F1D2F" }}>{caseInfo.address}</h2>
-              {isSold && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(45,106,79,0.12)", color: "#2D6A4F" }}>SOLGT</span>}
+              {isSold && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(45,106,79,0.12)", color: "#2D6A4F" }}>{i18n.t("dashboard.teamX.solgt")}</span>}
             </div>
-            <p className="text-xs mt-0.5" style={{ color: "#9B9690" }}>{caseInfo.ownerName} · {imgs.length} billede{imgs.length !== 1 ? "r" : ""}</p>
+            <p className="text-xs mt-0.5" style={{ color: "#9B9690" }}>{caseInfo.ownerName} · {i18n.t("dashboard.teamX.billeder", { count: imgs.length })}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-[#F0EDE7] flex-shrink-0 transition-colors" data-testid="team-case-modal-close">
             <X className="w-4 h-4" style={{ color: "#6B6B6B" }} />
@@ -8035,7 +8047,7 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
           ) : imgs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 gap-2">
               <ImageIcon className="w-8 h-8" style={{ color: "#D9D5CF" }} />
-              <p className="text-sm" style={{ color: "#9B9690" }}>Ingen billeder genereret endnu</p>
+              <p className="text-sm" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.ingenBillederGenereretEndnu")}</p>
             </div>
           ) : (
             <>
@@ -8051,7 +8063,7 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
                 <div className="flex items-center justify-between mt-2.5">
                   <p className="text-xs" style={{ color: "#9B9690" }}>
                     {current?.room} · {current?.style}
-                    {current?.createdAt ? ` · ${new Date(current.createdAt).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                    {current?.createdAt ? ` · ${new Date(current.createdAt).toLocaleDateString(localeTag(), { day: "numeric", month: "short", year: "numeric" })}` : ""}
                   </p>
                   <p className="text-xs font-medium" style={{ color: "#6B6B6B" }}>{idx + 1} / {imgs.length}</p>
                 </div>
@@ -8063,12 +8075,12 @@ function TeamCaseModal({ caseInfo, user, onClose }: {
                   <button onClick={() => setIdx((i) => Math.max(i - 1, 0))} disabled={idx === 0}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-sm font-medium transition-all hover:bg-[#F5F3EF] disabled:opacity-30"
                     style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }} data-testid="team-case-prev">
-                    <ChevronLeft className="w-4 h-4" /> Forrige
+                    <ChevronLeft className="w-4 h-4" /> {i18n.t("dashboard.teamX.forrige")}
                   </button>
                   <button onClick={() => setIdx((i) => Math.min(i + 1, imgs.length - 1))} disabled={idx === imgs.length - 1}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-sm font-medium transition-all hover:bg-[#F5F3EF] disabled:opacity-30"
                     style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }} data-testid="team-case-next">
-                    Næste <ChevronRight className="w-4 h-4" />
+                    {i18n.t("dashboard.teamX.naeste")} <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               )}
@@ -8162,7 +8174,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       if (!r.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast("Team oprettet!"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast(i18n.t("dashboard.teamX.teamOprettet")); },
     onError: (e: Error) => showToast(e.message),
   });
 
@@ -8174,7 +8186,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       if (!r.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: (d) => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast(`Du er nu med i ${d.teamName}!`); },
+    onSuccess: (d) => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast(i18n.t("dashboard.teamX.duErNuMedI", { name: d.teamName })); },
     onError: (e: Error) => showToast(e.message),
   });
 
@@ -8186,7 +8198,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       if (!r.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast("Medlem fjernet"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast(i18n.t("dashboard.teamX.medlemFjernet")); },
     onError: (e: Error) => showToast(e.message),
   });
 
@@ -8198,7 +8210,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       if (!r.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast("Rolle opdateret!"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); showToast(i18n.t("dashboard.teamX.rolleOpdateret")); },
     onError: (e: Error) => showToast(e.message),
   });
 
@@ -8210,7 +8222,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       if (!r.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); setAllocateModal(false); showToast("Credits tildelt!"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/team"] }); setAllocateModal(false); showToast(i18n.t("dashboard.teamX.creditsTildelt")); },
     onError: (e: Error) => showToast(e.message),
   });
 
@@ -8218,7 +8230,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
-    showToast("Link kopieret!");
+    showToast(i18n.t("dashboard.share.linkKopieret"));
   };
 
   if (isLoading) {
@@ -8240,16 +8252,16 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "#F0EDE7" }}>
             <Users className="w-7 h-7" style={{ color: "#C8956C" }} />
           </div>
-          <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Team</h1>
-          <p className="text-sm mb-5 text-center" style={{ color: "#6B6B6B" }}>Opret et nyt team, eller tilslut dig et eksisterende med en invite-kode.</p>
+          <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.teamX.team")}</h1>
+          <p className="text-sm mb-5 text-center" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.opretEtNytTeamEller")}</p>
 
           {/* Subscription info box */}
           <div className="rounded-xl p-4 mb-6 flex gap-3 items-start" style={{ background: "rgba(200,149,108,0.08)", border: "1px solid rgba(200,149,108,0.25)" }}>
             <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
             <div>
-              <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>Team-funktioner kræver abonnement</p>
+              <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.teamFunktionerKraeverAbonnement")}</p>
               <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
-                Du kan oprette et team nu og invitere kolleger. Team-funktionerne (delte sager, statistik og credits) låses op, når teamets ejer har et aktivt abonnement.
+                {i18n.t("dashboard.teamX.duKanOpretteEtTeam")}
               </p>
             </div>
           </div>
@@ -8258,14 +8270,14 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6 mb-4">
             <div className="flex items-center gap-2 mb-4">
               <Crown className="w-4 h-4" style={{ color: "#C8956C" }} />
-              <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Opret nyt team</h2>
+              <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.opretNytTeam")}</h2>
             </div>
             <input
               type="text"
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createName.trim().length >= 2 && createTeamMutation.mutate(createName.trim())}
-              placeholder="F.eks. Nybolig Bagsværd"
+              placeholder={i18n.t("dashboard.teamX.fEksNyboligBagsvaerd")}
               className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30 mb-3"
               style={{ color: "#1A1A1A" }}
               data-testid="team-create-name-input"
@@ -8276,7 +8288,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-40"
               style={{ background: "#C8956C" }}
               data-testid="team-create-submit">
-              {createTeamMutation.isPending ? "Opretter…" : "Opret team"}
+              {createTeamMutation.isPending ? i18n.t("dashboard.common.opretter") : i18n.t("dashboard.teamX.opretTeam")}
             </button>
           </div>
 
@@ -8284,14 +8296,14 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6">
             <div className="flex items-center gap-2 mb-4">
               <UserPlus className="w-4 h-4" style={{ color: "#6B6B6B" }} />
-              <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Tilslut med invite-kode</h2>
+              <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.tilslutMedInviteKode")}</h2>
             </div>
             <input
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === "Enter" && joinCode.length >= 4 && joinByCodeMutation.mutate(joinCode.trim())}
-              placeholder="F.eks. NYBBAG26"
+              placeholder={i18n.t("dashboard.teamX.fEksNybbag26")}
               maxLength={8}
               className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30 mb-3"
               style={{ color: "#1A1A1A" }}
@@ -8303,7 +8315,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               className="w-full py-2.5 rounded-xl font-semibold text-sm border transition-all hover:bg-[#F5F3EF] disabled:opacity-40"
               style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }}
               data-testid="team-join-submit">
-              {joinByCodeMutation.isPending ? "Tilslutter…" : "Tilslut team"}
+              {joinByCodeMutation.isPending ? i18n.t("dashboard.teamX.tilslutter") : i18n.t("dashboard.teamX.tilslutTeam")}
             </button>
           </div>
         </div>
@@ -8326,8 +8338,8 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
     return (
       <motion.div key="member-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>Du er med i {team.name}</h1>
-          <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
+          <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.teamX.duErMedI", { name: team.name })}</h1>
+          <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.ejer")}: {ownerDisplayName || ownerEmail}</p>
         </div>
 
         {/* Subscription lock banner for member view */}
@@ -8335,18 +8347,18 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           <div className="rounded-xl p-4 flex gap-3 items-start" style={{ background: "rgba(200,149,108,0.08)", border: "1px solid rgba(200,149,108,0.3)" }}>
             <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
             <div>
-              <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>Team-funktioner er låste</p>
+              <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.teamFunktionerErLaaste")}</p>
               <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
-                Teamets ejer <strong>{ownerDisplayName || ownerEmail}</strong> har endnu ikke et aktivt abonnement. Bed ejeren om at opgradere for at låse op for delte sager og statistik.
+                {i18n.t("dashboard.teamX.ownerNoSub1")} <strong>{ownerDisplayName || ownerEmail}</strong> {i18n.t("dashboard.teamX.ownerNoSub2")}
               </p>
             </div>
           </div>
         )}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { icon: <ImageIcon className="w-5 h-5" />, value: myPerf.visuals, label: "Visuals md." },
-            { icon: <Building2 className="w-5 h-5" />, value: myPerf.activeCases, label: "Aktive sager" },
-            { icon: <Clock className="w-5 h-5" />, value: myPerf.avgTimeMs ? `${Math.round(myPerf.avgTimeMs / 1000)}s` : "–", label: "Gns. tid" },
+            { icon: <ImageIcon className="w-5 h-5" />, value: myPerf.visuals, label: i18n.t("dashboard.teamX.visualsMd") },
+            { icon: <Building2 className="w-5 h-5" />, value: myPerf.activeCases, label: i18n.t("dashboard.teamX.aktiveSager") },
+            { icon: <Clock className="w-5 h-5" />, value: myPerf.avgTimeMs ? `${Math.round(myPerf.avgTimeMs / 1000)}s` : "–", label: i18n.t("dashboard.teamX.gnsTid") },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-3 sm:p-5 overflow-hidden">
               <div className="mb-1.5" style={{ color: "#C8956C" }}>{s.icon}</div>
@@ -8357,7 +8369,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
         </div>
         {activeCases.length > 0 && (
           <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
-            <p className="text-xs font-semibold mb-3" style={{ color: "#6B6B6B" }}>TEAMETS AKTIVE SAGER ({stats?.activeCases ?? 0})</p>
+            <p className="text-xs font-semibold mb-3" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.teametsAktiveSager")} ({stats?.activeCases ?? 0})</p>
             <div className="space-y-2">
               {activeCases.slice(0, 5).map((c) => (
                 <div key={c.id} className="flex items-center gap-3">
@@ -8388,16 +8400,16 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
         <div className="rounded-xl p-4 flex gap-3 items-start" style={{ background: "rgba(200,149,108,0.08)", border: "1px solid rgba(200,149,108,0.3)" }}>
           <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#C8956C" }} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>Team-funktioner er låste — opgrader for at låse op</p>
+            <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.teamFunktionerErLaasteOpgrader")}</p>
             <p className="text-xs leading-relaxed mb-2" style={{ color: "#6B6B6B" }}>
-              Du kan invitere kolleger nu via invite-koden herunder. Når du køber et abonnement låses alle team-funktioner op for dig og alle der bruger dit invite-link — delte sager, statistik og credit-styring.
+              {i18n.t("dashboard.teamX.duKanInvitereKollegerNu")}
             </p>
             <button
               onClick={() => window.location.href = "/boligpotentiale#pricing"}
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90"
               style={{ background: "#C8956C" }}
               data-testid="team-upgrade-cta">
-              Se abonnementer <ArrowRight className="w-3 h-3" />
+              {i18n.t("dashboard.teamX.seAbonnementer")} <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -8411,7 +8423,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               <Crown className="w-4 h-4 flex-shrink-0" style={{ color: "#C8956C" }} />
               <h1 className="text-xl font-bold truncate" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{team.name}</h1>
             </div>
-            <p className="text-xs" style={{ color: "#9B9690" }}>Ejer: {ownerDisplayName || ownerEmail}</p>
+            <p className="text-xs" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.ejer")}: {ownerDisplayName || ownerEmail}</p>
           </div>
           {/* Team switcher — only shown when owner has multiple teams */}
           {ownedTeams.length > 1 && (
@@ -8429,15 +8441,15 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
         {/* Invite code block */}
         <div className="mt-4 rounded-xl p-4" style={{ background: atLimit ? "#FFF7ED" : "#F5F3EF", border: atLimit ? "1px solid #FED7AA" : "none" }}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>INVITE-KODE — Del med kollega</p>
+            <p className="text-xs font-semibold" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.inviteKodeDelMedKollega")}</p>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: atLimit ? "rgba(239,68,68,0.1)" : "rgba(200,149,108,0.15)", color: atLimit ? "#DC2626" : "#C8956C" }} data-testid="team-member-count">
-              {totalMembers}/15 medlemmer
+              {i18n.t("dashboard.teamX.medlemmerCount", { count: totalMembers, max: 15 })}
             </span>
           </div>
           {atLimit ? (
             <p className="text-xs mb-3 leading-relaxed" style={{ color: "#DC2626" }}>
-              Teamet har nået grænsen på 15 medlemmer.<br />
-              Kontakt os på <strong>support@formaestates.dk</strong> for at hæve grænsen.
+              {i18n.t("dashboard.teamX.teamLimitReached")}<br />
+              {i18n.t("dashboard.teamX.contactUsAt")} <strong>support@formaestates.dk</strong> {i18n.t("dashboard.teamX.toRaiseLimit")}
             </p>
           ) : (
             <>
@@ -8452,7 +8464,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
                 style={{ background: copied ? "#2D6A4F" : "#C8956C" }}
                 data-testid="team-copy-invite-link">
-                {copied ? <><CheckCheck className="w-4 h-4" /> Kopieret!</> : <><Copy className="w-4 h-4" /> Kopier invite-link</>}
+                {copied ? <><CheckCheck className="w-4 h-4" /> {i18n.t("dashboard.teamX.kopieret")}</> : <><Copy className="w-4 h-4" /> {i18n.t("dashboard.teamX.kopierInviteLink")}</>}
               </button>
             </>
           )}
@@ -8462,9 +8474,9 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { icon: <Users className="w-5 h-5" />, value: stats?.memberCount ?? 0, label: "Medlemmer" },
-          { icon: <ImageIcon className="w-5 h-5" />, value: stats?.visualsThisMonth ?? 0, label: "Visuals md." },
-          { icon: <Building2 className="w-5 h-5" />, value: stats?.activeCases ?? 0, label: "Aktive sager" },
+          { icon: <Users className="w-5 h-5" />, value: stats?.memberCount ?? 0, label: i18n.t("dashboard.teamX.medlemmer") },
+          { icon: <ImageIcon className="w-5 h-5" />, value: stats?.visualsThisMonth ?? 0, label: i18n.t("dashboard.teamX.visualsMd") },
+          { icon: <Building2 className="w-5 h-5" />, value: stats?.activeCases ?? 0, label: i18n.t("dashboard.teamX.aktiveSager") },
         ].map((s, i) => (
           <div key={i} className="bg-white rounded-2xl border border-[#E8E4DE] p-3 sm:p-5 overflow-hidden">
             <div className="mb-1.5" style={{ color: "#C8956C" }}>{s.icon}</div>
@@ -8478,10 +8490,10 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       <div className="bg-white rounded-2xl border border-[#E8E4DE] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#F0EDE7] flex items-center gap-2">
           <BarChart3 className="w-4 h-4" style={{ color: "#C8956C" }} />
-          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>TEAM PERFORMANCE</h2>
+          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.teamPerformance")}</h2>
         </div>
         {performance.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm" style={{ color: "#9B9690" }}>Ingen data endnu</p>
+          <p className="px-5 py-8 text-center text-sm" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.ingenDataEndnu")}</p>
         ) : (
           <div className="divide-y divide-[#F0EDE7]">
             {performance.map((p) => (
@@ -8490,15 +8502,15 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 <div className="flex items-center gap-4 flex-shrink-0">
                   <div className="text-center">
                     <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{p.visuals}</div>
-                    <div className="text-[10px]" style={{ color: "#9B9690" }}>visualiseringer</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.visualiseringer")}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{p.activeCases}</div>
-                    <div className="text-[10px]" style={{ color: "#9B9690" }}>sager</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.sager")}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>{p.avgTimeMs ? `${Math.round(p.avgTimeMs / 1000)}s` : "–"}</div>
-                    <div className="text-[10px]" style={{ color: "#9B9690" }}>gns. tid</div>
+                    <div className="text-[10px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.gnsTidLabel")}</div>
                   </div>
                 </div>
               </div>
@@ -8512,7 +8524,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
         <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
           <div className="flex items-center gap-2 mb-4">
             <Building2 className="w-4 h-4" style={{ color: "#C8956C" }} />
-            <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>AKTIVE SAGER — HELE TEAMET</h2>
+            <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.aktiveSagerHeleTeamet")}</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {activeCases.map((c) => (
@@ -8535,7 +8547,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
         <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
           <div className="flex items-center gap-2 mb-4">
             <CheckCheck className="w-4 h-4" style={{ color: "#2D6A4F" }} />
-            <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>SOLGTE SAGER — HELE TEAMET</h2>
+            <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.solgteSagerHeleTeamet")}</h2>
             <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.12)", color: "#2D6A4F" }}>{soldCases.length}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -8545,11 +8557,11 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 data-testid={`team-sold-card-${c.id}`}>
                 <div className="h-24 overflow-hidden relative">
                   <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
-                  <span className="absolute top-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(45,106,79,0.9)", color: "#fff" }}>SOLGT</span>
+                  <span className="absolute top-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(45,106,79,0.9)", color: "#fff" }}>{i18n.t("dashboard.teamX.solgt")}</span>
                 </div>
                 <div className="p-2.5">
                   <p className="text-xs font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</p>
-                  <p className="text-[11px]" style={{ color: "#9B9690" }}>{c.ownerName}{c.soldDateISO ? ` · ${new Date(c.soldDateISO).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" })}` : ""}</p>
+                  <p className="text-[11px]" style={{ color: "#9B9690" }}>{c.ownerName}{c.soldDateISO ? ` · ${new Date(c.soldDateISO).toLocaleDateString(localeTag(), { day: "numeric", month: "short", year: "numeric" })}` : ""}</p>
                 </div>
               </button>
             ))}
@@ -8561,35 +8573,35 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       <div className="bg-white rounded-2xl border border-[#E8E4DE] p-5">
         <div className="flex items-center gap-2 mb-3">
           <Coins className="w-4 h-4" style={{ color: "#C8956C" }} />
-          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>CREDITS & FORBRUG</h2>
+          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.creditsForbrug")}</h2>
         </div>
         <div className="flex flex-wrap gap-6 mb-4">
           <div data-testid="team-credits-remaining">
             {isUnlimited ? (
               <>
-                <span className="text-2xl font-bold" style={{ color: "#C8956C" }}>Uendelig</span>
-                <span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>billeder</span>
+                <span className="text-2xl font-bold" style={{ color: "#C8956C" }}>{i18n.t("dashboard.teamX.uendelig")}</span>
+                <span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.billeder")}</span>
               </>
             ) : (
               <>
                 <span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{team.creditsRemaining}</span>
-                <span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>tilbage</span>
+                <span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.tilbage")}</span>
               </>
             )}
           </div>
-          <div data-testid="team-credits-month"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{stats?.visualsThisMonth ?? 0}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>brugt denne md.</span></div>
-          <div data-testid="team-credits-total"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{teamTotalUsed}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>brugt i alt</span></div>
+          <div data-testid="team-credits-month"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{stats?.visualsThisMonth ?? 0}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.brugtDenneMd")}</span></div>
+          <div data-testid="team-credits-total"><span className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{teamTotalUsed}</span><span className="text-sm ml-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.brugtIAlt")}</span></div>
         </div>
         <div className="flex flex-wrap gap-3">
           <a href="/pris" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
             style={{ background: "#C8956C" }} data-testid="team-credits-buy">
-            <CreditCard className="w-4 h-4" /> Køb credits
+            <CreditCard className="w-4 h-4" /> {i18n.t("dashboard.teamX.koebCredits")}
           </a>
           <button onClick={() => setAllocateModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all hover:bg-[#F5F3EF]"
             style={{ borderColor: "#D9D5CF", color: "#1A1A1A" }} data-testid="team-credits-allocate">
-            <ArrowUpRight className="w-4 h-4" /> Tildel til medlem
+            <ArrowUpRight className="w-4 h-4" /> {i18n.t("dashboard.teamX.tildelTilMedlem")}
           </button>
         </div>
       </div>
@@ -8598,7 +8610,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
       <div className="bg-white rounded-2xl border border-[#E8E4DE] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#F0EDE7] flex items-center gap-2">
           <Users className="w-4 h-4" style={{ color: "#C8956C" }} />
-          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>TEAM MEDLEMMER</h2>
+          <h2 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.teamMedlemmer")}</h2>
         </div>
         {/* Owner */}
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0EDE7]">
@@ -8608,7 +8620,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
             <p className="text-xs truncate" style={{ color: "#9B9690" }}>{ownerEmail}</p>
           </div>
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(200,149,108,0.15)", color: "#C8956C" }}>
-            <Crown className="w-3 h-3" /> Ejer
+            <Crown className="w-3 h-3" /> {i18n.t("dashboard.teamX.ejer")}
           </span>
         </div>
         {members.map((m) => {
@@ -8624,11 +8636,11 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: "#1A1A1A" }}>
                   {memberName}
-                  {isAdmin && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.15)", color: "#C8956C" }}>Admin</span>}
+                  {isAdmin && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.15)", color: "#C8956C" }}>{i18n.t("dashboard.teamX.admin")}</span>}
                 </p>
-                <p className="text-xs truncate" style={{ color: "#9B9690" }}>{m.email} · {perf?.visuals ?? 0} visuals</p>
+                <p className="text-xs truncate" style={{ color: "#9B9690" }}>{m.email} · {perf?.visuals ?? 0} {i18n.t("dashboard.teamX.visuals")}</p>
               </div>
-              {/* Ejer: ser "Gør/Fjern admin" + "Fjern" for alle andre */}
+              {/* Ejer: ser i18n.t("dashboard.teamX.goerFjernAdmin") + "Fjern" for alle andre */}
               {!isMe && iAmOwner && (
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
@@ -8637,12 +8649,12 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                     className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-[#F5F3EF] disabled:opacity-40"
                     style={{ borderColor: "#D9D5CF", color: "#6B6B6B" }}
                     data-testid={`team-toggle-admin-${m.id}`}>
-                    {isAdmin ? "Fjern admin" : "Gør admin"}
+                    {isAdmin ? i18n.t("dashboard.teamX.fjernAdmin") : i18n.t("dashboard.teamX.goerAdmin")}
                   </button>
                   <button onClick={() => removeMemberMutation.mutate(m.id)} disabled={removeMemberMutation.isPending}
                     className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40"
                     style={{ borderColor: "#D9D5CF", color: "#9B9690" }} data-testid={`team-remove-member-${m.id}`}>
-                    Fjern
+                    {i18n.t("dashboard.common.fjern")}
                   </button>
                 </div>
               )}
@@ -8651,7 +8663,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
                 <button onClick={() => removeMemberMutation.mutate(m.id)} disabled={removeMemberMutation.isPending}
                   className="text-xs px-2.5 py-1 rounded-lg border transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40 flex-shrink-0"
                   style={{ borderColor: "#D9D5CF", color: "#9B9690" }} data-testid={`team-remove-member-${m.id}`}>
-                  Fjern
+                  {i18n.t("dashboard.common.fjern")}
                 </button>
               )}
               {/* Normale brugere ser ingenting */}
@@ -8659,7 +8671,7 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
           );
         })}
         {members.length === 0 && (
-          <div className="px-5 py-6 text-sm text-center" style={{ color: "#9B9690" }}>Del invite-koden ovenfor for at tilføje kollegaer.</div>
+          <div className="px-5 py-6 text-sm text-center" style={{ color: "#9B9690" }}>{i18n.t("dashboard.teamX.delInviteKodenOvenforFor")}</div>
         )}
       </div>
 
@@ -8672,22 +8684,22 @@ function TeamView({ user }: { user: import("firebase/auth").User }) {
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold" style={{ color: "#0F1D2F" }}>Tildel credits til medlem</h3>
-                <button aria-label="Luk" onClick={() => setAllocateModal(false)} className="p-1 rounded-lg hover:bg-[#F0EDE7]"><X className="w-4 h-4" style={{ color: "#6B6B6B" }} /></button>
+                <h3 className="text-base font-bold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.teamX.tildelCreditsTilMedlem")}</h3>
+                <button aria-label={i18n.t("dashboard.common.luk")} onClick={() => setAllocateModal(false)} className="p-1 rounded-lg hover:bg-[#F0EDE7]"><X className="w-4 h-4" style={{ color: "#6B6B6B" }} /></button>
               </div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>VÆLG MEDLEM</label>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.vaelgMedlem")}</label>
               <select value={allocateUserId ?? ""} onChange={(e) => setAllocateUserId(Number(e.target.value))}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30" data-testid="team-allocate-member-select">
-                <option value="">Vælg et medlem…</option>
+                <option value="">{i18n.t("dashboard.teamX.vaelgEtMedlem")}</option>
                 {members.map((m) => <option key={m.id} value={m.userId}>{m.email?.split("@")[0] ?? m.userId}</option>)}
               </select>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>ANTAL CREDITS</label>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.teamX.antalCredits")}</label>
               <input type="number" min="1" max={team.creditsRemaining} value={allocateAmount} onChange={(e) => setAllocateAmount(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9D5CF] text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/30" data-testid="team-allocate-amount-input" />
               <button onClick={() => allocateUserId && allocateMutation.mutate({ userId: allocateUserId, amount: parseInt(allocateAmount) })}
                 disabled={!allocateUserId || !allocateAmount || allocateMutation.isPending}
                 className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-40" style={{ background: "#C8956C" }} data-testid="team-allocate-submit">
-                {allocateMutation.isPending ? "Tildeler…" : "Tildel credits"}
+                {allocateMutation.isPending ? i18n.t("dashboard.teamX.tildeler") : i18n.t("dashboard.teamX.tildelCredits")}
               </button>
             </motion.div>
           </motion.div>
@@ -8721,15 +8733,15 @@ type TeamActivityItem = {
 };
 
 const SETTINGS_TABS = [
-  { id: "profil",          label: "Profil",          icon: UserIcon },
-  { id: "udseende",        label: "Udseende",        icon: Palette },
-  { id: "standardvalg",    label: "Standardvalg",    icon: SlidersHorizontal },
-  { id: "notifikationer",  label: "Notifikationer",  icon: Bell },
-  { id: "konto",           label: "Konto",           icon: KeyRound },
+  { id: "profil",          label: "dashboard.settings.tabProfil",         icon: UserIcon },
+  { id: "udseende",        label: "dashboard.settings.tabUdseende",       icon: Palette },
+  { id: "standardvalg",    label: "dashboard.settings.tabStandardvalg",   icon: SlidersHorizontal },
+  { id: "notifikationer",  label: "dashboard.settings.tabNotifikationer", icon: Bell },
+  { id: "konto",           label: "dashboard.settings.tabKonto",          icon: KeyRound },
 ] as const;
 type SettingsTab = typeof SETTINGS_TABS[number]["id"];
 
-const TIER_LABELS: Record<string, string> = { tier1: "Budget", tier2: "Standard", tier3: "Luksus" };
+const TIER_LABELS: Record<string, string> = { tier1: "dashboard.settings.tierBudget", tier2: "dashboard.settings.tierStandard", tier3: "dashboard.settings.tierLuksus" };
 
 const ACCENT_COLORS: Record<string, string> = {
   bronze: "#C8956C",
@@ -8796,9 +8808,9 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
       await updateProfile(user, { displayName: nameInput.trim() });
       const token = await user.getIdToken(true);
       await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } });
-      showToast("Navn opdateret");
+      showToast(i18n.t("dashboard.settings.navnOpdateret"));
     } catch (err: any) {
-      showToast(`Fejl: ${err.message ?? "Kunne ikke gemme"}`);
+      showToast(i18n.t("dashboard.common.fejlMed", { message: err.message ?? i18n.t("dashboard.common.kunneIkkeGemme") }));
     } finally {
       setSavingName(false);
     }
@@ -8831,9 +8843,9 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
     if (!user.email) return;
     try {
       await sendPasswordResetEmail(auth, user.email);
-      showToast("Vi har sendt et link til at skifte password");
+      showToast(i18n.t("dashboard.settings.viHarSendtEtLink"));
     } catch (err: any) {
-      showToast(`Fejl: ${err.message ?? "Kunne ikke sende email"}`);
+      showToast(i18n.t("dashboard.common.fejlMed", { message: err.message ?? i18n.t("dashboard.settings.kunneIkkeSendeEmail") }));
     }
   };
   const handleDeleteAccount = async () => {
@@ -8842,13 +8854,13 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
     try {
       const token = await user.getIdToken();
       const r = await fetch("/api/user/account", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error((await r.json()).message ?? "Fejl");
+      if (!r.ok) throw new Error((await r.json()).message ?? i18n.t("dashboard.common.fejl"));
       if (auth.currentUser) await deleteUser(auth.currentUser);
       queryClient.clear();
       await signOut(auth);
     } catch (err: any) {
       setDeletingAccount(false);
-      showToast(`Fejl: ${err.message ?? "Kunne ikke slette konto"}`);
+      showToast(`Fejl: ${err.message ?? i18n.t("dashboard.settings.kunneIkkeSletteKonto")}`);
     }
   };
   const handleResetData = async () => {
@@ -8856,16 +8868,16 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
     try {
       const token = await user.getIdToken();
       const r = await fetch("/api/bolig/reset-my-data", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error((await r.json()).message ?? "Fejl");
+      if (!r.ok) throw new Error((await r.json()).message ?? i18n.t("dashboard.common.fejl"));
       // Clear guide/preference state from localStorage
       ["forma_agent_prompts_v1","forma_chat_guided_v1","hasSeenFurnitureOnboarding",
        "bolig-accent","bolig-text-mode","bolig-theme","bolig-defaults","bolig-notif","fe-watermark"]
         .forEach(k => localStorage.removeItem(k));
       queryClient.invalidateQueries();
       setResetDataOpen(false);
-      showToast("Alt indhold er nulstillet — du starter på en frisk 🎉");
+      showToast(i18n.t("dashboard.settings.altIndholdErNulstilletDu"));
     } catch (err: any) {
-      showToast(`Fejl: ${err.message ?? "Kunne ikke nulstille"}`);
+      showToast(i18n.t("dashboard.common.fejlMed", { message: err.message ?? i18n.t("dashboard.settings.kunneIkkeNulstille") }));
     } finally {
       setResettingData(false);
     }
@@ -8899,8 +8911,8 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
           <Settings className="w-5 h-5" style={{ color: "#C8956C" }} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>Indstillinger</h2>
-          <p className="text-sm" style={{ color: "#6B6B6B" }}>Tilpas din konto og se live team-aktivitet.</p>
+          <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.indstillinger")}</h2>
+          <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.tilpasDinKontoOgSe")}</p>
         </div>
       </div>
 
@@ -8916,7 +8928,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
               data-testid={`bolig-settings-tab-${t.id}`}
             >
               <Icon className="w-4 h-4" />
-              <span>{t.label}</span>
+              <span>{i18n.t(t.label)}</span>
             </button>
           );
         })}
@@ -8927,25 +8939,25 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
         {tab === "profil" && (
           <div className="space-y-5 max-w-md" data-testid="bolig-settings-profil">
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Navn</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.navn")}</label>
               <input value={nameInput} onChange={(e) => setNameInput(e.target.value)} className={inputClass} style={inputStyle} data-testid="bolig-settings-name-input" />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Email</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.email")}</label>
               <input value={user.email ?? ""} readOnly className={inputClass} style={{ ...inputStyle, color: "#6B6B6B", cursor: "not-allowed" }} data-testid="bolig-settings-email-input" />
-              <p className="text-xs mt-1.5" style={{ color: "#6B6B6B" }}>Email ændres via support.</p>
+              <p className="text-xs mt-1.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.emailAendresViaSupport")}</p>
             </div>
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Profilbillede</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.profilbillede")}</label>
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center text-base font-semibold text-white" style={{ background: "#C8956C" }}>
                   {(displayName || user.email || "?").substring(0, 2).toUpperCase()}
                 </div>
-                <button type="button" className="px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#D9D5CF", color: "#6B6B6B", cursor: "not-allowed" }} title="Snart tilgængelig">Skift billede</button>
+                <button type="button" className="px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#D9D5CF", color: "#6B6B6B", cursor: "not-allowed" }} title={i18n.t("dashboard.common.snartTilgaengelig")}>{i18n.t("dashboard.settings.skiftBillede")}</button>
               </div>
             </div>
             <button onClick={handleSaveName} disabled={savingName || !nameInput.trim() || nameInput.trim() === displayName} className={primaryBtn} style={{ background: "#C8956C" }} data-testid="bolig-settings-save-profil">
-              {savingName ? "Gemmer..." : "Gem"}
+              {savingName ? i18n.t("dashboard.common.gemmer") : i18n.t("dashboard.common.gem")}
             </button>
           </div>
         )}
@@ -8953,9 +8965,9 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
         {tab === "udseende" && (
           <div className="space-y-6" data-testid="bolig-settings-udseende">
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Tema</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.tema")}</label>
               <div className="flex gap-2 flex-wrap">
-                {[{ v: "lys", l: "Lys" }, { v: "mørk", l: "Mørk" }, { v: "auto", l: "Auto" }].map((o) => (
+                {[{ v: "lys", l: i18n.t("dashboard.settings.lys") }, { v: i18n.t("dashboard.settings.moerk"), l: i18n.t("dashboard.settings.moerk2") }, { v: "auto", l: i18n.t("dashboard.settings.auto") }].map((o) => (
                   <button key={o.v} onClick={() => { setTheme(o.v); saveJSON("bolig-theme", o.v); }}
                     className="px-4 py-2 rounded-lg text-sm font-medium border transition-all"
                     style={{ background: theme === o.v ? "#C8956C" : "#fff", color: theme === o.v ? "#fff" : "#0F1D2F", borderColor: theme === o.v ? "#C8956C" : "#D9D5CF" }}
@@ -8963,12 +8975,12 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   >{o.l}</button>
                 ))}
               </div>
-              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>Mørk og auto kommer snart — valg gemmes lokalt.</p>
+              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.moerkOgAutoKommerSnart")}</p>
             </div>
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Accentfarve</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.accentfarve")}</label>
               <div className="flex gap-2 flex-wrap">
-                {[{ v: "navy", c: "#0F1D2F", l: "Navy" }, { v: "bronze", c: "#C8956C", l: "Bronze" }, { v: "blue", c: "#3B82F6", l: "Blå" }, { v: "green", c: "#2D6A4F", l: "Grøn" }, { v: "orange", c: "#F97316", l: "Orange" }, { v: "purple", c: "#8B5CF6", l: "Lilla" }].map((o) => (
+                {[{ v: "navy", c: "#0F1D2F", l: "Navy" }, { v: "bronze", c: "#C8956C", l: "Bronze" }, { v: "blue", c: "#3B82F6", l: i18n.t("dashboard.settings.blaa") }, { v: "green", c: "#2D6A4F", l: i18n.t("dashboard.settings.groen") }, { v: "orange", c: "#F97316", l: "Orange" }, { v: "purple", c: "#8B5CF6", l: i18n.t("dashboard.settings.lilla") }].map((o) => (
                   <button key={o.v} onClick={() => handleAccent(o.v)}
                     className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium border transition-all"
                     style={{ background: accent === o.v ? "#F5F3EF" : "#fff", borderColor: accent === o.v ? o.c : "#D9D5CF", color: "#1A1A1A" }}
@@ -8979,12 +8991,12 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   </button>
                 ))}
               </div>
-              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>Skifter brand-farven (header, knapper, aktive states) live.</p>
+              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.skifterBrandFarvenHeaderKnapper")}</p>
             </div>
             <div>
-              <label className={labelClass} style={{ color: "#1A1A1A" }}>Tekstfarve på brand-elementer</label>
+              <label className={labelClass} style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.settings.tekstfarvePaaBrandElementer")}</label>
               <div className="flex gap-2 flex-wrap">
-                {([{ v: "light", l: "Lys tekst på mørk baggrund" }, { v: "dark", l: "Mørk tekst på lys baggrund" }] as const).map((o) => (
+                {([{ v: "light", l: i18n.t("dashboard.settings.lysTekstPaaMoerkBaggrund") }, { v: "dark", l: i18n.t("dashboard.settings.moerkTekstPaaLysBaggrund") }] as const).map((o) => (
                   <button key={o.v} onClick={() => handleTextMode(o.v)}
                     className="px-4 py-2 rounded-lg text-sm font-medium border transition-all"
                     style={{ background: textMode === o.v ? (ACCENT_COLORS[accent] ?? "#0F1D2F") : "#fff", color: textMode === o.v ? "#fff" : "#1A1A1A", borderColor: textMode === o.v ? (ACCENT_COLORS[accent] ?? "#0F1D2F") : "#D9D5CF" }}
@@ -8992,7 +9004,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   >{o.l}</button>
                 ))}
               </div>
-              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>Vælg om brand-elementer skal vise lys eller mørk tekst.</p>
+              <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.vaelgOmBrandElementerSkal")}</p>
             </div>
           </div>
         )}
@@ -9000,25 +9012,25 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
         {tab === "standardvalg" && (
           <div className="space-y-5 max-w-md" data-testid="bolig-settings-standardvalg">
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Forvalgt rum</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.forvalgtRum")}</label>
               <select value={defaults.room} onChange={(e) => { const v = { ...defaults, room: e.target.value }; setDefaults(v); saveJSON("bolig-defaults", v); }} className={inputClass} style={inputStyle} data-testid="bolig-settings-default-room">
-                {Object.entries(BOLIG_ROOM_LABELS).slice(0, 16).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                {Object.keys(BOLIG_ROOM_LABELS).slice(0, 16).map((k) => <option key={k} value={k}>{roomLabelLocalized(k)}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Forvalgt stil</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.forvalgtStil")}</label>
               <select value={defaults.style} onChange={(e) => { const v = { ...defaults, style: e.target.value }; setDefaults(v); saveJSON("bolig-defaults", v); }} className={inputClass} style={inputStyle} data-testid="bolig-settings-default-style">
-                {Object.entries(BOLIG_STYLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                {Object.keys(BOLIG_STYLE_LABELS).map((k) => <option key={k} value={k}>{styleLabelLocalized(k)}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelClass} style={{ color: "#0F1D2F" }}>Forvalgt format</label>
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.forvalgtFormat")}</label>
               <select value={defaults.format} onChange={(e) => { const v = { ...defaults, format: e.target.value }; setDefaults(v); saveJSON("bolig-defaults", v); }} className={inputClass} style={inputStyle} data-testid="bolig-settings-default-format">
                 {["4:3", "16:9", "1:1", "3:2"].map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
             <div className="space-y-2 pt-2">
-              {([["remember", "Husk seneste valg"], ["lastUpload", "Start med sidste uploadede billede"]] as const).map(([k, l]) => (
+              {([["remember", i18n.t("dashboard.settings.huskSenesteValg")], ["lastUpload", i18n.t("dashboard.settings.startMedSidsteUploadedeBillede")]] as const).map(([k, l]) => (
                 <label key={k} className="flex items-center gap-2.5 cursor-pointer">
                   <input type="checkbox" checked={(defaults as any)[k]} onChange={(e) => { const v = { ...defaults, [k]: e.target.checked }; setDefaults(v); saveJSON("bolig-defaults", v); }}
                     className="w-4 h-4 rounded accent-[#C8956C]" data-testid={`bolig-settings-default-${k}`} />
@@ -9026,20 +9038,20 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                 </label>
               ))}
             </div>
-            <p className="text-xs" style={{ color: "#6B6B6B" }}>Gemmes automatisk lokalt.</p>
+            <p className="text-xs" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.gemmesAutomatiskLokalt")}</p>
           </div>
         )}
 
         {tab === "notifikationer" && (
           <div className="space-y-3 max-w-md" data-testid="bolig-settings-notifikationer">
-            {([["generation", "Email ved ny generering"], ["invite", "Email ved team-invite"], ["weekly", "Email ved ugentlig opsummering"]] as const).map(([k, l]) => (
+            {([["generation", i18n.t("dashboard.settings.emailVedNyGenerering")], ["invite", i18n.t("dashboard.settings.emailVedTeamInvite")], ["weekly", i18n.t("dashboard.settings.emailVedUgentligOpsummering")]] as const).map(([k, l]) => (
               <label key={k} className="flex items-center gap-2.5 cursor-pointer p-3 rounded-lg border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#E8E4DE" }}>
                 <input type="checkbox" checked={(notif as any)[k]} onChange={(e) => { const v = { ...notif, [k]: e.target.checked }; setNotif(v); saveJSON("bolig-notif", v); }}
                   className="w-4 h-4 rounded accent-[#C8956C]" data-testid={`bolig-settings-notif-${k}`} />
                 <span className="text-sm" style={{ color: "#0F1D2F" }}>{l}</span>
               </label>
             ))}
-            <p className="text-xs pt-1" style={{ color: "#6B6B6B" }}>Email-udsendelse kommer snart — valg gemmes lokalt.</p>
+            <p className="text-xs pt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.emailUdsendelseKommerSnartValg")}</p>
           </div>
         )}
 
@@ -9047,26 +9059,26 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
           <div className="space-y-3 max-w-md" data-testid="bolig-settings-konto">
             <button onClick={handlePasswordReset} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-[#F5F3EF]" style={{ borderColor: "#E8E4DE" }} data-testid="bolig-settings-reset-password">
               <div className="text-left">
-                <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Skift password</div>
-                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Vi sender et link til {user.email}</div>
+                <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.skiftPassword")}</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.viSenderEtLinkTil", { email: user.email })}</div>
               </div>
               <ArrowRight className="w-4 h-4" style={{ color: "#6B6B6B" }} />
             </button>
             <button onClick={() => setResetDataOpen(true)} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-orange-50" style={{ borderColor: "#FED7AA" }} data-testid="bolig-settings-reset-data">
               <div className="text-left">
-                <div className="text-sm font-semibold" style={{ color: "#C2410C" }}>Nulstil alt indhold</div>
-                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Sletter alle billeder og sager — kontoen beholdes</div>
+                <div className="text-sm font-semibold" style={{ color: "#C2410C" }}>{i18n.t("dashboard.settings.nulstilAltIndhold")}</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.sletterAlleBillederOgSager")}</div>
               </div>
               <RotateCcw className="w-4 h-4" style={{ color: "#C2410C" }} />
             </button>
             <button onClick={() => setDeleteOpen(true)} className="flex items-center justify-between w-full p-4 rounded-lg border transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5" }} data-testid="bolig-settings-delete-account">
               <div className="text-left">
-                <div className="text-sm font-semibold" style={{ color: "#B91C1C" }}>Slet min konto</div>
-                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>Permanent — kan ikke fortrydes</div>
+                <div className="text-sm font-semibold" style={{ color: "#B91C1C" }}>{i18n.t("dashboard.settings.sletMinKonto")}</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.permanentKanIkkeFortrydes")}</div>
               </div>
               <Trash2 className="w-4 h-4" style={{ color: "#B91C1C" }} />
             </button>
-            <p className="text-xs pt-1" style={{ color: "#6B6B6B" }}>Alle brugere kan slette deres egen konto. Kun ejer og admin kan slette andres konto fra Team-sektionen.</p>
+            <p className="text-xs pt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.alleBrugereKanSletteDeres")}</p>
           </div>
         )}
       </div>
@@ -9078,28 +9090,28 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
             <Activity className="w-4.5 h-4.5" style={{ color: "#C8956C" }} />
           </div>
           <div className="flex-1">
-            <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Live team-aktivitet</div>
-            <div className="text-xs" style={{ color: "#6B6B6B" }}>Opdateres hvert 5. sekund</div>
+            <div className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.liveTeamAktivitet")}</div>
+            <div className="text-xs" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.opdateresHvert5Sekund")}</div>
           </div>
           <span className="flex items-center gap-1.5 text-xs" style={{ color: "#2D6A4F" }}>
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Live
+            {i18n.t("dashboard.settings.live")}
           </span>
         </div>
 
         {teamActivity.length === 0 ? (
           <div className="text-center py-8 text-sm" style={{ color: "#6B6B6B" }} data-testid="bolig-team-activity-empty">
-            Ingen aktivitet endnu. Når dit team begynder at oprette sager og generere billeder, vises det her live.
+            {i18n.t("dashboard.settings.ingenAktivitetEndnuNaarDit")}
           </div>
         ) : (
           <ul className="space-y-1.5" data-testid="bolig-team-activity-list">
             {teamActivity.map((a, i) => {
-              const room = a.roomType ? (BOLIG_ROOM_LABELS[a.roomType] ?? a.roomType) : "";
-              const style = a.style ? (BOLIG_STYLE_LABELS[a.style] ?? a.style) : "";
-              const tier = a.tier ? (TIER_LABELS[a.tier] ?? a.tier) : "";
+              const room = a.roomType ? roomLabelLocalized(a.roomType) : "";
+              const style = a.style ? styleLabelLocalized(a.style) : "";
+              const tier = a.tier ? (TIER_LABELS[a.tier] ? i18n.t(TIER_LABELS[a.tier]) : a.tier) : "";
               const desc = a.type === "generation"
-                ? `genererede ${[room, style, tier].filter(Boolean).join(", ")}`
-                : `oprettede sag "${a.address}"`;
+                ? i18n.t("dashboard.settings.genereredeDesc", { items: [room, style, tier].filter(Boolean).join(", ") })
+                : i18n.t("dashboard.settings.oprettedeSagDesc", { address: a.address });
               return (
                 <li key={`${a.createdAt}-${i}`} className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-[#F5F3EF] transition-colors" data-testid={`bolig-team-activity-item-${i}`}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 mt-0.5" style={{ background: a.type === "generation" ? "#C8956C" : "#0F1D2F" }}>
@@ -9136,10 +9148,10 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-orange-100">
                   <RotateCcw className="w-5 h-5 text-orange-600" />
                 </div>
-                <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Nulstil alt indhold?</h3>
+                <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.nulstilAltIndholdConfirm")}</h3>
               </div>
               <p className="text-sm mb-5" style={{ color: "#6B6B6B" }}>
-                Dette sletter alle dine billeder, sager og nulstiller din kvota til 0. Din konto og dit login beholdes. Handlingen kan <span className="font-semibold">ikke fortrydes</span>.
+                {i18n.t("dashboard.settings.detteSletterAlleDineBilleder")} <span className="font-semibold">{i18n.t("dashboard.settings.ikkeFortrydes")}</span>.
               </p>
               <div className="flex gap-2 justify-end">
                 <button
@@ -9148,7 +9160,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   style={{ borderColor: "#D9D5CF", color: "#0F1D2F" }}
                   disabled={resettingData}
                 >
-                  Annuller
+                  {i18n.t("dashboard.common.annuller")}
                 </button>
                 <button
                   onClick={handleResetData}
@@ -9156,7 +9168,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-40"
                   style={{ background: "#C2410C" }}
                 >
-                  {resettingData ? "Nulstiller..." : "Ja, nulstil alt"}
+                  {resettingData ? "Nulstiller..." : i18n.t("dashboard.settings.jaNulstilAlt")}
                 </button>
               </div>
             </motion.div>
@@ -9174,14 +9186,14 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-100">
                   <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>Slet min konto?</h3>
+                <h3 className="text-lg font-bold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.settings.sletMinKontoConfirm")}</h3>
               </div>
               <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
-                Dette sletter permanent din konto, alle dine sager og alt indhold. Handlingen kan <span className="font-semibold">ikke fortrydes</span>.
+                {i18n.t("dashboard.settings.detteSletterPermanentDinKonto")} <span className="font-semibold">{i18n.t("dashboard.settings.ikkeFortrydes")}</span>.
               </p>
               <div className="mb-4">
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: "#0F1D2F" }}>
-                  Skriv <span className="font-bold text-red-600">SLET</span> for at bekræfte
+                  {i18n.t("dashboard.settings.skriv")} <span className="font-bold text-red-600">SLET</span> {i18n.t("dashboard.settings.forAtBekraefte")}
                 </label>
                 <input
                   value={deleteConfirmText}
@@ -9201,7 +9213,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   data-testid="bolig-delete-account-cancel"
                   disabled={deletingAccount}
                 >
-                  Annuller
+                  {i18n.t("dashboard.common.annuller")}
                 </button>
                 <button
                   onClick={handleDeleteAccount}
@@ -9210,7 +9222,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                   style={{ background: "#B91C1C" }}
                   data-testid="bolig-delete-account-submit"
                 >
-                  {deletingAccount ? "Sletter..." : "Slet konto permanent"}
+                  {deletingAccount ? i18n.t("dashboard.settings.sletter") : i18n.t("dashboard.settings.sletKontoPermanent")}
                 </button>
               </div>
             </motion.div>
@@ -9262,9 +9274,9 @@ export default function BoligpotentialeDashboard() {
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else showToast("Checkout fejlede. Prøv igen.");
+      else showToast(i18n.t("dashboard.billing.checkoutFejledeProevIgen"));
     } catch {
-      showToast("Checkout fejlede. Prøv igen.");
+      showToast(i18n.t("dashboard.billing.checkoutFejledeProevIgen"));
     } finally {
       setPlanCheckoutLoading(null);
     }
@@ -9336,7 +9348,7 @@ export default function BoligpotentialeDashboard() {
     setLocation("/boligpotentiale");
   };
 
-  const displayName = user?.displayName || user?.email?.split("@")[0] || "Mægler";
+  const displayName = user?.displayName || user?.email?.split("@")[0] || i18n.t("dashboard.billing.maegler");
   const initials = displayName.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
 
   // ── Stats query ────────────────────────────────────────────────────────────
@@ -9422,7 +9434,7 @@ export default function BoligpotentialeDashboard() {
         .then((r) => r.json())
         .then((d) => {
           if (d.success) {
-            setToast(`Du er nu med i ${d.teamName}!`);
+            setToast(i18n.t("dashboard.homeX.duErNuMedI", { name: d.teamName }));
             queryClient.invalidateQueries({ queryKey: ["/api/team"] });
           }
         })
@@ -9450,10 +9462,10 @@ export default function BoligpotentialeDashboard() {
   const { data: billingOverview, isLoading: billingOverviewLoading, refetch: refetchBilling } = useQuery<BillingOverview>({
     queryKey: ["/api/billing/overview", user?.uid],
     queryFn: async () => {
-      if (!user) throw new Error("Ikke logget ind");
+      if (!user) throw new Error(i18n.t("dashboard.homeX.ikkeLoggetInd"));
       const token = await user.getIdToken();
       const res = await fetch("/api/billing/overview", { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Fejl ved hentning af faktureringsdata");
+      if (!res.ok) throw new Error(i18n.t("dashboard.billing.fejlVedHentningAfFaktureringsdata"));
       return res.json();
     },
     enabled: !!user && section === "fakturering",
@@ -9470,18 +9482,18 @@ export default function BoligpotentialeDashboard() {
         body: JSON.stringify({ subscriptionId }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
-        throw new Error(err.error || "Fejl ved opsigelse");
+        const err = await res.json().catch(() => ({ error: i18n.t("dashboard.common.ukendtFejl") }));
+        throw new Error(err.error || i18n.t("dashboard.billing.fejlVedOpsigelse"));
       }
       return res.json();
     },
     onSuccess: () => {
       setCancelConfirming(false);
       refetchBilling();
-      setToast("Abonnement opsagt — du bevarer adgang til udløbsdatoen.");
+      setToast(i18n.t("dashboard.billing.abonnementOpsagtDuBevarerAdgang"));
     },
     onError: (err: Error) => {
-      setToast(`Fejl: ${err.message}`);
+      setToast(i18n.t("dashboard.common.fejlMed", { message: err.message }));
       setCancelConfirming(false);
     },
   });
@@ -9495,13 +9507,13 @@ export default function BoligpotentialeDashboard() {
         body: JSON.stringify({ subscriptionId }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
-        throw new Error(err.error || "Fejl ved genaktivering");
+        const err = await res.json().catch(() => ({ error: i18n.t("dashboard.common.ukendtFejl") }));
+        throw new Error(err.error || i18n.t("dashboard.billing.fejlVedGenaktivering"));
       }
       return res.json();
     },
-    onSuccess: () => { refetchBilling(); setToast("Abonnement genaktiveret — opsigelsen er fortrudt."); },
-    onError: (err: Error) => { setToast(`Fejl: ${err.message}`); },
+    onSuccess: () => { refetchBilling(); setToast(i18n.t("dashboard.billing.abonnementGenaktiveretOpsigelsenErFortrudt")); },
+    onError: (err: Error) => { setToast(i18n.t("dashboard.common.fejlMed", { message: err.message })); },
   });
 
   const pauseSubscriptionMutation = useMutation({
@@ -9513,13 +9525,13 @@ export default function BoligpotentialeDashboard() {
         body: JSON.stringify({ subscriptionId }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
-        throw new Error(err.error || "Fejl ved pausering");
+        const err = await res.json().catch(() => ({ error: i18n.t("dashboard.common.ukendtFejl") }));
+        throw new Error(err.error || i18n.t("dashboard.billing.fejlVedPausering"));
       }
       return res.json();
     },
-    onSuccess: () => { refetchBilling(); setToast("Abonnement sat på pause — ingen opkrævning i pauseperioden."); },
-    onError: (err: Error) => { setToast(`Fejl: ${err.message}`); },
+    onSuccess: () => { refetchBilling(); setToast(i18n.t("dashboard.billing.abonnementSatPaaPauseIngen")); },
+    onError: (err: Error) => { setToast(i18n.t("dashboard.common.fejlMed", { message: err.message })); },
   });
 
   const resumeSubscriptionMutation = useMutation({
@@ -9531,13 +9543,13 @@ export default function BoligpotentialeDashboard() {
         body: JSON.stringify({ subscriptionId }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Ukendt fejl" }));
-        throw new Error(err.error || "Fejl ved genoptagelse");
+        const err = await res.json().catch(() => ({ error: i18n.t("dashboard.common.ukendtFejl") }));
+        throw new Error(err.error || i18n.t("dashboard.billing.fejlVedGenoptagelse"));
       }
       return res.json();
     },
-    onSuccess: () => { refetchBilling(); setToast("Abonnement genoptaget — fakturering fortsætter normalt."); },
-    onError: (err: Error) => { setToast(`Fejl: ${err.message}`); },
+    onSuccess: () => { refetchBilling(); setToast(i18n.t("dashboard.billing.abonnementGenoptagetFaktureringFortsaetterNormalt")); },
+    onError: (err: Error) => { setToast(i18n.t("dashboard.common.fejlMed", { message: err.message })); },
   });
 
   // ── Create case mutation ───────────────────────────────────────────────────
@@ -9551,8 +9563,8 @@ export default function BoligpotentialeDashboard() {
         body: JSON.stringify({ address, caseNo: caseNo || null, notes: notes || null, marketDateISO: isoToday }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: "Kunne ikke oprette sag" }));
-        throw new Error(err.message ?? "Kunne ikke oprette sag");
+        const err = await res.json().catch(() => ({ message: i18n.t("dashboard.common.kunneIkkeOpretteSag") }));
+        throw new Error(err.message ?? i18n.t("dashboard.common.kunneIkkeOpretteSag"));
       }
       return res.json() as Promise<ApiCase>;
     },
@@ -9566,13 +9578,13 @@ export default function BoligpotentialeDashboard() {
       setPrevSection(section);
       setSelectedCaseId(newCase.id);
       setSection("sag-detail");
-      showToast(`Sag oprettet: ${newCase.address}`);
+      showToast(i18n.t("dashboard.homeX.sagOprettet", { address: newCase.address }));
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       }, 100);
     },
     onError: (err: any) => {
-      showToast(`Fejl: ${err.message ?? "Kunne ikke oprette sag. Prøv igen."}`);
+      showToast(i18n.t("dashboard.common.fejlMed", { message: err.message ?? i18n.t("dashboard.billing.kunneIkkeOpretteSagProev") }));
     },
   });
 
@@ -9663,7 +9675,7 @@ export default function BoligpotentialeDashboard() {
                 cursor: isLocked ? "default" : "pointer",
               }}
               data-testid={`bolig-nav-${item.id}`}
-              title={isLocked ? "Denne funktion er ikke inkluderet i din pakke" : undefined}
+              title={isLocked ? i18n.t("dashboard.billing.denneFunktionErIkkeInkluderet") : undefined}
             >
               {item.icon}
               <span className="md:inline flex-1">{item.label}</span>
@@ -9768,8 +9780,8 @@ export default function BoligpotentialeDashboard() {
         <Link href="/">
           <img
             src={formaEstatesLogo}
-            alt="Forma Estates – tilbage til forsiden"
-            title="Tilbage til forsiden"
+            alt={i18n.t("dashboard.homeX.formaEstatesTilbageTilForsiden")}
+            title={i18n.t("dashboard.homeX.tilbageTilForsiden")}
             className="h-12 md:h-16 w-auto max-w-[170px] md:max-w-[240px] object-contain select-none cursor-pointer"
             style={{ filter: "brightness(0) invert(1)" }}
             data-testid="bolig-topbar-logo"
@@ -9925,8 +9937,8 @@ export default function BoligpotentialeDashboard() {
                 <Link href="/" onClick={() => setSidebarOpen(false)}>
                   <img
                     src={formaEstatesLogo}
-                    alt="Forma Estates – tilbage til forsiden"
-                    title="Tilbage til forsiden"
+                    alt={i18n.t("dashboard.homeX.formaEstatesTilbageTilForsiden")}
+                    title={i18n.t("dashboard.homeX.tilbageTilForsiden")}
                     className="h-32 w-auto mb-4 mt-2 cursor-pointer"
                     style={{ filter: "brightness(0) invert(1)" }}
                     data-testid="bolig-sidebar-logo"
@@ -9962,7 +9974,7 @@ export default function BoligpotentialeDashboard() {
                   </div>
                   <h2 className="text-lg font-semibold mb-1" style={{ color: "#F5F3EF" }}>{t("dashboard.home.chooseHowToStart")}</h2>
                   <p className="text-sm mb-5" style={{ color: "rgba(245,243,239,0.65)" }}>
-                    {t("dashboard.home.freeVisualizationsLeft", { count: trialAiLeft })} — prøv direkte eller opret en sag og generer derfra.
+                    {t("dashboard.home.freeVisualizationsLeft", { count: trialAiLeft })} — {i18n.t("dashboard.homeX.proevDirekteEllerOpretSag")}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button
@@ -9998,7 +10010,7 @@ export default function BoligpotentialeDashboard() {
                         {t("dashboard.home.aiAgentDesc")}
                       </p>
                       <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "#C8956C" }}>
-                        Prøv Design Agent <ArrowRight className="w-3.5 h-3.5 animate-bounce-x-r" />
+                        {i18n.t("dashboard.homeX.proevDesignAgent")} <ArrowRight className="w-3.5 h-3.5 animate-bounce-x-r" />
                       </span>
                     </button>
                     <button
@@ -10031,7 +10043,7 @@ export default function BoligpotentialeDashboard() {
                   onClick={() => {
                     setFeaturesHintDismissed(true);
                     window.dispatchEvent(new CustomEvent("openSupportChat", {
-                      detail: { autoMessage: "Gennemgå alle Forma Estates funktioner kort for mig — hvad kan jeg bruge platformen til?" }
+                      detail: { autoMessage: i18n.t("dashboard.homeX.gennemgaaAlleFormaEstatesFunktioner") }
                     }));
                   }}
                   data-testid="features-hint-banner"
@@ -10055,15 +10067,15 @@ export default function BoligpotentialeDashboard() {
 
               {/* Statistik — 6 kort */}
               <div className="mb-6" data-testid="bolig-stats">
-                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>Overblik</h2>
+                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.overblik")}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { value: stats ? String(stats.todayImages) : "—", label: "I dag" },
-                    { value: stats ? String(stats.totalImages) : "—", label: "Visuals i alt" },
-                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: "Aktive sager" },
-                    { value: stats ? String(stats.soldCases) : String(soldCount), label: "Solgte sager" },
-                    { value: stats ? String(stats.totalCases) : String(cases.length), label: "Sager i alt" },
-                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: "Dage på marked" },
+                    { value: stats ? String(stats.todayImages) : "—", label: i18n.t("dashboard.homeX.iDag") },
+                    { value: stats ? String(stats.totalImages) : "—", label: i18n.t("dashboard.homeX.visualsIAlt") },
+                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: i18n.t("dashboard.homeX.aktiveSager") },
+                    { value: stats ? String(stats.soldCases) : String(soldCount), label: i18n.t("dashboard.homeX.solgteSager") },
+                    { value: stats ? String(stats.totalCases) : String(cases.length), label: i18n.t("dashboard.homeX.sagerIAlt") },
+                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: i18n.t("dashboard.homeX.dagePaaMarked") },
                   ].map((s, i) => (
                     <div key={i} className="rounded-xl p-4 border border-[#E8E4DE] hover:shadow-sm transition-shadow overflow-hidden" style={{ background: "#fff" }} data-testid={`bolig-stat-${i}`}>
                       <div className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.value}</div>
@@ -10083,7 +10095,7 @@ export default function BoligpotentialeDashboard() {
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>{t("dashboard.nav.allCases")}</h2>
                   <button onClick={() => setSection("sager")} className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "#C8956C" }} data-testid="bolig-see-all-cases">
-                    Se alle <ArrowUpRight className="w-3.5 h-3.5" />
+                    {i18n.t("dashboard.homeX.seAlle")} <ArrowUpRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 {casesLoading ? (
@@ -10103,11 +10115,11 @@ export default function BoligpotentialeDashboard() {
                         <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ background: "#F5F3EF" }} data-testid={`bolig-case-card-${c.id}`}>
                           <div className="relative h-36">
                             <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
-                            <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visualisering" : "visualiseringer"}</span>
+                            <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{i18n.t("dashboard.homeX.visualiseringCount", { count: c.imageCount })}</span>
                           </div>
                           <div className="p-3">
                             <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
-                            <p className="text-xs mb-2" style={{ color: "#6B6B6B" }}>{days} dage på markedet</p>
+                            <p className="text-xs mb-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.homeX.dagePaaMarkedet", { days })}</p>
                             <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{t("dashboard.case.statusActive").split(" ")[0]}</span>
                           </div>
                         </div>
@@ -10132,7 +10144,7 @@ export default function BoligpotentialeDashboard() {
                       <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{soldCount}</span>
                     </div>
                     <button onClick={() => setSection("solgte")} className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "#C8956C" }} data-testid="bolig-see-sold-cases">
-                      Se alle <ArrowUpRight className="w-3.5 h-3.5" />
+                      {i18n.t("dashboard.homeX.seAlle")} <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -10157,16 +10169,16 @@ export default function BoligpotentialeDashboard() {
                 {[
                   {
                     eyebrow: "AI Design Agent",
-                    title: "Beskriv din vision",
-                    desc: "Fortæl AI'en hvad du ønsker — den omsætter det til et færdigt design.",
+                    title: i18n.t("dashboard.homeX.beskrivDinVision"),
+                    desc: i18n.t("dashboard.homeX.fortaelAiEnHvadDu"),
                     icon: <PenTool className="w-5 h-5" style={{ color: "#C8956C" }} />,
                     section: "ai-design-agent" as Section,
                     testId: "bolig-feature-ai-agent",
                   },
                   {
                     eyebrow: "Bolig Showcase",
-                    title: "Vis potentialet",
-                    desc: "Præsentér boligens fulde potentiale med professionelle visualiseringer.",
+                    title: i18n.t("dashboard.homeX.visPotentialet"),
+                    desc: i18n.t("dashboard.homeX.praesenteRBoligensFuldePotentiale"),
                     icon: <Film className="w-5 h-5" style={{ color: "#C8956C" }} />,
                     section: "showcase-video" as Section,
                     testId: "bolig-feature-showcase",
@@ -10187,7 +10199,7 @@ export default function BoligpotentialeDashboard() {
                     <h3 className="text-base font-semibold mb-1.5" style={{ color: "#0F1D2F" }}>{f.title}</h3>
                     <p className="text-sm leading-relaxed mb-4" style={{ color: "#6B6B6B" }}>{f.desc}</p>
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold transition-all group-hover:gap-2.5" style={{ color: "#0F1D2F" }}>
-                      Se mere <ArrowUpRight className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
+                      {i18n.t("dashboard.homeX.seMere")} <ArrowUpRight className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
                     </span>
                   </button>
                 ))}
@@ -10198,7 +10210,7 @@ export default function BoligpotentialeDashboard() {
 
                 {/* Venstre: Hurtig-handlinger + Genbrug seneste */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-quick-actions">
-                  <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Hurtige handlinger</h2>
+                  <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.hurtigeHandlinger")}</h2>
                   <div className="flex flex-wrap gap-3 mb-6">
                     <button onClick={() => setSection("upload")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90" style={{ background: "#C8956C" }} data-testid="bolig-quick-upload">
                       <Upload className="w-4 h-4" /> {t("dashboard.wizard.uploadImageLabel")}
@@ -10209,14 +10221,14 @@ export default function BoligpotentialeDashboard() {
                   </div>
                   {recentImages.length > 0 && (
                     <>
-                      <h3 className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>Genbrug seneste valg</h3>
+                      <h3 className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.genbrugSenesteValg")}</h3>
                       <div className="space-y-2">
                         {recentImages.map((img) => (
                           <div key={img.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F5F3EF] transition-colors" data-testid={`bolig-reuse-${img.id}`}>
                             <img src={img.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-[#E8E4DE]" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>{BOLIG_ROOM_LABELS[img.roomType] ?? img.roomType}</p>
-                              <p className="text-[11px]" style={{ color: "#9B9690" }}>{BOLIG_STYLE_LABELS[img.style] ?? img.style} · {img.budgetTier.replace("tier", "T")}</p>
+                              <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>{roomLabelLocalized(img.roomType)}</p>
+                              <p className="text-[11px]" style={{ color: "#9B9690" }}>{styleLabelLocalized(img.style)} · {img.budgetTier.replace("tier", "T")}</p>
                             </div>
                             {img.caseId && (
                               <button
@@ -10225,7 +10237,7 @@ export default function BoligpotentialeDashboard() {
                                 style={{ color: "#C8956C", borderColor: "rgba(200,149,108,0.35)" }}
                                 data-testid={`bolig-reuse-btn-${img.id}`}
                               >
-                                Genbrug
+                                {i18n.t("dashboard.common.genbrug")}
                               </button>
                             )}
                           </div>
@@ -10238,9 +10250,9 @@ export default function BoligpotentialeDashboard() {
                 {/* Højre: Seneste aktivitet + Mest brugte */}
                 <div className="flex flex-col gap-4">
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-activity">
-                    <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>Seneste aktivitet</h2>
+                    <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.senesteAktivitet")}</h2>
                     {activity.length === 0 ? (
-                      <p className="text-sm" style={{ color: "#9B9690" }}>Ingen aktivitet endnu.</p>
+                      <p className="text-sm" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.ingenAktivitetEndnu")}</p>
                     ) : (
                       <div className="space-y-1">
                         {activity.map((item, i) => (
@@ -10256,7 +10268,7 @@ export default function BoligpotentialeDashboard() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium leading-snug truncate" style={{ color: "#1A1A1A" }}>
-                                  Design Agent{item.promptText ? `: "${item.promptText.slice(0, 30)}${item.promptText.length > 30 ? "…" : ""}"` : ""}
+                                  {i18n.t("dashboard.homeX.designAgent")}{item.promptText ? `: "${item.promptText.slice(0, 30)}${item.promptText.length > 30 ? "…" : ""}"` : ""}
                                 </p>
                                 <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
                               </div>
@@ -10278,8 +10290,8 @@ export default function BoligpotentialeDashboard() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium leading-snug" style={{ color: "#1A1A1A" }}>
-                                  {BOLIG_ROOM_LABELS[item.roomType ?? ""] ?? item.roomType}
-                                  {" · "}{BOLIG_STYLE_LABELS[item.style ?? ""] ?? item.style}
+                                  {roomLabelLocalized(item.roomType ?? "")}
+                                  {" · "}{styleLabelLocalized(item.style ?? "")}
                                   {" · "}{item.tier?.replace("tier", "T")}
                                 </p>
                                 <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
@@ -10294,7 +10306,7 @@ export default function BoligpotentialeDashboard() {
                                 <Home className="w-4 h-4" style={{ color: "#9B9690" }} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>Sag "{item.address}" oprettet</p>
+                                <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.sagOprettetActivity", { address: item.address })}</p>
                                 <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
                               </div>
                             </div>
@@ -10309,7 +10321,7 @@ export default function BoligpotentialeDashboard() {
 
               {/* Dine mest brugte valg — fuld bredde under begge kolonner */}
               <div className="rounded-2xl p-6 border border-[#E8E4DE] mt-4" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
-                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>Dine standardvalg</h2>
+                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.dineStandardvalg")}</h2>
                 {!mostUsed ? (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[0, 1, 2].map((i) => (
@@ -10325,13 +10337,13 @@ export default function BoligpotentialeDashboard() {
                     ))}
                   </div>
                 ) : mostUsed.styles.length === 0 && mostUsed.rooms.length === 0 && mostUsed.tiers.length === 0 ? (
-                  <p className="text-sm" style={{ color: "#9B9690" }}>Generer dit første billede for at se statistik her.</p>
+                  <p className="text-sm" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.genererDitFoersteBilledeFor")}</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[
-                      { title: "Stil", items: mostUsed.styles, labelFn: (k: string) => BOLIG_STYLE_LABELS[k] ?? k },
-                      { title: "Rum", items: mostUsed.rooms, labelFn: (k: string) => BOLIG_ROOM_LABELS[k] ?? k },
-                      { title: "Budget", items: mostUsed.tiers, labelFn: (k: string) => k.replace("tier", "T") },
+                      { title: i18n.t("dashboard.homeX.statStil"), items: mostUsed.styles, labelFn: (k: string) => styleLabelLocalized(k) },
+                      { title: i18n.t("dashboard.homeX.statRum"), items: mostUsed.rooms, labelFn: (k: string) => roomLabelLocalized(k) },
+                      { title: i18n.t("dashboard.homeX.statBudget"), items: mostUsed.tiers, labelFn: (k: string) => k.replace("tier", "T") },
                     ].map((col) => {
                       const max = col.items[0]?.count ?? 1;
                       return (
@@ -10414,7 +10426,7 @@ export default function BoligpotentialeDashboard() {
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{t("dashboard.nav.allCases")}</h1>
-                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{filteredCases.length} sag{filteredCases.length !== 1 ? "er" : ""} i alt</p>
+                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.homeX.sagIAltCount", { count: filteredCases.length })}</p>
                 </div>
                 <button onClick={() => setModal("newSag")} className="inline-flex items-center gap-2 h-10 px-5 rounded-full font-semibold text-sm text-white" style={{ background: "#C8956C" }} data-testid="bolig-sager-new">
                   <Plus className="w-4 h-4" /> {t("dashboard.nav.newCase")}
@@ -10447,7 +10459,7 @@ export default function BoligpotentialeDashboard() {
                           <div key={c.id} onClick={() => openCase(c.id)} className="rounded-xl overflow-hidden border border-[#E8E4DE] cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md bg-white" data-testid={`bolig-case-card-${c.id}`}>
                             <div className="relative h-40">
                               <CaseThumb src={c.latestImageUrl} alt={c.address} className="w-full h-full object-cover" />
-                              <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{c.imageCount} {c.imageCount === 1 ? "visualisering" : "visualiseringer"}</span>
+                              <span className="absolute top-2 right-2 text-[11px] font-medium text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>{i18n.t("dashboard.homeX.visualiseringCount", { count: c.imageCount })}</span>
                             </div>
                             <div className="p-4">
                               <h3 className="text-sm font-semibold truncate mb-0.5" style={{ color: "#1A1A1A" }}>{c.address}</h3>
@@ -10503,15 +10515,15 @@ export default function BoligpotentialeDashboard() {
                 caseData={c}
                 onBack={closeCase}
                 onDeleted={() => {
-                  showToast("Sag slettet");
+                  showToast(i18n.t("dashboard.homeX.sagSlettet"));
                   closeCase();
                 }}
                 onStatusChanged={(newStatus) => {
                   if (newStatus === "sold") {
-                    showToast("Sag markeret som solgt");
+                    showToast(i18n.t("dashboard.homeX.sagMarkeretSomSolgt"));
                     closeCase();
                   } else {
-                    showToast("Sag genaktiveret");
+                    showToast(i18n.t("dashboard.homeX.sagGenaktiveret"));
                   }
                 }}
               />
@@ -10534,7 +10546,7 @@ export default function BoligpotentialeDashboard() {
                   <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{t("dashboard.nav.soldCases")}</h1>
                   <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{t("dashboard.case.statusSold")}</p>
                 </div>
-                <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{soldCount} solgt</span>
+                <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{i18n.t("dashboard.homeX.nSolgt", { count: soldCount })}</span>
               </div>
               {casesLoading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -10550,8 +10562,8 @@ export default function BoligpotentialeDashboard() {
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: "#F0EDE7" }}>
                     <PackageCheck className="w-7 h-7" style={{ color: "#C8956C" }} />
                   </div>
-                  <h2 className="text-lg font-bold mb-2" style={{ color: "#0F1D2F" }}>Ingen solgte sager endnu</h2>
-                  <p className="text-sm" style={{ color: "#6B6B6B" }}>Marker en aktiv sag som solgt for at se den her.</p>
+                  <h2 className="text-lg font-bold mb-2" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.homeX.ingenSolgteSagerEndnu")}</h2>
+                  <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.homeX.markerEnAktivSagSom")}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -10566,7 +10578,7 @@ export default function BoligpotentialeDashboard() {
                         <p className="text-xs mb-2" style={{ color: "#9B9690" }}>{c.soldDateISO ? `${t("dashboard.case.statusSold")} ${c.soldDateISO}` : t("dashboard.case.statusSold")}</p>
                         <div className="flex items-center justify-between">
                           <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.1)", color: "#2D6A4F" }}>{t("dashboard.case.statusSold")}</span>
-                          <span className="text-[11px]" style={{ color: "#9B9690" }}>{c.imageCount} {c.imageCount === 1 ? "visualisering" : "visualiseringer"}</span>
+                          <span className="text-[11px]" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.visualiseringCount", { count: c.imageCount })}</span>
                         </div>
                       </div>
                     </div>
@@ -10603,8 +10615,8 @@ export default function BoligpotentialeDashboard() {
           {section === "pris" && (
             <motion.div key="pris-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>Pris</h2>
-                <p className="text-sm" style={{ color: "#6B6B6B" }}>Vælg den plan der passer til dit behov.</p>
+                <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.pricing.pris")}</h2>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.pricing.vaelgDenPlanDerPasser")}</p>
               </div>
               <div className="inline-flex items-center rounded-full border p-1 gap-1 mb-6" style={{ borderColor: "#E5E2DC", background: "#F8F6F3" }} data-testid="settings-billing-toggle">
                 <button
@@ -10613,7 +10625,7 @@ export default function BoligpotentialeDashboard() {
                   style={{ background: planBilling === "monthly" ? "#0F1D2F" : "transparent", color: planBilling === "monthly" ? "#fff" : "#6B6B6B" }}
                   data-testid="settings-billing-monthly"
                 >
-                  Månedlig
+                  {i18n.t("dashboard.pricing.maanedlig")}
                 </button>
                 <button
                   onClick={() => setPlanBilling("yearly")}
@@ -10621,23 +10633,23 @@ export default function BoligpotentialeDashboard() {
                   style={{ background: planBilling === "yearly" ? "#0F1D2F" : "transparent", color: planBilling === "yearly" ? "#fff" : "#6B6B6B" }}
                   data-testid="settings-billing-yearly"
                 >
-                  Årlig
+                  {i18n.t("dashboard.pricing.aarlig")}
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: planBilling === "yearly" ? "rgba(200,149,108,0.35)" : "rgba(200,149,108,0.15)", color: "#C8956C" }}>
-                    Spar 20%
+                    {i18n.t("dashboard.common.spar20")}
                   </span>
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5" data-testid="settings-pricing-grid">
                 {[
                   {
-                    name: "Start",
+                    name: i18n.t("dashboard.pricing.start"),
                     price: "2.999",
                     priceYearly: "2.399",
                     yearlyTotal: "28.788",
-                    period: "kr./ måned",
-                    desc: "Til dig der vil i gang med professionelle AI-visualiseringer.",
-                    features: ["10 AI Visualiseringer / md.", "2 3D Plantegninger / md.", "2 Transformering Videoer / md.", "1 Bolig Showcase / md.", "HD 1080p · JPG + PNG", "Logo branding (til/fra)", "Standard support"],
-                    cta: "Vælg Start",
+                    period: i18n.t("dashboard.pricing.krMaaned"),
+                    desc: i18n.t("dashboard.pricing.tilDigDerVilI"),
+                    features: [i18n.t("dashboard.pricing.startFeat1"), i18n.t("dashboard.pricing.startFeat2"), i18n.t("dashboard.pricing.startFeat3"), i18n.t("dashboard.pricing.startFeat4"), i18n.t("dashboard.pricing.startFeat5"), i18n.t("dashboard.pricing.startFeat6"), i18n.t("dashboard.pricing.startFeat7")],
+                    cta: i18n.t("dashboard.pricing.vaelgStart"),
                     highlight: false,
                     custom: false,
                   },
@@ -10646,10 +10658,10 @@ export default function BoligpotentialeDashboard() {
                     price: "5.999",
                     priceYearly: "4.799",
                     yearlyTotal: "57.588",
-                    period: "kr./ måned",
-                    desc: "Til aktive mæglere med løbende behov for professionelle visualiseringer.",
-                    features: ["25 AI Visualiseringer / md.", "5 3D Plantegninger / md.", "5 Transformering Videoer / md.", "3 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Prioriteret support"],
-                    cta: "Vælg Pro",
+                    period: i18n.t("dashboard.pricing.krMaaned"),
+                    desc: i18n.t("dashboard.pricing.tilAktiveMaeglereMedLoebende"),
+                    features: [i18n.t("dashboard.pricing.proFeat1"), i18n.t("dashboard.pricing.proFeat2"), i18n.t("dashboard.pricing.proFeat3"), i18n.t("dashboard.pricing.proFeat4"), i18n.t("dashboard.pricing.proFeat5"), i18n.t("dashboard.pricing.proFeat6"), i18n.t("dashboard.pricing.proFeat7")],
+                    cta: i18n.t("dashboard.pricing.vaelgPro"),
                     highlight: true,
                     custom: false,
                   },
@@ -10658,10 +10670,10 @@ export default function BoligpotentialeDashboard() {
                     price: "11.999",
                     priceYearly: "9.599",
                     yearlyTotal: "115.188",
-                    period: "kr./ måned",
-                    desc: "Til bureauer og mæglerkæder med høj volumen.",
-                    features: ["60 AI Visualiseringer / md.", "12 3D Plantegninger / md.", "12 Transformering Videoer / md.", "8 Bolig Showcase / md.", "4K · JPG + PNG + PDF", "Fuld branding-kontrol", "Dedikeret support"],
-                    cta: "Vælg Business",
+                    period: i18n.t("dashboard.pricing.krMaaned"),
+                    desc: i18n.t("dashboard.pricing.tilBureauerOgMaeglerkaederMed"),
+                    features: [i18n.t("dashboard.pricing.busFeat1"), i18n.t("dashboard.pricing.busFeat2"), i18n.t("dashboard.pricing.busFeat3"), i18n.t("dashboard.pricing.busFeat4"), i18n.t("dashboard.pricing.busFeat5"), i18n.t("dashboard.pricing.busFeat6"), i18n.t("dashboard.pricing.busFeat7")],
+                    cta: i18n.t("dashboard.pricing.vaelgBusiness"),
                     highlight: false,
                     custom: false,
                   },
@@ -10677,7 +10689,7 @@ export default function BoligpotentialeDashboard() {
                   >
                     {plan.highlight && (
                       <div className="text-[10px] font-bold mb-3 px-2.5 py-1 rounded-full self-start tracking-wider" style={{ background: "#C8956C", color: "#fff" }}>
-                        MEST POPULÆR
+                        {i18n.t("dashboard.pricing.mestPopulaer")}
                       </div>
                     )}
                     <div className="font-bold text-base mb-1" style={{ color: plan.highlight ? "#C8956C" : "#6B6B6B" }}>{plan.name}</div>
@@ -10690,7 +10702,7 @@ export default function BoligpotentialeDashboard() {
                       </span>
                     </div>
                     <p className="text-xs mb-3" style={{ color: plan.highlight ? "rgba(255,255,255,0.55)" : "#9B9690", minHeight: 16 }}>
-                      {planBilling === "yearly" ? `faktureres ${plan.yearlyTotal} kr. årligt` : "\u00A0"}
+                      {planBilling === "yearly" ? i18n.t("dashboard.pricing.faktureresAarligt", { amount: plan.yearlyTotal }) : "\u00A0"}
                     </p>
                     <p className="text-sm mb-6 leading-relaxed" style={{ color: plan.highlight ? "rgba(255,255,255,0.7)" : "#6B6B6B" }}>{plan.desc}</p>
                     <ul className="space-y-2.5 mb-7 flex-1">
@@ -10717,7 +10729,7 @@ export default function BoligpotentialeDashboard() {
                       }}
                       data-testid={`settings-pricing-cta-${plan.name.toLowerCase()}`}
                     >
-                      {planCheckoutLoading === plan.name ? "Åbner Stripe…" : plan.cta}
+                      {planCheckoutLoading === plan.name ? i18n.t("dashboard.pricing.aabnerStripe") : plan.cta}
                     </button>
                   </div>
                 ))}
@@ -10728,7 +10740,7 @@ export default function BoligpotentialeDashboard() {
                 <div className="flex-1 h-px" style={{ background: "#E5E2DC" }} />
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest whitespace-nowrap"
                   style={{ border: "1px solid #E5E2DC", background: "#F8F6F3", color: "#6B6B6B" }}>
-                  Enterprise — byg din plan
+                  {i18n.t("dashboard.common.enterpriseBygDinPlan")}
                 </div>
                 <div className="flex-1 h-px" style={{ background: "#E5E2DC" }} />
               </div>
@@ -10739,14 +10751,14 @@ export default function BoligpotentialeDashboard() {
           {section === "fakturering" && (
             <motion.div key="fakturering-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F" }}>Fakturering</h2>
-                <p className="text-sm" style={{ color: "#6B6B6B" }}>Oversigt over dit abonnement og betalingshistorik.</p>
+                <h2 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.billing.fakturering")}</h2>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.oversigtOverDitAbonnementOg")}</p>
               </div>
 
               {billingOverviewLoading ? (
                 <div className="flex items-center gap-3 py-16 text-sm" style={{ color: "#6B6B6B" }}>
                   <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                  Henter faktureringsdata…
+                  {i18n.t("dashboard.billing.henterFaktureringsdata")}
                 </div>
               ) : (
                 <>
@@ -10756,12 +10768,12 @@ export default function BoligpotentialeDashboard() {
                       <div className="px-6 py-5 border-b" style={{ borderColor: "#E5E2DC", background: "#F8F6F1" }}>
                         <div className="flex items-center justify-between flex-wrap gap-3">
                           <div>
-                            <p className="text-xs font-semibold tracking-wider uppercase mb-1" style={{ color: "#C8956C" }}>Nuværende abonnement</p>
+                            <p className="text-xs font-semibold tracking-wider uppercase mb-1" style={{ color: "#C8956C" }}>{i18n.t("dashboard.pricing.nuvaerendeAbonnement")}</p>
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="text-xl font-bold" style={{ color: "#0F1D2F" }}>
                                 {billingOverview?.subscription?.tierName
-                                  ?? (subscriptionTier && ({ start: "Start Plan", pro: "Pro Plan", business: "Business Plan", custom: "Tilpasset pakke" } as Record<string, string>)[subscriptionTier])
-                                  ?? "Aktiv plan"}
+                                  ?? (subscriptionTier && ({ start: i18n.t("dashboard.pricing.startPlan"), pro: "Pro Plan", business: "Business Plan", custom: i18n.t("dashboard.billing.tilpassetPakke") } as Record<string, string>)[subscriptionTier])
+                                  ?? i18n.t("dashboard.billing.aktivPlan")}
                               </h3>
                               <span
                                 className="px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -10770,7 +10782,7 @@ export default function BoligpotentialeDashboard() {
                                   color: billingOverview?.subscription?.cancelAtPeriodEnd ? "#92400E" : "#166534",
                                 }}
                               >
-                                {billingOverview?.subscription?.cancelAtPeriodEnd ? "Opsiges" : "Aktiv ✓"}
+                                {billingOverview?.subscription?.cancelAtPeriodEnd ? i18n.t("dashboard.billing.opsiges") : i18n.t("dashboard.billing.aktivCheck")}
                               </span>
                             </div>
                           </div>
@@ -10780,7 +10792,7 @@ export default function BoligpotentialeDashboard() {
                             style={{ background: "#0F1D2F", color: "#fff" }}
                             data-testid="billing-upgrade-button"
                           >
-                            Skift plan
+                            {i18n.t("dashboard.common.skiftPlan")}
                           </button>
                         </div>
                       </div>
@@ -10791,41 +10803,41 @@ export default function BoligpotentialeDashboard() {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
                               {billingOverview.subscription.startDate && (
                                 <div>
-                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Startdato</p>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.startdato")}</p>
                                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                    {new Date(billingOverview.subscription.startDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                    {new Date(billingOverview.subscription.startDate).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                                   </p>
                                 </div>
                               )}
                               {billingOverview.subscription.nextBillingDate && !billingOverview.subscription.cancelAtPeriodEnd && (
                                 <div>
-                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Næste betaling</p>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.pricing.naesteBetaling")}</p>
                                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                    {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                    {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                                   </p>
                                 </div>
                               )}
                               {billingOverview.subscription.cancelAtPeriodEnd && billingOverview.subscription.nextBillingDate && (
                                 <div>
-                                  <p className="text-xs mb-1" style={{ color: "#92400E" }}>Adgang til og med</p>
+                                  <p className="text-xs mb-1" style={{ color: "#92400E" }}>{i18n.t("dashboard.billing.adgangTilOgMed")}</p>
                                   <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
-                                    {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                    {new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                                   </p>
                                 </div>
                               )}
                               {billingOverview.subscription.amount != null && (
                                 <div>
-                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Månedligt beløb</p>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.pricing.maanedligtBeloeb")}</p>
                                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                    {billingOverview.subscription.amount.toLocaleString("da-DK")} kr. inkl. moms
+                                    {i18n.t("dashboard.billing.krInklMoms", { amount: billingOverview.subscription.amount.toLocaleString(localeTag()) })}
                                   </p>
                                 </div>
                               )}
                               {billingOverview.subscription.nextBillingDate && (
                                 <div>
-                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>Betalingsdag</p>
+                                  <p className="text-xs mb-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.betalingsdag")}</p>
                                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                                    {new Date(billingOverview.subscription.nextBillingDate).getDate()}. hver måned
+                                    {i18n.t("dashboard.pricing.hverMaaned", { day: new Date(billingOverview.subscription.nextBillingDate).getDate() })}
                                   </p>
                                 </div>
                               )}
@@ -10838,7 +10850,7 @@ export default function BoligpotentialeDashboard() {
                                 {/* Pauset tilstand */}
                                 {billingOverview.subscription.paused && (
                                   <div className="flex items-center justify-between flex-wrap gap-3">
-                                    <p className="text-sm" style={{ color: "#92400E" }}>⏸ Abonnement på pause — ingen opkrævning indtil du genoptager.</p>
+                                    <p className="text-sm" style={{ color: "#92400E" }}>{i18n.t("dashboard.pricing.abonnementPaaPauseIngenOpkraevning")}</p>
                                     <button
                                       onClick={() => resumeSubscriptionMutation.mutate(billingOverview.subscription!.stripeSubscriptionId!)}
                                       disabled={resumeSubscriptionMutation.isPending}
@@ -10846,7 +10858,7 @@ export default function BoligpotentialeDashboard() {
                                       style={{ background: "#166534", color: "#fff" }}
                                       data-testid="billing-resume-button"
                                     >
-                                      {resumeSubscriptionMutation.isPending ? "Genoptager…" : "Genoptag abonnement"}
+                                      {resumeSubscriptionMutation.isPending ? i18n.t("dashboard.billing.genoptager") : i18n.t("dashboard.billing.genoptagAbonnement")}
                                     </button>
                                   </div>
                                 )}
@@ -10855,10 +10867,10 @@ export default function BoligpotentialeDashboard() {
                                 {billingOverview.subscription.cancelAtPeriodEnd && (
                                   <div className="flex items-center justify-between flex-wrap gap-3">
                                     <p className="text-sm" style={{ color: "#92400E" }}>
-                                      ⚠ Opsiges den{" "}
+                                      {i18n.t("dashboard.billing.opsigesDen")}{" "}
                                       <span className="font-semibold">
                                         {billingOverview.subscription.nextBillingDate
-                                          ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
+                                          ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })
                                           : "—"}
                                       </span>
                                     </p>
@@ -10869,7 +10881,7 @@ export default function BoligpotentialeDashboard() {
                                       style={{ background: "#0F1D2F", color: "#fff" }}
                                       data-testid="billing-reactivate-button"
                                     >
-                                      {reactivateSubscriptionMutation.isPending ? "Genaktiverer…" : "Fortryd opsigelse"}
+                                      {reactivateSubscriptionMutation.isPending ? i18n.t("dashboard.billing.genaktiverer") : i18n.t("dashboard.billing.fortrydOpsigelse")}
                                     </button>
                                   </div>
                                 )}
@@ -10886,7 +10898,7 @@ export default function BoligpotentialeDashboard() {
                                           style={{ color: "#6B6B6B" }}
                                           data-testid="billing-pause-button"
                                         >
-                                          {pauseSubscriptionMutation.isPending ? "Sætter på pause…" : "Sæt på pause"}
+                                          {pauseSubscriptionMutation.isPending ? i18n.t("dashboard.pricing.saetterPaaPause") : i18n.t("dashboard.pricing.saetPaaPause")}
                                         </button>
                                         <span style={{ color: "#D1CEC9" }}>|</span>
                                         <button
@@ -10895,17 +10907,17 @@ export default function BoligpotentialeDashboard() {
                                           style={{ color: "#DC2626" }}
                                           data-testid="billing-cancel-button"
                                         >
-                                          Opsig abonnement
+                                          {i18n.t("dashboard.common.opsigAbonnement")}
                                         </button>
                                       </>
                                     ) : (
                                       <div className="flex items-start gap-4 flex-wrap">
                                         <p className="text-sm" style={{ color: "#0F1D2F" }}>
-                                          Er du sikker? Du bevarer adgang til{" "}
+                                          {i18n.t("dashboard.billing.erDuSikkerDuBevarer")}{" "}
                                           <span className="font-semibold">
                                             {billingOverview.subscription.nextBillingDate
-                                              ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })
-                                              : "udløbsdatoen"}
+                                              ? new Date(billingOverview.subscription.nextBillingDate).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })
+                                              : i18n.t("dashboard.pricing.udloebsdatoen")}
                                           </span>.
                                         </p>
                                         <div className="flex items-center gap-2">
@@ -10916,14 +10928,14 @@ export default function BoligpotentialeDashboard() {
                                             style={{ background: "#DC2626", color: "#fff" }}
                                             data-testid="billing-cancel-confirm"
                                           >
-                                            {cancelSubscriptionMutation.isPending ? "Opsiger…" : "Opsig alligevel"}
+                                            {cancelSubscriptionMutation.isPending ? i18n.t("dashboard.billing.opsiger") : i18n.t("dashboard.billing.opsigAlligevel")}
                                           </button>
                                           <button
                                             onClick={() => setCancelConfirming(false)}
                                             className="px-3 py-1.5 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
                                             style={{ background: "#F0EDE8", color: "#0F1D2F" }}
                                           >
-                                            Fortryd
+                                            {i18n.t("dashboard.common.fortryd")}
                                           </button>
                                         </div>
                                       </div>
@@ -10936,10 +10948,10 @@ export default function BoligpotentialeDashboard() {
                         ) : (
                           <div className="py-6 text-center">
                             <p className="text-sm mb-3" style={{ color: "#6B6B6B" }}>
-                              Dit abonnement administreres manuelt eller er endnu ikke tilknyttet et betalingssystem.
+                              {i18n.t("dashboard.common.ditAbonnementAdministreresManueltEller")}
                             </p>
                             <p className="text-xs" style={{ color: "#9CA3AF" }}>
-                              Kontakt os på <span className="font-semibold">kontakt@formaestates.com</span> for at opsige eller ændre dit abonnement.
+                              {i18n.t("dashboard.pricing.contactUsAt")} <span className="font-semibold">kontakt@formaestates.com</span> {i18n.t("dashboard.pricing.toCancelOrChange")}
                             </p>
                           </div>
                         )}
@@ -10949,33 +10961,33 @@ export default function BoligpotentialeDashboard() {
 
                   {subscriptionStatus !== "active" && !billingOverviewLoading && (
                     <div className="rounded-2xl border p-8 mb-6 text-center" style={{ borderColor: "#E5E2DC", background: "#F8F6F1" }}>
-                      <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>Du har ikke et aktivt abonnement.</p>
+                      <p className="text-sm mb-4" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.duHarIkkeEtAktivt")}</p>
                       <button
                         onClick={() => setSection("pris")}
                         className="px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
                         style={{ background: "#C8956C", color: "#fff" }}
                       >
-                        Se abonnementer
+                        {i18n.t("dashboard.common.seAbonnementer")}
                       </button>
                     </div>
                   )}
 
                   {/* ── Betalingshistorik ── */}
                   <div>
-                    <h3 className="text-lg font-bold mb-4" style={{ color: "#0F1D2F" }}>Betalingshistorik</h3>
+                    <h3 className="text-lg font-bold mb-4" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.billing.betalingshistorik")}</h3>
                     {!billingOverview?.invoices?.length ? (
                       <div className="rounded-2xl border p-8 text-center" style={{ background: "#F8F6F1", borderColor: "#E5E2DC" }} data-testid="billing-history-empty">
-                        <p className="text-sm" style={{ color: "#6B6B6B" }}>Ingen betalinger registreret endnu.</p>
+                        <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.ingenBetalingerRegistreretEndnu")}</p>
                       </div>
                     ) : (
                       <div className="rounded-2xl border overflow-hidden" style={{ background: "#FFFFFF", borderColor: "#E5E2DC" }}>
                         {/* Tabeloverskrift — kun desktop */}
                         <div className="hidden md:grid gap-4 px-5 py-3 border-b text-[11px] font-semibold tracking-widest uppercase" style={{ gridTemplateColumns: "1fr 130px 110px 140px 130px", borderColor: "#E5E2DC", color: "#6B6B6B", background: "#F8F6F1" }}>
-                          <span>Beskrivelse</span>
-                          <span className="text-right">Ekskl. moms</span>
-                          <span className="text-right">Moms 25%</span>
-                          <span className="text-right">I alt inkl. moms</span>
-                          <span className="text-right">Kvittering</span>
+                          <span>{i18n.t("dashboard.billing.beskrivelse")}</span>
+                          <span className="text-right">{i18n.t("dashboard.billing.eksklMoms")}</span>
+                          <span className="text-right">{i18n.t("dashboard.billing.moms25")}</span>
+                          <span className="text-right">{i18n.t("dashboard.billing.iAltInklMoms")}</span>
+                          <span className="text-right">{i18n.t("dashboard.billing.kvittering")}</span>
                         </div>
                         {billingOverview.invoices.map((inv) => (
                           <div key={inv.invoiceNumber} className="border-b last:border-b-0 px-5 py-4" style={{ borderColor: "#E5E2DC" }} data-testid={`billing-invoice-${inv.invoiceNumber}`}>
@@ -10985,28 +10997,28 @@ export default function BoligpotentialeDashboard() {
                                 <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{inv.description}</p>
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <span className="text-xs" style={{ color: "#6B6B6B" }}>
-                                    {new Date(inv.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                                    {new Date(inv.date).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                                   </span>
                                   <span className="text-xs" style={{ color: "#D1CFC9" }}>·</span>
                                   <span className="text-xs font-mono" style={{ color: "#6B6B6B" }}>{inv.invoiceNumber}</span>
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>BETALT</span>
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>{i18n.t("dashboard.billing.betalt")}</span>
                                 </div>
                               </div>
                               {/* Beløbskolonner — desktop */}
                               <div className="hidden md:contents text-sm text-right">
                                 <span className="w-[130px] shrink-0" style={{ color: "#0F1D2F" }}>
-                                  {inv.amountExclVat.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                  {inv.amountExclVat.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                                 </span>
                                 <span className="w-[110px] shrink-0" style={{ color: "#0F1D2F" }}>
-                                  {inv.vatAmount.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                  {inv.vatAmount.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                                 </span>
                                 <span className="w-[140px] shrink-0 font-bold" style={{ color: "#0F1D2F" }}>
-                                  {inv.amountTotal.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                  {inv.amountTotal.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                                 </span>
                               </div>
                               {/* Beløb — mobil */}
                               <span className="md:hidden text-sm font-bold" style={{ color: "#0F1D2F" }}>
-                                {inv.amountTotal.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                                {inv.amountTotal.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                               </span>
                               {/* Se kvittering */}
                               <button
@@ -11015,7 +11027,7 @@ export default function BoligpotentialeDashboard() {
                                 style={{ background: "#F0EDE8", color: "#0F1D2F" }}
                                 data-testid={`billing-receipt-${inv.invoiceNumber}`}
                               >
-                                <FileText className="w-3.5 h-3.5" /> Se kvittering
+                                <FileText className="w-3.5 h-3.5" /> {i18n.t("dashboard.billing.seKvittering")}
                               </button>
                             </div>
                           </div>
@@ -11046,13 +11058,13 @@ export default function BoligpotentialeDashboard() {
                 <p className="text-xs" style={{ color: "#6B6B6B" }}>formaestates.com</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold tracking-widest uppercase mb-1" style={{ color: "#C8956C" }}>FAKTURA</p>
+                <p className="text-[10px] font-bold tracking-widest uppercase mb-1" style={{ color: "#C8956C" }}>{i18n.t("dashboard.billing.faktura")}</p>
                 <p className="text-sm font-bold" style={{ color: "#0F1D2F" }}>{invoiceModal.invoiceNumber}</p>
                 <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>
-                  Fakturadato: {new Date(invoiceModal.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                  {i18n.t("dashboard.billing.fakturadato")} {new Date(invoiceModal.date).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                 </p>
                 <p className="text-xs" style={{ color: "#6B6B6B" }}>
-                  Forfaldsdato: {new Date(invoiceModal.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                  {i18n.t("dashboard.billing.forfaldsdato")} {new Date(invoiceModal.date).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
             </div>
@@ -11061,15 +11073,15 @@ export default function BoligpotentialeDashboard() {
               {/* ── Fra / Til ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 py-4 border-t border-b" style={{ borderColor: "#E5E2DC" }}>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Fra</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.fra")}</p>
                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>Forma Estates ApS</p>
                   <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>CVR: 46551796</p>
                   <p className="text-xs break-all" style={{ color: "#6B6B6B" }}>kontakt@formaestates.com</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>Til</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.billing.til")}</p>
                   <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>
-                    {billingOverview?.customer?.name ?? billingOverview?.customer?.email ?? "Kunde"}
+                    {billingOverview?.customer?.name ?? billingOverview?.customer?.email ?? i18n.t("dashboard.billing.kunde")}
                   </p>
                   {billingOverview?.customer?.name && (
                     <p className="text-xs mt-0.5" style={{ color: "#6B6B6B" }}>{billingOverview.customer.email}</p>
@@ -11080,8 +11092,8 @@ export default function BoligpotentialeDashboard() {
               {/* ── Linjepost ── */}
               <div className="mt-5 mb-5">
                 <div className="grid grid-cols-[1fr_auto] gap-4 pb-2 border-b text-[10px] font-semibold uppercase tracking-widest" style={{ borderColor: "#E5E2DC", color: "#6B6B6B" }}>
-                  <span>Ydelse</span>
-                  <span className="text-right">Beløb ekskl. moms</span>
+                  <span>{i18n.t("dashboard.billing.ydelse")}</span>
+                  <span className="text-right">{i18n.t("dashboard.pricing.beloebEksklMoms")}</span>
                 </div>
                 <div className="grid grid-cols-[1fr_auto] gap-4 py-3 border-b text-sm" style={{ borderColor: "#E5E2DC" }}>
                   <div>
@@ -11089,7 +11101,7 @@ export default function BoligpotentialeDashboard() {
                     <p className="text-xs mt-0.5 capitalize" style={{ color: "#6B6B6B" }}>{invoiceModal.period}</p>
                   </div>
                   <span className="font-medium text-right" style={{ color: "#0F1D2F" }}>
-                    {invoiceModal.amountExclVat.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                    {invoiceModal.amountExclVat.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                   </span>
                 </div>
               </div>
@@ -11097,16 +11109,16 @@ export default function BoligpotentialeDashboard() {
               {/* ── Totaler ── */}
               <div className="space-y-2 mb-5">
                 <div className="flex justify-between text-sm" style={{ color: "#6B6B6B" }}>
-                  <span>Subtotal ekskl. moms</span>
-                  <span>{invoiceModal.amountExclVat.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
+                  <span>{i18n.t("dashboard.billing.subtotalEksklMoms")}</span>
+                  <span>{invoiceModal.amountExclVat.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
                 </div>
                 <div className="flex justify-between text-sm" style={{ color: "#6B6B6B" }}>
-                  <span>Moms ({invoiceModal.vatRate}%)</span>
-                  <span>{invoiceModal.vatAmount.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
+                  <span>{i18n.t("dashboard.billing.momsRate", { rate: invoiceModal.vatRate })}</span>
+                  <span>{invoiceModal.vatAmount.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
                 </div>
                 <div className="flex justify-between text-base font-bold pt-3 border-t" style={{ borderColor: "#E5E2DC", color: "#0F1D2F" }}>
-                  <span>I alt inkl. moms</span>
-                  <span>{invoiceModal.amountTotal.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
+                  <span>{i18n.t("dashboard.billing.iAltInklMoms")}</span>
+                  <span>{invoiceModal.amountTotal.toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</span>
                 </div>
               </div>
 
@@ -11114,7 +11126,7 @@ export default function BoligpotentialeDashboard() {
               <div className="rounded-xl px-4 py-3 mb-6 flex items-center gap-2" style={{ background: "#DCFCE7" }}>
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "#166534" }} />
                 <p className="text-sm font-semibold" style={{ color: "#166534" }}>
-                  Betalt den {new Date(invoiceModal.date).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}
+                  {i18n.t("dashboard.billing.betaltDen")} {new Date(invoiceModal.date).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
             </div>
@@ -11134,7 +11146,7 @@ export default function BoligpotentialeDashboard() {
                 </a>
               ) : (
                 <span className="text-xs" style={{ color: "#6B6B6B" }}>
-                  PDF-faktura genereres af Stripe ved næste fornyelses-betaling
+                  {i18n.t("dashboard.pricing.pdfFakturaGenereresAfStripe")}
                 </span>
               )}
               <button
@@ -11143,7 +11155,7 @@ export default function BoligpotentialeDashboard() {
                 style={{ background: "#F0EDE8", color: "#0F1D2F" }}
                 data-testid="invoice-modal-close"
               >
-                Luk
+                {i18n.t("dashboard.common.luk")}
               </button>
             </div>
           </div>
@@ -11181,7 +11193,7 @@ export default function BoligpotentialeDashboard() {
             ) : (
               <img
                 src={activityLightbox.src}
-                alt="Genereret billede"
+                alt={i18n.t("dashboard.common.genereretBillede")}
                 className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               />
