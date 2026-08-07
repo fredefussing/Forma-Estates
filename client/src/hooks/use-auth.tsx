@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "x-lang": localStorage.getItem("forma-lang") || "da",
         },
       });
       if (res.ok) {
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const freshToken = await firebaseUser.getIdToken(true);
         const retry = await fetch("/api/auth/verify", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${freshToken}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${freshToken}`, "x-lang": localStorage.getItem("forma-lang") || "da" },
         });
         if (retry.ok) {
           const data = await retry.json();

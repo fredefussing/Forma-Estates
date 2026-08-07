@@ -7,6 +7,143 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MailCheck, ArrowLeft } from "lucide-react";
 
+type Lang = "da" | "en" | "sv" | "de" | "nb" | "es" | "fr";
+
+const VL: Record<Lang, {
+  title: string; subtitle: (email: string) => JSX.Element;
+  verifying: string; verify: string; noCode: string;
+  resendIn: (s: number) => string; resend: string;
+  spamNote: string; back: string; codeSent: string;
+  waitMsg: string; sendFailed: string; connFailed: string;
+  verifyFailed: string; connVerifyFailed: string; verified: string;
+}> = {
+  da: {
+    title: "Bekræft din email",
+    subtitle: (e) => <><strong className="text-foreground">{e}</strong> — indtast den 6-cifrede kode vi har sendt.</>,
+    verifying: "Bekræfter...", verify: "Bekræft kode",
+    noCode: "Fik du ikke koden?",
+    resendIn: (s) => `Send igen om ${s} sek.`,
+    resend: "Send ny kode",
+    spamNote: "Tjek også din spam-mappe. Koden er gyldig i 15 minutter.",
+    back: "Tilbage til opret (skrev du forkert email?)",
+    codeSent: "Ny kode sendt! Tjek din indbakke.",
+    waitMsg: "Vent et øjeblik før du beder om en ny kode.",
+    sendFailed: "Kunne ikke sende koden. Prøv igen.",
+    connFailed: "Kunne ikke sende koden. Tjek din forbindelse og prøv igen.",
+    verifyFailed: "Forkert kode. Prøv igen.",
+    connVerifyFailed: "Der skete en fejl. Prøv igen.",
+    verified: "Email bekræftet! Sender dig videre...",
+  },
+  en: {
+    title: "Verify your email",
+    subtitle: (e) => <>We sent a 6-digit code to <strong className="text-foreground">{e}</strong>. Enter it here to activate your account.</>,
+    verifying: "Verifying...", verify: "Verify code",
+    noCode: "Didn't receive the code?",
+    resendIn: (s) => `Resend in ${s}s`,
+    resend: "Resend code",
+    spamNote: "Also check your spam folder. The code is valid for 15 minutes.",
+    back: "Back to sign up (wrong email?)",
+    codeSent: "New code sent! Check your inbox.",
+    waitMsg: "Please wait before requesting a new code.",
+    sendFailed: "Could not send the code. Please try again.",
+    connFailed: "Could not send the code. Check your connection and try again.",
+    verifyFailed: "Incorrect code. Please try again.",
+    connVerifyFailed: "Something went wrong. Please try again.",
+    verified: "Email verified! Redirecting...",
+  },
+  sv: {
+    title: "Bekräfta din e-post",
+    subtitle: (e) => <>Vi skickade en 6-siffrig kod till <strong className="text-foreground">{e}</strong>. Ange den här för att aktivera ditt konto.</>,
+    verifying: "Verifierar...", verify: "Bekräfta kod",
+    noCode: "Fick du inte koden?",
+    resendIn: (s) => `Skicka igen om ${s}s`,
+    resend: "Skicka ny kod",
+    spamNote: "Kontrollera även skräpposten. Koden är giltig i 15 minuter.",
+    back: "Tillbaka till registrering (fel e-post?)",
+    codeSent: "Ny kod skickad! Kolla inkorgen.",
+    waitMsg: "Vänta ett ögonblick innan du begär en ny kod.",
+    sendFailed: "Det gick inte att skicka koden. Försök igen.",
+    connFailed: "Det gick inte att skicka koden. Kontrollera din anslutning.",
+    verifyFailed: "Fel kod. Försök igen.",
+    connVerifyFailed: "Något gick fel. Försök igen.",
+    verified: "E-post verifierad! Omdirigerar...",
+  },
+  de: {
+    title: "E-Mail bestätigen",
+    subtitle: (e) => <>Wir haben einen 6-stelligen Code an <strong className="text-foreground">{e}</strong> gesendet. Gib ihn hier ein, um dein Konto zu aktivieren.</>,
+    verifying: "Wird bestätigt...", verify: "Code bestätigen",
+    noCode: "Keinen Code erhalten?",
+    resendIn: (s) => `Erneut senden in ${s}s`,
+    resend: "Neuen Code senden",
+    spamNote: "Überprüfe auch deinen Spam-Ordner. Der Code ist 15 Minuten gültig.",
+    back: "Zurück zur Registrierung (falsche E-Mail?)",
+    codeSent: "Neuer Code gesendet! Überprüfe deinen Posteingang.",
+    waitMsg: "Bitte warte, bevor du einen neuen Code anforderst.",
+    sendFailed: "Code konnte nicht gesendet werden. Bitte erneut versuchen.",
+    connFailed: "Code konnte nicht gesendet werden. Verbindung prüfen.",
+    verifyFailed: "Falscher Code. Bitte erneut versuchen.",
+    connVerifyFailed: "Ein Fehler ist aufgetreten. Bitte erneut versuchen.",
+    verified: "E-Mail bestätigt! Weiterleitung...",
+  },
+  nb: {
+    title: "Bekreft e-postadressen",
+    subtitle: (e) => <>Vi sendte en 6-sifret kode til <strong className="text-foreground">{e}</strong>. Skriv den inn her for å aktivere kontoen din.</>,
+    verifying: "Bekrefter...", verify: "Bekreft kode",
+    noCode: "Fikk du ikke koden?",
+    resendIn: (s) => `Send igjen om ${s}s`,
+    resend: "Send ny kode",
+    spamNote: "Sjekk også spam-mappen. Koden er gyldig i 15 minutter.",
+    back: "Tilbake til registrering (feil e-post?)",
+    codeSent: "Ny kode sendt! Sjekk innboksen din.",
+    waitMsg: "Vent litt før du ber om en ny kode.",
+    sendFailed: "Kunne ikke sende koden. Prøv igjen.",
+    connFailed: "Kunne ikke sende koden. Sjekk tilkoblingen din.",
+    verifyFailed: "Feil kode. Prøv igjen.",
+    connVerifyFailed: "Noe gikk galt. Prøv igjen.",
+    verified: "E-post bekreftet! Omdirigerer...",
+  },
+  es: {
+    title: "Verifica tu correo electrónico",
+    subtitle: (e) => <>Hemos enviado un código de 6 dígitos a <strong className="text-foreground">{e}</strong>. Introdúcelo aquí para activar tu cuenta.</>,
+    verifying: "Verificando...", verify: "Verificar código",
+    noCode: "¿No recibiste el código?",
+    resendIn: (s) => `Reenviar en ${s}s`,
+    resend: "Reenviar código",
+    spamNote: "Revisa también tu carpeta de spam. El código es válido durante 15 minutos.",
+    back: "Volver al registro (¿correo incorrecto?)",
+    codeSent: "¡Nuevo código enviado! Revisa tu bandeja de entrada.",
+    waitMsg: "Espera un momento antes de solicitar un nuevo código.",
+    sendFailed: "No se pudo enviar el código. Inténtalo de nuevo.",
+    connFailed: "No se pudo enviar el código. Comprueba tu conexión.",
+    verifyFailed: "Código incorrecto. Inténtalo de nuevo.",
+    connVerifyFailed: "Algo salió mal. Inténtalo de nuevo.",
+    verified: "¡Correo verificado! Redirigiendo...",
+  },
+  fr: {
+    title: "Vérifiez votre adresse e-mail",
+    subtitle: (e) => <>Nous avons envoyé un code à 6 chiffres à <strong className="text-foreground">{e}</strong>. Entrez-le ici pour activer votre compte.</>,
+    verifying: "Vérification...", verify: "Vérifier le code",
+    noCode: "Vous n'avez pas reçu le code ?",
+    resendIn: (s) => `Renvoyer dans ${s}s`,
+    resend: "Renvoyer le code",
+    spamNote: "Vérifiez également vos spams. Le code est valable 15 minutes.",
+    back: "Retour à l'inscription (mauvaise adresse ?)",
+    codeSent: "Nouveau code envoyé ! Vérifiez votre boîte de réception.",
+    waitMsg: "Attendez un moment avant de demander un nouveau code.",
+    sendFailed: "Impossible d'envoyer le code. Veuillez réessayer.",
+    connFailed: "Impossible d'envoyer le code. Vérifiez votre connexion.",
+    verifyFailed: "Code incorrect. Veuillez réessayer.",
+    connVerifyFailed: "Une erreur est survenue. Veuillez réessayer.",
+    verified: "E-mail vérifié ! Redirection en cours...",
+  },
+};
+
+function getLang(): Lang {
+  const stored = (localStorage.getItem("forma-lang") || "da").toLowerCase().split("-")[0];
+  const supported: Lang[] = ["da", "en", "sv", "de", "nb", "es", "fr"];
+  return (supported.includes(stored as Lang) ? stored : "da") as Lang;
+}
+
 export default function VerifyEmailPage() {
   const { user, loading: authLoading, emailVerified, refreshVerification } = useAuth();
   const [code, setCode] = useState("");
@@ -17,6 +154,7 @@ export default function VerifyEmailPage() {
   const sentRef = useRef(false);
   const leavingRef = useRef(false);
   const [, setLocation] = useLocation();
+  const s = VL[getLang()];
 
   const redirect = new URLSearchParams(window.location.search).get("redirect") || "/boligpotentiale/dashboard";
 
@@ -51,16 +189,16 @@ export default function VerifyEmailPage() {
           setLocation(redirect);
           return;
         }
-        setInfo(isResend ? "Ny kode sendt! Tjek din indbakke." : "");
+        setInfo(isResend ? s.codeSent : "");
         setResendCooldown(60);
       } else if (res.status === 429 && data.retryAfterSeconds) {
         setResendCooldown(data.retryAfterSeconds);
-        if (isResend) setError(data.message || "Vent et øjeblik før du beder om en ny kode.");
+        if (isResend) setError(s.waitMsg);
       } else {
-        setError(data.message || "Kunne ikke sende koden. Prøv igen.");
+        setError(s.sendFailed);
       }
     } catch {
-      setError("Kunne ikke sende koden. Tjek din forbindelse og prøv igen.");
+      setError(s.connFailed);
     }
   };
 
@@ -87,15 +225,15 @@ export default function VerifyEmailPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setInfo("Email bekræftet! Sender dig videre...");
+        setInfo(s.verified);
         await refreshVerification();
         setLocation(redirect);
       } else {
-        setError(data.message || "Forkert kode. Prøv igen.");
+        setError(data.message || s.verifyFailed);
         if (data.needsNewCode) setCode("");
       }
     } catch {
-      setError("Der skete en fejl. Prøv igen.");
+      setError(s.connVerifyFailed);
     } finally {
       setVerifying(false);
     }
@@ -120,9 +258,9 @@ export default function VerifyEmailPage() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">Bekræft din email</h1>
+        <h1 className="text-2xl font-bold text-center mb-1" data-testid="text-title">{s.title}</h1>
         <p className="text-center text-muted-foreground mb-8" data-testid="text-subtitle">
-          Vi har sendt en 6-cifret kode til <strong className="text-foreground">{user.email}</strong>. Indtast den her for at aktivere din konto.
+          {s.subtitle(user.email ?? "")}
         </p>
 
         <form onSubmit={handleVerify} className="space-y-5">
@@ -140,7 +278,7 @@ export default function VerifyEmailPage() {
           />
 
           <Button type="submit" className="w-full h-12 text-base" disabled={verifying || code.length !== 6} data-testid="button-verify-code">
-            {verifying ? "Bekræfter..." : "Bekræft kode"}
+            {verifying ? s.verifying : s.verify}
           </Button>
 
           {error && <p className="text-destructive text-sm text-center" data-testid="text-error">{error}</p>}
@@ -148,9 +286,9 @@ export default function VerifyEmailPage() {
         </form>
 
         <p className="text-center mt-6 text-sm text-muted-foreground">
-          Fik du ikke koden?{" "}
+          {s.noCode}{" "}
           {resendCooldown > 0 ? (
-            <span data-testid="text-resend-cooldown">Send igen om {resendCooldown} sek.</span>
+            <span data-testid="text-resend-cooldown">{s.resendIn(resendCooldown)}</span>
           ) : (
             <button
               type="button"
@@ -158,11 +296,11 @@ export default function VerifyEmailPage() {
               className="text-[#1a1a1a] underline cursor-pointer font-medium"
               data-testid="button-resend-code"
             >
-              Send ny kode
+              {s.resend}
             </button>
           )}
         </p>
-        <p className="text-center mt-2 text-xs text-muted-foreground">Tjek også din spam-mappe. Koden er gyldig i 15 minutter.</p>
+        <p className="text-center mt-2 text-xs text-muted-foreground">{s.spamNote}</p>
 
         <button
           type="button"
@@ -175,7 +313,7 @@ export default function VerifyEmailPage() {
           data-testid="button-back-to-signup"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Tilbage til opret (skrev du forkert email?)
+          {s.back}
         </button>
       </div>
     </div>
