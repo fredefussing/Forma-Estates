@@ -7562,51 +7562,47 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           </div>
         )}
 
-        {/* Generate button — QuotaGate only for first (quota-charging) generation;
-            re-prompts on an existing result are free refinements and bypass the gate. */}
+        {/* Generate button — QuotaGate only for first (quota-charging) generation
+            when idle. During loading the gate is bypassed so the background
+            quota-poll (30 s) can't swap the spinner for an upgrade banner before
+            the image has arrived. Refinements are always free and never gated. */}
         <div>
-          {savedDesignId ? (
+          {stage === "loading" ? (
+            // Active generation — always show spinner, never show quota gate
+            <button
+              disabled
+              className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
+              style={{ background: "#0F1D2F" }}
+              data-testid="bolig-agent-generate"
+            >
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              {savedDesignId ? "Tilpasser billede..." : "Genererer billede..."}
+            </button>
+          ) : savedDesignId ? (
             // Refinement path: free, no quota gate
             <button
               onClick={handleGenerate}
-              disabled={!promptText.trim() || stage === "loading"}
+              disabled={!promptText.trim()}
               className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: "#0F1D2F" }}
               data-testid="bolig-agent-generate"
             >
-              {stage === "loading" ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Tilpasser billede...
-                </>
-              ) : (
-                <><Sparkles className="w-4 h-4" /> Tilpas billede</>
-              )}
+              <Sparkles className="w-4 h-4" /> Tilpas billede
             </button>
           ) : (
             // First generation: costs 1 AI quota credit, gated by QuotaGate
             <QuotaGate feature="ai">
               <button
                 onClick={handleGenerate}
-                disabled={!imageFile || !promptText.trim() || stage === "loading"}
+                disabled={!imageFile || !promptText.trim()}
                 className="h-12 px-8 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: "#0F1D2F" }}
                 data-testid="bolig-agent-generate"
               >
-                {stage === "loading" ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                    </svg>
-                    Genererer billede...
-                  </>
-                ) : (
-                  <><Sparkles className="w-4 h-4" /> Generer nyt billede</>
-                )}
+                <Sparkles className="w-4 h-4" /> Generer nyt billede
               </button>
             </QuotaGate>
           )}
