@@ -889,13 +889,23 @@ export async function registerRoutes(
 
   app.post("/api/auth/send-verification-code", async (req, res) => {
     let uid: string;
+    let tokenEmail: string;
     try {
-      ({ uid } = await verifyFirebaseToken(req.headers.authorization));
+      ({ uid, email: tokenEmail } = await verifyFirebaseToken(req.headers.authorization));
     } catch {
       return res.status(401).json({ message: "Unauthorized" });
     }
     try {
-      const user = await storage.getUserByFirebaseUid(uid);
+      let user = await storage.getUserByFirebaseUid(uid);
+      // Fallback: look up by email and link UID (same as /api/auth/verify)
+      if (!user && tokenEmail) {
+        const byEmail = await storage.getUserByEmail(tokenEmail);
+        if (byEmail) {
+          await pool.query("UPDATE users SET firebase_uid = $1 WHERE id = $2", [uid, byEmail.id]);
+          user = { ...byEmail, firebaseUid: uid };
+          log(`[send-code] Linked Firebase UID via email fallback: ${tokenEmail}`);
+        }
+      }
       if (!user) return res.status(401).json({ message: "Unauthorized" });
       if (user.emailVerified) return res.json({ success: true, alreadyVerified: true });
 
