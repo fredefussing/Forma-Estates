@@ -115,6 +115,121 @@ const PRICING_BASE = [
   { name: "Business", monthly: 11999, highlight: false, href: "/opret" },
 ];
 
+// ── Language switcher (desktop nav dropdown) ──────────────────────────────────
+function LanguageSwitcher({ dark = false }: { dark?: boolean }) {
+  const { i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const currentLang = LANGUAGES.find(l => i18n.language?.startsWith(l.code)) ?? LANGUAGES[0];
+
+  const handleSelect = (code: string) => {
+    setExplicitLang(code);
+    setOpen(false);
+  };
+
+  const fg = dark ? C.white : C.navy;
+  const bg = dark ? "rgba(255,255,255,0.12)" : C.warm;
+  const dropBg = dark ? "#162132" : C.white;
+  const dropBorder = dark ? "rgba(255,255,255,0.14)" : C.border;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-label="Switch language"
+        data-testid="lang-switcher-toggle"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "7px 11px",
+          borderRadius: 7,
+          border: `1px solid ${dark ? "rgba(255,255,255,0.22)" : C.border}`,
+          background: "transparent",
+          color: fg,
+          fontSize: 12,
+          fontWeight: 500,
+          fontFamily: SANS,
+          cursor: "pointer",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = bg; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+      >
+        <Globe style={{ width: 14, height: 14 }} />
+        <span>{currentLang.flag} {currentLang.name}</span>
+        <ChevronDown style={{ width: 12, height: 12, opacity: 0.6 }} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.13 }}
+            data-testid="lang-switcher-dropdown"
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              right: 0,
+              minWidth: 150,
+              background: dropBg,
+              border: `1px solid ${dropBorder}`,
+              borderRadius: 8,
+              boxShadow: "0 8px 24px rgba(15,25,35,0.14)",
+              zIndex: 200,
+              overflow: "hidden",
+            }}
+          >
+            {LANGUAGES.map(l => {
+              const isActive = i18n.language?.startsWith(l.code);
+              return (
+                <button
+                  key={l.code}
+                  onClick={() => handleSelect(l.code)}
+                  data-testid={`lang-option-${l.code}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    padding: "9px 14px",
+                    background: "transparent",
+                    border: "none",
+                    color: isActive ? C.gold : (dark ? C.white : C.navy),
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 400,
+                    fontFamily: SANS,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    gap: 8,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : C.warm; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span>{l.flag} {l.name}</span>
+                  {isActive && <Check style={{ width: 13, height: 13, color: C.gold }} />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── DR1-style hero stage: auto-rotating slides w/ swipe + video ──────────────
 type StageSlide =
   | {
@@ -1074,19 +1189,7 @@ export default function BoligpotentialeLanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("home");
-  const [langOpen, setLangOpen] = useState(false);
-  const langRef = useRef<HTMLDivElement>(null);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-
-  // Close language dropdown on outside click
-  useEffect(() => {
-    if (!langOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [langOpen]);
   const [openFeature, setOpenFeature] = useState<number | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
@@ -1277,35 +1380,7 @@ export default function BoligpotentialeLanding() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            {/* Language switcher */}
-            <div className="relative" ref={langRef}>
-              <button
-                onClick={() => setLangOpen(o => !o)}
-                className="flex items-center gap-1 transition-colors hover:bg-[color:var(--bg-warm)]"
-                style={{ ['--bg-warm' as any]: C.warm, padding: "10px 12px", borderRadius: 8, border: `1px solid transparent`, color: C.muted, fontSize: 13, fontFamily: SANS }}
-                title="Change language"
-                aria-label="Select language"
-                data-testid="bolig-nav-lang-btn"
-              >
-                <Globe className="w-4 h-4" />
-                <span className="text-base leading-none">{LANGUAGES.find(l => l.code === i18nCtx.language)?.flag ?? "🌐"}</span>
-              </button>
-              {langOpen && (
-                <div className="absolute right-0 top-full mt-1 z-[200] rounded-xl shadow-xl overflow-hidden" style={{ background: C.champagne, border: `1px solid ${C.border}`, minWidth: 160 }} data-testid="bolig-lang-dropdown">
-                  {LANGUAGES.map(lang => (
-                    <button
-                      key={lang.code}
-                      onClick={() => { setExplicitLang(lang.code); setLangOpen(false); }}
-                      className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 text-sm hover:bg-white transition-colors"
-                      style={{ color: i18nCtx.language === lang.code ? C.navy : C.muted, fontWeight: i18nCtx.language === lang.code ? 600 : 400, fontFamily: SANS }}
-                      data-testid={`bolig-lang-${lang.code}`}
-                    >
-                      <span>{lang.flag}</span>{lang.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <LanguageSwitcher />
             <Link href="/kontakt">
               <button
                 className="transition-colors hover:bg-[color:var(--bg-warm)]"
