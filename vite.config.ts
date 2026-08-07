@@ -1,12 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-
 export default defineConfig({
   plugins: [
     react(),
-    runtimeErrorOverlay(),
     // NOTE: @replit/vite-plugin-cartographer is intentionally omitted.
     // Its beacon script registers a capturing document click-listener that
     // intercepts every click before React handlers fire, making the preview

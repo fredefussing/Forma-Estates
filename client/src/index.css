@@ -2,15 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Replit cartographer beacon fix ─────────────────────────────────────────
-   The @replit/vite-plugin-cartographer beacon injects a .beacon-hover-highlighter
-   div (position:fixed, z-index:MAX_SAFE_INTEGER) over every hovered element so the
-   Replit editor can detect which component you're pointing at. It has no
-   pointer-events:none, so without this override every click lands on the
-   invisible overlay instead of the underlying React element. */
-.beacon-hover-highlighter {
-  pointer-events: none !important;
-}
 
 /* Trust marquee animation */
 @keyframes forma-marquee {
