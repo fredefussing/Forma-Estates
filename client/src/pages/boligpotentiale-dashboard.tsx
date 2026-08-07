@@ -974,7 +974,6 @@ function CaseDetailPanel({
   const lbRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [genStep, setGenStep] = useState<0|1|2|3>(0);
-  const [includePlants, setIncludePlants] = useState(false);
   const [editingMarketDate, setEditingMarketDate] = useState(false);
   const [marketDateDraft, setMarketDateDraft] = useState("");
   const [sellerPdfBusy, setSellerPdfBusy] = useState(false);
@@ -1833,32 +1832,6 @@ function CaseDetailPanel({
                       </div>
                     </div>
 
-                    <div className="h-px" style={{ background: "#E8E4DE" }} />
-
-                    {/* ④ INKLUDER PLANTER */}
-                    <div
-                      className="flex items-center justify-between px-4 py-3 rounded-lg border border-[#E8E4DE] cursor-pointer select-none"
-                      style={{ background: "#FAFAF9" }}
-                      onClick={() => setIncludePlants(!includePlants)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">🌿</span>
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>Inkluder planter</p>
-                          <p className="text-xs" style={{ color: "#9B9690" }}>Tilføj grønne planter til rummet</p>
-                        </div>
-                      </div>
-                      <div
-                        className="relative h-6 w-11 rounded-full transition-all flex-shrink-0"
-                        style={{ background: includePlants ? "#0F1D2F" : "#D9D5CF" }}
-                      >
-                        <div
-                          className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
-                          style={{ left: includePlants ? "calc(100% - 1.375rem)" : "2px" }}
-                        />
-                      </div>
-                    </div>
-
                     {error && (
                       <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50" data-testid="bolig-case-error">{error}</div>
                     )}
@@ -1963,7 +1936,7 @@ function CaseDetailPanel({
                         <div className="p-4">
                           {/* Quick suggestion chips — clicking appends, never replaces */}
                           <div className="flex flex-wrap gap-2 mb-3">
-                            {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
+                            {["Bedre belysning", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
                               const active = caseRefinementPrompt.toLowerCase().includes(s.toLowerCase());
                               return (
                               <button
@@ -3118,7 +3091,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                     <div className="p-4">
                       {/* Quick suggestion chips — clicking appends, never replaces */}
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {["Bedre belysning", "Tilføj planter", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
+                        {["Bedre belysning", "Tilføj maleri", "Skift lampe", "Varmere farver", "Mere dekorationer"].map((s) => {
                           const active = refinementPrompt.toLowerCase().includes(s.toLowerCase());
                           return (
                           <button

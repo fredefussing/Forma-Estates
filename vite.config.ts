@@ -28,13 +28,12 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    // allowedHosts: true is required for Replit's reverse-proxy preview.
-    // Without it Vite rejects HMR websocket connections from the proxy
-    // hostname, causing the preview to disconnect and reconnect every ~30 s.
+    // host + allowedHosts are both required for Replit's reverse-proxy preview.
+    // host: "0.0.0.0" makes the dev server bind on all interfaces so the proxy
+    // can reach it. allowedHosts: true lets any Host header through the Vite
+    // middleware check (the proxy sends the public *.replit.dev hostname).
+    host: "0.0.0.0",
+    port: 5000,
     allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
   },
 });
