@@ -154,8 +154,8 @@ const WELCOME_STRINGS: Record<Lang, { subject: string; headline: string; body1: 
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function sendVerificationCodeEmail(email: string, code: string, lang?: string) {
-  const l = normalizeLang(lang);
+export async function sendVerificationCodeEmail(email: string, code: string, lang?: string | null) {
+  const l = normalizeLang(lang ?? undefined);
   const s = VERIFY_STRINGS[l];
   await sendBrevoEmail({
     to: email,
@@ -179,8 +179,8 @@ export async function sendVerificationCodeEmail(email: string, code: string, lan
   log(`Verification code email sent to ${email} (lang: ${l})`);
 }
 
-export async function sendPasswordResetEmail(email: string, resetUrl: string, lang?: string) {
-  const l = normalizeLang(lang);
+export async function sendPasswordResetEmail(email: string, resetUrl: string, lang?: string | null) {
+  const l = normalizeLang(lang ?? undefined);
   const s = RESET_STRINGS[l];
   await sendBrevoEmail({
     to: email,
@@ -802,3 +802,4 @@ export async function sendOnboardingDay5Email(email: string, name: string | null
   });
   log(`Drip day-5 email sent to ${email}`);
 }
+
