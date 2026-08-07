@@ -3346,14 +3346,25 @@ export async function registerRoutes(
       const FREE_BOLIG_REFINEMENTS = 5;
 
       // Quota check — blocks non-admin users who have exhausted their AI visualization quota
+      // Track whether we consumed a quota credit so we can refund on any failure path below.
+      let quotaConsumed = false;
       if (authedUserId && !isRefinement) {
         const q = await storage.checkAndIncrementQuota(authedUserId, "ai");
         if (!q.allowed) {
           return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}. Opgrader din pakke for at generere flere billeder.` });
         }
+        quotaConsumed = true;
       }
 
+      const refundIfNeeded = () => {
+        if (quotaConsumed && authedUserId) {
+          quotaConsumed = false; // only refund once
+          storage.refundQuota(authedUserId, "ai").catch(() => {});
+        }
+      };
+
       if (!COLLOV_API_KEY) {
+        refundIfNeeded();
         return res.status(500).json({ success: false, message: "API nøgle ikke konfigureret" });
       }
 
@@ -3390,6 +3401,7 @@ export async function registerRoutes(
                   message: `Du har brugt alle ${FREE_BOLIG_REFINEMENTS} gratis rettelser til dette billede og har nået din månedlige kvota.`,
                 });
               }
+              quotaConsumed = true;
             }
           }
         }
@@ -3426,6 +3438,7 @@ export async function registerRoutes(
           assertPromptLocked(room, style, tier, prompt);
         } catch (guardErr: any) {
           log(guardErr.message);
+          refundIfNeeded();
           return res.status(500).json({
             success: false,
             message: "PROMPT_INTEGRITY_VIOLATION",
@@ -3497,6 +3510,7 @@ export async function registerRoutes(
       }
 
       if (!collovImageUrl) {
+        refundIfNeeded();
         return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes" });
       }
 
@@ -3549,6 +3563,7 @@ export async function registerRoutes(
       return res.json({ success: true, image_url: collovImageUrl, original_url: originalForRecord, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
     } catch (err: any) {
       log(`[BoligPotentiale] generate error: ${err.message}`);
+      refundIfNeeded();
       return res.status(500).json({ success: false, message: err.message });
     }
   });
