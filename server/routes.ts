@@ -764,7 +764,7 @@ export async function registerRoutes(
 
       // Test accounts — always email-verified so they skip the activation screen.
       // REMOVE these entries before a full public launch if desired.
-      const TEST_BYPASS_EMAILS = ["johndoe@gmail.com"];
+      const TEST_BYPASS_EMAILS = ["johndoe@gmail.com", "johndoe1@gmail.com"];
       if (TEST_BYPASS_EMAILS.includes((user.email ?? "").toLowerCase()) && !user.emailVerified) {
         await storage.updateUser(user.id, { emailVerified: true });
         user = { ...user, emailVerified: true };
