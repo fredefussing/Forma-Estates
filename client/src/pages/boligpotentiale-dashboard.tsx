@@ -4415,6 +4415,9 @@ interface ShowcaseImg {
   presetKey: string;
   vfxKey: string | null;
   cropBox: { x: number; y: number; w: number; h: number } | null;
+  naturalW: number;
+  naturalH: number;
+  tooSmall: boolean;
 }
 
 const BASE = "https://tcsffqhaqxggamwqimka.supabase.co/storage/v1/object/public";
@@ -4664,8 +4667,25 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       presetKey: "DEFAULT",
       vfxKey: null,
       cropBox: null,
+      naturalW: 0,
+      naturalH: 0,
+      tooSmall: false,
     }));
     setImages((prev) => [...prev, ...next].slice(0, 20));
+    // Asynchronously load each image to detect dimensions
+    next.forEach((imgObj) => {
+      const im = new Image();
+      im.onload = () => {
+        const nw = im.naturalWidth;
+        const nh = im.naturalHeight;
+        setImages((prev) => prev.map((img) =>
+          img.id === imgObj.id
+            ? { ...img, naturalW: nw, naturalH: nh, tooSmall: nw < 800 || nh < 600 }
+            : img
+        ));
+      };
+      im.src = imgObj.url;
+    });
   };
 
   const removeImage = (id: string) => {
@@ -4783,7 +4803,15 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const applyCrop = () => {
     if (!cropModalImg || !cropDraft) return;
-    setImages((prev) => prev.map((img) => img.id === cropModalImg.id ? { ...img, cropBox: cropDraft } : img));
+    setImages((prev) => prev.map((img) => {
+      if (img.id !== cropModalImg.id) return img;
+      const effectiveW = img.naturalW > 0 ? img.naturalW * cropDraft.w : 0;
+      const effectiveH = img.naturalH > 0 ? img.naturalH * cropDraft.h : 0;
+      const tooSmall = img.naturalW > 0
+        ? effectiveW < 800 || effectiveH < 600
+        : img.tooSmall;
+      return { ...img, cropBox: cropDraft, tooSmall };
+    }));
     setCropModalImg(null);
     setCropDraft(null);
     setCropK(null);
@@ -5181,6 +5209,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   <div className="absolute top-2 left-2 w-6 h-6 rounded-lg text-white text-[11px] font-bold flex items-center justify-center shadow-md" style={{ background: "#0F1D2F" }}>
                     {idx + 1}
                   </div>
+
+                  {/* Too-small warning badge */}
+                  {img.tooSmall && (
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg px-1.5 py-1 shadow-md" style={{ background: "#C05621" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FED7AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                      <span className="text-[8px] font-bold leading-none whitespace-nowrap" style={{ color: "#FED7AA" }}>For lille</span>
+                    </div>
+                  )}
 
                   {/* Mini preview badges (camera / VFX / crop) */}
                   <div className="absolute top-2 right-2 flex flex-col gap-1 items-end max-w-[72px]">
