@@ -384,6 +384,29 @@ export async function ensureSchema(): Promise<void> {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── generated_images columns added after initial schema ──────────────────
+  {
+    const cols = [
+      { step: "generated_images.source_image_id", sql: `ALTER TABLE generated_images ADD COLUMN IF NOT EXISTS source_image_id integer` },
+    ];
+    for (const { step, sql } of cols) {
+      try { await pool.query(sql); } catch (e: any) { console.error(`[ensure-schema] ${step}: ${e.message}`); }
+    }
+  }
+
+  // ── video_jobs table (may be missing in older prod DBs) ───────────────────
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS video_jobs (
+      id serial PRIMARY KEY,
+      request_id text NOT NULL UNIQUE,
+      user_id integer NOT NULL,
+      feature text NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      refund_count integer NOT NULL DEFAULT 0,
+      created_at timestamp DEFAULT now()
+    )`);
+  } catch (e: any) { console.error(`[ensure-schema] video_jobs table: ${e.message}`); }
+
   for (const { step, sql } of statements) {
     try {
       await pool.query(sql);
