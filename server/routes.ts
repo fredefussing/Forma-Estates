@@ -3512,6 +3512,7 @@ export async function registerRoutes(
             caseId: (caseId && !isNaN(caseId)) ? caseId : null,
             isQuickGeneration: isQuickGeneration || !caseId,
             isDesignAgent,
+            isRefinement: !!isRefinement,
             imageUrl: collovImageUrl,
             originalImageUrl: originalForRecord,
             roomType: room,

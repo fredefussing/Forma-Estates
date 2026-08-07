@@ -455,7 +455,8 @@ export class DatabaseStorage implements IStorage {
 
   async getBoligStats(userId: number): Promise<{ todayImages: number; totalImages: number; activeCases: number; soldCases: number; totalCases: number; avgDaysOnMarket: number }> {
     const userCases = await db.select().from(boligCases).where(eq(boligCases.userId, userId));
-    const allGenImgs = await db.select().from(generatedImages).where(eq(generatedImages.userId, userId));
+    const allGenImgs = await db.select().from(generatedImages)
+      .where(and(eq(generatedImages.userId, userId), eq(generatedImages.isRefinement, false)));
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayImages = allGenImgs.filter((img) => img.createdDate === todayStr).length;
     const totalImages = allGenImgs.length;

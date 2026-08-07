@@ -303,6 +303,7 @@ export const generatedImages = pgTable("generated_images", {
   style: text("style").notNull(),
   budgetTier: text("budget_tier").notNull().default("tier2"),
   promptText: text("prompt_text"),
+  isRefinement: boolean("is_refinement").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   generationTimeMs: integer("generation_time_ms"),
   createdDate: date("created_date").defaultNow(),
