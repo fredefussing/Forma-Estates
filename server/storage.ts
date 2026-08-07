@@ -1000,7 +1000,7 @@ export class DatabaseStorage implements IStorage {
     }
     await db.delete(boligCases).where(eq(boligCases.userId, userId));
     await db.delete(generatedImages).where(eq(generatedImages.userId, userId));
-    await pool.query(`DELETE FROM video_jobs WHERE user_id = $1`, [userId]);
+    try { await pool.query(`DELETE FROM video_jobs WHERE user_id = $1`, [userId]); } catch { /* table may not exist in all envs */ }
     // Reset all quota counters to zero
     await db.update(users)
       .set({ usedAiVisualizations: 0, usedFloorPlans: 0, usedTransformVideos: 0, usedShowcaseVideos: 0 })
