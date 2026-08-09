@@ -1665,7 +1665,7 @@ export default function BoligpotentialeLanding() {
                 {/* Video container — phone-style rounded frame */}
                 <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
                   <video
-                    src="/videos/forvandling-riviera.mp4"
+                    src="/videos/forvandling-badevarelse.mp4"
                     autoPlay
                     muted
                     loop
