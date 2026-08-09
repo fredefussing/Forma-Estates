@@ -17,6 +17,7 @@ import { CrmView } from "@/components/crm-view";
 import { LeadsView } from "@/components/leads-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import DotGrid from "@/components/dot-grid";
 import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 import { Link, useLocation } from "wouter";
@@ -1874,24 +1875,34 @@ function CaseDetailPanel({
                 </div>
 
                 {isGenerating && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="mt-12 flex flex-col items-center justify-center text-center"
-                  >
-                    <div className="relative w-16 h-16 mb-6">
-                      <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: "#F0EDE7" }} />
-                      <div className="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: "#C8956C", borderTopColor: "transparent" }} />
-                    </div>
-                    <p className="text-lg font-semibold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</p>
-                    <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
-                    <div className="flex gap-8 mt-6">
-                      {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
-                        <div key={i} className="flex flex-col items-center gap-2">
-                          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
-                          <span className="text-xs" style={{ color: "#9B9690" }}>{step}</span>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8">
+                    <div className="relative overflow-hidden rounded-2xl" style={{ height: 300, background: "#FAF7F2", border: "1px solid #E8E4DE" }}>
+                      <DotGrid
+                        dotSize={5}
+                        gap={18}
+                        baseColor="#E0D8CE"
+                        activeColor="#C8956C"
+                        proximity={120}
+                        shockRadius={180}
+                        shockStrength={4}
+                        style={{ position: "absolute", inset: 0 }}
+                      />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
+                        <div className="relative w-12 h-12 mb-4">
+                          <div className="absolute inset-0 rounded-full border-3" style={{ border: "3px solid #E8E4DE" }} />
+                          <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "3px solid transparent", borderTopColor: "#C8956C" }} />
                         </div>
-                      ))}
+                        <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</p>
+                        <p className="text-xs" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
+                        <div className="flex gap-6 mt-5">
+                          {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
+                            <div key={i} className="flex flex-col items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                              <span className="text-xs" style={{ color: "#9B9690" }}>{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -3043,21 +3054,34 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
         )}
 
         {stage === "loading" && (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-            className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="relative w-20 h-20 mb-8">
-              <div className="absolute inset-0 rounded-full border-4 border-[#F0EDE7]" />
-              <div className="absolute inset-0 rounded-full border-4 border-[#C8956C] border-t-transparent animate-spin" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
-            <p className="text-base" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
-            <div className="mt-8 flex gap-8">
-              {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
-                <div key={i} className="flex flex-col items-center gap-2">
-                  <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
-                  <div className="text-xs" style={{ color: "#6B6B6B" }}>{step}</div>
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+            <div className="relative overflow-hidden rounded-2xl" style={{ height: 380, background: "#FAF7F2", border: "1px solid #E8E4DE" }}>
+              <DotGrid
+                dotSize={5}
+                gap={18}
+                baseColor="#E0D8CE"
+                activeColor="#C8956C"
+                proximity={120}
+                shockRadius={180}
+                shockStrength={4}
+                style={{ position: "absolute", inset: 0 }}
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
+                <div className="relative w-14 h-14 mb-6">
+                  <div className="absolute inset-0 rounded-full" style={{ border: "4px solid #E8E4DE" }} />
+                  <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "4px solid transparent", borderTopColor: "#C8956C" }} />
                 </div>
-              ))}
+                <h2 className="text-xl font-bold mb-1.5" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
+                <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
+                <div className="mt-6 flex gap-8">
+                  {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
+                    <div key={i} className="flex flex-col items-center gap-2">
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                      <div className="text-xs" style={{ color: "#6B6B6B" }}>{step}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </motion.div>
         )}

@@ -4,6 +4,7 @@ import { Boxes, Loader2, RotateCcw, AlertCircle, Palette, Maximize2, X, ChevronD
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { TripoOrbitViewer, type TripoOrbitViewerHandle } from "./tripo-orbit-viewer";
+import DotGrid from "@/components/dot-grid";
 
 type Status = "idle" | "submitting" | "polling" | "ready" | "error";
 
@@ -535,41 +536,47 @@ export function FloorplanTripo3DViewer({
 
   if (status === "submitting") {
     return (
-      <div className="rounded-2xl border p-8 flex flex-col items-center gap-3" style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}>
-        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#C8956C" }} />
-        <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>Starter 3D generering…</p>
+      <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: "#E8E4DE", background: "#FAF7F2", height: 220 }}>
+        <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={110} shockRadius={160} shockStrength={3} style={{ position: "absolute", inset: 0 }} />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
+          <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#C8956C" }} />
+          <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>Starter 3D generering…</p>
+        </div>
       </div>
     );
   }
 
   if (status === "polling") {
     return (
-      <div className="rounded-2xl border p-8 flex flex-col items-center gap-4" style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}>
-        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#C8956C" }} />
-        <div className="text-center">
-          <p className="text-sm font-medium mb-0.5" style={{ color: "#0F1D2F" }}>
-            {progress === 0 ? "Venter i kø…" : "Bygger 3D model med rigtige vægge…"}
-          </p>
-          <p className="text-xs" style={{ color: "#9B9690" }}>
-            {progress === 0 ? "Serverne er travle — starter automatisk" : "Kan tage 1–3 minutter"}
-          </p>
-        </div>
-        <div className="w-full max-w-xs">
-          <div className="w-full rounded-full overflow-hidden mb-1.5" style={{ height: 6, background: "#E8E4DE" }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: progress === 0 ? "100%" : `${progress}%`,
-                background: progress === 0 ? "#E8E4DE" : "#C8956C",
-                backgroundImage: progress === 0 ? "linear-gradient(90deg, #E8E4DE 25%, #D4CFC8 50%, #E8E4DE 75%)" : undefined,
-                backgroundSize: progress === 0 ? "200% 100%" : undefined,
-                animation: progress === 0 ? "shimmer 1.5s infinite" : undefined,
-              }}
-            />
+      <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: "#E8E4DE", background: "#FAF7F2", height: 260 }}>
+        <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={110} shockRadius={160} shockStrength={3} style={{ position: "absolute", inset: 0 }} />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8">
+          <Loader2 className="w-7 h-7 animate-spin pointer-events-none" style={{ color: "#C8956C" }} />
+          <div className="text-center pointer-events-none">
+            <p className="text-sm font-medium mb-0.5" style={{ color: "#0F1D2F" }}>
+              {progress === 0 ? "Venter i kø…" : "Bygger 3D model med rigtige vægge…"}
+            </p>
+            <p className="text-xs" style={{ color: "#9B9690" }}>
+              {progress === 0 ? "Serverne er travle — starter automatisk" : "Kan tage 1–3 minutter"}
+            </p>
           </div>
-          <p className="text-xs text-center" style={{ color: "#9B9690" }}>
-            {progress === 0 ? "Afventer…" : `${progress}% færdig`}
-          </p>
+          <div className="w-full max-w-xs pointer-events-none">
+            <div className="w-full rounded-full overflow-hidden mb-1.5" style={{ height: 6, background: "#E8E4DE" }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: progress === 0 ? "100%" : `${progress}%`,
+                  background: progress === 0 ? "#E8E4DE" : "#C8956C",
+                  backgroundImage: progress === 0 ? "linear-gradient(90deg, #E8E4DE 25%, #D4CFC8 50%, #E8E4DE 75%)" : undefined,
+                  backgroundSize: progress === 0 ? "200% 100%" : undefined,
+                  animation: progress === 0 ? "shimmer 1.5s infinite" : undefined,
+                }}
+              />
+            </div>
+            <p className="text-xs text-center" style={{ color: "#9B9690" }}>
+              {progress === 0 ? "Afventer…" : `${progress}% færdig`}
+            </p>
+          </div>
         </div>
       </div>
     );
