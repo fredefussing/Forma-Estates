@@ -1162,6 +1162,65 @@ function TileWiper({ before, after, labels = ["FØR", "EFTER"] }: { before: stri
   );
 }
 
+function PhoneVideo() {
+  const { t } = useTranslation();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          timer = setTimeout(() => {
+            video.currentTime = 0;
+            video.play().catch(() => {});
+          }, 3000);
+        } else {
+          if (timer) { clearTimeout(timer); timer = null; }
+          video.pause();
+          video.currentTime = 0;
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(video);
+    return () => { observer.disconnect(); if (timer) clearTimeout(timer); };
+  }, []);
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 30 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.65, delay: 0.12, ease: "easeOut" }}
+      className="flex justify-center md:justify-end"
+    >
+      <div style={{ width: "min(320px, 100%)", position: "relative" }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: 32, background: "radial-gradient(ellipse at center, rgba(201,169,110,0.18) 0%, transparent 70%)", transform: "scale(1.12)", pointerEvents: "none" }} />
+        <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
+          <video
+            ref={videoRef}
+            src="/videos/forvandling-instagram.mp4"
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className="absolute inset-0 w-full h-full object-cover"
+            data-testid="bolig-transformation-video-el"
+          />
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+            <div style={{ background: "rgba(10,18,28,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(201,169,110,0.40)", padding: "8px 18px", borderRadius: 24, whiteSpace: "nowrap" }}>
+              <span style={{ color: C.gold, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", fontFamily: SANS }}>
+                {t("videoSection.badge")}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function TileCarousel({ images }: { images: string[] }) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -1652,39 +1711,7 @@ export default function BoligpotentialeLanding() {
             </motion.div>
 
             {/* ── Video — portrait 9:16 ── */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.65, delay: 0.12, ease: "easeOut" }}
-              className="flex justify-center md:justify-end"
-            >
-              <div style={{ width: "min(320px, 100%)", position: "relative" }}>
-                {/* Subtle glow behind the phone */}
-                <div style={{ position: "absolute", inset: 0, borderRadius: 32, background: "radial-gradient(ellipse at center, rgba(201,169,110,0.18) 0%, transparent 70%)", transform: "scale(1.12)", pointerEvents: "none" }} />
-                {/* Video container — phone-style rounded frame */}
-                <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
-                  <video
-                    src="/videos/forvandling-instagram.mp4"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    preload="auto"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    data-testid="bolig-transformation-video-el"
-                  />
-                  {/* Badge overlay at bottom */}
-                  <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
-                    <div style={{ background: "rgba(10,18,28,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(201,169,110,0.40)", padding: "8px 18px", borderRadius: 24, whiteSpace: "nowrap" }}>
-                      <span style={{ color: C.gold, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", fontFamily: SANS }}>
-                        {t("videoSection.badge")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <PhoneVideo />
           </div>
         </div>
       </section>
