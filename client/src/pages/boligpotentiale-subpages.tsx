@@ -291,28 +291,155 @@ function BenefitRow({ items }: { items: { title: string; desc: string }[] }) {
   );
 }
 
+/* ── Section divider with eyebrow + title + desc ── */
+function SectionDivider({ id, eyebrow, title, desc }: { id: string; eyebrow: string; title: string; desc: string }) {
+  return (
+    <div id={id} style={{ paddingTop: 72, paddingBottom: 32 }}>
+      <div style={{ borderTop: `2px solid ${C.gold}`, paddingTop: 28 }}>
+        <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase", marginBottom: 10 }}>{eyebrow}</div>
+        <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(24px,3.2vw,34px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 12, letterSpacing: "-0.01em" }}>{title}</h2>
+        <p style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.65, maxWidth: 560, margin: 0 }}>{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Video card with click-to-play ── */
+function VideoCard({ src, poster, title, desc }: { src: string; poster: string; title: string; desc: string }) {
+  const vRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const toggle = () => {
+    if (!vRef.current) return;
+    if (playing) { vRef.current.pause(); setPlaying(false); }
+    else { vRef.current.play().catch(() => {}); setPlaying(true); }
+  };
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
+      <div style={{ position: "relative", aspectRatio: "16/9", cursor: "pointer", background: "#000" }} onClick={toggle}>
+        <video ref={vRef} src={src} poster={poster} muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300" style={{ opacity: playing ? 0 : 1, background: "rgba(15,25,35,0.22)", pointerEvents: "none" }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.93)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 18px rgba(0,0,0,0.22)" }}>
+            <svg width="18" height="20" viewBox="0 0 18 20" fill={C.navy}><polygon points="2,1 17,10 2,19" /></svg>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: "20px 24px 24px" }}>
+        <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 20, fontWeight: 500, marginBottom: 6 }}>{title}</div>
+        <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55 }}>{desc}</div>
+      </div>
+    </div>
+  );
+}
+
 export function EksemplerPage() {
   usePageTitle("Eksempler på AI-boligvisualisering", "Se før/efter-eksempler på AI-genereret boligstyling og iscenesættelse fra Forma Estates.");
-  const pairs = [
-    { before: "/bolig-images/demo-room-before.jpg", after: "/bolig-images/demo-room-after.jpg", title: "Entre — skandinavisk", desc: "Fra renoveringsprojekt til indbydende entre med nordiske materialer og smart opbevaring." },
-    { before: "/bolig-images/stue-scandi-before.png", after: "/bolig-images/stue-scandi-after.png", title: "Stue — skandinavisk", desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning." },
-    { before: "/bolig-images/homeoffice-modern-before.png", after: "/bolig-images/homeoffice-modern-after.png", title: "Hjemmekontor — moderne", desc: "Fra personligt arbejdsrum til professionelt og lyst kontor med varme materialer." },
-    { before: "/bolig-images/demo-bathroom-before.jpg", after: "/bolig-images/demo-bathroom-after-clean.png", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
-    { before: "/bolig-images/ai-agent-house-before.png", after: "/bolig-images/ai-agent-house-after.png", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
-    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png", title: "Stue — Riviera Luxe", desc: "Tomt lyst rum transformeret til luksusindretning med smaragdgrøn fløjlssofa, marmorbord og kunstmalerier i guld og grønt." },
-    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-japansk-after.png", title: "Stue — Japansk Zen", desc: "Samme rum, helt anden fortælling — en rolig japansk indretning med bonsai, shoji-vægge og naturlige materialer." },
-    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-scandi2-after.png", title: "Stue — Nordisk", desc: "Lyst og luftigt nordisk design med egetræsmøbler, naturplanter og en ren, tidløs æstetik." },
+
+  const NAV = [
+    { id: "staging",   label: "Før / efter" },
+    { id: "agent",     label: "AI Designagent" },
+    { id: "floorplan", label: "3D Plantegning" },
+    { id: "video",     label: "Showcase Video" },
   ];
+
+  const stagingPairs = [
+    { before: "/bolig-images/stue-riviera-before.png",    after: "/bolig-images/stue-riviera-after.png",   title: "Stue — Riviera Luxe",       desc: "Lyst rum forvandlet til luksusindretning med smaragdgrøn fløjlssofa, marmorbord og kunst i guld." },
+    { before: "/bolig-images/stue-scandi-before.png",     after: "/bolig-images/stue-scandi-after.png",    title: "Stue — Skandinavisk",        desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning giver rummet liv." },
+    { before: "/bolig-images/dining-before-new.png",      after: "/bolig-images/dining-after-new.jpg",     title: "Spisestue — moderne nordisk", desc: "Fra bart rum til indbydende spisemiljø med varme materialer og naturligt lys." },
+    { before: "/bolig-images/homeoffice-modern-before.png", after: "/bolig-images/homeoffice-modern-after.png", title: "Hjemmekontor — moderne", desc: "Fra personligt arbejdsrum til professionelt og lyst kontor med varme materialer." },
+    { before: "/bolig-images/living-modern-before.jpg",   after: "/bolig-images/living-modern-after.jpg",  title: "Stue — moderne",             desc: "Stort tomt rum transformeret til et funktionelt og æstetisk moderne hjem." },
+    { before: "/bolig-images/kitchen-before.jpg",         after: "/bolig-images/kitchen-after.jpg",        title: "Køkken — nordisk",           desc: "Slidt køkken redesignet med ege-fronter, sort beslag og naturstensfliser." },
+  ];
+
+  const agentStylePairs = [
+    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png",  title: "Riviera Luxe", desc: "Luksus i smaragdgrønt og guld." },
+    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-japansk-after.png",  title: "Japansk Zen",  desc: "Ro, balance og naturlige materialer." },
+    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-scandi2-after.png",  title: "Nordisk",      desc: "Lyst, luftigt og tidløst design." },
+  ];
+
+  const agentPairs = [
+    { before: "/bolig-images/ai-agent-house-before.png",    after: "/bolig-images/ai-agent-house-after.png",    title: "Herregård — restaureret",  desc: "Forfaldent hus transformeret til præsentabelt drømmehus med AI Designagent." },
+    { before: "/bolig-images/ai-agent-townhouse-before.jpg", after: "/bolig-images/ai-agent-townhouse-after.png", title: "Rækkehus — moderniseret", desc: "Rækkehus redesignet fra slidt til tidssvarende med fokus på facadedetaljer og nyt udtryk." },
+  ];
+
+  const videos = [
+    { src: "/videos/eksempel-bolig-showcase.mp4",       poster: "/bolig-images/showcase-eksempel-poster.jpg", title: "Bolig Showcase",          desc: "Professionel præsentationsvideo der fremhæver boligens stærkeste rum og atmosfære." },
+    { src: "/videos/bolig-showcase-tile.mp4",           poster: "/bolig-images/showcase-tile-poster.jpg",     title: "Showcase — filmformat",   desc: "Biografisk kvalitet til annoncen — hvert rum fremhævet med cinematisk belysning." },
+    { src: "/videos/transformation-kling-v16-pro.mp4",  poster: "/bolig-images/video-poster.jpg",             title: "Transformering — AI video", desc: "AI-genereret video der viser boligens potentiale fra tomt rum til drømmehjem." },
+  ];
+
   return (
     <SubpageLayout
       eyebrow="Eksempler"
-      title="Et udvalg af boliger vi har visualiseret"
-      intro="Bladr gennem ægte før/efter-cases fra danske mæglere. Hvert eksempel viser hvordan en bolig — uanset stand — bliver til et hjem køberne kan se sig selv i."
+      title="Se hvad AI kan gøre for din bolig"
+      intro="Blade gennem eksempler på alle fire funktioner — fra AI-staging og designagent til 3D-plantegninger og showcase-videoer."
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-        {pairs.map((p, i) => (
-          <BeforeAfterPair key={p.title} {...p} testId={`eksempel-pair-${i}`} />
+      {/* ── Section nav ── */}
+      <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingBottom: 24 }}>
+        {NAV.map(s => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            style={{ padding: "9px 20px", borderRadius: 24, fontSize: 13, fontWeight: 500, background: C.white, border: `1px solid ${C.border}`, color: C.navy, textDecoration: "none", whiteSpace: "nowrap", transition: "all 0.18s" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = C.navy; el.style.color = "#fff"; el.style.borderColor = C.navy; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = C.white; el.style.color = C.navy; el.style.borderColor = C.border; }}
+          >
+            {s.label}
+          </a>
         ))}
+      </nav>
+
+      {/* ── 1. Før/efter — AI Staging ── */}
+      <SectionDivider
+        id="staging"
+        eyebrow="AI Staging"
+        title="Før/efter — AI boligiscenesættelse"
+        desc="Upload et foto af boligen — AI'en redesigner indretningen i den valgte stil på 2–3 minutter. Hvert eksempel nedenfor er genereret fra ét enkelt foto."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+        {stagingPairs.map((p, i) => <BeforeAfterPair key={p.title} {...p} testId={`eksempel-staging-${i}`} />)}
+      </div>
+
+      {/* ── 2. AI Designagent ── */}
+      <SectionDivider
+        id="agent"
+        eyebrow="AI Designagent"
+        title="Samme rum — op til 8 stilarter"
+        desc="AI Designagenten genererer hele stilkataloger fra ét boligfoto. Her ser du samme stue i tre vidt forskellige stilarter — alt fra ét originalt foto."
+      />
+      {/* Same-room multi-style showcase */}
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: "28px 28px 20px", marginBottom: 28 }}>
+        <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 18 }}>
+          Samme originale foto — tre stilarter
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {agentStylePairs.map((p, i) => <BeforeAfterPair key={i} {...p} testId={`eksempel-agent-style-${i}`} />)}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+        {agentPairs.map((p, i) => <BeforeAfterPair key={p.title} {...p} testId={`eksempel-agent-${i}`} />)}
+      </div>
+
+      {/* ── 3. 3D Plantegning ── */}
+      <SectionDivider
+        id="floorplan"
+        eyebrow="3D Plantegning"
+        title="Fra 2D-plantegning til 3D-visualisering"
+        desc="Upload en simpel 2D-plantegning — AI'en konverterer den til en professionel 3D-visualisering der giver køberne et komplet overblik over boligens rum og proportioner."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+        <BeforeAfterPair before="/bolig-images/floorplan-2d-new.jpg" after="/bolig-images/floorplan-3d-new.png" title="Plantegning — 2D til 3D" desc="Fra simpel sort/hvid-tegning til professionel 3D-visualisering med møbler og belysning." testId="eksempel-floorplan-0" />
+        <BeforeAfterPair before="/bolig-images/floorplan-2d.jpg" after="/bolig-images/floorplan-3d.jpg" title="Komplet boligplan" desc="Komplet boligplan visualiseret i 3D med realistisk indretning og korrekte proportioner." testId="eksempel-floorplan-1" />
+      </div>
+
+      {/* ── 4. Showcase Video ── */}
+      <SectionDivider
+        id="video"
+        eyebrow="Showcase Video"
+        title="AI-genererede præsentationsvideoer"
+        desc="Cinematiske videoer der viser boligen fra dens bedste side — automatisk genereret, klar til Boligsiden og sociale medier."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7" style={{ paddingBottom: 24 }}>
+        {videos.map((v, i) => <VideoCard key={i} {...v} />)}
       </div>
     </SubpageLayout>
   );
