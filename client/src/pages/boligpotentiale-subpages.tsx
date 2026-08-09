@@ -299,6 +299,9 @@ export function EksemplerPage() {
     { before: "/bolig-images/homeoffice-modern-before.png", after: "/bolig-images/homeoffice-modern-after.png", title: "Hjemmekontor — moderne", desc: "Fra personligt arbejdsrum til professionelt og lyst kontor med varme materialer." },
     { before: "/bolig-images/demo-bathroom-before.jpg", after: "/bolig-images/demo-bathroom-after-clean.png", title: "Badeværelse — japandi", desc: "Sten, træ og papirlamper skaber ro og balance." },
     { before: "/bolig-images/ai-agent-house-before.png", after: "/bolig-images/ai-agent-house-after.png", title: "Herregård — restaureret", desc: "Forfaldent hus transformeret til præsentabelt drømmehus." },
+    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png", title: "Stue — Riviera Luxe", desc: "Tomt lyst rum transformeret til luksusindretning med smaragdgrøn fløjlssofa, marmorbord og kunstmalerier i guld og grønt." },
+    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-japansk-after.png", title: "Stue — Japansk Zen", desc: "Samme rum, helt anden fortælling — en rolig japansk indretning med bonsai, shoji-vægge og naturlige materialer." },
+    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-scandi2-after.png", title: "Stue — Nordisk", desc: "Lyst og luftigt nordisk design med egetræsmøbler, naturplanter og en ren, tidløs æstetik." },
   ];
   return (
     <SubpageLayout

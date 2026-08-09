@@ -258,6 +258,7 @@ type StageSlide =
 const STAGE_SLIDES_BASE = [
   { kind: "video" as const, src: "/cinematisk-video.mp4",               poster: "/bolig-images/video-poster.jpg" },
   { kind: "video" as const, src: "/videos/transformering-kokken.mp4",   poster: "/bolig-images/transformering-kokken-poster.jpg" },
+  { kind: "video" as const, src: "/videos/magisk-transformation.mp4",   poster: "/bolig-images/stue-riviera-after.png" },
   { kind: "swipe" as const, before: "/bolig-images/dining-before-new.png",   after: "/bolig-images/dining-after-new.jpg" },
   { kind: "swipe" as const, before: "/bolig-images/facade-before-new.png",   after: "/bolig-images/facade-after-new.png", objectPosition: "center center" },
   { kind: "swipe" as const, before: "/bolig-images/floorplan-2d-new.jpg",    after: "/bolig-images/floorplan-3d-new.png", contain: true, bg: "#FFFFFF" },
@@ -1665,7 +1666,7 @@ export default function BoligpotentialeLanding() {
                 {/* Video container — phone-style rounded frame */}
                 <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
                   <video
-                    src="/videos/forvandling-mobil.mp4"
+                    src="/videos/forvandling-riviera.mp4"
                     autoPlay
                     muted
                     loop
