@@ -25,26 +25,21 @@
       "meta": ""
     },
     {
-      "title": "Transformationsvideo",
-      "caption": "Sehen Sie, wie der Raum in einer fließenden Animation von vorher zu nachher wechselt — perfekt für Anzeigen und soziale Medien.",
-      "meta": "Küche · Transformation"
-    },
-    {
       "title": "Magische Verwandlung",
       "caption": "Beobachten Sie, wie ein leeres Zimmer in nur 8 Sekunden zu einem voll eingerichteten Zuhause wird.",
       "meta": "Wohnzimmer · AI Staging"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Laden Sie ein Raumfoto hoch — die KI redesignt die Einrichtung in unter 20 Sekunden.",
-      "meta": "Esszimmer · Skandinavisch",
-      "beforeLabel": "Vorher",
-      "afterLabel": "Nachher"
+      "caption": "Dasselbe Zimmer — drei Stile. Die KI gestaltet das Interieur in unter 20 Sekunden.",
+      "meta": "Wohnzimmer · Riviera Luxe",
+      "beforeLabel": "Leeres Zimmer",
+      "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Laden Sie ein Foto hoch — die KI transformiert die Immobilie in unter 20 Sekunden.",
-      "meta": "Stall · KI Design Agent",
+      "caption": "Laden Sie ein Raumfoto hoch — die KI redesignt die Einrichtung in unter 20 Sekunden.",
+      "meta": "Esszimmer · Skandinavisch",
       "beforeLabel": "Vorher",
       "afterLabel": "Nachher"
     },

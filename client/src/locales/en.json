@@ -25,26 +25,21 @@
       "meta": ""
     },
     {
-      "title": "Transformation video",
-      "caption": "Watch the room transition from before to after in one fluid animation — perfect for listings and social media.",
-      "meta": "Kitchen · Transformation"
-    },
-    {
       "title": "Magical transformation",
       "caption": "Watch an empty room become a fully furnished home in just 8 seconds.",
       "meta": "Living room · AI Staging"
     },
     {
       "title": "Before & after",
-      "caption": "Upload a room photo — AI redesigns the interior in under 20 seconds.",
-      "meta": "Dining room · Scandinavian",
-      "beforeLabel": "Before",
-      "afterLabel": "After"
+      "caption": "Same room — three styles. The AI redesigns the interior in under 20 seconds.",
+      "meta": "Living room · Riviera Luxe",
+      "beforeLabel": "Empty room",
+      "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Before & after",
-      "caption": "Upload a photo — AI transforms the property in under 20 seconds.",
-      "meta": "Barn · AI Design Agent",
+      "caption": "Upload a room photo — AI redesigns the interior in under 20 seconds.",
+      "meta": "Dining room · Scandinavian",
       "beforeLabel": "Before",
       "afterLabel": "After"
     },

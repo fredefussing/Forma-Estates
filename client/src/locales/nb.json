@@ -25,26 +25,21 @@
       "meta": ""
     },
     {
-      "title": "Transformasjonsvideo",
-      "caption": "Se rommet gå fra før til etter i én flytende animasjon — perfekt til annonser og sosiale medier.",
-      "meta": "Kjøkken · Transformasjon"
-    },
-    {
       "title": "Magisk forvandling",
       "caption": "Se et tomt rom forvandles til et fullt møblert hjem på bare 8 sekunder.",
       "meta": "Stue · AI Staging"
     },
     {
       "title": "Før & etter",
-      "caption": "Last opp et romfoto — AI-en redesigner innredningen på under 20 sekunder.",
-      "meta": "Spisestue · Skandinavisk",
-      "beforeLabel": "Før",
-      "afterLabel": "Etter"
+      "caption": "Samme rom — tre stiler. KI-en redesigner interiøret på under 20 sekunder.",
+      "meta": "Stue · Riviera Luxe",
+      "beforeLabel": "Tomt rom",
+      "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Før & etter",
-      "caption": "Last opp et foto — AI-en transformerer eiendommen på under 20 sekunder.",
-      "meta": "Stall · AI Design Agent",
+      "caption": "Last opp et romfoto — AI-en redesigner innredningen på under 20 sekunder.",
+      "meta": "Spisestue · Skandinavisk",
       "beforeLabel": "Før",
       "afterLabel": "Etter"
     },

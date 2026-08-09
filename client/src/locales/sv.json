@@ -25,26 +25,21 @@
       "meta": ""
     },
     {
-      "title": "Transformationsvideo",
-      "caption": "Se rummet gå från före till efter i en flytande animation — perfekt för annonser och sociala medier.",
-      "meta": "Kök · Transformation"
-    },
-    {
       "title": "Magisk förvandling",
       "caption": "Se ett tomt rum förvandlas till ett fullt möblerat hem på bara 8 sekunder.",
       "meta": "Vardagsrum · AI Staging"
     },
     {
       "title": "Före & efter",
-      "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på under 20 sekunder.",
-      "meta": "Matsal · Skandinavisk",
-      "beforeLabel": "Före",
-      "afterLabel": "Efter"
+      "caption": "Samma rum — tre stilar. AI:n designar om interiören på under 20 sekunder.",
+      "meta": "Vardagsrum · Riviera Luxe",
+      "beforeLabel": "Tomt rum",
+      "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Före & efter",
-      "caption": "Ladda upp ett foto — AI transformerar fastigheten på under 20 sekunder.",
-      "meta": "Stall · AI Design Agent",
+      "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på under 20 sekunder.",
+      "meta": "Matsal · Skandinavisk",
       "beforeLabel": "Före",
       "afterLabel": "Efter"
     },

@@ -25,26 +25,21 @@
       "meta": ""
     },
     {
-      "title": "Vidéo de transformation",
-      "caption": "Regardez la pièce passer de l'avant à l'après en une animation fluide — idéal pour les annonces et les réseaux sociaux.",
-      "meta": "Cuisine · Transformation"
-    },
-    {
       "title": "Transformation magique",
       "caption": "Regardez une pièce vide se transformer en maison entièrement meublée en seulement 8 secondes.",
       "meta": "Salon · AI Staging"
     },
     {
       "title": "Avant & après",
-      "caption": "Téléchargez une photo de la pièce — l'IA redessine l'intérieur en moins de 20 secondes.",
-      "meta": "Salle à manger · Scandinave",
-      "beforeLabel": "Avant",
-      "afterLabel": "Après"
+      "caption": "La même pièce — trois styles. L'IA redessine l'intérieur en moins de 20 secondes.",
+      "meta": "Salon · Riviera Luxe",
+      "beforeLabel": "Pièce vide",
+      "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Avant & après",
-      "caption": "Téléchargez une photo — l'IA transforme le bien en moins de 20 secondes.",
-      "meta": "Grange · AI Design Agent",
+      "caption": "Téléchargez une photo de la pièce — l'IA redessine l'intérieur en moins de 20 secondes.",
+      "meta": "Salle à manger · Scandinave",
       "beforeLabel": "Avant",
       "afterLabel": "Après"
     },

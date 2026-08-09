@@ -256,11 +256,10 @@ type StageSlide =
 
 // Media-only base (text injected inside HeroStage via useTranslation)
 const STAGE_SLIDES_BASE = [
-  { kind: "video" as const, src: "/cinematisk-video.mp4",               poster: "/bolig-images/video-poster.jpg" },
-  { kind: "video" as const, src: "/videos/transformering-kokken.mp4",   poster: "/bolig-images/transformering-kokken-poster.jpg" },
-  { kind: "video" as const, src: "/videos/magisk-transformation.mp4",   poster: "/bolig-images/stue-riviera-after.png" },
+  { kind: "video" as const, src: "/cinematisk-video.mp4",              poster: "/bolig-images/video-poster.jpg" },
+  { kind: "video" as const, src: "/videos/magisk-transformation.mp4", poster: "/bolig-images/magisk-transformation-poster.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png" },
   { kind: "swipe" as const, before: "/bolig-images/dining-before-new.png",   after: "/bolig-images/dining-after-new.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/facade-before-new.png",   after: "/bolig-images/facade-after-new.png", objectPosition: "center center" },
   { kind: "swipe" as const, before: "/bolig-images/floorplan-2d-new.jpg",    after: "/bolig-images/floorplan-3d-new.png", contain: true, bg: "#FFFFFF" },
 ];
 
