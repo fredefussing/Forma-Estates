@@ -1798,6 +1798,36 @@ function CaseDetailPanel({
                   {/* RIGHT col-span-7: settings */}
                   <div className="lg:col-span-7 space-y-6">
 
+                    {/* GENERATE BUTTON — altid i toppen */}
+                    {/* ⑥ GENERATE BUTTON */}
+                    <QuotaGate feature="ai">
+                    <button
+                      onClick={handleGenerate}
+                      disabled={isGenerating}
+                      className="w-full h-12 rounded-full font-medium text-white text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0"
+                      style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}
+                      data-testid="bolig-case-generate-btn"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
+                          {t("dashboard.wizard.generating")}
+                        </>
+                      ) : (
+                        <>
+                          <TrendingUp className="w-4 h-4" />
+                          {t("dashboard.generate.seePotenButton")}
+                        </>
+                      )}
+                    </button>
+                    </QuotaGate>
+
+                    {error && (
+                      <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50" data-testid="bolig-case-error">{error}</div>
+                    )}
+
+                    <div className="h-px" style={{ background: "#E8E4DE" }} />
+
                     {/* ① RUMTYPE */}
                     <div>
                       <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>{t("dashboard.wizard.roomTypeLabel")}</p>
@@ -1869,32 +1899,6 @@ function CaseDetailPanel({
                       </div>
                     </div>
 
-                    {error && (
-                      <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50" data-testid="bolig-case-error">{error}</div>
-                    )}
-
-                    {/* ⑥ GENERATE BUTTON */}
-                    <QuotaGate feature="ai">
-                    <button
-                      onClick={handleGenerate}
-                      disabled={isGenerating}
-                      className="w-full h-12 rounded-full font-medium text-white text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0"
-                      style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}
-                      data-testid="bolig-case-generate-btn"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
-                          {t("dashboard.wizard.generating")}
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="w-4 h-4" />
-                          {t("dashboard.generate.seePotenButton")}
-                        </>
-                      )}
-                    </button>
-                    </QuotaGate>
                   </div>
                 </div>
 
