@@ -10,8 +10,8 @@
     "getStarted": "Get started"
   },
   "hero": {
-    "headline": "Professional Property Visualizations in Seconds",
-    "subline": "Create AI-generated property visualizations, 3D floor plans and sales videos — directly in your browser",
+    "headline": "Make empty homes sale-ready — in under 60 seconds",
+    "subline": "AI staging, 3D floor plans and showcase videos. Traditionally £2,000+ per property — now included from £350/mo.",
     "cta": "Get started free",
     "ctaSecondary": "See examples",
     "trial": "2 free AI visualizations · no credit card",
@@ -251,7 +251,8 @@
           "HD 1080p · JPG + PNG",
           "Logo branding (on/off)",
           "Standard support"
-        ]
+        ],
+        "fit": "Fits 1–3 properties/mo."
       },
       "Pro": {
         "cta": "Choose Pro",
@@ -263,7 +264,8 @@
           "4K · JPG + PNG + PDF",
           "Full branding control",
           "Priority support"
-        ]
+        ],
+        "fit": "Fits 3–8 properties/mo."
       },
       "Business": {
         "cta": "Choose Business",
@@ -275,7 +277,8 @@
           "4K · JPG + PNG + PDF",
           "Full branding control",
           "Dedicated support"
-        ]
+        ],
+        "fit": "Fits 8+ properties/mo."
       }
     }
   },
@@ -1733,5 +1736,40 @@
       "busFeat6": "Full branding control",
       "busFeat7": "Dedicated support"
     }
+  },
+  "videoSection": {
+    "overline": "See it in action",
+    "headline": "From empty room to sale-ready in under 20 seconds",
+    "subline": "Our AI transforms an empty room into a professionally furnished and staged image — ready for the listing in under a minute. Upload, choose style, download.",
+    "cta": "See all examples",
+    "badge": "AI transformation · 20 sec"
+  },
+  "testimonials": {
+    "overline": "What agents say",
+    "headline": "Used by professional estate agents",
+    "subline": "See how agents use Forma Estates to sell faster and at higher prices.",
+    "items": [
+      {
+        "quote": "Forma Estates has changed how we market properties. What used to take days with an external staging bureau now takes 3 minutes.",
+        "name": "Morten Krarup",
+        "title": "Partner · Agent",
+        "firm": "EDC Aarhus",
+        "initials": "MK"
+      },
+      {
+        "quote": "The quality is surprisingly high — our clients actually believe the rooms are furnished. We close viewings faster and clients are more satisfied.",
+        "name": "Lene Holm",
+        "title": "Senior Agent",
+        "firm": "Nybolig Copenhagen",
+        "initials": "LH"
+      },
+      {
+        "quote": "The 3D floor plans and transformation video have significantly elevated our listings. We clearly see higher sale prices and fewer negotiations.",
+        "name": "Thomas Bundgaard",
+        "title": "Branch Manager",
+        "firm": "Home Odense",
+        "initials": "TB"
+      }
+    ]
   }
 }

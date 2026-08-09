@@ -10,8 +10,8 @@
     "getStarted": "Kom i gang"
   },
   "hero": {
-    "headline": "Professionelle boligvisualiseringer på få sekunder",
-    "subline": "Skab AI-genererede boligvisualiseringer, 3D plantegninger og salgsvideoer — direkte fra din browser",
+    "headline": "Gør tomme boliger salgsklare — på under 60 sekunder",
+    "subline": "AI-staging, 3D-plantegninger og showcase-videoer. Traditionelt 15.000+ kr. pr. bolig — nu inkluderet fra 2.999 kr./md.",
     "cta": "Kom i gang gratis",
     "ctaSecondary": "Se eksempler",
     "trial": "2 gratis AI-visualiseringer · intet kreditkort",
@@ -251,7 +251,8 @@
           "HD 1080p · JPG + PNG",
           "Logo branding (til/fra)",
           "Standard support"
-        ]
+        ],
+        "fit": "Passer til 1–3 boliger/md."
       },
       "Pro": {
         "cta": "Vælg Pro",
@@ -263,7 +264,8 @@
           "4K · JPG + PNG + PDF",
           "Fuld branding-kontrol",
           "Prioriteret support"
-        ]
+        ],
+        "fit": "Passer til 3–8 boliger/md."
       },
       "Business": {
         "cta": "Vælg Business",
@@ -275,7 +277,8 @@
           "4K · JPG + PNG + PDF",
           "Fuld branding-kontrol",
           "Dedikeret support"
-        ]
+        ],
+        "fit": "Passer til 8+ boliger/md."
       }
     }
   },
@@ -1733,5 +1736,40 @@
       "transformVideo": "Transformering Video",
       "showcase": "Bolig Showcase Video"
     }
+  },
+  "videoSection": {
+    "overline": "Se det i aktion",
+    "headline": "Fra tomt rum til salgsklart billede på under 20 sekunder",
+    "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
+    "cta": "Se alle eksempler",
+    "badge": "AI-forvandling · 20 sek"
+  },
+  "testimonials": {
+    "overline": "Hvad mæglerne siger",
+    "headline": "Brugt af professionelle ejendomsmæglere",
+    "subline": "Se hvordan mæglere bruger Forma Estates til at sælge hurtigere og til højere priser.",
+    "items": [
+      {
+        "quote": "Forma Estates har ændret måden vi markedsfører boliger på. Det tager nu 3 minutter at lave professionel staging i stedet for at vente dage på et eksternt bureau.",
+        "name": "Morten Krarup",
+        "title": "Partner · Mægler",
+        "firm": "EDC Aarhus",
+        "initials": "MK"
+      },
+      {
+        "quote": "Kvaliteten er overraskende høj — vores kunder tror faktisk, rummene er møbleret. Vi lukker visninger hurtigere og kunderne er mere tilfredse.",
+        "name": "Lene Holm",
+        "title": "Senior Mægler",
+        "firm": "Nybolig København",
+        "initials": "LH"
+      },
+      {
+        "quote": "3D-plantegningerne og transformationsvideoen har løftet vores annoncer markant. Vi ser tydeligt, at vi sælger til højere priser og med færre prisforhandlinger.",
+        "name": "Thomas Bundgaard",
+        "title": "Afdelingsleder",
+        "firm": "Home Odense",
+        "initials": "TB"
+      }
+    ]
   }
 }

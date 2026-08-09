@@ -1618,6 +1618,77 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
 
+      {/* ── FORVANDLINGSVIDEO ── */}
+      <section style={{ background: C.navyDeep, paddingTop: "clamp(56px, 8vw, 100px)", paddingBottom: "clamp(56px, 8vw, 100px)" }} className="px-6" data-testid="bolig-transformation-video">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* ── Text ── */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
+            >
+              <p className="uppercase mb-5" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", fontFamily: SANS }}>
+                {t("videoSection.overline")}
+              </p>
+              <h2 style={{ fontFamily: SERIF, color: C.white, fontSize: "clamp(26px, 3.8vw, 42px)", fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: 18 }}>
+                {t("videoSection.headline")}
+              </h2>
+              <p style={{ color: "rgba(255,255,255,0.62)", fontSize: 16, lineHeight: 1.75, marginBottom: 36, maxWidth: 440, fontFamily: SANS }}>
+                {t("videoSection.subline")}
+              </p>
+              <Link href="/boligpotentiale/eksempler">
+                <button
+                  className="inline-flex items-center gap-2 transition-all"
+                  style={{ background: C.gold, color: C.navy, padding: "13px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 18px rgba(201,169,110,0.32)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                  data-testid="bolig-video-section-cta"
+                >
+                  {t("videoSection.cta")} <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+            </motion.div>
+
+            {/* ── Video — portrait 9:16 ── */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.65, delay: 0.12, ease: "easeOut" }}
+              className="flex justify-center md:justify-end"
+            >
+              <div style={{ width: "min(320px, 100%)", position: "relative" }}>
+                {/* Subtle glow behind the phone */}
+                <div style={{ position: "absolute", inset: 0, borderRadius: 32, background: "radial-gradient(ellipse at center, rgba(201,169,110,0.18) 0%, transparent 70%)", transform: "scale(1.12)", pointerEvents: "none" }} />
+                {/* Video container — phone-style rounded frame */}
+                <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
+                  <video
+                    src="/videos/forvandling-mobil.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    data-testid="bolig-transformation-video-el"
+                  />
+                  {/* Badge overlay at bottom */}
+                  <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+                    <div style={{ background: "rgba(10,18,28,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(201,169,110,0.40)", padding: "8px 18px", borderRadius: 24, whiteSpace: "nowrap" }}>
+                      <span style={{ color: C.gold, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", fontFamily: SANS }}>
+                        {t("videoSection.badge")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* ── HVORFOR VISUALISERING — cinematic image-led tiles ── */}
       <section style={{ background: C.warm, paddingTop: "clamp(48px, 6vw, 80px)", paddingBottom: "clamp(52px, 7vw, 96px)" }} className="px-4 sm:px-6" data-testid="bolig-why-visualisering">
         <div className="mx-auto" style={{ maxWidth: 1280 }}>
@@ -1857,6 +1928,62 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
 
+      {/* ── KUNDECASES / TESTIMONIALS ── */}
+      {/* NOTE: Placeholder-citater — erstat med rigtige mægler-citater og firmanavne */}
+      <section style={{ background: C.champagne, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} className="px-6" data-testid="bolig-testimonials">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-14">
+            <Overline>{t("testimonials.overline")}</Overline>
+            <H2>{t("testimonials.headline")}</H2>
+            <p className="mt-4 max-w-xl mx-auto" style={{ color: C.muted, fontSize: 16, lineHeight: 1.6, fontFamily: SANS }}>
+              {t("testimonials.subline")}
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {(t("testimonials.items", { returnObjects: true }) as Array<{
+              quote: string; name: string; title: string; firm: string; initials: string;
+            }>).map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+                style={{
+                  background: C.white,
+                  borderRadius: 14,
+                  padding: "36px 32px",
+                  boxShadow: "0 4px 28px rgba(15,25,35,0.07)",
+                  display: "flex",
+                  flexDirection: "column" as const,
+                }}
+                data-testid={`bolig-testimonial-${i}`}
+              >
+                {/* Gold opening quote */}
+                <div style={{ color: C.gold, fontSize: 64, lineHeight: 0.8, fontFamily: SERIF, marginBottom: 18, fontWeight: 500, opacity: 0.85 }}>"</div>
+                <p style={{ color: "#2A2A2A", fontSize: 15.5, lineHeight: 1.75, flex: 1, fontStyle: "italic", fontFamily: SANS }}>
+                  {item.quote}
+                </p>
+                <div className="flex items-center gap-4 mt-8 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
+                  {/* Avatar initials */}
+                  <div style={{
+                    width: 48, height: 48, borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${C.gold} 0%, ${C.goldHover} 100%)`,
+                    flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <span style={{ color: C.navy, fontSize: 14, fontWeight: 700, fontFamily: SANS }}>{item.initials}</span>
+                  </div>
+                  <div>
+                    <p style={{ color: C.navy, fontSize: 14, fontWeight: 700, lineHeight: 1.3, fontFamily: SANS }}>{item.name}</p>
+                    <p style={{ color: C.muted, fontSize: 12, marginTop: 3, fontFamily: SANS }}>{item.title} · {item.firm}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── FEATURES ── */}
       <section className="px-6" style={{ background: C.warm, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-features">
         <div className="mx-auto max-w-6xl">
@@ -2087,6 +2214,9 @@ export default function BoligpotentialeLanding() {
                     </div>
                   )}
                   <div className="uppercase" style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{plan.name}</div>
+                  <div style={{ color: C.gold, fontSize: 12, marginTop: 6, fontWeight: 500, fontFamily: SANS }}>
+                    {t(`pricing.plans.${plan.name}.fit`)}
+                  </div>
                   <div className="mt-4 mb-2">
                     {price ? (
                       <>
