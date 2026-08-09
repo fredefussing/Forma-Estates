@@ -2053,29 +2053,29 @@ export default function BoligpotentialeLanding() {
 
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(200,149,108,0.2)" }}>
             {/* Header */}
-            <div className="grid grid-cols-3 text-[11px] font-semibold tracking-[0.1em] uppercase px-6 py-4"
+            <div className="grid grid-cols-3 text-[10px] sm:text-[11px] font-semibold tracking-[0.08em] sm:tracking-[0.1em] uppercase px-3 sm:px-6 py-3 sm:py-4"
               style={{ background: "rgba(200,149,108,0.12)", color: "rgba(245,243,239,0.5)", borderBottom: "1px solid rgba(200,149,108,0.15)" }}>
-              <span>{t("savings.colService")}</span>
-              <span className="text-center">{t("savings.colTraditional")}</span>
-              <span className="text-right">{t("savings.colForma")}</span>
+              <span className="min-w-0">{t("savings.colService")}</span>
+              <span className="text-center min-w-0">{t("savings.colTraditional")}</span>
+              <span className="text-right min-w-0">{t("savings.colForma")}</span>
             </div>
 
             {/* Rows */}
             {(t("savings.rows", { returnObjects: true }) as Array<{ label: string; traditional: string }>).map((row, i) => (
-              <div key={i} className="grid grid-cols-3 items-center px-6 py-4"
+              <div key={i} className="grid grid-cols-3 items-center px-3 sm:px-6 py-3 sm:py-4"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
-                <p className="text-sm font-medium" style={{ color: "#F5F3EF" }}>{row.label}</p>
-                <p className="text-center text-sm font-medium" style={{ color: "rgba(245,243,239,0.65)" }}>{row.traditional}</p>
-                <p className="text-right text-sm font-semibold" style={{ color: "#C8956C" }}>{t("savings.included")}</p>
+                <p className="text-xs sm:text-sm font-medium min-w-0 pr-1" style={{ color: "#F5F3EF" }}>{row.label}</p>
+                <p className="text-center text-xs sm:text-sm font-medium min-w-0 px-1" style={{ color: "rgba(245,243,239,0.65)" }}>{row.traditional}</p>
+                <p className="text-right text-xs sm:text-sm font-semibold min-w-0 pl-1" style={{ color: "#C8956C" }}>{t("savings.included")}</p>
               </div>
             ))}
 
             {/* Total row */}
-            <div className="grid grid-cols-3 items-center px-6 py-5"
+            <div className="grid grid-cols-3 items-center px-3 sm:px-6 py-4 sm:py-5"
               style={{ background: "rgba(200,149,108,0.13)", borderTop: "1px solid rgba(200,149,108,0.3)" }}>
-              <p className="text-sm font-bold" style={{ color: "#F5F3EF" }}>{t("savings.totalLabel")}</p>
-              <p className="text-center font-bold" style={{ color: "#F5F3EF", fontSize: 15 }}>{t("savings.totalTraditional")}</p>
-              <p className="text-right font-bold" style={{ color: "#C8956C" }}>{t("savings.totalForma")}</p>
+              <p className="text-xs sm:text-sm font-bold min-w-0 pr-1" style={{ color: "#F5F3EF" }}>{t("savings.totalLabel")}</p>
+              <p className="text-center font-bold min-w-0 px-1" style={{ color: "#F5F3EF", fontSize: "clamp(12px,2.5vw,15px)" }}>{t("savings.totalTraditional")}</p>
+              <p className="text-right font-bold min-w-0 pl-1" style={{ color: "#C8956C", fontSize: "clamp(12px,2.5vw,15px)" }}>{t("savings.totalForma")}</p>
             </div>
           </div>
 
