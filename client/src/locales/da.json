@@ -12,9 +12,9 @@
   "hero": {
     "headline": "Gør dine boliger salgsklare — på under 60 sekunder",
     "subline": "AI-staging, 3D-plantegninger og showcase-videoer. Traditionelt 15.000+ kr. pr. bolig — nu inkluderet fra 2.999 kr./md.",
-    "cta": "Kom i gang gratis",
+    "cta": "Lav 2 gratis AI-billeder",
     "ctaSecondary": "Se eksempler",
-    "trial": "2 gratis AI-visualiseringer · intet kreditkort",
+    "trial": "Gratis · intet kreditkort · ingen installation",
     "prev": "Forrige",
     "next": "Næste"
   },
@@ -120,7 +120,7 @@
   },
   "stats": {
     "overline": "Sælg hurtigere",
-    "headline": "Tallene taler for sig selv.",
+    "headline": "Staging sælger. Her er tallene.",
     "subline": "Boliger med professionel visualisering sælges hurtigere, til højere priser og tiltrækker flere visninger online.",
     "sources": "Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
     "items": [
@@ -148,7 +148,7 @@
   },
   "features": {
     "overline": "Funktioner",
-    "headline": "Alt hvad du behøver",
+    "headline": "Professionel staging — ingen designer, ingen ventetid.",
     "readMore": "Læs mere",
     "readLess": "Vis mindre",
     "items": [
@@ -228,7 +228,7 @@
   "pricing": {
     "overline": "Priser",
     "headline": "Vælg din plan",
-    "subline": "Vælg den plan der passer til dig og kom i gang med det samme.",
+    "subline": "Ingen binding. Opsig når som helst. Prøv gratis med 2 AI-billeder.",
     "monthly": "Månedlig",
     "yearly": "Årlig",
     "save20": "Spar 20%",
@@ -1739,9 +1739,9 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Fra tomt rum til salgsklart billede på under 20 sekunder",
-    "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
+    "headline": "Fra dit boligfoto til salgsklart billede — på under 20 sekunder",
+    "subline": "Upload et foto af boligen — AI'en redesigner indretningen i den valgte stil og leverer et professionelt billede, klar til annoncen på under et minut.",
     "cta": "Se alle eksempler",
-    "badge": "AI-forvandling · 20 sek"
+    "badge": "AI-staging · under 20 sek"
   }
 }

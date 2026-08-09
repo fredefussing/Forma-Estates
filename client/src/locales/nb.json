@@ -12,9 +12,9 @@
   "hero": {
     "headline": "Gjør boligen salgsklar — på under 60 sekunder",
     "subline": "AI-staging, 3D-plantegninger og showcase-videoer. Traditionelt 15.000+ kr. pr. bolig — nu inkluderet fra 2.999 kr./md.",
-    "cta": "Kom i gang gratis",
+    "cta": "Lag 2 gratis AI-bilder",
     "ctaSecondary": "Se eksempler",
-    "trial": "2 gratis AI-visualiseringer · intet kredittkort",
+    "trial": "Gratis · ingen kredittkort · ingen installasjon",
     "prev": "Forrige",
     "next": "Neste"
   },
@@ -120,7 +120,7 @@
   },
   "stats": {
     "overline": "Selg raskere",
-    "headline": "Tallene taler for seg selv.",
+    "headline": "Staging selger. Her er tallene.",
     "subline": "Boliger med profesjonell visualisering selges raskere, til høyere priser og tiltrekker flere visninger online.",
     "sources": "Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
     "items": [
@@ -148,7 +148,7 @@
   },
   "features": {
     "overline": "Funksjoner",
-    "headline": "Alt du trenger",
+    "headline": "Profesjonell staging — ingen designer, ingen ventetid.",
     "readMore": "Les mer",
     "readLess": "Vis mindre",
     "items": [
@@ -228,7 +228,7 @@
   "pricing": {
     "overline": "Priser",
     "headline": "Velg din plan",
-    "subline": "Velg den planen som passer deg og kom i gang med det samme.",
+    "subline": "Ingen binding. Avslutt når som helst. Prøv gratis.",
     "monthly": "Månedlig",
     "yearly": "Årlig",
     "save20": "Spar 20%",
@@ -1739,9 +1739,9 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Fra tomt rum til salgsklart billede på under 20 sekunder",
-    "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
+    "headline": "Fra boligfoto til salgsklar — på under 20 sekunder",
+    "subline": "Last opp et foto — KI-en redesigner interiøret og leverer et profesjonelt bilde klart for annonsen på under ett minutt.",
     "cta": "Se alle eksempler",
-    "badge": "AI-forvandling · 20 sek"
+    "badge": "AI-staging · under 20 sek"
   }
 }

@@ -12,9 +12,9 @@
   "hero": {
     "headline": "Prepara cualquier propiedad para la venta — en menos de 60 segundos",
     "subline": "AI-staging, 3D-plantegninger og showcase-videoer. Traditionelt 15.000+ kr. pr. bolig — nu inkluderet fra 2.999 kr./md.",
-    "cta": "Empieza gratis",
+    "cta": "Crear 2 imágenes IA gratis",
     "ctaSecondary": "Ver ejemplos",
-    "trial": "2 visualizaciones IA gratuitas · sin tarjeta de crédito",
+    "trial": "Gratis · sin tarjeta de crédito · sin instalación",
     "prev": "Anterior",
     "next": "Siguiente"
   },
@@ -120,7 +120,7 @@
   },
   "stats": {
     "overline": "Vende más rápido",
-    "headline": "Los números hablan por sí solos.",
+    "headline": "El home staging vende. Aquí están los datos.",
     "subline": "Las propiedades con visualización profesional se venden más rápido, a mejor precio y atraen más visitas online.",
     "sources": "Fuentes: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
     "items": [
@@ -148,7 +148,7 @@
   },
   "features": {
     "overline": "Funcionalidades",
-    "headline": "Todo lo que necesitas",
+    "headline": "Staging profesional — sin diseñador, sin esperas.",
     "readMore": "Leer más",
     "readLess": "Mostrar menos",
     "items": [
@@ -228,7 +228,7 @@
   "pricing": {
     "overline": "Precios",
     "headline": "Elige tu plan",
-    "subline": "Elige el plan que más te convenga y empieza de inmediato.",
+    "subline": "Sin compromiso. Cancela cuando quieras. Prueba gratis.",
     "monthly": "Mensual",
     "yearly": "Anual",
     "save20": "Ahorra 20%",
@@ -1726,9 +1726,9 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Fra tomt rum til salgsklart billede på under 20 sekunder",
-    "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
+    "headline": "De tu foto al anuncio perfecto — en menos de 20 segundos",
+    "subline": "Sube una foto de la propiedad — la IA rediseña el interior y entrega una imagen profesional lista para el anuncio en menos de un minuto.",
     "cta": "Se alle eksempler",
-    "badge": "AI-forvandling · 20 sek"
+    "badge": "AI staging · menos de 20 seg"
   }
 }

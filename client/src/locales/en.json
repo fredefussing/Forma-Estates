@@ -12,9 +12,9 @@
   "hero": {
     "headline": "Make any property sale-ready — in under 60 seconds",
     "subline": "AI staging, 3D floor plans and showcase videos. Traditionally £2,000+ per property — now included from £350/mo.",
-    "cta": "Get started free",
+    "cta": "Create 2 free AI images",
     "ctaSecondary": "See examples",
-    "trial": "2 free AI visualizations · no credit card",
+    "trial": "Free · no credit card · no installation",
     "prev": "Previous",
     "next": "Next"
   },
@@ -120,7 +120,7 @@
   },
   "stats": {
     "overline": "Sell faster",
-    "headline": "The numbers speak for themselves.",
+    "headline": "Staging sells. Here are the numbers.",
     "subline": "Properties with professional visualization sell faster, at higher prices and attract more online views.",
     "sources": "Sources: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
     "items": [
@@ -148,7 +148,7 @@
   },
   "features": {
     "overline": "Features",
-    "headline": "Everything you need",
+    "headline": "Professional staging — no designer, no waiting.",
     "readMore": "Read more",
     "readLess": "Show less",
     "items": [
@@ -228,7 +228,7 @@
   "pricing": {
     "overline": "Pricing",
     "headline": "Choose your plan",
-    "subline": "Choose the plan that fits you and get started right away.",
+    "subline": "No commitment. Cancel anytime. Try free with 2 AI images.",
     "monthly": "Monthly",
     "yearly": "Yearly",
     "save20": "Save 20%",
@@ -1739,9 +1739,9 @@
   },
   "videoSection": {
     "overline": "See it in action",
-    "headline": "From empty room to sale-ready in under 20 seconds",
-    "subline": "Our AI transforms an empty room into a professionally furnished and staged image — ready for the listing in under a minute. Upload, choose style, download.",
+    "headline": "From your property photo to sale-ready in under 20 seconds",
+    "subline": "Upload a photo of the property — the AI redesigns the interior in your chosen style and delivers a professional image, ready for the listing in under a minute.",
     "cta": "See all examples",
-    "badge": "AI transformation · 20 sec"
+    "badge": "AI staging · under 20 sec"
   }
 }

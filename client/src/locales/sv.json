@@ -12,9 +12,9 @@
   "hero": {
     "headline": "Gör dina bostäder säljklara — på under 60 sekunder",
     "subline": "AI-staging, 3D-plantegninger og showcase-videoer. Traditionelt 15.000+ kr. pr. bolig — nu inkluderet fra 2.999 kr./md.",
-    "cta": "Kom igång gratis",
+    "cta": "Skapa 2 gratis AI-bilder",
     "ctaSecondary": "Se exempel",
-    "trial": "2 gratis AI-visualiseringar · inget kreditkort",
+    "trial": "Gratis · inget kreditkort · ingen installation",
     "prev": "Föregående",
     "next": "Nästa"
   },
@@ -120,7 +120,7 @@
   },
   "stats": {
     "overline": "Sälj snabbare",
-    "headline": "Siffrorna talar för sig själva.",
+    "headline": "Staging säljer. Här är siffrorna.",
     "subline": "Bostäder med professionell visualisering säljs snabbare, till högre priser och lockar fler visningar online.",
     "sources": "Källor: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
     "items": [
@@ -148,7 +148,7 @@
   },
   "features": {
     "overline": "Funktioner",
-    "headline": "Allt du behöver",
+    "headline": "Professionell staging — ingen designer, ingen väntan.",
     "readMore": "Läs mer",
     "readLess": "Visa mindre",
     "items": [
@@ -228,7 +228,7 @@
   "pricing": {
     "overline": "Priser",
     "headline": "Välj ditt abonnemang",
-    "subline": "Välj det abonnemang som passar dig och kom igång direkt.",
+    "subline": "Ingen bindning. Avsluta när som helst. Prova gratis.",
     "monthly": "Månadsvis",
     "yearly": "Årsvis",
     "save20": "Spara 20%",
@@ -1739,9 +1739,9 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Fra tomt rum til salgsklart billede på under 20 sekunder",
-    "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
+    "headline": "Från ditt bostadsfoto till säljklart — på under 20 sekunder",
+    "subline": "Ladda upp ett foto — AI:n designar om interiören och levererar en professionell bild, klar för annonsen på under en minut.",
     "cta": "Se alle eksempler",
-    "badge": "AI-forvandling · 20 sek"
+    "badge": "AI-staging · under 20 sek"
   }
 }

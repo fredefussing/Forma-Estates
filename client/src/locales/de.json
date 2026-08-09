@@ -12,9 +12,9 @@
   "hero": {
     "headline": "Jede Immobilie verkaufsbereit — in unter 60 Sekunden",
     "subline": "AI-staging, 3D-plantegninger og showcase-videoer. Traditionelt 15.000+ kr. pr. bolig — nu inkluderet fra 2.999 kr./md.",
-    "cta": "Kostenlos starten",
+    "cta": "2 KI-Bilder kostenlos erstellen",
     "ctaSecondary": "Beispiele ansehen",
-    "trial": "2 kostenlose KI-Visualisierungen · keine Kreditkarte",
+    "trial": "Kostenlos · keine Kreditkarte · keine Installation",
     "prev": "Zurück",
     "next": "Weiter"
   },
@@ -120,7 +120,7 @@
   },
   "stats": {
     "overline": "Schneller verkaufen",
-    "headline": "Die Zahlen sprechen für sich.",
+    "headline": "Staging verkauft. Hier sind die Zahlen.",
     "subline": "Immobilien mit professioneller Visualisierung werden schneller, zu höheren Preisen und mit mehr Online-Besichtigungen verkauft.",
     "sources": "Quellen: NAR Profile of Home Staging 2023 · RESA · Boligsiden Marktdaten · ROOMAGEN · Capitalize Home",
     "items": [
@@ -148,7 +148,7 @@
   },
   "features": {
     "overline": "Funktionen",
-    "headline": "Alles was Sie brauchen",
+    "headline": "Professionelles Staging — kein Designer, keine Wartezeit.",
     "readMore": "Mehr lesen",
     "readLess": "Weniger anzeigen",
     "items": [
@@ -228,7 +228,7 @@
   "pricing": {
     "overline": "Preise",
     "headline": "Wählen Sie Ihren Plan",
-    "subline": "Wählen Sie den Plan, der zu Ihnen passt, und starten Sie sofort.",
+    "subline": "Keine Bindung. Jederzeit kündbar. Kostenlos testen.",
     "monthly": "Monatlich",
     "yearly": "Jährlich",
     "save20": "20% sparen",
@@ -1739,9 +1739,9 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Fra tomt rum til salgsklart billede på under 20 sekunder",
-    "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
+    "headline": "Vom Immobilienfoto zum verkaufsfertigen Bild — in unter 20 Sekunden",
+    "subline": "Foto hochladen — die KI gestaltet das Interieur und liefert ein professionelles Bild in unter einer Minute.",
     "cta": "Se alle eksempler",
-    "badge": "AI-forvandling · 20 sek"
+    "badge": "KI-Staging · unter 20 Sek."
   }
 }
