@@ -307,7 +307,7 @@ export function EksemplerPage() {
     <SubpageLayout
       eyebrow="Eksempler"
       title="Et udvalg af boliger vi har visualiseret"
-      intro="Bladr gennem ægte før/efter-cases fra danske mæglere. Hvert eksempel viser hvordan tomme rum bliver til hjem køberne kan se sig selv i."
+      intro="Bladr gennem ægte før/efter-cases fra danske mæglere. Hvert eksempel viser hvordan en bolig — uanset stand — bliver til et hjem køberne kan se sig selv i."
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
         {pairs.map((p, i) => (
