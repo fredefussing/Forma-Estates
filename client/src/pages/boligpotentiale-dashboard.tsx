@@ -1754,20 +1754,44 @@ function CaseDetailPanel({
               <motion.div key="gen-step2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28, ease: "easeOut" }}>
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                  {/* LEFT col-span-5: image preview */}
+                  {/* LEFT col-span-5: image preview / DotGrid while generating */}
                   <div className="lg:col-span-5">
                     <p className="text-xs font-medium tracking-widest uppercase mb-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.ditBillede")}</p>
-                    <div className="flex items-center gap-2 mb-3">
-                      <button
-                        onClick={() => { setImageFile(null); setImagePreview(null); setGenStep(1); }}
-                        className="h-7 px-2 rounded-lg text-xs hover:opacity-70 transition-opacity border border-[#D9D5CF]"
-                        style={{ color: "#6B6B6B" }}
-                      >
-                        {i18n.t("dashboard.common.skiftFoto")}
-                      </button>
-                    </div>
-                    {imagePreview && (
-                      <img src={imagePreview} alt="Preview" className="rounded-xl border border-[#E8E4DE] w-full object-contain" style={{ maxHeight: "420px" }} />
+                    {!isGenerating && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => { setImageFile(null); setImagePreview(null); setGenStep(1); }}
+                          className="h-7 px-2 rounded-lg text-xs hover:opacity-70 transition-opacity border border-[#D9D5CF]"
+                          style={{ color: "#6B6B6B" }}
+                        >
+                          {i18n.t("dashboard.common.skiftFoto")}
+                        </button>
+                      </div>
+                    )}
+                    {isGenerating ? (
+                      <div className="relative overflow-hidden rounded-xl border border-[#E8E4DE]" style={{ minHeight: 300, background: "#FAF7F2" }}>
+                        <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={130} shockRadius={180} shockStrength={4} style={{ position: "absolute", inset: 0 }} />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
+                          <div className="relative w-10 h-10 mb-3">
+                            <div className="absolute inset-0 rounded-full" style={{ border: "3px solid #E8E4DE" }} />
+                            <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "3px solid transparent", borderTopColor: "#C8956C" }} />
+                          </div>
+                          <p className="text-sm font-semibold mb-0.5" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</p>
+                          <p className="text-xs" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
+                          <div className="flex gap-5 mt-4">
+                            {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
+                              <div key={i} className="flex flex-col items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                                <span className="text-[10px]" style={{ color: "#9B9690" }}>{step}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      imagePreview && (
+                        <img src={imagePreview} alt="Preview" className="rounded-xl border border-[#E8E4DE] w-full object-contain" style={{ maxHeight: "420px" }} />
+                      )
                     )}
                   </div>
 
@@ -1873,39 +1897,6 @@ function CaseDetailPanel({
                     </QuotaGate>
                   </div>
                 </div>
-
-                {isGenerating && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8">
-                    <div className="relative overflow-hidden rounded-2xl" style={{ height: 300, background: "#FAF7F2", border: "1px solid #E8E4DE" }}>
-                      <DotGrid
-                        dotSize={5}
-                        gap={18}
-                        baseColor="#E0D8CE"
-                        activeColor="#C8956C"
-                        proximity={120}
-                        shockRadius={180}
-                        shockStrength={4}
-                        style={{ position: "absolute", inset: 0 }}
-                      />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
-                        <div className="relative w-12 h-12 mb-4">
-                          <div className="absolute inset-0 rounded-full border-3" style={{ border: "3px solid #E8E4DE" }} />
-                          <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "3px solid transparent", borderTopColor: "#C8956C" }} />
-                        </div>
-                        <p className="text-base font-semibold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</p>
-                        <p className="text-xs" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
-                        <div className="flex gap-6 mt-5">
-                          {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
-                            <div key={i} className="flex flex-col items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
-                              <span className="text-xs" style={{ color: "#9B9690" }}>{step}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
 
                 {!isGenerating && (
                   <div className="flex justify-center mt-6">
@@ -2988,14 +2979,36 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
           </motion.div>
         )}
 
-        {stage === "config" && (
+        {(stage === "config" || stage === "loading") && (
           <motion.div key="config" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-8 items-start">
               <div>
-                <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]">
-                  <img src={imagePreview!} alt="Preview" className="w-full object-contain max-h-[520px]" style={{ display: "block" }} />
-                  <button onClick={reset} aria-label={i18n.t("dashboard.upload.fjernBillede")} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
-                </div>
+                {stage === "loading" ? (
+                  <div className="relative overflow-hidden rounded-2xl border border-[#E8E4DE]" style={{ minHeight: 420, background: "#FAF7F2" }}>
+                    <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={130} shockRadius={180} shockStrength={4} style={{ position: "absolute", inset: 0 }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
+                      <div className="relative w-12 h-12 mb-4">
+                        <div className="absolute inset-0 rounded-full" style={{ border: "4px solid #E8E4DE" }} />
+                        <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "4px solid transparent", borderTopColor: "#C8956C" }} />
+                      </div>
+                      <h2 className="text-lg font-bold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
+                      <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
+                      <div className="flex gap-6 mt-5">
+                        {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
+                          <div key={i} className="flex flex-col items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                            <span className="text-xs" style={{ color: "#9B9690" }}>{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm bg-[#F8F6F3]">
+                    <img src={imagePreview!} alt="Preview" className="w-full object-contain max-h-[520px]" style={{ display: "block" }} />
+                    <button onClick={reset} aria-label={i18n.t("dashboard.upload.fjernBillede")} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-[#0F1D2F] shadow-sm hover:bg-white transition-transform hover:scale-105"><X className="w-4 h-4" /></button>
+                  </div>
+                )}
                 <p className="text-xs mt-3 text-center" style={{ color: "#9B9690" }}>{imageFile?.name}</p>
               </div>
               <div className="space-y-8 rounded-2xl border border-[#E8E4DE] bg-white p-6 shadow-sm">
@@ -3048,39 +3061,6 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                     {t("dashboard.wizard.generateBtn")}
                   </button>
                 </QuotaGate>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {stage === "loading" && (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-            <div className="relative overflow-hidden rounded-2xl" style={{ height: 380, background: "#FAF7F2", border: "1px solid #E8E4DE" }}>
-              <DotGrid
-                dotSize={5}
-                gap={18}
-                baseColor="#E0D8CE"
-                activeColor="#C8956C"
-                proximity={120}
-                shockRadius={180}
-                shockStrength={4}
-                style={{ position: "absolute", inset: 0 }}
-              />
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
-                <div className="relative w-14 h-14 mb-6">
-                  <div className="absolute inset-0 rounded-full" style={{ border: "4px solid #E8E4DE" }} />
-                  <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "4px solid transparent", borderTopColor: "#C8956C" }} />
-                </div>
-                <h2 className="text-xl font-bold mb-1.5" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
-                <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
-                <div className="mt-6 flex gap-8">
-                  {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
-                    <div key={i} className="flex flex-col items-center gap-2">
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
-                      <div className="text-xs" style={{ color: "#6B6B6B" }}>{step}</div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </motion.div>
