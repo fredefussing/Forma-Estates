@@ -536,11 +536,14 @@ export function FloorplanTripo3DViewer({
 
   if (status === "submitting") {
     return (
-      <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: "#E8E4DE", background: "#FAF7F2", height: 220 }}>
+      <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: "#E8E4DE", background: "#FAF7F2", height: 280 }}>
         <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={110} shockRadius={160} shockStrength={3} style={{ position: "absolute", inset: 0 }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
-          <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#C8956C" }} />
-          <p className="text-sm font-medium" style={{ color: "#0F1D2F" }}>Starter 3D generering…</p>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="rounded-2xl px-7 py-5 text-center" style={{ background: "rgba(255,255,255,0.82)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", boxShadow: "0 2px 16px rgba(15,29,47,0.08)" }}>
+            <Loader2 className="w-7 h-7 animate-spin mb-2 mx-auto" style={{ color: "#C8956C" }} />
+            <p className="text-sm font-bold" style={{ color: "#0F1D2F" }}>Starter 3D generering…</p>
+            <p className="text-xs font-medium mt-0.5" style={{ color: "#6B6B6B" }}>Sender til AI-serverne</p>
+          </div>
         </div>
       </div>
     );
@@ -548,20 +551,18 @@ export function FloorplanTripo3DViewer({
 
   if (status === "polling") {
     return (
-      <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: "#E8E4DE", background: "#FAF7F2", height: 260 }}>
+      <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: "#E8E4DE", background: "#FAF7F2", height: 320 }}>
         <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={110} shockRadius={160} shockStrength={3} style={{ position: "absolute", inset: 0 }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8">
-          <Loader2 className="w-7 h-7 animate-spin pointer-events-none" style={{ color: "#C8956C" }} />
-          <div className="text-center pointer-events-none">
-            <p className="text-sm font-medium mb-0.5" style={{ color: "#0F1D2F" }}>
-              {progress === 0 ? "Venter i kø…" : "Bygger 3D model med rigtige vægge…"}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="rounded-2xl px-7 py-5 text-center w-64" style={{ background: "rgba(255,255,255,0.82)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", boxShadow: "0 2px 16px rgba(15,29,47,0.08)" }}>
+            <Loader2 className="w-7 h-7 animate-spin mb-3 mx-auto" style={{ color: "#C8956C" }} />
+            <p className="text-sm font-bold mb-0.5" style={{ color: "#0F1D2F" }}>
+              {progress === 0 ? "Venter i kø…" : "Bygger 3D model…"}
             </p>
-            <p className="text-xs" style={{ color: "#9B9690" }}>
-              {progress === 0 ? "Serverne er travle — starter automatisk" : "Kan tage 1–3 minutter"}
+            <p className="text-xs font-medium mb-3" style={{ color: "#6B6B6B" }}>
+              {progress === 0 ? "Starter automatisk" : "Kan tage 1–3 minutter"}
             </p>
-          </div>
-          <div className="w-full max-w-xs pointer-events-none">
-            <div className="w-full rounded-full overflow-hidden mb-1.5" style={{ height: 6, background: "#E8E4DE" }}>
+            <div className="w-full rounded-full overflow-hidden mb-1.5" style={{ height: 5, background: "#E8E4DE" }}>
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
@@ -573,7 +574,7 @@ export function FloorplanTripo3DViewer({
                 }}
               />
             </div>
-            <p className="text-xs text-center" style={{ color: "#9B9690" }}>
+            <p className="text-xs font-semibold" style={{ color: "#4A4A4A" }}>
               {progress === 0 ? "Afventer…" : `${progress}% færdig`}
             </p>
           </div>
