@@ -1730,33 +1730,5 @@
     "subline": "Vores AI forvandler et tomt rum til et professionelt møbleret og iscenesæt billede — klar til annoncen på under et minut. Upload, vælg stil, download.",
     "cta": "Se alle eksempler",
     "badge": "AI-forvandling · 20 sek"
-  },
-  "testimonials": {
-    "overline": "Hvad mæglerne siger",
-    "headline": "Brugt af professionelle ejendomsmæglere",
-    "subline": "Se hvordan mæglere bruger Forma Estates til at sælge hurtigere og til højere priser.",
-    "items": [
-      {
-        "quote": "Forma Estates har ændret måden vi markedsfører boliger på. Det tager nu 3 minutter at lave professionel staging i stedet for at vente dage på et eksternt bureau.",
-        "name": "Morten Krarup",
-        "title": "Partner · Mægler",
-        "firm": "EDC Aarhus",
-        "initials": "MK"
-      },
-      {
-        "quote": "Kvaliteten er overraskende høj — vores kunder tror faktisk, rummene er møbleret. Vi lukker visninger hurtigere og kunderne er mere tilfredse.",
-        "name": "Lene Holm",
-        "title": "Senior Mægler",
-        "firm": "Nybolig København",
-        "initials": "LH"
-      },
-      {
-        "quote": "3D-plantegningerne og transformationsvideoen har løftet vores annoncer markant. Vi ser tydeligt, at vi sælger til højere priser og med færre prisforhandlinger.",
-        "name": "Thomas Bundgaard",
-        "title": "Afdelingsleder",
-        "firm": "Home Odense",
-        "initials": "TB"
-      }
-    ]
   }
 }

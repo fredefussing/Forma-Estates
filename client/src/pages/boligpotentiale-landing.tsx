@@ -1928,62 +1928,6 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
 
-      {/* ── KUNDECASES / TESTIMONIALS ── */}
-      {/* NOTE: Placeholder-citater — erstat med rigtige mægler-citater og firmanavne */}
-      <section style={{ background: C.champagne, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} className="px-6" data-testid="bolig-testimonials">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-14">
-            <Overline>{t("testimonials.overline")}</Overline>
-            <H2>{t("testimonials.headline")}</H2>
-            <p className="mt-4 max-w-xl mx-auto" style={{ color: C.muted, fontSize: 16, lineHeight: 1.6, fontFamily: SANS }}>
-              {t("testimonials.subline")}
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {(t("testimonials.items", { returnObjects: true }) as Array<{
-              quote: string; name: string; title: string; firm: string; initials: string;
-            }>).map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
-                style={{
-                  background: C.white,
-                  borderRadius: 14,
-                  padding: "36px 32px",
-                  boxShadow: "0 4px 28px rgba(15,25,35,0.07)",
-                  display: "flex",
-                  flexDirection: "column" as const,
-                }}
-                data-testid={`bolig-testimonial-${i}`}
-              >
-                {/* Gold opening quote */}
-                <div style={{ color: C.gold, fontSize: 64, lineHeight: 0.8, fontFamily: SERIF, marginBottom: 18, fontWeight: 500, opacity: 0.85 }}>"</div>
-                <p style={{ color: "#2A2A2A", fontSize: 15.5, lineHeight: 1.75, flex: 1, fontStyle: "italic", fontFamily: SANS }}>
-                  {item.quote}
-                </p>
-                <div className="flex items-center gap-4 mt-8 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
-                  {/* Avatar initials */}
-                  <div style={{
-                    width: 48, height: 48, borderRadius: "50%",
-                    background: `linear-gradient(135deg, ${C.gold} 0%, ${C.goldHover} 100%)`,
-                    flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <span style={{ color: C.navy, fontSize: 14, fontWeight: 700, fontFamily: SANS }}>{item.initials}</span>
-                  </div>
-                  <div>
-                    <p style={{ color: C.navy, fontSize: 14, fontWeight: 700, lineHeight: 1.3, fontFamily: SANS }}>{item.name}</p>
-                    <p style={{ color: C.muted, fontSize: 12, marginTop: 3, fontFamily: SANS }}>{item.title} · {item.firm}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FEATURES ── */}
       <section className="px-6" style={{ background: C.warm, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-features">
         <div className="mx-auto max-w-6xl">

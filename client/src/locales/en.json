@@ -1743,33 +1743,5 @@
     "subline": "Our AI transforms an empty room into a professionally furnished and staged image — ready for the listing in under a minute. Upload, choose style, download.",
     "cta": "See all examples",
     "badge": "AI transformation · 20 sec"
-  },
-  "testimonials": {
-    "overline": "What agents say",
-    "headline": "Used by professional estate agents",
-    "subline": "See how agents use Forma Estates to sell faster and at higher prices.",
-    "items": [
-      {
-        "quote": "Forma Estates has changed how we market properties. What used to take days with an external staging bureau now takes 3 minutes.",
-        "name": "Morten Krarup",
-        "title": "Partner · Agent",
-        "firm": "EDC Aarhus",
-        "initials": "MK"
-      },
-      {
-        "quote": "The quality is surprisingly high — our clients actually believe the rooms are furnished. We close viewings faster and clients are more satisfied.",
-        "name": "Lene Holm",
-        "title": "Senior Agent",
-        "firm": "Nybolig Copenhagen",
-        "initials": "LH"
-      },
-      {
-        "quote": "The 3D floor plans and transformation video have significantly elevated our listings. We clearly see higher sale prices and fewer negotiations.",
-        "name": "Thomas Bundgaard",
-        "title": "Branch Manager",
-        "firm": "Home Odense",
-        "initials": "TB"
-      }
-    ]
   }
 }
