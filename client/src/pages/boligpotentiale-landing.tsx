@@ -690,7 +690,7 @@ function HeroStage() {
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta-mobile"
                 >
-                  {t("hero.ctaMobile", "Kom i gang gratis")} <ArrowRight className="w-4 h-4" />
+                  {t("hero.cta")} <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
