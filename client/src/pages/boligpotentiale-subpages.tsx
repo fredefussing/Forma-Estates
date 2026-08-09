@@ -357,8 +357,8 @@ export function EksemplerPage() {
   ];
 
   const agentPairs = [
-    { before: "/bolig-images/ai-agent-house-before.png",    after: "/bolig-images/ai-agent-house-after.png",    title: "Herregård — restaureret",  desc: "Forfaldent hus transformeret til præsentabelt drømmehus med AI Designagent." },
-    { before: "/bolig-images/ai-agent-townhouse-before.jpg", after: "/bolig-images/ai-agent-townhouse-after.png", title: "Rækkehus — moderniseret", desc: "Rækkehus redesignet fra slidt til tidssvarende med fokus på facadedetaljer og nyt udtryk." },
+    { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Stue — Skandinavisk minimalisme", desc: "AI Designagenten vælger møbler, tekstiler og farvepalette der matcher den skandinaviske stil — fra ét originalt foto." },
+    { before: "/bolig-images/bathroom-before.jpg",      after: "/bolig-images/bathroom-after.jpg",      title: "Badeværelse — spa-stil",          desc: "Klinisk badeværelse forvandlet til et minimalistisk spa-look med natursten, planter og varmt lys." },
   ];
 
   const videos = [
