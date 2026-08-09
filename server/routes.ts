@@ -924,7 +924,7 @@ export async function registerRoutes(
         const lastSent = new Date(user.verificationCodeExpires).getTime() - VERIFICATION_CODE_TTL_MS;
         const waitMs = lastSent + VERIFICATION_RESEND_COOLDOWN_MS - Date.now();
         if (waitMs > 0) {
-          return res.status(429).json({ message: `Vent ${Math.ceil(waitMs / 1000)} sekunder før du beder om en ny kode.`, retryAfterSeconds: Math.ceil(waitMs / 1000) });
+          return res.status(429).json({ retryAfterSeconds: Math.ceil(waitMs / 1000) });
         }
       }
 
@@ -943,7 +943,7 @@ export async function registerRoutes(
       return res.json({ success: true });
     } catch (err: any) {
       log(`[auth] send-verification-code failed: ${err.message}`);
-      return res.status(500).json({ message: "Kunne ikke sende aktiveringskoden. Prøv igen." });
+      return res.status(500).json({ code: "send_failed" });
     }
   });
 
@@ -960,15 +960,15 @@ export async function registerRoutes(
       if (user.emailVerified) return res.json({ success: true, alreadyVerified: true });
 
       const code = String(req.body?.code ?? "").trim();
-      if (!/^\d{6}$/.test(code)) return res.status(400).json({ message: "Indtast den 6-cifrede kode fra din mail." });
+      if (!/^\d{6}$/.test(code)) return res.status(400).json({ code: "invalid_format" });
       if (!user.verificationCodeHash || !user.verificationCodeExpires) {
-        return res.status(400).json({ message: "Ingen aktiv kode. Bed om en ny kode.", needsNewCode: true });
+        return res.status(400).json({ code: "no_active_code", needsNewCode: true });
       }
       if (new Date(user.verificationCodeExpires).getTime() < Date.now()) {
-        return res.status(400).json({ message: "Koden er udløbet. Bed om en ny kode.", needsNewCode: true });
+        return res.status(400).json({ code: "expired", needsNewCode: true });
       }
       if (user.verificationAttempts >= VERIFICATION_MAX_ATTEMPTS) {
-        return res.status(429).json({ message: "For mange forsøg. Bed om en ny kode.", needsNewCode: true });
+        return res.status(429).json({ code: "too_many_attempts", needsNewCode: true });
       }
 
       const match = crypto.timingSafeEqual(
@@ -978,7 +978,7 @@ export async function registerRoutes(
       if (!match) {
         await storage.updateUser(user.id, { verificationAttempts: user.verificationAttempts + 1 });
         const left = VERIFICATION_MAX_ATTEMPTS - user.verificationAttempts - 1;
-        return res.status(400).json({ message: left > 0 ? `Forkert kode. ${left} forsøg tilbage.` : "Forkert kode. Bed om en ny kode.", needsNewCode: left <= 0 });
+        return res.status(400).json({ code: "wrong_code", attemptsLeft: left, needsNewCode: left <= 0 });
       }
 
       await storage.updateUser(user.id, {
@@ -991,7 +991,7 @@ export async function registerRoutes(
       return res.json({ success: true });
     } catch (err: any) {
       log(`[auth] verify-code failed: ${err.message}`);
-      return res.status(500).json({ message: "Kunne ikke bekræfte koden. Prøv igen." });
+      return res.status(500).json({ code: "verify_failed" });
     }
   });
 

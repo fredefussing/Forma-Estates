@@ -16,6 +16,8 @@ const VL: Record<Lang, {
   spamNote: string; back: string; codeSent: string;
   waitMsg: string; sendFailed: string; connFailed: string;
   verifyFailed: string; connVerifyFailed: string; verified: string;
+  noActiveCode: string; codeExpired: string; tooManyAttempts: string;
+  wrongCodeNeedsNew: string; wrongCodeLeft: (n: number) => string;
 }> = {
   da: {
     title: "Bekræft din email",
@@ -33,6 +35,11 @@ const VL: Record<Lang, {
     verifyFailed: "Forkert kode. Prøv igen.",
     connVerifyFailed: "Der skete en fejl. Prøv igen.",
     verified: "Email bekræftet! Sender dig videre...",
+    noActiveCode: "Ingen aktiv kode. Bed om en ny kode.",
+    codeExpired: "Koden er udløbet. Bed om en ny kode.",
+    tooManyAttempts: "For mange forsøg. Bed om en ny kode.",
+    wrongCodeNeedsNew: "Forkert kode. Bed om en ny kode.",
+    wrongCodeLeft: (n) => `Forkert kode. ${n} forsøg tilbage.`,
   },
   en: {
     title: "Verify your email",
@@ -50,6 +57,11 @@ const VL: Record<Lang, {
     verifyFailed: "Incorrect code. Please try again.",
     connVerifyFailed: "Something went wrong. Please try again.",
     verified: "Email verified! Redirecting...",
+    noActiveCode: "No active code. Please request a new code.",
+    codeExpired: "Code expired. Please request a new code.",
+    tooManyAttempts: "Too many attempts. Please request a new code.",
+    wrongCodeNeedsNew: "Incorrect code. Please request a new code.",
+    wrongCodeLeft: (n) => `Incorrect code. ${n} attempt${n === 1 ? "" : "s"} remaining.`,
   },
   sv: {
     title: "Bekräfta din e-post",
@@ -67,6 +79,11 @@ const VL: Record<Lang, {
     verifyFailed: "Fel kod. Försök igen.",
     connVerifyFailed: "Något gick fel. Försök igen.",
     verified: "E-post verifierad! Omdirigerar...",
+    noActiveCode: "Ingen aktiv kod. Begär en ny kod.",
+    codeExpired: "Koden har gått ut. Begär en ny kod.",
+    tooManyAttempts: "För många försök. Begär en ny kod.",
+    wrongCodeNeedsNew: "Fel kod. Begär en ny kod.",
+    wrongCodeLeft: (n) => `Fel kod. ${n} försök kvar.`,
   },
   de: {
     title: "E-Mail bestätigen",
@@ -84,6 +101,11 @@ const VL: Record<Lang, {
     verifyFailed: "Falscher Code. Bitte erneut versuchen.",
     connVerifyFailed: "Ein Fehler ist aufgetreten. Bitte erneut versuchen.",
     verified: "E-Mail bestätigt! Weiterleitung...",
+    noActiveCode: "Kein aktiver Code. Bitte neuen Code anfordern.",
+    codeExpired: "Code abgelaufen. Bitte neuen Code anfordern.",
+    tooManyAttempts: "Zu viele Versuche. Bitte neuen Code anfordern.",
+    wrongCodeNeedsNew: "Falscher Code. Bitte neuen Code anfordern.",
+    wrongCodeLeft: (n) => `Falscher Code. Noch ${n} Versuch${n === 1 ? "" : "e"}.`,
   },
   nb: {
     title: "Bekreft e-postadressen",
@@ -101,6 +123,11 @@ const VL: Record<Lang, {
     verifyFailed: "Feil kode. Prøv igjen.",
     connVerifyFailed: "Noe gikk galt. Prøv igjen.",
     verified: "E-post bekreftet! Omdirigerer...",
+    noActiveCode: "Ingen aktiv kode. Be om en ny kode.",
+    codeExpired: "Koden er utgått. Be om en ny kode.",
+    tooManyAttempts: "For mange forsøk. Be om en ny kode.",
+    wrongCodeNeedsNew: "Feil kode. Be om en ny kode.",
+    wrongCodeLeft: (n) => `Feil kode. ${n} forsøk igjen.`,
   },
   es: {
     title: "Verifica tu correo electrónico",
@@ -118,6 +145,11 @@ const VL: Record<Lang, {
     verifyFailed: "Código incorrecto. Inténtalo de nuevo.",
     connVerifyFailed: "Algo salió mal. Inténtalo de nuevo.",
     verified: "¡Correo verificado! Redirigiendo...",
+    noActiveCode: "No hay ningún código activo. Solicita uno nuevo.",
+    codeExpired: "El código ha caducado. Solicita uno nuevo.",
+    tooManyAttempts: "Demasiados intentos. Solicita un nuevo código.",
+    wrongCodeNeedsNew: "Código incorrecto. Solicita un nuevo código.",
+    wrongCodeLeft: (n) => `Código incorrecto. Quedan ${n} intento${n === 1 ? "" : "s"}.`,
   },
   fr: {
     title: "Vérifiez votre adresse e-mail",
@@ -135,6 +167,11 @@ const VL: Record<Lang, {
     verifyFailed: "Code incorrect. Veuillez réessayer.",
     connVerifyFailed: "Une erreur est survenue. Veuillez réessayer.",
     verified: "E-mail vérifié ! Redirection en cours...",
+    noActiveCode: "Aucun code actif. Veuillez en demander un nouveau.",
+    codeExpired: "Le code a expiré. Veuillez en demander un nouveau.",
+    tooManyAttempts: "Trop de tentatives. Veuillez demander un nouveau code.",
+    wrongCodeNeedsNew: "Code incorrect. Veuillez demander un nouveau code.",
+    wrongCodeLeft: (n) => `Code incorrect. Il reste ${n} tentative${n === 1 ? "" : "s"}.`,
   },
 };
 
@@ -229,7 +266,15 @@ export default function VerifyEmailPage() {
         await refreshVerification();
         setLocation(redirect);
       } else {
-        setError(data.message || s.verifyFailed);
+        const errCode = data.code as string | undefined;
+        if (errCode === "no_active_code") setError(s.noActiveCode);
+        else if (errCode === "expired") setError(s.codeExpired);
+        else if (errCode === "too_many_attempts") setError(s.tooManyAttempts);
+        else if (errCode === "wrong_code") {
+          setError(data.needsNewCode ? s.wrongCodeNeedsNew : s.wrongCodeLeft(data.attemptsLeft ?? 1));
+        } else {
+          setError(s.verifyFailed);
+        }
         if (data.needsNewCode) setCode("");
       }
     } catch {
