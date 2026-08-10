@@ -8861,6 +8861,42 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
   const handleAccent = (v: string) => { setAccent(v); saveJSON("bolig-accent", v); applyBoligBrand(); };
   const handleTextMode = (v: "light" | "dark") => { setTextMode(v); saveJSON("bolig-text-mode", v); applyBoligBrand(); };
 
+  // ── Logo ──
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoRemoving, setLogoRemoving] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    user.getIdToken().then(token =>
+      fetch("/api/bolig/settings/logo", { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { if (d.logo_url) setLogoUrl(d.logo_url); })
+        .catch(() => {})
+    );
+  }, [user]);
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) { showToast("Kun billedfiler tilladt"); return; }
+    setLogoUploading(true);
+    try {
+      const token = await user.getIdToken();
+      const fd = new FormData(); fd.append("logo", file);
+      const res = await fetch("/api/bolig/settings/logo", { method: "POST", body: fd, headers: { Authorization: `Bearer ${token}` } });
+      const d = await res.json();
+      if (d.success) { setLogoUrl(d.logo_url + "?v=" + Date.now()); showToast("Logo gemt"); }
+      else showToast(d.message || "Fejl ved upload");
+    } catch { showToast("Fejl ved upload"); }
+    finally { setLogoUploading(false); }
+  };
+  const handleLogoRemove = async () => {
+    setLogoRemoving(true);
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/bolig/settings/logo", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      setLogoUrl(null); showToast("Logo fjernet");
+    } catch { showToast("Fejl"); }
+    finally { setLogoRemoving(false); }
+  };
+
   // ── Standardvalg ──
   const [defaults, setDefaults] = useState(() =>
     loadJSON("bolig-defaults", { room: "living room", style: "scandinavian", format: "4:3", remember: true, lastUpload: true })
@@ -9043,6 +9079,68 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
                 ))}
               </div>
               <p className="text-xs mt-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.settings.vaelgOmBrandElementerSkal")}</p>
+            </div>
+
+            {/* ── Virksomhedslogo ── */}
+            <div>
+              <div className="h-px mb-6" style={{ background: "#E8E4DE" }} />
+              <label className={labelClass} style={{ color: "#0F1D2F" }}>Virksomhedslogo</label>
+              <p className="text-xs mb-4" style={{ color: "#6B6B6B" }}>
+                Dit logo placeres automatisk nederst til højre på hvert AI-genereret billede. Brug PNG med transparent baggrund for bedste resultat.
+              </p>
+
+              {logoUrl ? (
+                /* Logo preview */
+                <div className="rounded-2xl border border-[#E8E4DE] overflow-hidden" style={{ background: "#F8F6F3" }}>
+                  {/* Simulated image preview with logo overlay */}
+                  <div className="relative" style={{ aspectRatio: "16/9", background: "linear-gradient(135deg,#E8E4DE 0%,#D9D5CF 100%)" }}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-medium" style={{ color: "#9B9690" }}>AI-genereret billede</span>
+                    </div>
+                    {/* Logo bottom-right */}
+                    <div className="absolute bottom-3 right-3 rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(4px)", padding: "6px 10px", maxWidth: "30%" }}>
+                      <img src={logoUrl} alt="Virksomhedslogo" style={{ maxHeight: 32, maxWidth: "100%", objectFit: "contain", display: "block" }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-xs font-medium" style={{ color: "#2D6A4F" }}>✓ Logo aktivt</span>
+                    <button
+                      onClick={handleLogoRemove}
+                      disabled={logoRemoving}
+                      className="text-xs font-medium hover:opacity-70 transition-opacity disabled:opacity-40"
+                      style={{ color: "#DC2626" }}
+                    >
+                      {logoRemoving ? "Fjerner…" : "Fjern logo"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Upload zone */
+                <div
+                  className="rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-8 cursor-pointer transition-all"
+                  style={{ borderColor: "#D9D5CF", background: "#fff" }}
+                  onDragOver={e => { e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor = "#C8956C"; }}
+                  onDragLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#D9D5CF"; }}
+                  onDrop={e => { e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor = "#D9D5CF"; const f = e.dataTransfer.files[0]; if (f) handleLogoUpload(f); }}
+                  onClick={() => logoFileRef.current?.click()}
+                >
+                  <input ref={logoFileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = ""; }} />
+                  {logoUploading ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 rounded-full border-2 border-[#D9D5CF] border-t-[#C8956C] animate-spin" />
+                      <span className="text-sm font-medium" style={{ color: "#6B6B6B" }}>Uploader logo…</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: "#F0EDE7" }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8956C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      </div>
+                      <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>Træk logo hertil</p>
+                      <p className="text-xs" style={{ color: "#6B6B6B" }}>eller klik for at vælge — PNG, JPG, SVG · maks. 3 MB</p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

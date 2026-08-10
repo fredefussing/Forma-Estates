@@ -795,6 +795,7 @@ export async function registerRoutes(
           subscriptionStatus: user.subscriptionStatus,
           subscriptionTier: user.subscriptionTier,
           emailVerified: user.emailVerified,
+          agencyLogoUrl: user.agencyLogoUrl ?? null,
         },
       });
     } catch (err: any) {
@@ -3290,6 +3291,90 @@ export async function registerRoutes(
     }
   });
 
+  // ── Agency logo: upload & delete ─────────────────────────────────────────
+  const logoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024 } });
+
+  /** Read logo as Buffer from local disk; fall back to R2 if disk is empty (Render redeploy). */
+  async function readLogoBuffer(logoRelPath: string): Promise<Buffer | null> {
+    const localPath = path.join(process.cwd(), logoRelPath);
+    if (fs.existsSync(localPath)) return fs.readFileSync(localPath);
+    if (isR2Configured()) {
+      const key = logoRelPath.replace(/^\/uploads\//, ""); // "logos/logo-user-2.png"
+      try {
+        const stream = await r2GetStream(key);
+        if (stream) {
+          const chunks: Buffer[] = [];
+          await new Promise<void>((resolve, reject) => {
+            stream.on("data", (c: Buffer) => chunks.push(c));
+            stream.on("end", resolve);
+            stream.on("error", reject);
+          });
+          const buf = Buffer.concat(chunks);
+          // Cache on disk for subsequent requests
+          const dir = path.dirname(localPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(localPath, buf);
+          return buf;
+        }
+      } catch {}
+    }
+    return null;
+  }
+
+  app.post("/api/bolig/settings/logo", logoUpload.single("logo"), async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+      if (!req.file) return res.status(400).json({ success: false, message: "Intet logo uploadet" });
+
+      // Resize: max 600×200 px, preserve transparency, PNG output
+      const logoBuf = await sharp(req.file.buffer)
+        .resize(600, 200, { fit: "inside", withoutEnlargement: true })
+        .png()
+        .toBuffer();
+
+      const logosDir = path.join(uploadDir, "logos");
+      if (!fs.existsSync(logosDir)) fs.mkdirSync(logosDir, { recursive: true });
+      const filename = `logo-user-${user.id}.png`;
+      fs.writeFileSync(path.join(logosDir, filename), logoBuf);
+      if (isR2Configured()) r2Upload(`logos/${filename}`, logoBuf, "image/png").catch(() => {});
+
+      const logoUrl = `/uploads/logos/${filename}`;
+      await pool.query("UPDATE users SET agency_logo_url = $1 WHERE id = $2", [logoUrl, user.id]);
+
+      return res.json({ success: true, logo_url: logoUrl });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.get("/api/bolig/settings/logo", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+      return res.json({ logo_url: user.agencyLogoUrl ?? null });
+    } catch (err: any) {
+      return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+    }
+  });
+
+  app.delete("/api/bolig/settings/logo", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+      if (user.agencyLogoUrl) {
+        try { fs.unlinkSync(path.join(process.cwd(), user.agencyLogoUrl)); } catch {}
+      }
+      await pool.query("UPDATE users SET agency_logo_url = NULL WHERE id = $1", [user.id]);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
   // ── AI BoligPotentiale: generate endpoint ──────────────────────────────────
   app.post("/api/bolig/generate", upload.single("image"), async (req, res) => {
     try {
@@ -3513,6 +3598,45 @@ export async function registerRoutes(
       if (!collovImageUrl) {
         refundIfNeeded();
         return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes" });
+      }
+
+      // ── Agency logo compositing ──────────────────────────────────────────
+      // If the user has uploaded an agency logo, composite it onto the
+      // generated image (bottom-right corner, 13 % of image width, with padding).
+      // Non-fatal: any failure falls through to the raw Collov URL.
+      if (authedUserId) {
+        try {
+          const logoUser = await storage.getUserById(authedUserId);
+          if (logoUser?.agencyLogoUrl) {
+            const logoBuf = await readLogoBuffer(logoUser.agencyLogoUrl);
+            if (logoBuf) {
+              // Download Collov image to disk (uses curl under the hood for Replit compat)
+              const tmpRelPath = await downloadToUploads(collovImageUrl, uploadDir, ".jpg");
+              const tmpAbsPath = path.join(process.cwd(), tmpRelPath);
+              const imgMeta = await sharp(tmpAbsPath).metadata();
+              const imgW = imgMeta.width || 1024;
+              const imgH = imgMeta.height || 768;
+              const logoTargetW = Math.round(imgW * 0.13);
+              const resizedLogo = await sharp(logoBuf)
+                .resize(logoTargetW, null, { fit: "inside", withoutEnlargement: true })
+                .png()
+                .toBuffer();
+              const lMeta = await sharp(resizedLogo).metadata();
+              const pad = Math.round(imgW * 0.025);
+              const outName = `branded-${authedUserId}-${Date.now()}.jpg`;
+              const outPath = path.join(uploadDir, outName);
+              await sharp(tmpAbsPath)
+                .composite([{ input: resizedLogo, top: imgH - (lMeta.height || 60) - pad, left: imgW - (lMeta.width || logoTargetW) - pad }])
+                .jpeg({ quality: 92 })
+                .toFile(outPath);
+              fs.unlink(tmpAbsPath, () => {});
+              if (isR2Configured()) r2Upload(outName, fs.readFileSync(outPath), "image/jpeg").catch(() => {});
+              collovImageUrl = `/uploads/${outName}`;
+            }
+          }
+        } catch (logoErr: any) {
+          log(`[logo-composite] non-fatal: ${logoErr.message}`);
+        }
       }
 
       // Ingen download eller konvertering — gem Collovs CDN URL direkte (samme som AI Design Agent).

@@ -212,7 +212,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode" | "displayName" | "emailVerified" | "verificationCodeHash" | "verificationCodeExpires" | "verificationAttempts">>): Promise<User | undefined> {
+  async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode" | "displayName" | "emailVerified" | "verificationCodeHash" | "verificationCodeExpires" | "verificationAttempts" | "agencyLogoUrl">>): Promise<User | undefined> {
     const [result] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     return result;
   }

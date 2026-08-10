@@ -75,6 +75,8 @@ export const users = pgTable("users", {
   // GDPR: users can opt out of onboarding/marketing emails (transactional
   // emails like verification codes and receipts are unaffected).
   marketingOptOut: boolean("marketing_opt_out").notNull().default(false),
+  // Branding: user-uploaded agency logo composited onto every generated image.
+  agencyLogoUrl: text("agency_logo_url"),
 });
 
 // Monthly quotas per subscription tier
