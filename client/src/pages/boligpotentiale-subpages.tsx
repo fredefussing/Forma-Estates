@@ -308,20 +308,64 @@ function SectionDivider({ id, eyebrow, title, desc }: { id: string; eyebrow: str
 function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string; poster: string; title: string; desc: string; aspect?: string }) {
   const vRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+
   const toggle = () => {
     if (!vRef.current) return;
     if (playing) { vRef.current.pause(); setPlaying(false); }
     else { vRef.current.play().catch(() => {}); setPlaying(true); }
   };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!vRef.current) return;
+    const next = !muted;
+    vRef.current.muted = next;
+    setMuted(next);
+  };
+
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
       <div style={{ position: "relative", aspectRatio: aspect, cursor: "pointer", background: "#000" }} onClick={toggle}>
-        <video ref={vRef} src={src} poster={poster} muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <video ref={vRef} src={src} poster={poster} loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+
+        {/* Play overlay — hides when playing */}
         <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300" style={{ opacity: playing ? 0 : 1, background: "rgba(15,25,35,0.22)", pointerEvents: "none" }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.93)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 18px rgba(0,0,0,0.22)" }}>
             <svg width="18" height="20" viewBox="0 0 18 20" fill={C.navy}><polygon points="2,1 17,10 2,19" /></svg>
           </div>
         </div>
+
+        {/* Mute toggle — visible only while playing */}
+        {playing && (
+          <button
+            onClick={toggleMute}
+            title={muted ? "Slå lyd til" : "Slå lyd fra"}
+            style={{
+              position: "absolute", bottom: 12, right: 12,
+              width: 36, height: 36, borderRadius: "50%",
+              background: "rgba(15,25,35,0.62)", border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", backdropFilter: "blur(4px)",
+              transition: "background 0.18s",
+            }}
+          >
+            {muted ? (
+              /* Speaker off */
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+              </svg>
+            ) : (
+              /* Speaker on */
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              </svg>
+            )}
+          </button>
+        )}
       </div>
       <div style={{ padding: "20px 24px 24px" }}>
         <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 20, fontWeight: 500, marginBottom: 6 }}>{title}</div>
