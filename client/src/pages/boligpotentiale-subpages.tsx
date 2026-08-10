@@ -346,8 +346,6 @@ export function EksemplerPage() {
     { before: "/bolig-images/stue-scandi-before.png",     after: "/bolig-images/stue-scandi-after.png",    title: "Stue — Skandinavisk",        desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning giver rummet liv." },
     { before: "/bolig-images/dining-before-new.png",      after: "/bolig-images/dining-after-new.jpg",     title: "Spisestue — moderne nordisk", desc: "Fra bart rum til indbydende spisemiljø med varme materialer og naturligt lys." },
     { before: "/bolig-images/homeoffice-modern-before.png", after: "/bolig-images/homeoffice-modern-after.png", title: "Hjemmekontor — moderne", desc: "Fra personligt arbejdsrum til professionelt og lyst kontor med varme materialer." },
-    { before: "/bolig-images/living-modern-before.jpg",   after: "/bolig-images/living-modern-after.jpg",  title: "Stue — moderne",             desc: "Stort tomt rum transformeret til et funktionelt og æstetisk moderne hjem." },
-    { before: "/bolig-images/kitchen-before.jpg",         after: "/bolig-images/kitchen-after.jpg",        title: "Køkken — nordisk",           desc: "Slidt køkken redesignet med ege-fronter, sort beslag og naturstensfliser." },
   ];
 
   const agentStylePairs = [
