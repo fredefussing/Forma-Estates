@@ -71,6 +71,10 @@ export async function ensureSchema(): Promise<void> {
       step: "users.customer_code",
       sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS customer_code varchar(32)`,
     },
+    {
+      step: "users.agency_logo_url",
+      sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS agency_logo_url text`,
+    },
     // ── generated_images columns added after initial schema ───────────────────
     {
       step: "generated_images.is_refinement",
