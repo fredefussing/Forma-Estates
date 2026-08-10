@@ -8,3 +8,6 @@ vite.config.ts.*
 
 # Firebase service accounts
 attached_assets/Pasted--type-service-account*
+
+# Replit uploaded assets — serveres lokalt, hører ikke i Git/Render
+attached_assets/
