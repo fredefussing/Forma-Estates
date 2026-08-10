@@ -362,8 +362,8 @@ export function EksemplerPage() {
   ];
 
   const videosPortrait = [
-    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/stue-riviera-after.png",   title: "Riviera Showcase",   desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum.", aspect: "9/16" },
-    { src: "/videos/bill-it.mp4",       poster: "/bolig-images/showcase-tile-poster.jpg", title: "Showcase — Bill It", desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning.", aspect: "9/16" },
+    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/riviera-poster.jpg",  title: "Riviera Showcase",   desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum.", aspect: "9/16" },
+    { src: "/videos/bill-it.mp4",       poster: "/bolig-images/bill-it-poster.jpg",  title: "Showcase — Bill It", desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning.", aspect: "9/16" },
   ];
   const videoLandscape = { src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg", title: "Showcase — filmformat", desc: "Biografisk kvalitet til annoncen — hvert rum fremhævet med cinematisk belysning." };
 
