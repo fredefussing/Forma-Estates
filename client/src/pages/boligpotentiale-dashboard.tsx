@@ -7687,7 +7687,33 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
           )}
         </div>
 
-        {/* Result */}
+        {/* Result — dot grid while loading, image when done */}
+        {stage === "loading" && (
+          <div>
+            <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.resultLabel")}</p>
+            <div className="relative overflow-hidden rounded-2xl border border-[#E8E4DE]" style={{ minHeight: 380, background: "#FAF7F2" }}>
+              <DotGrid dotSize={5} gap={18} baseColor="#E0D8CE" activeColor="#C8956C" proximity={130} shockRadius={200} shockStrength={4} style={{ position: "absolute", inset: 0 }} />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="rounded-2xl px-8 py-6 text-center" style={{ background: "rgba(255,255,255,0.82)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", boxShadow: "0 2px 16px rgba(15,29,47,0.08)" }}>
+                  <div className="relative w-12 h-12 mb-4 mx-auto">
+                    <div className="absolute inset-0 rounded-full" style={{ border: "4px solid #D9D5CF" }} />
+                    <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "4px solid transparent", borderTopColor: "#C8956C" }} />
+                  </div>
+                  <h2 className="text-base font-bold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
+                  <p className="text-sm font-medium" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
+                  <div className="flex gap-6 mt-5">
+                    {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#C8956C", animationDelay: `${i * 0.3}s` }} />
+                        <span className="text-xs font-semibold" style={{ color: "#4A4A4A" }}>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {stage === "result" && resultUrl && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.resultLabel")}</p>

@@ -776,7 +776,7 @@
       "budgetLabel": "Budget level",
       "generateBtn": "Generate visualization →",
       "generating": "Generating visualization...",
-      "generatingSubtitle": "AI is working on your room. About 30–60 seconds.",
+      "generatingSubtitle": "AI is working on your room. About 30 sec.",
       "analysingRoom": "Analysing room",
       "applyingStyle": "Applying style",
       "rendering": "Rendering",

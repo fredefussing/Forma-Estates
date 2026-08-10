@@ -763,7 +763,7 @@
       "budgetLabel": "Niveau de budget",
       "generateBtn": "Générer la visualisation →",
       "generating": "Génération en cours...",
-      "generatingSubtitle": "L'IA travaille sur votre pièce. Environ 30–60 secondes.",
+      "generatingSubtitle": "L'IA travaille sur votre pièce. Environ 30 sec.",
       "analysingRoom": "Analyse de la pièce",
       "applyingStyle": "Application du style",
       "rendering": "Rendu en cours",
