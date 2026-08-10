@@ -1201,6 +1201,7 @@ function PhoneVideo() {
           <video
             ref={videoRef}
             src="/videos/forvandling-instagram.mp4"
+            poster="/videos/forvandling-instagram-poster.jpg"
             muted
             loop
             playsInline
