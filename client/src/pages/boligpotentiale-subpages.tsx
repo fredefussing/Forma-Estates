@@ -361,11 +361,11 @@ export function EksemplerPage() {
     { before: "/bolig-images/bathroom-before.jpg",  after: "/bolig-images/bathroom-after.jpg",    title: "Badeværelse — spa-stil",   desc: "Klinisk badeværelse forvandlet til et minimalistisk spa-look med natursten, planter og varmt lys." },
   ];
 
-  const videos = [
-    { src: "/videos/eksempel-bolig-showcase.mp4",  poster: "/bolig-images/showcase-eksempel-poster.jpg", title: "Bolig Showcase",         desc: "Professionel præsentationsvideo der fremhæver boligens stærkeste rum og atmosfære." },
-    { src: "/videos/riviera-final.mp4",             poster: "/bolig-images/stue-riviera-after.png",       title: "Riviera Showcase",       desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum.", aspect: "9/16" },
-    { src: "/videos/bill-it.mp4",                   poster: "/bolig-images/showcase-tile-poster.jpg",     title: "Showcase — Bill It",     desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning." },
+  const videosPortrait = [
+    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/stue-riviera-after.png",   title: "Riviera Showcase",   desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum.", aspect: "9/16" },
+    { src: "/videos/bill-it.mp4",       poster: "/bolig-images/showcase-tile-poster.jpg", title: "Showcase — Bill It", desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning.", aspect: "9/16" },
   ];
+  const videoLandscape = { src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg", title: "Showcase — filmformat", desc: "Biografisk kvalitet til annoncen — hvert rum fremhævet med cinematisk belysning." };
 
   return (
     <SubpageLayout
@@ -438,8 +438,13 @@ export function EksemplerPage() {
         title="AI-genererede præsentationsvideoer"
         desc="Cinematiske videoer der viser boligen fra dens bedste side — automatisk genereret, klar til Boligsiden og sociale medier."
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7" style={{ paddingBottom: 24 }}>
-        {videos.map((v, i) => <VideoCard key={i} {...v} />)}
+      {/* Portrait pair side by side */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
+        {videosPortrait.map((v, i) => <VideoCard key={i} {...v} />)}
+      </div>
+      {/* Landscape video below */}
+      <div className="mt-7" style={{ paddingBottom: 24 }}>
+        <VideoCard {...videoLandscape} />
       </div>
     </SubpageLayout>
   );
