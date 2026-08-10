@@ -87,20 +87,42 @@ const FPS = 30;
 const W = 1080;
 const H = 1920;
 
-function runFfmpeg(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("ffmpeg", args);
-    let stderr = "";
-    proc.stderr.on("data", (d) => {
-      stderr += d.toString();
-      if (stderr.length > 8000) stderr = stderr.slice(-8000);
-    });
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
-    });
+// ── FFmpeg concurrency limiter ────────────────────────────────────────────────
+// Running too many FFmpeg processes in parallel exhausts Render instance RAM
+// (OOM / status 137). Cap at 2 simultaneous processes; extras queue and wait.
+const MAX_FFMPEG_SLOTS = 2;
+let _ffmpegSlots = 0;
+const _ffmpegQueue: Array<() => void> = [];
+
+function acquireFfmpegSlot(): Promise<void> {
+  return new Promise(resolve => {
+    if (_ffmpegSlots < MAX_FFMPEG_SLOTS) { _ffmpegSlots++; resolve(); }
+    else { _ffmpegQueue.push(() => { _ffmpegSlots++; resolve(); }); }
   });
+}
+function releaseFfmpegSlot(): void {
+  _ffmpegSlots = Math.max(0, _ffmpegSlots - 1);
+  const next = _ffmpegQueue.shift();
+  if (next) next();
+}
+
+function runFfmpeg(args: string[]): Promise<void> {
+  return acquireFfmpegSlot().then(
+    () => new Promise<void>((resolve, reject) => {
+      const proc = spawn("ffmpeg", args);
+      let stderr = "";
+      proc.stderr.on("data", (d) => {
+        stderr += d.toString();
+        if (stderr.length > 8000) stderr = stderr.slice(-8000);
+      });
+      proc.on("error", (err) => { releaseFfmpegSlot(); reject(err); });
+      proc.on("close", (code) => {
+        releaseFfmpegSlot();
+        if (code === 0) resolve();
+        else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
+      });
+    })
+  );
 }
 
 // Read a photo's pixel size so we can fit it whole (no crop) and size the blurred
