@@ -1331,11 +1331,13 @@ export class DatabaseStorage implements IStorage {
     const usedVideo         = ownerUsedCounts ? ownerUsedCounts.transformVideo  : (r.used_transform_videos   ?? 0);
     const usedShowcase      = ownerUsedCounts ? ownerUsedCounts.showcase        : (r.used_showcase_videos    ?? 0);
 
-    // For admins with NULL quotas → null means unlimited.
+    // For admins → always unlimited (null), regardless of what quota columns hold.
+    // (A package purchase on an admin account increments the column, but admins
+    // must never be capped by it — they have unlimited access by definition.)
     // For regular users with NULL quotas (no plan purchased) → treat as 0, not unlimited.
     const nullMeansUnlimited = r.is_admin;
     const resolveLimit = (raw: number | null): number | null =>
-      raw !== null ? raw : (nullMeansUnlimited ? null : 0);
+      nullMeansUnlimited ? null : (raw !== null ? raw : 0);
 
     // Free trial: a standalone, non-admin user with no purchased plan and not
     // drawing from any team pool gets a small AI-visualiser allowance (før/efter)
