@@ -357,14 +357,14 @@ export function EksemplerPage() {
   ];
 
   const agentPairs = [
-    { before: "/bolig-images/living-scandi-before.jpg", after: "/bolig-images/living-scandi-after.jpg", title: "Stue — Skandinavisk minimalisme", desc: "AI Designagenten vælger møbler, tekstiler og farvepalette der matcher den skandinaviske stil — fra ét originalt foto." },
-    { before: "/bolig-images/bathroom-before.jpg",      after: "/bolig-images/bathroom-after.jpg",      title: "Badeværelse — spa-stil",          desc: "Klinisk badeværelse forvandlet til et minimalistisk spa-look med natursten, planter og varmt lys." },
+    { before: "/bolig-images/ai-agent-before.jpg",  after: "/bolig-images/ai-agent-after.jpg",    title: "Stue — AI Designagent",   desc: "AI Designagenten vælger møbler, materialer og stil ud fra ét originalt foto — og giver rummet et helt nyt udtryk." },
+    { before: "/bolig-images/bathroom-before.jpg",  after: "/bolig-images/bathroom-after.jpg",    title: "Badeværelse — spa-stil",   desc: "Klinisk badeværelse forvandlet til et minimalistisk spa-look med natursten, planter og varmt lys." },
   ];
 
   const videos = [
-    { src: "/videos/eksempel-bolig-showcase.mp4",       poster: "/bolig-images/showcase-eksempel-poster.jpg", title: "Bolig Showcase",          desc: "Professionel præsentationsvideo der fremhæver boligens stærkeste rum og atmosfære." },
-    { src: "/videos/bolig-showcase-tile.mp4",           poster: "/bolig-images/showcase-tile-poster.jpg",     title: "Showcase — filmformat",   desc: "Biografisk kvalitet til annoncen — hvert rum fremhævet med cinematisk belysning." },
-    { src: "/videos/transformation-kling-v16-pro.mp4",  poster: "/bolig-images/video-poster.jpg",             title: "Transformering — AI video", desc: "AI-genereret video der viser boligens potentiale fra tomt rum til drømmehjem." },
+    { src: "/videos/eksempel-bolig-showcase.mp4",  poster: "/bolig-images/showcase-eksempel-poster.jpg", title: "Bolig Showcase",         desc: "Professionel præsentationsvideo der fremhæver boligens stærkeste rum og atmosfære." },
+    { src: "/videos/riviera-final.mp4",             poster: "/bolig-images/stue-riviera-after.png",       title: "Riviera Showcase",       desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum." },
+    { src: "/videos/bill-it.mp4",                   poster: "/bolig-images/showcase-tile-poster.jpg",     title: "Showcase — Bill It",     desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning." },
   ];
 
   return (
