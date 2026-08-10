@@ -305,7 +305,7 @@ function SectionDivider({ id, eyebrow, title, desc }: { id: string; eyebrow: str
 }
 
 /* ── Video card with click-to-play ── */
-function VideoCard({ src, poster, title, desc }: { src: string; poster: string; title: string; desc: string }) {
+function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string; poster: string; title: string; desc: string; aspect?: string }) {
   const vRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const toggle = () => {
@@ -315,7 +315,7 @@ function VideoCard({ src, poster, title, desc }: { src: string; poster: string; 
   };
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
-      <div style={{ position: "relative", aspectRatio: "16/9", cursor: "pointer", background: "#000" }} onClick={toggle}>
+      <div style={{ position: "relative", aspectRatio: aspect, cursor: "pointer", background: "#000" }} onClick={toggle}>
         <video ref={vRef} src={src} poster={poster} muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300" style={{ opacity: playing ? 0 : 1, background: "rgba(15,25,35,0.22)", pointerEvents: "none" }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.93)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 18px rgba(0,0,0,0.22)" }}>
@@ -363,7 +363,7 @@ export function EksemplerPage() {
 
   const videos = [
     { src: "/videos/eksempel-bolig-showcase.mp4",  poster: "/bolig-images/showcase-eksempel-poster.jpg", title: "Bolig Showcase",         desc: "Professionel præsentationsvideo der fremhæver boligens stærkeste rum og atmosfære." },
-    { src: "/videos/riviera-final.mp4",             poster: "/bolig-images/stue-riviera-after.png",       title: "Riviera Showcase",       desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum." },
+    { src: "/videos/riviera-final.mp4",             poster: "/bolig-images/stue-riviera-after.png",       title: "Riviera Showcase",       desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum.", aspect: "9/16" },
     { src: "/videos/bill-it.mp4",                   poster: "/bolig-images/showcase-tile-poster.jpg",     title: "Showcase — Bill It",     desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning." },
   ];
 
