@@ -616,10 +616,16 @@ export async function getAnimationVideoStatus(
   }
 }
 
-// ===== MAGIC TRANSFORM VIDEO (Seedance 2.0 — før → efter cinematisk transformation) =====
+// ===== MAGIC TRANSFORM VIDEO (Kling v1.6 Pro — før → efter cinematisk transformation) =====
 // Tager et før- og et efter-billede og interpolerer en smooth cinematisk overgang.
-// Bruger Seedance 2.0 start→slut frame interpolation (samme som morph-mode) men
-// med cinematiske prompts der beskriver OVERGANGEN frem for kamerabevægelsen.
+// Tidligere brugte Seedance 2.0; skiftet til Kling v1.6 Pro fordi:
+//   • ~2-3x billigere: $0.056/s × 5s = $0.28 vs Seedance 8s (~$0.56-0.72)
+//   • Hurtigere: typisk 45-90s vs 2-4min for Seedance 8s 1080p
+//   • Samme visuelle kvalitet for ejendomsbilleder
+// Bruger tail_image_url (start→slut frame) — samme engine som showcase-klip.
+// Dimensioner normaliseres allerede i uploadVideoPairToFal (ingen 422-fejl).
+const MAGIC_TRANSFORM_ENDPOINT = "fal-ai/kling-video/v1.6/pro/image-to-video";
+
 const MAGIC_BASE_SUFFIX =
   " Indistinguishable from professional luxury real estate footage (Sony A7S III, cinema lenses). Warm natural light, photorealistic materials and shadows. Camera holds static. 24fps cinematic, smooth single continuous shot, no jump cuts, no text overlays.";
 
@@ -636,23 +642,22 @@ export const MAGIC_TRANSFORM_STYLES = {
 
 export type MagicTransformStyle = keyof typeof MAGIC_TRANSFORM_STYLES;
 
-// Uses Seedance 2.0 start→end frame interpolation (same engine as morph-video).
+// Kling v1.6 Pro start→end frame interpolation via tail_image_url.
+// duration "5" is the only sub-10s option; aspect_ratio "16:9" fits all
+// landscape property photos (default for real-estate marketing material).
 export async function submitMagicTransformVideo(
   beforeImageUrl: string,
   afterImageUrl: string,
   style: MagicTransformStyle = "magic",
 ): Promise<{ requestId: string }> {
   assertNotLockedDown();
-  const { request_id } = await fal.queue.submit(VIDEO_ENDPOINT, {
+  const { request_id } = await fal.queue.submit(MAGIC_TRANSFORM_ENDPOINT, {
     input: {
       image_url: beforeImageUrl,
-      end_image_url: afterImageUrl,
+      tail_image_url: afterImageUrl,
       prompt: MAGIC_TRANSFORM_STYLES[style],
-      duration: "8" as "8",
-      resolution: "1080p" as const,
-      bitrate_mode: "high" as const,
-      generate_audio: false,
-      aspect_ratio: "auto" as const,
+      duration: "5" as const,
+      aspect_ratio: "16:9" as const,
     },
   });
   return { requestId: request_id };
@@ -662,9 +667,9 @@ export async function getMagicTransformStatus(
   requestId: string,
 ): Promise<{ status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED"; videoUrl?: string; error?: string }> {
   try {
-    const s: any = await fal.queue.status(VIDEO_ENDPOINT, { requestId });
+    const s: any = await fal.queue.status(MAGIC_TRANSFORM_ENDPOINT, { requestId });
     if (s.status === "COMPLETED") {
-      const r: any = await fal.queue.result(VIDEO_ENDPOINT, { requestId });
+      const r: any = await fal.queue.result(MAGIC_TRANSFORM_ENDPOINT, { requestId });
       const videoUrl = r.data?.video?.url;
       if (!videoUrl) return { status: "FAILED", error: "No video in result" };
       return { status: "COMPLETED", videoUrl };
