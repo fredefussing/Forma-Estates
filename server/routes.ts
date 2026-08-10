@@ -9,7 +9,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { isR2Configured, createR2MulterStorage, r2GetStream, r2UploadFile, r2DeleteFiles } from "./r2";
+import { isR2Configured, createR2MulterStorage, r2Upload, r2GetStream, r2UploadFile, r2DeleteFiles } from "./r2";
 import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
@@ -570,7 +570,10 @@ export async function registerRoutes(
   app.use("/uploads", async (req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     const key = decodeURIComponent(req.path.replace(/^\//, ""));
-    if (!key || key.includes("..") || key.includes("/")) return next();
+    // Block empty keys and path-traversal attempts; subdirectory paths (e.g.
+    // "logos/logo-user-2.png") are intentionally allowed — path.join keeps
+    // them inside uploadDir and the ".." check prevents traversal.
+    if (!key || key.includes("..")) return next();
 
     // 1. Serve from local disk if present (dev + same-session files)
     const localPath = path.join(uploadDir, key);
@@ -3366,7 +3369,11 @@ export async function registerRoutes(
       const user = await storage.getUserByFirebaseUid(uid);
       if (!user) return res.status(401).json({ success: false, message: "Ikke autoriseret" });
       if (user.agencyLogoUrl) {
+        // Remove from local disk
         try { fs.unlinkSync(path.join(process.cwd(), user.agencyLogoUrl)); } catch {}
+        // Remove from R2 (e.g. "logos/logo-user-2.png")
+        const r2Key = user.agencyLogoUrl.replace(/^\/uploads\//, "");
+        r2DeleteFiles([r2Key]).catch(() => {});
       }
       await pool.query("UPDATE users SET agency_logo_url = NULL WHERE id = $1", [user.id]);
       return res.json({ success: true });
