@@ -27,7 +27,7 @@ async function cf(url: string, opts?: RequestInit) {
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Lang = "da" | "en";
 type LeadStatus   = "new" | "contacted" | "responded" | "no" | "won";
-type LeadCategory = "ejendomsmaegler" | "arkitekt" | "toemrerfirma" | "byggefirma";
+type LeadCategory = "ejendomsmaegler" | "arkitekt" | "toemrerfirma" | "byggefirma" | "fotograf";
 
 type Lead = {
   id: number;
@@ -60,7 +60,7 @@ const LV = {
     statusNo: "Nej", statusWon: "Vundet",
     statusNewOpt: "Ny", statusContactedOpt: "Kontaktet", statusRespondedOpt: "Svaret",
     // Category shorts
-    catAgent: "Mægler", catArchitect: "Arkitekt", catCarpenter: "Tømrer", catBuilder: "Byggefirma",
+    catAgent: "Mægler", catArchitect: "Arkitekt", catCarpenter: "Tømrer", catBuilder: "Byggefirma", catPhotographer: "Fotograf",
     // Countdown
     cdToday: "I dag!", cdTomorrow: "I morgen",
     cdInDays: (d: number) => `om ${d}d`,
@@ -143,7 +143,7 @@ const LV = {
     statusNew: "New", statusContacted: "Contacted", statusResponded: "Responded ✅",
     statusNo: "No", statusWon: "Won",
     statusNewOpt: "New", statusContactedOpt: "Contacted", statusRespondedOpt: "Responded",
-    catAgent: "Agent", catArchitect: "Architect", catCarpenter: "Carpenter", catBuilder: "Builder",
+    catAgent: "Agent", catArchitect: "Architect", catCarpenter: "Carpenter", catBuilder: "Builder", catPhotographer: "Photographer",
     cdToday: "Today!", cdTomorrow: "Tomorrow",
     cdInDays: (d: number) => `in ${d}d`,
     cdOverDays: (d: number) => `${d}d overdue`,
@@ -234,10 +234,11 @@ function getStatusCfg(s: S): Record<LeadStatus, { label: string; fg: string; bg:
 
 function getCatCfg(s: S): Record<LeadCategory, { short: string; emoji: string; color: string }> {
   return {
-    ejendomsmaegler: { short: s.catAgent,     emoji: "🏠", color: "#60A5FA" },
-    arkitekt:        { short: s.catArchitect, emoji: "🏗️", color: "#A78BFA" },
-    toemrerfirma:    { short: s.catCarpenter, emoji: "🔨", color: "#FB923C" },
-    byggefirma:      { short: s.catBuilder,   emoji: "🏢", color: "#34D399" },
+    ejendomsmaegler: { short: s.catAgent,        emoji: "🏠", color: "#60A5FA" },
+    arkitekt:        { short: s.catArchitect,    emoji: "🏗️", color: "#A78BFA" },
+    toemrerfirma:    { short: s.catCarpenter,    emoji: "🔨", color: "#FB923C" },
+    byggefirma:      { short: s.catBuilder,      emoji: "🏢", color: "#34D399" },
+    fotograf:        { short: s.catPhotographer, emoji: "📷", color: "#F472B6" },
   };
 }
 
