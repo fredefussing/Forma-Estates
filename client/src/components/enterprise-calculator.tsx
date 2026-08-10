@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowRight, Building2, Zap, Box, Video, Home, Loader2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ProductKey = "aiVisual" | "plan3d" | "transformVideo" | "showcase";
@@ -320,6 +321,7 @@ type Props = { dark?: boolean };
 export function EnterpriseCalculator({ dark: _dark = true }: Props) {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const [quantities, setQuantities] = useState<Record<ProductKey, number>>({
     aiVisual: 0, plan3d: 0, transformVideo: 0, showcase: 0,
   });
@@ -364,13 +366,19 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
 
   const handleCheckout = async () => {
     if (!hasItems || checkoutLoading) return;
+    if (!user) {
+      // Not logged in — save intent and send to login first
+      sessionStorage.setItem("forma_checkout_intent", JSON.stringify({ type: "package", quantities }));
+      setLocation(`/login?redirect=${encodeURIComponent("/boligpotentiale#enterprise-calculator")}`);
+      return;
+    }
     setCheckoutError(null);
     setCheckoutLoading(true);
     try {
       const res = await fetch("/api/create-package-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...quantities, customerEmail: user?.email }),
+        body: JSON.stringify({ ...quantities, customerEmail: user.email }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -381,6 +389,30 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
       setCheckoutLoading(false);
     }
   };
+
+  // After login redirect back: auto-trigger package checkout if intent is stored
+  useEffect(() => {
+    if (!user) return;
+    const raw = sessionStorage.getItem("forma_checkout_intent");
+    if (!raw) return;
+    try {
+      const intent = JSON.parse(raw);
+      if (intent.type !== "package" || !intent.quantities) return;
+      sessionStorage.removeItem("forma_checkout_intent");
+      const qty: Record<ProductKey, number> = { aiVisual: 0, plan3d: 0, transformVideo: 0, showcase: 0, ...intent.quantities };
+      setQuantities(qty);
+      setCheckoutLoading(true);
+      fetch("/api/create-package-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...qty, customerEmail: user.email }),
+      })
+        .then(r => r.json())
+        .then(data => { if (data.url) window.location.href = data.url; })
+        .catch(() => {})
+        .finally(() => setCheckoutLoading(false));
+    } catch { /* ignore malformed intent */ }
+  }, [user]);
 
   return (
     <div

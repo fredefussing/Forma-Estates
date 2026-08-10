@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { TrustMarquee } from "@/components/TrustMarquee";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu,
@@ -1245,6 +1246,8 @@ function TileCarousel({ images }: { images: string[] }) {
 
 export default function BoligpotentialeLanding() {
   const { t, i18n: i18nCtx } = useTranslation();
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("home");
@@ -1273,6 +1276,12 @@ export default function BoligpotentialeLanding() {
   const FAQS = t("faq.items", { returnObjects: true }) as Array<{ q: string; a: string }>;
 
   const startCheckout = async (planName: string) => {
+    if (!user) {
+      // Not logged in — save intent and send to login first
+      sessionStorage.setItem("forma_checkout_intent", JSON.stringify({ type: "subscription", planName, billing }));
+      setLocation(`/login?redirect=${encodeURIComponent("/boligpotentiale")}`);
+      return;
+    }
     const priceId = PLAN_PRICE_IDS[planName]?.[billing];
     if (!priceId) return;
     setCheckoutLoading(planName);
@@ -1280,7 +1289,7 @@ export default function BoligpotentialeLanding() {
       const res = await fetch("/api/create-subscription-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId, customerEmail: "" }),
+        body: JSON.stringify({ priceId, customerEmail: user.email ?? "" }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -1291,6 +1300,30 @@ export default function BoligpotentialeLanding() {
       setCheckoutLoading(null);
     }
   };
+
+  // After login redirect back: auto-trigger subscription checkout if intent is stored
+  useEffect(() => {
+    if (!user) return;
+    const raw = sessionStorage.getItem("forma_checkout_intent");
+    if (!raw) return;
+    try {
+      const intent = JSON.parse(raw);
+      if (intent.type !== "subscription" || !intent.planName) return;
+      sessionStorage.removeItem("forma_checkout_intent");
+      const priceId = PLAN_PRICE_IDS[intent.planName]?.[intent.billing as "monthly" | "yearly"];
+      if (!priceId) return;
+      setCheckoutLoading(intent.planName);
+      fetch("/api/create-subscription-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, customerEmail: user.email ?? "" }),
+      })
+        .then(r => r.json())
+        .then(data => { if (data.url) window.location.href = data.url; })
+        .catch(() => {})
+        .finally(() => setCheckoutLoading(null));
+    } catch { /* ignore malformed intent */ }
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
