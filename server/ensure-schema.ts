@@ -547,9 +547,18 @@ export async function ensureSchema(): Promise<void> {
       ];
       for (const u of phoneUpdates) {
         await pool.query(
-          `UPDATE leads SET owner_phone=$1, notes=COALESCE(notes||chr(10),'')||$2
+          `UPDATE leads SET owner_phone=$1, status='contacted', notes=COALESCE(notes||chr(10),'')||$2
            WHERE owner_email=$3 AND lower(name) LIKE $4 AND owner_phone IS NULL`,
           [u.phone, '[11. aug] ' + u.note, oe, u.pattern]
+        );
+      }
+
+      // Also fix status for any matching leads that already have a phone (idempotent)
+      for (const u of phoneUpdates) {
+        await pool.query(
+          `UPDATE leads SET status='contacted'
+           WHERE owner_email=$1 AND lower(name) LIKE $2 AND status='new' AND owner_phone IS NOT NULL`,
+          [oe, u.pattern]
         );
       }
 
