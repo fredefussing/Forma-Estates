@@ -53,11 +53,11 @@ function formatMessage(text: string) {
 }
 
 export default function SalesChatPage() {
-  const { user, isLoading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const [, navigate] = useLocation();
 
   const isAllowed =
-    user?.isAdmin ||
+    isAdmin ||
     ALLOWED_EMAILS.includes((user?.email ?? "").toLowerCase());
 
   const [messages, setMessages] = useState<Message[]>([
@@ -133,7 +133,7 @@ export default function SalesChatPage() {
     setInput("");
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div
         style={{

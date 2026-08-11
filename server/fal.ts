@@ -398,31 +398,16 @@ function nearestSupportedAspectRatio(
 export async function generate3DFloorplan(
   floorPlanImageUrl: string,
 ): Promise<{ imageUrl: string }> {
-  // Pre-processer plantegningen først (crop + kontrast). Falder tilbage til
-  // den oprindelige URL hvis preprocessing fejler — så vi aldrig blokerer
-  // selve generereringen pga. en jimp-fejl.
-  let inputUrl = floorPlanImageUrl;
-  // "auto" lader modellen selv vælge lærred — det giver et andet format end
-  // input og får den til at outpainte ekstra rum. Vi låser det til input-
-  // formatet når preprocessing lykkes.
-  let aspectRatio: FloorplanAspectRatio | "auto" = "auto";
-  try {
-    const pre = await preprocessFloorplan(floorPlanImageUrl);
-    inputUrl = pre.url;
-    aspectRatio = nearestSupportedAspectRatio(pre.width, pre.height);
-    console.log(
-      `[generate3DFloorplan] input ${pre.width}x${pre.height} -> aspect_ratio ${aspectRatio}`,
-    );
-  } catch (e) {
-    console.warn("[generate3DFloorplan] preprocess failed, using raw URL:", e);
-  }
-
+  // This function receives a public URL (fal.storage or replit host).
+  // Preprocessing (crop/contrast) is done by the caller before uploading,
+  // so we pass the URL directly to the model.
+  console.log(`[generate3DFloorplan] url: ${floorPlanImageUrl.slice(0, 80)}`);
   const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
     input: {
       prompt: FLOORPLAN_3D_PROMPT,
-      image_urls: [inputUrl],
+      image_urls: [floorPlanImageUrl],
       resolution: "2K",
-      aspect_ratio: aspectRatio,
+      aspect_ratio: "auto",
     },
   });
 

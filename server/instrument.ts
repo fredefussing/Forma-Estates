@@ -1,3 +1,4 @@
+// @ts-ignore — @sentry/node is an optional dependency; safe to omit if not installed
 import * as Sentry from "@sentry/node";
 
 if (process.env.SENTRY_DSN) {

@@ -3384,6 +3384,15 @@ export async function registerRoutes(
 
   // ── AI BoligPotentiale: generate endpoint ──────────────────────────────────
   app.post("/api/bolig/generate", upload.single("image"), async (req, res) => {
+    // Hoisted outside try so the catch block can access them (try/catch are separate block scopes)
+    let authedUserId: number | null = null;
+    let quotaConsumed = false;
+    const refundIfNeeded = () => {
+      if (quotaConsumed && authedUserId) {
+        quotaConsumed = false; // only refund once
+        storage.refundQuota(authedUserId, "ai").catch(() => {});
+      }
+    };
     try {
       const sourceCaseImageId = req.body.sourceCaseImageId ? parseInt(req.body.sourceCaseImageId) : null;
       if (!req.file && !sourceCaseImageId) {
@@ -3393,7 +3402,6 @@ export async function registerRoutes(
       // Auth — a valid Firebase token is required. The old caseId-owner fallback
       // allowed unauthenticated generation under someone else's account/quota
       // (IDOR) and would let unverified users bypass email verification.
-      let authedUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
@@ -3440,7 +3448,6 @@ export async function registerRoutes(
 
       // Quota check — blocks non-admin users who have exhausted their AI visualization quota
       // Track whether we consumed a quota credit so we can refund on any failure path below.
-      let quotaConsumed = false;
       if (authedUserId && !isRefinement) {
         const q = await storage.checkAndIncrementQuota(authedUserId, "ai");
         if (!q.allowed) {
@@ -3448,13 +3455,6 @@ export async function registerRoutes(
         }
         quotaConsumed = true;
       }
-
-      const refundIfNeeded = () => {
-        if (quotaConsumed && authedUserId) {
-          quotaConsumed = false; // only refund once
-          storage.refundQuota(authedUserId, "ai").catch(() => {});
-        }
-      };
 
       if (!COLLOV_API_KEY) {
         refundIfNeeded();
@@ -6511,10 +6511,10 @@ Se handelsbetingelserne afsnit 14 og privatlivspolitikken afsnit 10 for fuld jur
   // ── Sales chat (internal — admin + salgsteam only) ───────────────────────
   app.post("/api/sales-chat", async (req, res) => {
     try {
-      const userId = (req.session as any)?.userId;
+      const userId = (req as any).session?.userId;
       if (!userId) return res.status(401).json({ error: "Log ind for at bruge sælger-assistenten." });
 
-      const dbUser = await storage.getUser(userId);
+      const dbUser = await storage.getUserById(userId);
       if (!dbUser) return res.status(401).json({ error: "Bruger ikke fundet." });
 
       const ALLOWED_SALES_EMAILS = ["mahad23_@hotmail.com"];

@@ -458,7 +458,7 @@ function energyPlanAI(
   // These tracks have a PREDETERMINED editorial structure (slow intro → fast drop,
   // alternating heartbeat, etc.). We follow that structure exactly rather than
   // reacting to per-beat energy — it's how professional editors actually work.
-  const sectionFn = SECTION_PLANS[key];
+  const sectionFn = SECTION_PLANS[key!];
   if (sectionFn) {
     const durations = Array.from({ length: n }, (_, i) => {
       let beats = sectionFn(i, n);
@@ -469,13 +469,13 @@ function energyPlanAI(
       return +dur.toFixed(4);
     });
     const total = durations.reduce((a, b) => a + b, 0);
-    console.log(`[showcase] section plan (${key}, ${n} clips): [${durations.join(", ")}]s = ${total.toFixed(2)}s total`);
+    console.log(`[showcase] section plan (${key!}, ${n} clips): [${durations.join(", ")}]s = ${total.toFixed(2)}s total`);
     return { durations, musicSeek: +seek.toFixed(3) };
   }
 
   // ── Energy-reactive plan (original 4 tracks) ──────────────────────────────
   // Walk forward through the reel, sampling audio energy at each clip's start.
-  const beatMap = ENERGY_BEATS[key];
+  const beatMap = ENERGY_BEATS[key!];
   if (!beatMap) {
     const dur = +(Math.min(AI_MAX_SLIDE_SEC, Math.max(AI_MIN_SLIDE_SEC, AI_TARGET_TOTAL_SEC / n)).toFixed(3));
     return { durations: Array(n).fill(dur), musicSeek: +seek.toFixed(3) };
@@ -485,7 +485,7 @@ function energyPlanAI(
   const durations: number[] = [];
   for (let i = 0; i < n; i++) {
     const musicT = reelT + seek;
-    const energy = beatEnergyAt(key, musicT);
+    const energy = beatEnergyAt(key!, musicT);
 
     // Map energy → beat count
     let beats = energy > ENERGY_HIGH ? beatMap.short
@@ -972,7 +972,7 @@ function localEnergyPlan(musicKey: string | undefined, n: number): { durations: 
   if (seek < 0) seek += grid.period;
 
   // Section-based plan (same logic as AI path — Ken Burns clips follow same arc)
-  const sectionFn = SECTION_PLANS[key];
+  const sectionFn = SECTION_PLANS[key!];
   if (sectionFn) {
     const durations = Array.from({ length: n }, (_, i) => {
       let beats = sectionFn(i, n);
@@ -982,12 +982,12 @@ function localEnergyPlan(musicKey: string | undefined, n: number): { durations: 
       return +dur.toFixed(4);
     });
     const total = durations.reduce((a, b) => a + b, 0);
-    console.log(`[showcase] local section plan (${key}, ${n} slides): [${durations.join(", ")}]s = ${total.toFixed(2)}s`);
+    console.log(`[showcase] local section plan (${key!}, ${n} slides): [${durations.join(", ")}]s = ${total.toFixed(2)}s`);
     return { durations, musicSeek: +seek.toFixed(3) };
   }
 
   // Energy-reactive plan (original 4 tracks)
-  const beatMap = ENERGY_BEATS[key];
+  const beatMap = ENERGY_BEATS[key!];
   if (!beatMap) {
     return { durations: Array(n).fill(SILENT_SLIDE_SEC), musicSeek: +seek.toFixed(3) };
   }
@@ -995,7 +995,7 @@ function localEnergyPlan(musicKey: string | undefined, n: number): { durations: 
   let reelT = 0;
   const durations: number[] = [];
   for (let i = 0; i < n; i++) {
-    const energy = beatEnergyAt(key, reelT + seek);
+    const energy = beatEnergyAt(key!, reelT + seek);
     let beats = energy > ENERGY_HIGH ? beatMap.short
               : energy > ENERGY_MED  ? beatMap.medium
               :                        beatMap.long;
