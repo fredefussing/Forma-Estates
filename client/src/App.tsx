@@ -37,6 +37,7 @@ import BoligpotentialeJoinTeam from "@/pages/boligpotentiale-join-team";
 import ShareView from "@/pages/share-view";
 import OpretTeamPage from "@/pages/opret-team";
 import TrackerDashboard from "@/pages/tracker-dashboard";
+import SalesChatPage from "@/pages/sales-chat";
 import {
   EksemplerPage,
   ForEfterPage,
@@ -192,6 +193,7 @@ function Router() {
       <Route path="/min-konto" component={AccountPage} />
       <Route path="/mine-designs" component={MyDesignsPage} />
       <Route path="/betalt" component={PaymentSuccessPage} />
+      <Route path="/intern" component={SalesChatPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/tracker" component={TrackerDashboard} />
       <Route path="/admin/quotes" component={AdminQuotesPage} />
