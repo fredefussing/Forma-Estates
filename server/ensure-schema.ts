@@ -948,6 +948,193 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] 150-leads batch:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── MASTER SYNC: guarantee ALL 147 telesales contacted leads are visible ──
+  // Strategy: (1) UPDATE by EXACT name if owner_phone IS NULL (catches name-matched old leads)
+  //           (2) INSERT if no lead with this PHONE exists (catch-all for truly missing leads)
+  // Runs every boot. Completely idempotent. No LIKE guessing.
+  try {
+    const oe  = 'fredefussing@gmail.com';
+    const ts  = '2026-08-11T08:00:00Z';
+    const fu  = '2026-08-18T08:00:00Z';
+    const fu1 = '2026-08-13T08:00:00Z';
+    const fu2 = '2026-08-20T08:00:00Z';
+    type M = { name: string; phone: string; oPhone?: string };
+    const master: M[] = [
+      { name:'&LIVING Aarhus',                        phone:'66 46 79 96' },
+      { name:'&LIVING Østerbro',                       phone:'40 58 28 29' },
+      { name:'AFBolig',                                phone:'40 25 44 80' },
+      { name:'Aars Mægleren',                          phone:'51 24 12 76' },
+      { name:'Adam Schnack',                           phone:'26 23 42 23' },
+      { name:'Alecsander Delfs',                       phone:'31 19 15 15' },
+      { name:'Anja Hensberg',                          phone:'60 15 07 30' },
+      { name:'Arboehus',                               phone:'30 50 34 22' },
+      { name:'Arensbach Entreprise',                   phone:'28 83 65 11' },
+      { name:'BOLIG by K',                             phone:'20 24 27 72' },
+      { name:'BORG & HEILESEN',                        phone:'20 60 15 02' },
+      { name:'Benzon Ejendomsmægler',                  phone:'27 84 54 40' },
+      { name:'Bernstorff Estate',                      phone:'40 53 78 08' },
+      { name:'Bjørn & Byskov Ejendomsmægler',          phone:'20 54 29 29' },
+      { name:'Bo Basic',                               phone:'26 14 48 91' },
+      { name:'BoGodt Mægleren',                        phone:'81 72 88 82' },
+      { name:'Boligbutikken',                          phone:'40 34 11 90' },
+      { name:'Boligmatch',                             phone:'61 55 59 54' },
+      { name:'Brechmann Bolig',                        phone:'30 14 13 14' },
+      { name:'Byens Boligpartner',                     phone:'22 42 25 65' },
+      { name:'Byens Mæglere Hjørring',                 phone:'98 92 48 66' },
+      { name:'CD Bolig',                               phone:'86 68 20 35' },
+      { name:'Camilla Lindhard',                       phone:'22 85 95 95' },
+      { name:'CarlssonLiving',                         phone:'28 30 03 23' },
+      { name:'Casa Mi',                                phone:'82 30 27 00' },
+      { name:'DIT HJEM',                               phone:'25 26 16 16' },
+      { name:'DanskeBolig',                            phone:'20 65 27 57', oPhone:'56 71 30 40' },
+      { name:'Dit & Mit Frederiksberg',                phone:'33 26 33 00' },
+      { name:'EDC BornholmerBo',                       phone:'56 95 56 83' },
+      { name:'ELBÆKS',                                 phone:'70 20 11 18' },
+      { name:'EP Bolig',                               phone:'61 16 96 16' },
+      { name:'Ebeltoft-Mols Mæglerne',                 phone:'86 34 43 00' },
+      { name:'Ejendomsmægler Anita Jaeger',            phone:'30 60 66 04' },
+      { name:'Ejendomsmægler Frederiksberg &LIVING',   phone:'20 47 25 66' },
+      { name:'Ejendomsmægler Sofie Find',              phone:'20 76 74 49' },
+      { name:'Ejendomsmægler Tanja Mathiesen',         phone:'24 64 64 55' },
+      { name:'EjendomsmæglerKompagniet',               phone:'31 41 43 53' },
+      { name:'Ejendomsmæglerfirmaet Mathias Mendel',   phone:'30 22 50 20' },
+      { name:'Ejendomsmæglerfirmaet Mogens Hansen',    phone:'44 22 33 11' },
+      { name:'Ejendomsmæglerfirmaet Riishøj',          phone:'40 45 58 41' },
+      { name:'Ejenholm Bolig og Erhverv',              phone:'54 58 05 55' },
+      { name:'Ekman Bolig CPH',                        phone:'40 79 10 33' },
+      { name:'EsbjergMægleren',                        phone:'73 70 65 59' },
+      { name:'Estate Aarhus C',                        phone:'61 69 14 11' },
+      { name:'Estate Birkerød',                        phone:'23 39 34 60', oPhone:'33 14 34 60' },
+      { name:'Estate Frederiksberg C',                 phone:'33 25 23 11' },
+      { name:'Estate Gentofte',                        phone:'20 25 95 10' },
+      { name:'Estate Hellerup',                        phone:'39 40 21 22' },
+      { name:'Estate Hillerød',                        phone:'44 12 52 00', oPhone:'48 25 19 00' },
+      { name:'Estate Hvidovre',                        phone:'30 27 87 55', oPhone:'36 47 48 11' },
+      { name:'Estate Køge',                            phone:'23 39 46 45' },
+      { name:'Estate Ringsted',                        phone:'57 61 20 00' },
+      { name:'Estate Roskilde & Hornsherred',          phone:'46 40 48 00' },
+      { name:'Estate Sydhavnen',                       phone:'23 23 49 00', oPhone:'33 31 24 50' },
+      { name:'Fantastic Frank Copenhagen',             phone:'53 82 02 33', oPhone:'39 63 99 99' },
+      { name:'Fisker & Liljengren',                    phone:'88 82 66 30' },
+      { name:'Fredericia Mægleren',                    phone:'24 81 63 41' },
+      { name:'Færch Bolig',                            phone:'30 89 80 67' },
+      { name:'GUNDE & GUNDE',                          phone:'91 55 05 55' },
+      { name:'Gentofte Ejendomshandel',                phone:'81 73 00 30' },
+      { name:'GistrupMægleren',                        phone:'61 15 15 13' },
+      { name:'HUSMadsen',                              phone:'61 43 31 41' },
+      { name:'Habitat',                                phone:'20 95 60 99' },
+      { name:'Hansen & Thoft',                         phone:'40 99 90 09' },
+      { name:'Hedegaard Madsen',                       phone:'98 96 01 01' },
+      { name:'Helle Gade',                             phone:'87 10 41 00' },
+      { name:'Hinnerskov Ejendomme',                   phone:'31 52 00 78' },
+      { name:'Hjem til dig',                           phone:'40 14 06 46' },
+      { name:'Hovmand & Partner',                      phone:'27 28 55 00' },
+      { name:'Hybel',                                  phone:'48 88 00 05' },
+      { name:'Jakob Munk-Petersen',                    phone:'61 27 36 87' },
+      { name:'John Ole Hansen',                        phone:'21 49 38 81', oPhone:'54 85 11 99' },
+      { name:'KCO Bolig',                              phone:'39 61 61 62' },
+      { name:'KEC Bolig',                              phone:'23 95 25 03', oPhone:'98 25 53 00' },
+      { name:'Karhof Bolig & Erhverv',                 phone:'29 34 34 34' },
+      { name:'Klein Adamsen Bedre Boligsalg',          phone:'50 57 09 29' },
+      { name:'Kvadrat Bolig & Erhverv',                phone:'33 11 40 20' },
+      { name:'LILIENHOFF',                             phone:'70 22 12 35' },
+      { name:'Land & Bolig',                           phone:'21 22 10 82' },
+      { name:'Landbrugsmæglerne',                      phone:'40 57 51 07', oPhone:'86 24 40 00' },
+      { name:'LangelandsMægleren',                     phone:'61 26 67 77' },
+      { name:'Lilian Drikkjær',                        phone:'60 78 88 87' },
+      { name:'Litza Bolig',                            phone:'21 36 30 80' },
+      { name:'LobergBolig ApS',                        phone:'29 61 76 27' },
+      { name:'Lykkebo',                                phone:'70 60 20 50' },
+      { name:'Meng Bolig & Erhverv',                   phone:'52 14 88 00' },
+      { name:'Milton Huse',                            phone:'48 88 16 46' },
+      { name:'Min Bolighandel Aarhus',                 phone:'24 25 07 84', oPhone:'86 10 11 99' },
+      { name:'Min Bolighandel Øresund',                phone:'31 10 39 58' },
+      { name:'Mæglerfirmaet FUR-SALLING-VESTHIMMERLAND', phone:'26 80 85 27' },
+      { name:'Mæglerhuset',                            phone:'22 84 64 00' },
+      { name:'Mæglerringen Tom Pedersen',              phone:'21 82 42 32' },
+      { name:'Niels Thorsen – Bedre Bolig Salg',       phone:'27 57 05 43' },
+      { name:'Nikolai Vlasman',                        phone:'44 12 21 21' },
+      { name:'Nordbo',                                 phone:'24 21 80 07' },
+      { name:'NordfynBo',                              phone:'22 84 44 99' },
+      { name:'Nybolig Amager',                         phone:'31 64 20 00', oPhone:'70 60 27 00' },
+      { name:'Nybolig Esbjerg',                        phone:'23 80 98 05' },
+      { name:'Nybolig Fjord & Skov Vejen',             phone:'21 78 88 66', oPhone:'75 36 20 00' },
+      { name:'Nybolig Haslev',                         phone:'40 38 85 80', oPhone:'56 31 22 86' },
+      { name:'Nybolig Herning',                        phone:'70 25 40 50' },
+      { name:'Nybolig Hillerød',                       phone:'53 35 76 93' },
+      { name:'Nybolig Ikast og Kjellerup',             phone:'51 35 07 61' },
+      { name:'Nybolig Silkeborg v. Jesper Lyngsø',     phone:'40 21 76 40', oPhone:'86 82 66 00' },
+      { name:'Nybolig Skjern og Tarm',                 phone:'23 71 01 32' },
+      { name:'Nybolig Slagelse',                       phone:'40 20 80 28', oPhone:'58 53 30 30' },
+      { name:'Nybolig Svendborg',                      phone:'62 26 35 65' },
+      { name:'Nybolig v. Jan Milvertz',                phone:'55 72 00 72', oPhone:'59 51 48 00' },
+      { name:'Nydan-Huse',                             phone:'23 26 67 44' },
+      { name:'Næstved Mægleren',                       phone:'51 22 53 22' },
+      { name:'OL-Bolig',                               phone:'28 15 54 54' },
+      { name:'Peter Due Bolig',                        phone:'57 83 22 88' },
+      { name:'Peter Hoe Ejendomme',                    phone:'70 22 75 00' },
+      { name:'Peter Warming',                          phone:'30 50 60 00' },
+      { name:'Renny Clemmensen',                       phone:'29 27 02 00' },
+      { name:'Siesing Totalbyg',                       phone:'52 24 55 58' },
+      { name:'Signature Homes',                        phone:'70 60 44 55' },
+      { name:'SkagenBolig I/S',                        phone:'42 90 99 19' },
+      { name:'Stensbo Huse ApS',                       phone:'51 53 13 37', oPhone:'27 11 83 30' },
+      { name:'Storm & Dubourg I/S',                    phone:'40 31 13 80' },
+      { name:'Sweet-Homes',                            phone:'53 76 24 64' },
+      { name:'Thobo-Carlsen & Partnere',               phone:'66 13 92 00' },
+      { name:'Thomas Risager A/S',                     phone:'20 42 88 40' },
+      { name:'Thoustrup & Præstegaard',                phone:'52 39 76 63' },
+      { name:'Trelleborg Huse',                        phone:'61 35 44 45' },
+      { name:'Unni Estates',                           phone:'70 50 52 50' },
+      { name:'Vejlemægleren',                          phone:'60 22 57 14' },
+      { name:'Villadsen Ejendomshandel',               phone:'98 20 40 35' },
+      { name:'Vogel & Vandel',                         phone:'53 58 50 22' },
+      { name:'VorBolig',                               phone:'55 35 00 00' },
+      { name:'Wilstrup Bolig',                         phone:'81 81 67 67' },
+      { name:'Wullf & Partnere',                       phone:'30 21 44 01' },
+      { name:'danbolig Gentofte – Frederik Fausing',   phone:'40 52 06 10' },
+      { name:'home Hedehusene',                        phone:'31 21 83 32', oPhone:'36 14 10 40' },
+      { name:'home Holbæk & Kirke Hyllinge',           phone:'59 43 59 59', oPhone:'46 40 00 84' },
+      { name:'home Hørsholm-Rungsted',                 phone:'49 21 49 21' },
+      { name:'home Køge',                              phone:'30 80 70 30' },
+      { name:'home Middelfart',                        phone:'64 41 80 90' },
+      { name:'home Næstved',                           phone:'55 77 41 00' },
+      { name:'home Odense',                            phone:'40 84 50 91' },
+      { name:'home Silkeborg',                         phone:'61 39 88 12' },
+      { name:'home Skanderborg',                       phone:'25 34 80 04' },
+      { name:'home Slagelse',                          phone:'20 45 49 90' },
+      { name:'home Svendborg',                         phone:'60 91 80 10' },
+      { name:'home Virum',                             phone:'45 93 24 44' },
+    ];
+    for (const m of master) {
+      // Step 1: Update existing lead by EXACT name if it has NULL owner_phone
+      await pool.query(
+        `UPDATE leads
+           SET owner_phone = $1,
+               office_phone = COALESCE(office_phone, $2),
+               status = 'contacted'
+         WHERE owner_email = $3
+           AND lower(name) = lower($4)
+           AND owner_phone IS NULL`,
+        [m.phone, m.oPhone ?? null, oe, m.name]
+      );
+      // Step 2: Insert fresh if NO lead with this phone exists yet (phone-only uniqueness)
+      await pool.query(
+        `INSERT INTO leads (owner_email, name, category, status, owner_phone, office_phone,
+           notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_1_done,
+           follow_up_2_at, follow_up_2_done)
+         SELECT $1, $2, 'ejendomsmaegler', 'contacted', $3, $4,
+           '[master] ' || $2, $5, $6, $7, false, $8, false
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leads WHERE owner_email = $1 AND owner_phone = $3
+         )`,
+        [oe, m.name, m.phone, m.oPhone ?? null, ts, fu, fu1, fu2]
+      );
+    }
+    console.log('[ensure-schema] master-sync: all 147 telesales leads guaranteed visible');
+  } catch(e: any) { console.error('[ensure-schema] master-sync:', e.message); }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── generated_images columns added after initial schema ──────────────────
   {
     const cols = [
