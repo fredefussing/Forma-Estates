@@ -3394,7 +3394,7 @@ export async function registerRoutes(
       }
     };
     try {
-      const sourceCaseImageId = req.body.sourceCaseImageId ? parseInt(req.body.sourceCaseImageId) : null;
+      const sourceCaseImageId = req.body?.sourceCaseImageId ? parseInt(req.body.sourceCaseImageId) : null;
       if (!req.file && !sourceCaseImageId) {
         return res.status(400).json({ success: false, message: "Intet billede uploadet" });
       }
