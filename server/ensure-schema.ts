@@ -403,6 +403,33 @@ export async function ensureSchema(): Promise<void> {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── One-time: add/update 4 warm telesales leads (aug 2026) ──────────────────
+  const warmLeads: Array<{ name: string; email: string; phone: string; officePhone?: string; namePattern: string }> = [
+    { name: 'Mæglerfirmaet Henrik Ejby',      email: 'henrik@henrikejby.dk',   phone: '20 83 63 28', officePhone: '71 99 47 60', namePattern: '%ejby%' },
+    { name: 'iMægler',                         email: 'jl@imaegler.dk',          phone: '28 25 98 89', officePhone: '52 88 88 52', namePattern: '%imægler%' },
+    { name: 'Min Bolighandel Lolland-Falster', email: 'aida@minbolighandel.dk',  phone: '29 13 16 52', namePattern: '%lolland%' },
+    { name: 'RobinHus',                        email: 'nmi@robinhus.dk',         phone: '51 19 67 77', namePattern: '%robinhus%' },
+  ];
+  for (const l of warmLeads) {
+    try {
+      const upd = await pool.query(
+        `UPDATE leads SET owner_phone=$1, office_phone=COALESCE($2, office_phone), email=$3, status='responded'
+         WHERE owner_email='fredefussing@gmail.com'
+           AND (lower(email)=lower($3) OR lower(name) LIKE $4)`,
+        [l.phone, l.officePhone ?? null, l.email, l.namePattern]
+      );
+      if ((upd.rowCount ?? 0) === 0) {
+        await pool.query(
+          `INSERT INTO leads (name, email, category, status, owner_phone, office_phone, owner_email)
+           SELECT $1,$2,'ejendomsmaegler','responded',$3,$4,'fredefussing@gmail.com'
+           WHERE NOT EXISTS (SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE $5)`,
+          [l.name, l.email, l.phone, l.officePhone ?? null, l.namePattern]
+        );
+      }
+    } catch(e: any) { console.error(`[ensure-schema] warm lead ${l.name}: ${e.message}`); }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── generated_images columns added after initial schema ──────────────────
   {
     const cols = [
