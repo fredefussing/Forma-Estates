@@ -480,6 +480,102 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] phone-fix:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── One-time: add phones to 26 existing contacted leads + insert 24 new ──
+  // Guard: Sweet-Homes (one of the new inserts) doesn't exist yet
+  try {
+    const g50 = await pool.query(
+      `SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND name='Sweet-Homes'`
+    );
+    if ((g50.rowCount ?? 0) === 0) {
+      const oe = 'fredefussing@gmail.com';
+
+      // Part 1: add owner_phone to existing leads (only if currently null)
+      const phoneUpdates: Array<{ pattern: string; phone: string; note: string; officePhone?: string }> = [
+        { pattern:'%bjørn%byskov%',     phone:'20 54 29 29', note:'Christian Byskov, medejer' },
+        { pattern:'%bernstorff estate%',phone:'40 53 78 08', note:'Helene Bernstorff Sørensen, stifter og indehaver' },
+        { pattern:'%borg%heilesen%',     phone:'20 60 15 02', note:'Claus Borg, ejer' },
+        { pattern:'%skagenbolig%',       phone:'42 90 99 19', note:'Christian Strøm, indehaver' },
+        { pattern:'%boligmatch%',        phone:'61 55 59 54', note:'Rasmus Kirkeby, ejer/direktør' },
+        { pattern:'%fisker%liljengren%', phone:'88 82 66 30', note:'Regine Ørholt Liljengren, direktør. NB: 88 82 66 30 er firmaets fælles hovednummer – ikke personlig mobil.' },
+        { pattern:'%brechmann%',         phone:'30 14 13 14', note:'Benedikte Brechmann, stifter og indehaver' },
+        { pattern:'%storm%dubourg%',     phone:'40 31 13 80', note:'Jens Storm, indehaver' },
+        { pattern:'%ekman bolig%',       phone:'40 79 10 33', note:'Lars Ekman, indehaver' },
+        { pattern:'%&living frederiksberg%', phone:'20 47 25 66', note:'Sole Seibæk, indehaver' },
+        { pattern:'%vejlemægleren%',     phone:'60 22 57 14', note:'Tobias Meng, indehaver' },
+        { pattern:'%anita j%ger%',       phone:'30 60 66 04', note:'Anita Jæger, indehaver' },
+        { pattern:'%thoustrup%præstegaard%', phone:'52 39 76 63', note:'Anja Præstegaard Hansen, medejer' },
+        { pattern:'%ejenholm%',          phone:'54 58 05 55', note:'Claus Aagaard Holm, indehaver' },
+        { pattern:'%mathias mendel%',    phone:'30 22 50 20', note:'Mathias Mendel, partner, cand.jur. og ejendomsmægler' },
+        { pattern:'%tanja mathiesen%',   phone:'24 64 64 55', note:'Tanja Mathiesen, indehaver' },
+        { pattern:'%aars mægleren%',     phone:'51 24 12 76', note:'Kristian Thomsen, indehaver' },
+        { pattern:'%sofie find%',        phone:'20 76 74 49', note:'Sofie Find, indehaver' },
+        { pattern:'%thomas risager%',    phone:'20 42 88 40', note:'Thomas Dietz Risager, ejer' },
+        { pattern:'%ebeltoft%mols%',     phone:'86 34 43 00', note:'Maria Louise Madsen, indehaver' },
+        { pattern:'%bolig by k%',        phone:'20 24 27 72', note:'Karsten Sønderhøj, indehaver' },
+        { pattern:'%byens boligpartner%',phone:'22 42 25 65', note:'Anders Oechsler, medejer' },
+        { pattern:'%wul%partnere%',      phone:'30 21 44 01', note:'Frederik Gottenborg, partner' },
+        { pattern:'%klein%adamsen%',     phone:'50 57 09 29', note:'Anders Klein Hansen, ejer. NB: 21 28 46 63 tilhører Mette Lilli Adamsen (medejer).' },
+        { pattern:'%lobergbolig%',       phone:'29 61 76 27', note:'Hanna Loberg, indehaver' },
+        { pattern:'%peter due bolig%',   phone:'57 83 22 88', note:'Peter Due, indehaver' },
+      ];
+      for (const u of phoneUpdates) {
+        await pool.query(
+          `UPDATE leads SET owner_phone=$1, notes=COALESCE(notes||chr(10),'')||$2
+           WHERE owner_email=$3 AND lower(name) LIKE $4 AND owner_phone IS NULL`,
+          [u.phone, '[11. aug] ' + u.note, oe, u.pattern]
+        );
+      }
+
+      // Part 2: insert 24 new contacted leads
+      const now50 = '2026-08-11T08:00:00Z';
+      const fu50  = '2026-08-18T08:00:00Z';
+      const fu150 = '2026-08-13T08:00:00Z';
+      const fu250 = '2026-08-20T08:00:00Z';
+      const newLeads50: Array<{ name: string; phone: string; officePhone?: string; note: string }> = [
+        { name:'Sweet-Homes',             phone:'53 76 24 64', note:'Maria Schlichting, indehaver' },
+        { name:'Benzon Ejendomsmægler',   phone:'27 84 54 40', note:'Mia Benzon, medejer og markedsføringsansvarlig' },
+        { name:'Adam Schnack',            phone:'26 23 42 23', note:'Adam Schnack, ansvarlig indehaver' },
+        { name:'ELBÆKS',                  phone:'70 20 11 18', note:'Lars Elbæk, indehaver/ejendomsmægler' },
+        { name:'Peter Warming',           phone:'30 50 60 00', note:'Peter Warming, indehaver' },
+        { name:'Habitat',                 phone:'20 95 60 99', note:'Josefine Ræder, indehaver' },
+        { name:'CarlssonLiving',          phone:'28 30 03 23', note:'Daniel Carlsson, indehaver' },
+        { name:'Unni Estates',            phone:'70 50 52 50', note:'Caroline Thode Borch, direktør' },
+        { name:'Fantastic Frank Copenhagen', phone:'53 82 02 33', officePhone:'39 63 99 99',
+          note:'Jens Peter Friis (direkte): 53 82 02 33. Michael Faurholdt Friis (direkte): 53 60 99 68. Kontor: 39 63 99 99. NB: Mark Teddy Petersen er ikke længere aktuel ejer.' },
+        { name:'LILIENHOFF',              phone:'70 22 12 35', note:'Peter Milton, indehaver og adm. direktør – bed om Peter Milton.' },
+        { name:'Næstved Mægleren',        phone:'51 22 53 22', note:'Anders J. Jørgensen, indehaver' },
+        { name:'HUSMadsen',               phone:'61 43 31 41', note:'Susan Madsen, indehaver' },
+        { name:'Min Bolighandel Øresund', phone:'31 10 39 58', note:'Susanne Søgaard, indehaver' },
+        { name:'Wilstrup Bolig',          phone:'81 81 67 67', note:'Kasper Wilstrup, indehaver' },
+        { name:'EsbjergMægleren',         phone:'73 70 65 59', note:'Lykke Schmidt, indehaver' },
+        { name:'GistrupMægleren',         phone:'61 15 15 13', note:'Torben Svendsen, indehaver' },
+        { name:'VorBolig',                phone:'55 35 00 00', note:'Flemming F. Bentzon, indehaver' },
+        { name:'CD Bolig',                phone:'86 68 20 35', note:'Johnny Thougaard, indehaver' },
+        { name:'Karhof Bolig & Erhverv',  phone:'29 34 34 34', note:'Nicolai Elkjær Karhof, ejer og direktør' },
+        { name:'Litza Bolig',             phone:'21 36 30 80',
+          note:'NB: 21 36 30 80 er registreret ved Helle Friis (ejendomsmægler, ansvarlig leder). Charlott Litza Friis Larsen er stifter/historisk tilknyttet – bed IKKE om Charlott uden ny bekræftelse.' },
+        { name:'Anja Hensberg',           phone:'60 15 07 30', note:'Anja Hensberg, indehaver' },
+        { name:'Lilian Drikkjær',         phone:'60 78 88 87', note:'Lilian Drikkjær, indehaver' },
+        { name:'Jakob Munk-Petersen',     phone:'61 27 36 87', note:'Jakob Munk-Petersen, indehaver' },
+        { name:'Land & Bolig',            phone:'21 22 10 82', note:'Anne Klee, indehaver' },
+      ];
+      for (const l of newLeads50) {
+        await pool.query(
+          `INSERT INTO leads (owner_email,name,category,status,owner_phone,office_phone,notes,
+             first_contact_at,follow_up_at,follow_up_1_at,follow_up_1_done,follow_up_2_at,follow_up_2_done)
+           SELECT $1,$2,'ejendomsmaegler','contacted',$3,$4,$5,$6,$7,$8,false,$9,false
+           WHERE NOT EXISTS (
+             SELECT 1 FROM leads WHERE owner_email=$1 AND (lower(name)=lower($2) OR owner_phone=$3)
+           )`,
+          [oe, l.name, l.phone, l.officePhone ?? null, '[11. aug] ' + l.note,
+           now50, fu50, fu150, fu250]
+        );
+      }
+      console.log('[ensure-schema] 50-leads batch: phones + inserts applied');
+    }
+  } catch(e: any) { console.error('[ensure-schema] 50-leads batch:', e.message); }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── generated_images columns added after initial schema ──────────────────
   {
     const cols = [
