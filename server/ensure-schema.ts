@@ -302,8 +302,11 @@ export async function ensureSchema(): Promise<void> {
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS owner_phone text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS office_phone text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_amount integer`);
-    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_at timestamp with time zone`);
   } catch { /* columns already exist */ }
+  // callback_at in its own block so it is never silently skipped
+  try {
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_at timestamp with time zone`);
+  } catch { /* column already exists */ }
 
   // ── One-time: mark follow-up 1 done for all leads reached 5. aug ──────────
   try {
@@ -412,17 +415,23 @@ export async function ensureSchema(): Promise<void> {
   ];
   for (const l of warmLeads) {
     try {
+      // Match by email, name pattern, OR existing phone (prevents duplicate when contact exists under a different name)
       const upd = await pool.query(
-        `UPDATE leads SET owner_phone=$1, office_phone=COALESCE($2, office_phone), email=$3, status='responded'
+        `UPDATE leads SET owner_phone=$1, office_phone=COALESCE($2, office_phone), email=COALESCE(email,$3), status='responded'
          WHERE owner_email='fredefussing@gmail.com'
-           AND (lower(email)=lower($3) OR lower(name) LIKE $4)`,
+           AND (lower(email)=lower($3) OR lower(name) LIKE $4 OR owner_phone=$1)`,
         [l.phone, l.officePhone ?? null, l.email, l.namePattern]
       );
       if ((upd.rowCount ?? 0) === 0) {
+        // Only insert if no lead with the same phone or name pattern exists
         await pool.query(
           `INSERT INTO leads (name, email, category, status, owner_phone, office_phone, owner_email)
            SELECT $1,$2,'ejendomsmaegler','responded',$3,$4,'fredefussing@gmail.com'
-           WHERE NOT EXISTS (SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE $5)`,
+           WHERE NOT EXISTS (
+             SELECT 1 FROM leads
+             WHERE owner_email='fredefussing@gmail.com'
+               AND (lower(name) LIKE $5 OR owner_phone=$3)
+           )`,
           [l.name, l.email, l.phone, l.officePhone ?? null, l.namePattern]
         );
       }
