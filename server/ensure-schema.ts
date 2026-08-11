@@ -768,6 +768,19 @@ export async function ensureSchema(): Promise<void> {
     )`);
   } catch (e: any) { console.error(`[ensure-schema] video_jobs table: ${e.message}`); }
 
+  // ── Always: promote any lead that has owner_phone but status='new' to 'contacted' ──
+  // Idempotent – safe to run on every boot; no guard needed.
+  try {
+    const r = await pool.query(
+      `UPDATE leads SET status='contacted'
+       WHERE owner_email='fredefussing@gmail.com'
+         AND status='new'
+         AND owner_phone IS NOT NULL`
+    );
+    if ((r.rowCount ?? 0) > 0)
+      console.log(`[ensure-schema] status-fix: ${r.rowCount} leads promoted new→contacted`);
+  } catch(e: any) { console.error('[ensure-schema] status-fix:', e.message); }
+
   for (const { step, sql } of statements) {
     try {
       await pool.query(sql);
