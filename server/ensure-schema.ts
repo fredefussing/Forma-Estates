@@ -507,6 +507,90 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] warm-phone-fix:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Deep-clean: add phones to all old null-phone leads + fix wrong Silkeborg phones ──
+  // Fully idempotent: UPDATEs only WHERE owner_phone IS NULL (or WHERE phone='wrong-value').
+  try {
+    const oe = 'fredefussing@gmail.com';
+    // Leads that existed with NULL owner_phone, blocking their telesales insert.
+    // Pattern: LIKE match with leading/trailing % added automatically unless % already present.
+    const nullPhoneFixes: Array<{ match: string; phone: string; officePhone?: string; note: string }> = [
+      // ── 15 leads from 100-batch that blocked inserts via name-duplicate ──
+      { match:'peter hoe ejendomme',         phone:'70 22 75 00', note:'Peter Hoe, indehaver. Specialejendomme og liebhaver.' },
+      { match:'nordbo',                       phone:'24 21 80 07', note:'Carsten Nordbo, indehaver.' },
+      { match:'danskebolig',                  phone:'20 65 27 57', officePhone:'56 71 30 40', note:'Nanna Søndergaard, indehaver. Direkte: 20 65 27 57. Kontor (Faxe): 56 71 30 40.' },
+      { match:'fur%salling%vesthimmerland',   phone:'26 80 85 27', note:'Sussie Renee Gerd Sørensen, indehaver.' },
+      { match:'meng bolig%erhverv',           phone:'52 14 88 00', note:'Jens-Erik Meng, indehaver.' },
+      { match:'fredericia mægleren',          phone:'24 81 63 41', note:'Lars-Bo Ottesen, ejer/direktør.' },
+      { match:'hedegaard madsen',             phone:'98 96 01 01', note:'Heine Bøgeskov Madsen, ejendomsmægler/medejer. NB: 98 96 01 01 er virksomhedens fællesnummer – bed om Heine.' },
+      { match:'langelandsmægleren',           phone:'61 26 67 77', note:'Carsten Sørensen, indehaver.' },
+      { match:'landbrugsmæglerne',            phone:'40 57 51 07', officePhone:'86 24 40 00', note:'Christian Schulin-Zeuthen, indehaver. Direkte: 40 57 51 07. Hovednummer: 86 24 40 00.' },
+      { match:'kec bolig',                    phone:'23 95 25 03', officePhone:'98 25 53 00', note:'Knud Erik Christiansen, ejendomsmægler (bed om Knud Erik). Direkte: 23 95 25 03. Kontor: 98 25 53 00.' },
+      { match:'john ole hansen',              phone:'21 49 38 81', officePhone:'54 85 11 99', note:'Ring til Lasse Øster Dalsgaard (indehaver/valuar): 21 49 38 81. Kontor: 54 85 11 99. NB: John Ole Hansen-materialet er forældet.' },
+      { match:'kco bolig',                    phone:'39 61 61 62', note:'Kim Søndergård, ejer. NB: 39 61 61 62 er virksomhedens hovednummer – bed om Kim.' },
+      { match:'alecsander delfs',             phone:'31 19 15 15', note:'Alecsander Delfs, ejer/direktør. Liebhaverprofil, stærk Instagram.' },
+      { match:'færch bolig',                  phone:'30 89 80 67', note:'Jørgen Færch, indehaver.' },
+      { match:'thobo%carlsen%partner',        phone:'66 13 92 00', note:'Lars Bjørk, direktør. Veletableret Odense-mægler – ring og bed om Lars.' },
+      // ── Leads from 101-150 batch that already exist with NULL phone ──
+      { match:'helle gade',                   phone:'87 10 41 00', note:'Helle Gade Pedersen, direktør. Kontor: 87 10 41 00. NB: 22 41 71 28 er ikke bekræftet – undlad det direkte nummer.' },
+      { match:'mogens hansen',                phone:'44 22 33 11', note:'Mogens Hansen, ejer/direktør. Nyere selvstændig forretning på Sydkysten.' },
+      { match:'nybolig herning',              phone:'70 25 40 50', note:'Henrik Buur, indehaver.' },
+      { match:'nybolig hillerød',             phone:'53 35 76 93', note:'Sofia Hammargren Damgaard, medejer. Aktiv butik med tre indehavere.' },
+      { match:'nybolig esbjerg',              phone:'23 80 98 05', note:'Jan L. Madsen, medejer. God volumen og direkte ejertelefon.' },
+      { match:'nybolig haslev',               phone:'40 38 85 80', officePhone:'56 31 22 86', note:'Jakob Harder, indehaver: 40 38 85 80. Søren Jagd Lauritsen: 61 20 00 23. Kontor: 56 31 22 86. NB: 56 31 55 00 er forkert.' },
+      { match:'nybolig slagelse',             phone:'40 20 80 28', officePhone:'58 53 30 30', note:'Peter Valentin, indehaver: 40 20 80 28. Lars Bryde Nielsen: 24 87 19 09. Kenneth Andersen: 30 73 89 50. Kontor: 58 53 30 30. NB: 58 50 30 30 er forkert.' },
+      { match:'nybolig amager',               phone:'31 64 20 00', officePhone:'70 60 27 00', note:'Leutrim Rusiti, indehaver: 31 64 20 00. Caspar Nielsen: 50 46 48 17. Kontor: 70 60 27 00. NB: 32 59 13 00 er forkert.' },
+      { match:'nybolig odense',               phone:'26 29 48 84', note:'Bahadir Demirhan, medejer. Flere butikker, lejligheder og projektsalg.' },
+      { match:'nybolig svendborg',            phone:'62 26 35 65', note:'Thomas M. Thomsen, ejer/direktør. Flere butikker og betydelig boligproduktion.' },
+      { match:'nybolig%jan milvertz',         phone:'55 72 00 72', officePhone:'59 51 48 00', note:'Jan Milvertz, indehaver. Næstved: 55 72 00 72. Kalundborg: 59 51 48 00. Direkte mobil ikke bekræftet.' },
+      { match:'nybolig%fjord%skov%vejen',     phone:'21 78 88 66', officePhone:'75 36 20 00', note:'Tina Fjord, medejer: 21 78 88 66. Lars-Rune Skov: 29 45 73 68. Kontor: 75 36 20 00. NB: 75 36 29 66 er forkert.' },
+      { match:'edc bornholmerbo',             phone:'56 95 56 83', note:'Dan Dellgren og Kurt Brandt Mortensen, ejerkreds. Kontor: 56 95 56 83. NB: 56 95 02 00 er forkert.' },
+      { match:'estate frederiksberg c',       phone:'33 25 23 11', note:'Mads Mygind, indehaver. Kontor: 33 25 23 11.' },
+      { match:'estate hillerød',              phone:'44 12 52 00', officePhone:'48 25 19 00', note:'Jakob Nissen: 44 12 52 00. Kristian Monrad Aagaard: 48 80 52 00. Kontor: 48 25 19 00.' },
+      { match:'estate gentofte',              phone:'20 25 95 10', note:'Samareh Bahari Hansen, indehaver.' },
+      { match:'estate roskilde%',             phone:'46 40 48 00', note:'Ebbe Nygaard, indehaver. Michelle Larsen er også indehaver. Kontor: 46 40 48 00.' },
+      { match:'estate køge',                  phone:'23 39 46 45', note:'Simone Dalsgaard, medejer. Aktiv butik med høj boligvolumen.' },
+      { match:'nydan%huse',                   phone:'23 26 67 44', note:'Kasper Larsen, direktør. Fritidshuse er oplagte til AI-billeder, 3D og video.' },
+      { match:'stensbo huse%',               phone:'51 53 13 37', officePhone:'27 11 83 30', note:'Thomas Andersen (medejer): 51 53 13 37. Kristian Lund (medejer): 27 11 83 30. NB: 75 36 29 66 er forkert.' },
+      { match:'siesing totalbyg',             phone:'52 24 55 58', note:'Nikolaj Siesing, stifter/direktør. Meget aktive på sociale medier; sælg video og før/efter.' },
+    ];
+    for (const f of nullPhoneFixes) {
+      const pat = f.match.includes('%') ? f.match : `%${f.match}%`;
+      await pool.query(
+        `UPDATE leads
+           SET owner_phone = $1,
+               office_phone = COALESCE(office_phone, $2),
+               status = 'contacted',
+               notes = COALESCE(notes || chr(10), '') || $3
+         WHERE owner_email = $4
+           AND lower(name) LIKE $5
+           AND owner_phone IS NULL`,
+        [f.phone, f.officePhone ?? null, '[11. aug] ' + f.note, oe, pat]
+      );
+    }
+    // Fix: Nybolig Silkeborg v. Jesper Lyngsø got wrong phone 24 91 64 44 from broad %silkeborg% pattern
+    await pool.query(
+      `UPDATE leads
+         SET owner_phone = '40 21 76 40',
+             office_phone = '86 82 66 00',
+             notes = COALESCE(notes || chr(10), '') ||
+               '[11. aug] Jesper Lyngsø, indehaver: 40 21 76 40. Kontor: 86 82 66 00. NB: 24 91 64 44 var fejlagtigt tilknyttet.'
+       WHERE owner_email = $1
+         AND lower(name) LIKE '%nybolig%silkeborg%'
+         AND owner_phone = '24 91 64 44'`,
+      [oe]
+    );
+    // Fix: EDC Poul Erik Bech Silkeborg got wrong phone from same pattern – clear it (not a telesales lead)
+    await pool.query(
+      `UPDATE leads SET owner_phone = NULL
+       WHERE owner_email = $1
+         AND lower(name) LIKE '%edc%silkeborg%'
+         AND owner_phone = '24 91 64 44'`,
+      [oe]
+    );
+    console.log('[ensure-schema] deep-clean: null-phone leads updated + Silkeborg phones fixed');
+  } catch(e: any) { console.error('[ensure-schema] deep-clean:', e.message); }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── Add phones to 26 existing contacted leads + insert 24 new (idempotent per lead) ──
   try {
     {
@@ -735,6 +819,133 @@ export async function ensureSchema(): Promise<void> {
       console.log('[ensure-schema] 100-leads batch: 49 leads inserted');
     }
   } catch(e: any) { console.error('[ensure-schema] 100-leads batch:', e.message); }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Insert contacted leads 101–150 (11. aug 2026, corrections applied) ───
+  // Idempotent: deep-clean above already added phones to existing leads,
+  // so WHERE NOT EXISTS (name OR phone) safely skips those and inserts only truly new ones.
+  try {
+    const oe  = 'fredefussing@gmail.com';
+    const now = '2026-08-11T08:00:00Z';
+    const fu  = '2026-08-18T08:00:00Z';
+    const fu1 = '2026-08-13T08:00:00Z';
+    const fu2 = '2026-08-20T08:00:00Z';
+    type L = { name: string; phone: string; officePhone?: string; note: string };
+    const leads150: L[] = [
+      // 101 – skips 114 (3T Totalbyggeri, ubekræftet nummer) og 136 (Ejendrøm, ingen nummer) og 147 (Estate Randers, ophørt/fusioneret)
+      { name:'Helle Gade',                       phone:'87 10 41 00',
+        note:'Helle Gade Pedersen, direktør. Kontor: 87 10 41 00. NB: 22 41 71 28 er ikke bekræftet – undlad det direkte nummer.' },
+      { name:'Nikolai Vlasman',                  phone:'44 12 21 21',
+        note:'Nikolai Vlasman, indehaver. Premiumprofil, selvstændig og aktiv boligproduktion.' },
+      { name:'Hinnerskov Ejendomme',             phone:'31 52 00 78',
+        note:'Jan Højer Hinnerskov, ejer. Liebhaveri, projektsalg og erhverv passer godt til visualisering.' },
+      { name:'Villadsen Ejendomshandel',         phone:'98 20 40 35',
+        note:'Søren Villadsen, indehaver. Selvstændig og kort vej til beslutning.' },
+      { name:'Ejendomsmæglerfirmaet Mogens Hansen', phone:'44 22 33 11',
+        note:'Mogens Hansen, ejer/direktør. Nyere selvstændig forretning på Sydkysten.' },
+      { name:'Niels Thorsen – Bedre Bolig Salg', phone:'27 57 05 43',
+        note:'Niels Thorsen, ejer. Uafhængig og direkte ejer, men mindre volumen.' },
+      { name:'danbolig Gentofte – Frederik Fausing', phone:'40 52 06 10',
+        note:'Frederik S. Fausing, medejer. Medejer af flere attraktive butikker.' },
+      { name:'Kvadrat Bolig & Erhverv',          phone:'33 11 40 20',
+        note:'Kim Borch er ejer (ophørte som direktør 23. jun 2026). Christian Sachs Borch er aktuel direktør. Ring til 33 11 40 20 og bed om Kim Borch (ejer) eller Christian Sachs Borch (direktør).' },
+      { name:'Nydan-Huse',                       phone:'23 26 67 44',
+        note:'Kasper Larsen, direktør. Fritidshuse er oplagte til AI-billeder, 3D og video.' },
+      { name:'Stensbo Huse',                     phone:'51 53 13 37', officePhone:'27 11 83 30',
+        note:'Thomas Andersen (medejer): 51 53 13 37. Kristian Lund (medejer): 27 11 83 30. NB: 75 36 29 66 er forkert nummer.' },
+      { name:'Trelleborg Huse',                  phone:'61 35 44 45',
+        note:'Claus Funch Pedersen, salg Sjælland. Type- og fritidshuse har et stort visuelt behov.' },
+      { name:'Arensbach Entreprise',             phone:'28 83 65 11',
+        note:'Ask Arensbach, ejer/direktør. Ombygning og renovering – før/efter-video er relevant.' },
+      { name:'Siesing Totalbyg',                 phone:'52 24 55 58',
+        note:'Nikolaj Siesing, stifter/direktør. Meget aktive på sociale medier; sælg video og før/efter.' },
+      // 114 3T Totalbyggeri: ubekræftet nummer – springes over
+      { name:'home Slagelse',                    phone:'20 45 49 90',
+        note:'Steen Grosen, indehaver. Lokal ejer, del af home.' },
+      { name:'home Svendborg',                   phone:'60 91 80 10',
+        note:'Mark Mahler, indehaver. Relevant volumen, mulig central godkendelse.' },
+      { name:'home Odense',                      phone:'40 84 50 91',
+        note:'Henrik Christoffersen, medejer. Flere butikker og stort potentiale pr. aftale.' },
+      { name:'home Silkeborg',                   phone:'61 39 88 12',
+        note:'Kristian Brusgaard-Sørensen, medejer. Aktiv butik og direkte ejertelefon.' },
+      { name:'home Middelfart',                  phone:'64 41 80 90',
+        note:'Nikolaj Klinge, indehaver. Hovednummer; bed om Nikolaj.' },
+      { name:'home Skanderborg',                 phone:'25 34 80 04',
+        note:'Carsten Andersen, indehaver. Dækker Skanderborg/Ry/Hørning.' },
+      { name:'home Virum',                       phone:'45 93 24 44',
+        note:'Lone Bøegh Henriksen, indehaver. Dækker Virum/Kongens Lyngby/Holte – tre leads samlet til ét opkald.' },
+      { name:'home Hedehusene',                  phone:'31 21 83 32', officePhone:'36 14 10 40',
+        note:'Jan Isaksen, indehaver: 31 21 83 32. Kontor: 36 14 10 40. NB: 46 56 83 00 er forkert/forældet.' },
+      { name:'Nybolig Herning',                  phone:'70 25 40 50',
+        note:'Henrik Buur, indehaver. Stor lokal aktivitet og relevant volumen.' },
+      { name:'Nybolig Ikast og Kjellerup',       phone:'51 35 07 61',
+        note:'Joachim Glerup Verwold, medejer. To butikker samlet, fordi ejergruppen overlapper.' },
+      { name:'Nybolig Svendborg',                phone:'62 26 35 65',
+        note:'Thomas M. Thomsen, ejer/direktør. Flere butikker og betydelig boligproduktion.' },
+      { name:'Nybolig Odense',                   phone:'26 29 48 84',
+        note:'Bahadir Demirhan, medejer. Flere butikker, lejligheder og projektsalg.' },
+      { name:'Nybolig Hillerød',                 phone:'53 35 76 93',
+        note:'Sofia Hammargren Damgaard, medejer. Aktiv butik med tre indehavere.' },
+      { name:'Nybolig Esbjerg',                  phone:'23 80 98 05',
+        note:'Jan L. Madsen, medejer. God volumen og direkte ejertelefon.' },
+      { name:'Nybolig Skjern og Tarm',           phone:'23 71 01 32',
+        note:'Louise Graakjær, medejer. Flere butikker samlet under samme ejergruppe.' },
+      { name:'Nybolig Silkeborg – Jesper Lyngsø',phone:'40 21 76 40', officePhone:'86 82 66 00',
+        note:'Jesper Lyngsø, indehaver: 40 21 76 40. Kontor: 86 82 66 00. NB: 86 82 50 00 er forkert.' },
+      { name:'Nybolig Haslev',                   phone:'40 38 85 80', officePhone:'56 31 22 86',
+        note:'Jakob Harder, indehaver: 40 38 85 80. Søren Jagd Lauritsen: 61 20 00 23. Kontor: 56 31 22 86. NB: 56 31 55 00 er forkert.' },
+      { name:'Nybolig Slagelse',                 phone:'40 20 80 28', officePhone:'58 53 30 30',
+        note:'Peter Valentin, indehaver: 40 20 80 28. Lars Bryde Nielsen: 24 87 19 09. Kenneth Andersen: 30 73 89 50. Kontor: 58 53 30 30. NB: 58 50 30 30 er forkert.' },
+      { name:'Nybolig Amager',                   phone:'31 64 20 00', officePhone:'70 60 27 00',
+        note:'Leutrim Rusiti, indehaver: 31 64 20 00. Caspar Nielsen: 50 46 48 17. Kontor: 70 60 27 00. NB: 32 59 13 00 er forkert.' },
+      { name:'Nybolig Fjord & Skov Vejen',       phone:'21 78 88 66', officePhone:'75 36 20 00',
+        note:'Tina Fjord, medejer: 21 78 88 66. Lars-Rune Skov: 29 45 73 68. Kontor: 75 36 20 00. NB: 75 36 29 66 er forkert.' },
+      { name:'Nybolig v. Jan Milvertz',          phone:'55 72 00 72', officePhone:'59 51 48 00',
+        note:'Jan Milvertz, indehaver. Næstved: 55 72 00 72. Kalundborg: 59 51 48 00. Direkte mobil ikke bekræftet.' },
+      // 136 Ejendrøm: ingen direkte nummer – springes over
+      { name:'EDC BornholmerBo',                 phone:'56 95 56 83',
+        note:'Dan Dellgren og Kurt Brandt Mortensen, ejerkreds. Kontor: 56 95 56 83. NB: 56 95 02 00 er forkert.' },
+      { name:'Estate Hillerød',                  phone:'44 12 52 00', officePhone:'48 25 19 00',
+        note:'Jakob Nissen: 44 12 52 00. Kristian Monrad Aagaard: 48 80 52 00. Kontor: 48 25 19 00.' },
+      { name:'Estate Hellerup',                  phone:'39 40 21 22',
+        note:'Peter Holm, indehaver. Dækker Hellerup, Charlottenlund og Klampenborg. Kontor: 39 40 21 22.' },
+      { name:'Estate Frederiksberg C',           phone:'33 25 23 11',
+        note:'Mads Mygind, indehaver. Kontor: 33 25 23 11.' },
+      { name:'&LIVING Østerbro',                 phone:'40 58 28 29',
+        note:'Annette Schat-Holm, indehaver. Visuelt premiumområde og direkte indehavertelefon.' },
+      { name:'&LIVING Aarhus',                   phone:'66 46 79 96',
+        note:'Thomas Bo Jensen, medejer. Moderne profil og direkte beslutningstager.' },
+      { name:'Estate Ringsted',                  phone:'57 61 20 00',
+        note:'Peter Dinesen, indehaver. Høj lokal salgsaktivitet; bed om Peter.' },
+      { name:'Estate Roskilde & Hornsherred',    phone:'46 40 48 00',
+        note:'Ebbe Nygaard, indehaver (NB: ikke Ebbe Nygaard Nielsen). Michelle Larsen er også indehaver. Kontor: 46 40 48 00.' },
+      { name:'Estate Køge',                      phone:'23 39 46 45',
+        note:'Simone Dalsgaard, medejer. Aktiv butik med høj boligvolumen.' },
+      { name:'Estate Gentofte',                  phone:'20 25 95 10',
+        note:'Samareh Bahari Hansen, indehaver. Direkte ejer og attraktivt liebhavermarked.' },
+      // 147 Estate Randers: fusioneret ind i Nybolig Bjørn & Ankersen – springes over
+      { name:'Estate Birkerød',                  phone:'23 39 34 60', officePhone:'33 14 34 60',
+        note:'Elizabeth Skau-Andersen, indehaver: 23 39 34 60. Kontor: 33 14 34 60.' },
+      { name:'Estate Hvidovre',                  phone:'30 27 87 55', officePhone:'36 47 48 11',
+        note:'Jesper Glerup, indehaver: 30 27 87 55. Kontor: 36 47 48 11.' },
+      { name:'Estate Sydhavnen',                 phone:'23 23 49 00', officePhone:'33 31 24 50',
+        note:'Maria Bøttcher Krolack, indehaver/direktør: 23 23 49 00. Kontor: 33 31 24 50.' },
+    ];
+    for (const l of leads150) {
+      await pool.query(
+        `INSERT INTO leads (owner_email, name, category, status, owner_phone, office_phone, notes,
+           first_contact_at, follow_up_at, follow_up_1_at, follow_up_1_done, follow_up_2_at, follow_up_2_done)
+         SELECT $1, $2, 'ejendomsmaegler', 'contacted', $3, $4, $5, $6, $7, $8, false, $9, false
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leads WHERE owner_email = $1
+             AND (lower(name) = lower($2) OR owner_phone = $3)
+         )`,
+        [oe, l.name, l.phone, l.officePhone ?? null, '[11. aug] ' + l.note,
+         now, fu, fu1, fu2]
+      );
+    }
+    console.log('[ensure-schema] 150-leads batch: 47 leads inserted/upserted');
+  } catch(e: any) { console.error('[ensure-schema] 150-leads batch:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── generated_images columns added after initial schema ──────────────────
