@@ -3242,8 +3242,11 @@ export async function registerRoutes(
       prompt = guardedPrefix() + prompt;
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
-      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
-      const publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      const rawHost = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const isLocalhost = !rawHost || rawHost.startsWith("localhost") || rawHost.startsWith("127.");
+      const effectiveHost = (isLocalhost && process.env.REPLIT_DEV_DOMAIN) ? process.env.REPLIT_DEV_DOMAIN : rawHost;
+      const effectiveProtocol = (isLocalhost && process.env.REPLIT_DEV_DOMAIN) ? "https" : protocol;
+      const publicUrl = `${effectiveProtocol}://${effectiveHost}/uploads/${req.file.filename}`;
       log(`[Demo] generate: room=${room}, ipHash=${ipHash.slice(0, 10)}…`);
 
       // Én Collov-kørsel + én retry (billigere end den fulde pipeline)
@@ -3462,7 +3465,10 @@ export async function registerRoutes(
       }
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
-      const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const rawHost = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+      const isLocalhostHost = !rawHost || rawHost.startsWith("localhost") || rawHost.startsWith("127.");
+      const effectiveHost = (isLocalhostHost && process.env.REPLIT_DEV_DOMAIN) ? process.env.REPLIT_DEV_DOMAIN : rawHost;
+      const effectiveProtocol = (isLocalhostHost && process.env.REPLIT_DEV_DOMAIN) ? "https" : protocol;
 
       // Sæsonopdatering (eller re-generering) ud fra et eksisterende sagsbillede:
       // kilden slås op i databasen og ejerskab verificeres — klienten kan ikke
@@ -3502,11 +3508,11 @@ export async function registerRoutes(
         // Always store the root original (the uploaded file) as the before-image,
         // not the intermediate result, so the folder always shows the real before/after.
         originalForRecord = srcImg.originalImageUrl ?? srcImg.imageUrl;
-        publicUrl = srcImg.imageUrl.startsWith("http") ? srcImg.imageUrl : `${protocol}://${host}${srcImg.imageUrl}`;
+        publicUrl = srcImg.imageUrl.startsWith("http") ? srcImg.imageUrl : `${effectiveProtocol}://${effectiveHost}${srcImg.imageUrl}`;
         if (season) room = srcImg.roomType || room;
       } else {
         originalForRecord = `/uploads/${req.file!.filename}`;
-        publicUrl = `${protocol}://${host}/uploads/${req.file!.filename}`;
+        publicUrl = `${effectiveProtocol}://${effectiveHost}/uploads/${req.file!.filename}`;
       }
       log(`[BoligPotentiale] generate: room=${room}, style=${style}, tier=${tier}, season=${season ?? "-"}, url=${publicUrl}`);
 
