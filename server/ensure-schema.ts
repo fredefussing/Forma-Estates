@@ -307,6 +307,10 @@ export async function ensureSchema(): Promise<void> {
   try {
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_at timestamp with time zone`);
   } catch { /* column already exists */ }
+  // priority: 1=solo/bedst, 2=small independent, 3=network/medium, 4=chain/worst
+  try {
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS priority integer DEFAULT 5`);
+  } catch { /* column already exists */ }
 
   // ── One-time: mark follow-up 1 done for all leads reached 5. aug ──────────
   try {
@@ -1134,6 +1138,167 @@ export async function ensureSchema(): Promise<void> {
     console.log('[ensure-schema] master-sync: all 147 telesales leads guaranteed visible');
   } catch(e: any) { console.error('[ensure-schema] master-sync:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Set priority on existing master leads (chain brands get priority 4) ──
+  try {
+    const oe = 'fredefussing@gmail.com';
+    // Priority 4: big chains (home, estate, Nybolig, danbolig, EDC, RealMæglerne, Min Bolighandel)
+    await pool.query(`
+      UPDATE leads SET priority = 4
+      WHERE owner_email = $1
+        AND (priority IS NULL OR priority = 5)
+        AND (
+          name ILIKE 'home %' OR name ILIKE 'Estate %' OR
+          name ILIKE 'Nybolig %' OR name ILIKE 'danbolig %' OR
+          name ILIKE 'EDC %' OR name ILIKE 'RealMæglerne%' OR
+          name ILIKE 'Min Bolighandel%'
+        )
+    `, [oe]);
+    // Priority 3: remaining leads still at default get priority 2 (independent)
+    await pool.query(`
+      UPDATE leads SET priority = 2
+      WHERE owner_email = $1 AND (priority IS NULL OR priority = 5)
+    `, [oe]);
+    console.log('[ensure-schema] priority-init: existing leads prioritized');
+  } catch(e: any) { console.error('[ensure-schema] priority-init:', e.message); }
+
+  // ── Batch 151–250: new leads ranked by type ───────────────────────────────
+  try {
+    const oe  = 'fredefussing@gmail.com';
+    const ts  = '2026-08-11T09:00:00Z';
+    const fu  = '2026-08-18T09:00:00Z';
+    const fu1 = '2026-08-13T09:00:00Z';
+    const fu2 = '2026-08-20T09:00:00Z';
+    type NL = { name: string; phone: string; note: string; priority: number };
+    const newLeads: NL[] = [
+      // ── 151–190: Solo/ejerledede – priority 1 (bedst) ──────────────────────
+      { name:'Ejendomsmægler Jes Carlsen',                      phone:'29 70 59 46', note:'Ring til: Jes Carlsen, indehaver. Meget stærk – solo/ejerledet og direkte mobil.',                           priority:1 },
+      { name:'Amager Bolig – Dragør',                           phone:'42 42 90 90', note:'Ring til: Preben eller Christian Larsen, indehavere. Meget stærk – selvstændigt ejerteam.',                  priority:1 },
+      { name:'Ejendomsmægler Mike Andersen',                    phone:'22 77 22 20', note:'Ring til: Mike Andersen, indehaver. Meget stærk – ejerens direkte nummer.',                                  priority:1 },
+      { name:'Lindbergs Ejendomshandel',                        phone:'25 15 89 17', note:'Ring til: Gert Lindberg, indehaver. Meget stærk – lille selvstændig forretning.',                            priority:1 },
+      { name:'Bedre Bolig Salg – Sif Bjerregaard',              phone:'24 43 90 03', note:'Ring til: Sif Bjerregaard, indehaver. Meget stærk – solo og direkte mobil.',                                 priority:1 },
+      { name:'Bedre Bolig Salg – Anne-Marie Eybye',             phone:'23 64 85 29', note:'Ring til: Anne-Marie Eybye, indehaver. Meget stærk – solo og direkte mobil.',                                priority:1 },
+      { name:'Bolig- og Erhvervsmægler Jakob Duemose',          phone:'70 22 80 52', note:'Ring til: Jakob Duemose, indehaver. Meget stærk – ejerledet; bolig og erhverv.',                             priority:1 },
+      { name:'Din Boligmægler',                                 phone:'20 84 84 35', note:'Ring til: Lisa Carlsson, indehaver. Meget stærk – direkte ejertelefon.',                                     priority:1 },
+      { name:'Lene Juul',                                       phone:'40 45 05 68', note:'Ring til: Lene Juul, indehaver. Meget stærk – selvstændig og direkte beslutningstager.',                      priority:1 },
+      { name:'HansenBolig',                                     phone:'40 45 20 16', note:'Ring til: Tove Hansen, indehaver. Meget stærk – ejerledet og direkte nummer.',                               priority:1 },
+      { name:'Helle Jønch',                                     phone:'26 27 20 97', note:'Ring til: Helle Jønch, indehaver. Meget stærk – solo og direkte mobil.',                                     priority:1 },
+      { name:'Spaabæk RealEstate',                              phone:'20 10 00 10', note:'Ring til: Bed om indehaveren. Meget stærk – uafhængigt, stifterledet firma.',                                 priority:1 },
+      { name:'Freck Bolig',                                     phone:'24 22 02 12', note:'Ring til: Louise Freck, indehaver. Meget stærk – direkte mobil til ejer.',                                   priority:1 },
+      { name:'Mæglerhuset Nørresundby',                         phone:'50 92 99 29', note:'Ring til: Mads Sørensen eller Thomas Skifter Andersen, indehavere. Stærk – lokalt ejerteam.',                priority:1 },
+      { name:'Wiborg + Partnere',                               phone:'70 22 82 52', note:'Ring til: Erik Wiborg, stifter. Meget stærk – 100 % uafhængigt, stifterledet firma.',                        priority:1 },
+      { name:'Mæglerfirmaet Asger Larsen – Allan Kristensen',   phone:'98 67 81 32', note:'Ring til: Allan Kristensen, indehaver. Stærk – selvstændig med tydelig ejer.',                              priority:1 },
+      { name:'Helge Smidt',                                     phone:'98 43 55 00', note:'Ring til: Helge Smidt, indehaver. Stærk – personbåret, lokalt firma.',                                       priority:1 },
+      { name:'KNBOLIG',                                         phone:'28 29 95 38', note:'Ring til: Kristina Nørremark, indehaver. Stærk – direkte mobil og kort beslutningsvej.',                     priority:1 },
+      { name:'Frank Risgaard Lauritzen',                        phone:'74 75 26 27', note:'Ring til: Frank Risgaard Lauritzen, indehaver. Stærk – selvstændig og personbåret.',                         priority:1 },
+      { name:'Niels Henrik Billund',                            phone:'75 93 45 45', note:'Ring til: Niels Henrik Billund, indehaver. Stærk – ejerens eget navn og kort beslutningsvej.',               priority:1 },
+      { name:'Bernd Mittelsdorf',                               phone:'62 80 03 00', note:'Ring til: Bernd Mittelsdorf, indehaver. Stærk – selvstændig lokal mægler.',                                  priority:1 },
+      { name:'Augustinus Erhverv',                              phone:'30 20 69 16', note:'Ring til: Carsten Augustinus, indehaver. Stærk – direkte ejertelefon; erhvervssegment.',                     priority:1 },
+      { name:'Ejendomsmæglerfirmaet Eckhardt',                  phone:'66 10 11 00', note:'Ring til: Nicky Eckhardt, indehaver. Stærk – familie-/ejerledet og lokalt.',                                 priority:1 },
+      { name:'Toxen-Worm',                                      phone:'62 62 38 00', note:'Ring til: Anette Lander, indehaver/ejendomsmægler. Stærk – selvstændigt mæglerfirma.',                       priority:1 },
+      { name:'Øbolig',                                          phone:'20 21 02 69', note:'Ring til: Rino Jenssen, indehaver. Stærk – direkte mobil og lokalt fokus.',                                  priority:1 },
+      { name:'Algot Ejendomsmæglere',                           phone:'59 18 69 18', note:'Ring til: Bed om indehaveren. Stærk – uafhængig og lokalt ejerledet.',                                       priority:1 },
+      { name:'BoligNøglen Stenløse',                            phone:'71 99 09 09', note:'Ring til: Arne Nørgaard Christiansen, indehaver. Stærk – lille selvstændig forretning.',                     priority:1 },
+      { name:'Boligsælgeren Jyllinge',                          phone:'46 78 88 44', note:'Ring til: Palle Støvring, indehaver. Stærk – personbåret lokalt firma.',                                     priority:1 },
+      { name:'Ejendomsfirmaet Vestsjælland',                    phone:'24 45 24 23', note:'Ring til: Steen Nordrum Blæsbjerg, indehaver. Stærk – direkte ejertelefon.',                                 priority:1 },
+      { name:'Lynge Jensen',                                    phone:'55 99 14 44', note:'Ring til: Lynge Jensen, indehaver. Stærk – lille, selvstændigt firma.',                                      priority:1 },
+      { name:'Multibolig.dk',                                   phone:'40 92 25 21', note:'Ring til: Claus Dueholm, ejendomsmægler. Stærk – direkte mobil og kort beslutningsvej.',                     priority:1 },
+      { name:'Frølich Bolig – Jægerspris',                      phone:'42 95 67 34', note:'Ring til: Peter Frølich, daglig leder. Stærk – lille, personbåret forretning.',                              priority:1 },
+      { name:'BoligBolig.dk',                                   phone:'27 20 21 60', note:'Ring til: Matthias Ohm Krøyer, indehaver. Stærk – uafhængigt ejerledet firma.',                              priority:1 },
+      { name:'Hoyer',                                           phone:'27 12 21 99', note:'Ring til: Bed om indehaveren. Stærk – lille selvstændig mægler/valuar.',                                     priority:1 },
+      { name:'CVB Boligrådgivning',                             phone:'30 80 50 31', note:'Ring til: Bed om indehaveren. Stærk – specialiseret og kort beslutningsvej.',                                 priority:1 },
+      { name:'Mæglercompagniet',                                phone:'53 89 29 20', note:'Ring til: Bed om indehaveren. Stærk – lille uafhængig profil.',                                              priority:1 },
+      { name:'Rønne Ejendomshandel',                            phone:'56 95 68 86', note:'Ring til: Bed om indehaveren. Stærk – selvstændigt, lokalt firma.',                                          priority:1 },
+      { name:'Thomas Jørgensen',                                phone:'70 26 60 00', note:'Ring til: Thomas Jørgensen, indehaver. Stærk – personbåret firma.',                                          priority:1 },
+      { name:'Vestmægler',                                      phone:'22 33 23 20', note:'Ring til: Zahide Tanirli Kayaalp, indehaver. Stærk – mindre, lokalt mæglerfirma.',                           priority:1 },
+      { name:'MæglerTeam Erhverv',                              phone:'21 43 10 80', note:'Ring til: Laila Semelin, indehaver. Stærk – ejerledet specialist med direkte mobil.',                        priority:1 },
+      // ── 191–220: Små uafhængige teams – priority 2 ─────────────────────────
+      { name:'Din Mægler Aalborg',                              phone:'50 80 90 60', note:'Ring til: Rasmus Lund Christensen, indehaver. God – lokal, selvstændig forretning.',                         priority:2 },
+      { name:'Jysk Mægler Aalborg',                             phone:'39 39 90 00', note:'Ring til: Bed om indehaveren. God – lokalt team med kortere vej end landskæder.',                            priority:2 },
+      { name:'Mit Hus – mægleren',                              phone:'22 32 61 55', note:'Ring til: Bed om indehaveren. God – mindre selvstændigt firma.',                                             priority:2 },
+      { name:'Aarhus Mæglerne',                                 phone:'70 70 79 61', note:'Ring til: Bed om ejer/partner. God – lokalt partnerdrevet firma.',                                           priority:2 },
+      { name:'BoligOne Mogens Kragh',                           phone:'97 42 12 52', note:'Ring til: Mogens Kragh, indehaver. God – lokal ejer.',                                                       priority:2 },
+      { name:'Ejendomscentret Brædstrup',                       phone:'24 28 55 99', note:'Ring til: Bed om indehaveren. God – mindre lokalt firma.',                                                   priority:2 },
+      { name:'Ejendomsmæglerfirmaet Berg Halager',              phone:'86 10 10 10', note:'Ring til: Bed om en partner. God – partnerdrevet og uafhængigt.',                                            priority:2 },
+      { name:'Gravelstone.dk',                                  phone:'86 12 21 00', note:'Ring til: Bed om indehaveren. God – mindre selvstændigt team.',                                              priority:2 },
+      { name:'Agerbæk Ejendomshandel',                          phone:'75 19 62 62', note:'Ring til: Bed om indehaveren. God – selvstændig lokal forretning.',                                          priority:2 },
+      { name:'Als Mægleren',                                    phone:'74 43 41 10', note:'Ring til: Peter Kistrup, indehaver. God – lokal ejerledet virksomhed.',                                      priority:2 },
+      { name:'Blåvand Mægleren',                                phone:'23 28 23 24', note:'Ring til: Claus Lützen, indehaver. God – direkte ejer, stærkt fritidsboligmarked.',                          priority:2 },
+      { name:'Cibo Ejendomskontor',                             phone:'75 18 16 55', note:'Ring til: Poul Madsen, indehaver. God – selvstændigt, lokalt kontor.',                                       priority:2 },
+      { name:'Mæglerhuset Kokborg & Co.',                       phone:'75 53 90 33', note:'Ring til: Niels Kokborg, indehaver. God – ejerledet lokalt mæglerhus.',                                      priority:2 },
+      { name:'Mikkelsens Ejendomskontor',                       phone:'74 83 12 80', note:'Ring til: Bed om indehaveren. God – mindre selvstændigt kontor.',                                            priority:2 },
+      { name:'Ribe Mæglerne',                                   phone:'51 15 15 32', note:'Ring til: Bed om indehaveren. God – lokalt team og geografisk fokus.',                                       priority:2 },
+      { name:'FynskeBoliger',                                   phone:'44 41 29 45', note:'Ring til: Bed om indehaveren. God – regionalt, selvstændigt firma.',                                         priority:2 },
+      { name:'Mæglerringen Odense',                             phone:'66 13 26 13', note:'Ring til: Karen Friis, lokal indehaver. God – lokalt ejerledet kontor.',                                     priority:2 },
+      { name:'Casa Bolig',                                      phone:'53 18 43 00', note:'Ring til: Bed om indehaveren. God – lille selvstændigt firma.',                                              priority:2 },
+      { name:'Ejendomsmæglerhuset Køge – Det lille hvide hus',  phone:'71 99 46 00', note:'Ring til: Bed om indehaveren. God – lille lokalt mæglerhus.',                                               priority:2 },
+      { name:'Erhvervsmægleren',                                phone:'56 63 43 00', note:'Ring til: Bed om indehaveren. God – uafhængig specialist.',                                                  priority:2 },
+      { name:'Herbst Thoregaard Boligsalg',                     phone:'47 36 00 25', note:'Ring til: Bed om en partner. God – mindre partnerdrevet firma.',                                             priority:2 },
+      { name:'Jeres Mægler Albertslund',                        phone:'27 21 62 66', note:'Ring til: Bed om indehaveren. God – lokal og direkte kontaktvej.',                                           priority:2 },
+      { name:'NærMæglerne',                                     phone:'24 84 81 91', note:'Ring til: Bed om indehaveren. God – mindre selvstændigt team.',                                              priority:2 },
+      { name:'PerfectMægler & PerfectWork',                     phone:'21 48 88 29', note:'Ring til: Jeanette Holst Gohn, indehaver. God – lille, ejerledet profil.',                                  priority:2 },
+      { name:'Roeds Ejendomsmæglerfirma',                       phone:'46 75 77 15', note:'Ring til: Bed om indehaveren. God – selvstændigt lokalfirma.',                                              priority:2 },
+      { name:'Sommerhus-Mægleren',                              phone:'28 43 86 00', note:'Ring til: Carina Gade, indehaver. God – visuelt stærkt fritidsboligsegment.',                                priority:2 },
+      { name:'Bolighandel.nu',                                  phone:'29 37 81 81', note:'Ring til: Susanne Skouenborg, ejendomsmægler. God – uafhængig, digital profil.',                             priority:2 },
+      { name:'BoligNu.com',                                     phone:'72 17 00 10', note:'Ring til: Bed om indehaveren. God – mindre selvstændigt brand.',                                             priority:2 },
+      { name:'Dansk Ejendoms Consult',                          phone:'39 29 29 97', note:'Ring til: Bed om indehaveren. God – uafhængigt rådgivnings-/mæglerfirma.',                                   priority:2 },
+      { name:'DomusConnect',                                    phone:'77 30 10 09', note:'Ring til: Bed om indehaveren. God – mindre, selvstændigt team.',                                             priority:2 },
+      // ── 221–239: Større teams og netværkskontorer – priority 3 ─────────────
+      { name:'Ejendomsmæglerfirmaet Ole Sauer',                 phone:'44 66 15 15', note:'Ring til: Ole Sauer, indehaver. God/mellem – ejerledet, men ring via kontoret.',                            priority:3 },
+      { name:'ejendomsmæglergruppen',                           phone:'82 82 28 82', note:'Ring til: Bed om ejer/daglig leder. God/mellem – større team.',                                             priority:3 },
+      { name:'Hornbæk Bolig',                                   phone:'60 25 53 26', note:'Ring til: Bed om indehaveren. God/mellem – lokalt premium-/fritidsboligmarked.',                            priority:3 },
+      { name:'Lokal Mægleren',                                  phone:'44 98 98 98', note:'Ring til: Bed om indehaveren. God/mellem – lokalt team.',                                                   priority:3 },
+      { name:'Ejendomsjuristerne',                              phone:'39 29 49 70', note:'Ring til: Bed om ejer/daglig leder. Mellem – relevant rådgiver.',                                           priority:3 },
+      { name:'Ejendomsmæglerfirmaet Ege – Lejre',               phone:'70 29 90 90', note:'Ring til: Bed om indehaveren/daglig leder. Mellem – to lokale butikker.',                                   priority:3 },
+      { name:'Min Bolighandel Holstebro',                       phone:'52 58 15 82', note:'Ring til: Anne Dorte Linnebjerg, lokal indehaver. Mellem – netværkstilknytning.',                           priority:3 },
+      { name:'Min Bolighandel Horsens',                         phone:'22 14 40 30', note:'Ring til: Peter Jakobsen, lokal indehaver. Mellem – lokal beslutningstager i netværk.',                     priority:3 },
+      { name:'Min Bolighandel Kolding',                         phone:'60 52 64 72', note:'Ring til: Bed om lokal indehaver. Mellem – lokalt kontor, fælles koncept.',                                 priority:3 },
+      { name:'Min Bolighandel Vejle-Hedensted',                 phone:'27 60 90 32', note:'Ring til: Bed om lokal indehaver. Mellem – lokalt kontor, fælles koncept.',                                 priority:3 },
+      { name:'Min Bolighandel Faaborg-Midtfyn',                 phone:'71 78 06 55', note:'Ring til: Lars Tribler, lokal indehaver. Mellem – lokal ejer i mindre kæde.',                               priority:3 },
+      { name:'Min Bolighandel Nordfyn',                         phone:'42 68 56 16', note:'Ring til: Peter Kej, lokal indehaver. Mellem – lokal ejer i mindre kæde.',                                  priority:3 },
+      { name:'Min Bolighandel Sønderborg & omegn',              phone:'24 25 36 07', note:'Ring til: Michelle Damm, indehaver. Mellem – direkte ejer i netværkskontor.',                               priority:3 },
+      { name:'Min Bolighandel Amager',                          phone:'50 90 12 45', note:'Ring til: Nicolas Morille, lokal indehaver. Mellem – lokal ejer, netværkstilknytning.',                     priority:3 },
+      { name:'Min Bolighandel Bagsværd, Søborg & Kgs. Lyngby',  phone:'42 48 49 48', note:'Ring til: Anne-Mette Skak Hansen, lokal indehaver. Mellem – flere områder.',                               priority:3 },
+      { name:'Min Bolighandel Ballerup & Egedal',               phone:'40 30 40 75', note:'Ring til: Erik Berg, lokal mægler. Mellem – lokalt kontor i netværk.',                                     priority:3 },
+      { name:'Min Bolighandel Brønshøj, Herlev & Skovlunde',    phone:'81 59 58 57', note:'Ring til: Michele Møller, lokal indehaver. Mellem – fælles koncept.',                                      priority:3 },
+      { name:'Min Bolighandel City',                            phone:'51 33 40 60', note:'Ring til: Simon Christensen, indehaver. Mellem – bymarked, netværksrammer.',                                priority:3 },
+      { name:'Min Bolighandel Fjordlandet & Sejerø',            phone:'20 74 75 40', note:'Ring til: Rebecca Lundbech, lokal indehaver. Mellem – ø-/fritidsboligmarked.',                              priority:3 },
+      // ── 240–250: Franchisekontorer i større kæde – priority 4 (sidst) ──────
+      { name:'RealMæglerne Jesper Faurholm',                    phone:'40 22 81 00', note:'Ring til: Jesper Faurholm, indehaver. Kæde, men stærk – direkte ejertelefon.',                              priority:4 },
+      { name:'RealMæglerne Gurli Hansen',                       phone:'56 95 77 95', note:'Ring til: Gurli Hansen, indehaver. Kæde – tydelig lokal ejer; mulig central godkendelse.',                  priority:4 },
+      { name:'RealMæglerne Vesterbro',                          phone:'72 31 22 00', note:'Ring til: Bed om lokal indehaver. Kæde – lokalt kontor med aktivt bymarked.',                               priority:4 },
+      { name:'RealMæglerne Birkerød & Holte',                   phone:'23 44 01 02', note:'Ring til: Bed om lokal indehaver. Kæde – lokalt kontor; længere beslutningsvej.',                           priority:4 },
+      { name:'RealMæglerne City',                               phone:'32 83 06 00', note:'Ring til: Bed om lokal indehaver. Kæde – attraktivt marked, central ramme.',                                priority:4 },
+      { name:'RealMæglerne Gribskov',                           phone:'48 30 05 85', note:'Ring til: Bed om lokal indehaver. Kæde – villa-/fritidsboliger.',                                           priority:4 },
+      { name:'RealMæglerne Kokkedal-Nivå',                      phone:'49 18 11 00', note:'Ring til: Bed om lokal indehaver. Kæde – aktivt lokalt team, lang vej til nyt setup.',                      priority:4 },
+      { name:'RealMæglerne Stenløse',                           phone:'21 48 06 18', note:'Ring til: Bed om lokal indehaver. Kæde – lokalt selvstændigt kontor.',                                      priority:4 },
+      { name:'RealMæglerne Søborg & Dyssegård',                 phone:'39 40 01 00', note:'Ring til: Bed om Andersen eller Christiansen. Kæde – lokalt ejerteam, fælles koncept.',                     priority:4 },
+      { name:'RealMæglerne Valby',                              phone:'70 22 89 10', note:'Ring til: Bed om lokal indehaver. Kæde – god boligvolumen, længere beslutningsvej.',                        priority:4 },
+      { name:'RealMæglerne Vallensbæk',                         phone:'72 13 72 00', note:'Ring til: Bed om lokal indehaver. Kæde – relevant lokalt kontor.',                                          priority:4 },
+    ];
+    for (const l of newLeads) {
+      // Update existing if phone matches (idempotent)
+      await pool.query(
+        `UPDATE leads
+           SET priority = $1
+         WHERE owner_email = $2 AND owner_phone = $3`,
+        [l.priority, oe, l.phone]
+      );
+      // Insert if no lead with this phone exists
+      await pool.query(
+        `INSERT INTO leads (owner_email, name, category, status, owner_phone,
+           notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_1_done,
+           follow_up_2_at, follow_up_2_done, priority)
+         SELECT $1, $2, 'ejendomsmaegler', 'contacted', $3,
+           '[11. aug] ' || $4, $5, $6, $7, false, $8, false, $9
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leads WHERE owner_email = $1 AND owner_phone = $3
+         )`,
+        [oe, l.name, l.phone, l.note, ts, fu, fu1, fu2, l.priority]
+      );
+    }
+    console.log('[ensure-schema] leads-151-250: 100 new leads inserted/updated');
+  } catch(e: any) { console.error('[ensure-schema] leads-151-250:', e.message); }
 
   // ── generated_images columns added after initial schema ──────────────────
   {

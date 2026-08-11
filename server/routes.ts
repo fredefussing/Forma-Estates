@@ -6311,6 +6311,7 @@ export async function registerRoutes(
             WHEN 'won'       THEN 3
             ELSE 4
           END ASC,
+          COALESCE(priority, 5) ASC,
           name ASC
       `);
       return res.json(result.rows);
