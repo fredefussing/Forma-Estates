@@ -555,6 +555,8 @@ export const leads = pgTable("leads", {
   instagramHandle:  text("instagram_handle"),
   email:            text("email"),
   phone:            text("phone"),
+  ownerPhone:       text("owner_phone"),
+  officePhone:      text("office_phone"),
   status:           text("status").notNull().default("new"), // new | contacted | responded | no | won
   notes:            text("notes"),
   firstContactAt:   timestamp("first_contact_at"),

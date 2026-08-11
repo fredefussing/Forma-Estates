@@ -6127,7 +6127,9 @@ export async function registerRoutes(
   });
 
   // ── Leads access guard (owner + leads collaborators) ─────────────────────────
-  const LEADS_EMAILS = ["fredefussing@gmail.com", "henrilasse@icloud.com"];
+  const LEADS_EMAILS      = ["fredefussing@gmail.com", "henrilasse@icloud.com"];
+  const TELESALES_EMAILS  = ["fredefussing@gmail.com", "mahad23_@hotmail.com"];
+
   async function requireOwner(req: any, res: any): Promise<{ dbUser: any } | null> {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
@@ -6135,9 +6137,19 @@ export async function registerRoutes(
       if (!dbUser || !LEADS_EMAILS.includes(dbUser.email ?? "")) {
         res.status(403).json({ error: "Leads access only" }); return null;
       }
-      // Full owner (fredefussing) also requires isAdmin flag
       if (dbUser.email === "fredefussing@gmail.com" && !dbUser.isAdmin) {
         res.status(403).json({ error: "Owner only" }); return null;
+      }
+      return { dbUser };
+    } catch { res.status(401).json({ error: "Unauthorized" }); return null; }
+  }
+
+  async function requireTelesales(req: any, res: any): Promise<{ dbUser: any } | null> {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const dbUser = await storage.getUserByFirebaseUid(uid);
+      if (!dbUser || !TELESALES_EMAILS.includes((dbUser.email ?? "").toLowerCase())) {
+        res.status(403).json({ error: "Tele-salg access only" }); return null;
       }
       return { dbUser };
     } catch { res.status(401).json({ error: "Unauthorized" }); return null; }
@@ -6196,7 +6208,9 @@ export async function registerRoutes(
       const admin = await requireOwner(req, res);
       if (!admin) return;
       const id = parseInt(req.params.id);
-      const fields = ["name", "category", "instagram_handle", "email", "phone", "status", "notes",
+      const fields = ["name", "category", "instagram_handle", "email", "phone",
+                       "owner_phone", "office_phone",
+                       "status", "notes",
                        "first_contact_at", "follow_up_at", "last_contacted_at",
                        "follow_up_1_at", "follow_up_2_at"];
       const boolFields = ["follow_up_1_done", "follow_up_2_done"];
@@ -6241,6 +6255,30 @@ export async function registerRoutes(
       if (!admin) return;
       await pool.query("DELETE FROM leads WHERE id = $1 AND owner_email = $2", [parseInt(req.params.id), admin.dbUser.email]);
       return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
+  // ── Tele-salg (read-only view — owner + Mahad) ───────────────────────────────
+  app.get("/api/telesales", async (req, res) => {
+    try {
+      const user = await requireTelesales(req, res);
+      if (!user) return;
+      // Always returns fredefussing's leads (telesales is a view of the owner's pipeline)
+      const result = await pool.query(`
+        SELECT id, name, category, email, phone, owner_phone, office_phone, status, notes, created_at
+        FROM leads
+        WHERE owner_email = 'fredefussing@gmail.com'
+        ORDER BY
+          CASE status
+            WHEN 'responded' THEN 0
+            WHEN 'contacted' THEN 1
+            WHEN 'new'       THEN 2
+            WHEN 'won'       THEN 3
+            ELSE 4
+          END ASC,
+          name ASC
+      `);
+      return res.json(result.rows);
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 

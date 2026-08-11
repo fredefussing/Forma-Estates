@@ -15,6 +15,7 @@ const styleLabelLocalized = (k: string): string => {
 };
 import { CrmView } from "@/components/crm-view";
 import { LeadsView } from "@/components/leads-view";
+import { TelesalesView } from "@/components/telesales-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import DotGrid from "@/components/dot-grid";
@@ -42,10 +43,11 @@ import {
   Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink, MessageSquare,
   Globe,
   Target,
+  Phone,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "crm" | "leads";
+type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "crm" | "leads" | "telesales";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
@@ -9386,6 +9388,7 @@ export default function BoligpotentialeDashboard() {
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
   const isLeadsUser = ["fredefussing@gmail.com", "henrilasse@icloud.com"].includes(user?.email?.toLowerCase() ?? "");
+  const isTelesalesUser = ["fredefussing@gmail.com", "mahad23_@hotmail.com"].includes(user?.email?.toLowerCase() ?? "");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
@@ -9764,6 +9767,7 @@ export default function BoligpotentialeDashboard() {
     { id: "team" as Section, label: t("dashboard.nav.team"), icon: <Users className="w-[18px] h-[18px]" /> },
     ...(isAdmin ? [{ id: "crm" as Section, label: t("dashboard.nav.crm"), icon: <Shield className="w-[18px] h-[18px]" /> }] : []),
     ...(isLeadsUser ? [{ id: "leads" as Section, label: "Leads", icon: <Target className="w-[18px] h-[18px]" /> }] : []),
+    ...(isTelesalesUser ? [{ id: "telesales" as Section, label: "Tele-salg", icon: <Phone className="w-[18px] h-[18px]" /> }] : []),
   ];
 
   const NAV_BOTTOM = [
@@ -10021,6 +10025,16 @@ export default function BoligpotentialeDashboard() {
               data-testid="bolig-topbar-leads"
             >
               <Target className="w-3.5 h-3.5" /> Leads
+            </button>
+          )}
+          {isTelesalesUser && (
+            <button
+              onClick={() => setSection("telesales")}
+              className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+              style={{ background: section === "telesales" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "telesales" ? "#fff" : "#C8956C" }}
+              data-testid="bolig-topbar-telesales"
+            >
+              <Phone className="w-3.5 h-3.5" /> Tele-salg
             </button>
           )}
           <span className="text-sm hidden sm:block truncate max-w-[130px]" style={{ color: "rgba(245,243,239,0.8)" }} data-testid="bolig-topbar-username">{displayName}</span>
@@ -10743,6 +10757,13 @@ export default function BoligpotentialeDashboard() {
           {section === "leads" && isLeadsUser && (
             <motion.div key="leads-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
               <LeadsView lang={isOwner ? "da" : "en"} />
+            </motion.div>
+          )}
+
+          {/* Tele-salg — owner + Mahad only */}
+          {section === "telesales" && isTelesalesUser && (
+            <motion.div key="telesales-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
+              <TelesalesView />
             </motion.div>
           )}
 

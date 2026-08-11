@@ -36,6 +36,8 @@ type Lead = {
   instagram_handle?: string;
   email?: string;
   phone?: string;
+  owner_phone?: string;
+  office_phone?: string;
   status: LeadStatus;
   notes?: string;
   first_contact_at?: string;
@@ -102,6 +104,7 @@ const LV = {
     emailSent: "Mail sendt", dmSent: "DM sendt", called: "Ringet op",
     editNameLabel: "Navn", editCatLabel: "Kategori", editStatusLabel: "Status",
     editEmailLabel: "Email", editIgLabel: "Instagram", editPhoneLabel: "Telefon",
+    editOwnerPhoneLabel: "Indehaver nr.", editOfficePhoneLabel: "Kontor nr.",
     firstContactLabel: "Første kontakt",
     notesLabel: "Notater / log", notesPlaceholder: "Notater, logbog...",
     deleteLead: "Slet lead", sureQ: "Sikker?", yesDelete: "Ja, slet", noBtn: "Nej",
@@ -179,6 +182,7 @@ const LV = {
     emailSent: "Email sent", dmSent: "DM sent", called: "Called",
     editNameLabel: "Name", editCatLabel: "Category", editStatusLabel: "Status",
     editEmailLabel: "Email", editIgLabel: "Instagram", editPhoneLabel: "Phone",
+    editOwnerPhoneLabel: "Owner phone", editOfficePhoneLabel: "Office phone",
     firstContactLabel: "First contact",
     notesLabel: "Notes / log", notesPlaceholder: "Notes, log...",
     deleteLead: "Delete lead", sureQ: "Sure?", yesDelete: "Yes, delete", noBtn: "No",
@@ -640,7 +644,9 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose, s }: {
   const [status, setStatus] = useState(lead.status);
   const [email, setEmail]   = useState(lead.email ?? "");
   const [ig, setIg]         = useState(lead.instagram_handle ?? "");
-  const [phone, setPhone]   = useState(lead.phone ?? "");
+  const [phone, setPhone]         = useState(lead.phone ?? "");
+  const [ownerPhone, setOwnerPhone] = useState(lead.owner_phone ?? "");
+  const [officePhone, setOfficePhone] = useState(lead.office_phone ?? "");
   const [notes, setNotes]   = useState(lead.notes ?? "");
   const [fcLocal, setFcLocal] = useState(toLocal(lead.first_contact_at));
 
@@ -694,6 +700,8 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose, s }: {
       email: email || null,
       instagram_handle: ig || null,
       phone: phone || null,
+      owner_phone: ownerPhone || null,
+      office_phone: officePhone || null,
       notes: notes || null,
       first_contact_at: fcLocal ? new Date(fcLocal).toISOString() : null,
       follow_up_1_at: fu1At ?? null, follow_up_1_done: fu1Done,
@@ -947,7 +955,7 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose, s }: {
       </div>
 
       {/* ── Fields row 2 ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
           <label style={lbl}>{s.editIgLabel}</label>
           <input style={inp()} value={ig} onChange={e => setIg(e.target.value)} placeholder="@handle" />
@@ -955,6 +963,14 @@ function EditPanel({ lead, onSave, onQuickPatch, onDelete, onClose, s }: {
         <div>
           <label style={lbl}>{s.editPhoneLabel}</label>
           <input style={inp()} value={phone} onChange={e => setPhone(e.target.value)} />
+        </div>
+        <div>
+          <label style={lbl}>{s.editOwnerPhoneLabel}</label>
+          <input style={inp()} value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} placeholder="+45 xx xx xx xx" />
+        </div>
+        <div>
+          <label style={lbl}>{s.editOfficePhoneLabel}</label>
+          <input style={inp()} value={officePhone} onChange={e => setOfficePhone(e.target.value)} placeholder="+45 xx xx xx xx" />
         </div>
         <div>
           <label style={lbl}>{s.firstContactLabel}</label>
