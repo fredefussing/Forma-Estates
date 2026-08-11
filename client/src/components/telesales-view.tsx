@@ -149,7 +149,8 @@ function LeadCard({
   const [showWon,      setShowWon]      = useState(false);
   const [amount,       setAmount]       = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
-  const [pickedDT,     setPickedDT]     = useState("");
+  const [pickedDate,   setPickedDate]   = useState("");   // "YYYY-MM-DD"
+  const [pickedTime,   setPickedTime]   = useState("09:00"); // "HH:mm"
   const [showNotes,    setShowNotes]    = useState(false);
   const [notesDraft,   setNotesDraft]   = useState(lead.notes ?? "");
 
@@ -167,14 +168,25 @@ function LeadCard({
   }
 
   function openCalendar() {
-    // Pre-fill with existing callback or default
-    setPickedDT(lead.callback_at ? isoToLocal(lead.callback_at) : defaultDTLocal());
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (lead.callback_at) {
+      const d = new Date(lead.callback_at);
+      setPickedDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setPickedTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    } else {
+      const tom = new Date();
+      tom.setDate(tom.getDate() + 1);
+      setPickedDate(`${tom.getFullYear()}-${pad(tom.getMonth() + 1)}-${pad(tom.getDate())}`);
+      setPickedTime("09:00");
+    }
     setShowCalendar(true);
   }
 
   function submitCallback() {
-    if (!pickedDT) return;
-    onCallback(lead.id, new Date(pickedDT).toISOString());
+    if (!pickedDate) return;
+    // Build a local datetime string and parse it (avoids UTC-midnight pitfall)
+    const iso = new Date(`${pickedDate}T${pickedTime || "09:00"}:00`).toISOString();
+    onCallback(lead.id, iso);
     setShowCalendar(false);
   }
 
@@ -363,41 +375,70 @@ function LeadCard({
 
       {/* ── Ring tilbage datetime picker ── */}
       {showCalendar && (
-        <div>
-          <div style={{ fontSize: 11, color: MUTED, marginBottom: 5 }}>Hvornår skal han ringe?</div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              autoFocus
-              type="datetime-local"
-              min={todayStr()}
-              value={pickedDT}
-              onChange={e => setPickedDT(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") submitCallback(); if (e.key === "Escape") setShowCalendar(false); }}
-              style={{
-                flex: 1, boxSizing: "border-box",
-                background: "rgba(96,165,250,0.07)", border: "1px solid rgba(96,165,250,0.4)",
-                borderRadius: 6, padding: "6px 10px",
-                color: "#93C5FD", fontSize: 12, outline: "none", fontWeight: 600,
-                colorScheme: "dark",
-              }}
-            />
-            <button
-              onClick={submitCallback}
-              style={{
-                padding: "6px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700,
-                cursor: "pointer", border: "1px solid rgba(96,165,250,0.5)",
-                background: "rgba(96,165,250,0.18)", color: "#93C5FD",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Gem
-            </button>
-            <button
-              onClick={() => setShowCalendar(false)}
-              style={{ padding: "6px 8px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: MUTED }}
-            >
-              <X size={12} />
-            </button>
+        <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.3)", borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ fontSize: 11, color: "#93C5FD", fontWeight: 600, marginBottom: 8 }}>📅 Hvornår skal der ringes?</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            {/* Date */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: "1 1 130px" }}>
+              <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Dato</span>
+              <input
+                autoFocus
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                value={pickedDate}
+                onChange={e => setPickedDate(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") submitCallback(); if (e.key === "Escape") setShowCalendar(false); }}
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(96,165,250,0.35)",
+                  borderRadius: 6, padding: "6px 9px",
+                  color: "#93C5FD", fontSize: 12, outline: "none", fontWeight: 600,
+                  colorScheme: "dark",
+                }}
+              />
+            </div>
+
+            {/* Time */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: "0 0 100px" }}>
+              <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>kl.</span>
+              <input
+                type="time"
+                value={pickedTime}
+                onChange={e => setPickedTime(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") submitCallback(); if (e.key === "Escape") setShowCalendar(false); }}
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(96,165,250,0.35)",
+                  borderRadius: 6, padding: "6px 9px",
+                  color: "#93C5FD", fontSize: 12, outline: "none", fontWeight: 600,
+                  colorScheme: "dark",
+                }}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: 6, flex: "0 0 auto" }}>
+              <button
+                onClick={submitCallback}
+                disabled={!pickedDate}
+                style={{
+                  padding: "6px 16px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                  cursor: pickedDate ? "pointer" : "not-allowed",
+                  border: "1px solid rgba(96,165,250,0.5)",
+                  background: pickedDate ? "rgba(96,165,250,0.22)" : "rgba(96,165,250,0.07)",
+                  color: pickedDate ? "#93C5FD" : "rgba(147,197,253,0.4)",
+                  whiteSpace: "nowrap", transition: "all 0.15s",
+                }}
+              >
+                Gem
+              </button>
+              <button
+                onClick={() => setShowCalendar(false)}
+                style={{ padding: "6px 9px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: MUTED }}
+              >
+                <X size={12} />
+              </button>
+            </div>
           </div>
         </div>
       )}
