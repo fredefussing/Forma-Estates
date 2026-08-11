@@ -302,6 +302,7 @@ export async function ensureSchema(): Promise<void> {
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS owner_phone text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS office_phone text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_amount integer`);
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_at timestamp with time zone`);
   } catch { /* columns already exist */ }
 
   // ── One-time: mark follow-up 1 done for all leads reached 5. aug ──────────

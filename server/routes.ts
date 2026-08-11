@@ -6264,7 +6264,7 @@ export async function registerRoutes(
       const user = await requireTelesales(req, res);
       if (!user) return;
       const id = parseInt(req.params.id);
-      const { status, notes, dealAmount } = req.body;
+      const { status, notes, dealAmount, callbackAt } = req.body;
 
       const allowed = ["no", "won", "contacted", "responded"];
       if (status && !allowed.includes(status)) {
@@ -6275,9 +6275,10 @@ export async function registerRoutes(
       const vals: any[]   = [];
       let idx = 1;
 
-      if (status    !== undefined) { sets.push(`status = $${idx++}`);       vals.push(status); }
-      if (notes     !== undefined) { sets.push(`notes = $${idx++}`);        vals.push(notes); }
-      if (dealAmount !== undefined){ sets.push(`deal_amount = $${idx++}`);  vals.push(dealAmount ?? null); }
+      if (status     !== undefined) { sets.push(`status = $${idx++}`);       vals.push(status); }
+      if (notes      !== undefined) { sets.push(`notes = $${idx++}`);        vals.push(notes); }
+      if (dealAmount !== undefined) { sets.push(`deal_amount = $${idx++}`);  vals.push(dealAmount ?? null); }
+      if (callbackAt !== undefined) { sets.push(`callback_at = $${idx++}`);  vals.push(callbackAt ?? null); }
 
       vals.push(id);
       await pool.query(
@@ -6296,7 +6297,7 @@ export async function registerRoutes(
       if (!user) return;
       // Always returns fredefussing's leads (telesales is a view of the owner's pipeline)
       const result = await pool.query(`
-        SELECT id, name, category, email, phone, owner_phone, office_phone, deal_amount, status, notes, created_at
+        SELECT id, name, category, email, phone, owner_phone, office_phone, deal_amount, callback_at, status, notes, created_at
         FROM leads
         WHERE owner_email = 'fredefussing@gmail.com'
           AND owner_phone IS NOT NULL

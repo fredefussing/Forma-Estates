@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Phone, Search, PhoneCall, X, Trophy, PhoneMissed } from "lucide-react";
+import { Phone, Search, PhoneCall, X, Trophy, PhoneMissed, Calendar } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
 // ── Auth fetch ─────────────────────────────────────────────────────────────────
@@ -31,6 +31,7 @@ type TLead = {
   status: string;
   notes?: string;
   deal_amount?: number | null;
+  callback_at?: string | null;
 };
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -59,6 +60,28 @@ const SECTIONS: Sec[] = [
   { key: "cold",      label: "Kolde leads",  color: "#64748B", statuses: ["new"] },
   { key: "done",      label: "Afsluttet",    color: "#EF4444", statuses: ["no", "won"] },
 ];
+
+// ── Callback countdown ────────────────────────────────────────────────────────
+function callbackChip(dateStr: string): { label: string; color: string; bg: string } {
+  const now  = new Date();
+  const cb   = new Date(dateStr);
+  // Compare as calendar days in local time
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const cbDay  = new Date(cb.getFullYear(), cb.getMonth(), cb.getDate());
+  const diff   = Math.round((cbDay.getTime() - nowDay.getTime()) / 86_400_000);
+
+  if (diff < 0)  return { label: `Forsinket ${Math.abs(diff)} dag${Math.abs(diff) === 1 ? "" : "e"}`, color: "#FCA5A5", bg: "rgba(239,68,68,0.18)" };
+  if (diff === 0) return { label: "Ring i dag!",   color: "#FCA5A5", bg: "rgba(239,68,68,0.18)" };
+  if (diff === 1) return { label: "I morgen",       color: "#FBD38D", bg: "rgba(251,190,36,0.18)" };
+  if (diff <= 6)  return { label: `Om ${diff} dage`, color: "#FCD34D", bg: "rgba(251,191,36,0.12)" };
+  return              { label: `Om ${diff} dage`, color: MUTED,     bg: "rgba(255,255,255,0.05)" };
+}
+
+// Today as YYYY-MM-DD for min on date input
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 // ── Phone entry ───────────────────────────────────────────────────────────────
 function PhoneEntry({ label, value }: { label: string; value?: string }) {
@@ -92,12 +115,16 @@ function PhoneEntry({ label, value }: { label: string; value?: string }) {
 function LeadCard({
   lead,
   onAction,
+  onCallback,
 }: {
   lead: TLead;
   onAction: (id: number, action: "no" | "missed" | "won", amount?: number) => void;
+  onCallback: (id: number, date: string | null) => void;
 }) {
-  const [showWon, setShowWon]     = useState(false);
-  const [amount, setAmount]       = useState("");
+  const [showWon,      setShowWon]      = useState(false);
+  const [amount,       setAmount]       = useState("");
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [pickedDate,   setPickedDate]   = useState("");
 
   const cat      = CAT[lead.category] ?? CAT.andet;
   const hasPhones = lead.owner_phone || lead.office_phone;
@@ -110,20 +137,29 @@ function LeadCard({
     setAmount("");
   }
 
+  function submitCallback() {
+    if (!pickedDate) return;
+    onCallback(lead.id, pickedDate);
+    setShowCalendar(false);
+    setPickedDate("");
+  }
+
+  const chip = lead.callback_at ? callbackChip(lead.callback_at) : null;
+
   return (
     <div style={{
       background: CARD,
-      border: `1px solid ${BORDER}`,
+      border: `1px solid ${chip ? "rgba(251,191,36,0.35)" : BORDER}`,
       borderRadius: 10,
       padding: "12px 14px",
       marginBottom: 8,
       transition: "border-color 0.15s",
     }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,164,98,0.4)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = BORDER; }}
+      onMouseEnter={e => { if (!chip) (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,164,98,0.4)"; }}
+      onMouseLeave={e => { if (!chip) (e.currentTarget as HTMLDivElement).style.borderColor = BORDER; }}
     >
       {/* Name + badge */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPhones ? 8 : 4 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPhones ? 6 : 4 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: TEXT, flex: 1, marginRight: 8 }}>
           {lead.name}
         </span>
@@ -134,6 +170,31 @@ function LeadCard({
           {cat.emoji} {cat.label}
         </span>
       </div>
+
+      {/* Callback countdown pill */}
+      {chip && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 5,
+            background: chip.bg, border: `1px solid ${chip.color}44`,
+            borderRadius: 99, padding: "3px 9px",
+          }}>
+            <Calendar size={11} color={chip.color} strokeWidth={2.5} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: chip.color }}>{chip.label}</span>
+          </div>
+          {/* Clear callback */}
+          <button
+            onClick={() => onCallback(lead.id, null)}
+            title="Fjern ring-tilbage dato"
+            style={{
+              background: "none", border: "none", cursor: "pointer", padding: 2,
+              color: MUTED, display: "flex", alignItems: "center",
+            }}
+          >
+            <X size={11} />
+          </button>
+        </div>
+      )}
 
       {/* Phone numbers */}
       {hasPhones && (
@@ -168,7 +229,7 @@ function LeadCard({
       )}
 
       {/* ── Action buttons (active leads only) ── */}
-      {!isDone && !showWon && (
+      {!isDone && !showWon && !showCalendar && (
         <div style={{ display: "flex", gap: 6 }}>
           {/* Ikke svar */}
           <button
@@ -194,6 +255,32 @@ function LeadCard({
           >
             <PhoneMissed size={11} strokeWidth={2.5} />
             Ikke svar
+          </button>
+
+          {/* Ring tilbage */}
+          <button
+            onClick={() => { setShowCalendar(true); setPickedDate(todayStr()); }}
+            title="Sæt dato for ring-tilbage"
+            style={{
+              flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              cursor: "pointer", border: "1px solid rgba(96,165,250,0.3)",
+              background: chip ? "rgba(96,165,250,0.12)" : "rgba(96,165,250,0.07)", color: "#93C5FD",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(96,165,250,0.18)";
+              b.style.borderColor = "rgba(96,165,250,0.5)";
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = chip ? "rgba(96,165,250,0.12)" : "rgba(96,165,250,0.07)";
+              b.style.borderColor = "rgba(96,165,250,0.3)";
+            }}
+          >
+            <Calendar size={11} strokeWidth={2.5} />
+            Ring tilbage
           </button>
 
           {/* Nej */}
@@ -246,6 +333,47 @@ function LeadCard({
           >
             <Trophy size={11} strokeWidth={2.5} />
             Vundet
+          </button>
+        </div>
+      )}
+
+      {/* ── Ring tilbage date picker ── */}
+      {showCalendar && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input
+            autoFocus
+            type="date"
+            min={todayStr()}
+            value={pickedDate}
+            onChange={e => setPickedDate(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") submitCallback(); if (e.key === "Escape") { setShowCalendar(false); setPickedDate(""); } }}
+            style={{
+              flex: 1, boxSizing: "border-box",
+              background: "rgba(96,165,250,0.07)", border: "1px solid rgba(96,165,250,0.4)",
+              borderRadius: 6, padding: "5px 10px",
+              color: "#93C5FD", fontSize: 12, outline: "none", fontWeight: 600,
+              colorScheme: "dark",
+            }}
+          />
+          <button
+            onClick={submitCallback}
+            style={{
+              padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              cursor: "pointer", border: "1px solid rgba(96,165,250,0.5)",
+              background: "rgba(96,165,250,0.18)", color: "#93C5FD",
+            }}
+          >
+            Gem
+          </button>
+          <button
+            onClick={() => { setShowCalendar(false); setPickedDate(""); }}
+            style={{
+              padding: "5px 8px", borderRadius: 6, fontSize: 11,
+              cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)",
+              background: "transparent", color: MUTED,
+            }}
+          >
+            <X size={12} />
           </button>
         </div>
       )}
@@ -319,16 +447,16 @@ export function TelesalesView() {
   });
 
   function handleAction(id: number, action: "no" | "missed" | "won", amount?: number) {
-    const lead     = leads.find(l => l.id === id);
-    const now      = new Date().toLocaleString("da-DK", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const lead = leads.find(l => l.id === id);
+    const now  = new Date().toLocaleString("da-DK", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
     if (action === "no") {
       mutation.mutate({ id, body: { status: "no" } });
 
     } else if (action === "missed") {
-      const prev    = lead?.notes?.trim() ?? "";
-      const entry   = `📞 ${now} — ikke svar`;
-      const notes   = prev ? `${prev}\n${entry}` : entry;
+      const prev  = lead?.notes?.trim() ?? "";
+      const entry = `📞 ${now} — ikke svar`;
+      const notes = prev ? `${prev}\n${entry}` : entry;
       mutation.mutate({ id, body: { notes } });
 
     } else if (action === "won") {
@@ -338,7 +466,24 @@ export function TelesalesView() {
     }
   }
 
+  function handleCallback(id: number, date: string | null) {
+    mutation.mutate({ id, body: { callbackAt: date } });
+  }
+
   const q = search.trim().toLowerCase();
+
+  // Sort: within each section, leads with callback_at come first (earliest first → overdue at top),
+  // then the rest sorted alphabetically.
+  function sortLeads(list: TLead[]): TLead[] {
+    return [...list].sort((a, b) => {
+      const aHas = a.callback_at != null;
+      const bHas = b.callback_at != null;
+      if (aHas && bHas) return new Date(a.callback_at!).getTime() - new Date(b.callback_at!).getTime();
+      if (aHas) return -1;
+      if (bHas) return 1;
+      return a.name.localeCompare(b.name, "da");
+    });
+  }
 
   const bySection = useMemo(() => {
     return SECTIONS.reduce<Record<string, TLead[]>>((acc, sec) => {
@@ -347,10 +492,17 @@ export function TelesalesView() {
         [l.name, l.owner_phone ?? "", l.office_phone ?? "", l.email ?? ""]
           .join(" ").toLowerCase().includes(q)
       );
-      acc[sec.key] = list;
+      acc[sec.key] = sortLeads(list);
       return acc;
     }, {});
   }, [leads, q]);
+
+  // Count pending callbacks across all active sections
+  const pendingCallbacks = useMemo(() => {
+    return ["warm", "contacted", "cold"].reduce((sum, key) => {
+      return sum + (bySection[key]?.filter(l => l.callback_at != null).length ?? 0);
+    }, 0);
+  }, [bySection]);
 
   const totalActive = (bySection.warm?.length ?? 0) + (bySection.contacted?.length ?? 0) + (bySection.cold?.length ?? 0);
 
@@ -381,7 +533,18 @@ export function TelesalesView() {
             </div>
             <div>
               <div style={{ fontSize: 17, fontWeight: 800, color: TEXT }}>Tele-salg</div>
-              <div style={{ fontSize: 11, color: MUTED }}>{totalActive} aktive leads</div>
+              <div style={{ fontSize: 11, color: MUTED, display: "flex", alignItems: "center", gap: 8 }}>
+                <span>{totalActive} aktive leads</span>
+                {pendingCallbacks > 0 && (
+                  <>
+                    <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#93C5FD" }}>
+                      <Calendar size={10} />
+                      {pendingCallbacks} ring-tilbage
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -390,6 +553,7 @@ export function TelesalesView() {
             {SECTIONS.map(sec => {
               const count  = bySection[sec.key]?.length ?? 0;
               const active = activeKey === sec.key;
+              const cbCount = bySection[sec.key]?.filter(l => l.callback_at != null).length ?? 0;
               return (
                 <button
                   key={sec.key}
@@ -400,10 +564,20 @@ export function TelesalesView() {
                     background: active ? `${sec.color}22` : "rgba(255,255,255,0.04)",
                     border: `1px solid ${active ? sec.color + "55" : "rgba(255,255,255,0.1)"}`,
                     color: active ? sec.color : MUTED,
+                    position: "relative",
                   }}
                 >
                   {sec.label}
                   <span style={{ marginLeft: 5, opacity: 0.75, fontWeight: 400 }}>({count})</span>
+                  {cbCount > 0 && (
+                    <span style={{
+                      marginLeft: 5, fontSize: 9, fontWeight: 700,
+                      background: "rgba(96,165,250,0.25)", color: "#93C5FD",
+                      borderRadius: 99, padding: "1px 5px",
+                    }}>
+                      📅{cbCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -435,6 +609,7 @@ export function TelesalesView() {
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", scrollbarWidth: "thin", scrollbarColor: "rgba(201,164,98,0.2) transparent" }}>
         {SECTIONS.filter(sec => !activeKey || sec.key === activeKey).map(sec => {
           const list = bySection[sec.key] ?? [];
+          const cbInSection = list.filter(l => l.callback_at != null).length;
           return (
             <div key={sec.key} style={{ marginBottom: 28 }}>
               {/* Section header */}
@@ -442,6 +617,17 @@ export function TelesalesView() {
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: sec.color, display: "inline-block", flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: sec.color }}>{sec.label}</span>
                 <span style={{ fontSize: 12, color: MUTED }}>({list.length})</span>
+                {cbInSection > 0 && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 99,
+                    background: "rgba(96,165,250,0.15)", color: "#93C5FD",
+                    border: "1px solid rgba(96,165,250,0.25)",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                    <Calendar size={9} />
+                    {cbInSection} ring-tilbage
+                  </span>
+                )}
                 <div style={{ flex: 1, height: 1, background: `${sec.color}20`, marginLeft: 4 }} />
               </div>
 
@@ -450,7 +636,14 @@ export function TelesalesView() {
                   {q ? "Ingen resultater matcher søgningen" : "Ingen leads i denne kategori endnu"}
                 </div>
               ) : (
-                list.map(l => <LeadCard key={l.id} lead={l} onAction={handleAction} />)
+                list.map(l => (
+                  <LeadCard
+                    key={l.id}
+                    lead={l}
+                    onAction={handleAction}
+                    onCallback={handleCallback}
+                  />
+                ))
               )}
             </div>
           );
