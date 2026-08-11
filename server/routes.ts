@@ -6296,9 +6296,10 @@ export async function registerRoutes(
       if (!user) return;
       // Always returns fredefussing's leads (telesales is a view of the owner's pipeline)
       const result = await pool.query(`
-        SELECT id, name, category, email, phone, owner_phone, office_phone, status, notes, created_at
+        SELECT id, name, category, email, phone, owner_phone, office_phone, deal_amount, status, notes, created_at
         FROM leads
         WHERE owner_email = 'fredefussing@gmail.com'
+          AND owner_phone IS NOT NULL
         ORDER BY
           CASE status
             WHEN 'responded' THEN 0
