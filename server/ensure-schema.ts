@@ -507,13 +507,9 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] warm-phone-fix:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── One-time: add phones to 26 existing contacted leads + insert 24 new ──
-  // Guard: Sweet-Homes (one of the new inserts) doesn't exist yet
+  // ── Add phones to 26 existing contacted leads + insert 24 new (idempotent per lead) ──
   try {
-    const g50 = await pool.query(
-      `SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND name='Sweet-Homes'`
-    );
-    if ((g50.rowCount ?? 0) === 0) {
+    {
       const oe = 'fredefussing@gmail.com';
 
       // Part 1: add owner_phone to existing leads (only if currently null)
@@ -612,13 +608,9 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] 50-leads batch:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── One-time: insert contacted leads 51–100 (11. aug 2026) ───────────────
-  // Guard: GUNDE & GUNDE doesn't exist yet
+  // ── Insert contacted leads 51–100 (idempotent per lead via WHERE NOT EXISTS) ──
   try {
-    const g100 = await pool.query(
-      `SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE '%gunde%gunde%'`
-    );
-    if ((g100.rowCount ?? 0) === 0) {
+    {
       const oe  = 'fredefussing@gmail.com';
       const now = '2026-08-11T08:00:00Z';
       const fu  = '2026-08-18T08:00:00Z';
