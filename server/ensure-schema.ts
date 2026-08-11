@@ -480,6 +480,33 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] phone-fix:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── One-time: add phones to 2 warm leads missing owner_phone (aug 2026) ──
+  // Guard: Werner Boliger still has no owner_phone
+  try {
+    const gWarm = await pool.query(
+      `SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE '%werner boliger%' AND owner_phone IS NULL`
+    );
+    if ((gWarm.rowCount ?? 0) > 0) {
+      const oe = 'fredefussing@gmail.com';
+      // Werner Boliger: Mads Werner, indehaver
+      await pool.query(
+        `UPDATE leads SET owner_phone='71 74 17 00',
+           notes=COALESCE(notes||chr(10),'')||'[11. aug] Mads Werner, indehaver og ejendomsmægler MDE: 71 74 17 00'
+         WHERE owner_email=$1 AND lower(name) LIKE '%werner boliger%' AND owner_phone IS NULL`,
+        [oe]
+      );
+      // Grønne Silkeborgs Mæglere: two indehavere + stifter Claus Grønne
+      await pool.query(
+        `UPDATE leads SET owner_phone='24 91 64 44',
+           notes=COALESCE(notes||chr(10),'')||'[11. aug] Christoffer Andersen, indehaver: 24 91 64 44 · Christian Bundgaard, medindehaver: 30 66 63 44 · Claus Grønne, stifter: 40 59 64 44'
+         WHERE owner_email=$1 AND lower(name) LIKE '%silkeborg%' AND owner_phone IS NULL`,
+        [oe]
+      );
+      console.log('[ensure-schema] warm-phone-fix: Werner Boliger + Grønne Silkeborgs Mæglere phones added');
+    }
+  } catch(e: any) { console.error('[ensure-schema] warm-phone-fix:', e.message); }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── One-time: add phones to 26 existing contacted leads + insert 24 new ──
   // Guard: Sweet-Homes (one of the new inserts) doesn't exist yet
   try {
