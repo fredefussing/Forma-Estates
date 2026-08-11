@@ -385,7 +385,7 @@ export async function ensureSchema(): Promise<void> {
 
   // ── One-time: insert leads added after the bulk migration ─────────────────
   const missingLeads = [
-    { name: 'Mads Werner Bolig', category: 'ejendomsmaegler', email: 'info@wernerboliger.dk',
+    { name: 'Nielsen Boliger', category: 'ejendomsmaegler', email: null,
       status: 'responded', notes: '[5. aug 10:22] Instagram DM',
       first_contact_at: '2026-08-05T08:21:00Z', follow_up_at: '2026-08-12T08:21:00Z',
       follow_up_1_at: '2026-08-07T08:21:00Z', follow_up_2_at: '2026-08-14T08:21:00Z',
@@ -411,7 +411,7 @@ export async function ensureSchema(): Promise<void> {
     { name: 'Mæglerfirmaet Henrik Ejby',      email: 'henrik@henrikejby.dk',   phone: '20 83 63 28', officePhone: '71 99 47 60', namePattern: '%ejby%' },
     { name: 'iMægler',                         email: 'jl@imaegler.dk',          phone: '28 25 98 89', officePhone: '52 88 88 52', namePattern: '%imægler%' },
     { name: 'Min Bolighandel Lolland-Falster', email: 'aida@minbolighandel.dk',  phone: '29 13 16 52', namePattern: '%lolland%' },
-    { name: 'RobinHus',                        email: 'nmi@robinhus.dk',         phone: '51 19 67 77', namePattern: '%robinhus%' },
+    { name: 'RobinHus',                        email: 'nmi@robinhus.dk',         phone: '53 80 22 99', namePattern: '%robinhus%' },
   ];
   for (const l of warmLeads) {
     try {
@@ -437,6 +437,47 @@ export async function ensureSchema(): Promise<void> {
       }
     } catch(e: any) { console.error(`[ensure-schema] warm lead ${l.name}: ${e.message}`); }
   }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── One-time: fix wrong phone numbers in telesales leads (11. aug 2026) ───
+  // Guard: Andersen & Godrim still has the old (swapped) owner_phone
+  try {
+    const guard = await pool.query(
+      `SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND name='Andersen & Godrim' AND owner_phone='30 50 30 29'`
+    );
+    if ((guard.rowCount ?? 0) > 0) {
+      // Andersen & Godrim: indehaver Holger Andersen is owner, Henrik Godrim is partner, correct office
+      await pool.query(`UPDATE leads SET owner_phone='51 41 91 01', office_phone='40 14 01 01',
+        notes=COALESCE(notes||chr(10),'') || '[11. aug] Indehaver Holger Andersen: 51 41 91 01 · Partner Henrik Godrim: 30 50 30 29 · Kontor: 40 14 01 01'
+        WHERE owner_email='fredefussing@gmail.com' AND name='Andersen & Godrim'`);
+
+      // Nielsen Boliger: rename if still called Mads Werner Bolig, fix phone
+      await pool.query(`UPDATE leads SET name='Nielsen Boliger', email=null, owner_phone=null, office_phone='41 30 20 60',
+        notes=COALESCE(notes||chr(10),'') || '[11. aug] Kontor/virksomhedsnummer: 41 30 20 60. Indehaver: Cecilie Nielsen.'
+        WHERE owner_email='fredefussing@gmail.com'
+          AND (name='Mads Werner Bolig' OR (lower(name) LIKE '%nielsen%bolig%' AND owner_phone='71 74 17 00'))`);
+
+      // Nybolig Thisted: indehaver Søren Giessing, old number didn't exist
+      await pool.query(`UPDATE leads SET owner_phone='40 32 48 31',
+        notes=COALESCE(notes||chr(10),'') || '[11. aug] Indehaver Søren Giessing: 40 32 48 31 · Medindehaver Mikael Bach Henriksen: 21 23 82 02 · Kontor: 97 92 22 88'
+        WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE '%nybolig thisted%'`);
+
+      // RobinHus: Maiken Kierkegaard, not Nathalie Middelboe
+      await pool.query(`UPDATE leads SET owner_phone='53 80 22 99',
+        notes=COALESCE(notes||chr(10),'') || '[11. aug] Maiken Kierkegaard (ejendomsmægler MDE): 53 80 22 99 · Nathalie Middelboe: 51 19 67 77'
+        WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE '%robinhus%'`);
+
+      // eurodan-huse: Christina is marketing contact, real switchboard as office
+      await pool.query(`UPDATE leads SET owner_phone='79 23 66 05', office_phone='70 23 73 88',
+        notes=COALESCE(notes||chr(10),'') || '[11. aug] Christina Dalsbæk Falk Sørensen (marketing): 79 23 66 05 · Adm. dir. Thomas Dahl: 79 23 66 66 · Hovednummer: 70 23 73 88'
+        WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE '%eurodan%'`);
+
+      // HENRIK: delete duplicate of Mæglerfirmaet Henrik Ejby
+      await pool.query(`DELETE FROM leads WHERE owner_email='fredefussing@gmail.com' AND name='HENRIK' AND owner_phone IS NULL`);
+
+      console.log('[ensure-schema] phone-fix: 6 telesales corrections applied');
+    }
+  } catch(e: any) { console.error('[ensure-schema] phone-fix:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── generated_images columns added after initial schema ──────────────────
