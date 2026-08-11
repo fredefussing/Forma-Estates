@@ -603,6 +603,139 @@ export async function ensureSchema(): Promise<void> {
   } catch(e: any) { console.error('[ensure-schema] 50-leads batch:', e.message); }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── One-time: insert contacted leads 51–100 (11. aug 2026) ───────────────
+  // Guard: GUNDE & GUNDE doesn't exist yet
+  try {
+    const g100 = await pool.query(
+      `SELECT 1 FROM leads WHERE owner_email='fredefussing@gmail.com' AND lower(name) LIKE '%gunde%gunde%'`
+    );
+    if ((g100.rowCount ?? 0) === 0) {
+      const oe  = 'fredefussing@gmail.com';
+      const now = '2026-08-11T08:00:00Z';
+      const fu  = '2026-08-18T08:00:00Z';
+      const fu1 = '2026-08-13T08:00:00Z';
+      const fu2 = '2026-08-20T08:00:00Z';
+      type L = { name: string; phone: string; officePhone?: string; note: string };
+      const leads100: L[] = [
+        // 51 – 75
+        { name:'Dit & Mit Frederiksberg',        phone:'33 26 33 00',
+          note:'Gitte Grønlund, indehaver. NB: 33 26 33 00 er kontorets fællesnummer, ikke bekræftet direkte mobil. Ca. 4 medarbejdere.' },
+        { name:'John Ole Hansen',                phone:'21 49 38 81', officePhone:'54 85 11 99',
+          note:'Ring til Lasse Øster Dalsgaard (indehaver/valuar): 21 49 38 81. Kontor: 54 85 11 99. NB: John Ole Hansen-materialet er forældet.' },
+        { name:'GUNDE & GUNDE',                  phone:'91 55 05 55',
+          note:'Kenn Gundesen, ejer/mægler. Familievirksomhed, København og Næstved.' },
+        { name:'BoGodt Mægleren',                phone:'81 72 88 82',
+          note:'Camilla Andersen Bojsen, medejer.' },
+        { name:'Hansen & Thoft',                 phone:'40 99 90 09',
+          note:'Henrik Hansen, medejer.' },
+        { name:'Vogel & Vandel',                 phone:'53 58 50 22',
+          note:'Alexander Vogel, indehaver. Moderne københavnsk profil.' },
+        { name:'Boligbutikken',                  phone:'40 34 11 90',
+          note:'Tobias Edlev Nielsen, indehaver. Stort team, 1.000+ salg. Vis især video.' },
+        { name:'Gentofte Ejendomshandel',        phone:'81 73 00 30',
+          note:'Kristjan Thor Markersen, indehaver.' },
+        { name:'Hjem til dig',                   phone:'40 14 06 46',
+          note:'Helle Lynge, medejer: 40 14 06 46. Alternativt Natasja: 40 14 22 87.' },
+        { name:'Hovmand & Partner',              phone:'27 28 55 00',
+          note:'Morten Hovmand, indehaver. Selvstændig Gentofte-mægler.' },
+        { name:'Renny Clemmensen',               phone:'29 27 02 00',
+          note:'Renny Clemmensen, indehaver.' },
+        { name:'KCO Bolig',                      phone:'39 61 61 62',
+          note:'Kim Søndergård, ejer. NB: 39 61 61 62 er virksomhedens hovednummer – bed om Kim.' },
+        { name:'EP Bolig',                       phone:'61 16 96 16',
+          note:'Mads Packness, medejer.' },
+        { name:'DanskeBolig',                    phone:'20 65 27 57', officePhone:'56 71 30 40',
+          note:'Nanna Søndergaard, indehaver. Direkte: 20 65 27 57. Kontor (Faxe): 56 71 30 40.' },
+        // #65 Grønne Silkeborgs Mæglere — allerede varmt lead, springes over
+        { name:'Ejendomsmæglerfirmaet Riishøj',  phone:'40 45 58 41',
+          note:'Peder Riishøj, indehaver. Lystejendomme og boliger.' },
+        { name:'Hedegaard Madsen',               phone:'98 96 01 01',
+          note:'Heine Bøgeskov Madsen, ejendomsmægler/medejer. NB: 98 96 01 01 er fællesnummer, ikke personlig direkte. Titel er ejendomsmægler – ikke adm. direktør.' },
+        { name:'Mæglerringen Tom Pedersen',      phone:'21 82 42 32',
+          note:'Tom Pedersen, indehaver. Flere afdelinger.' },
+        { name:'Alecsander Delfs',               phone:'31 19 15 15',
+          note:'Alecsander Delfs, ejer/direktør. Liebhaverprofil, stærk Instagram.' },
+        { name:'Camilla Lindhard',               phone:'22 85 95 95',
+          note:'Camilla Lindhard, ejer. Boutique i København.' },
+        { name:'Mæglerfirmaet Fur-Salling-Vesthimmerland', phone:'26 80 85 27',
+          note:'Sussie Renee Gerd Sørensen, indehaver.' },
+        { name:'Meng Bolig & Erhverv',           phone:'52 14 88 00',
+          note:'Jens-Erik Meng, indehaver.' },
+        { name:'NordBo',                         phone:'24 21 80 07',
+          note:'Carsten Nordbo, indehaver.' },
+        { name:'LangelandsMægleren',             phone:'61 26 67 77',
+          note:'Carsten Sørensen, indehaver.' },
+        { name:'Casa Mi',                        phone:'82 30 27 00',
+          note:'Ole Kielmann Hansen, indehaver. Amager.' },
+        // 76 – 100
+        { name:'DIT HJEM',                       phone:'25 26 16 16',
+          note:'Camilla Stisager, medejer.' },
+        { name:'EjendomsmæglerKompagniet',       phone:'31 41 43 53',
+          note:'Thomas Munch, direktør/medejer. Ring til hovednummeret og bed om Thomas.' },
+        { name:'Fredericia Mægleren',            phone:'24 81 63 41',
+          note:'Lars-Bo Ottesen, ejer/direktør.' },
+        { name:'KEC Bolig',                      phone:'23 95 25 03', officePhone:'98 25 53 00',
+          note:'Knud Erik Christiansen, ejendomsmægler (bed om Knud Erik). Direkte: 23 95 25 03. Kontor: 98 25 53 00. NB: titel "indehaver" ikke fuldt dokumenteret.' },
+        { name:'Peter Hoe Ejendomme',            phone:'70 22 75 00',
+          note:'Peter Hoe, indehaver. Specialejendomme og liebhaver.' },
+        { name:'Min Bolighandel Aarhus',         phone:'24 25 07 84', officePhone:'86 10 11 99',
+          note:'Mads Edvard Nielsen, direktør: 24 25 07 84. Kontor: 86 10 11 99.' },
+        { name:'NordfynBo',                      phone:'22 84 44 99',
+          note:'Marie Louise Pedersen, indehaver.' },
+        { name:'Thobo-Carlsen & Partnere',       phone:'66 13 92 00',
+          note:'Lars Bjørk, direktør. Veletableret Odense-mægler – ring og bed om Lars.' },
+        { name:'Færch Bolig',                    phone:'30 89 80 67',
+          note:'Jørgen Færch, indehaver.' },
+        { name:'AFBolig',                        phone:'40 25 44 80',
+          note:'Allan Folmer, indehaver. Uafhængig Køge-mægler med fokus på markedsføring.' },
+        { name:'OL-Bolig',                       phone:'28 15 54 54',
+          note:'Judith Mørch-Pedersen eller Camilla Lohse, direktører: 28 15 54 54.' },
+        { name:'Bo Basic',                       phone:'26 14 48 91',
+          note:'Mick Ottendahl, ejendomsmægler. NB: beslutningskompetence uafklaret – afklar ved opkald. Tal evt. med Maj om marketing.' },
+        { name:'Arboehus',                       phone:'30 50 34 22',
+          note:'Dennis Studsgaard Arboe, ejer.' },
+        { name:'Byens Mæglere Hjørring',         phone:'98 92 48 66',
+          note:'Frank Michael Elefsen, stifter/direktør.' },
+        { name:'Landbrugsmæglerne',              phone:'40 57 51 07', officePhone:'86 24 40 00',
+          note:'Christian Schulin-Zeuthen, indehaver. Direkte: 40 57 51 07. Hovednummer: 86 24 40 00.' },
+        { name:'Signature Homes',                phone:'70 60 44 55',
+          note:'Bed om direktøren/indehaveren: 70 60 44 55.' },
+        { name:'Lykkebo',                        phone:'70 60 20 50',
+          note:'Bed om Rasmus Haukrogh eller direktionen. Over 1.000 lejemål – forvent længere beslutningsproces.' },
+        { name:'Mæglerhuset',                    phone:'22 84 64 00',
+          note:'Maria Vammen, marketing (primær): 22 84 64 00. Emilie Munkholm (tekst/indhold): 22 52 06 00. 15+ butikker – central godkendelse kræves.' },
+        { name:'Milton Huse',                    phone:'48 88 16 46',
+          note:'Theresa Schrøder, marketingchef.' },
+        { name:'Hybel',                          phone:'48 88 00 05',
+          note:'Henrik Bornø, salgs- og marketingdirektør.' },
+        { name:'Estate Aarhus C',                phone:'61 69 14 11',
+          note:'Thomas Grau-Hansen, indehaver. Kædens rammer kan begrænse beslutning.' },
+        { name:'home Hørsholm-Rungsted',         phone:'49 21 49 21',
+          note:'Andreas Rosenkilde Løgstrup, indehaver. Kontor: 49 21 49 21 (bed om Andreas). NB: 21 71 22 00 er forældet.' },
+        { name:'home Køge',                      phone:'30 80 70 30',
+          note:'Rasmus Mørch, indehaver. Mulig central godkendelse.' },
+        { name:'home Holbæk & Kirke Hyllinge',  phone:'59 43 59 59', officePhone:'46 40 00 84',
+          note:'Frederik Erland, indehaver. Holbæk: 59 43 59 59. Kirke Hyllinge: 46 40 00 84. NB: 51 18 43 00 er forældet.' },
+        { name:'home Næstved',                   phone:'55 77 41 00',
+          note:'Rikke Nissen, indehaver. Kontor: 55 77 41 00 (bed om Rikke). NB: 26 18 73 44 ikke dokumenteret i aktuel kilde.' },
+      ];
+      for (const l of leads100) {
+        await pool.query(
+          `INSERT INTO leads (owner_email,name,category,status,owner_phone,office_phone,notes,
+             first_contact_at,follow_up_at,follow_up_1_at,follow_up_1_done,follow_up_2_at,follow_up_2_done)
+           SELECT $1,$2,'ejendomsmaegler','contacted',$3,$4,$5,$6,$7,$8,false,$9,false
+           WHERE NOT EXISTS (
+             SELECT 1 FROM leads WHERE owner_email=$1 AND (lower(name)=lower($2) OR owner_phone=$3)
+           )`,
+          [oe, l.name, l.phone, l.officePhone ?? null, '[11. aug] ' + l.note,
+           now, fu, fu1, fu2]
+        );
+      }
+      console.log('[ensure-schema] 100-leads batch: 49 leads inserted');
+    }
+  } catch(e: any) { console.error('[ensure-schema] 100-leads batch:', e.message); }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── generated_images columns added after initial schema ──────────────────
   {
     const cols = [
