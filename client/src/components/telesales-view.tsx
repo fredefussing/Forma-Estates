@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Phone, Search, PhoneCall } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Phone, Search, PhoneCall, X, Trophy, PhoneMissed } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
 // ── Auth fetch ─────────────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ type TLead = {
   office_phone?: string;
   status: string;
   notes?: string;
+  deal_amount?: number | null;
 };
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -88,9 +89,26 @@ function PhoneEntry({ label, value }: { label: string; value?: string }) {
 }
 
 // ── Lead card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead }: { lead: TLead }) {
-  const cat = CAT[lead.category] ?? CAT.andet;
+function LeadCard({
+  lead,
+  onAction,
+}: {
+  lead: TLead;
+  onAction: (id: number, action: "no" | "missed" | "won", amount?: number) => void;
+}) {
+  const [showWon, setShowWon]     = useState(false);
+  const [amount, setAmount]       = useState("");
+
+  const cat      = CAT[lead.category] ?? CAT.andet;
   const hasPhones = lead.owner_phone || lead.office_phone;
+  const isDone   = lead.status === "no" || lead.status === "won";
+
+  function submitWon() {
+    const kr = parseInt(amount.replace(/\D/g, ""), 10);
+    onAction(lead.id, "won", isNaN(kr) ? undefined : kr);
+    setShowWon(false);
+    setAmount("");
+  }
 
   return (
     <div style={{
@@ -104,7 +122,8 @@ function LeadCard({ lead }: { lead: TLead }) {
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,164,98,0.4)"; }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = BORDER; }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPhones ? 8 : 0 }}>
+      {/* Name + badge */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPhones ? 8 : 4 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: TEXT, flex: 1, marginRight: 8 }}>
           {lead.name}
         </span>
@@ -116,17 +135,166 @@ function LeadCard({ lead }: { lead: TLead }) {
         </span>
       </div>
 
+      {/* Phone numbers */}
       {hasPhones && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: isDone ? 0 : 10 }}>
           <PhoneEntry label="Indehaver" value={lead.owner_phone} />
           <PhoneEntry label="Kontor"    value={lead.office_phone} />
         </div>
       )}
-
-      {!hasPhones && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
+      {!hasPhones && !isDone && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           <Phone size={11} color={MUTED} />
           <span style={{ fontSize: 11, color: MUTED, fontStyle: "italic" }}>Ingen numre registreret endnu</span>
+        </div>
+      )}
+
+      {/* Won: show deal amount */}
+      {lead.status === "won" && lead.deal_amount != null && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+          <Trophy size={12} color="#FBBF24" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#FBBF24" }}>
+            {lead.deal_amount.toLocaleString("da-DK")} kr.
+          </span>
+        </div>
+      )}
+
+      {/* No: show rejection label */}
+      {lead.status === "no" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+          <X size={12} color="#EF4444" />
+          <span style={{ fontSize: 11, color: "#EF4444", fontStyle: "italic" }}>Ikke interesseret</span>
+        </div>
+      )}
+
+      {/* ── Action buttons (active leads only) ── */}
+      {!isDone && !showWon && (
+        <div style={{ display: "flex", gap: 6 }}>
+          {/* Ikke svar */}
+          <button
+            onClick={() => onAction(lead.id, "missed")}
+            title="Log opkald – ikke svar"
+            style={{
+              flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              cursor: "pointer", border: "1px solid rgba(148,163,184,0.3)",
+              background: "rgba(148,163,184,0.07)", color: MUTED,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(148,163,184,0.15)";
+              b.style.color = TEXT;
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(148,163,184,0.07)";
+              b.style.color = MUTED;
+            }}
+          >
+            <PhoneMissed size={11} strokeWidth={2.5} />
+            Ikke svar
+          </button>
+
+          {/* Nej */}
+          <button
+            onClick={() => onAction(lead.id, "no")}
+            title="Marker som ikke interesseret"
+            style={{
+              flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              cursor: "pointer", border: "1px solid rgba(239,68,68,0.3)",
+              background: "rgba(239,68,68,0.07)", color: "#FCA5A5",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(239,68,68,0.18)";
+              b.style.borderColor = "rgba(239,68,68,0.5)";
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(239,68,68,0.07)";
+              b.style.borderColor = "rgba(239,68,68,0.3)";
+            }}
+          >
+            <X size={11} strokeWidth={2.5} />
+            Nej
+          </button>
+
+          {/* Vundet */}
+          <button
+            onClick={() => setShowWon(true)}
+            title="Marker som vundet"
+            style={{
+              flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              cursor: "pointer", border: "1px solid rgba(251,191,36,0.3)",
+              background: "rgba(251,191,36,0.07)", color: "#FBBF24",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(251,191,36,0.18)";
+              b.style.borderColor = "rgba(251,191,36,0.5)";
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.background = "rgba(251,191,36,0.07)";
+              b.style.borderColor = "rgba(251,191,36,0.3)";
+            }}
+          >
+            <Trophy size={11} strokeWidth={2.5} />
+            Vundet
+          </button>
+        </div>
+      )}
+
+      {/* ── Vundet amount input ── */}
+      {showWon && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <input
+              autoFocus
+              type="text"
+              inputMode="numeric"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") submitWon(); if (e.key === "Escape") { setShowWon(false); setAmount(""); } }}
+              placeholder="Beløb i kr."
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.4)",
+                borderRadius: 6, padding: "5px 36px 5px 10px",
+                color: "#FBBF24", fontSize: 12, outline: "none",
+                fontWeight: 600,
+              }}
+            />
+            <span style={{
+              position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+              fontSize: 10, color: "rgba(251,191,36,0.5)", pointerEvents: "none",
+            }}>kr.</span>
+          </div>
+          <button
+            onClick={submitWon}
+            style={{
+              padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              cursor: "pointer", border: "1px solid rgba(251,191,36,0.5)",
+              background: "rgba(251,191,36,0.18)", color: "#FBBF24",
+            }}
+          >
+            Gem
+          </button>
+          <button
+            onClick={() => { setShowWon(false); setAmount(""); }}
+            style={{
+              padding: "5px 8px", borderRadius: 6, fontSize: 11,
+              cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)",
+              background: "transparent", color: MUTED,
+            }}
+          >
+            <X size={12} />
+          </button>
         </div>
       )}
     </div>
@@ -135,13 +303,40 @@ function LeadCard({ lead }: { lead: TLead }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function TelesalesView() {
-  const [search, setSearch]         = useState("");
-  const [activeKey, setActiveKey]   = useState<string | null>(null);
+  const [search, setSearch]       = useState("");
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const queryClient               = useQueryClient();
 
   const { data: leads = [], isLoading, isError } = useQuery<TLead[]>({
     queryKey: ["telesales"],
-    queryFn: () => cf("/api/telesales"),
+    queryFn:  () => cf("/api/telesales"),
   });
+
+  const mutation = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Record<string, unknown> }) =>
+      cf(`/api/telesales/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["telesales"] }),
+  });
+
+  function handleAction(id: number, action: "no" | "missed" | "won", amount?: number) {
+    const lead     = leads.find(l => l.id === id);
+    const now      = new Date().toLocaleString("da-DK", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    if (action === "no") {
+      mutation.mutate({ id, body: { status: "no" } });
+
+    } else if (action === "missed") {
+      const prev    = lead?.notes?.trim() ?? "";
+      const entry   = `📞 ${now} — ikke svar`;
+      const notes   = prev ? `${prev}\n${entry}` : entry;
+      mutation.mutate({ id, body: { notes } });
+
+    } else if (action === "won") {
+      const body: Record<string, unknown> = { status: "won" };
+      if (amount != null) body.dealAmount = amount;
+      mutation.mutate({ id, body });
+    }
+  }
 
   const q = search.trim().toLowerCase();
 
@@ -193,7 +388,7 @@ export function TelesalesView() {
           {/* Category filter tabs */}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
             {SECTIONS.map(sec => {
-              const count = bySection[sec.key]?.length ?? 0;
+              const count  = bySection[sec.key]?.length ?? 0;
               const active = activeKey === sec.key;
               return (
                 <button
@@ -255,7 +450,7 @@ export function TelesalesView() {
                   {q ? "Ingen resultater matcher søgningen" : "Ingen leads i denne kategori endnu"}
                 </div>
               ) : (
-                list.map(l => <LeadCard key={l.id} lead={l} />)
+                list.map(l => <LeadCard key={l.id} lead={l} onAction={handleAction} />)
               )}
             </div>
           );

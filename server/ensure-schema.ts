@@ -297,10 +297,11 @@ export async function ensureSchema(): Promise<void> {
     await pool.query(`UPDATE leads SET owner_email = 'fredefussing@gmail.com' WHERE owner_email IS NULL`);
   } catch { /* column already exists and fully populated — safe to ignore */ }
 
-  // ── One-time: add telesales phone fields ─────────────────────────────────────
+  // ── One-time: add telesales phone + deal fields ──────────────────────────────
   try {
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS owner_phone text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS office_phone text`);
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_amount integer`);
   } catch { /* columns already exist */ }
 
   // ── One-time: mark follow-up 1 done for all leads reached 5. aug ──────────

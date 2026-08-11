@@ -6258,6 +6258,37 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
+  // ── Tele-salg — update lead status/outcome (owner + Mahad) ──────────────────
+  app.patch("/api/telesales/:id", async (req, res) => {
+    try {
+      const user = await requireTelesales(req, res);
+      if (!user) return;
+      const id = parseInt(req.params.id);
+      const { status, notes, dealAmount } = req.body;
+
+      const allowed = ["no", "won", "contacted", "responded"];
+      if (status && !allowed.includes(status)) {
+        return res.status(400).json({ error: "Ugyldig status" });
+      }
+
+      const sets: string[] = ["updated_at = NOW()"];
+      const vals: any[]   = [];
+      let idx = 1;
+
+      if (status    !== undefined) { sets.push(`status = $${idx++}`);       vals.push(status); }
+      if (notes     !== undefined) { sets.push(`notes = $${idx++}`);        vals.push(notes); }
+      if (dealAmount !== undefined){ sets.push(`deal_amount = $${idx++}`);  vals.push(dealAmount ?? null); }
+
+      vals.push(id);
+      await pool.query(
+        `UPDATE leads SET ${sets.join(", ")} WHERE id = $${idx} AND owner_email = 'fredefussing@gmail.com'`,
+        vals
+      );
+      const { rows } = await pool.query("SELECT * FROM leads WHERE id = $1", [id]);
+      return res.json(rows[0]);
+    } catch (err: any) { return res.status(500).json({ error: err.message }); }
+  });
+
   // ── Tele-salg (read-only view — owner + Mahad) ───────────────────────────────
   app.get("/api/telesales", async (req, res) => {
     try {
