@@ -6271,7 +6271,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ugyldig status" });
       }
 
-      const sets: string[] = ["updated_at = NOW()"];
+      const sets: string[] = [];
       const vals: any[]   = [];
       let idx = 1;
 
@@ -6279,6 +6279,8 @@ export async function registerRoutes(
       if (notes      !== undefined) { sets.push(`notes = $${idx++}`);        vals.push(notes); }
       if (dealAmount !== undefined) { sets.push(`deal_amount = $${idx++}`);  vals.push(dealAmount ?? null); }
       if (callbackAt !== undefined) { sets.push(`callback_at = $${idx++}`);  vals.push(callbackAt ?? null); }
+
+      if (sets.length === 0) return res.status(400).json({ error: "Intet at opdatere" });
 
       vals.push(id);
       await pool.query(

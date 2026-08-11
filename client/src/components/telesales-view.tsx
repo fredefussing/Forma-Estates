@@ -63,17 +63,27 @@ const SECTIONS: Sec[] = [
 
 // ── Callback helpers ──────────────────────────────────────────────────────────
 function callbackCountdown(dateStr: string): { label: string; color: string; bg: string } {
-  const now    = new Date();
-  const cb     = new Date(dateStr);
-  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const cbDay  = new Date(cb.getFullYear(), cb.getMonth(), cb.getDate());
-  const diff   = Math.round((cbDay.getTime() - nowDay.getTime()) / 86_400_000);
+  const now     = new Date();
+  const cb      = new Date(dateStr);
+  const diffMs  = cb.getTime() - now.getTime();
+  const absDiff = Math.abs(diffMs);
+  const totalH  = Math.floor(absDiff / 3_600_000);
+  const days    = Math.floor(totalH / 24);
+  const hours   = totalH % 24;
 
-  if (diff < 0)   return { label: `Forsinket ${Math.abs(diff)} dag${Math.abs(diff) === 1 ? "" : "e"}`, color: "#FCA5A5", bg: "rgba(239,68,68,0.18)" };
-  if (diff === 0) return { label: "Ring i dag!",    color: "#FCA5A5", bg: "rgba(239,68,68,0.18)" };
-  if (diff === 1) return { label: "I morgen",        color: "#FBD38D", bg: "rgba(251,190,36,0.18)" };
-  if (diff <= 6)  return { label: `Om ${diff} dage`, color: "#FCD34D", bg: "rgba(251,191,36,0.12)" };
-  return              { label: `Om ${diff} dage`,    color: MUTED,     bg: "rgba(255,255,255,0.05)" };
+  function fmt(d: number, h: number) {
+    if (d > 0 && h > 0) return `${d} dag${d === 1 ? "" : "e"} og ${h} time${h === 1 ? "" : "r"}`;
+    if (d > 0)           return `${d} dag${d === 1 ? "" : "e"}`;
+    if (h > 0)           return `${h} time${h === 1 ? "" : "r"}`;
+    return "Under en time";
+  }
+
+  if (diffMs < 0)          return { label: `Forsinket ${fmt(days, hours)}`, color: "#FCA5A5", bg: "rgba(239,68,68,0.20)" };
+  if (diffMs < 3_600_000)  return { label: "Ring nu!",                       color: "#FCA5A5", bg: "rgba(239,68,68,0.25)" };
+  if (days === 0)          return { label: `Om ${fmt(0, hours)}`,            color: "#FCA5A5", bg: "rgba(239,68,68,0.18)" };
+  if (days <= 2)           return { label: `Om ${fmt(days, hours)}`,         color: "#FBD38D", bg: "rgba(251,190,36,0.18)" };
+  if (days <= 6)           return { label: `Om ${fmt(days, hours)}`,         color: "#FCD34D", bg: "rgba(251,191,36,0.12)" };
+  return                        { label: `Om ${fmt(days, 0)}`,               color: MUTED,     bg: "rgba(255,255,255,0.05)" };
 }
 
 function formatCallbackDate(isoStr: string): { date: string; time: string | null } {
@@ -228,45 +238,46 @@ function LeadCard({
           background: countdown.bg,
           border: `1px solid ${countdown.color}44`,
           borderRadius: 8,
-          padding: "7px 10px",
+          padding: "8px 11px",
           marginBottom: 10,
         }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Calendar size={12} color={countdown.color} strokeWidth={2.5} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: countdown.color }}>{cbFmt.date}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 99,
-                background: `${countdown.color}25`, color: countdown.color,
-              }}>
-                {countdown.label}
-              </span>
-              {/* Edit callback */}
-              <button
-                onClick={openCalendar}
-                title="Rediger dato"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: MUTED, display: "flex", alignItems: "center" }}
-              >
+          {/* Row 1: label + actions */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: `${countdown.color}99`, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Genopkald sat til
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button onClick={openCalendar} title="Rediger dato"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: MUTED, display: "flex" }}>
                 <Pencil size={10} />
               </button>
-              {/* Clear callback */}
-              <button
-                onClick={() => onCallback(lead.id, null)}
-                title="Fjern ring-tilbage dato"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: MUTED, display: "flex", alignItems: "center" }}
-              >
+              <button onClick={() => onCallback(lead.id, null)} title="Fjern ring-tilbage dato"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: MUTED, display: "flex" }}>
                 <X size={11} />
               </button>
             </div>
           </div>
-          {cbFmt.time && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-              <Clock size={11} color={`${countdown.color}99`} strokeWidth={2.5} />
-              <span style={{ fontSize: 11, color: `${countdown.color}cc`, fontWeight: 600 }}>{cbFmt.time}</span>
-            </div>
-          )}
+          {/* Row 2: date + optional time */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+            <Calendar size={12} color={countdown.color} strokeWidth={2.5} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: countdown.color }}>{cbFmt.date}</span>
+            {cbFmt.time && (
+              <>
+                <Clock size={11} color={`${countdown.color}bb`} strokeWidth={2.5} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: `${countdown.color}cc` }}>{cbFmt.time}</span>
+              </>
+            )}
+          </div>
+          {/* Row 3: countdown */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99,
+              background: `${countdown.color}22`, color: countdown.color,
+              border: `1px solid ${countdown.color}44`,
+            }}>
+              {countdown.label}
+            </span>
+          </div>
         </div>
       )}
 
@@ -559,10 +570,16 @@ export function TelesalesView() {
     queryFn:  () => cf("/api/telesales"),
   });
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const mutation = useMutation({
     mutationFn: ({ id, body }: { id: number; body: Record<string, unknown> }) =>
       cf(`/api/telesales/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["telesales"] }),
+    onSuccess: () => {
+      setSaveError(null);
+      queryClient.invalidateQueries({ queryKey: ["telesales"] });
+    },
+    onError: (err: any) => setSaveError(err?.message ?? "Kunne ikke gemme – prøv igen"),
   });
 
   function handleAction(id: number, action: "no" | "missed" | "won", amount?: number) {
