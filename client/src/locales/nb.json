@@ -1743,5 +1743,22 @@
     "subline": "Last opp et foto — KI-en redesigner interiøret og leverer en salgsklar video, klar for annonsen.",
     "cta": "Se alle eksempler",
     "badge": "AI-staging · ca. 2–3 min"
+  },
+  "chat": {
+    "landingQ1": "Hvem passer Forma Estates for?",
+    "landingQ2": "Hva koster det?",
+    "landingQ3": "Hvordan fungerer AI-designet?",
+    "landingQ4": "Hva er BoligPotentiale?",
+    "dashQ1": "Hvordan oppretter jeg en ny sak?",
+    "dashQ2": "Hva er AI Design Agent?",
+    "dashQ3": "Hva er Bolig Showcase?",
+    "dashQ4": "Hva koster kreditter?",
+    "welcomeLanding": "Hei! Jeg er Forma Estates' AI-assistent — spør meg om priser, designstiler eller hvordan du kommer i gang.",
+    "welcomeDash": "Hei! Jeg er din guide til Forma Estates — spør meg om funksjoner, priser eller hvordan du oppretter en ny sak.",
+    "errorGeneral": "Beklager, noe gikk galt. Prøv igjen.",
+    "errorNetwork": "Kunne ikke opprette forbindelse. Sjekk internettforbindelsen din og prøv igjen.",
+    "placeholder": "Skriv spørsmålet ditt...",
+    "title": "Forma Assistent",
+    "online": "Online nå"
   }
 }

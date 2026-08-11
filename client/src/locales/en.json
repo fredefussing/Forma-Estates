@@ -1743,5 +1743,22 @@
     "subline": "Upload a photo of the property — the AI redesigns the interior in your chosen style and delivers a sale-ready video, ready for the listing.",
     "cta": "See all examples",
     "badge": "AI staging · approx. 2–3 min"
+  },
+  "chat": {
+    "landingQ1": "Who is Forma Estates for?",
+    "landingQ2": "How much does it cost?",
+    "landingQ3": "How does the AI design work?",
+    "landingQ4": "What is BoligPotentiale?",
+    "dashQ1": "How do I create a new case?",
+    "dashQ2": "What is AI Design Agent?",
+    "dashQ3": "What is Bolig Showcase?",
+    "dashQ4": "How much do credits cost?",
+    "welcomeLanding": "Hi! I'm Forma Estates' AI assistant — ask me about pricing, design styles or how to get started.",
+    "welcomeDash": "Hi! I'm your Forma Estates guide — ask me about features, pricing or how to create a new case.",
+    "errorGeneral": "Sorry, something went wrong. Please try again.",
+    "errorNetwork": "Could not connect. Check your internet connection and try again.",
+    "placeholder": "Type your question...",
+    "title": "Forma Assistant",
+    "online": "Online now"
   }
 }

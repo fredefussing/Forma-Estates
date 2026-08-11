@@ -1,25 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, MessageCircle, Sparkles, ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
-
-const LANDING_QUICK_QUESTIONS = [
-  "Hvem passer Forma Estates til?",
-  "Hvad koster det?",
-  "Hvordan virker AI-designet?",
-  "Hvad er BoligPotentiale?",
-];
-
-const DASHBOARD_QUICK_QUESTIONS = [
-  "Hvordan opretter jeg en ny sag?",
-  "Hvad er AI Design Agent?",
-  "Hvad er Bolig Showcase?",
-  "Hvad koster kreditter?",
-];
 
 const GUIDED_BUBBLE_KEY = "forma_chat_guided_v1";
 
@@ -36,10 +24,13 @@ const C = {
 };
 
 export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboard" }) {
-  const quickQuestions = mode === "dashboard" ? DASHBOARD_QUICK_QUESTIONS : LANDING_QUICK_QUESTIONS;
-  const welcomeMsg = mode === "dashboard"
-    ? "Hej! Jeg er din guide til Forma Estates — spørg mig om funktioner, priser eller hvordan du opretter en ny sag."
-    : "Hej! Jeg er Forma Estates' AI-assistent — spørg mig fx om priser, designstile eller hvordan du kommer i gang.";
+  const { t } = useTranslation();
+
+  const quickQuestions = mode === "dashboard"
+    ? [t("chat.dashQ1"), t("chat.dashQ2"), t("chat.dashQ3"), t("chat.dashQ4")]
+    : [t("chat.landingQ1"), t("chat.landingQ2"), t("chat.landingQ3"), t("chat.landingQ4")];
+
+  const welcomeMsg = mode === "dashboard" ? t("chat.welcomeDash") : t("chat.welcomeLanding");
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: welcomeMsg }]);
@@ -111,16 +102,16 @@ export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboar
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages, lang: i18n.language }),
       });
       const data = await res.json();
-      const reply = data.reply ?? data.error ?? "Beklager, noget gik galt. Prøv igen.";
+      const reply = data.reply ?? data.error ?? t("chat.errorGeneral");
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       if (!isOpen) setHasNewMessage(true);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Kunne ikke oprette forbindelse. Tjek din internetforbindelse og prøv igen." },
+        { role: "assistant", content: t("chat.errorNetwork") },
       ]);
     } finally {
       setIsLoading(false);
@@ -163,10 +154,10 @@ export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboar
                 <Sparkles size={16} color={C.gold} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: "14px", color: C.white }}>Forma Assistent</div>
+                <div style={{ fontWeight: 600, fontSize: "14px", color: C.white }}>{t("chat.title")}</div>
                 <div style={{ fontSize: "12px", color: C.gold, display: "flex", alignItems: "center", gap: "5px" }}>
                   <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", display: "inline-block" }} />
-                  Online nu
+                  {t("chat.online")}
                 </div>
               </div>
               <button onClick={() => setIsOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: "4px", borderRadius: "6px", display: "flex" }} data-testid="button-close-chat">
@@ -221,7 +212,7 @@ export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboar
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-                placeholder="Skriv dit spørgsmål..."
+                placeholder={t("chat.placeholder")}
                 disabled={isLoading}
                 style={{ flex: 1, background: C.inputBg, border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", padding: "9px 13px", color: C.white, fontSize: "13.5px", outline: "none", transition: "border-color 0.15s" }}
                 onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = C.goldBorder; }}

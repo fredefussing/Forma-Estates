@@ -1730,5 +1730,22 @@
     "subline": "Sube una foto — la IA rediseña el interior y entrega un vídeo listo para la venta, perfecto para el anuncio.",
     "cta": "Se alle eksempler",
     "badge": "AI staging · aprox. 2–3 min"
+  },
+  "chat": {
+    "landingQ1": "¿Para quién es Forma Estates?",
+    "landingQ2": "¿Cuánto cuesta?",
+    "landingQ3": "¿Cómo funciona el diseño con IA?",
+    "landingQ4": "¿Qué es BoligPotentiale?",
+    "dashQ1": "¿Cómo creo un nuevo caso?",
+    "dashQ2": "¿Qué es AI Design Agent?",
+    "dashQ3": "¿Qué es Bolig Showcase?",
+    "dashQ4": "¿Cuánto cuestan los créditos?",
+    "welcomeLanding": "¡Hola! Soy el asistente IA de Forma Estates — pregúntame sobre precios, estilos de diseño o cómo empezar.",
+    "welcomeDash": "¡Hola! Soy tu guía de Forma Estates — pregúntame sobre funciones, precios o cómo crear un nuevo caso.",
+    "errorGeneral": "Lo sentimos, algo salió mal. Inténtalo de nuevo.",
+    "errorNetwork": "No se pudo conectar. Comprueba tu conexión a internet e inténtalo de nuevo.",
+    "placeholder": "Escribe tu pregunta...",
+    "title": "Asistente Forma",
+    "online": "En línea ahora"
   }
 }

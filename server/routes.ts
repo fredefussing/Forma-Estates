@@ -6246,10 +6246,19 @@ export async function registerRoutes(
 
   app.post("/api/chat", async (req, res) => {
     try {
-      const { messages } = req.body;
+      const { messages, lang } = req.body;
       if (!Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "messages array required" });
       }
+
+      const LANG_NAMES: Record<string, string> = {
+        da: "Danish", en: "English", sv: "Swedish", de: "German",
+        nb: "Norwegian", es: "Spanish", fr: "French",
+      };
+      const responseLang = LANG_NAMES[lang] ?? "Danish";
+      const langInstruction = responseLang === "Danish"
+        ? "Du svarer altid på dansk"
+        : `You always respond in ${responseLang}. Never switch to another language regardless of what language the user writes in.`;
 
       if (!process.env.OPENAI_API_KEY) {
         return res.status(500).json({ error: "Chat er ikke konfigureret. Kontakt support." });
@@ -6258,7 +6267,7 @@ export async function registerRoutes(
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      const SYSTEM_PROMPT = `Du er en hjælpsom AI-assistent for Forma Estates – en avanceret AI-platform til professionel ejendomsvisualisering i Danmark. Du svarer altid på dansk, er venlig, præcis og professionel. Omtal altid platformen som "Forma Estates" – aldrig "Nordic Homebuild" eller andre navne.
+      const SYSTEM_PROMPT = `You are a helpful AI assistant for Forma Estates – an advanced AI platform for professional property visualisation. ${langInstruction}, are friendly, precise and professional. Always refer to the platform as "Forma Estates" — never "Nordic Homebuild" or any other name.
 
 ## Om Forma Estates
 Forma Estates er en AI-drevet platform der hjælper professionelle i HELE ejendomsbranchen med at præsentere ejendomme professionelt vha. AI-genererede visualiseringer og videoer. Platformen bruges af:

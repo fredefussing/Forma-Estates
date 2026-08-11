@@ -1743,5 +1743,22 @@
     "subline": "Foto hochladen — die KI gestaltet das Interieur und liefert ein verkaufsfertiges Video, bereit für die Anzeige.",
     "cta": "Se alle eksempler",
     "badge": "KI-Staging · ca. 2–3 Min."
+  },
+  "chat": {
+    "landingQ1": "Für wen ist Forma Estates?",
+    "landingQ2": "Was kostet es?",
+    "landingQ3": "Wie funktioniert das KI-Design?",
+    "landingQ4": "Was ist BoligPotentiale?",
+    "dashQ1": "Wie erstelle ich einen neuen Fall?",
+    "dashQ2": "Was ist der KI Design Agent?",
+    "dashQ3": "Was ist Bolig Showcase?",
+    "dashQ4": "Was kosten Credits?",
+    "welcomeLanding": "Hallo! Ich bin der KI-Assistent von Forma Estates — fragen Sie mich zu Preisen, Designstilen oder wie Sie beginnen.",
+    "welcomeDash": "Hallo! Ich bin Ihr Forma Estates-Guide — fragen Sie mich zu Funktionen, Preisen oder wie Sie einen neuen Fall anlegen.",
+    "errorGeneral": "Entschuldigung, etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "errorNetwork": "Verbindung fehlgeschlagen. Überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+    "placeholder": "Schreiben Sie Ihre Frage...",
+    "title": "Forma Assistent",
+    "online": "Jetzt online"
   }
 }
