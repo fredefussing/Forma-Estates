@@ -4911,6 +4911,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 clearTimeout(deadlineTimer); es.close(); esRef.current = null;
                 if (!settled) {
                   settled = true;
+                  if ((p.videos as RendyVideo[]).length === 0) {
+                    reject(new Error(p.message || i18n.t("dashboard.common.genereringMislykkedes2")));
+                    return;
+                  }
                   setResultVideos(p.videos as RendyVideo[]);
                   setRenderingVideos([]);
                   if (p.listingId) {

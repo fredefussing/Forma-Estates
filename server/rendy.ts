@@ -469,6 +469,10 @@ export function startRendyShowcase(
         if (st.status === "success") {
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
+          if (videos.length === 0) {
+            // Rendy said "success" but every individual video failed — treat as error
+            throw new Error(`Videogenerering fejlede — 0 ud af ${full.videos.length} videoer lykkedes. Prøv med bedre billeder (min. 800×600px, god belysning).`);
+          }
           // Burn EU AI Act Art. 50 badge into each Rendy CDN video before delivering
           // URLs to the client. Falls back to original CDN URLs if burning fails or
           // takes longer than 120 s (belt-and-suspenders on top of per-video 90 s timeouts).
