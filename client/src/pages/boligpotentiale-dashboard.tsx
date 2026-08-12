@@ -4443,7 +4443,6 @@ interface ShowcaseImg {
   cropBox: { x: number; y: number; w: number; h: number } | null;
   naturalW: number;
   naturalH: number;
-  tooSmall: boolean;
 }
 
 const BASE = "https://tcsffqhaqxggamwqimka.supabase.co/storage/v1/object/public";
@@ -4695,7 +4694,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       cropBox: null,
       naturalW: 0,
       naturalH: 0,
-      tooSmall: false,
     }));
     setImages((prev) => [...prev, ...next].slice(0, 20));
     // Asynchronously load each image to detect dimensions
@@ -4706,7 +4704,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         const nh = im.naturalHeight;
         setImages((prev) => prev.map((img) =>
           img.id === imgObj.id
-            ? { ...img, naturalW: nw, naturalH: nh, tooSmall: nw < 800 || nh < 600 }
+            ? { ...img, naturalW: nw, naturalH: nh }
             : img
         ));
       };
@@ -4833,10 +4831,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       if (img.id !== cropModalImg.id) return img;
       const effectiveW = img.naturalW > 0 ? img.naturalW * cropDraft.w : 0;
       const effectiveH = img.naturalH > 0 ? img.naturalH * cropDraft.h : 0;
-      const tooSmall = img.naturalW > 0
-        ? effectiveW < 800 || effectiveH < 600
-        : img.tooSmall;
-      return { ...img, cropBox: cropDraft, tooSmall };
+      return { ...img, cropBox: cropDraft };
     }));
     setCropModalImg(null);
     setCropDraft(null);
