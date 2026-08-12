@@ -5089,7 +5089,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       {/* Eksempel — 2 showcase-videoer side by side */}
       <div className="mb-8" style={{ order: 2 }}>
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-4" style={{ color: "#C8956C" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
-        <div className="grid grid-cols-2 gap-5">
+        <div className="flex gap-3">
           {(
             [
               {
@@ -5101,8 +5101,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               },
               {
                 src:    "/videos/showcase-lodret-eksempel.mp4",
-                // Use a dining-room still so the poster is visually distinct
-                // from the kitchen that opens the actual video clip
                 poster: "/bolig-images/example-dining-modern.png",
                 room:   "Køkken",
                 style:  "Japandi",
@@ -5110,8 +5108,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               },
             ] as const
           ).map((ex, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden bg-white border border-[#E8E4DE] shadow-sm group cursor-pointer">
-              <div className="relative overflow-hidden">
+            <div key={i} className="rounded-xl overflow-hidden bg-white border border-[#E8E4DE] shadow-sm group cursor-pointer" style={{ width: 140 }}>
+              <div className="relative overflow-hidden" style={{ height: 200 }}>
                 <video
                   ref={ex.isFirst ? exampleVideoRef : undefined}
                   src={ex.src}
@@ -5120,23 +5118,23 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   muted
                   loop
                   playsInline
-                  className="w-full block"
-                  style={{ aspectRatio: "9/16", objectFit: "cover" }}
+                  className="w-full h-full block"
+                  style={{ objectFit: "cover" }}
                   onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play().catch(() => {})}
                   onMouseLeave={(e) => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
                   data-testid={ex.isFirst ? "showcase-example-video" : "showcase-example-video-2"}
                 />
                 {/* Play hint — fades out on hover */}
-                <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none opacity-100 group-hover:opacity-0 transition-opacity duration-300">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold" style={{ background: "rgba(15,29,47,0.72)", color: "rgba(255,255,255,0.9)", backdropFilter: "blur(6px)" }}>
-                    <svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor"><path d="M0 0l9 5.5L0 11V0z"/></svg>
-                    Hover for afspilning
+                <div className="absolute inset-0 flex items-end justify-center pb-2 pointer-events-none opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold" style={{ background: "rgba(15,29,47,0.70)", color: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)" }}>
+                    <svg width="7" height="9" viewBox="0 0 9 11" fill="currentColor"><path d="M0 0l9 5.5L0 11V0z"/></svg>
+                    Afspil
                   </span>
                 </div>
               </div>
-              <div className="px-4 py-3 border-t border-[#F0EDE9]">
-                <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{ex.room}</p>
-                <p className="text-xs mt-0.5" style={{ color: "#9B9690" }}>{ex.style}</p>
+              <div className="px-2.5 py-2 border-t border-[#F0EDE9]">
+                <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0F1D2F" }}>{ex.room}</p>
+                <p className="text-[11px] mt-0.5 leading-tight" style={{ color: "#9B9690" }}>{ex.style}</p>
               </div>
             </div>
           ))}
