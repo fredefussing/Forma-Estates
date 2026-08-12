@@ -24,7 +24,7 @@ import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
 import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
-import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
+import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
 
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
@@ -4401,28 +4401,66 @@ export async function registerRoutes(
 
       log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
       const showcaseLang = String(req.body?.lang || req.headers["x-lang"] || "da");
+
+      // Mutable ref filled synchronously once startRendyShowcase() returns jobId.
+      // Safe: JS is single-threaded; the IIFE's first await (DB write) runs after
+      // this assignment, so onVideosReady can never be called before jobId is set.
+      let capturedJobId = "";
+
       // Post-processor: download Rendy CDN videos → burn EU AI Act Art. 50 badge →
       // serve /uploads/ URL so the client never downloads an un-badged video.
+      //
+      // Key fixes vs. old sequential for-loop:
+      //  1. Parallel Promise.allSettled — all videos processed concurrently.
+      //  2. 90-second per-download timeout — prevents one hanging CDN request from
+      //     blocking completion forever (root cause of "stuck at 95% forever").
+      //  3. Progress updates (96–99%) so the client knows watermarking is in progress.
       const rendyWatermark = async (videos: import("./rendy").RendyVideo[]) => {
-        const out: import("./rendy").RendyVideo[] = [];
-        for (const v of videos) {
-          if (!v.url) { out.push(v); continue; }
-          try {
-            const localPath = await downloadToUploads(v.url, uploadDir, ".mp4");
-            const rawMp4 = path.join(uploadDir, path.basename(localPath));
-            const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-            await burnEuWatermark(rawMp4, wmTmp, showcaseLang);
-            fs.renameSync(wmTmp, rawMp4);
-            log(`[Rendy] EU Art.50 badge burned → ${localPath}`);
-            out.push({ ...v, url: localPath });
-          } catch (e: any) {
-            log(`[Rendy] watermark for video ${v.id} non-fatal: ${e.message} — serverer original CDN URL`);
-            out.push(v);
-          }
+        const total = videos.filter((v) => v.url).length;
+        if (capturedJobId && total > 0) {
+          setRendyJobProgress(capturedJobId, {
+            stage: "generating",
+            progress: 96,
+            message: `Tilføjer EU-badge til ${total} video${total === 1 ? "" : "er"}…`,
+          });
         }
-        return out;
+
+        const results = await Promise.allSettled(
+          videos.map(async (v) => {
+            if (!v.url) return v;
+            try {
+              // Wrap download in a 90-second timeout to prevent hung CDN requests
+              const downloadPromise = downloadToUploads(v.url, uploadDir, ".mp4");
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Download timeout (90s)")), 90_000),
+              );
+              const localPath = await Promise.race([downloadPromise, timeoutPromise]);
+              const rawMp4 = path.join(uploadDir, path.basename(localPath));
+              const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+              await burnEuWatermark(rawMp4, wmTmp, showcaseLang);
+              fs.renameSync(wmTmp, rawMp4);
+              log(`[Rendy] EU Art.50 badge burned → ${localPath}`);
+              return { ...v, url: localPath };
+            } catch (e: any) {
+              log(`[Rendy] watermark non-fatal (${v.id}): ${e.message} — serverer original CDN URL`);
+              return v; // fall back to Rendy CDN URL
+            }
+          }),
+        );
+
+        if (capturedJobId) {
+          setRendyJobProgress(capturedJobId, {
+            stage: "generating",
+            progress: 99,
+            message: "Videoer klar — afslutter…",
+          });
+        }
+
+        return results.map((r, i) => (r.status === "fulfilled" ? r.value : videos[i]));
       };
+
       const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, rendyWatermark);
+      capturedJobId = jobId; // assign synchronously before any await fires in the IIFE
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);

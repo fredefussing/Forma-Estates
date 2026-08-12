@@ -113,6 +113,11 @@ function setProgress(jobId: string, p: RendyJobProgress) {
   if (job) jobs.set(jobId, { ...job, progress: p });
 }
 
+/** Allow routes.ts to update progress during post-processing (e.g. EU badge watermarking). */
+export function setRendyJobProgress(jobId: string, p: RendyJobProgress) {
+  setProgress(jobId, p);
+}
+
 function pruneJobs() {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   jobs.forEach((job, id) => {
