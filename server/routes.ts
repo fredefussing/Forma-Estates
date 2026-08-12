@@ -199,6 +199,19 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
     : guardedPrefix() + `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
 }
 
+// ── Fetch with a hard timeout (AbortController) ──────────────────────────────
+// Collov and other third-party endpoints have no internal timeout — a single
+// hung request would otherwise stall the route indefinitely.
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30_000): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── Send redesign task to Collov edit/generate ────────────────────────────────
 async function sendCollovTask(uploadUrl: string, roomType: string, style: string, tier?: string, includePlants = false): Promise<string> {
   const prompt = buildRedesignPrompt(roomType, style, tier, includePlants);
@@ -208,11 +221,11 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
 
   log(`Collov redesign send: style=${style}, roomType=${roomType}, prompt="${prompt.slice(0, 100)}..."`);
 
-  const res = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
+  const res = await fetchWithTimeout(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
     method: "POST",
     headers: { apiKey: COLLOV_API_KEY! },
     body: form,
-  });
+  }, 45_000);
   const json = (await res.json()) as any;
   log(`Collov redesign response (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 300)}`);
   if (!json.success || !json.data?.uuid) throw new Error(json.message || "Collov API returned an error");
@@ -221,7 +234,7 @@ async function sendCollovTask(uploadUrl: string, roomType: string, style: string
 
 // ── Poll edit/getRecord for result ───────────────────────────────────────────
 async function pollCollovResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
     { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
   );
@@ -240,7 +253,7 @@ async function pollEmptyRoom(taskId: string): Promise<string> {
   const interval = 2000;
 
   for (let i = 0; i < maxAttempts; i++) {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${COLLOV_BASE}/flair/enterpriseApi/vst/getEmptyRoomRecord?id=${encodeURIComponent(taskId)}`,
       { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
     );
@@ -267,8 +280,8 @@ async function sendVstWorkflow(originalImageUrl: string, roomType: string, style
   const emptyForm = new FormData();
   emptyForm.append("uploadUrl", originalImageUrl);
   log(`VST step1: generateEmptyRoom`);
-  const emptyRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`,
-    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: emptyForm });
+  const emptyRes = await fetchWithTimeout(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateEmptyRoom`,
+    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: emptyForm }, 45_000);
   const emptyJson = (await emptyRes.json()) as any;
   log(`VST step1 response: ${JSON.stringify(emptyJson).slice(0, 200)}`);
   if (!emptyJson.data?.id) throw new Error(emptyJson.message || "VST generateEmptyRoom: no task id");
@@ -282,8 +295,8 @@ async function sendVstWorkflow(originalImageUrl: string, roomType: string, style
   stageForm.append("roomType", roomType.toLowerCase());
   stageForm.append("style", styleLower);
   log(`VST step2: generateImgOnCommon roomType=${roomType.toLowerCase()} style=${styleLower}`);
-  const stageRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
-    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: stageForm });
+  const stageRes = await fetchWithTimeout(`${COLLOV_BASE}/flair/enterpriseApi/vst/generateImgOnCommon`,
+    { method: "POST", headers: { apiKey: COLLOV_API_KEY! }, body: stageForm }, 45_000);
   const stageJson = (await stageRes.json()) as any;
   log(`VST step2 response: ${JSON.stringify(stageJson).slice(0, 200)}`);
   if (!stageJson.data?.uuid) throw new Error(stageJson.message || "VST generateImgOnCommon: no uuid");
@@ -292,7 +305,7 @@ async function sendVstWorkflow(originalImageUrl: string, roomType: string, style
 
 // ── VST: Poll vst/getRecord ───────────────────────────────────────────────────
 async function pollVstResult(uuid: string): Promise<{ status: string; resultUrl?: string; failReason?: string }> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${COLLOV_BASE}/flair/enterpriseApi/vst/getRecord?uuid=${encodeURIComponent(uuid)}`,
     { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
   );
@@ -3713,6 +3726,8 @@ export async function registerRoutes(
 
   // ── 3D Plantegning (fal.ai nano-banana-2/edit — 2D plan → 3D dollhouse) ───
   app.post("/api/bolig/floorplan-3d", upload.single("image"), async (req, res) => {
+    // Hoisted so the outer catch block can refund quota if generation fails
+    let floorPlanUserId: number | null = null;
     try {
       if (!isFalConfigured()) {
         return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
@@ -3721,7 +3736,6 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Intet plantegning-billede uploadet" });
       }
       // Auth + quota check — auth is REQUIRED for this paid feature
-      let floorPlanUserId: number | null = null;
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
         const u = await storage.getUserByFirebaseUid(uid);
@@ -3807,6 +3821,8 @@ export async function registerRoutes(
         processing_time: processingTime,
       });
     } catch (err: any) {
+      // Refund quota — any error after checkAndIncrementQuota must return the credit
+      if (floorPlanUserId) storage.refundQuota(floorPlanUserId, "floorPlan").catch(() => {});
       const translated = translateFalError(err);
       log(`[3D] floorplan error: ${err.message}`);
       void import("./tracker").then(m => m.reportGenerationFailure("fal", err.message ?? "3D floorplan fejl")).catch(() => {});

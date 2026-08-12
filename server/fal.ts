@@ -360,14 +360,30 @@ export async function generate3DFloorplanFromUrl(
   assertNotLockedDown();
   const aspectRatio = nearestSupportedAspectRatio(width, height);
   console.log(`[generate3DFloorplan] ${width}x${height} -> aspect_ratio ${aspectRatio}, url: ${publicUrl.slice(0, 60)}`);
-  const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
+  // 4-minute hard timeout — fal.subscribe has no built-in timeout; without this
+  // the Express route hangs indefinitely if fal.ai's queue is backed up, leaving
+  // the client spinner running forever with no feedback.
+  const timeoutMs = 4 * 60 * 1000;
+  const timeoutP = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("3D plantegning tog for lang tid (4 min). Prøv igen om lidt — fal.ai-køen er muligvis optaget.")), timeoutMs),
+  );
+  const falP = fal.subscribe("fal-ai/nano-banana-2/edit", {
     input: {
       prompt: FLOORPLAN_3D_PROMPT,
       image_urls: [publicUrl],
       resolution: "2K",
       aspect_ratio: aspectRatio,
     },
+    logs: true,
+    onQueueUpdate: (update: any) => {
+      if (update.status === "IN_QUEUE") {
+        console.log(`[generate3DFloorplan] IN_QUEUE position=${update.queue_position ?? "?"}`);
+      } else if (update.status === "IN_PROGRESS") {
+        console.log(`[generate3DFloorplan] IN_PROGRESS logs=${update.logs?.length ?? 0}`);
+      }
+    },
   });
+  const result = await Promise.race([falP, timeoutP]);
   const imageUrl = (result.data as any).images?.[0]?.url;
   if (!imageUrl) throw new Error("No image generated");
   return { imageUrl };

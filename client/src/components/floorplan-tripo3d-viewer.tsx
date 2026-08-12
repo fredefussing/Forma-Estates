@@ -159,6 +159,8 @@ export function FloorplanTripo3DViewer({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const taskIdRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false); // prevent double-click double-submit
+  const pollErrorsRef = useRef(0);   // transient poll errors — retry up to 5 before failing
   const saveDdRef = useRef<HTMLDivElement>(null);
 
   const activeCases = cases.filter(c => c.status !== "sold");
@@ -201,6 +203,9 @@ export function FloorplanTripo3DViewer({
     : [1, 1, 1];
 
   async function generate() {
+    if (inFlightRef.current) return; // guard against double-click
+    inFlightRef.current = true;
+    pollErrorsRef.current = 0;
     setStatus("submitting");
     setErrorMsg(null);
     setProgress(0);
@@ -244,6 +249,7 @@ export function FloorplanTripo3DViewer({
           });
           if (!pollRes.ok) throw new Error("Poll fejlede");
           const d = await pollRes.json();
+          pollErrorsRef.current = 0; // reset on any successful response
           // Vis tydelig besked hvis stadig i kø
           if (d.status === "queued") {
             setProgress(0);
@@ -253,6 +259,7 @@ export function FloorplanTripo3DViewer({
 
           if (d.status === "success" && d.modelUrl) {
             stopPolling();
+            inFlightRef.current = false;
             setModelUrl(d.modelUrl);
             const ri = d.renderedImageUrl ?? null;
             setRenderedImageUrl(ri);
@@ -260,15 +267,21 @@ export function FloorplanTripo3DViewer({
             setStatus("ready");
           } else if (d.status === "failed" || d.status === "cancelled") {
             stopPolling();
+            inFlightRef.current = false;
             throw new Error("3D generering mislykkedes — prøv igen");
           }
         } catch (e: any) {
+          // Transient network errors: retry up to 5 times before giving up
+          pollErrorsRef.current += 1;
+          if (pollErrorsRef.current < 5) return; // silently retry next interval
           stopPolling();
+          inFlightRef.current = false;
           setErrorMsg(e.message || "Generering mislykkedes");
           setStatus("error");
         }
       }, 4000);
     } catch (err: any) {
+      inFlightRef.current = false;
       setErrorMsg(err.message || "Noget gik galt");
       setStatus("error");
     }
@@ -437,6 +450,8 @@ export function FloorplanTripo3DViewer({
 
   function reset() {
     stopPolling();
+    inFlightRef.current = false;
+    pollErrorsRef.current = 0;
     taskIdRef.current = null;
     setStatus("idle");
     setProgress(0);
