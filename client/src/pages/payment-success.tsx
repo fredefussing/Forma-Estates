@@ -183,7 +183,7 @@ export default function PaymentSuccessPage() {
   }, [user, authLoading, sessionId, refreshCredits, setLocation]);
 
   const loginUrl = `/login?redirect=${encodeURIComponent(`/betalt?session_id=${sessionId}`)}`;
-  const signupUrl = `/signup?redirect=${encodeURIComponent(`/betalt?session_id=${sessionId}`)}&email=${encodeURIComponent(guestSession?.customer_email ?? "")}`;
+  const signupUrl = `/opret?redirect=${encodeURIComponent(`/betalt?session_id=${sessionId}`)}&email=${encodeURIComponent(guestSession?.customer_email ?? "")}`;
 
   return (
     <div className="min-h-screen bg-background flex flex-col" data-testid="page-payment-success">

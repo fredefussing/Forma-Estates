@@ -188,6 +188,7 @@ function Router() {
       <Route path="/design" component={DesignPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/opret" component={SignupPage} />
+      <Route path="/signup" component={() => { useEffect(() => { window.location.replace("/opret"); }, []); return null; }} />
       <Route path="/verificer-email" component={VerifyEmailPage} />
       <Route path="/nulstil-password" component={NulstilPasswordPage} />
       <Route path="/min-konto" component={AccountPage} />

@@ -13,6 +13,12 @@ import { assertLockFileIntegrity } from "./promptGuard";
 const app = express();
 const httpServer = createServer(app);
 
+// Trust Render's reverse proxy so req.protocol returns "https" and
+// req.get("host") returns the public domain (formaestates.com).
+// Without this, password-reset links and invite links would be sent
+// as http:// instead of https://.
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
