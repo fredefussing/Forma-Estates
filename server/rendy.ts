@@ -310,7 +310,9 @@ export function startRendyShowcase(
   filePaths: string[],
   address: string,
   ratio: "portrait" | "landscape",
-  imageKeys: RendyImageKeys[]
+  imageKeys: RendyImageKeys[],
+  /** Optional post-processor: download Rendy CDN videos and burn EU AI Act badge */
+  onVideosReady?: (videos: RendyVideo[]) => Promise<RendyVideo[]>
 ): string {
   pruneJobs();
   const jobId = randomUUID();
@@ -417,15 +419,20 @@ export function startRendyShowcase(
             // If some videos actually succeeded, return those instead of failing completely
             if (successVideos.length > 0) {
               console.error(`[Rendy] returnerer ${successVideos.length} succesfulde videoer trods delfejl`);
+              let finalVideos = successVideos;
+              if (onVideosReady) {
+                try { finalVideos = await onVideosReady(successVideos); }
+                catch (wmErr: any) { console.error("[Rendy] post-process (partial) fejl:", wmErr?.message); }
+              }
               jobs.set(jobId, {
                 ...jobs.get(jobId)!,
                 status: "completed",
-                videos: successVideos,
+                videos: finalVideos,
                 progress: {
                   stage: "complete",
                   progress: 100,
-                  message: `${successVideos.length} video${successVideos.length === 1 ? "" : "er"} klar (${failedVideos.length} fejlede)`,
-                  videos: successVideos,
+                  message: `${finalVideos.length} video${finalVideos.length === 1 ? "" : "er"} klar (${failedVideos.length} fejlede)`,
+                  videos: finalVideos,
                   listingId,
                 },
               });
@@ -453,15 +460,23 @@ export function startRendyShowcase(
         if (st.status === "success") {
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
+          // Burn EU AI Act Art. 50 badge into each Rendy CDN video before delivering
+          // URLs to the client. Uses the same burnEuWatermark() function as fal.ai
+          // transform videos. Falls back to original CDN URL if burning fails.
+          let finalVideos = videos;
+          if (onVideosReady) {
+            try { finalVideos = await onVideosReady(videos); }
+            catch (wmErr: any) { console.error("[Rendy] post-process fejl:", wmErr?.message); }
+          }
           jobs.set(jobId, {
             ...jobs.get(jobId)!,
             status: "completed",
-            videos,
+            videos: finalVideos,
             progress: {
               stage: "complete",
               progress: 100,
-              message: `${videos.length} video${videos.length === 1 ? "" : "er"} klar!`,
-              videos,
+              message: `${finalVideos.length} video${finalVideos.length === 1 ? "" : "er"} klar!`,
+              videos: finalVideos,
               listingId,
             },
           });

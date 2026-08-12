@@ -4374,7 +4374,29 @@ export async function registerRoutes(
       const mergedKeys = presetKeys.map((cam, i) => normalizeRendyKeys(vfxKeys[i] || cam || undefined));
 
       log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
-      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys);
+      const showcaseLang = String(req.body?.lang || req.headers["x-lang"] || "da");
+      // Post-processor: download Rendy CDN videos → burn EU AI Act Art. 50 badge →
+      // serve /uploads/ URL so the client never downloads an un-badged video.
+      const rendyWatermark = async (videos: import("./rendy").RendyVideo[]) => {
+        const out: import("./rendy").RendyVideo[] = [];
+        for (const v of videos) {
+          if (!v.url) { out.push(v); continue; }
+          try {
+            const localPath = await downloadToUploads(v.url, uploadDir, ".mp4");
+            const rawMp4 = path.join(uploadDir, path.basename(localPath));
+            const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+            await burnEuWatermark(rawMp4, wmTmp, showcaseLang);
+            fs.renameSync(wmTmp, rawMp4);
+            log(`[Rendy] EU Art.50 badge burned → ${localPath}`);
+            out.push({ ...v, url: localPath });
+          } catch (e: any) {
+            log(`[Rendy] watermark for video ${v.id} non-fatal: ${e.message} — serverer original CDN URL`);
+            out.push(v);
+          }
+        }
+        return out;
+      };
+      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, rendyWatermark);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
