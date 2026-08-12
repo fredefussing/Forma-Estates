@@ -5086,22 +5086,47 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.showcase.introText")}</p>
       </div>
 
-      {/* Eksempel */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-8 shadow-sm max-w-4xl" style={{ order: 2 }}>
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
-        <div className="rounded-xl overflow-hidden border border-[#E8E4DE] flex justify-center" style={{ background: "#0F1D2F" }}>
-          <video
-            ref={exampleVideoRef}
-            src="/videos/eksempel-bolig-showcase.mp4"
-            poster="/bolig-images/showcase-eksempel-poster.jpg"
-            preload="none"
-            muted
-            loop
-            playsInline
-            className="h-auto"
-            style={{ aspectRatio: "9/16", maxHeight: 480 }}
-            data-testid="showcase-example-video"
-          />
+      {/* Eksempel — 3 showcase-videoer side by side */}
+      <div className="mb-8" style={{ order: 2 }}>
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-4" style={{ color: "#C8956C" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
+        <div className="grid grid-cols-3 gap-4">
+          {(
+            [
+              { src: "/videos/eksempel-bolig-showcase.mp4", poster: "/bolig-images/demo-dining-after.jpg",  room: "Spisestue", style: "Skandinavisk",  isFirst: true  },
+              { src: "/videos/bolig-showcase-v1.mp4",        poster: "/bolig-images/living-modern-after.jpg", room: "Stue",      style: "Modern Luxe",  isFirst: false },
+              { src: "/videos/showcase-lodret-eksempel.mp4", poster: "/bolig-images/kitchen-after.jpg",      room: "Køkken",    style: "Japandi",      isFirst: false },
+            ] as const
+          ).map((ex, i) => (
+            <div key={i} className="rounded-2xl overflow-hidden bg-white border border-[#E8E4DE] shadow-sm group cursor-pointer">
+              <div className="relative overflow-hidden">
+                <video
+                  ref={ex.isFirst ? exampleVideoRef : undefined}
+                  src={ex.src}
+                  poster={ex.poster}
+                  preload="none"
+                  muted
+                  loop
+                  playsInline
+                  className="w-full block"
+                  style={{ aspectRatio: "9/16", objectFit: "cover" }}
+                  onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play().catch(() => {})}
+                  onMouseLeave={(e) => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                  data-testid={ex.isFirst ? "showcase-example-video" : `showcase-example-video-${i + 1}`}
+                />
+                {/* Play hint — fades out once video starts */}
+                <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold" style={{ background: "rgba(15,29,47,0.72)", color: "rgba(255,255,255,0.9)", backdropFilter: "blur(6px)" }}>
+                    <svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor"><path d="M0 0l9 5.5L0 11V0z"/></svg>
+                    Hover for afspilning
+                  </span>
+                </div>
+              </div>
+              <div className="px-4 py-3 border-t border-[#F0EDE9]">
+                <p className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{ex.room}</p>
+                <p className="text-xs mt-0.5" style={{ color: "#9B9690" }}>{ex.style}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
