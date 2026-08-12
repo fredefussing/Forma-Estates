@@ -3638,8 +3638,11 @@ export async function registerRoutes(
               const pad = Math.round(imgW * 0.025);
               const outName = `branded-${authedUserId}-${Date.now()}.jpg`;
               const outPath = path.join(uploadDir, outName);
+              // Logo placeres i øverste højre hjørne (top-right) så det ikke
+              // overlapper "AI Redigeret"-badge der altid sidder nede i
+              // højre hjørne (bottom-right) og tilføjes ved download.
               await sharp(tmpAbsPath)
-                .composite([{ input: resizedLogo, top: imgH - (lMeta.height || 60) - pad, left: imgW - (lMeta.width || logoTargetW) - pad }])
+                .composite([{ input: resizedLogo, top: pad, left: imgW - (lMeta.width || logoTargetW) - pad }])
                 .jpeg({ quality: 92 })
                 .toFile(outPath);
               fs.unlink(tmpAbsPath, () => {});
@@ -3928,14 +3931,23 @@ export async function registerRoutes(
       if (!imageUrl || typeof imageUrl !== "string") {
         return res.status(400).json({ message: "imageUrl er påkrævet" });
       }
-      const fileType = imageUrl.toLowerCase().includes(".png") ? "png" : "jpg";
+      // Tripo3D kræver en absolut https:// URL — relative /uploads/-stier returnerer
+      // code 1004 "One or more of your parameter is invalid". Byg den fulde URL her
+      // så klienten ikke behøver at kende domænet.
+      let resolvedImageUrl = imageUrl;
+      if (imageUrl.startsWith("/")) {
+        const proto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+        const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host || "formaestates.com";
+        resolvedImageUrl = `${proto}://${host}${imageUrl}`;
+      }
+      const fileType = resolvedImageUrl.toLowerCase().includes(".png") ? "png" : "jpg";
       // HD-kvalitet som Tripo's egen web-app ("HD Model"): nyeste modelversion +
       // Ultra-geometri + høj teksturopløsning + face_limit 2 000 000 (API
-      // accepterer op til 2M — matcher Tripo's UI-løfte om "up to 2 million
+      // accepterer op til 2M — matcher Tripo's UI-løfte om "up til 2 million
       // polygons for 3D printing & visual art". Testet 2026-07-23).
       const payload = JSON.stringify({
         type: "image_to_model",
-        file: { type: fileType, url: imageUrl },
+        file: { type: fileType, url: resolvedImageUrl },
         model_version: "v3.1-20260211",
         geometry_quality: "detailed",
         texture_quality: "detailed",
