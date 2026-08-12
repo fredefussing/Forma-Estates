@@ -5086,15 +5086,28 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.showcase.introText")}</p>
       </div>
 
-      {/* Eksempel — 3 showcase-videoer side by side */}
+      {/* Eksempel — 2 showcase-videoer side by side */}
       <div className="mb-8" style={{ order: 2 }}>
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-4" style={{ color: "#C8956C" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-5">
           {(
             [
-              { src: "/videos/eksempel-bolig-showcase.mp4", poster: "/bolig-images/demo-dining-after.jpg",  room: "Spisestue", style: "Skandinavisk",  isFirst: true  },
-              { src: "/videos/bolig-showcase-v1.mp4",        poster: "/bolig-images/living-modern-after.jpg", room: "Stue",      style: "Modern Luxe",  isFirst: false },
-              { src: "/videos/showcase-lodret-eksempel.mp4", poster: "/bolig-images/kitchen-after.jpg",      room: "Køkken",    style: "Japandi",      isFirst: false },
+              {
+                src:    "/videos/bolig-showcase-v1.mp4",
+                poster: "/bolig-images/living-modern-after.jpg",
+                room:   "Stue",
+                style:  "Modern Luxe",
+                isFirst: true,
+              },
+              {
+                src:    "/videos/showcase-lodret-eksempel.mp4",
+                // Use a dining-room still so the poster is visually distinct
+                // from the kitchen that opens the actual video clip
+                poster: "/bolig-images/example-dining-modern.png",
+                room:   "Køkken",
+                style:  "Japandi",
+                isFirst: false,
+              },
             ] as const
           ).map((ex, i) => (
             <div key={i} className="rounded-2xl overflow-hidden bg-white border border-[#E8E4DE] shadow-sm group cursor-pointer">
@@ -5111,9 +5124,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   style={{ aspectRatio: "9/16", objectFit: "cover" }}
                   onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play().catch(() => {})}
                   onMouseLeave={(e) => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
-                  data-testid={ex.isFirst ? "showcase-example-video" : `showcase-example-video-${i + 1}`}
+                  data-testid={ex.isFirst ? "showcase-example-video" : "showcase-example-video-2"}
                 />
-                {/* Play hint — fades out once video starts */}
+                {/* Play hint — fades out on hover */}
                 <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none opacity-100 group-hover:opacity-0 transition-opacity duration-300">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold" style={{ background: "rgba(15,29,47,0.72)", color: "rgba(255,255,255,0.9)", backdropFilter: "blur(6px)" }}>
                     <svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor"><path d="M0 0l9 5.5L0 11V0z"/></svg>
