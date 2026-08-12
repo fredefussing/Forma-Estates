@@ -5272,13 +5272,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     {idx + 1}
                   </div>
 
-                  {/* Too-small warning badge */}
-                  {img.tooSmall && (
-                    <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg px-1.5 py-1 shadow-md" style={{ background: "#C05621" }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FED7AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                      <span className="text-[8px] font-bold leading-none whitespace-nowrap" style={{ color: "#FED7AA" }}>{i18n.t("dashboard.showcase.forLille")}</span>
-                    </div>
-                  )}
 
                   {/* Mini preview badges (camera / VFX / crop) */}
                   <div className="absolute top-2 right-2 flex flex-col gap-1 items-end max-w-[72px]">
