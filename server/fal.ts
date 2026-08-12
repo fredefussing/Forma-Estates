@@ -26,6 +26,21 @@ function assertNotLockedDown() {
   if (FAL_LOCKED_DOWN) throw new Error("fal.ai er midlertidigt deaktiveret (kontosikkerhed)");
 }
 
+// Oversæt kendte fal.ai API-fejl til brugervenlige danske beskeder.
+export function translateFalError(err: any): Error {
+  const msg: string = (err?.message ?? err?.detail ?? String(err)).toLowerCase();
+  if (msg.includes("exhausted balance") || msg.includes("locked") || msg.includes("top up")) {
+    return new Error("AI-generering er midlertidigt utilgængelig — kontakt support.");
+  }
+  if (msg.includes("forbidden") || msg.includes("unauthorized") || msg.includes("401") || msg.includes("403")) {
+    return new Error("AI-tjenesten afviste anmodningen (adgang nægtet). Kontakt support.");
+  }
+  if (msg.includes("timeout") || msg.includes("timed out")) {
+    return new Error("AI-generering tog for lang tid. Prøv igen om lidt.");
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 // Upload a local file to fal.ai storage and return the public URL.
 // fal cannot fetch from localhost / private hosts, so anything we feed it
 // as image_url must first be uploaded here.

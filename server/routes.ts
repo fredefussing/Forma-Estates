@@ -21,7 +21,7 @@ import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, se
 import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStripeSessionProcessed, PRICE_TO_TIER } from "./purchases";
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
-import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads } from "./fal";
+import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
 import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus } from "./rendy";
@@ -3701,6 +3701,7 @@ export async function registerRoutes(
 
       return res.json({ success: true, image_url: collovImageUrl, original_url: originalForRecord, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
     } catch (err: any) {
+      const _falErr = translateFalError(err); err = _falErr;
       log(`[BoligPotentiale] generate error: ${err.message}`);
       refundIfNeeded();
       return res.status(500).json({ success: false, message: err.message });
@@ -3803,9 +3804,10 @@ export async function registerRoutes(
         processing_time: processingTime,
       });
     } catch (err: any) {
+      const translated = translateFalError(err);
       log(`[3D] floorplan error: ${err.message}`);
       void import("./tracker").then(m => m.reportGenerationFailure("fal", err.message ?? "3D floorplan fejl")).catch(() => {});
-      return res.status(500).json({ success: false, message: err.message || "Generering mislykkedes" });
+      return res.status(500).json({ success: false, message: translated.message });
     }
   });
 
