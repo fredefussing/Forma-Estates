@@ -4595,7 +4595,7 @@ export async function registerRoutes(
     }
 
     clearInterval(hb);
-    try { res.end(); } catch {}
+    endSoon();
   });
 
   // Trigger zip export of a completed Rendy listing

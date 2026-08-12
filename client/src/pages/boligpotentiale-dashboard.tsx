@@ -4872,6 +4872,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       fd.append("ratio", ratio);
       fd.append("presetKeys", JSON.stringify(images.map((img) => img.presetKey || "DEFAULT")));
       fd.append("vfxKeys", JSON.stringify(images.map((img) => img.vfxKey || null)));
+      fd.append("lang", i18n.language || "da");
       const res = await fetch("/api/bolig/showcase-video", {
         method: "POST",
         body: fd,
