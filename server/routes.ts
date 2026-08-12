@@ -4428,19 +4428,23 @@ export async function registerRoutes(
         const results = await Promise.allSettled(
           videos.map(async (v) => {
             if (!v.url) return v;
-            try {
-              // Wrap download in a 90-second timeout to prevent hung CDN requests
-              const downloadPromise = downloadToUploads(v.url, uploadDir, ".mp4");
-              const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error("Download timeout (90s)")), 90_000),
-              );
-              const localPath = await Promise.race([downloadPromise, timeoutPromise]);
+            // Single 90s timeout covers BOTH download AND FFmpeg watermark step.
+            // If either hangs (e.g. corrupt video, full disk, slow CDN), we fall
+            // back to the original Rendy CDN URL so the job always completes.
+            const processOne = async () => {
+              const localPath = await downloadToUploads(v.url!, uploadDir, ".mp4");
               const rawMp4 = path.join(uploadDir, path.basename(localPath));
               const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
               await burnEuWatermark(rawMp4, wmTmp, showcaseLang);
               fs.renameSync(wmTmp, rawMp4);
               log(`[Rendy] EU Art.50 badge burned → ${localPath}`);
               return { ...v, url: localPath };
+            };
+            try {
+              const timeoutP = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Watermark timeout (90s)")), 90_000),
+              );
+              return await Promise.race([processOne(), timeoutP]);
             } catch (e: any) {
               log(`[Rendy] watermark non-fatal (${v.id}): ${e.message} — serverer original CDN URL`);
               return v; // fall back to Rendy CDN URL

@@ -426,8 +426,12 @@ export function startRendyShowcase(
               console.error(`[Rendy] returnerer ${successVideos.length} succesfulde videoer trods delfejl`);
               let finalVideos = successVideos;
               if (onVideosReady) {
-                try { finalVideos = await onVideosReady(successVideos); }
-                catch (wmErr: any) { console.error("[Rendy] post-process (partial) fejl:", wmErr?.message); }
+                try {
+                  const fallback = new Promise<RendyVideo[]>((resolve) =>
+                    setTimeout(() => { console.error("[Rendy] partial onVideosReady timeout 120s"); resolve(successVideos); }, 120_000)
+                  );
+                  finalVideos = await Promise.race([onVideosReady(successVideos), fallback]);
+                } catch (wmErr: any) { console.error("[Rendy] post-process (partial) fejl:", wmErr?.message); }
               }
               jobs.set(jobId, {
                 ...jobs.get(jobId)!,
@@ -466,12 +470,19 @@ export function startRendyShowcase(
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
           // Burn EU AI Act Art. 50 badge into each Rendy CDN video before delivering
-          // URLs to the client. Uses the same burnEuWatermark() function as fal.ai
-          // transform videos. Falls back to original CDN URL if burning fails.
+          // URLs to the client. Falls back to original CDN URLs if burning fails or
+          // takes longer than 120 s (belt-and-suspenders on top of per-video 90 s timeouts).
           let finalVideos = videos;
           if (onVideosReady) {
-            try { finalVideos = await onVideosReady(videos); }
-            catch (wmErr: any) { console.error("[Rendy] post-process fejl:", wmErr?.message); }
+            try {
+              const fallback = new Promise<RendyVideo[]>((resolve) =>
+                setTimeout(() => {
+                  console.error("[Rendy] onVideosReady global timeout 120s — leverer originale CDN URLs");
+                  resolve(videos);
+                }, 120_000)
+              );
+              finalVideos = await Promise.race([onVideosReady(videos), fallback]);
+            } catch (wmErr: any) { console.error("[Rendy] post-process fejl:", wmErr?.message); }
           }
           jobs.set(jobId, {
             ...jobs.get(jobId)!,
