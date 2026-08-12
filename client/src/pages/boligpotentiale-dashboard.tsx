@@ -4592,6 +4592,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [isExporting, setIsExporting] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [videoDurations, setVideoDurations] = useState<Record<string, number>>({});
+  const resultsSectionRef = useRef<HTMLDivElement>(null);
   // Panel state: which image is selected, which panel tab
   const [openPanelId, setOpenPanelId] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<"camera" | "vfx">("camera");
@@ -4632,6 +4633,15 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Auto-scroll to results when videos arrive so user doesn't miss them
+  useEffect(() => {
+    if (resultVideos.length > 0 && resultsSectionRef.current) {
+      setTimeout(() => {
+        resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+  }, [resultVideos.length]);
 
   const showcaseSaveToCase = async (c: ApiCase) => {
     if (!resultVideos.length) return;
@@ -5647,7 +5657,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
       {/* ── Results ── */}
       {resultVideos.length > 0 && (
-        <div className="mt-6 space-y-4">
+        <div ref={resultsSectionRef} className="mt-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" style={{ color: "#C8956C" }} />

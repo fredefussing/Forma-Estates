@@ -4481,12 +4481,18 @@ export async function registerRoutes(
   app.get("/api/bolig/showcase-video/progress/:jobId", async (req, res) => {
     const { jobId } = req.params;
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    // no-transform: prevent any proxy (Render, nginx, Cloudflare) from buffering.
+    // X-Accel-Buffering: no: nginx-specific disable-buffering flag (harmless elsewhere).
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
     const send = (data: object) => { try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {} };
     const ping = () => { try { res.write(":\n\n"); } catch {} };
+    // 500 ms grace period: ensures the final SSE frame is flushed through any
+    // intermediate proxy before the TCP FIN arrives (some proxies coalesce them).
+    const endSoon = () => setTimeout(() => { try { res.end(); } catch {} }, 500);
 
     const job = getRendyJob(jobId);
 
@@ -4496,7 +4502,8 @@ export async function registerRoutes(
       if (job.status !== "processing") {
         if (job.status === "failed") refundShowcaseVideo(jobId);
         else showcaseVideoRefunds.delete(jobId);
-        res.end();
+        log(`[Rendy] SSE fast-complete job=${jobId} stage=${job.progress.stage} videos=${(job.progress.videos ?? []).length}`);
+        endSoon();
         return;
       }
       const iv = setInterval(() => {
@@ -4507,7 +4514,8 @@ export async function registerRoutes(
           if (j.status === "failed") refundShowcaseVideo(jobId);
           else showcaseVideoRefunds.delete(jobId);
           clearInterval(iv); clearInterval(hb);
-          try { res.end(); } catch {}
+          log(`[Rendy] SSE interval-complete job=${jobId} stage=${j.progress.stage} videos=${(j.progress.videos ?? []).length}`);
+          endSoon();
         }
       }, 2000);
       const hb = setInterval(ping, 20_000);
@@ -4571,6 +4579,7 @@ export async function registerRoutes(
         try {
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
+          log(`[Rendy] SSE recovery-complete job=${jobId} videos=${videos.length}`);
           send({ stage: "complete", progress: 100, message: `${videos.length} video${videos.length === 1 ? "" : "er"} klar!`, videos, listingId });
         } catch {
           send({ stage: "failed", progress: 0, message: "Kunne ikke hente færdige videoer fra Rendy." });
