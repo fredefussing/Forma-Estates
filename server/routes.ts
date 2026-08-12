@@ -4370,8 +4370,34 @@ export async function registerRoutes(
         return {};
       };
 
-      // Merge: VFX takes priority over camera preset when both are set
-      const mergedKeys = presetKeys.map((cam, i) => normalizeRendyKeys(vfxKeys[i] || cam || undefined));
+      // Cinematic auto-rotation: when no camera movement is chosen we assign a
+      // curated editorial sequence so each image gets a distinct, professional
+      // movement. Sequence is crafted to never repeat adjacent movements and to
+      // follow an open → reveal → close arc. CRANE-DOWN, PEDESTAL-* and STATIC
+      // are intentionally excluded — they look awkward for interior real estate.
+      // Loops cleanly if there are more images than sequence positions.
+      const CINEMATIC_CAMERA_SEQUENCE = [
+        "PUSH-IN",        // opener — draw viewer into the scene
+        "SLIDER_LEFT",    // lateral reveal
+        "PARALLAX_RIGHT", // depth shift — cinematic
+        "CRANE-UP",       // elevation drama
+        "SLIDER_RIGHT",   // lateral counterpoint
+        "PARALLAX_LEFT",  // depth counterpoint
+        "PULL-OUT",       // closer — reveal the full space
+      ];
+
+      // Merge: VFX takes priority; explicit camera key next; cinematic auto-fill last.
+      // Images that have a VFX presetKey are NOT given a cameraActionKey — the VFX
+      // effect owns the motion for that clip.
+      const mergedKeys = presetKeys.map((cam, i) => {
+        const explicit = normalizeRendyKeys(vfxKeys[i] || cam || undefined);
+        if (!explicit.cameraActionKey && !explicit.presetKey) {
+          // No explicit choice → auto-assign from cinematic sequence
+          const autoKey = CINEMATIC_CAMERA_SEQUENCE[i % CINEMATIC_CAMERA_SEQUENCE.length];
+          return { cameraActionKey: autoKey };
+        }
+        return explicit;
+      });
 
       log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
       const showcaseLang = String(req.body?.lang || req.headers["x-lang"] || "da");
