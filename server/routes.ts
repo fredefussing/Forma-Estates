@@ -700,15 +700,18 @@ export async function registerRoutes(
       // Auto-verify: Google sign-in (and other providers) supply a token where
       // email_verified is true — no activation code needed for a real, verified email.
       if (tokenEmailVerified && !user.emailVerified) {
-        await storage.updateUser(user.id, { emailVerified: true });
+        // Atomic transition guards against concurrent logins both sending the welcome email.
+        const didAutoVerify = await storage.verifyUserEmail(user.id);
         user = { ...user, emailVerified: true };
-        log(`[auth] Auto-verified email via provider claim: ${user.email}`);
-        // Welcome email fires here (not at account creation) so the user
-        // only receives it once they're actually inside the app.
-        const autoVerifyLang = String(req.headers["x-lang"] || req.body?.lang || "da");
-        sendWelcomeEmail(user.email, "Google sign-in (auto-verified)", autoVerifyLang).catch((e: any) =>
-          log(`[auth] welcome email failed (auto-verify): ${e.message}`)
-        );
+        log(`[auth] Auto-verified email via provider claim: ${user.email} (didVerify=${didAutoVerify})`);
+        if (didAutoVerify) {
+          // Welcome email fires here (not at account creation) so the user
+          // only receives it once they're actually inside the app.
+          const autoVerifyLang = String(req.headers["x-lang"] || req.body?.lang || "da");
+          sendWelcomeEmail(user.email, "Google sign-in (auto-verified)", autoVerifyLang).catch((e: any) =>
+            log(`[auth] welcome email failed (auto-verify): ${e.message}`)
+          );
+        }
       }
 
       // Sync displayName from Firebase token to DB if it has changed
@@ -1002,19 +1005,17 @@ export async function registerRoutes(
         return res.status(400).json({ code: "wrong_code", attemptsLeft: left, needsNewCode: left <= 0 });
       }
 
-      await storage.updateUser(user.id, {
-        emailVerified: true,
-        verificationCodeHash: null,
-        verificationCodeExpires: null,
-        verificationAttempts: 0,
-      });
-      log(`[auth] Email verified via code: ${user.email}`);
-      // Welcome email fires here — after the user has successfully entered
-      // their activation code and is confirmed inside the app.
-      const codeLang = String(req.body?.lang || req.headers["x-lang"] || "da");
-      sendWelcomeEmail(user.email, "Email kode bekræftet", codeLang).catch((e: any) =>
-        log(`[auth] welcome email failed (verify-code): ${e.message}`)
-      );
+      // Atomic transition: emailVerified false → true. Returns false if a
+      // concurrent request already won the race (refresh-during-activation),
+      // so the welcome email fires exactly once.
+      const didVerify = await storage.verifyUserEmail(user.id);
+      log(`[auth] Email verified via code: ${user.email} (didVerify=${didVerify})`);
+      if (didVerify) {
+        const codeLang = String(req.body?.lang || req.headers["x-lang"] || "da");
+        sendWelcomeEmail(user.email, "Email kode bekræftet", codeLang).catch((e: any) =>
+          log(`[auth] welcome email failed (verify-code): ${e.message}`)
+        );
+      }
       return res.json({ success: true });
     } catch (err: any) {
       log(`[auth] verify-code failed: ${err.message}`);

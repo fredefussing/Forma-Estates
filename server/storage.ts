@@ -64,6 +64,12 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(userId: number): Promise<User | undefined>;
   updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode" | "displayName" | "emailVerified" | "verificationCodeHash" | "verificationCodeExpires" | "verificationAttempts">>): Promise<User | undefined>;
+  /**
+   * Atomically transitions emailVerified from false → true (and clears code fields).
+   * Returns true if this call performed the transition (welcome email should fire),
+   * false if the row was already verified (concurrent request won the race — skip email).
+   */
+  verifyUserEmail(userId: number): Promise<boolean>;
   getUserByCustomerCode(code: string): Promise<User | undefined>;
   searchUsers(query: string): Promise<User[]>;
   updateUserCredits(userId: number, creditsRemaining: number, totalCreditsUsed: number): Promise<User | undefined>;
@@ -215,6 +221,21 @@ export class DatabaseStorage implements IStorage {
   async updateUser(userId: number, updates: Partial<Pick<User, "isAdmin" | "creditsRemaining" | "subscriptionStatus" | "subscriptionTier" | "subscriptionExpires" | "customerCode" | "displayName" | "emailVerified" | "verificationCodeHash" | "verificationCodeExpires" | "verificationAttempts" | "agencyLogoUrl">>): Promise<User | undefined> {
     const [result] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     return result;
+  }
+
+  async verifyUserEmail(userId: number): Promise<boolean> {
+    // Atomic conditional update: only transitions emailVerified false → true.
+    // If a concurrent request already set it to true this returns 0 rows → false.
+    const result = await db.update(users)
+      .set({
+        emailVerified: true,
+        verificationCodeHash: null,
+        verificationCodeExpires: null,
+        verificationAttempts: 0,
+      })
+      .where(and(eq(users.id, userId), eq(users.emailVerified, false)))
+      .returning({ id: users.id });
+    return result.length > 0;
   }
 
   async getUserByCustomerCode(code: string): Promise<User | undefined> {
