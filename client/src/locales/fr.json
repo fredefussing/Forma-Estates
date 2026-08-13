@@ -1185,6 +1185,7 @@
       "forbedederUpload": "Préparation de l'import…",
       "mistedeForbindelsen": "Connexion au serveur perdue.",
       "exportFejlede": "L'export a échoué",
+      "exportUdlobet": "L'export ZIP a pris trop de temps — veuillez réessayer",
       "nulstilShowcaseConfirm": "Réinitialiser le showcase et perdre les vidéos générées ?",
       "ratioLodret": "9:16 · Vertical",
       "ratioVandret": "16:9 · Horizontal",

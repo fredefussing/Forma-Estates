@@ -294,13 +294,13 @@ export async function getRendyListing(listingId: string): Promise<RendyListingFu
 }
 
 export async function exportRendyListing(listingId: string): Promise<{ jobId: string; downloadUrl?: string }> {
-  const res = await rendyFetch(`/listings/${listingId}/export`, { method: "POST" });
+  const res = await rendyFetch(`/listings/${listingId}/export`, { method: "POST", signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`Rendy export fejlede (${res.status})`);
   return res.json() as Promise<{ jobId: string; downloadUrl?: string }>;
 }
 
 export async function getRendyExportStatus(jobId: string): Promise<{ status: string; downloadUrl?: string; progress?: number; total?: number }> {
-  const res = await rendyFetch(`/exports/${jobId}`);
+  const res = await rendyFetch(`/exports/${jobId}`, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`Rendy export status fejlede (${res.status})`);
   return res.json();
 }

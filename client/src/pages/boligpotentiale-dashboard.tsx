@@ -4964,15 +4964,17 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       setExportJobId(ej);
       // Max 90 attempts × 2 s = 3 minutes before giving up
       let attempts = 0;
+      let exportReady = false;
       while (attempts < 90) {
         attempts++;
         await new Promise((r) => setTimeout(r, 2000));
         const sr = await fetch(`/api/bolig/rendy/export/${ej}`);
         if (!sr.ok) continue; // transient — retry
         const sd = await sr.json();
-        if (sd.status === "ready" && sd.downloadUrl) { setExportUrl(sd.downloadUrl); break; }
+        if (sd.status === "ready" && sd.downloadUrl) { setExportUrl(sd.downloadUrl); exportReady = true; break; }
         if (sd.status === "error") throw new Error(sd.error || i18n.t("dashboard.showcase.exportFejlede"));
       }
+      if (!exportReady) throw new Error(i18n.t("dashboard.showcase.exportUdlobet"));
     } catch (e: any) {
       setError(e.message || i18n.t("dashboard.showcase.exportFejlede"));
     } finally {

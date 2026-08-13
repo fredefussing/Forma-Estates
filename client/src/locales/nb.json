@@ -1198,6 +1198,7 @@
       "forbedederUpload": "Forbereder opplasting…",
       "mistedeForbindelsen": "Mistet forbindelsen til serveren.",
       "exportFejlede": "Eksport mislyktes",
+      "exportUdlobet": "ZIP-eksport tok for lang tid — prøv igjen",
       "nulstilShowcaseConfirm": "Nullstille showcase og miste de genererte videoene?",
       "ratioLodret": "9:16 · Stående",
       "ratioVandret": "16:9 · Liggende",

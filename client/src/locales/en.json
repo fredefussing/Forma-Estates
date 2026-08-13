@@ -1198,6 +1198,7 @@
       "forbedederUpload": "Preparing upload…",
       "mistedeForbindelsen": "Lost the connection to the server.",
       "exportFejlede": "Export failed",
+      "exportUdlobet": "ZIP export timed out — please try again",
       "nulstilShowcaseConfirm": "Reset showcase and lose the generated videos?",
       "ratioLodret": "9:16 · Portrait",
       "ratioVandret": "16:9 · Landscape",

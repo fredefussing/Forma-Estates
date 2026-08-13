@@ -1198,6 +1198,7 @@
       "forbedederUpload": "Upload wird vorbereitet…",
       "mistedeForbindelsen": "Verbindung zum Server verloren.",
       "exportFejlede": "Export fehlgeschlagen",
+      "exportUdlobet": "ZIP-Export hat zu lange gedauert — bitte erneut versuchen",
       "nulstilShowcaseConfirm": "Showcase zurücksetzen und die generierten Videos verlieren?",
       "ratioLodret": "9:16 · Hochformat",
       "ratioVandret": "16:9 · Querformat",
