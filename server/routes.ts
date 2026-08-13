@@ -3937,14 +3937,29 @@ export async function registerRoutes(
   }
 
   app.post("/api/bolig/tripo3d", async (req, res) => {
+    let tripoUserId: number | null = null;
+    let quotaConsumed = false;
     try {
       const apiKey = process.env.THREED_API_KEY;
       if (!apiKey) return res.status(500).json({ message: "Tripo3D API ikke konfigureret" });
-      try { await verifyFirebaseToken(req.headers.authorization); } catch {
+
+      // Auth + quota check — auth is REQUIRED for this paid feature
+      try {
+        const { uid } = await verifyFirebaseToken(req.headers.authorization);
+        const u = await storage.getUserByFirebaseUid(uid);
+        if (!u) return res.status(401).json({ message: "Log ind for at generere 3D model" });
+        tripoUserId = u.id;
+        const q = await storage.checkAndIncrementQuota(u.id, "floorPlan");
+        if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}. Opgrader din pakke for at generere flere 3D modeller.` });
+        quotaConsumed = true;
+      } catch (authErr: any) {
+        if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
         return res.status(401).json({ message: "Log ind for at generere 3D model" });
       }
+
       const { imageUrl } = req.body ?? {};
       if (!imageUrl || typeof imageUrl !== "string") {
+        if (tripoUserId) storage.refundQuota(tripoUserId, "floorPlan").catch(() => {});
         return res.status(400).json({ message: "imageUrl er påkrævet" });
       }
       // Tripo3D kræver en absolut https:// URL — relative /uploads/-stier returnerer
@@ -3989,9 +4004,15 @@ export async function registerRoutes(
           catch (e) { reject(new Error("Tripo3D ugyldigt svar")); }
         });
       });
-      if (data.code !== 0) return res.status(500).json({ message: data.message || "Tripo3D fejl" });
+      // Refund quota if Tripo3D rejects the job before processing starts
+      if (data.code !== 0) {
+        if (tripoUserId) storage.refundQuota(tripoUserId, "floorPlan").catch(() => {});
+        return res.status(500).json({ message: data.message || "Tripo3D fejl" });
+      }
       res.json({ taskId: data.data.task_id });
     } catch (err: any) {
+      // Refund quota on unexpected errors
+      if (tripoUserId && quotaConsumed) storage.refundQuota(tripoUserId, "floorPlan").catch(() => {});
       res.status(500).json({ message: err.message || "Ukendt fejl" });
     }
   });

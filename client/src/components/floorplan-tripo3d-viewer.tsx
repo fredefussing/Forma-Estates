@@ -227,6 +227,12 @@ export function FloorplanTripo3DViewer({
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
+        if ((j as any).quotaExceeded) {
+          inFlightRef.current = false;
+          setStatus("idle");
+          setErrorMsg((j as any).message || "Du har nået din månedlige kvota for 3D modeller. Opgrader din pakke for at generere flere.");
+          return;
+        }
         throw new Error((j as any).message || "Kunne ikke starte 3D generering");
       }
       const { taskId } = await res.json();
@@ -515,6 +521,9 @@ export function FloorplanTripo3DViewer({
             </button>
             <span className="text-xs" style={{ color: "#9B9690" }}>⏱ ca. 3 minutter</span>
           </div>
+          {errorMsg && (
+            <p className="mt-3 text-xs" style={{ color: "#B91C1C" }} data-testid="tripo3d-error-msg">{errorMsg}</p>
+          )}
         </div>
 
         <div style={{ borderTop: "1px solid #E8E4DE" }}>
