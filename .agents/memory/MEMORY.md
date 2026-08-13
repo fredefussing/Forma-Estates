@@ -28,3 +28,5 @@
 - [Video jobs DB registry](video-jobs-db.md) — video_jobs table (requestId, userId, feature, refundCount, status) persists in-flight jobs; boot reset in index.ts refunds stuck pending rows; all 5 job types write on start + mark complete/failed.
 - [Dashboard i18n externalization](i18n-dashboard-externalization.md) — scripted replacements corrupt comments/types; parallel same-file subagents lose edits; consts store keys, logic values stay Danish; always end with a segment-level no-æøå sweep.
 - [Cookie banner is global](cookie-banner-global.md) — CookieBanner lives in client/src/components/cookie-banner.tsx and is mounted once in App.tsx; localStorage key "forma-cookie-consent"; all 7 locale files have cookie.* keys.
+- [Showcase video overlays](showcase-overlays.md) — burnShowcaseOverlays() burns EU badge + overskrift + address; always use textfile= not text= to avoid Danish special-char FFmpeg escaping issues.
+- [Long-running server calls need timeouts](server-timeout-pattern.md) — fal.subscribe, Collov fetch, Tripo3D poll all have no built-in timeout; wrap with Promise.race/AbortController or they hang the route forever.
