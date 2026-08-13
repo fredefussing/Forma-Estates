@@ -1193,6 +1193,8 @@
       "boligadresse": "Adresse du bien",
       "adressePlaceholder": "Ex. Strandvejen 12, 2900 Hellerup",
       "videoFormat": "Format vidéo",
+      "overskrift": "Titre (affiché dans la vidéo)",
+      "overskriftPlaceholder": "ex. Villa moderne avec vue sur la mer",
       "lodret": "Vertical",
       "landskab": "Paysage",
       "opTil20Billeder": "Jusqu'à 20 images · JPG, PNG, WebP",

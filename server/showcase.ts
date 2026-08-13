@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
 import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, uploadVideoPairToFal, generateAnimationVideo, downloadToFile, selectCameraMove, CameraMove } from "./fal";
@@ -918,6 +919,73 @@ export async function burnEuWatermark(inputPath: string, outputPath: string, lan
     `x=w-text_w-32:y=h-text_h-16:` +
     `box=1:boxcolor=0x0A0A14@0.92:boxborderw=14`;
   await runFfmpeg(["-y", "-i", inputPath, "-vf", euFilter, "-c:a", "copy", outputPath]);
+}
+
+// ── Showcase-specific overlay: EU badge + optional property headline + address ─
+// Burns a "lower-third" into every Rendy showcase video so the property title
+// and address the user entered in the UI actually appear as visible text.
+// Uses textfile= (not text=) to avoid FFmpeg drawtext escaping issues with any
+// special chars (apostrophes, colons, etc.) in Danish/foreign addresses.
+export async function burnShowcaseOverlays(
+  inputPath: string,
+  outputPath: string,
+  lang = "da",
+  overskrift?: string,
+  address?: string,
+): Promise<void> {
+  const label = euBadgeText(lang);
+  const euFilter =
+    `drawtext=fontfile=${FONT_BOLD}:text='${label}':fontsize=36:fontcolor=white:` +
+    `x=w-text_w-32:y=h-text_h-16:` +
+    `box=1:boxcolor=0x0A0A14@0.92:boxborderw=14`;
+
+  const filters: string[] = [euFilter];
+  const tmpFiles: string[] = [];
+
+  const titleLine = (overskrift ?? "").trim().slice(0, 80);
+  const addrLine  = (address ?? "").trim().slice(0, 80);
+
+  // Only add lower-third when at least one text line is present
+  if (titleLine || addrLine) {
+    const rand = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const tmpDir = os.tmpdir();
+
+    if (titleLine) {
+      // Large bold headline — sits above the address line.
+      // y=h-text_h-186 positions the top of the text so the box bottom lands
+      // ~154px above the video edge (above both address and EU badge rows).
+      const tFile = path.join(tmpDir, `sc-title-${rand}.txt`);
+      fs.writeFileSync(tFile, titleLine, "utf8");
+      tmpFiles.push(tFile);
+      const titleY = addrLine ? "h-text_h-186" : "h-text_h-108";
+      filters.push(
+        `drawtext=fontfile=${FONT_BOLD}:textfile='${tFile}':expansion=none:` +
+        `fontcolor=white:fontsize=46:` +
+        `box=1:boxcolor=0x0A0A14@0.88:boxborderw=16:` +
+        `x=32:y=${titleY}`,
+      );
+    }
+
+    if (addrLine) {
+      // Smaller regular-weight address — sits between headline and EU badge.
+      // y=h-text_h-108 → box bottom ≈ 96px above video edge (clear of EU badge).
+      const aFile = path.join(tmpDir, `sc-addr-${rand}.txt`);
+      fs.writeFileSync(aFile, addrLine, "utf8");
+      tmpFiles.push(aFile);
+      filters.push(
+        `drawtext=fontfile=${FONT_REG}:textfile='${aFile}':expansion=none:` +
+        `fontcolor=white:fontsize=30:` +
+        `box=1:boxcolor=0x0A0A14@0.88:boxborderw=12:` +
+        `x=32:y=h-text_h-108`,
+      );
+    }
+  }
+
+  try {
+    await runFfmpeg(["-y", "-i", inputPath, "-vf", filters.join(","), "-c:a", "copy", outputPath]);
+  } finally {
+    for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
+  }
 }
 
 // White text centred inside a thin semi-transparent dark box — the pill/bar look

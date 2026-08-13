@@ -39,7 +39,7 @@ import {
   PenTool, Sparkles, RotateCcw, ChevronDown, Mail, Copy, CheckCheck,
   Shield, UserPlus, Crown, Clock, Building2, Coins, Lock,
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
-  FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play,
+  FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play, Type,
   Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink, MessageSquare,
   Globe,
   Target,
@@ -4578,6 +4578,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [address, setAddress] = useState("");
+  const [overskrift, setOverskrift] = useState("");
   const [ratio, setRatio] = useState<"portrait" | "landscape">("portrait");
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
@@ -4870,6 +4871,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         fd.append("images", file);
       }
       fd.append("address", address.trim());
+      fd.append("overskrift", overskrift.trim());
       fd.append("ratio", ratio);
       fd.append("presetKeys", JSON.stringify(images.map((img) => img.presetKey || "DEFAULT")));
       fd.append("vfxKeys", JSON.stringify(images.map((img) => img.vfxKey || null)));
@@ -5160,8 +5162,28 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden" style={{ order: 1 }}>
 
-        {/* ── Top bar: Address + Format ── */}
-        <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        {/* ── Top bar: Overskrift + Address + Format ── */}
+        <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex flex-col gap-3">
+          {/* Row 1: Overskrift (headline burned into video) */}
+          <div>
+            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.overskrift", "Overskrift (vises i video)")}</span>
+            <div className="relative">
+              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#C8956C" }} />
+              <input
+                type="text"
+                value={overskrift}
+                onChange={(e) => setOverskrift(e.target.value)}
+                disabled={isGenerating}
+                placeholder={i18n.t("dashboard.showcase.overskriftPlaceholder", "fx Moderne villa med havudsigt")}
+                maxLength={80}
+                className="w-full h-9 rounded-lg border pl-8 pr-3 text-sm outline-none disabled:opacity-50"
+                style={{ borderColor: "#E8E4DE", background: "#F8F6F3", color: "#0F1D2F" }}
+                data-testid="input-showcase-overskrift"
+              />
+            </div>
+          </div>
+          {/* Row 2: Address + Format */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.boligadresse")}</span>
             <div className="relative">
@@ -5212,7 +5234,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               })}
             </div>
           </div>
-        </div>
+          </div>{/* end Row 2 */}
+        </div>{/* end top bar */}
 
         {/* ── Upload zone (when no images) ── */}
         {images.length === 0 && (

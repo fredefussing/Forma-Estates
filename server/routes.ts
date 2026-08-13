@@ -22,7 +22,7 @@ import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStri
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
-import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark } from "./showcase";
+import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
 
@@ -4298,7 +4298,8 @@ export async function registerRoutes(
       }
 
       const filePaths = files.map((f) => path.join(uploadDir, f.filename));
-      const address = typeof req.body?.address === "string" ? req.body.address.slice(0, 120) : "";
+      const address    = typeof req.body?.address    === "string" ? req.body.address.trim().slice(0, 120)    : "";
+      const overskrift = typeof req.body?.overskrift === "string" ? req.body.overskrift.trim().slice(0, 80) : "";
       const ratio: "portrait" | "landscape" = req.body?.ratio === "landscape" ? "landscape" : "portrait";
 
       let presetKeys: (string | undefined)[] = new Array(files.length).fill(undefined);
@@ -4451,9 +4452,9 @@ export async function registerRoutes(
               const localPath = await downloadToUploads(v.url!, uploadDir, ".mp4");
               const rawMp4 = path.join(uploadDir, path.basename(localPath));
               const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-              await burnEuWatermark(rawMp4, wmTmp, showcaseLang);
+              await burnShowcaseOverlays(rawMp4, wmTmp, showcaseLang, overskrift || undefined, address || undefined);
               fs.renameSync(wmTmp, rawMp4);
-              log(`[Rendy] EU Art.50 badge burned → ${localPath}`);
+              log(`[Rendy] overlays burned (EU badge${overskrift ? " + titel" : ""}${address ? " + adresse" : ""}) → ${localPath}`);
               return { ...v, url: localPath };
             };
             try {
