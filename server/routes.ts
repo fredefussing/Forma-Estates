@@ -4299,7 +4299,6 @@ export async function registerRoutes(
 
       const filePaths = files.map((f) => path.join(uploadDir, f.filename));
       const address    = typeof req.body?.address    === "string" ? req.body.address.trim().slice(0, 120)    : "";
-      const overskrift = typeof req.body?.overskrift === "string" ? req.body.overskrift.trim().slice(0, 80) : "";
       const ratio: "portrait" | "landscape" = req.body?.ratio === "landscape" ? "landscape" : "portrait";
 
       let presetKeys: (string | undefined)[] = new Array(files.length).fill(undefined);
@@ -4424,68 +4423,9 @@ export async function registerRoutes(
       // this assignment, so onVideosReady can never be called before jobId is set.
       let capturedJobId = "";
 
-      // Post-processor: download Rendy CDN videos → burn EU AI Act Art. 50 badge →
-      // serve /uploads/ URL so the client never downloads an un-badged video.
-      //
-      // Key fixes vs. old sequential for-loop:
-      //  1. Parallel Promise.allSettled — all videos processed concurrently.
-      //  2. 90-second per-download timeout — prevents one hanging CDN request from
-      //     blocking completion forever (root cause of "stuck at 95% forever").
-      //  3. Progress updates (96–99%) so the client knows watermarking is in progress.
-      const rendyWatermark = async (videos: import("./rendy").RendyVideo[]) => {
-        const total = videos.filter((v) => v.url).length;
-        if (capturedJobId && total > 0) {
-          setRendyJobProgress(capturedJobId, {
-            stage: "generating",
-            progress: 96,
-            message: `Tilføjer EU-badge til ${total} video${total === 1 ? "" : "er"}…`,
-          });
-        }
-
-        const results = await Promise.allSettled(
-          videos.map(async (v) => {
-            if (!v.url) return v;
-            // Single 90s timeout covers BOTH download AND FFmpeg watermark step.
-            // If either hangs (e.g. corrupt video, full disk, slow CDN), we fall
-            // back to the original Rendy CDN URL so the job always completes.
-            const processOne = async () => {
-              const localPath = await downloadToUploads(v.url!, uploadDir, ".mp4");
-              const rawMp4 = path.join(uploadDir, path.basename(localPath));
-              const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-              await burnShowcaseOverlays(rawMp4, wmTmp, showcaseLang, overskrift || undefined, address || undefined);
-              fs.renameSync(wmTmp, rawMp4);
-              log(`[Rendy] overlays burned (EU badge${overskrift ? " + titel" : ""}${address ? " + adresse" : ""}) → ${localPath}`);
-              return { ...v, url: localPath };
-            };
-            try {
-              const timeoutP = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error("Watermark timeout (90s)")), 90_000),
-              );
-              return await Promise.race([processOne(), timeoutP]);
-            } catch (e: any) {
-              log(`[Rendy] watermark non-fatal (${v.id}): ${e.message} — serverer original CDN URL`);
-              return v; // fall back to Rendy CDN URL
-            }
-          }),
-        );
-
-        if (capturedJobId) {
-          setRendyJobProgress(capturedJobId, {
-            stage: "generating",
-            progress: 99,
-            message: "Videoer klar — afslutter…",
-          });
-        }
-
-        return results.map((r, i) => (r.status === "fulfilled" ? r.value : videos[i]));
-      };
-
-      // Send overskrift (marketing headline) as the Rendy listing name so it
-      // appears correctly in Rendy's own dashboard AND so the recovery path
-      // can read it back from full.listing.address after a server restart.
-      // If no overskrift, fall back to the street address.
-      const rendyListingName = overskrift || address;
-      const jobId = startRendyShowcase(filePaths, rendyListingName, ratio, mergedKeys, rendyWatermark);
+      // Deliver Rendy CDN videos directly — no server-side post-processing.
+      // Rendy handles all video content natively (address label etc.).
+      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys);
       capturedJobId = jobId; // assign synchronously before any await fires in the IIFE
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
@@ -4600,26 +4540,8 @@ export async function registerRoutes(
       if (st.status === "success") {
         try {
           const full = await getRendyListing(listingId);
-          const rawVideos = full.videos.filter((v) => v.status === "success" && v.url);
-          // listing.address = overskrift || address (whichever was sent when the job started).
-          // Burn EU badge + title into recovered videos so branding is preserved even after
-          // a server restart — same guarantee as the normal onVideosReady path.
-          const listingTitle = (full as any).listing?.address || "";
-          log(`[Rendy] SSE recovery-complete job=${jobId} videos=${rawVideos.length} — brænder overlays…`);
-          const burnResults = await Promise.allSettled(
-            rawVideos.map(async (v) => {
-              if (!v.url) return v;
-              try {
-                const localPath = await downloadToUploads(v.url!, uploadDir, ".mp4");
-                const rawMp4 = path.join(uploadDir, path.basename(localPath));
-                const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-                await burnShowcaseOverlays(rawMp4, wmTmp, "da", listingTitle || undefined, undefined);
-                fs.renameSync(wmTmp, rawMp4);
-                return { ...v, url: localPath };
-              } catch { return v; } // fall back to Rendy CDN URL on FFmpeg/download error
-            })
-          );
-          const videos = burnResults.map((r, i) => r.status === "fulfilled" ? r.value : rawVideos[i]);
+          const videos = full.videos.filter((v) => v.status === "success" && v.url);
+          log(`[Rendy] SSE recovery-complete job=${jobId} videos=${videos.length}`);
           send({ stage: "complete", progress: 100, message: `${videos.length} video${videos.length === 1 ? "" : "er"} klar!`, videos, listingId });
         } catch {
           send({ stage: "failed", progress: 0, message: "Kunne ikke hente færdige videoer fra Rendy." });
