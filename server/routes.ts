@@ -4480,7 +4480,12 @@ export async function registerRoutes(
         return results.map((r, i) => (r.status === "fulfilled" ? r.value : videos[i]));
       };
 
-      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, rendyWatermark);
+      // Send overskrift (marketing headline) as the Rendy listing name so it
+      // appears correctly in Rendy's own dashboard AND so the recovery path
+      // can read it back from full.listing.address after a server restart.
+      // If no overskrift, fall back to the street address.
+      const rendyListingName = overskrift || address;
+      const jobId = startRendyShowcase(filePaths, rendyListingName, ratio, mergedKeys, rendyWatermark);
       capturedJobId = jobId; // assign synchronously before any await fires in the IIFE
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
@@ -4595,8 +4600,26 @@ export async function registerRoutes(
       if (st.status === "success") {
         try {
           const full = await getRendyListing(listingId);
-          const videos = full.videos.filter((v) => v.status === "success" && v.url);
-          log(`[Rendy] SSE recovery-complete job=${jobId} videos=${videos.length}`);
+          const rawVideos = full.videos.filter((v) => v.status === "success" && v.url);
+          // listing.address = overskrift || address (whichever was sent when the job started).
+          // Burn EU badge + title into recovered videos so branding is preserved even after
+          // a server restart — same guarantee as the normal onVideosReady path.
+          const listingTitle = (full as any).listing?.address || "";
+          log(`[Rendy] SSE recovery-complete job=${jobId} videos=${rawVideos.length} — brænder overlays…`);
+          const burnResults = await Promise.allSettled(
+            rawVideos.map(async (v) => {
+              if (!v.url) return v;
+              try {
+                const localPath = await downloadToUploads(v.url!, uploadDir, ".mp4");
+                const rawMp4 = path.join(uploadDir, path.basename(localPath));
+                const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+                await burnShowcaseOverlays(rawMp4, wmTmp, "da", listingTitle || undefined, undefined);
+                fs.renameSync(wmTmp, rawMp4);
+                return { ...v, url: localPath };
+              } catch { return v; } // fall back to Rendy CDN URL on FFmpeg/download error
+            })
+          );
+          const videos = burnResults.map((r, i) => r.status === "fulfilled" ? r.value : rawVideos[i]);
           send({ stage: "complete", progress: 100, message: `${videos.length} video${videos.length === 1 ? "" : "er"} klar!`, videos, listingId });
         } catch {
           send({ stage: "failed", progress: 0, message: "Kunne ikke hente færdige videoer fra Rendy." });
