@@ -730,6 +730,7 @@ async function downloadSellerReportPdf(opts: {
     const dateStr = new Date().toLocaleDateString(localeTag(), { day: "2-digit", month: "long", year: "numeric" });
     const marketDateStr = new Date(opts.marketDateISO).toLocaleDateString(localeTag(), { day: "2-digit", month: "long", year: "numeric" });
 
+    // ── AI watermark badge (bottom-right of image) ───────────────────────────
     const drawWatermark = (imgX: number, imgY: number, imgW: number, imgH: number) => {
       const label = "AI-redigeret";
       const fs = 6.5;
@@ -750,49 +751,109 @@ async function downloadSellerReportPdf(opts: {
       pdf.setTextColor(navy[0], navy[1], navy[2]);
     };
 
+    // ── Før/Efter label badge overlaid bottom-left of image ──────────────────
+    const drawImageLabel = (label: string, imgX: number, imgY: number, imgH: number) => {
+      const fs = 7;
+      const boxH = 5;
+      const boxW = 16;
+      const bx = imgX + 2.5;
+      const by = imgY + imgH - boxH - 2.5;
+      pdf.saveGraphicsState();
+      (pdf as any).setGState(new (pdf as any).GState({ opacity: 0.80 }));
+      pdf.setFillColor(navy[0], navy[1], navy[2]);
+      pdf.roundedRect(bx, by, boxW, boxH, 0.7, 0.7, "F");
+      pdf.restoreGraphicsState();
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(fs);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(label.toUpperCase(), bx + boxW / 2, by + boxH - 1.4, { align: "center" });
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
+    };
+
+    // ── Thin page header bar with address (content pages) ────────────────────
+    const drawPageHeader = () => {
+      pdf.setFillColor(navy[0], navy[1], navy[2]);
+      pdf.rect(0, 0, pageW, 9, "F");
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(opts.address.toUpperCase(), pageW / 2, 5.8, { align: "center" });
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
+    };
+
+    // ── Footer: divider + disclaimer + page number ───────────────────────────
     const drawFooter = () => {
       pdf.setDrawColor(217, 213, 207);
       pdf.setLineWidth(0.2);
       pdf.line(margin, pageH - 14, pageW - margin, pageH - 14);
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7.5);
+      pdf.setFontSize(7);
       pdf.setTextColor(muted[0], muted[1], muted[2]);
       pdf.text(
         i18n.t("dashboard.pdf.disclaimerFooter"),
-        margin, pageH - 9, { maxWidth: pageW - margin * 2 }
+        margin, pageH - 9, { maxWidth: pageW - margin * 2 - 22 }
       );
       const pageNo = (pdf as any).internal.getCurrentPageInfo?.().pageNumber;
-      pdf.text(pageNo ? i18n.t("dashboard.pdf.formaEstatesSide", { page: pageNo }) : "Forma Estates", pageW - margin, pageH - 5, { align: "right" });
+      if (pageNo) {
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(navy[0], navy[1], navy[2]);
+        pdf.text(String(pageNo), pageW - margin, pageH - 5, { align: "right" });
+      }
+      pdf.setTextColor(navy[0], navy[1], navy[2]);
     };
 
-    // ── Forside ──────────────────────────────────────────────────────────────
+    // ── FORSIDE ──────────────────────────────────────────────────────────────
+    // Large navy header band with white headline
+    const coverHdrH = 54;
     pdf.setFillColor(navy[0], navy[1], navy[2]);
-    pdf.rect(0, 0, pageW, 6, "F");
+    pdf.rect(0, 0, pageW, coverHdrH, "F");
+
+    // Eyebrow in accent
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
+    pdf.setFontSize(8);
     pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text(i18n.t("dashboard.report.saelgerrapportAiBoligpotentiale"), margin, 22);
-    pdf.setFontSize(28);
-    pdf.setTextColor(navy[0], navy[1], navy[2]);
-    pdf.text(i18n.t("dashboard.report.boligensFulde"), margin, 42);
-    pdf.text(i18n.t("dashboard.report.potentialeVisualiseret"), margin, 54, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.report.saelgerrapportAiBoligpotentiale").toUpperCase(), margin, 15);
+
+    // Accent rule under eyebrow
     pdf.setDrawColor(accent[0], accent[1], accent[2]);
-    pdf.setLineWidth(0.8);
-    pdf.line(margin, 62, margin + 40, 62);
+    pdf.setLineWidth(0.4);
+    pdf.line(margin, 19, margin + 18, 19);
+
+    // White main headline
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(14);
-    pdf.text(opts.address, margin, 74, { maxWidth: pageW - margin * 2 });
+    pdf.setFontSize(22);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(i18n.t("dashboard.report.boligensFulde"), margin, 31);
+
+    // Second headline line in accent
+    pdf.setTextColor(accent[0], accent[1], accent[2]);
+    pdf.text(i18n.t("dashboard.report.potentialeVisualiseret"), margin, 44);
+
+    // Address below navy band
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(15);
+    pdf.setTextColor(navy[0], navy[1], navy[2]);
+    pdf.text(opts.address, margin, coverHdrH + 14, { maxWidth: pageW - margin * 2 });
+
+    // Accent rule under address
+    pdf.setDrawColor(accent[0], accent[1], accent[2]);
+    pdf.setLineWidth(0.6);
+    pdf.line(margin, coverHdrH + 18, margin + 32, coverHdrH + 18);
+
+    // Metadata rows
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
+    pdf.setFontSize(9.5);
     pdf.setTextColor(muted[0], muted[1], muted[2]);
-    let metaY = 82;
+    let metaY = coverHdrH + 27;
     if (opts.caseNo) { pdf.text(i18n.t("dashboard.report.sagsnr", { caseNo: opts.caseNo }), margin, metaY); metaY += 6; }
     pdf.text(i18n.t("dashboard.report.onMarketSince", { date: marketDateStr, days: opts.liveDays }), margin, metaY); metaY += 6;
     pdf.text(i18n.t("dashboard.report.visualiseringCount", { count: fetched.length, date: dateStr }), margin, metaY); metaY += 4;
 
+    // Hero image
     const hero = fetched[0].after;
     const heroMaxW = pageW - margin * 2;
-    const heroMaxH = pageH - metaY - 34;
+    const heroMaxH = pageH - metaY - 24;
     const heroRatio = hero.w / hero.h;
     let heroW = heroMaxW, heroH = heroMaxW / heroRatio;
     if (heroH > heroMaxH) { heroH = heroMaxH; heroW = heroMaxH * heroRatio; }
@@ -802,41 +863,63 @@ async function downloadSellerReportPdf(opts: {
     if (!skipWm) drawWatermark(heroX, heroY, heroW, heroH);
     drawFooter();
 
-    // ── Én side pr. visualisering ────────────────────────────────────────────
+    // ── ÉN SIDE PR. VISUALISERING ────────────────────────────────────────────
     for (const { img, after, before } of fetched) {
       pdf.addPage();
+      drawPageHeader();
+
       const roomLabel = roomLabelLocalized(img.room);
       const styleLabel = styleLabelLocalized(img.style);
+
+      // Room name in navy bold
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(16);
       pdf.setTextColor(navy[0], navy[1], navy[2]);
-      pdf.text(`${roomLabel} — ${styleLabel}`, margin, 22, { maxWidth: pageW - margin * 2 });
-      pdf.setDrawColor(accent[0], accent[1], accent[2]);
-      pdf.setLineWidth(0.6);
-      pdf.line(margin, 26, margin + 30, 26);
+      pdf.text(roomLabel, margin, 22, { maxWidth: pageW - margin * 2 });
+
+      // Style in accent below
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(9);
+      pdf.setFontSize(10);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(styleLabel, margin, 30, { maxWidth: pageW - margin * 2 });
+
+      // Accent divider
+      pdf.setDrawColor(accent[0], accent[1], accent[2]);
+      pdf.setLineWidth(0.45);
+      pdf.line(margin, 34, margin + 22, 34);
+
+      // Subtitle
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
       pdf.setTextColor(muted[0], muted[1], muted[2]);
-      pdf.text(i18n.t("dashboard.report.generatedDayOnMarket", { day: img.daysAfterMarket }), margin, 32);
-      const imgTop = 38;
-      const imgBottom = pageH - 22;
+      pdf.text(i18n.t("dashboard.report.generatedDayOnMarket", { day: img.daysAfterMarket }), margin, 40);
+
+      const imgTop = 45;
+      const imgBottom = pageH - 20;
+
       if (before) {
-        const half = (pageW - margin * 2 - 6) / 2;
+        const gap = 5;
+        const half = (pageW - margin * 2 - gap) / 2;
+
         const drawHalf = (im: { dataUrl: string; w: number; h: number }, x: number, label: string, addWatermark: boolean) => {
           const r = im.w / im.h;
           let w = half, h = half / r;
-          const maxH = imgBottom - imgTop - 8;
+          const maxH = imgBottom - imgTop;
           if (h > maxH) { h = maxH; w = maxH * r; }
           const ox = x + (half - w) / 2;
           pdf.addImage(im.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
           if (addWatermark && !skipWm) drawWatermark(ox, imgTop, w, h);
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(9);
-          pdf.setTextColor(accent[0], accent[1], accent[2]);
-          pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
+          drawImageLabel(label, ox, imgTop, h);
         };
+
+        // Subtle vertical divider between before/after
+        const divX = margin + half + gap / 2;
+        pdf.setDrawColor(210, 207, 203);
+        pdf.setLineWidth(0.25);
+        pdf.line(divX, imgTop, divX, imgBottom - 2);
+
         drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
-        drawHalf(after, margin + half + 6, i18n.t("dashboard.pdf.efter"), true);
+        drawHalf(after, margin + half + gap, i18n.t("dashboard.pdf.efter"), true);
       } else {
         const maxW = pageW - margin * 2;
         const maxH = imgBottom - imgTop;
@@ -850,17 +933,39 @@ async function downloadSellerReportPdf(opts: {
       drawFooter();
     }
 
-    // ── Afslutning ───────────────────────────────────────────────────────────
+    // ── AFSLUTNINGSSIDE ───────────────────────────────────────────────────────
     pdf.addPage();
+
+    // Large navy section fills top half
+    const closingHdrH = 80;
     pdf.setFillColor(navy[0], navy[1], navy[2]);
-    pdf.rect(0, 0, pageW, 6, "F");
+    pdf.rect(0, 0, pageW, closingHdrH, "F");
+
+    // Eyebrow
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
+    pdf.setFontSize(8);
     pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text(i18n.t("dashboard.report.naesteSkridt"), margin, 26);
-    pdf.setFontSize(20);
-    pdf.setTextColor(navy[0], navy[1], navy[2]);
-    pdf.text(i18n.t("dashboard.report.klarTilAtVisePotentialet"), margin, 38, { maxWidth: pageW - margin * 2 });
+    pdf.text(i18n.t("dashboard.report.naesteSkridt").toUpperCase(), margin, 18);
+
+    // Accent rule
+    pdf.setDrawColor(accent[0], accent[1], accent[2]);
+    pdf.setLineWidth(0.4);
+    pdf.line(margin, 22, margin + 18, 22);
+
+    // White headline
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(21);
+    pdf.setTextColor(255, 255, 255);
+    const closingLines = pdf.splitTextToSize(i18n.t("dashboard.report.klarTilAtVisePotentialet"), pageW - margin * 2);
+    pdf.text(closingLines, margin, 35);
+
+    // Address in accent at bottom of navy band
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(accent[0], accent[1], accent[2]);
+    pdf.text(opts.address, margin, closingHdrH - 10);
+
+    // Bullet points in white area below
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10.5);
     pdf.setTextColor(muted[0], muted[1], muted[2]);
@@ -869,12 +974,14 @@ async function downloadSellerReportPdf(opts: {
       i18n.t("dashboard.report.visFoerEfterBillederneTil"),
       i18n.t("dashboard.report.opdaterBillederneLoebendeFxMed"),
     ];
-    let by = 50;
+    let bulletY = closingHdrH + 22;
     for (const b of bullets) {
       pdf.setFillColor(accent[0], accent[1], accent[2]);
-      pdf.circle(margin + 1.2, by - 1.2, 1.2, "F");
-      pdf.text(b, margin + 6, by, { maxWidth: pageW - margin * 2 - 6 });
-      by += 14;
+      pdf.circle(margin + 1.5, bulletY - 1.5, 1.5, "F");
+      const bLines = pdf.splitTextToSize(b, pageW - margin * 2 - 10);
+      pdf.setTextColor(muted[0], muted[1], muted[2]);
+      pdf.text(bLines, margin + 7, bulletY);
+      bulletY += bLines.length * 6 + 7;
     }
     drawFooter();
 
