@@ -694,8 +694,6 @@ export async function registerRoutes(
           });
 
           log(`New user created: ${email} (uid: ${uid})`);
-          const welcomeLang = String(req.headers["x-lang"] || req.body?.lang || "da");
-          sendWelcomeEmail(email, "Server-side oprettelse (Firebase verify)", welcomeLang);
         }
       }
 
@@ -705,6 +703,12 @@ export async function registerRoutes(
         await storage.updateUser(user.id, { emailVerified: true });
         user = { ...user, emailVerified: true };
         log(`[auth] Auto-verified email via provider claim: ${user.email}`);
+        // Welcome email fires here (not at account creation) so the user
+        // only receives it once they're actually inside the app.
+        const autoVerifyLang = String(req.headers["x-lang"] || req.body?.lang || "da");
+        sendWelcomeEmail(user.email, "Google sign-in (auto-verified)", autoVerifyLang).catch((e: any) =>
+          log(`[auth] welcome email failed (auto-verify): ${e.message}`)
+        );
       }
 
       // Sync displayName from Firebase token to DB if it has changed
@@ -1005,6 +1009,12 @@ export async function registerRoutes(
         verificationAttempts: 0,
       });
       log(`[auth] Email verified via code: ${user.email}`);
+      // Welcome email fires here — after the user has successfully entered
+      // their activation code and is confirmed inside the app.
+      const codeLang = String(req.body?.lang || req.headers["x-lang"] || "da");
+      sendWelcomeEmail(user.email, "Email kode bekræftet", codeLang).catch((e: any) =>
+        log(`[auth] welcome email failed (verify-code): ${e.message}`)
+      );
       return res.json({ success: true });
     } catch (err: any) {
       log(`[auth] verify-code failed: ${err.message}`);

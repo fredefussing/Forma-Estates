@@ -220,8 +220,11 @@ export async function sendWelcomeEmail(email: string, source?: string, lang?: st
   });
   const sourceLabel = source || "Direkte signup (/opret)";
 
-  const featureRows = s.feats.map(([title, desc]) =>
-    `<tr><td style="padding:6px 0;color:#0F1923;font-size:14px;font-weight:600;width:45%;">${title}</td><td style="padding:6px 0;color:#777;font-size:13px;">${desc}</td></tr>`
+  const featureItems = s.feats.map(([title, desc]) =>
+    `<div style="padding:8px 0;border-bottom:1px solid #EDE9E3;">
+       <div style="color:#0F1923;font-size:14px;font-weight:600;margin-bottom:2px;word-break:break-word;">${title}</div>
+       <div style="color:#777;font-size:13px;line-height:1.5;word-break:break-word;">${desc}</div>
+     </div>`
   ).join("\n");
 
   // Send welcome + admin notification in parallel — halves total time when
@@ -233,29 +236,29 @@ export async function sendWelcomeEmail(email: string, source?: string, lang?: st
       senderEmail: KONTAKT_EMAIL,
       replyTo: KONTAKT_EMAIL,
       html: `
-        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;max-width:600px;margin:0 auto;background:#FAF6EC;padding:32px;">
-          <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,sans-serif;width:100%;max-width:600px;margin:0 auto;background:#FAF6EC;padding:24px;box-sizing:border-box;">
+          <div style="background:#fff;border-radius:10px;padding:28px 24px;border:1px solid #E8DFD0;box-sizing:border-box;">
             <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
-            <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">${s.headline}</h1>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">${s.body1}</p>
-            <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:20px 22px;margin:0 0 22px;">
-              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:10px;">${s.featTitle}</div>
-              <table style="width:100%;border-collapse:collapse;">${featureRows}</table>
+            <h1 style="color:#0F1923;font-size:24px;margin:10px 0 16px;font-weight:500;line-height:1.3;">${s.headline}</h1>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 16px;word-break:break-word;">${s.body1}</p>
+            <div style="background:#FAF6EC;border:1px solid #E8DFD0;border-radius:10px;padding:16px 18px;margin:0 0 20px;">
+              <div style="color:#C9A96E;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:8px;">${s.featTitle}</div>
+              ${featureItems}
             </div>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">${s.upgradeText}</p>
-            <p style="text-align:center;margin:26px 0 10px;">
+            <p style="color:#555;font-size:14px;line-height:1.65;margin:0 0 20px;word-break:break-word;">${s.upgradeText}</p>
+            <div style="text-align:center;margin:24px 0 12px;">
               <a href="https://formaestates.com/boligpotentiale/dashboard"
-                 style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;">
+                 style="background:#0F1923;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:15px;max-width:100%;box-sizing:border-box;">
                 ${s.dashCta}
               </a>
-            </p>
-            <p style="text-align:center;margin:0 0 24px;">
+            </div>
+            <div style="text-align:center;margin:0 0 24px;">
               <a href="https://formaestates.com/pris"
-                 style="background:#C9A96E;color:white;padding:12px 26px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:14px;">
+                 style="background:#C9A96E;color:white;padding:12px 26px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:600;font-size:14px;max-width:100%;box-sizing:border-box;">
                 ${s.priceCta}
               </a>
-            </p>
-            <p style="color:#777;font-size:13px;line-height:1.6;margin:24px 0 0;">${s.closing}<br/><br/>Forma Estates</p>
+            </div>
+            <p style="color:#777;font-size:13px;line-height:1.6;margin:20px 0 0;word-break:break-word;">${s.closing}<br/><br/>Forma Estates</p>
           </div>
           <div style="text-align:center;color:#999;font-size:11px;margin-top:18px;">${FOOTER[l]}</div>
         </div>
