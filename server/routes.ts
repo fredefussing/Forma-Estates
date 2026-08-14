@@ -3756,7 +3756,10 @@ export async function registerRoutes(
         }
         floorPlanUserId = u.id;
         const q = await storage.checkAndIncrementQuota(u.id, "floorPlan");
-        if (!q.allowed) return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        if (!q.allowed) {
+          fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
+          return res.status(403).json({ success: false, quotaExceeded: true, feature: q.feature, message: `Du har nået din månedlige kvota for ${q.feature}.` });
+        }
       } catch (authErr: any) {
         if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
         fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
@@ -4032,6 +4035,10 @@ export async function registerRoutes(
     try {
       const apiKey = process.env.THREED_API_KEY;
       if (!apiKey) return res.status(500).json({ message: "Tripo3D API ikke konfigureret" });
+      // Auth required — status endpoint leaks GLB download URL if unauthenticated
+      try { await verifyFirebaseToken(req.headers.authorization); } catch {
+        return res.status(401).json({ message: "Ikke autoriseret" });
+      }
       const { taskId } = req.params;
       // Brug curl i stedet for Node.js fetch — undgår Replit's network proxy-interceptor
       const data = await new Promise<any>((resolve, reject) => {

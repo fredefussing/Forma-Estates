@@ -12,6 +12,7 @@ interface TripoOrbitViewerProps {
   modelUrl: string;
   colorRGB?: [number, number, number];
   onReady?: () => void;
+  onError?: (message: string) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -41,7 +42,7 @@ function applyColorToModel(model: THREE.Object3D, rgb: [number, number, number])
 }
 
 export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitViewerProps>(
-  ({ modelUrl, colorRGB, onReady, className, style }, ref) => {
+  ({ modelUrl, colorRGB, onReady, onError, className, style }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const stateRef = useRef<ViewerState | null>(null);
     const colorRGBRef = useRef<[number, number, number] | undefined>(colorRGB);
@@ -182,7 +183,10 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
           onReady?.();
         },
         undefined,
-        (err) => console.error("GLTFLoader error:", err)
+        (err) => {
+          console.error("GLTFLoader error:", err);
+          onError?.("Kunne ikke indlæse 3D modellen — prøv igen");
+        }
       );
 
       function animate() {

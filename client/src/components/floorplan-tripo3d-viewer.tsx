@@ -274,7 +274,9 @@ export function FloorplanTripo3DViewer({
           } else if (d.status === "failed" || d.status === "cancelled") {
             stopPolling();
             inFlightRef.current = false;
-            throw new Error("3D generering mislykkedes — prøv igen");
+            setErrorMsg("3D generering mislykkedes — prøv igen");
+            setStatus("error");
+            return;
           }
         } catch (e: any) {
           // Transient network errors: retry up to 5 times before giving up
@@ -629,6 +631,7 @@ export function FloorplanTripo3DViewer({
               modelUrl={modelUrl!}
               colorRGB={colorRGB}
               onReady={() => setMaterialsReady(true)}
+              onError={(msg) => { setErrorMsg(msg); setStatus("error"); }}
               style={{ width: "100%", height: "100%" }}
             />
           </div>
@@ -785,6 +788,7 @@ export function FloorplanTripo3DViewer({
               modelUrl={modelUrl!}
               colorRGB={colorRGB}
               onReady={() => setFsMaterialsReady(true)}
+              onError={(msg) => { setErrorMsg(msg); setStatus("error"); setShowFullscreen(false); }}
               style={{ width: "100%", height: "100%" }}
             />
             <ControlRail>
