@@ -737,7 +737,7 @@ export default function HomePage() {
                       <>
                         <h3 className="text-base font-medium mb-1" data-testid="text-generating">AI designer dit rum...</h3>
                         <p className="text-sm text-muted-foreground mb-8">
-                          Dette tager normalt 30–90 sekunder
+                          Dette tager normalt ca. 15 sekunder
                         </p>
                       </>
                     )}
