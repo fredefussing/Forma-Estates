@@ -239,13 +239,14 @@ export function FloorplanTripo3DViewer({
       taskIdRef.current = taskId;
       setStatus("polling");
 
-      // Timeout efter 4 minutter — Tripo3D kan sidde fast i "queued"
+      // Timeout efter 8 minutter — HD-modeller (2M polygoner) tager 3-5 min at
+      // generere + op til 2 min at downloade GLB-filen = op til 7 min i alt.
       timeoutRef.current = setTimeout(() => {
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         timeoutRef.current = null;
         setErrorMsg("Serverne svarer ikke — de er muligvis overbelastede. Prøv igen om lidt.");
         setStatus("error");
-      }, 4 * 60 * 1000);
+      }, 8 * 60 * 1000);
 
       pollRef.current = setInterval(async () => {
         try {
