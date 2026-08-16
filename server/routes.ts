@@ -102,22 +102,36 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Strict allowlist — both MIME type AND file extension must match.
+// SVG is intentionally excluded: it can carry inline JavaScript and would
+// execute in the browser when served as image/svg+xml.
+const ALLOWED_IMAGE_MIMES = new Set([
+  "image/jpeg", "image/jpg", "image/png", "image/webp",
+]);
+const ALLOWED_IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+
 const upload = multer({
   storage: isR2Configured()
     ? createR2MulterStorage(uploadDir)
     : multer.diskStorage({
         destination: uploadDir,
         filename: (_req, file, cb) => {
-          const ext = path.extname(file.originalname) || ".jpg";
-          cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+          // Force a safe extension derived from the allowlisted MIME type —
+          // never trust the client-supplied originalname extension.
+          const safeExt = file.mimetype === "image/png" ? ".png"
+                        : file.mimetype === "image/webp" ? ".webp"
+                        : ".jpg";
+          cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`);
         },
       }),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
+    const mime = file.mimetype.toLowerCase();
+    const ext  = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_IMAGE_MIMES.has(mime) && ALLOWED_IMAGE_EXTS.has(ext)) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files are allowed"));
+      cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
     }
   },
 });
@@ -581,6 +595,9 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   app.use("/uploads", async (req, res, next) => {
+    // Prevent browsers from MIME-sniffing a response away from the declared
+    // Content-Type. Without this a browser could treat a JPEG as text/html.
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Access-Control-Allow-Origin", "*");
     const key = decodeURIComponent(req.path.replace(/^\//, ""));
     // Block empty keys and path-traversal attempts; subdirectory paths (e.g.
@@ -588,13 +605,36 @@ export async function registerRoutes(
     // them inside uploadDir and the ".." check prevents traversal.
     if (!key || key.includes("..")) return next();
 
+    const ext = path.extname(key).toLowerCase();
+
+    // Map extension → safe Content-Type. Anything not in this table is either
+    // a known binary we serve as attachment, or is rejected. This prevents a
+    // renamed .html/.svg/etc. from being served with an executable MIME type.
+    const SAFE_MIME: Record<string, string> = {
+      ".jpg":  "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png":  "image/png",
+      ".webp": "image/webp",
+      ".mp4":  "video/mp4",
+      ".glb":  "model/gltf-binary",
+    };
+    const contentType = SAFE_MIME[ext];
+    if (!contentType) {
+      // Unknown extension — don't serve it at all.
+      return res.status(404).send("Not found");
+    }
+
+    // GLB is a binary 3D model format — force attachment so the browser
+    // never tries to render or execute it inline.
+    if (ext === ".glb") {
+      res.setHeader("Content-Disposition", "attachment");
+    }
+
     // 1. Serve from local disk if present (dev + same-session files)
     const localPath = path.join(uploadDir, key);
     if (fs.existsSync(localPath)) {
-      if (path.extname(key).toLowerCase() === ".glb") {
-        res.setHeader("Content-Type", "model/gltf-binary");
-        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      }
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       return res.sendFile(localPath);
     }
 
@@ -603,13 +643,7 @@ export async function registerRoutes(
       try {
         const stream = await r2GetStream(key);
         if (stream) {
-          const ext = path.extname(key).toLowerCase();
-          const ct = ext === ".png" ? "image/png"
-                   : ext === ".webp" ? "image/webp"
-                   : ext === ".mp4" ? "video/mp4"
-                   : ext === ".glb" ? "model/gltf-binary"
-                   : "image/jpeg";
-          res.setHeader("Content-Type", ct);
+          res.setHeader("Content-Type", contentType);
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
           return (stream as any).pipe(res);
         }
@@ -619,7 +653,6 @@ export async function registerRoutes(
     }
 
     // Filen findes hverken på disk eller i R2 → rigtig 404, IKKE SPA'ens HTML.
-    // (HTML med status 200 fik <img> til at fejle uklart og PDF'en til at gå i stå.)
     return res.status(404).send("Not found");
   });
 
@@ -3322,7 +3355,19 @@ export async function registerRoutes(
   });
 
   // ── Agency logo: upload & delete ─────────────────────────────────────────
-  const logoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024 } });
+  const logoUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 3 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const mime = file.mimetype.toLowerCase();
+      const ext  = path.extname(file.originalname).toLowerCase();
+      if (ALLOWED_IMAGE_MIMES.has(mime) && ALLOWED_IMAGE_EXTS.has(ext)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only JPEG, PNG, and WebP images are allowed for logos"));
+      }
+    },
+  });
 
   /** Read logo as Buffer from local disk; fall back to R2 if disk is empty (Render redeploy). */
   async function readLogoBuffer(logoRelPath: string): Promise<Buffer | null> {

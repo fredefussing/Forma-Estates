@@ -67,12 +67,28 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "Chart"
 
+// Allowlist helpers so dangerouslySetInnerHTML can never carry attacker content.
+// id / key: only alphanumeric, dash, underscore — no quotes, parens, or brackets.
+const SAFE_IDENT = /^[a-zA-Z0-9_-]+$/;
+// CSS color: hex (#fff / #ffffff / #ffffffff), rgb/rgba/hsl/hsla functions, or a
+// short named-color word (letters only). Anything else (e.g. closing braces,
+// JS expressions, url()) is rejected.
+const SAFE_COLOR = /^(#[0-9a-fA-F]{3,8}|(?:rgb|rgba|hsl|hsla)\([^)]*\)|[a-zA-Z]+)$/;
+
+function sanitizeIdent(s: string): string {
+  return SAFE_IDENT.test(s) ? s : "";
+}
+function sanitizeColor(s: string): string {
+  return SAFE_COLOR.test(s.trim()) ? s.trim() : "";
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  const safeId = sanitizeIdent(id);
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color
   )
 
-  if (!colorConfig.length) {
+  if (!colorConfig.length || !safeId) {
     return null
   }
 
@@ -82,14 +98,17 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color =
+    const safeKey = sanitizeIdent(key);
+    const rawColor =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    const color = rawColor ? sanitizeColor(rawColor) : "";
+    return safeKey && color ? `  --color-${safeKey}: ${color};` : null
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `

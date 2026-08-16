@@ -255,10 +255,11 @@ export default function VerifyEmailPage() {
     setVerifying(true);
     try {
       const token = await user.getIdToken();
+      const lang = localStorage.getItem("forma-lang") || undefined;
       const res = await fetch("/api/auth/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ code: code.trim() }),
+        body: JSON.stringify({ code: code.trim(), ...(lang ? { lang } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
