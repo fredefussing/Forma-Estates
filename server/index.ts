@@ -50,8 +50,9 @@ app.use((_req: express.Request, res: express.Response, next: express.NextFunctio
 
   // Content Security Policy ─────────────────────────────────────────────────
   // Notes:
-  //  • 'unsafe-inline' in script-src is required because index.html contains
-  //    inline Google Analytics initialisation scripts that we do not control.
+  //  • script-src has NO 'unsafe-inline': GA initialisation lives in the
+  //    external /analytics.js file. The JSON-LD block in index.html is a
+  //    non-executable data block and is not affected by script-src.
   //  • 'unsafe-inline' in style-src is required because React renders many
   //    style={{...}} props as inline style attributes at runtime.
   //  • All image/media sources use 'https:' so generated images from fal.ai,
@@ -83,7 +84,10 @@ app.use((_req: express.Request, res: express.Response, next: express.NextFunctio
 
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com",
+    // Dev only: Vite's @vitejs/plugin-react injects one inline "react-refresh
+    // preamble" script into index.html. Allow exactly that script by hash so
+    // dev works without 'unsafe-inline'. Not present (and not needed) in prod.
+    `script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com${isProd ? "" : " 'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='"}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
