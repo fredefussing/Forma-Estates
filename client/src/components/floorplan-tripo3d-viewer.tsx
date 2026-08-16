@@ -271,10 +271,14 @@ export function FloorplanTripo3DViewer({
             setRenderedImageUrl(ri);
             if (ri) onRenderedImage?.(ri);
             setStatus("ready");
-          } else if (d.status === "failed" || d.status === "cancelled") {
+          } else if (d.status === "failed" || d.status === "cancelled" || d.status === "expired") {
             stopPolling();
             inFlightRef.current = false;
-            setErrorMsg("3D generering mislykkedes — prøv igen");
+            setErrorMsg(
+              d.status === "expired"
+                ? "3D generering udløb — prøv igen"
+                : "3D generering mislykkedes — prøv igen"
+            );
             setStatus("error");
             return;
           }

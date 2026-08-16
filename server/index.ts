@@ -19,6 +19,10 @@ const httpServer = createServer(app);
 // as http:// instead of https://.
 app.set("trust proxy", 1);
 
+// Hide the Express fingerprint — removes the "X-Powered-By: Express" header
+// that otherwise advertises the server technology to potential attackers.
+app.disable("x-powered-by");
+
 // ─── Security headers ─────────────────────────────────────────────────────────
 // Applied to every response before routes/static handlers run.
 app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {

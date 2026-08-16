@@ -544,9 +544,15 @@ export async function sendContactFormEmails(data: {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Copenhagen",
   });
 
+  // Escape user-supplied strings before injecting into HTML to prevent
+  // HTML injection in admin and confirmation emails.
+  const escHtml = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+     .replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+
   const row = (label: string, value?: string) =>
     value && value.trim()
-      ? `<tr><td style="padding:8px 14px;color:#777;font-size:13px;width:160px;vertical-align:top;">${label}</td><td style="padding:8px 14px;color:#0F1923;font-size:14px;font-weight:500;">${value.replace(/\n/g, "<br/>")}</td></tr>`
+      ? `<tr><td style="padding:8px 14px;color:#777;font-size:13px;width:160px;vertical-align:top;">${label}</td><td style="padding:8px 14px;color:#0F1923;font-size:14px;font-weight:500;">${escHtml(value).replace(/\n/g, "<br/>")}</td></tr>`
       : "";
 
   // If the notification to kontakt@ fails, the whole submission has failed —
@@ -565,7 +571,7 @@ export async function sendContactFormEmails(data: {
           <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E8DFD0;">
             <div style="background:#0F1923;padding:24px 28px;">
               <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates · Ny henvendelse</div>
-              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">${data.name} vil i kontakt</h1>
+              <h1 style="color:#fff;font-size:22px;margin:6px 0 0;font-weight:500;">${escHtml(data.name)} vil i kontakt</h1>
             </div>
             <table style="width:100%;border-collapse:collapse;">
               ${row("Navn", data.name)}
@@ -579,7 +585,7 @@ export async function sendContactFormEmails(data: {
               ${row("Modtaget", submittedAt)}
             </table>
             <div style="padding:16px 28px;background:#FAF6EC;border-top:1px solid #E8DFD0;color:#777;font-size:12px;">
-              Svar direkte på denne e-mail — den går til ${data.email}.
+              Svar direkte på denne e-mail — den går til ${escHtml(data.email)}.
             </div>
           </div>
         </div>
@@ -603,9 +609,9 @@ export async function sendContactFormEmails(data: {
           <div style="background:#fff;border-radius:10px;padding:36px 32px;border:1px solid #E8DFD0;">
             <div style="color:#C9A96E;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Forma Estates</div>
             <h1 style="color:#0F1923;font-size:26px;margin:10px 0 18px;font-weight:500;">Tak — vi vender tilbage hurtigst muligt.</h1>
-            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Hej ${data.name.split(" ")[0]},</p>
+            <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">Hej ${escHtml(data.name.split(" ")[0])},</p>
             <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 14px;">
-              Vi har modtaget din besked og vender tilbage på <strong>${data.email}</strong> inden for én arbejdsdag.
+              Vi har modtaget din besked og vender tilbage på <strong>${escHtml(data.email)}</strong> inden for én arbejdsdag.
               I mellemtiden er du velkommen til at se vores eksempler eller læse om, hvordan vores AI-visualisering fungerer.
             </p>
             <div style="background:#FAF6EC;border-left:3px solid #C9A96E;padding:14px 18px;margin:20px 0;border-radius:4px;">

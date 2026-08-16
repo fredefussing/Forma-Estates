@@ -26,6 +26,21 @@ import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWaterm
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
 
+// ── Public chat rate limiter ──────────────────────────────────────────────────
+// /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
+// to prevent API-key abuse and prompt-flooding.
+const chatRateMap = new Map<string, number[]>();
+function chatRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const window = 60_000; // 1 minute
+  const maxReqs = 10;
+  const hits = (chatRateMap.get(ip) ?? []).filter(t => now - t < window);
+  if (hits.length >= maxReqs) return true;
+  hits.push(now);
+  chatRateMap.set(ip, hits);
+  return false;
+}
+
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
 // showcase job registry; a server restart simply forfeits a pending refund.
@@ -1417,6 +1432,10 @@ export async function registerRoutes(
 
   app.post("/api/quotes", async (req, res) => {
     try {
+      // Quotes contain customer PII — require admin.
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+
       const parsed = createQuoteSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Ugyldige data", errors: parsed.error.flatten() });
@@ -1450,12 +1469,16 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/quotes", async (_req, res) => {
+  app.get("/api/quotes", async (req, res) => {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
     const allQuotes = await storage.getAllQuotes();
     return res.json(allQuotes);
   });
 
   app.get("/api/quotes/:id", async (req, res) => {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
 
@@ -1466,6 +1489,8 @@ export async function registerRoutes(
   });
 
   app.get("/api/designs/:id/quotes", async (req, res) => {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
 
@@ -1475,6 +1500,8 @@ export async function registerRoutes(
 
   app.patch("/api/quotes/:id", async (req, res) => {
     try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
 
@@ -2031,10 +2058,19 @@ export async function registerRoutes(
 
   app.get("/api/agent-designs/:id", async (req, res) => {
     try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization).catch(() => ({ uid: null as any }));
+      if (!uid) return res.status(401).json({ error: "Authentication required" });
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller) return res.status(401).json({ error: "User not found" });
+
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
       const design = await storage.getAgentDesign(id);
       if (!design) return res.status(404).json({ error: "Not found" });
+      // Only the owner or an admin can view another user's design.
+      if (design.userId !== caller.id && !caller.isAdmin) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       return res.json(design);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -2043,10 +2079,18 @@ export async function registerRoutes(
 
   app.get("/api/agent-designs/:id/status", async (req, res) => {
     try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization).catch(() => ({ uid: null as any }));
+      if (!uid) return res.status(401).json({ error: "Authentication required" });
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller) return res.status(401).json({ error: "User not found" });
+
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
       const design = await storage.getAgentDesign(id);
       if (!design) return res.status(404).json({ error: "Not found" });
+      if (design.userId !== caller.id && !caller.isAdmin) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
 
       let errorMessage: string | null = null;
       if (design.status === "failed") {
@@ -2291,8 +2335,20 @@ export async function registerRoutes(
 
   app.get("/api/designs/:id/products", async (req, res) => {
     try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization).catch(() => ({ uid: null as any }));
+      if (!uid) return res.status(401).json({ error: "Log ind for at se produkter" });
+      const caller = await storage.getUserByFirebaseUid(uid);
+      if (!caller) return res.status(401).json({ error: "User not found" });
+
       const designId = parseInt(req.params.id);
       if (isNaN(designId)) return res.status(400).json({ error: "Ugyldigt design ID" });
+
+      // Verify the design belongs to the caller (admins can see any)
+      const design = await storage.getDesign(designId);
+      if (!design) return res.status(404).json({ error: "Design ikke fundet" });
+      if (design.userId !== caller.id && !caller.isAdmin) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
 
       // Hent pre-computed matches fra product_matches tabel
       const { rows } = await pool.query(`
@@ -4251,6 +4307,9 @@ export async function registerRoutes(
       return res.json({ success: true, status: result.status });
     } catch (err: any) {
       log(`[Video] status error: ${err.message}`);
+      // Refund the quota credit when polling itself throws — the job is
+      // unrecoverable from the client's perspective.
+      refundTransformVideo(requestId);
       return res.status(500).json({ success: false, message: err.message || "Status mislykkedes" });
     }
   });
@@ -6485,10 +6544,23 @@ export async function registerRoutes(
 
   app.post("/api/chat", async (req, res) => {
     try {
+      // Rate-limit unauthenticated public chat: 10 req / IP / 60 s
+      const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
+        ?? req.socket.remoteAddress
+        ?? "unknown";
+      if (chatRateLimited(ip)) {
+        return res.status(429).json({ error: "For mange forespørgsler — vent et øjeblik og prøv igen." });
+      }
+
       const { messages, lang } = req.body;
       if (!Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "messages array required" });
       }
+      // Cap message history and individual message length to prevent prompt flooding
+      const safeMessages = messages.slice(-20).map((m: any) => ({
+        role: String(m.role ?? "user").slice(0, 10),
+        content: String(m.content ?? "").slice(0, 2000),
+      }));
 
       const LANG_NAMES: Record<string, string> = {
         da: "Danish", en: "English", sv: "Swedish", de: "German",
@@ -6659,7 +6731,7 @@ Se handelsbetingelserne afsnit 14 og privatlivspolitikken afsnit 10 for fuld jur
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          ...messages.map((m: any) => ({ role: m.role, content: m.content })),
+          ...safeMessages,
         ],
         max_tokens: 500,
         temperature: 0.7,
