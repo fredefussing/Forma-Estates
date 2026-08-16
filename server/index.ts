@@ -19,6 +19,89 @@ const httpServer = createServer(app);
 // as http:// instead of https://.
 app.set("trust proxy", 1);
 
+// ─── Security headers ─────────────────────────────────────────────────────────
+// Applied to every response before routes/static handlers run.
+app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const isProd = process.env.NODE_ENV === "production";
+
+  // HSTS — only on HTTPS (production). Tells browsers to always use HTTPS
+  // for the next 2 years. "preload" opts into the browser preload list.
+  if (isProd) {
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=63072000; includeSubDomains; preload",
+    );
+  }
+
+  // Clickjacking protection — prevents our pages being embedded in foreign iframes.
+  // SAMEORIGIN allows our own pages to iframe each other (e.g. payment flows).
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+
+  // MIME-sniffing prevention — browsers must respect the declared Content-Type.
+  // (Also set specifically on /uploads responses.)
+  res.setHeader("X-Content-Type-Options", "nosniff");
+
+  // Referrer control — sends origin only, strips path on cross-origin navigations.
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  // Content Security Policy ─────────────────────────────────────────────────
+  // Notes:
+  //  • 'unsafe-inline' in script-src is required because index.html contains
+  //    inline Google Analytics initialisation scripts that we do not control.
+  //  • 'unsafe-inline' in style-src is required because React renders many
+  //    style={{...}} props as inline style attributes at runtime.
+  //  • All image/media sources use 'https:' so generated images from fal.ai,
+  //    Collov CDN, and R2 are covered without enumerating every subdomain.
+  //  • connect-src lists every external API the frontend SDK calls directly;
+  //    server-proxied calls (fal.ai, Collov, Brevo) go through /api/* and are
+  //    covered by 'self'.
+  //  • In development a Vite HMR websocket runs on the same origin; the
+  //    ws: wildcard below only applies when NODE_ENV !== production.
+  const connectSrc = [
+    "'self'",
+    // Firebase Auth SDK
+    "https://identitytoolkit.googleapis.com",
+    "https://securetoken.googleapis.com",
+    "https://www.googleapis.com",
+    "https://firebaseinstallations.googleapis.com",
+    // Google Analytics
+    "https://www.google-analytics.com",
+    "https://analytics.google.com",
+    "https://www.googletagmanager.com",
+    "https://region1.google-analytics.com",
+    // Stripe
+    "https://api.stripe.com",
+    "https://checkout.stripe.com",
+    "https://m.stripe.com",
+    // Vite HMR (dev only)
+    ...(isProd ? [] : ["ws:", "wss:"]),
+  ];
+
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    `connect-src ${connectSrc.join(" ")}`,
+    // Stripe and future payment iframes
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+    // No plugins (<object>, <embed>, <applet>)
+    "object-src 'none'",
+    // Prevent <base href> injection attacks
+    "base-uri 'self'",
+    // Only allow form submissions to our own server and Stripe checkout
+    "form-action 'self' https://checkout.stripe.com",
+    // Prevent this page from being embedded by foreign origins (mirrors XFO above)
+    "frame-ancestors 'self'",
+  ].join("; ");
+
+  res.setHeader("Content-Security-Policy", csp);
+
+  next();
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -58,6 +141,9 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
     maxAge: 365 * 24 * 60 * 60 * 1000,
     httpOnly: false,
     sameSite: "lax",
+    // Secure flag required in production so browsers only send the cookie
+    // over HTTPS — fixes the Observatory "Cookies" test failure.
+    secure: process.env.NODE_ENV === "production",
     path: "/",
   });
   next();
