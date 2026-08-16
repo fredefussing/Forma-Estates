@@ -755,7 +755,7 @@ export async function sendOnboardingDay2Email(email: string, name: string | null
           <table style="width:100%;border-collapse:collapse;margin:0 0 20px;">
             <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">1.</strong>&nbsp; Upload et foto af et rum</td></tr>
             <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">2.</strong>&nbsp; Vælg rumtype og stil</td></tr>
-            <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">3.</strong>&nbsp; Få et fotorealistisk resultat på ca. 30 sekunder</td></tr>
+            <tr><td style="padding:7px 0;color:#0F1923;font-size:14px;"><strong style="color:#C9A96E;">3.</strong>&nbsp; Få et fotorealistisk resultat på ca. 15 sekunder</td></tr>
           </table>
           <p style="color:#555;font-size:15px;line-height:1.65;margin:0 0 20px;">Dine gratis visualiseringer venter stadig på kontoen.</p>
           <p style="text-align:center;margin:26px 0 10px;">

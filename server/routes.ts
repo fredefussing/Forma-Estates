@@ -6648,7 +6648,7 @@ Alle nye brugere starter med en gratis prøve: 2 gratis AI-visualiseringer. 3D-p
 1. Gå til "Sager" i venstre menu → klik "Ny sag"
 2. Indtast boligens adresse (bruges til tekst i videoer)
 3. Inde i sagen: tilføj rum (stue, køkken, soveværelse osv.) og upload et foto per rum
-4. Tryk "Generer" per rum → AI'en iscenesætter rummet i den valgte stil (30-90 sek)
+4. Tryk "Generer" per rum → AI'en iscenesætter rummet i den valgte stil (ca. 15 sek)
 5. Alle billeder gemmes automatisk i sagens galleri
 6. Fra galleriet: generer Showcase-video, Forvandlingsfilm eller download enkeltbilleder
 Man behøver IKKE oprette en sag for at prøve — "Vor/Efter billede" under "Kom godt i gang" lader nye brugere generere direkte uden sag.
@@ -6656,7 +6656,7 @@ Man behøver IKKE oprette en sag for at prøve — "Vor/Efter billede" under "Ko
 ## Alle funktioner i detaljer
 
 ### 1. AI Visualisering / Før-Efter (kernefunktion)
-- Upload et foto af et rum → vælg rumtype og designstil → AI genererer et fotorealistisk redesign på 30-90 sekunder
+- Upload et foto af et rum → vælg rumtype og designstil → AI genererer et fotorealistisk redesign på ca. 15 sekunder
 - Rumtyper: stue, soveværelse, køkken, badeværelse, kontor, alrum, entré m.fl.
 - 9 stilarter: Skandinavisk, Moderne, Luksus, Japandi, Minimalistisk, Industriel, Bohemisk, Kyst, Landlig
 - 3 kvalitetsniveauer: Budget (IKEA/JYSK), Standard (BoConcept/HAY), Premium (Fritz Hansen/Carl Hansen)
@@ -6750,7 +6750,7 @@ Kreditter kan også købes enkeltvist på /pris.
 
 ## Teknisk info
 - Anbefalede billedformater: JPG, PNG, maks 10 MB
-- AI Visualisering: typisk 30-90 sekunder
+- AI Visualisering: typisk ca. 15 sekunder
 - Transformering Video: typisk 2-6 minutter
 - Showcase Video: typisk 5-15 minutter
 - Billeder til Showcase skal være i tilstrækkelig opløsning — platformen advarer automatisk hvis et billede er for lille
@@ -6827,7 +6827,7 @@ Du svarer ALTID på dansk. Vær direkte og konkret — brug specifikke DKK-tal, 
 HVAD FORMA ESTATES GØR KONKRET
 ═══════════════════════════════════════
 Forma Estates er en AI-visualiseringsplatform bygget specifikt til ejendomsbranchen. Den producerer:
-1. **AI Visualisering / Før-Efter** — Upload et foto af et rum → AI genererer fotorealistisk redesign på 30–90 sek. 9 stilarter (Skandinavisk, Moderne, Luksus, Japandi m.fl.), 3 kvalitetsniveauer (Budget/Standard/Premium). Koster 100 kr per billede.
+1. **AI Visualisering / Før-Efter** — Upload et foto af et rum → AI genererer fotorealistisk redesign på ca. 15 sek. 9 stilarter (Skandinavisk, Moderne, Luksus, Japandi m.fl.), 3 kvalitetsniveauer (Budget/Standard/Premium). Koster 100 kr per billede.
 2. **Gratis tekst-justeringer** — Op til 5 GRATIS fintuning per billede ("gør væggene lysere", "tilføj en lænestol"). Ingen ekstra kreditter.
 3. **AI Design Agent** — Fritekst-prompt, ingen rullemenu, fuld kreativ frihed.
 4. **3D Plantegning** — Upload 2D-tegning → fotorealistisk 3D-dukkehus + interaktiv 3D-model i browser (kan drejes og zoomes af køber). 300 kr.
@@ -6857,7 +6857,7 @@ HVILKET PROBLEM LØSER DEN (PENGE OG TID)
 - Traditionel boligstaging: 15.000–80.000 kr per ejendom (møbelleje, stylister, transport, logistik)
 - Professionel fotograf: 2.000–8.000 kr per session + 3–14 dages ventetid
 - Virtuel staging (andre tjenester): 350–2.100 kr PER billede, 24–72 timers levering
-- Forma: 100–500 kr per rum, resultat på 30–90 sekunder
+- Forma: 100–500 kr per rum, resultat på ca. 15 sekunder
 
 **Tiden:**
 - Typisk marketing-workflow uden Forma: fotograf bookes (3–14 dage), shoots, redigerer, leverer, du sender til stager, venter 1–3 dage → i alt 5–15 dage og 3–6 timers koordinering per sag
