@@ -74,7 +74,9 @@ export default function AdminDashboardPage() {
   const { data: stats, isLoading, refetch } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats", storedPassword],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/stats?pw=${encodeURIComponent(storedPassword)}`);
+      const res = await fetch(`/api/admin/stats`, {
+        headers: { "X-Admin-Pw": storedPassword },
+      });
       if (!res.ok) throw new Error("Unauthorized");
       return res.json();
     },

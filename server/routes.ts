@@ -41,6 +41,35 @@ function chatRateLimited(ip: string): boolean {
   return false;
 }
 
+// ── Admin login rate limiter ───────────────────────────────────────────────────
+// Brute-force protection on the admin password endpoint.
+// 10 attempts per IP per 5 minutes before lockout.
+const adminLoginRateMap = new Map<string, number[]>();
+function adminLoginRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const window = 5 * 60_000; // 5 minutes
+  const maxAttempts = 10;
+  const hits = (adminLoginRateMap.get(ip) ?? []).filter(t => now - t < window);
+  if (hits.length >= maxAttempts) return true;
+  hits.push(now);
+  adminLoginRateMap.set(ip, hits);
+  return false;
+}
+
+// ── Constant-time admin password check ────────────────────────────────────────
+// Using crypto.timingSafeEqual prevents timing-based attacks where an attacker
+// can deduce the password length or content from response latency differences.
+function adminPasswordOk(candidate: string | undefined): boolean {
+  const expected = process.env.ADMIN_PASSWORD ?? "";
+  if (!expected || !candidate) return false;
+  try {
+    const a = Buffer.from(candidate);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch { return false; }
+}
+
 // requestId / jobId → userId, so we can refund the quota credit (charged at
 // submit time) if a video job ultimately fails. In-memory, mirrors the
 // showcase job registry; a server restart simply forfeits a pending refund.
@@ -692,8 +721,7 @@ export async function registerRoutes(
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
   app.post("/api/admin/bootstrap", async (req, res) => {
     const { password } = req.body || {};
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-    if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
+    if (!adminPasswordOk(password)) {
       return res.status(403).json({ error: "Forbidden" });
     }
     const adminEmails = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
@@ -1680,11 +1708,14 @@ export async function registerRoutes(
 
   app.post("/api/admin/login", (req, res) => {
     const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!adminPassword) {
+    if (!process.env.ADMIN_PASSWORD) {
       return res.status(500).json({ error: "Admin password not configured" });
     }
-    if (password === adminPassword) {
+    const ip = req.ip ?? req.socket?.remoteAddress ?? "unknown";
+    if (adminLoginRateLimited(ip)) {
+      return res.status(429).json({ error: "For mange forsøg — prøv igen om 5 minutter" });
+    }
+    if (adminPasswordOk(password)) {
       return res.json({ success: true });
     }
     return res.status(401).json({ error: "Forkert adgangskode" });
@@ -1754,8 +1785,8 @@ export async function registerRoutes(
     // Test-alert: sends real alert emails with simulated low-credit/balance data
     // Protected by ADMIN_PASSWORD — for manual testing only
     app.post("/api/tracker/test-alert", async (req, res) => {
-      const pw = req.query.pw as string;
-      if (pw !== process.env.ADMIN_PASSWORD) {
+      const pw = (req.body?.pw ?? req.query.pw) as string;
+      if (!adminPasswordOk(pw)) {
         return res.status(401).json({ message: "Ikke autoriseret" });
       }
       try {
@@ -1771,7 +1802,7 @@ export async function registerRoutes(
   app.post("/api/admin/reset-user-data", async (req, res) => {
     try {
       const { email, pw } = req.body;
-      if (pw !== process.env.ADMIN_PASSWORD) return res.status(401).json({ message: "Forkert adgangskode" });
+      if (!adminPasswordOk(pw)) return res.status(401).json({ message: "Forkert adgangskode" });
       if (!email) return res.status(400).json({ message: "email required" });
       const target = await storage.getUserByEmail(email);
       if (!target) return res.status(404).json({ message: `Ingen bruger fundet med email: ${email}` });
@@ -1798,8 +1829,10 @@ export async function registerRoutes(
 
   app.get("/api/admin/stats", async (req, res) => {
     try {
-      const pw = req.query.pw as string;
-      if (pw !== process.env.ADMIN_PASSWORD) {
+      // Accept pw from X-Admin-Pw header (preferred) or query param (legacy).
+      // Header avoids the password appearing in server access logs and browser history.
+      const pw = (req.headers["x-admin-pw"] as string | undefined) ?? (req.query.pw as string);
+      if (!adminPasswordOk(pw)) {
         return res.status(401).json({ error: "Unauthorized" });
       }
       const designs = await storage.getAllDesigns();
@@ -3018,6 +3051,22 @@ export async function registerRoutes(
     const format = (req.query.format as string | undefined) ?? "jpg";
     const isDemo = req.query.demo === "1";
     if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
+
+    // SSRF-guard: kun whitelistede hosts må proxyes server-side.
+    // Forhindrer brug af serveren til at sonde interne adresser (DB, metadata).
+    try {
+      const { protocol, hostname } = new URL(url);
+      const h = hostname.toLowerCase();
+      const trusted =
+        protocol === "https:" && (
+          h.endsWith(".cloudfront.net") ||   // Collov CDN
+          h === "fal.media"            ||    // fal.ai resultater
+          h.endsWith(".fal.media")     ||    // fal.ai subdomæner (v3b.fal.media)
+          h.endsWith(".rendy.io")      ||    // Rendy video CDN
+          h.endsWith(".collov.ai")           // Collov direkte CDN
+        );
+      if (!trusted) { res.status(403).json({ error: "Proxy-url ikke tilladt" }); return; }
+    } catch { res.status(400).send("Ugyldig URL"); return; }
 
     // plain=1: KUN admin (is_admin=true i DB) kan springe vandmærket over.
     // EU AI Act (Art. 50) kræver tvungen automatisk mærkning — ingen bruger
