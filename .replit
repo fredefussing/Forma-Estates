@@ -45,7 +45,3 @@ VITE_FIREBASE_STORAGE_BUCKET = "nordic-homebuilding.firebasestorage.app"
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
-
-[[ports]]
-localPort = 5000
-externalPort = 80

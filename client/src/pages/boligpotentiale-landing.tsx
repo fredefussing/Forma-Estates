@@ -29,6 +29,7 @@ import {
   Linkedin,
   Upload,
   Globe,
+  Star,
 } from "lucide-react";
 import { setExplicitLang } from "@/i18n";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -2504,10 +2505,29 @@ export default function BoligpotentialeLanding() {
               </Link>
             </div>
           </div>
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }}>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }} className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
               {t("footer.copyright")}
             </span>
+            <a
+              href="https://www.trustpilot.com/evaluate/formaestates.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 shrink-0 transition-opacity hover:opacity-90"
+              style={{
+                background: "#00B67A",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 600,
+                padding: "7px 14px",
+                borderRadius: 6,
+                letterSpacing: "0.02em",
+                textDecoration: "none",
+              }}
+            >
+              <Star size={13} fill="currentColor" strokeWidth={0} />
+              {t("footer.trustpilot")}
+            </a>
           </div>
         </div>
       </footer>
