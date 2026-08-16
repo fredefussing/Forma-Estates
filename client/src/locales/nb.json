@@ -31,14 +31,14 @@
     },
     {
       "title": "Før & etter",
-      "caption": "Samme rom — tre stiler. KI-en redesigner interiøret på under 20 sekunder.",
+      "caption": "Samme rom — tre stiler. KI-en redesigner interiøret på ca. 15 sekunder.",
       "meta": "Stue · Riviera Luxe",
       "beforeLabel": "Tomt rom",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Før & etter",
-      "caption": "Last opp et romfoto — AI-en redesigner innredningen på under 20 sekunder.",
+      "caption": "Last opp et romfoto — AI-en redesigner innredningen på ca. 15 sekunder.",
       "meta": "Spisestue · Skandinavisk",
       "beforeLabel": "Før",
       "afterLabel": "Etter"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Last ned din visualisering",
-        "desc": "AI-en genererer bildet ditt på under 20 sekunder. Klar til nedlasting i full kvalitet."
+        "desc": "AI-en genererer bildet ditt på ca. 15 sekunder. Klar til nedlasting i full kvalitet."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "F.eks. \"bytt ut sofaen med en lys linnesofa og legg til en stor potteplante\". Du trenger ikke kjenne til design eller teknikk."
       },
       {
-        "title": "Klar på under 20 sek.",
+        "title": "Klar på ca. 15 sek.",
         "desc": "Ingen ventetid. Visualiseringen er klar mens du fortsatt er i rommet."
       },
       {

@@ -31,14 +31,14 @@
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Dasselbe Zimmer — drei Stile. Die KI gestaltet das Interieur in unter 20 Sekunden.",
+      "caption": "Dasselbe Zimmer — drei Stile. Die KI gestaltet das Interieur in ca. 15 Sekunden.",
       "meta": "Wohnzimmer · Riviera Luxe",
       "beforeLabel": "Leeres Zimmer",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Laden Sie ein Raumfoto hoch — die KI redesignt die Einrichtung in unter 20 Sekunden.",
+      "caption": "Laden Sie ein Raumfoto hoch — die KI redesignt die Einrichtung in ca. 15 Sekunden.",
       "meta": "Esszimmer · Skandinavisch",
       "beforeLabel": "Vorher",
       "afterLabel": "Nachher"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Visualisierung herunterladen",
-        "desc": "Die KI generiert Ihr Bild in unter 20 Sekunden. Fertig zum Download in voller Qualität."
+        "desc": "Die KI generiert Ihr Bild in ca. 15 Sekunden. Fertig zum Download in voller Qualität."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "Z.B. \"Tauschen Sie das Sofa gegen ein helles Leinensofa aus und fügen Sie eine große Topfpflanze hinzu\". Sie brauchen kein Design- oder Technikwissen."
       },
       {
-        "title": "Fertig in unter 20 Sek.",
+        "title": "Fertig in ca. 15 Sek.",
         "desc": "Keine Wartezeit. Die Visualisierung ist fertig, während Sie noch im Raum sind."
       },
       {

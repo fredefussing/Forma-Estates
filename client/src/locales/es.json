@@ -31,14 +31,14 @@
     },
     {
       "title": "Antes & después",
-      "caption": "La misma habitación — tres estilos. La IA rediseña el interior en menos de 20 segundos.",
+      "caption": "La misma habitación — tres estilos. La IA rediseña el interior en aprox. 15 segundos.",
       "meta": "Salón · Riviera Luxe",
       "beforeLabel": "Habitación vacía",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Antes y después",
-      "caption": "Sube una foto de la habitación — la IA rediseña el interior en menos de 20 segundos.",
+      "caption": "Sube una foto de la habitación — la IA rediseña el interior en aprox. 15 segundos.",
       "meta": "Comedor · Escandinavo",
       "beforeLabel": "Antes",
       "afterLabel": "Después"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Descarga tu visualización",
-        "desc": "La IA genera tu imagen en menos de 20 segundos. Lista para descargar en alta calidad."
+        "desc": "La IA genera tu imagen en aprox. 15 segundos. Lista para descargar en alta calidad."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "Por ejemplo: «cambia el sofá por uno de lino claro y añade una planta grande». No se necesitan conocimientos de diseño ni técnicos."
       },
       {
-        "title": "Lista en menos de 20 seg.",
+        "title": "Lista en aprox. 15 seg.",
         "desc": "Sin esperas. La visualización está lista mientras sigues en la habitación."
       },
       {

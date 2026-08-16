@@ -31,14 +31,14 @@
     },
     {
       "title": "Avant & après",
-      "caption": "La même pièce — trois styles. L'IA redessine l'intérieur en moins de 20 secondes.",
+      "caption": "La même pièce — trois styles. L'IA redessine l'intérieur en env. 15 secondes.",
       "meta": "Salon · Riviera Luxe",
       "beforeLabel": "Pièce vide",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Avant & après",
-      "caption": "Téléchargez une photo de la pièce — l'IA redessine l'intérieur en moins de 20 secondes.",
+      "caption": "Téléchargez une photo de la pièce — l'IA redessine l'intérieur en env. 15 secondes.",
       "meta": "Salle à manger · Scandinave",
       "beforeLabel": "Avant",
       "afterLabel": "Après"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Téléchargez votre visualisation",
-        "desc": "L'IA génère votre image en moins de 20 secondes. Prête à télécharger en haute qualité."
+        "desc": "L'IA génère votre image en env. 15 secondes. Prête à télécharger en haute qualité."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "Par exemple : « remplacez le canapé par un canapé en lin clair et ajoutez une grande plante ». Aucune compétence en design ou technique n'est requise."
       },
       {
-        "title": "Prête en moins de 20 sec.",
+        "title": "Prête en env. 15 sec.",
         "desc": "Sans attente. La visualisation est prête pendant que vous êtes encore dans la pièce."
       },
       {

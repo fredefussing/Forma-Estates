@@ -31,14 +31,14 @@
     },
     {
       "title": "Before & after",
-      "caption": "Same room — three styles. The AI redesigns the interior in under 20 seconds.",
+      "caption": "Same room — three styles. The AI redesigns the interior in approx. 15 seconds.",
       "meta": "Living room · Riviera Luxe",
       "beforeLabel": "Empty room",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Before & after",
-      "caption": "Upload a room photo — AI redesigns the interior in under 20 seconds.",
+      "caption": "Upload a room photo — AI redesigns the interior in approx. 15 seconds.",
       "meta": "Dining room · Scandinavian",
       "beforeLabel": "Before",
       "afterLabel": "After"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Download your visualization",
-        "desc": "The AI generates your image in under 20 seconds. Ready to download in full quality."
+        "desc": "The AI generates your image in approx. 15 seconds. Ready to download in full quality."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "E.g. \"swap the sofa for a light linen sofa and add a large potted plant\". No design or technical knowledge needed."
       },
       {
-        "title": "Ready in under 20 sec.",
+        "title": "Ready in approx. 15 sec.",
         "desc": "No waiting. The visualization is ready while you're still in the room."
       },
       {

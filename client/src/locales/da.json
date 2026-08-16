@@ -31,14 +31,14 @@
     },
     {
       "title": "Før & efter",
-      "caption": "Samme rum — tre stilarter. AI'en redesigner indretningen på under 20 sekunder.",
+      "caption": "Samme rum — tre stilarter. AI'en redesigner indretningen på ca. 15 sekunder.",
       "meta": "Stue · Riviera Luxe",
       "beforeLabel": "Tomt rum",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Før & efter",
-      "caption": "Upload et rumfoto — AI'en redesigner indretningen på under 20 sekunder.",
+      "caption": "Upload et rumfoto — AI'en redesigner indretningen på ca. 15 sekunder.",
       "meta": "Spisestue · Skandinavisk",
       "beforeLabel": "Før",
       "afterLabel": "Efter"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Download din visualisering",
-        "desc": "AI'en genererer dit billede på under 20 sekunder. Klar til download i fuld kvalitet."
+        "desc": "AI'en genererer dit billede på ca. 15 sekunder. Klar til download i fuld kvalitet."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "Fx \"skift sofaen ud med en lys linnedsofa og tilføj en stor potteplante\". Du behøver ikke kende til design eller teknik."
       },
       {
-        "title": "Klar på under 20 sek.",
+        "title": "Klar på ca. 15 sek.",
         "desc": "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet."
       },
       {

@@ -503,7 +503,7 @@ export function ForEfterPage() {
     <SubpageLayout
       eyebrow="Før / Efter"
       title="AI-iscenesættelse af tomme rum"
-      intro="Upload et foto af et tomt rum. Få det tilbage iscenesat i den stil der passer til boligen — møbler, lys og tekstiler placeret naturligt på under 20 sekunder."
+      intro="Upload et foto af et tomt rum. Få det tilbage iscenesat i den stil der passer til boligen — møbler, lys og tekstiler placeret naturligt på ca. 15 sekunder."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
         {pairs.map((p, i) => (
@@ -512,7 +512,7 @@ export function ForEfterPage() {
       </div>
       <BenefitRow
         items={[
-          { title: "20 sekunder", desc: "Fra upload til færdig visualisering. Ingen ventetid, ingen fotograf." },
+          { title: "Ca. 15 sekunder", desc: "Fra upload til færdig visualisering. Ingen ventetid, ingen fotograf." },
           { title: "Flere stilarter", desc: "Skandinavisk, moderne, klassisk — vis samme rum i flere udtryk." },
           { title: "Køberen ser sig selv", desc: "Et iscenesat rum forkorter tiden til første bud markant." },
         ]}

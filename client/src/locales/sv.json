@@ -31,14 +31,14 @@
     },
     {
       "title": "Före & efter",
-      "caption": "Samma rum — tre stilar. AI:n designar om interiören på under 20 sekunder.",
+      "caption": "Samma rum — tre stilar. AI:n designar om interiören på ca. 15 sekunder.",
       "meta": "Vardagsrum · Riviera Luxe",
       "beforeLabel": "Tomt rum",
       "afterLabel": "Riviera Luxe"
     },
     {
       "title": "Före & efter",
-      "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på under 20 sekunder.",
+      "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på ca. 15 sekunder.",
       "meta": "Matsal · Skandinavisk",
       "beforeLabel": "Före",
       "afterLabel": "Efter"
@@ -114,7 +114,7 @@
       },
       {
         "title": "Ladda ner din visualisering",
-        "desc": "AI genererar din bild på under 20 sekunder. Klar att ladda ner i full kvalitet."
+        "desc": "AI genererar din bild på ca. 15 sekunder. Klar att ladda ner i full kvalitet."
       }
     ]
   },
@@ -177,7 +177,7 @@
         "more": "T.ex. \"byt ut soffan mot en ljus linnesoffa och lägg till en stor krukväxt\". Du behöver inte kunna design eller teknik."
       },
       {
-        "title": "Klar på under 20 sek.",
+        "title": "Klar på ca. 15 sek.",
         "desc": "Ingen väntetid. Visualiseringen är klar medan du fortfarande är i rummet."
       },
       {
