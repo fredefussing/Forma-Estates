@@ -1413,6 +1413,83 @@ export async function ensureSchema(): Promise<void> {
     if (inserted > 0) console.log(`[ensure-schema] cold-leads-50: ${inserted} nye selvstændige leads indsat`);
   } catch(e: any) { console.error('[ensure-schema] cold-leads-50:', e.message); }
 
+  // ── Runde 3: 43 selvstændige mæglere (17. aug 2026) — kolde leads ─────────────
+  // Kilde: "50 nye selvstændige ejendomsmæglere – runde 3" (Excel, kontrolleret 17.08.2026).
+  // status='new', first_contact_at=NULL → forbliver i "kolde leads" i telesales.
+  // For leads uden direkte mobilnr. bruges kontor-tlf. som owner_phone.
+  try {
+    const oe = 'fredefussing@gmail.com';
+    type R3L = { name: string; phone: string; oPhone?: string; note: string };
+    const r3Leads: R3L[] = [
+      { name:'Lone Levin Ejendomsmægler',                phone:'30 14 10 14',                       note:'Indehaver: Lone Levin | Område: Nordsjælland | Type: Boligsalg | CVR 45962326.' },
+      { name:'Botker Bolig',                             phone:'21 42 37 88',                       note:'Indehaver: Sebastian Botker | Område: Sjælland | Type: Ejendomsmægler | Aktiv mæglerregistrering.' },
+      { name:'Linda Riis Ejendomsmægler',                phone:'20 77 26 29',                       note:'Indehaver: Linda Riis | Område: Nordsjælland | Type: Boligsalg | CVR 37047538.' },
+      { name:'Ejendomsmæglerfirmaet Marianne Møllebro',  phone:'21 80 10 12', oPhone:'48 16 00 12', note:'Indehaver: Marianne Møllebro | Område: Nordsjælland | Type: Boligsalg | CVR 20547332.' },
+      { name:'Jenny Eliassen Ejendomsmægler',            phone:'39 20 29 20',                       note:'Indehaver: Jenny Eliassen | Område: København | Type: Boligsalg | CVR 35099530.' },
+      { name:'LOKALmæglerne Hornslet',                   phone:'29 41 36 43', oPhone:'86 99 65 77', note:'Indehaver: Jette Dalgaard | Område: Hornslet | Type: Boligsalg | CVR 25161602.' },
+      { name:'Flemming Elsborg Bolig',                   phone:'61 10 61 43',                       note:'Indehaver: Flemming Elsborg | Område: Østjylland | Type: Boligsalg.' },
+      { name:'CPH Erhverv – Hougaard & Westall',         phone:'21 43 95 90', oPhone:'71 99 22 21', note:'Indehaver: Klaus Hougaard Christensen / Lars Westall | Område: København | Type: Erhvervsmægler | CVR 41892323.' },
+      { name:'La Cour & Lykke',                          phone:'33 30 10 50',                       note:'Indehaver: Kristian Hartmann / partnerkredsen | Område: København | Type: Erhvervsmægler | CVR 33965141. (Kontor-tlf.)' },
+      { name:'Andelshandel A/S',                         phone:'71 99 69 39',                       note:'Indehaver: Christian Weber | Område: København | Type: Andelsboliger | CVR 35244662.' },
+      { name:'Den Alternative Mægler',                   phone:'51 87 35 75',                       note:'Indehaver: Anders Frederiksen | Område: Østjylland | Type: Ejendomsmægler | CVR 25631242.' },
+      { name:'Ejendomsmægler Anette Huusfelt',           phone:'47 74 22 55',                       note:'Indehaver: Anette Huusfelt | Område: Frederikssund | Type: Ejendomsmægler | CVR 72977815.' },
+      { name:'Ejendomsmæglerfirmaet Jette Birkholm',     phone:'36 75 74 61',                       note:'Indehaver: Jette Birkholm | Område: København | Type: Ejendomsmægler, timeshare | CVR 11915191.' },
+      { name:'VW estate / Ejendomsmægler Vibeke Wedel',  phone:'31 12 00 01',                       note:'Indehaver: Vibeke Wedel | Område: Nordsjælland | Type: Boligsalg.' },
+      { name:'Søgaard Køberrådgivning',                  phone:'30 88 39 68',                       note:'Indehaver: Anette Søgaard | Område: Nordsjælland | Type: Købers ejendomsmægler.' },
+      { name:'City Bolig',                               phone:'70 26 28 30',                       note:'Indehaver: Torsten Smidt | Område: København | Type: Boligsalg.' },
+      { name:'Kaiserbolig',                              phone:'22 66 66 66', oPhone:'44 44 44 70', note:'Indehaver: Asher Kaiser / Simon Kaiser | Område: Nordsjælland | Type: Boligsalg.' },
+      { name:'Brith Ankjær Købers Ejendomsmægler',       phone:'23 40 00 23',                       note:'Indehaver: Brith Ankjær | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'MB Køberrådgivning',                       phone:'20 28 46 15',                       note:'Indehaver: Mikkel Birck | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'Skøde og Bolighandel',                     phone:'22 24 44 83',                       note:'Indehaver: Signe Mayland | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'RIWAS Køberrådgivning',                    phone:'53 82 56 12',                       note:'Indehaver: Rikke Waadegaard | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'Købsmæglerne',                             phone:'22 66 85 57', oPhone:'70 70 86 68', note:'Indehaver: Peter Tang / Katrine Tang | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'Køberrådgiverne ApS',                      phone:'23 39 28 60',                       note:'Indehaver: Mia Marie Zerlang Matthiessen | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'Køberrådgiver Sara Holms',                 phone:'20 17 59 07',                       note:'Indehaver: Sara Holms | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'AIKOPA',                                   phone:'31 55 96 95',                       note:'Indehaver: Pia Bach Kjær / Sussie Andersen | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'Center for Køberrådgivning',               phone:'20 27 16 05',                       note:'Indehaver: Jakob Nielsen | Område: Danmark | Type: Købers ejendomsmægler | CVR 46151399.' },
+      { name:'BoHer.nu',                                 phone:'25 53 31 13',                       note:'Indehaver: Morten Bo Pedersen | Område: Danmark | Type: Købers ejendomsmægler | CVR 40552057.' },
+      { name:'Valuarvurderinger.dk',                     phone:'20 94 75 02', oPhone:'32 55 59 00', note:'Indehaver: Erik Jacobsen | Område: København | Type: Ejendomsmægler og valuar | CVR 72122119.' },
+      { name:'Bolig Butikken Aaskov Ejendomscenter',     phone:'97 19 25 00',                       note:'Indehaver: Ebbe Georgi Andersen | Område: Midtjylland | Type: Boligsalg | CVR 25963997. (Kontor-tlf.)' },
+      { name:'Tingleff Ejendomme',                       phone:'51 94 49 45',                       note:'Indehaver: Morten Tingleff | Område: Sjælland | Type: Ejendomsmægler | Ejerledet.' },
+      { name:'Bolignavigator',                           phone:'60 57 27 99',                       note:'Indehaver: Charlotte Flarup | Område: Danmark | Type: Købers ejendomsmægler.' },
+      { name:'MinKøbermægler.dk',                        phone:'42 45 31 71',                       note:'Indehaver: Anders Klingenberg | Område: Danmark | Type: Købers ejendomsmægler | CVR 40626042.' },
+      { name:'MDN Boligrådgivning',                      phone:'93 89 40 95',                       note:'Indehaver: Mikkel Dan Nilausen | Område: Danmark | Type: Købers ejendomsmægler | CVR 44405067.' },
+      { name:'Consult Property',                         phone:'71 99 14 30',                       note:'Indehaver: Philip Sørensen | Område: København | Type: Købers ejendomsmægler | CVR 44110776.' },
+      { name:'Tina Lau Køberrådgivning',                 phone:'93 10 89 99',                       note:'Indehaver: Tina Lau | Område: Danmark | Type: Købers ejendomsmægler | CVR 45057593.' },
+      { name:'Lise Ørum Rådgivning',                     phone:'31 51 51 85',                       note:'Indehaver: Lise Ørum | Område: Danmark | Type: Købers ejendomsmægler | CVR 46322975.' },
+      { name:'Din-Bolighandel',                          phone:'36 96 54 54',                       note:'Indehaver: Tanja Bjerggaard | Område: Danmark | Type: Ejendomsmægler og køberrådgivning | CVR 37460508. (Kontor-tlf.)' },
+      { name:'Rosenqvist ApS',                           phone:'30 25 23 36',                       note:'Indehaver: Ditte Rosenqvist | Område: Sjælland | Type: Købers ejendomsmægler | CVR 38602519.' },
+      { name:'Boligrådgivning.com',                      phone:'21 31 91 26',                       note:'Indehaver: Jesper Gelardi Lunde | Område: Danmark | Type: Købers ejendomsmægler | CVR 44719290.' },
+      { name:'Boligraadgiver.dk',                        phone:'82 13 10 66',                       note:'Indehaver: Michael Christensen | Område: Danmark | Type: Købers ejendomsmægler | CVR 36053550. (Kontor-tlf.)' },
+      { name:'Nøgleklar.dk / HøEg Bolig ApS',           phone:'20 84 80 17', oPhone:'22 38 33 30', note:'Indehaver: Kenneth Egholm / Frank Høholt | Område: Nordsjælland / København | Type: Købers ejendomsmæglere | CVR 46300564.' },
+      { name:'Franck Milling ApS',                      phone:'23 43 33 15', oPhone:'70 60 59 33', note:'Indehaver: Franck Milling | Område: Aarhus / Danmark | Type: Købers ejendomsmægler | CVR 37262226.' },
+      { name:'Bente Naver Ejendomsrådgivning ApS',       phone:'20 43 75 30', oPhone:'36 44 11 00', note:'Indehaver: Bente Naver | Område: Frederikssund / Danmark | Type: Købers ejendomsmægler | CVR 37361348.' },
+    ];
+    let inserted = 0;
+    for (const l of r3Leads) {
+      // Also patch owner_phone on existing dev-inserted rows that have NULL owner_phone
+      await pool.query(
+        `UPDATE leads SET owner_phone = $3, office_phone = COALESCE(office_phone, $4)
+         WHERE owner_email = $1 AND lower(name) = lower($2) AND owner_phone IS NULL`,
+        [oe, l.name, l.phone, l.oPhone ?? null]
+      );
+      const r = await pool.query(
+        `INSERT INTO leads (owner_email, name, category, status, owner_phone, office_phone,
+           notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_1_done,
+           follow_up_2_at, follow_up_2_done, priority)
+         SELECT $1, $2, 'ejendomsmaegler', 'new', $3, $4,
+           $5, NULL, NULL, NULL, false, NULL, false, 1
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leads WHERE owner_email = $1
+             AND (owner_phone = $3 OR lower(name) = lower($2))
+         )`,
+        [oe, l.name, l.phone, l.oPhone ?? null, l.note]
+      );
+      if ((r.rowCount ?? 0) > 0) inserted++;
+    }
+    if (inserted > 0) console.log(`[ensure-schema] cold-leads-runde3: ${inserted} nye leads indsat`);
+  } catch(e: any) { console.error('[ensure-schema] cold-leads-runde3:', e.message); }
+
   for (const { step, sql } of statements) {
     try {
       await pool.query(sql);
