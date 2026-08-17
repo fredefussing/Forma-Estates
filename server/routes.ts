@@ -499,7 +499,7 @@ function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix =
   // Deterministisk UUID v4 baseret på tidsstempel + tilfældig del
   const now = Date.now();
   const r = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, "0");
-  const docId = `xxxxxxxx-${r()}-4${r().slice(1)}-${(8 + Math.floor(Math.random() * 4)).toString(16)}${r().slice(1)}-${r()}${r()}${r()}`;
+  const docId = `${r()}${r()}-${r()}-4${r().slice(1)}-${(8 + Math.floor(Math.random() * 4)).toString(16)}${r().slice(1)}-${r()}${r()}${r()}`;
   return (
     `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
     `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
@@ -605,7 +605,7 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   }) as any)
     .jpeg({ quality: 96, mozjpeg: true })
     .toBuffer();
-  const enhanced = injectXmpIntoJpeg(rawEnhanced, buildEuXmpPacket("c2pa.modified", "Staging"));
+  const enhanced = injectXmpIntoJpeg(rawEnhanced, buildEuXmpPacket("c2pa.modified", "Virtual Staging"));
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const localFilePath = path.join(uploadDir, filename);
   fs.writeFileSync(localFilePath, enhanced);
@@ -3099,7 +3099,7 @@ export async function registerRoutes(
         // Usynlig: XMP/C2PA-kompatibel metadata bages ind i filen.
         // EU AI Act Art. 50 Regel 1: XMP/C2PA-pakke — injiceres EFTER Sharp-encoding
         // via injectXmpIntoJpeg() for garanteret embedding (Sharp withMetadata er upålidelig for JPEG).
-        const xmpPacket = buildEuXmpPacket("c2pa.modified", "Staging");
+        const xmpPacket = buildEuXmpPacket("c2pa.modified", "AI Design");
 
         // EU AI Act Art. 50 Regel 3+4: lokaliseret badge-tekst ud fra brugerens sprog.
         // Minimumshøjde: 64px. Sproget sendes som ?lang= fra klienten.
