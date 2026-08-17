@@ -1810,6 +1810,136 @@ export async function registerRoutes(
     }
   });
 
+  // ── Admin: diagnose runde-3 leads state on this DB ──────────────────────
+  app.get("/api/admin/check-runde3-leads", async (req, res) => {
+    if (!adminPasswordOk(req.headers["x-admin-pw"] as string)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const oe = "fredefussing@gmail.com";
+    const phones = [
+      "30 14 10 14","21 42 37 88","20 77 26 29","21 80 10 12","39 20 29 20",
+      "29 41 36 43","61 10 61 43","21 43 95 90","33 30 10 50","71 99 69 39",
+      "51 87 35 75","47 74 22 55","36 75 74 61","31 12 00 01","30 88 39 68",
+      "70 26 28 30","22 66 66 66","23 40 00 23","20 28 46 15","22 24 44 83",
+      "53 82 56 12","22 66 85 57","23 39 28 60","20 17 59 07","31 55 96 95",
+      "20 27 16 05","25 53 31 13","20 94 75 02","97 19 25 00","51 94 49 45",
+      "60 57 27 99","42 45 31 71","93 89 40 95","71 99 14 30","93 10 89 99",
+      "31 51 51 85","36 96 54 54","30 25 23 36","21 31 91 26","82 13 10 66",
+      "20 84 80 17","23 43 33 15","20 43 75 30",
+    ];
+    const names = [
+      "Lone Levin Ejendomsmægler","Botker Bolig","Linda Riis Ejendomsmægler",
+      "Ejendomsmæglerfirmaet Marianne Møllebro","Jenny Eliassen Ejendomsmægler",
+      "LOKALmæglerne Hornslet","Flemming Elsborg Bolig","CPH Erhverv – Hougaard & Westall",
+      "La Cour & Lykke","Andelshandel A/S","Den Alternative Mægler",
+      "Ejendomsmægler Anette Huusfelt","Ejendomsmæglerfirmaet Jette Birkholm",
+      "VW estate / Ejendomsmægler Vibeke Wedel","Søgaard Køberrådgivning","City Bolig",
+      "Kaiserbolig","Brith Ankjær Købers Ejendomsmægler","MB Køberrådgivning",
+      "Skøde og Bolighandel","RIWAS Køberrådgivning","Købsmæglerne",
+      "Køberrådgiverne ApS","Køberrådgiver Sara Holms","AIKOPA",
+      "Center for Køberrådgivning","BoHer.nu","Valuarvurderinger.dk",
+      "Bolig Butikken Aaskov Ejendomscenter","Tingleff Ejendomme","Bolignavigator",
+      "MinKøbermægler.dk","MDN Boligrådgivning","Consult Property",
+      "Tina Lau Køberrådgivning","Lise Ørum Rådgivning","Din-Bolighandel",
+      "Rosenqvist ApS","Boligrådgivning.com","Boligraadgiver.dk",
+      "Nøgleklar.dk / HøEg Bolig ApS","Franck Milling ApS","Bente Naver Ejendomsrådgivning ApS",
+    ];
+    try {
+      const byPhone = await pool.query(
+        `SELECT id, name, owner_phone, status, first_contact_at FROM leads
+         WHERE owner_email = $1 AND owner_phone = ANY($2::text[])
+         ORDER BY name`,
+        [oe, phones]
+      );
+      const byName = await pool.query(
+        `SELECT id, name, owner_phone, status, first_contact_at FROM leads
+         WHERE owner_email = $1 AND LOWER(name) = ANY($2::text[])
+         ORDER BY name`,
+        [oe, names.map(n => n.toLowerCase())]
+      );
+      const totalCold = await pool.query(
+        `SELECT COUNT(*) c FROM leads WHERE owner_email = $1 AND status='new' AND owner_phone IS NOT NULL`,
+        [oe]
+      );
+      return res.json({
+        byPhone: byPhone.rows,
+        byName: byName.rows,
+        totalColdLeadsWithPhone: parseInt(totalCold.rows[0].c),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Admin: force runde-3 leads to status='new' where never contacted ────
+  app.post("/api/admin/fix-runde3-status", async (req, res) => {
+    if (!adminPasswordOk(req.headers["x-admin-pw"] as string)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const oe = "fredefussing@gmail.com";
+    const phones = [
+      "30 14 10 14","21 42 37 88","20 77 26 29","21 80 10 12","39 20 29 20",
+      "29 41 36 43","61 10 61 43","21 43 95 90","33 30 10 50","71 99 69 39",
+      "51 87 35 75","47 74 22 55","36 75 74 61","31 12 00 01","30 88 39 68",
+      "70 26 28 30","22 66 66 66","23 40 00 23","20 28 46 15","22 24 44 83",
+      "53 82 56 12","22 66 85 57","23 39 28 60","20 17 59 07","31 55 96 95",
+      "20 27 16 05","25 53 31 13","20 94 75 02","97 19 25 00","51 94 49 45",
+      "60 57 27 99","42 45 31 71","93 89 40 95","71 99 14 30","93 10 89 99",
+      "31 51 51 85","36 96 54 54","30 25 23 36","21 31 91 26","82 13 10 66",
+      "20 84 80 17","23 43 33 15","20 43 75 30",
+    ];
+    const names = [
+      "Lone Levin Ejendomsmægler","Botker Bolig","Linda Riis Ejendomsmægler",
+      "Ejendomsmæglerfirmaet Marianne Møllebro","Jenny Eliassen Ejendomsmægler",
+      "LOKALmæglerne Hornslet","Flemming Elsborg Bolig","CPH Erhverv – Hougaard & Westall",
+      "La Cour & Lykke","Andelshandel A/S","Den Alternative Mægler",
+      "Ejendomsmægler Anette Huusfelt","Ejendomsmæglerfirmaet Jette Birkholm",
+      "VW estate / Ejendomsmægler Vibeke Wedel","Søgaard Køberrådgivning","City Bolig",
+      "Kaiserbolig","Brith Ankjær Købers Ejendomsmægler","MB Køberrådgivning",
+      "Skøde og Bolighandel","RIWAS Køberrådgivning","Købsmæglerne",
+      "Køberrådgiverne ApS","Køberrådgiver Sara Holms","AIKOPA",
+      "Center for Køberrådgivning","BoHer.nu","Valuarvurderinger.dk",
+      "Bolig Butikken Aaskov Ejendomscenter","Tingleff Ejendomme","Bolignavigator",
+      "MinKøbermægler.dk","MDN Boligrådgivning","Consult Property",
+      "Tina Lau Køberrådgivning","Lise Ørum Rådgivning","Din-Bolighandel",
+      "Rosenqvist ApS","Boligrådgivning.com","Boligraadgiver.dk",
+      "Nøgleklar.dk / HøEg Bolig ApS","Franck Milling ApS","Bente Naver Ejendomsrådgivning ApS",
+    ];
+    try {
+      // Only reset status to 'new' for leads that were NEVER actually contacted
+      // (first_contact_at IS NULL = never reached / no call attempt recorded)
+      const byPhoneResult = await pool.query(
+        `UPDATE leads SET status = 'new', follow_up_at = NULL, follow_up_1_at = NULL,
+           follow_up_2_at = NULL, priority = 1
+         WHERE owner_email = $1
+           AND owner_phone = ANY($2::text[])
+           AND first_contact_at IS NULL
+           AND status NOT IN ('won','responded')
+         RETURNING id, name, status`,
+        [oe, phones]
+      );
+      const byNameResult = await pool.query(
+        `UPDATE leads SET status = 'new', follow_up_at = NULL, follow_up_1_at = NULL,
+           follow_up_2_at = NULL, priority = 1
+         WHERE owner_email = $1
+           AND LOWER(name) = ANY($2::text[])
+           AND first_contact_at IS NULL
+           AND status NOT IN ('won','responded')
+           AND owner_phone IS NOT NULL
+         RETURNING id, name, status`,
+        [oe, names.map(n => n.toLowerCase())]
+      );
+      const fixed = [...byPhoneResult.rows, ...byNameResult.rows];
+      // Dedup by id
+      const seen = new Set<number>();
+      const deduped = fixed.filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
+      log(`[admin/fix-runde3] fixed ${deduped.length} leads to status='new'`);
+      return res.json({ success: true, fixed: deduped.length, leads: deduped });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── System Tracker API ────────────────────────────────────────────────────
   {
     const {
