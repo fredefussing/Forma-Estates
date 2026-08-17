@@ -1323,18 +1323,95 @@ export async function ensureSchema(): Promise<void> {
     )`);
   } catch (e: any) { console.error(`[ensure-schema] video_jobs table: ${e.message}`); }
 
-  // ── Always: promote any lead that has owner_phone but status='new' to 'contacted' ──
-  // Idempotent – safe to run on every boot; no guard needed.
+  // ── Always: promote leads that have ACTUALLY been contacted (first_contact_at set) ──
+  // Guard: only promote when first_contact_at IS NOT NULL so cold leads (never contacted)
+  // keep status='new' and appear in the "kolde leads" section of the telesales view.
   try {
     const r = await pool.query(
       `UPDATE leads SET status='contacted'
        WHERE owner_email='fredefussing@gmail.com'
          AND status='new'
-         AND owner_phone IS NOT NULL`
+         AND owner_phone IS NOT NULL
+         AND first_contact_at IS NOT NULL`
     );
     if ((r.rowCount ?? 0) > 0)
       console.log(`[ensure-schema] status-fix: ${r.rowCount} leads promoted new→contacted`);
   } catch(e: any) { console.error('[ensure-schema] status-fix:', e.message); }
+
+  // ── 50 selvstændige ejendomsmægler-leads (17. aug 2026) — kolde (aldrig kontaktet) ──
+  // Kilde: "50 aktive, små og selvstændige ejendomsmægler-leads" (Excel-fil, alle Høj sikkerhed).
+  // Indsættes med status='new' og first_contact_at=NULL så de forbliver i "kolde leads".
+  try {
+    const oe = 'fredefussing@gmail.com';
+    const coldLeads: Array<{ name: string; phone: string; officePhone?: string; note: string }> = [
+      { name:'iMægler.dk',                             phone:'28 25 98 89', officePhone:'52 88 88 52', note:'Ring til: Jørgen Larsen, indehaver. Selvstændig – Bolig, Sydsjælland.' },
+      { name:'Blomstrøm Bolig',                        phone:'28 60 28 61', officePhone:'64 41 10 10', note:'Ring til: Jesper Blomstrøm, indehaver. Selvstændig – Bolig, 5500 Middelfart.' },
+      { name:'ASK Ejendomsmægler',                     phone:'22 46 56 09', note:'Ring til: Anette Skaarup, indehaver. Selvstændig – Bolig, 4000 Roskilde.' },
+      { name:'Et Nyt Hjem',                            phone:'30 30 88 88', officePhone:'30 30 55 55', note:'Ring til: Michael Mønster / Susanne Axelsen, indehavere. Selvstændig – Bolig, Nordsjælland. Alt. tlf.: 42 46 47 48.' },
+      { name:'Ankersø Bolig ApS',                      phone:'21 42 32 33', officePhone:'70 60 80 62', note:'Ring til: Dennis Ankersø Jensen, indehaver. Selvstændig – Bolig og projektsalg, 8541 Skødstrup.' },
+      { name:'Favoritbolig',                           phone:'42 43 80 30', officePhone:'88 44 44 07', note:'Ring til: Emil Bjørn Møller / Erland Virenfeldt, indehavere. Selvstændig – Bolig, 8600 Silkeborg. Alt. tlf.: 29 49 80 70.' },
+      { name:'MARCO Ejendomsmægler ApS',               phone:'53 83 00 07', officePhone:'53 63 93 02', note:'Ring til: Marco Kluge Jønsson, indehaver. Selvstændig – Bolig og liebhaver, 1256 København K.' },
+      { name:'LIVINGDAY',                              phone:'26 83 08 83', officePhone:'76 40 02 82', note:'Ring til: Manja Mikeli Wohlert Conrad, indehaver. Selvstændig – Bolig, 7100 Vejle.' },
+      { name:'Samsø Mægleren',                         phone:'70 60 50 33', note:'Ring til: Lone Leth Skyldal, indehaver. Selvstændig – Bolig, 8305 Samsø. (Hovednummer – ingen direkte mobil fundet.)' },
+      { name:'Skuffesag',                              phone:'24 47 57 90', note:'Ring til: Rune Julius, indehaver. Selvstændig – Diskret boligsalg (off-market), København.' },
+      { name:'Westring Estate',                        phone:'23 83 95 68', officePhone:'70 23 95 68', note:'Ring til: Anni Birgitte Westring, indehaver. Selvstændig – Bolig og liebhaver, Nordsjælland.' },
+      { name:'Heideby Estate',                         phone:'24 24 98 98', note:'Ring til: Laura Heideby, indehaver. Selvstændig – Erhverv, 4000 Roskilde. Erhvervsmægler.' },
+      { name:'Wennemoes Bolig',                        phone:'24 60 45 14', note:'Ring til: Torben Wennemoes, indehaver. Selvstændig – Bolig, 4000 Roskilde.' },
+      { name:'Birgitte Krohn',                         phone:'48 39 39 39', note:'Ring til: Birgitte Krohn, indehaver. Selvstændig – Bolig, 3230 Græsted. (Hovednummer – ingen direkte mobil fundet.)' },
+      { name:'INOVA Roskilde',                         phone:'24 44 64 26', officePhone:'20 51 95 19', note:'Ring til: Frederik Gregers Dannisgård Larnæs, indehaver. Selvstændig – Bolig og køberrådgivning, 4000 Roskilde.' },
+      { name:'Moestrup Bolig A/S',                     phone:'21 25 03 04', officePhone:'45 93 08 93', note:'Ring til: Ole Moestrup, indehaver. Selvstændig – Bolig, Nordsjælland.' },
+      { name:'Ejendomsmægler Find Christensen / Mithus', phone:'22 32 61 55', note:'Ring til: Find Christensen, indehaver. Selvstændig – Bolig, 9940 Læsø. Ø-mægler.' },
+      { name:'Ejendomsmægler Peter Blom',              phone:'20 16 41 22', officePhone:'75 91 11 22', note:'Ring til: Peter Blom, indehaver. Selvstændig – Bolig, 6094 Hejls.' },
+      { name:'GROVE & GROVE',                          phone:'26 14 57 90', officePhone:'86 10 88 88', note:'Ring til: Hanne Grove Alexandrakis / Mette Grove Elbæk, indehavere. Selvstændig – Bolig, 2880 Bagsværd.' },
+      { name:'Byens Mægler Svenstrup',                 phone:'21 18 50 10', officePhone:'98 38 21 20', note:'Ring til: Morten Koch, indehaver. Selvstændig – Bolig, 9230 Svenstrup J.' },
+      { name:'BoligKolding',                           phone:'75 52 24 24', note:'Ring til: Erik Steenholdt, indehaver. Selvstændig – Bolig og erhverv, 6000 Kolding. (Hovednummer – ingen direkte mobil fundet.)' },
+      { name:'Thorkild Kristensen',                    phone:'96 31 60 00', note:'Ring til: Thorkild Kristensen, indehaver. Selvstændig – Bolig og projekt, Aalborg/Himmerland. To lokale kontorer.' },
+      { name:'SKAGEN Mægleren / Calundan',             phone:'40 73 39 20', officePhone:'98 43 43 00', note:'Ring til: Jens Jørgen Calundan, indehaver. Selvstændig – Bolig, 9990 Skagen. To lokale butikker.' },
+      { name:'Hesel Erhverv',                          phone:'75 84 01 23', note:'Ring til: Kim Hesel, indehaver. Selvstændig – Erhverv, 7100 Vejle. Erhvervsmægler.' },
+      { name:'Asger Olsen A/S',                        phone:'20 20 00 88', officePhone:'62 25 40 88', note:'Ring til: Asger Olsen, indehaver. Selvstændig – Landbrug og liebhaver, Sydfyn.' },
+      { name:'FREJS Landbrug & Projektudvikling',      phone:'60 23 59 01', note:'Ring til: Finn Pedersen / Josefine Grønvaldt, indehavere. Selvstændig – Landbrug og projektudvikling, Jylland. Alt. tlf.: 60 23 59 02.' },
+      { name:'KUNLejligheder',                         phone:'28 40 25 55', officePhone:'39 30 30 19', note:'Ring til: Nina Flindt Bendixen / Marianne Zwiebler Hansen, indehavere. Selvstændig – Ejerlejligheder (niche), 2920 Charlottenlund. Alt. tlf.: 25 97 97 97.' },
+      { name:'Ejendomsmægler Allan Honnens',           phone:'21 22 19 19', note:'Ring til: Allan Honnens, indehaver. Selvstændig – Bolig, 6230 Rødekro.' },
+      { name:'Lützau',                                 phone:'60 14 63 35', officePhone:'39 63 63 35', note:'Ring til: Kristian Lützau, indehaver. Selvstændig – Bolig og liebhaver, 2930 Klampenborg.' },
+      { name:'Kim Folsted Ejendomsmægler',             phone:'21 79 53 50', note:'Ring til: Kim Folsted, indehaver. Selvstændig – Bolig, 1817 Frederiksberg C.' },
+      { name:'Silja Normann Gade',                     phone:'51 46 96 16', note:'Ring til: Silja Normann Gade, indehaver. Selvstændig – Bolig, 3210 Vejby.' },
+      { name:'Dansk Boligformidling',                  phone:'20 26 43 64', officePhone:'70 15 90 07', note:'Ring til: Peter Wolff Sander, indehaver. Selvstændig – Bolig, 2900 Hellerup.' },
+      { name:'DK-Estate Erhvervsmægler',               phone:'30 15 29 99', officePhone:'70 60 29 99', note:'Ring til: Nicolas Lund Madsen, indehaver. Selvstændig – Erhverv, Sjælland. Erhvervsmægler.' },
+      { name:'SØBOE Ejendomme',                        phone:'40 40 01 44', note:'Ring til: Thomas Søboe, indehaver. Selvstændig – Bolig, 2920 Charlottenlund.' },
+      { name:'TD mægler ApS',                          phone:'92 15 65 35', officePhone:'70 23 73 88', note:'Ring til: Trine Appel, indehaver. Selvstændig – Bolig, Nordsjælland.' },
+      { name:'Beboli',                                 phone:'24 24 65 07', note:'Ring til: Henrik Simonsen, indehaver. Selvstændig – Bolig, 5863 Ferritslev Fyn.' },
+      { name:'BilligtHus Mægler ApS',                 phone:'24 90 99 98', officePhone:'70 66 61 11', note:'Ring til: Jesper Struckmann, indehaver. Selvstændig – Bolig, Roskilde/landsdækkende niche.' },
+      { name:'Familiemægleren',                        phone:'55 29 05 10', note:'Ring til: Kasper Koldkjær Skov Hindborg, indehaver. Selvstændig – Bolig, Sydsjælland.' },
+      { name:'PROAD | Property Advisers',              phone:'28 40 05 22', officePhone:'70 20 30 19', note:'Ring til: Torben Lund, indehaver. Selvstændig – Erhverv/investering/valuar, 2000 Frederiksberg. Erhvervsmægler.' },
+      { name:'Falch Erhverv ApS',                     phone:'20 64 39 06', officePhone:'93 90 40 55', note:'Ring til: Steffen Falch, indehaver. Selvstændig – Erhverv, 1959 Frederiksberg C. Erhvervsmægler.' },
+      { name:'NEXT ADDRESS ApS',                       phone:'60 57 21 99', officePhone:'39 39 90 00', note:'Ring til: Kenneth Laustsen, indehaver. Selvstændig – Bolig og køberrådgivning, 9000 Aalborg.' },
+      { name:'Lokalt Liebhaveri ApS',                  phone:'24 91 48 97', officePhone:'70 27 11 11', note:'Ring til: Jesper Holm / Christian Schjøth / Henrik Kliver, partnere. Selvstændig – Bolig og liebhaver, 8000 Aarhus C. Alt. tlf.: 52 19 48 98 / 22 33 06 68.' },
+      { name:'Bundgaard Bolig & Rådgivning',           phone:'60 61 37 11', note:'Ring til: Henrik Michael Kvist Bundgaard, indehaver. Selvstændig – Bolig og rådgivning, 9574 Bælum.' },
+      { name:'Nemeth & Juhl',                          phone:'42 91 08 81', officePhone:'31 42 75 75', note:'Ring til: Nanna Frederikke Juhl / Frederik Nemeth Thurøe, ejere. Selvstændig – Bolig og liebhaver, 1306 København K. Alt. tlf.: 53 63 12 25.' },
+      { name:'Haraldsted',                             phone:'20 14 39 56', note:'Ring til: Torben Haraldsted, indehaver. Selvstændig – Liebhaver og villa, 2900 Hellerup.' },
+      { name:'Tristad',                                phone:'93 92 02 82', officePhone:'93 92 02 73', note:'Ring til: Emil Møller Hauser / Martin Becker Overgaard, ejere. Selvstændig – Erhverv og investering, København. Erhvervsmægler. Alt. tlf.: 93 92 02 81.' },
+      { name:'KM Erhverv',                             phone:'42 21 79 09', note:'Ring til: Kent Møller, indehaver. Selvstændig – Erhverv, 7100 Vejle. Erhvervsmægler.' },
+      { name:'Pernille Sams Ejendomsmæglerfirma ApS',  phone:'48 21 91 21', note:'Ring til: Pernille Merete Sams, indehaver. Selvstændig – Liebhaver og landejendomme, 3400 Hillerød.' },
+      { name:'Byens Bolig',                            phone:'29 21 00 82', officePhone:'53 52 66 00', note:'Ring til: Jonas Jakob Lisberg Lehmann, indehaver. Selvstændig – Bolig og liebhaver, 2900 Hellerup. (Ikke samme firma som Byens Boligpartner.)' },
+      { name:'nor:estate',                             phone:'53 80 27 21', note:'Ring til: Ali Kahbazy, indehaver. Selvstændig – Bolig, 1466 København K.' },
+    ];
+    let inserted = 0;
+    for (const l of coldLeads) {
+      const r = await pool.query(
+        `INSERT INTO leads (owner_email, name, category, status, owner_phone, office_phone,
+           notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_1_done,
+           follow_up_2_at, follow_up_2_done, priority)
+         SELECT $1, $2, 'ejendomsmaegler', 'new', $3, $4,
+           $5, NULL, NULL, NULL, false, NULL, false, 1
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leads WHERE owner_email = $1 AND owner_phone = $3
+         )`,
+        [oe, l.name, l.phone, l.officePhone ?? null, l.note]
+      );
+      if ((r.rowCount ?? 0) > 0) inserted++;
+    }
+    if (inserted > 0) console.log(`[ensure-schema] cold-leads-50: ${inserted} nye selvstændige leads indsat`);
+  } catch(e: any) { console.error('[ensure-schema] cold-leads-50:', e.message); }
 
   for (const { step, sql } of statements) {
     try {
