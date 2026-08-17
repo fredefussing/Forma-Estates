@@ -1775,19 +1775,25 @@ export async function registerRoutes(
     ];
 
     let inserted = 0;
-    const skipped: string[] = [];
+    let statusFixed = 0;
+    let phonePatched = 0;
+    const details: Record<string, string> = {};
     try {
       // Ensure priority column exists (idempotent)
       await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS priority integer DEFAULT 5`);
 
       for (const l of r3Leads) {
-        // Patch owner_phone on rows that exist but have NULL phone
-        await pool.query(
+        // Step 1: Patch owner_phone on rows that exist but have NULL phone (name match)
+        const patchR = await pool.query(
           `UPDATE leads SET owner_phone = $3, office_phone = COALESCE(office_phone, $4)
-           WHERE owner_email = $1 AND lower(name) = lower($2) AND owner_phone IS NULL`,
+           WHERE owner_email = $1 AND lower(name) = lower($2) AND owner_phone IS NULL
+           RETURNING id`,
           [oe, l.name, l.phone, l.oPhone ?? null]
         );
-        const r = await pool.query(
+        if ((patchR.rowCount ?? 0) > 0) phonePatched++;
+
+        // Step 2: Insert if truly not present by phone or name
+        const insR = await pool.query(
           `INSERT INTO leads (owner_email, name, category, status, owner_phone, office_phone,
              notes, first_contact_at, follow_up_at, follow_up_1_at, follow_up_1_done,
              follow_up_2_at, follow_up_2_done, priority)
@@ -1796,14 +1802,56 @@ export async function registerRoutes(
            WHERE NOT EXISTS (
              SELECT 1 FROM leads WHERE owner_email = $1
                AND (owner_phone = $3 OR lower(name) = lower($2))
-           )`,
+           )
+           RETURNING id`,
           [oe, l.name, l.phone, l.oPhone ?? null, l.note]
         );
-        if ((r.rowCount ?? 0) > 0) inserted++;
-        else skipped.push(l.name);
+        if ((insR.rowCount ?? 0) > 0) { inserted++; details[l.name] = "inserted"; continue; }
+
+        // Step 3: Lead exists — fix status to 'new' if never actually contacted
+        //   (first_contact_at IS NULL means no call was ever logged)
+        const fixR = await pool.query(
+          `UPDATE leads SET
+             status = 'new',
+             follow_up_at = NULL, follow_up_1_at = NULL, follow_up_1_done = false,
+             follow_up_2_at = NULL, follow_up_2_done = false,
+             priority = LEAST(COALESCE(priority, 5), 1)
+           WHERE owner_email = $1
+             AND (owner_phone = $2 OR lower(name) = lower($3))
+             AND first_contact_at IS NULL
+             AND status NOT IN ('won', 'responded', 'new')
+           RETURNING id, name, status`,
+          [oe, l.phone, l.name]
+        );
+        if ((fixR.rowCount ?? 0) > 0) {
+          statusFixed++;
+          details[l.name] = `status→new (was ${fixR.rows[0]?.status ?? '?'})`;
+        } else {
+          // Check current state
+          const cur = await pool.query(
+            `SELECT status, owner_phone, first_contact_at FROM leads
+             WHERE owner_email = $1 AND (owner_phone = $2 OR lower(name) = lower($3))
+             LIMIT 1`,
+            [oe, l.phone, l.name]
+          );
+          const row = cur.rows[0];
+          if (row) details[l.name] = `ok(${row.status},phone=${row.owner_phone ? 'set' : 'null'},fc=${row.first_contact_at ? 'yes' : 'null'})`;
+          else details[l.name] = "not-found";
+        }
       }
-      log(`[admin/seed-runde3] inserted=${inserted} skipped=${skipped.length}`);
-      return res.json({ success: true, inserted, skipped });
+
+      // Summary count of cold leads now visible in telesalg
+      const countR = await pool.query(
+        `SELECT COUNT(*) c FROM leads WHERE owner_email = $1 AND status = 'new' AND owner_phone IS NOT NULL`,
+        [oe]
+      );
+
+      log(`[admin/seed-runde3] inserted=${inserted} statusFixed=${statusFixed} phonePatched=${phonePatched}`);
+      return res.json({
+        success: true, inserted, statusFixed, phonePatched,
+        totalColdLeadsVisible: parseInt(countR.rows[0].c),
+        details,
+      });
     } catch (err: any) {
       log(`[admin/seed-runde3] error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
