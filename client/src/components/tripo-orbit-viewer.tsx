@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 export interface TripoOrbitViewerHandle {
   resetCamera: () => void;
@@ -102,6 +103,14 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
       container.appendChild(renderer.domElement);
 
       const scene = new THREE.Scene();
+
+      // PMREM environment — required for correct PBR metallic/roughness rendering.
+      // Without this, metallic surfaces render pitch-black or flat grey regardless of albedo.
+      // RoomEnvironment is a lightweight built-in neutral studio environment (no HDR download needed).
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
 
       const camera = new THREE.PerspectiveCamera(38, w / h, 0.01, 1000);
       camera.position.set(3, 2.5, 3);

@@ -4140,6 +4140,11 @@ export async function registerRoutes(
       // Ultra-geometri + høj teksturopløsning + face_limit 2 000 000 (API
       // accepterer op til 2M — matcher Tripo's UI-løfte om "up til 2 million
       // polygons for 3D printing & visual art". Testet 2026-07-23).
+      // texture:true UDEN pbr: genererer baked albedo-teksturer indlejret i GLB.
+      // pbr:true er bevidst fjernet — det aktiverer separate metallic/roughness/normal
+      // texture maps. Uden et PMREMGenerator env-map i Three.js render metallic
+      // overflader helt grå (refleksioner kræver env-map). Baked albedo-model
+      // behøver ingen env-map og farver er korrekte direkte. (Memory: tripo3d-texture-vs-pbr)
       const payload = JSON.stringify({
         type: "image_to_model",
         file: { type: fileType, url: resolvedImageUrl },
@@ -4147,7 +4152,6 @@ export async function registerRoutes(
         geometry_quality: "detailed",
         texture_quality: "detailed",
         texture: true,
-        pbr: true,
         face_limit: 2000000,
         quad: false,
       });
