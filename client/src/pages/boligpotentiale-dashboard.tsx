@@ -3319,7 +3319,9 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const activeCases = cases.filter((c) => c.status !== "sold");
   const hasUnsaved = !!resultUrl && saveCaseId === null;
   // Vis Tripo's professionelle rendered_image når den er klar, ellers fal.ai billedet
-  const displayUrl = tripoRenderedUrl || resultUrl;
+  // Always show the original 3D floorplan image — tripoRenderedUrl is a grey
+  // low-quality Tripo preview and should NOT replace the AI-rendered plantegning.
+  const displayUrl = resultUrl;
   useUnsavedExitGuard(hasUnsaved);
 
   useEffect(() => {

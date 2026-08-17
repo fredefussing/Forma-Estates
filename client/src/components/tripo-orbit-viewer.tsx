@@ -27,9 +27,29 @@ interface ViewerState {
   initialPos: THREE.Vector3;
   initialTarget: THREE.Vector3;
   pendingColor: [number, number, number] | null;
+  // Saved per-mesh original material colors so "Original" swatch restores PBR colors
+  originalColors: Map<string, THREE.Color[]>;
 }
 
-function applyColorToModel(model: THREE.Object3D, rgb: [number, number, number]) {
+function applyColorToModel(
+  model: THREE.Object3D,
+  rgb: [number, number, number],
+  originalColors?: Map<string, THREE.Color[]>,
+) {
+  // [1,1,1] means "Original" — restore saved PBR colors instead of tinting white
+  if (rgb[0] === 1 && rgb[1] === 1 && rgb[2] === 1 && originalColors && originalColors.size > 0) {
+    model.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const orig = originalColors.get(mesh.uuid);
+      if (!orig) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach((m: any, i: number) => {
+        if (m && m.color && orig[i]) m.color.copy(orig[i]);
+      });
+    });
+    return;
+  }
   const tint = new THREE.Color(rgb[0], rgb[1], rgb[2]);
   model.traverse((child) => {
     const mesh = child as THREE.Mesh;
@@ -138,6 +158,7 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
         initialPos: camera.position.clone(),
         initialTarget: controls.target.clone(),
         pendingColor: null,
+        originalColors: new Map(),
       };
       stateRef.current = state;
 
@@ -153,6 +174,20 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
             }
           });
           scene.add(model);
+
+          // Save original PBR material colors BEFORE any tinting, so the
+          // "Original" swatch can restore them even after other swatches are applied.
+          const origMap = new Map<string, THREE.Color[]>();
+          model.traverse((child) => {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            origMap.set(
+              mesh.uuid,
+              mats.map((m: any) => m?.color?.clone() ?? new THREE.Color(1, 1, 1)),
+            );
+          });
+          state.originalColors = origMap;
 
           const box = new THREE.Box3().setFromObject(model);
           const center = box.getCenter(new THREE.Vector3());
@@ -176,8 +211,11 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
           state.initialPos = camera.position.clone();
           state.initialTarget = controls.target.clone();
 
+          // Only apply a pending tint if a non-original color was queued.
+          // [1,1,1] (Original) is handled by applyColorToModel as a restore,
+          // but the model just loaded with its native colors so it's a no-op.
           const pending = state.pendingColor ?? colorRGBRef.current;
-          if (pending) applyColorToModel(model, pending);
+          if (pending) applyColorToModel(model, pending, state.originalColors);
           state.pendingColor = null;
 
           onReady?.();
@@ -224,7 +262,7 @@ export const TripoOrbitViewer = forwardRef<TripoOrbitViewerHandle, TripoOrbitVie
         s.pendingColor = colorRGB;
         return;
       }
-      applyColorToModel(s.model, colorRGB);
+      applyColorToModel(s.model, colorRGB, s.originalColors);
       s.renderer.render(s.scene, s.camera);
     }, [colorRGB]);
 
