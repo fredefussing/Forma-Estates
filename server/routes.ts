@@ -4609,15 +4609,43 @@ export async function registerRoutes(
 
       log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
       const showcaseLang = String(req.body?.lang || req.headers["x-lang"] || "da");
+      log(`[Showcase] address="${address}" (${address.length} chars) ratio=${ratio}`);
 
       // Mutable ref filled synchronously once startRendyShowcase() returns jobId.
       // Safe: JS is single-threaded; the IIFE's first await (DB write) runs after
       // this assignment, so onVideosReady can never be called before jobId is set.
       let capturedJobId = "";
 
-      // Deliver Rendy CDN videos directly — no server-side post-processing.
-      // Rendy handles all video content natively (address label etc.).
-      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys);
+      // When address is provided, burn it as a visible lower-third text overlay into
+      // each Rendy CDN video after generation. Rendy stores the address as listing
+      // metadata (shown in their dashboard) but does NOT render it as visible text
+      // in the video — that requires our own FFmpeg pass via burnShowcaseOverlays.
+      // Falls back to original CDN URLs if burning fails so users still get videos.
+      const showcaseAddress = address || undefined;
+      const onVideosReady = showcaseAddress
+        ? async (videos: import("./rendy").RendyVideo[]) => {
+            log(`[Showcase] burning address overlay for ${videos.length} video(s)…`);
+            return Promise.all(
+              videos.map(async (v) => {
+                if (!v.url) return v;
+                try {
+                  const localUrl = await downloadToUploads(v.url, uploadDir, ".mp4");
+                  const rawMp4 = path.join(uploadDir, path.basename(localUrl));
+                  const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+                  await burnShowcaseOverlays(rawMp4, wmTmp, showcaseLang, undefined, showcaseAddress);
+                  fs.renameSync(wmTmp, rawMp4);
+                  r2UploadFile(rawMp4).catch(() => {});
+                  log(`[Showcase] overlay burned → ${localUrl}`);
+                  return { ...v, url: localUrl };
+                } catch (e: any) {
+                  log(`[Showcase] overlay burn failed (falling back to CDN URL): ${e.message}`);
+                  return v;
+                }
+              })
+            );
+          }
+        : undefined;
+      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, onVideosReady);
       capturedJobId = jobId; // assign synchronously before any await fires in the IIFE
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
