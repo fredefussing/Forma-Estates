@@ -4322,11 +4322,11 @@ export async function registerRoutes(
   // Poll status of an in-flight video job. When COMPLETED, persists the mp4
   // locally and returns the /uploads/... URL.
   app.get("/api/bolig/transform-video/status/:requestId", async (req, res) => {
+    const { requestId } = req.params;
     try {
       if (!isFalConfigured()) {
         return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
       }
-      const { requestId } = req.params;
       const result = await getAnimationVideoStatus(requestId);
       if (result.status === "COMPLETED" && result.videoUrl) {
         transformVideoRefunds.delete(requestId);
@@ -6639,7 +6639,7 @@ export async function registerRoutes(
       }
       // Cap message history and individual message length to prevent prompt flooding
       const safeMessages = messages.slice(-20).map((m: any) => ({
-        role: String(m.role ?? "user").slice(0, 10),
+        role: (String(m.role ?? "user").slice(0, 10) === "assistant" ? "assistant" : "user") as "user" | "assistant",
         content: String(m.content ?? "").slice(0, 2000),
       }));
 
