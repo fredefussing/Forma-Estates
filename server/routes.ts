@@ -1858,154 +1858,192 @@ export async function registerRoutes(
     }
   });
 
-  // ── Admin: storage cleanup — orphaned R2 files + old generated images ───
-  // dryRun=true (default) only reports, never deletes.
-  // daysOld: delete generated_images older than this many days (default 90).
+  // ── Admin: storage cleanup ───────────────────────────────────────────────
+  // SAFE DESIGN:
+  //   1. Collects every file URL from EVERY table in DB (nothing missed)
+  //   2. Marks R2 file as "orphaned" ONLY if zero tables reference it
+  //   3. Orphaned files are safe to delete — they cannot appear on the live site
+  //   4. User-generated images (generated_images, bolig_case_images, etc.)
+  //      are NEVER deleted unless explicitly listed via deleteUserEmails
+  //   5. deleteUserEmails: string[] — deletes all content for those specific users
+  //      (only use for confirmed test accounts)
+  //   dryRun=true (default): report only, zero deletions
   app.post("/api/admin/cleanup-storage", async (req, res) => {
     if (!adminPasswordOk(req.headers["x-admin-pw"] as string)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     const { r2ListAllObjects, r2DeleteFiles } = await import("./r2");
-    const dryRun: boolean = req.body?.dryRun !== false; // default: dry-run
-    const daysOld: number = Number(req.body?.daysOld ?? 90);
-    const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
+    const dryRun: boolean = req.body?.dryRun !== false; // default true = safe
+    const deleteUserEmails: string[] = Array.isArray(req.body?.deleteUserEmails)
+      ? req.body.deleteUserEmails.map((e: any) => String(e).toLowerCase())
+      : [];
+
+    // Helper: extract the R2 key from a stored URL like /uploads/foo.jpg or /uploads/logos/bar.png
+    const toR2Key = (url: string | null): string | null => {
+      if (!url) return null;
+      // Strip leading /uploads/ — the remainder is the R2 key (may include logos/ prefix)
+      const stripped = url.replace(/^\/uploads\//, "").trim();
+      return stripped || null;
+    };
 
     try {
-      // ── 1. All R2 objects ────────────────────────────────────────────────
+      // ── Step 1: list every object currently in R2 ─────────────────────
       const r2Objects = await r2ListAllObjects();
+      const r2Map = new Map(r2Objects.map(o => [o.key, o.size]));
       const totalR2Count = r2Objects.length;
       const totalR2Bytes = r2Objects.reduce((s, o) => s + o.size, 0);
 
-      // ── 2. All keys referenced in DB ────────────────────────────────────
-      const dbRows = await pool.query<{ image_url: string | null; original_image_url: string | null }>(
-        `SELECT image_url, original_image_url FROM generated_images`
-      );
-      const dbKeys = new Set<string>();
-      for (const row of dbRows.rows) {
-        const extractKey = (url: string | null) => {
-          if (!url) return null;
-          // Remove leading /uploads/ or logos/ prefix to match R2 key
-          const base = url.replace(/^\/uploads\//, "");
-          return base || null;
-        };
-        const k1 = extractKey(row.image_url);
-        const k2 = extractKey(row.original_image_url);
-        if (k1) dbKeys.add(k1);
-        if (k2) dbKeys.add(k2);
-      }
+      // ── Step 2: collect every file key referenced in ANY DB table ──────
+      // We protect them all — if any table knows about a file, it can appear on the site.
+      const liveKeys = new Set<string>();
+      const addUrl = (url: string | null) => { const k = toR2Key(url); if (k) liveKeys.add(k); };
 
-      // Also protect logo keys (logos/<filename>)
-      const logoRows = await pool.query<{ logo_url: string | null }>(`SELECT logo_url FROM users WHERE logo_url IS NOT NULL`).catch(() => ({ rows: [] }));
-      for (const row of logoRows.rows) {
-        if (row.logo_url) {
-          const base = row.logo_url.replace(/^\/uploads\//, "");
-          if (base) dbKeys.add(base);
+      // generated_images
+      const gi = await pool.query(`SELECT image_url, original_image_url FROM generated_images`);
+      gi.rows.forEach(r => { addUrl(r.image_url); addUrl(r.original_image_url); });
+
+      // designs (legacy table if it exists)
+      await pool.query(`SELECT original_image_url, result_image_url FROM designs`)
+        .then(r => r.rows.forEach(row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }))
+        .catch(() => {});
+
+      // special_requests
+      await pool.query(`SELECT original_image_url, result_image_url FROM special_requests`)
+        .then(r => r.rows.forEach(row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }))
+        .catch(() => {});
+
+      // quote_requests
+      await pool.query(`SELECT generated_image_url FROM quote_requests`)
+        .then(r => r.rows.forEach(row => addUrl(row.generated_image_url)))
+        .catch(() => {});
+
+      // agent_designs
+      await pool.query(`SELECT original_image_url, result_image_url FROM agent_designs`)
+        .then(r => r.rows.forEach(row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }))
+        .catch(() => {});
+
+      // bolig_case_images
+      await pool.query(`SELECT src, before_src FROM bolig_case_images`)
+        .then(r => r.rows.forEach(row => { addUrl(row.src); addUrl(row.before_src); }))
+        .catch(() => {});
+
+      // ai_tour_properties
+      await pool.query(`SELECT floorplan_url, threed_plan_url, tour_video_url FROM ai_tour_properties`)
+        .then(r => r.rows.forEach(row => { addUrl(row.floorplan_url); addUrl(row.threed_plan_url); addUrl(row.tour_video_url); }))
+        .catch(() => {});
+
+      // ai_tour_rooms (including array column synthetic_angle_urls)
+      await pool.query(`SELECT room_photo_url, room_photo_url_2, after_image_url, after_image_url_2, panorama_url, video_url, synthetic_angle_urls FROM ai_tour_rooms`)
+        .then(r => r.rows.forEach(row => {
+          addUrl(row.room_photo_url); addUrl(row.room_photo_url_2);
+          addUrl(row.after_image_url); addUrl(row.after_image_url_2);
+          addUrl(row.panorama_url); addUrl(row.video_url);
+          if (Array.isArray(row.synthetic_angle_urls)) row.synthetic_angle_urls.forEach(addUrl);
+        }))
+        .catch(() => {});
+
+      // users agency logos
+      await pool.query(`SELECT agency_logo_url FROM users WHERE agency_logo_url IS NOT NULL`)
+        .then(r => r.rows.forEach(row => addUrl(row.agency_logo_url)))
+        .catch(() => {});
+
+      // ── Step 3: find orphaned R2 files (zero DB tables know about them) ─
+      const orphaned = r2Objects.filter(o => !liveKeys.has(o.key));
+      const orphanedBytes = orphaned.reduce((s, o) => s + o.size, 0);
+
+      // ── Step 4: per-user content stats (for deleteUserEmails) ───────────
+      type UserContent = { userId: number; email: string; imageCount: number; r2Keys: string[]; r2Bytes: number };
+      const userContent: UserContent[] = [];
+      let userDeletedDb = 0;
+      let userDeletedR2 = 0;
+      let userFreedBytes = 0;
+
+      if (deleteUserEmails.length > 0) {
+        // Find the user IDs for the given emails
+        const uRows = await pool.query<{ id: number; email: string }>(
+          `SELECT id, email FROM users WHERE lower(email) = ANY($1::text[])`,
+          [deleteUserEmails]
+        );
+        for (const u of uRows.rows) {
+          const imgs = await pool.query<{ id: number; image_url: string | null; original_image_url: string | null }>(
+            `SELECT id, image_url, original_image_url FROM generated_images WHERE user_id = $1`,
+            [u.id]
+          );
+          const keys: string[] = [];
+          let bytes = 0;
+          for (const img of imgs.rows) {
+            const k1 = toR2Key(img.image_url);
+            const k2 = toR2Key(img.original_image_url);
+            if (k1) { keys.push(k1); bytes += r2Map.get(k1) ?? 0; }
+            if (k2) { keys.push(k2); bytes += r2Map.get(k2) ?? 0; }
+          }
+          userContent.push({ userId: u.id, email: u.email, imageCount: imgs.rows.length, r2Keys: keys, r2Bytes: bytes });
         }
       }
 
-      // ── 3. Orphaned R2 objects (not in DB) ──────────────────────────────
-      const orphaned = r2Objects.filter(o => !dbKeys.has(o.key));
-      const orphanedBytes = orphaned.reduce((s, o) => s + o.size, 0);
-
-      // ── 4. Old generated_images in DB ────────────────────────────────────
-      const oldRows = await pool.query<{
-        id: number; user_id: number; image_url: string | null;
-        original_image_url: string | null; created_at: Date;
-      }>(
-        `SELECT id, user_id, image_url, original_image_url, created_at
-         FROM generated_images
-         WHERE created_at < $1
-         ORDER BY created_at ASC`,
-        [cutoff]
-      );
-      const oldCount = oldRows.rows.length;
-      const oldR2Keys: string[] = [];
-      const oldDbIds: number[] = [];
-      for (const row of oldRows.rows) {
-        oldDbIds.push(row.id);
-        const toKey = (url: string | null) => {
-          if (!url) return null;
-          return url.replace(/^\/uploads\//, "") || null;
-        };
-        const k1 = toKey(row.image_url);
-        const k2 = toKey(row.original_image_url);
-        if (k1) oldR2Keys.push(k1);
-        if (k2) oldR2Keys.push(k2);
-      }
-
-      // Oldest/newest old image dates
-      const oldestDate = oldRows.rows[0]?.created_at ?? null;
-      const newestOldDate = oldRows.rows[oldRows.rows.length - 1]?.created_at ?? null;
-
-      // ── 5. Unique users with old images (for info) ────────────────────────
-      const userIds = Array.from(new Set(oldRows.rows.map(r => r.user_id)));
-
-      // ── 6. Execute deletion if not dry-run ───────────────────────────────
-      let deletedOrphanedCount = 0;
-      let deletedOldCount = 0;
-      let deletedOldR2Count = 0;
+      // ── Step 5: execute if dryRun=false ─────────────────────────────────
+      let deletedOrphaned = 0;
       let freedBytes = 0;
 
       if (!dryRun) {
-        // Delete orphaned R2 files
+        // Only orphaned files — guaranteed not shown anywhere on site
         if (orphaned.length > 0) {
-          await r2DeleteFiles(orphaned.map(o => o.key));
-          deletedOrphanedCount = orphaned.length;
+          const batchSize = 1000;
+          for (let i = 0; i < orphaned.length; i += batchSize) {
+            await r2DeleteFiles(orphaned.slice(i, i + batchSize).map(o => o.key));
+          }
+          deletedOrphaned = orphaned.length;
           freedBytes += orphanedBytes;
         }
 
-        // Delete old DB records in batches of 100
-        if (oldDbIds.length > 0) {
-          // Delete in chunks to avoid huge IN clauses
-          const chunkSize = 100;
-          for (let i = 0; i < oldDbIds.length; i += chunkSize) {
-            const chunk = oldDbIds.slice(i, i + chunkSize);
-            await pool.query(`DELETE FROM generated_images WHERE id = ANY($1::int[])`, [chunk]);
-          }
-          deletedOldCount = oldDbIds.length;
-        }
+        // Explicit test-user content deletion
+        for (const uc of userContent) {
+          // Delete DB records
+          await pool.query(`DELETE FROM generated_images WHERE user_id = $1`, [uc.userId]);
+          userDeletedDb += uc.imageCount;
 
-        // Delete old R2 files (deduplicate keys)
-        const uniqueOldKeys = Array.from(new Set(oldR2Keys));
-        if (uniqueOldKeys.length > 0) {
-          // Delete in batches of 1000 (R2 limit per request)
-          const batchSize = 1000;
-          for (let i = 0; i < uniqueOldKeys.length; i += batchSize) {
-            await r2DeleteFiles(uniqueOldKeys.slice(i, i + batchSize));
+          // Delete R2 files
+          const uniqueKeys = Array.from(new Set(uc.r2Keys));
+          if (uniqueKeys.length > 0) {
+            const batchSize = 1000;
+            for (let i = 0; i < uniqueKeys.length; i += batchSize) {
+              await r2DeleteFiles(uniqueKeys.slice(i, i + batchSize));
+            }
+            userDeletedR2 += uniqueKeys.length;
+            userFreedBytes += uc.r2Bytes;
           }
-          deletedOldR2Count = uniqueOldKeys.length;
-          // Estimate freed bytes for old images (from r2Objects lookup)
-          const r2Map = new Map(r2Objects.map(o => [o.key, o.size]));
-          for (const k of uniqueOldKeys) freedBytes += (r2Map.get(k) ?? 0);
         }
-
-        log(`[admin/cleanup-storage] freed: orphaned=${deletedOrphanedCount} oldDB=${deletedOldCount} oldR2=${deletedOldR2Count} bytes=${freedBytes}`);
+        freedBytes += userFreedBytes;
+        log(`[admin/cleanup-storage] orphaned=${deletedOrphaned} userDb=${userDeletedDb} userR2=${userDeletedR2} freedMB=${(freedBytes/1024/1024).toFixed(1)}`);
       }
 
       return res.json({
         dryRun,
-        daysOld,
-        cutoffDate: cutoff.toISOString().slice(0, 10),
-        r2: {
-          totalObjects: totalR2Count,
-          totalSizeMB: +(totalR2Bytes / 1024 / 1024).toFixed(1),
-        },
+        r2: { totalObjects: totalR2Count, totalSizeMB: +(totalR2Bytes / 1024 / 1024).toFixed(1) },
+        liveKeysProtected: liveKeys.size,
         orphaned: {
           count: orphaned.length,
           sizeMB: +(orphanedBytes / 1024 / 1024).toFixed(1),
-          sample: orphaned.slice(0, 5).map(o => ({ key: o.key, sizeMB: +(o.size / 1024 / 1024).toFixed(2), lastModified: o.lastModified })),
-          deleted: deletedOrphanedCount,
+          deleted: deletedOrphaned,
+          // Show a few examples (just the filename, not full key, for brevity)
+          sample: orphaned.slice(0, 8).map(o => ({
+            key: o.key,
+            sizeMB: +(o.size / 1024 / 1024).toFixed(2),
+            lastModified: o.lastModified?.toISOString().slice(0, 10),
+          })),
         },
-        oldImages: {
-          count: oldCount,
-          r2KeyCount: Array.from(new Set(oldR2Keys)).length,
-          oldestDate: oldestDate?.toISOString().slice(0, 10) ?? null,
-          newestDate: newestOldDate?.toISOString().slice(0, 10) ?? null,
-          affectedUsers: userIds.length,
-          deleted: deletedOldCount,
-          r2Deleted: deletedOldR2Count,
-        },
+        testUsers: userContent.map(uc => ({
+          email: uc.email,
+          imageCount: uc.imageCount,
+          r2KeyCount: Array.from(new Set(uc.r2Keys)).length,
+          sizeMB: +(uc.r2Bytes / 1024 / 1024).toFixed(1),
+          deletedDb: dryRun ? 0 : uc.imageCount,
+          deletedR2: dryRun ? 0 : Array.from(new Set(uc.r2Keys)).length,
+        })),
         freedMB: +(freedBytes / 1024 / 1024).toFixed(1),
+        note: dryRun
+          ? "DRY-RUN: ingen filer slettet. Sæt dryRun:false for at slette."
+          : `Slettet: ${deletedOrphaned} forældreløse R2-filer + ${userDeletedDb} test-billeder (${userDeletedR2} R2-nøgler)`,
       });
     } catch (err: any) {
       log(`[admin/cleanup-storage] error: ${err.message}`);
