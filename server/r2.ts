@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import type { Readable } from "stream";
 import path from "path";
 import fs from "fs";
@@ -109,6 +109,26 @@ export async function r2DeleteFiles(keys: string[]): Promise<void> {
   } catch (err: any) {
     console.warn("[R2] Delete failed:", err?.message);
   }
+}
+
+// List all objects in the R2 bucket (paginates automatically)
+export async function r2ListAllObjects(): Promise<{ key: string; size: number; lastModified: Date }[]> {
+  const client = makeClient();
+  if (!client) return [];
+  const results: { key: string; size: number; lastModified: Date }[] = [];
+  let continuationToken: string | undefined;
+  do {
+    const res = await client.send(new ListObjectsV2Command({
+      Bucket: bucket(),
+      MaxKeys: 1000,
+      ContinuationToken: continuationToken,
+    }));
+    for (const obj of res.Contents ?? []) {
+      if (obj.Key) results.push({ key: obj.Key, size: obj.Size ?? 0, lastModified: obj.LastModified ?? new Date(0) });
+    }
+    continuationToken = res.NextContinuationToken;
+  } while (continuationToken);
+  return results;
 }
 
 // Upload a local file to R2 som en stream med ContentLength.

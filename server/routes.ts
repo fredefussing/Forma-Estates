@@ -1858,6 +1858,161 @@ export async function registerRoutes(
     }
   });
 
+  // ── Admin: storage cleanup — orphaned R2 files + old generated images ───
+  // dryRun=true (default) only reports, never deletes.
+  // daysOld: delete generated_images older than this many days (default 90).
+  app.post("/api/admin/cleanup-storage", async (req, res) => {
+    if (!adminPasswordOk(req.headers["x-admin-pw"] as string)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { r2ListAllObjects, r2DeleteFiles } = await import("./r2");
+    const dryRun: boolean = req.body?.dryRun !== false; // default: dry-run
+    const daysOld: number = Number(req.body?.daysOld ?? 90);
+    const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
+
+    try {
+      // ── 1. All R2 objects ────────────────────────────────────────────────
+      const r2Objects = await r2ListAllObjects();
+      const totalR2Count = r2Objects.length;
+      const totalR2Bytes = r2Objects.reduce((s, o) => s + o.size, 0);
+
+      // ── 2. All keys referenced in DB ────────────────────────────────────
+      const dbRows = await pool.query<{ image_url: string | null; original_image_url: string | null }>(
+        `SELECT image_url, original_image_url FROM generated_images`
+      );
+      const dbKeys = new Set<string>();
+      for (const row of dbRows.rows) {
+        const extractKey = (url: string | null) => {
+          if (!url) return null;
+          // Remove leading /uploads/ or logos/ prefix to match R2 key
+          const base = url.replace(/^\/uploads\//, "");
+          return base || null;
+        };
+        const k1 = extractKey(row.image_url);
+        const k2 = extractKey(row.original_image_url);
+        if (k1) dbKeys.add(k1);
+        if (k2) dbKeys.add(k2);
+      }
+
+      // Also protect logo keys (logos/<filename>)
+      const logoRows = await pool.query<{ logo_url: string | null }>(`SELECT logo_url FROM users WHERE logo_url IS NOT NULL`).catch(() => ({ rows: [] }));
+      for (const row of logoRows.rows) {
+        if (row.logo_url) {
+          const base = row.logo_url.replace(/^\/uploads\//, "");
+          if (base) dbKeys.add(base);
+        }
+      }
+
+      // ── 3. Orphaned R2 objects (not in DB) ──────────────────────────────
+      const orphaned = r2Objects.filter(o => !dbKeys.has(o.key));
+      const orphanedBytes = orphaned.reduce((s, o) => s + o.size, 0);
+
+      // ── 4. Old generated_images in DB ────────────────────────────────────
+      const oldRows = await pool.query<{
+        id: number; user_id: number; image_url: string | null;
+        original_image_url: string | null; created_at: Date;
+      }>(
+        `SELECT id, user_id, image_url, original_image_url, created_at
+         FROM generated_images
+         WHERE created_at < $1
+         ORDER BY created_at ASC`,
+        [cutoff]
+      );
+      const oldCount = oldRows.rows.length;
+      const oldR2Keys: string[] = [];
+      const oldDbIds: number[] = [];
+      for (const row of oldRows.rows) {
+        oldDbIds.push(row.id);
+        const toKey = (url: string | null) => {
+          if (!url) return null;
+          return url.replace(/^\/uploads\//, "") || null;
+        };
+        const k1 = toKey(row.image_url);
+        const k2 = toKey(row.original_image_url);
+        if (k1) oldR2Keys.push(k1);
+        if (k2) oldR2Keys.push(k2);
+      }
+
+      // Oldest/newest old image dates
+      const oldestDate = oldRows.rows[0]?.created_at ?? null;
+      const newestOldDate = oldRows.rows[oldRows.rows.length - 1]?.created_at ?? null;
+
+      // ── 5. Unique users with old images (for info) ────────────────────────
+      const userIds = Array.from(new Set(oldRows.rows.map(r => r.user_id)));
+
+      // ── 6. Execute deletion if not dry-run ───────────────────────────────
+      let deletedOrphanedCount = 0;
+      let deletedOldCount = 0;
+      let deletedOldR2Count = 0;
+      let freedBytes = 0;
+
+      if (!dryRun) {
+        // Delete orphaned R2 files
+        if (orphaned.length > 0) {
+          await r2DeleteFiles(orphaned.map(o => o.key));
+          deletedOrphanedCount = orphaned.length;
+          freedBytes += orphanedBytes;
+        }
+
+        // Delete old DB records in batches of 100
+        if (oldDbIds.length > 0) {
+          // Delete in chunks to avoid huge IN clauses
+          const chunkSize = 100;
+          for (let i = 0; i < oldDbIds.length; i += chunkSize) {
+            const chunk = oldDbIds.slice(i, i + chunkSize);
+            await pool.query(`DELETE FROM generated_images WHERE id = ANY($1::int[])`, [chunk]);
+          }
+          deletedOldCount = oldDbIds.length;
+        }
+
+        // Delete old R2 files (deduplicate keys)
+        const uniqueOldKeys = Array.from(new Set(oldR2Keys));
+        if (uniqueOldKeys.length > 0) {
+          // Delete in batches of 1000 (R2 limit per request)
+          const batchSize = 1000;
+          for (let i = 0; i < uniqueOldKeys.length; i += batchSize) {
+            await r2DeleteFiles(uniqueOldKeys.slice(i, i + batchSize));
+          }
+          deletedOldR2Count = uniqueOldKeys.length;
+          // Estimate freed bytes for old images (from r2Objects lookup)
+          const r2Map = new Map(r2Objects.map(o => [o.key, o.size]));
+          for (const k of uniqueOldKeys) freedBytes += (r2Map.get(k) ?? 0);
+        }
+
+        log(`[admin/cleanup-storage] freed: orphaned=${deletedOrphanedCount} oldDB=${deletedOldCount} oldR2=${deletedOldR2Count} bytes=${freedBytes}`);
+      }
+
+      return res.json({
+        dryRun,
+        daysOld,
+        cutoffDate: cutoff.toISOString().slice(0, 10),
+        r2: {
+          totalObjects: totalR2Count,
+          totalSizeMB: +(totalR2Bytes / 1024 / 1024).toFixed(1),
+        },
+        orphaned: {
+          count: orphaned.length,
+          sizeMB: +(orphanedBytes / 1024 / 1024).toFixed(1),
+          sample: orphaned.slice(0, 5).map(o => ({ key: o.key, sizeMB: +(o.size / 1024 / 1024).toFixed(2), lastModified: o.lastModified })),
+          deleted: deletedOrphanedCount,
+        },
+        oldImages: {
+          count: oldCount,
+          r2KeyCount: Array.from(new Set(oldR2Keys)).length,
+          oldestDate: oldestDate?.toISOString().slice(0, 10) ?? null,
+          newestDate: newestOldDate?.toISOString().slice(0, 10) ?? null,
+          affectedUsers: userIds.length,
+          deleted: deletedOldCount,
+          r2Deleted: deletedOldR2Count,
+        },
+        freedMB: +(freedBytes / 1024 / 1024).toFixed(1),
+      });
+    } catch (err: any) {
+      log(`[admin/cleanup-storage] error: ${err.message}`);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Admin: diagnose runde-3 leads state on this DB ──────────────────────
   app.get("/api/admin/check-runde3-leads", async (req, res) => {
     if (!adminPasswordOk(req.headers["x-admin-pw"] as string)) {
