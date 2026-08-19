@@ -9,7 +9,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { isR2Configured, createR2MulterStorage, r2Upload, r2GetStream, r2UploadFile, r2DeleteFiles } from "./r2";
+import { isR2Configured, createR2MulterStorage, r2Upload, r2GetStream, r2UploadFile, r2DeleteFiles, r2GetSignedUrl, r2GetPublicUrl } from "./r2";
 import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
@@ -682,14 +682,25 @@ export async function registerRoutes(
       return res.sendFile(localPath);
     }
 
-    // 2. Stream from R2 when file isn't on local disk (after a deploy / cross-session)
+    // 2. Redirect directly to R2/Cloudflare when file isn't on local disk.
+    //    This bypasses Render bandwidth entirely — the browser fetches the file
+    //    straight from Cloudflare's CDN. Prefer a permanent public URL (custom
+    //    domain or r2.dev) when R2_PUBLIC_URL is set; fall back to a 1-hour
+    //    presigned URL otherwise. Both are transparent to the browser.
     if (isR2Configured()) {
       try {
-        const stream = await r2GetStream(key);
-        if (stream) {
-          res.setHeader("Content-Type", contentType);
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-          return (stream as any).pipe(res);
+        const publicUrl = r2GetPublicUrl(key);
+        if (publicUrl) {
+          res.redirect(302, publicUrl);
+          return;
+        }
+        const signedUrl = await r2GetSignedUrl(key, 3600);
+        if (signedUrl) {
+          // Cache the redirect itself for 30 min so repeated requests don't
+          // all hit the Render server (presigned URL is valid for 1 hour).
+          res.setHeader("Cache-Control", "public, max-age=1800");
+          res.redirect(302, signedUrl);
+          return;
         }
       } catch {
         // fall through to 404

@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Readable } from "stream";
 import path from "path";
 import fs from "fs";
@@ -129,6 +130,32 @@ export async function r2ListAllObjects(): Promise<{ key: string; size: number; l
     continuationToken = res.NextContinuationToken;
   } while (continuationToken);
   return results;
+}
+
+// Return a short-lived presigned GET URL for a key (default: 1 hour).
+// Returns null when R2 is not configured.
+export async function r2GetSignedUrl(key: string, expiresInSeconds = 3600): Promise<string | null> {
+  const client = makeClient();
+  if (!client) return null;
+  try {
+    const url = await getSignedUrl(
+      client,
+      new GetObjectCommand({ Bucket: bucket(), Key: key }),
+      { expiresIn: expiresInSeconds },
+    );
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+// Return the public base URL for R2 direct access.
+// Set R2_PUBLIC_URL to a Cloudflare custom domain (e.g. https://assets.example.com)
+// or the r2.dev public subdomain. When not set, falls back to presigned URLs.
+export function r2GetPublicUrl(key: string): string | null {
+  const base = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
+  if (!base) return null;
+  return `${base}/${encodeURIComponent(key)}`;
 }
 
 // Upload a local file to R2 som en stream med ContentLength.
