@@ -523,6 +523,21 @@ function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix =
   );
 }
 
+// MP4 uses ISO Base Media File Format boxes. A top-level XMP UUID box is the
+// standard interoperable carrier for XMP in MP4/MOV media. This is deliberately
+// separate from the visible delivery badge, just like our JPEG/PNG XMP handling.
+function injectXmpIntoMp4(mp4Buf: Buffer, xmpPacket: string): Buffer {
+  if (mp4Buf.length < 12 || mp4Buf.subarray(4, 8).toString("ascii") !== "ftyp") return mp4Buf;
+  const xmp = Buffer.from(xmpPacket, "utf8");
+  const uuid = Buffer.from("BE7ACFCB97A942E89C71999491E3AFAC", "hex");
+  const size = 8 + uuid.length + xmp.length;
+  if (size > 0xFFFFFFFF) return mp4Buf;
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(size, 0);
+  header.write("uuid", 4, "ascii");
+  return Buffer.concat([mp4Buf, header, uuid, xmp]);
+}
+
 // ── EU AI Act Art. 50 Regel 2 — Usynligt spread-spectrum pixel-vandmærke ─────
 // Algoritme: Spread Spectrum med pseudo-random PN-sekvens (industristandard-klasse,
 // samme principper som Digimarc/Imatag). Indlejrer fast payload som ±STRENGTH
@@ -3401,6 +3416,51 @@ export async function registerRoutes(
     typeof u === "string" && /^https?:\/\//i.test(u) &&
     (/\.mp4(\?|$)/i.test(u) || /video/i.test(roomType || ""));
 
+  const videoTypesMarkedOnSave = new Set(["transform-video", "magic-transform"]);
+  const supportedVideoBadgeLanguages = new Set(["da", "en", "sv", "de", "nb", "no", "es", "fr"]);
+
+  // The generated video stays completely clean while it is being previewed.
+  // Saving it to a case creates a separate delivery copy with the same visual
+  // AI badge and XMP/C2PA-compatible transparency data as saved AI images.
+  const prepareSavedVideoTransparencyCopy = async (
+    imageUrl: string,
+    roomType: unknown,
+    requestedLanguage: unknown,
+  ): Promise<string> => {
+    if (!videoTypesMarkedOnSave.has(String(roomType)) || !imageUrl.startsWith("/uploads/")) return imageUrl;
+    const filename = path.basename(imageUrl);
+    if (!filename.toLowerCase().endsWith(".mp4")) return imageUrl;
+
+    const languageBase = typeof requestedLanguage === "string"
+      ? requestedLanguage.split("-")[0].toLowerCase()
+      : "da";
+    const language = supportedVideoBadgeLanguages.has(languageBase) ? languageBase : "da";
+    const sourcePath = path.join(uploadDir, filename);
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error("Videoen kunne ikke findes til AI-mærkning");
+    }
+
+    const stem = path.basename(filename, ".mp4");
+    const outputFilename = `${stem}-ai-act-${language}.mp4`;
+    const outputPath = path.join(uploadDir, outputFilename);
+    if (!fs.existsSync(outputPath)) {
+      const temporaryPath = path.join(uploadDir, `${stem}-ai-act-${language}-${crypto.randomUUID()}.tmp.mp4`);
+      try {
+        await burnEuWatermark(sourcePath, temporaryPath, language);
+        const markedVideo = injectXmpIntoMp4(
+          fs.readFileSync(temporaryPath),
+          buildEuXmpPacket("c2pa.modified", "Transform Video"),
+        );
+        fs.writeFileSync(outputPath, markedVideo);
+        r2UploadFile(outputPath).catch((e: any) => log(`[R2] Saved AI video upload failed: ${e?.message}`));
+        log(`[Video] Saved EU transparency copy → /uploads/${outputFilename}`);
+      } finally {
+        fs.unlink(temporaryPath, () => {});
+      }
+    }
+    return `/uploads/${outputFilename}`;
+  };
+
   app.post("/api/bolig/cases/:id/images", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
@@ -3413,13 +3473,13 @@ export async function registerRoutes(
       const {
         imageUrl, originalImageUrl,
         roomType, style, budgetTier,
-        promptText, isDesignAgent,
+        promptText, isDesignAgent, language,
       } = req.body || {};
       if (!imageUrl) return res.status(400).json({ message: "imageUrl required" });
 
       // Persist provider-hosted videos (Rendy/fal) on our own storage so they
       // remain playable in the case folder even if the provider deletes them.
-      let finalImageUrl: string = imageUrl;
+      let finalImageUrl: string = await prepareSavedVideoTransparencyCopy(imageUrl, roomType, language);
       let finalOriginalUrl: string | null = originalImageUrl || null;
       if (isRemoteVideoUrl(imageUrl, roomType)) {
         const local = await localizeRemoteVideo(imageUrl);
@@ -4884,19 +4944,6 @@ export async function registerRoutes(
         try {
           localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
           log(`[Video] persisted → ${localVideoUrl}`);
-          // EU AI Act Art. 50 Regel 3+4: brænde "AI Modified" badge ind i ALLE rammer.
-          // Transform-video genereres eksternt (fal.ai), så assembleVideo() løber ikke.
-          // burnEuWatermark bruger FFmpeg drawbox+drawtext — badge synlig hele varighed.
-          try {
-            const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
-            const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-            const wmLang = String(req.query.lang || "da");
-            await burnEuWatermark(rawMp4, wmTmp, wmLang);
-            fs.renameSync(wmTmp, rawMp4);
-            log(`[Video] EU Art.50 watermark burned → ${localVideoUrl}`);
-          } catch (wmErr: any) {
-            log(`[Video] EU watermark burn failed (video stadig gyldig): ${wmErr.message}`);
-          }
         } catch (e: any) {
           log(`[Video] persist failed (using fal url): ${e.message}`);
         }
@@ -4977,15 +5024,6 @@ export async function registerRoutes(
         try {
           localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
           log(`[MagicTransform] persisted → ${localVideoUrl}`);
-          try {
-            const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
-            const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-            await burnEuWatermark(rawMp4, wmTmp, String(req.query.lang || "da"));
-            fs.renameSync(wmTmp, rawMp4);
-            log(`[MagicTransform] EU Art.50 watermark burned`);
-          } catch (wmErr: any) {
-            log(`[MagicTransform] EU watermark failed (video stadig gyldig): ${wmErr.message}`);
-          }
         } catch (e: any) {
           log(`[MagicTransform] persist failed (using fal url): ${e.message}`);
         }

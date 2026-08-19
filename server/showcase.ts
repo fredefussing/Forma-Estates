@@ -3,6 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, uploadVideoPairToFal, generateAnimationVideo, downloadToFile, selectCameraMove, CameraMove } from "./fal";
 import { r2UploadFile, isR2Configured } from "./r2";
 import { getLoadTestRenderDelayMs, isLoadTestMode } from "./load-test";
@@ -932,28 +933,52 @@ const CONTACT_TEXT =
   "Forma Estates  |  +45 70 70 70 70  |  kontakt@formaestates.com";
 
 // ── EU AI Act Art. 50 — ekstern video-vandmærkning ───────────────────────────
-// Bruges til MP4-filer der IKKE samles af assembleVideo() (f.eks. fal.ai transform-video).
-// Brænder "AI Modified"-badge ind i alle rammer via FFmpeg drawbox+drawtext.
-// Badge-højde: 66px (over EU-minimumskrav på 64px). Mørk baggrund 88% opacity for kontrast.
+// Bruges kun til den gemte leveringskopi af en video. Forhåndsvisningen skal
+// være ren, så kunden kan vurdere det genererede resultat uden UI-elementer.
 const VIDEO_EU_LABELS: Record<string, string> = {
   da: "AI Redigeret", en: "AI Modified", sv: "AI Redigerad",
   de: "AI Bearbeitet", nb: "AI Redigert", no: "AI Redigert",
-  es: "AI Modificado", fr: "AI Modifie",
+  es: "AI Modificado", fr: "AI Modifié",
 };
 function euBadgeText(lang = "da"): string {
   return VIDEO_EU_LABELS[lang.split("-")[0].toLowerCase()] ?? "AI Modified";
 }
 
 export async function burnEuWatermark(inputPath: string, outputPath: string, lang = "da"): Promise<void> {
-  const label = euBadgeText(lang);
-  // Use drawtext's built-in box=1 so the background auto-sizes to the text — no
-  // fixed pixel offsets that can overflow small/portrait videos.
-  // x/y anchor 16px from bottom-right corner; boxborderw adds inner padding.
-  const euFilter =
-    `drawtext=fontfile=${FONT_BOLD}:text='${label}':fontsize=36:fontcolor=white:` +
-    `x=w-text_w-32:y=h-text_h-16:` +
-    `box=1:boxcolor=0x0A0A14@0.92:boxborderw=14`;
-  await runFfmpeg(["-y", "-i", inputPath, "-vf", euFilter, "-c:a", "copy", outputPath]);
+  // Match the image-download badge: dark rounded pill, outlined AI-circle and
+  // localised label. Rendering it with Sharp first keeps the exact badge stable
+  // across FFmpeg builds and lets us overlay the same visual language on video.
+  const label = euBadgeText(lang).replace(/^AI\s+/i, "");
+  const fontSize = 32;
+  const badgeHeight = 68;
+  const iconRadius = 18;
+  const horizontalPadding = 22;
+  const gap = 14;
+  const textWidth = Math.ceil(label.length * fontSize * 0.57);
+  const badgeWidth = Math.max(230, horizontalPadding * 2 + iconRadius * 2 + gap + textWidth);
+  const badgePath = path.join(os.tmpdir(), `forma-ai-badge-${randomUUID()}.png`);
+  const svg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${badgeWidth}" height="${badgeHeight}" viewBox="0 0 ${badgeWidth} ${badgeHeight}">` +
+      `<rect width="${badgeWidth}" height="${badgeHeight}" rx="${badgeHeight / 2}" fill="#0A121C" fill-opacity="0.88" stroke="#FFFFFF" stroke-opacity="0.22"/>` +
+      `<circle cx="${horizontalPadding + iconRadius}" cy="${badgeHeight / 2}" r="${iconRadius}" fill="#FFFFFF" fill-opacity="0.18" stroke="#FFFFFF" stroke-opacity="0.50"/>` +
+      `<text x="${horizontalPadding + iconRadius}" y="${badgeHeight / 2 + 8}" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="700" fill="#FFFFFF" text-anchor="middle">AI</text>` +
+      `<text x="${horizontalPadding + iconRadius * 2 + gap}" y="${badgeHeight / 2 + 11}" font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="700" fill="#FFFFFF">${label}</text>` +
+    `</svg>`,
+  );
+
+  try {
+    await sharp(svg).png().toFile(badgePath);
+    await runFfmpeg([
+      "-y", "-i", inputPath,
+      "-loop", "1", "-i", badgePath,
+      "-filter_complex", "[0:v][1:v]overlay=W-w-16:H-h-16:shortest=1[v]",
+      "-map", "[v]", "-map", "0:a?",
+      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy",
+      "-shortest", "-movflags", "+faststart", outputPath,
+    ]);
+  } finally {
+    fs.unlink(badgePath, () => {});
+  }
 }
 
 // ── Showcase-specific overlay: EU badge + optional property headline + address ─

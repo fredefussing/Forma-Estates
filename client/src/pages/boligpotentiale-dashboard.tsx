@@ -3863,7 +3863,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ imageUrl: morphVideoUrl, originalImageUrl: null, roomType: "transform-video", style: "transform-video", budgetTier: "tier2", promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"), isDesignAgent: true }),
+        body: JSON.stringify({ imageUrl: morphVideoUrl, originalImageUrl: null, roomType: "transform-video", style: "transform-video", budgetTier: "tier2", promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"), isDesignAgent: true, language: i18n.language }),
       });
       if (!r.ok) { setMorphSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); return; }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
@@ -3952,7 +3952,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ imageUrl: magicVideoUrl, originalImageUrl: null, roomType: "magic-transform", style: "magic-transform", budgetTier: "tier2", promptText: "Magisk transformation", isDesignAgent: true }),
+        body: JSON.stringify({ imageUrl: magicVideoUrl, originalImageUrl: null, roomType: "magic-transform", style: "magic-transform", budgetTier: "tier2", promptText: "Magisk transformation", isDesignAgent: true, language: i18n.language }),
       });
       if (!r.ok) { setMagicSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeTilMappen")); return; }
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
