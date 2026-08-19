@@ -1,0 +1,22 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+.forma-pricing {
+  --background: 30 10% 99%;
+  --foreground: 30 5% 10%;
+  --border: 30 6% 90%;
+  --card: 30 8% 97%;
+  --card-foreground: 30 5% 10%;
+  --primary: 30 6% 15%;
+  --primary-foreground: 30 10% 98%;
+  --muted: 30 5% 94%;
+  --muted-foreground: 30 4% 46%;
+  --radius: .625rem;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.forma-pricing * {
+  box-sizing: border-box;
+}

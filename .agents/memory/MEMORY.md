@@ -31,3 +31,4 @@
 - [Showcase video overlays](showcase-overlays.md) — burnShowcaseOverlays() burns EU badge + overskrift + address; always use textfile= not text= to avoid Danish special-char FFmpeg escaping issues.
 - [Long-running server calls need timeouts](server-timeout-pattern.md) — fal.subscribe, Collov fetch, Tripo3D poll all have no built-in timeout; wrap with Promise.race/AbortController or they hang the route forever.
 - [Security hardening patterns](security-hardening.md) — adminPasswordOk() helper (timingSafeEqual), SSRF allowlist on proxy-image, admin pw via X-Admin-Pw header (not URL), rate limiter on admin login.
+- [Mockup sandbox isolation](mockup-sandbox-isolation.md) — sandbox cartographer can load the main app Tailwind config and cause a preview error overlay; keep sandbox Vite independent.
