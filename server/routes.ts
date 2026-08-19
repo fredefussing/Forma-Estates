@@ -9,7 +9,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { isR2Configured, createR2MulterStorage, r2Upload, r2GetStream, r2UploadFile, r2DeleteFiles, r2GetSignedUrl, r2GetPublicUrl } from "./r2";
+import { isR2Configured, createR2MulterStorage, r2Upload, r2GetStream, r2UploadFile, r2DeleteFiles, r2GetSignedUrl, r2GetPublicUrl, r2ObjectExists, r2ListAllObjects } from "./r2";
 import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
@@ -22,14 +22,14 @@ import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStri
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
+import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowcaseJob, getShowcaseQueueMetrics, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
+import { isLoadTestMode } from "./load-test";
 
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
 // to prevent API-key abuse and prompt-flooding.
-import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowcaseJob, getShowcaseQueueMetrics, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
-import { isLoadTestMode } from "./load-test";
 const chatRateMap = new Map<string, number[]>();
 function chatRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -143,32 +143,37 @@ function refundGuidedTour(jobId: string) {
 }
 
 const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
-// Strict allowlist — both MIME type AND file extension must match.
-// SVG is intentionally excluded: it can carry inline JavaScript and would
-// execute in the browser when served as image/svg+xml.
+async function ensureLocalUpload(url: string): Promise<string> {
+  if (!url.startsWith("/uploads/")) {
+    throw new Error("Expected a durable /uploads/ media URL");
+  }
+  const key = decodeURIComponent(url.slice("/uploads/".length));
+  if (!key || key.includes("..")) throw new Error("Invalid upload path");
+  const localPath = path.join(uploadDir, key);
+  if (fs.existsSync(localPath)) return localPath;
+
+  const stream = await r2GetStream(key);
+  if (!stream) throw new Error("Media file is not available in durable storage");
+  await fs.promises.mkdir(path.dirname(localPath), { recursive: true });
+  await new Promise<void>((resolve, reject) => {
+    const output = fs.createWriteStream(localPath);
+    (stream as any).pipe(output);
+    output.on("finish", resolve);
+    output.on("error", reject);
+    (stream as any).on("error", reject);
+  });
+  return localPath;
+}
 const ALLOWED_IMAGE_MIMES = new Set([
   "image/jpeg", "image/jpg", "image/png", "image/webp",
 ]);
 const ALLOWED_IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 const upload = multer({
-  storage: isR2Configured()
-    ? createR2MulterStorage(uploadDir)
-    : multer.diskStorage({
-        destination: uploadDir,
-        filename: (_req, file, cb) => {
-          // Force a safe extension derived from the allowlisted MIME type —
-          // never trust the client-supplied originalname extension.
-          const safeExt = file.mimetype === "image/png" ? ".png"
-                        : file.mimetype === "image/webp" ? ".webp"
-                        : ".jpg";
-          cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`);
-        },
-      }),
+  // Customer uploads are only accepted after the R2 storage engine confirms
+  // the durable object. Local disk is a short-lived processing cache.
+  storage: createR2MulterStorage(uploadDir),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const mime = file.mimetype.toLowerCase();
@@ -523,21 +528,6 @@ function buildEuXmpPacket(action: "c2pa.modified" | "c2pa.created", toolSuffix =
   );
 }
 
-// MP4 uses ISO Base Media File Format boxes. A top-level XMP UUID box is the
-// standard interoperable carrier for XMP in MP4/MOV media. This is deliberately
-// separate from the visible delivery badge, just like our JPEG/PNG XMP handling.
-function injectXmpIntoMp4(mp4Buf: Buffer, xmpPacket: string): Buffer {
-  if (mp4Buf.length < 12 || mp4Buf.subarray(4, 8).toString("ascii") !== "ftyp") return mp4Buf;
-  const xmp = Buffer.from(xmpPacket, "utf8");
-  const uuid = Buffer.from("BE7ACFCB97A942E89C71999491E3AFAC", "hex");
-  const size = 8 + uuid.length + xmp.length;
-  if (size > 0xFFFFFFFF) return mp4Buf;
-  const header = Buffer.alloc(8);
-  header.writeUInt32BE(size, 0);
-  header.write("uuid", 4, "ascii");
-  return Buffer.concat([mp4Buf, header, uuid, xmp]);
-}
-
 // ── EU AI Act Art. 50 Regel 2 — Usynligt spread-spectrum pixel-vandmærke ─────
 // Algoritme: Spread Spectrum med pseudo-random PN-sekvens (industristandard-klasse,
 // samme principper som Digimarc/Imatag). Indlejrer fast payload som ±STRENGTH
@@ -624,8 +614,8 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const localFilePath = path.join(uploadDir, filename);
   fs.writeFileSync(localFilePath, enhanced);
-  log(`Design ${designId}: saved to /uploads/${filename} and queued R2 upload`);
-  r2UploadFile(localFilePath).catch((e: any) => log(`[R2] Upload failed for ${filename}: ${e?.message}`));
+  await r2UploadFile(localFilePath);
+  log(`Design ${designId}: durably saved to /uploads/${filename}`);
   return `/uploads/${filename}`;
 }
 
@@ -741,8 +731,7 @@ export async function registerRoutes(
 
   app.get("/api/health/live-diag", (_req, res) => res.status(404).json({ message: "Not found" }));
 
-  // The capacity harness is the only consumer. This route cannot be
-  // registered in production because isLoadTestMode requires NODE_ENV=test.
+  // Exposed only to the NODE_ENV=test capacity harness.
   if (isLoadTestMode()) {
     app.get("/api/load-test/metrics", (_req, res) => {
       const memory = process.memoryUsage();
@@ -842,8 +831,6 @@ export async function registerRoutes(
         user = { ...user, displayName: name };
       }
 
-      // Synthetic identities exist only in NODE_ENV=test. Mark them as admin
-      // so paid-feature quota checks execute without the harness needing plans.
       if (isLoadTestMode() && (!user.isAdmin || !user.emailVerified)) {
         await storage.updateUser(user.id, {
           isAdmin: true,
@@ -1272,13 +1259,7 @@ export async function registerRoutes(
           );
           // Download from Collov, sharpen, save locally + R2 → persistent URL
           setStatusMsg(design.id, "Gemmer billede...");
-          let finalUrl = collovUrl;
-          try {
-            finalUrl = await sharpenAndSaveVst(collovUrl, design.id);
-          } catch (saveErr: any) {
-            log(`Design ${design.id}: R2/local save failed (using Collov URL as fallback): ${saveErr?.message}`);
-            finalUrl = collovUrl;
-          }
+          const finalUrl = await sharpenAndSaveVst(collovUrl, design.id);
           clearStatusMsg(design.id);
           const updated = await storage.getDesign(design.id);
           await storage.updateDesign(design.id, { status: "completed", resultImageUrl: finalUrl, versions: [finalUrl] });
@@ -1922,6 +1903,81 @@ export async function registerRoutes(
     }
   });
 
+  // ── Admin: reconcile legacy /uploads records with R2 ─────────────────────
+  // Existing rows retain their stable /uploads/<key> route. This endpoint
+  // never rewrites URLs; it only backfills an R2 object from a surviving local
+  // file, and defaults to a dry run.
+  app.post("/api/admin/reconcile-media", async (req, res) => {
+    if (!adminPasswordOk(req.headers["x-admin-pw"] as string)) return res.status(401).json({ error: "Unauthorized" });
+    if (!isR2Configured()) return res.status(503).json({ error: "R2 is not configured; reconciliation cannot make media durable." });
+
+    const apply = req.body?.apply === true;
+    const keys = new Set<string>();
+    const addUrl = (value: unknown) => {
+      if (typeof value !== "string" || !value.trim()) return;
+      let pathname = value.trim();
+      try { if (/^https?:\/\//i.test(pathname)) pathname = new URL(pathname).pathname; } catch { return; }
+      if (!pathname.startsWith("/uploads/")) return;
+      const key = decodeURIComponent(pathname.slice("/uploads/".length));
+      if (key && !key.includes("..")) keys.add(key);
+    };
+    const addArray = (value: unknown) => { if (Array.isArray(value)) value.forEach(addUrl); };
+    // Fail closed: a partial inventory must never look complete.
+    const read = (query: string, consume: (row: any) => void) =>
+      pool.query(query).then(result => result.rows.forEach(consume));
+
+    try {
+      await Promise.all([
+        read(`SELECT original_image_url, result_image_url, versions FROM designs`, row => { addUrl(row.original_image_url); addUrl(row.result_image_url); addArray(row.versions); }),
+        read(`SELECT image_url, original_image_url FROM generated_images`, row => { addUrl(row.image_url); addUrl(row.original_image_url); }),
+        read(`SELECT original_image_url, result_image_url FROM agent_designs`, row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }),
+        read(`SELECT original_image_url, result_image_url FROM special_requests`, row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }),
+        read(`SELECT generated_image_url FROM quote_requests`, row => addUrl(row.generated_image_url)),
+        read(`SELECT src, before_src FROM bolig_case_images`, row => { addUrl(row.src); addUrl(row.before_src); }),
+        read(`SELECT floorplan_url, threed_plan_url, tour_video_url FROM ai_tour_properties`, row => { addUrl(row.floorplan_url); addUrl(row.threed_plan_url); addUrl(row.tour_video_url); }),
+        read(`SELECT room_photo_url, room_photo_url_2, after_image_url, after_image_url_2, panorama_url, video_url, synthetic_angle_urls FROM ai_tour_rooms`, row => {
+          addUrl(row.room_photo_url); addUrl(row.room_photo_url_2); addUrl(row.after_image_url); addUrl(row.after_image_url_2);
+          addUrl(row.panorama_url); addUrl(row.video_url); addArray(row.synthetic_angle_urls);
+        }),
+        read(`SELECT agency_logo_url FROM users`, row => addUrl(row.agency_logo_url)),
+      ]);
+
+      const alreadyDurable: string[] = [];
+      const backfilled: string[] = [];
+      const missingFromDisk: string[] = [];
+      const failures: Array<{ key: string; error: string }> = [];
+      const referencedKeys = Array.from(keys);
+      const durableKeys = new Set((await r2ListAllObjects()).map(object => object.key));
+      for (const key of referencedKeys) {
+        if (durableKeys.has(key)) { alreadyDurable.push(key); continue; }
+        const localPath = path.join(uploadDir, key);
+        if (!fs.existsSync(localPath)) { missingFromDisk.push(key); continue; }
+        if (!apply) continue;
+        try {
+          await r2UploadFile(localPath, key);
+          if (!await r2ObjectExists(key)) throw new Error("R2 did not acknowledge the uploaded object");
+          durableKeys.add(key);
+          backfilled.push(key);
+        } catch (error: any) {
+          failures.push({ key, error: error?.message || "Unknown upload error" });
+        }
+      }
+      return res.json({
+        dryRun: !apply,
+        databaseReferences: keys.size,
+        alreadyDurable: alreadyDurable.length,
+        candidatesToBackfill: referencedKeys.filter(key => !alreadyDurable.includes(key) && fs.existsSync(path.join(uploadDir, key))).length,
+        backfilled,
+        missingFromDisk,
+        failures,
+        note: "URLs are intentionally unchanged: /uploads/<key> streams from R2 after a restart. Files missing from both R2 and disk need recovery from a backup.",
+      });
+    } catch (error: any) {
+      log(`[admin/reconcile-media] failed: ${error?.message}`);
+      return res.status(500).json({ error: error?.message || "Media reconciliation failed" });
+    }
+  });
+
   // ── Admin: storage cleanup ───────────────────────────────────────────────
   // SAFE DESIGN:
   //   1. Collects every file URL from EVERY table in DB (nothing missed)
@@ -1942,12 +1998,19 @@ export async function registerRoutes(
       ? req.body.deleteUserEmails.map((e: any) => String(e).toLowerCase())
       : [];
 
-    // Helper: extract the R2 key from a stored URL like /uploads/foo.jpg or /uploads/logos/bar.png
+    // Extract keys only from the site's own /uploads route. Older records can
+    // contain absolute site URLs; provider URLs must never be treated as R2 keys.
     const toR2Key = (url: string | null): string | null => {
       if (!url) return null;
-      // Strip leading /uploads/ — the remainder is the R2 key (may include logos/ prefix)
-      const stripped = url.replace(/^\/uploads\//, "").trim();
-      return stripped || null;
+      let pathname = url.trim();
+      try {
+        if (/^https?:\/\//i.test(pathname)) pathname = new URL(pathname).pathname;
+      } catch {
+        return null;
+      }
+      if (!pathname.startsWith("/uploads/")) return null;
+      const key = decodeURIComponent(pathname.slice("/uploads/".length));
+      return key && !key.includes("..") ? key : null;
     };
 
     try {
@@ -1966,9 +2029,12 @@ export async function registerRoutes(
       const gi = await pool.query(`SELECT image_url, original_image_url FROM generated_images`);
       gi.rows.forEach(r => { addUrl(r.image_url); addUrl(r.original_image_url); });
 
-      // designs (legacy table if it exists)
-      await pool.query(`SELECT original_image_url, result_image_url FROM designs`)
-        .then(r => r.rows.forEach(row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }))
+      // designs (including the version history array)
+      await pool.query(`SELECT original_image_url, result_image_url, versions FROM designs`)
+        .then(r => r.rows.forEach(row => {
+          addUrl(row.original_image_url); addUrl(row.result_image_url);
+          if (Array.isArray(row.versions)) row.versions.forEach(addUrl);
+        }))
         .catch(() => {});
 
       // special_requests
@@ -2473,13 +2539,9 @@ export async function registerRoutes(
       try {
         const result = await pollCollovAgentResult(uuid);
         if (result.status === "completed" && result.resultUrl) {
-          // Download + save locally + R2 so URL persists beyond Collov CDN TTL
-          let persistUrl = result.resultUrl;
-          try {
-            persistUrl = await sharpenAndSaveVst(result.resultUrl, agentDesignId);
-          } catch (saveErr: any) {
-            log(`AgentDesign ${agentDesignId}: R2/local save failed (fallback to Collov URL): ${saveErr?.message}`);
-          }
+          // A provider URL is temporary. Do not mark this as completed until
+          // the customer-visible result has been durably copied to R2.
+          const persistUrl = await sharpenAndSaveVst(result.resultUrl, agentDesignId);
           await storage.updateAgentDesign(agentDesignId, { status: "completed", resultImageUrl: persistUrl });
           log(`AgentDesign ${agentDesignId} completed`);
           return;
@@ -3382,10 +3444,10 @@ export async function registerRoutes(
     } catch { return false; }
   }
 
-  async function localizeRemoteVideo(url: string): Promise<string | null> {
+  async function localizeRemoteVideo(url: string): Promise<string> {
     if (!isTrustedVideoHost(url)) {
       console.error(`[case-video] afvist: ikke-godkendt videovært — ${url.slice(0, 120)}`);
-      return null;
+      throw new Error("Videoen kom fra en ikke-godkendt vært");
     }
     const filename = `case-video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
     const localFilePath = path.join(uploadDir, filename);
@@ -3402,64 +3464,18 @@ export async function registerRoutes(
       }
       const size = fs.statSync(localFilePath).size;
       if (size < 10_000) throw new Error(`downloaded file too small (${size} bytes)`);
-      log(`[case-video] localized ${url.slice(0, 80)}… → /uploads/${filename} (${Math.round(size / 1024)} KB)`);
-      r2UploadFile(localFilePath).catch((e: any) => log(`[R2] Upload failed for ${filename}: ${e?.message}`));
+      await r2UploadFile(localFilePath);
+      log(`[case-video] durably localized ${url.slice(0, 80)}… → /uploads/${filename} (${Math.round(size / 1024)} KB)`);
       return `/uploads/${filename}`;
     } catch (e: any) {
       try { fs.unlinkSync(localFilePath); } catch {}
-      console.error(`[case-video] kunne ikke downloade video (gemmer eksternt link i stedet): ${e?.message} — ${url.slice(0, 120)}`);
-      return null;
+      throw new Error(`Kunne ikke gemme videoen sikkert: ${e?.message || "ukendt fejl"}`);
     }
   }
 
   const isRemoteVideoUrl = (u: unknown, roomType?: string): u is string =>
     typeof u === "string" && /^https?:\/\//i.test(u) &&
     (/\.mp4(\?|$)/i.test(u) || /video/i.test(roomType || ""));
-
-  const videoTypesMarkedOnSave = new Set(["transform-video", "magic-transform"]);
-  const supportedVideoBadgeLanguages = new Set(["da", "en", "sv", "de", "nb", "no", "es", "fr"]);
-
-  // The generated video stays completely clean while it is being previewed.
-  // Saving it to a case creates a separate delivery copy with the same visual
-  // AI badge and XMP/C2PA-compatible transparency data as saved AI images.
-  const prepareSavedVideoTransparencyCopy = async (
-    imageUrl: string,
-    roomType: unknown,
-    requestedLanguage: unknown,
-  ): Promise<string> => {
-    if (!videoTypesMarkedOnSave.has(String(roomType)) || !imageUrl.startsWith("/uploads/")) return imageUrl;
-    const filename = path.basename(imageUrl);
-    if (!filename.toLowerCase().endsWith(".mp4")) return imageUrl;
-
-    const languageBase = typeof requestedLanguage === "string"
-      ? requestedLanguage.split("-")[0].toLowerCase()
-      : "da";
-    const language = supportedVideoBadgeLanguages.has(languageBase) ? languageBase : "da";
-    const sourcePath = path.join(uploadDir, filename);
-    if (!fs.existsSync(sourcePath)) {
-      throw new Error("Videoen kunne ikke findes til AI-mærkning");
-    }
-
-    const stem = path.basename(filename, ".mp4");
-    const outputFilename = `${stem}-ai-act-${language}.mp4`;
-    const outputPath = path.join(uploadDir, outputFilename);
-    if (!fs.existsSync(outputPath)) {
-      const temporaryPath = path.join(uploadDir, `${stem}-ai-act-${language}-${crypto.randomUUID()}.tmp.mp4`);
-      try {
-        await burnEuWatermark(sourcePath, temporaryPath, language);
-        const markedVideo = injectXmpIntoMp4(
-          fs.readFileSync(temporaryPath),
-          buildEuXmpPacket("c2pa.modified", "Transform Video"),
-        );
-        fs.writeFileSync(outputPath, markedVideo);
-        r2UploadFile(outputPath).catch((e: any) => log(`[R2] Saved AI video upload failed: ${e?.message}`));
-        log(`[Video] Saved EU transparency copy → /uploads/${outputFilename}`);
-      } finally {
-        fs.unlink(temporaryPath, () => {});
-      }
-    }
-    return `/uploads/${outputFilename}`;
-  };
 
   app.post("/api/bolig/cases/:id/images", async (req, res) => {
     try {
@@ -3473,24 +3489,22 @@ export async function registerRoutes(
       const {
         imageUrl, originalImageUrl,
         roomType, style, budgetTier,
-        promptText, isDesignAgent, language,
+        promptText, isDesignAgent,
       } = req.body || {};
       if (!imageUrl) return res.status(400).json({ message: "imageUrl required" });
 
       // Persist provider-hosted videos (Rendy/fal) on our own storage so they
       // remain playable in the case folder even if the provider deletes them.
-      let finalImageUrl: string = await prepareSavedVideoTransparencyCopy(imageUrl, roomType, language);
+      let finalImageUrl: string = imageUrl;
       let finalOriginalUrl: string | null = originalImageUrl || null;
       if (isRemoteVideoUrl(imageUrl, roomType)) {
         const local = await localizeRemoteVideo(imageUrl);
-        if (local) {
-          finalImageUrl = local;
-          if (finalOriginalUrl === imageUrl) finalOriginalUrl = local;
-        }
+        finalImageUrl = local;
+        if (finalOriginalUrl === imageUrl) finalOriginalUrl = local;
       }
       if (finalOriginalUrl && finalOriginalUrl !== finalImageUrl && isRemoteVideoUrl(finalOriginalUrl, roomType)) {
         const localOrig = await localizeRemoteVideo(finalOriginalUrl);
-        if (localOrig) finalOriginalUrl = localOrig;
+        finalOriginalUrl = localOrig;
       }
 
       const img = await storage.createGeneratedImage({
@@ -4016,10 +4030,20 @@ export async function registerRoutes(
         return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes — prøv igen om lidt" });
       }
 
-      // Resultatet serveres KUN gennem proxy'en med demo-vandmærke
+      // Persist the generated pixels before success. Return the durable path
+      // directly rather than issuing a server-side request to a caller-supplied
+      // host just to apply a demo watermark.
+      let durableResultUrl: string;
+      try {
+        durableResultUrl = await sharpenAndSaveVst(collovImageUrl, Date.now());
+      } catch (persistErr: any) {
+        await storage.demoRateRefund(ipHash).catch(() => {});
+        log(`[Demo] durable save failed: ${persistErr?.message}`);
+        return res.status(502).json({ success: false, message: "Kunne ikke gemme resultatet sikkert — prøv igen" });
+      }
       return res.json({
         success: true,
-        image_url: `/api/proxy-image?url=${encodeURIComponent(collovImageUrl)}&demo=1`,
+        image_url: durableResultUrl,
         original_url: `/uploads/${req.file.filename}`,
       });
     } catch (err: any) {
@@ -4087,7 +4111,7 @@ export async function registerRoutes(
       if (!fs.existsSync(logosDir)) fs.mkdirSync(logosDir, { recursive: true });
       const filename = `logo-user-${user.id}.png`;
       fs.writeFileSync(path.join(logosDir, filename), logoBuf);
-      if (isR2Configured()) r2Upload(`logos/${filename}`, logoBuf, "image/png").catch(() => {});
+      await r2Upload(`logos/${filename}`, logoBuf, "image/png");
 
       const logoUrl = `/uploads/logos/${filename}`;
       await pool.query("UPDATE users SET agency_logo_url = $1 WHERE id = $2", [logoUrl, user.id]);
@@ -4292,35 +4316,6 @@ export async function registerRoutes(
       }
       log(`[BoligPotentiale] prompt OK (lås verificeret + strukturbeskyttelse): ${prompt.slice(0, 120)}…`);
 
-      if (isLoadTestMode()) {
-        const generated = await storage.createGeneratedImage({
-          userId: authedUserId,
-          caseId: (caseId && !isNaN(caseId)) ? caseId : null,
-          isQuickGeneration: isQuickGeneration || !caseId,
-          isDesignAgent,
-          isRefinement,
-          sourceImageId: isRefinement && sourceCaseImageId ? sourceCaseImageId : null,
-          imageUrl: originalForRecord,
-          originalImageUrl: originalForRecord,
-          roomType: room,
-          style,
-          budgetTier: isDesignAgent ? "0" : tier,
-          promptText: isDesignAgent ? customPromptText : prompt,
-          generationTimeMs: 0,
-          createdDate: new Date().toISOString().slice(0, 10),
-        });
-        const response = {
-          success: true,
-          image_url: originalForRecord,
-          original_url: originalForRecord,
-          processing_time: 0,
-          prompt_used: prompt,
-          generation_id: generated.id,
-        };
-        fs.promises.unlink(path.join(uploadDir, req.file!.filename)).catch(() => {});
-        return res.json(response);
-      }
-
       // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
       // 2 retries med 10s mellem forsøg.
       const maxRetries = 2;
@@ -4418,7 +4413,7 @@ export async function registerRoutes(
                 .jpeg({ quality: 92 })
                 .toFile(outPath);
               fs.unlink(tmpAbsPath, () => {});
-              if (isR2Configured()) r2Upload(outName, fs.readFileSync(outPath), "image/jpeg").catch(() => {});
+              await r2UploadFile(outPath);
               collovImageUrl = `/uploads/${outName}`;
             }
           }
@@ -4427,7 +4422,11 @@ export async function registerRoutes(
         }
       }
 
-      // Ingen download eller konvertering — gem Collovs CDN URL direkte (samme som AI Design Agent).
+      // Persist every generated result before it reaches generated_images.
+      // Provider CDN URLs can expire and Render's disk is not durable.
+      if (!collovImageUrl.startsWith("/uploads/")) {
+        collovImageUrl = await sharpenAndSaveVst(collovImageUrl, Date.now());
+      }
       const processingTimeMs = Date.now() - startTime;
       const processingTime = Math.round(processingTimeMs / 1000);
 
@@ -4515,14 +4514,12 @@ export async function registerRoutes(
       }
 
       if (isLoadTestMode()) {
-        const response = {
+        return res.json({
           success: true,
           image_url: `/uploads/${req.file.filename}`,
           source_url: `/uploads/${req.file.filename}`,
           processing_time: 0,
-        };
-        fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
-        return res.json(response);
+        });
       }
 
       const localPath = path.join(uploadDir, req.file.filename);
@@ -4537,6 +4534,7 @@ export async function registerRoutes(
       let imgHeight = 0;
       try {
         const pre = await preprocessFloorplanToDisk(localPath, uploadDir);
+        await r2UploadFile(path.join(uploadDir, pre.filename));
         inputUrl = `${protocol}://${host}/uploads/${pre.filename}`;
         imgWidth = pre.width;
         imgHeight = pre.height;
@@ -4579,12 +4577,14 @@ export async function registerRoutes(
           const fpFilename = `floorplan-3d-${Date.now()}.jpg`;
           const fpLocalPath = path.join(uploadDir, fpFilename);
           fs.writeFileSync(fpLocalPath, fpWithMeta);
-          r2UploadFile(fpLocalPath).catch((e: any) => log(`[R2] 3D floorplan upload failed: ${e?.message}`));
+          await r2UploadFile(fpLocalPath);
           imageUrl = `/uploads/${fpFilename}`;
-          log(`[3D] saved locally with XMP APP1 metadata → ${imageUrl}`);
+          log(`[3D] durably saved with XMP APP1 metadata → ${imageUrl}`);
+        } else {
+          throw new Error("3D floorplan result was unexpectedly small");
         }
       } catch (e: any) {
-        log(`[3D] local XMP save failed, fallback to fal url: ${e.message}`);
+        throw new Error(`Kunne ikke gemme 3D-plantegningen sikkert: ${e.message}`);
       }
 
       return res.json({
@@ -4664,7 +4664,7 @@ export async function registerRoutes(
       });
       const size = fs.statSync(localFilePath).size;
       if (size < 500) { fs.unlinkSync(localFilePath); return res.status(422).json({ message: "For lille fil" }); }
-      r2UploadFile(localFilePath).catch((e: any) => log(`[R2] localize-image upload failed: ${e?.message}`));
+      await r2UploadFile(localFilePath);
       return res.json({ localUrl: `/uploads/${filename}` });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
@@ -4696,7 +4696,7 @@ export async function registerRoutes(
         if (size < 1000) throw new Error(`GLB for lille (${size} bytes)`);
         fs.renameSync(tmpPath, localFilePath);
         log(`[Tripo3D] GLB lokaliseret → /uploads/${filename} (${Math.round(size / 1024 / 1024 * 10) / 10} MB)`);
-        r2UploadFile(localFilePath).catch((e: any) => log(`[R2] tripo GLB upload fejlede: ${e?.message}`));
+        await r2UploadFile(localFilePath);
         return `/uploads/${filename}`;
       } catch (e) {
         try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
@@ -4938,15 +4938,18 @@ export async function registerRoutes(
       }
       const result = await getAnimationVideoStatus(requestId);
       if (result.status === "COMPLETED" && result.videoUrl) {
+        const localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
+        log(`[Video] persisted → ${localVideoUrl}`);
+        // Re-upload the final watermark bytes before the video is reported complete.
+        const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
+        const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+        const wmLang = String(req.query.lang || "da");
+        await burnEuWatermark(rawMp4, wmTmp, wmLang);
+        fs.renameSync(wmTmp, rawMp4);
+        await r2UploadFile(rawMp4);
         transformVideoRefunds.delete(requestId);
         storage.completeVideoJob(requestId).catch(() => {});
-        let localVideoUrl = result.videoUrl;
-        try {
-          localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
-          log(`[Video] persisted → ${localVideoUrl}`);
-        } catch (e: any) {
-          log(`[Video] persist failed (using fal url): ${e.message}`);
-        }
+        log(`[Video] EU Art.50 watermark durably saved → ${localVideoUrl}`);
         return res.json({ success: true, status: "COMPLETED", video_url: localVideoUrl });
       }
       if (result.status === "FAILED") {
@@ -5018,15 +5021,16 @@ export async function registerRoutes(
       const { requestId } = req.params;
       const result = await getMagicTransformStatus(requestId);
       if (result.status === "COMPLETED" && result.videoUrl) {
+        const localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
+        log(`[MagicTransform] persisted → ${localVideoUrl}`);
+        const rawMp4 = path.join(uploadDir, path.basename(localVideoUrl));
+        const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+        await burnEuWatermark(rawMp4, wmTmp, String(req.query.lang || "da"));
+        fs.renameSync(wmTmp, rawMp4);
+        await r2UploadFile(rawMp4);
         magicTransformRefunds.delete(requestId);
         storage.completeVideoJob(requestId).catch(() => {});
-        let localVideoUrl = result.videoUrl;
-        try {
-          localVideoUrl = await downloadToUploads(result.videoUrl, uploadDir, ".mp4");
-          log(`[MagicTransform] persisted → ${localVideoUrl}`);
-        } catch (e: any) {
-          log(`[MagicTransform] persist failed (using fal url): ${e.message}`);
-        }
+        log(`[MagicTransform] EU Art.50 watermark durably saved`);
         return res.json({ success: true, status: "COMPLETED", video_url: localVideoUrl });
       }
       if (result.status === "FAILED") {
@@ -5097,8 +5101,6 @@ export async function registerRoutes(
         if (Array.isArray(rawVfx)) vfxKeys = rawVfx.map((k) => (typeof k === "string" && k ? k : null));
       } catch { /* ignore malformed */ }
 
-      // Preserve multipart parsing, authentication and quota admission while
-      // replacing only the Rendy provider submission with the local queue.
       if (isLoadTestMode()) {
         const jobId = startShowcaseVideo(filePaths, uploadDir, address, undefined, undefined, undefined, "clean", ["calm"]);
         if (!jobId) {
@@ -5227,7 +5229,7 @@ export async function registerRoutes(
       // each Rendy CDN video after generation. Rendy stores the address as listing
       // metadata (shown in their dashboard) but does NOT render it as visible text
       // in the video — that requires our own FFmpeg pass via burnShowcaseOverlays.
-      // Falls back to original CDN URLs if burning fails so users still get videos.
+      // A finished case must not retain a temporary provider CDN URL.
       const showcaseAddress = address || undefined;
       const onVideosReady = showcaseAddress
         ? async (videos: import("./rendy").RendyVideo[]) => {
@@ -5235,19 +5237,14 @@ export async function registerRoutes(
             return Promise.all(
               videos.map(async (v) => {
                 if (!v.url) return v;
-                try {
-                  const localUrl = await downloadToUploads(v.url, uploadDir, ".mp4");
-                  const rawMp4 = path.join(uploadDir, path.basename(localUrl));
-                  const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-                  await burnShowcaseOverlays(rawMp4, wmTmp, showcaseLang, undefined, showcaseAddress);
-                  fs.renameSync(wmTmp, rawMp4);
-                  r2UploadFile(rawMp4).catch(() => {});
-                  log(`[Showcase] overlay burned → ${localUrl}`);
-                  return { ...v, url: localUrl };
-                } catch (e: any) {
-                  log(`[Showcase] overlay burn failed (falling back to CDN URL): ${e.message}`);
-                  return v;
-                }
+                const localUrl = await downloadToUploads(v.url, uploadDir, ".mp4");
+                const rawMp4 = path.join(uploadDir, path.basename(localUrl));
+                const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
+                await burnShowcaseOverlays(rawMp4, wmTmp, showcaseLang, undefined, showcaseAddress);
+                fs.renameSync(wmTmp, rawMp4);
+                await r2UploadFile(rawMp4);
+                log(`[Showcase] overlay durably saved → ${localUrl}`);
+                return { ...v, url: localUrl };
               })
             );
           }
@@ -6196,10 +6193,8 @@ export async function registerRoutes(
       }
 
       // Persist generated images locally + R2 so they survive Collov CDN expiry
-      const persistCollov = async (url: string, suffix: number): Promise<string> => {
-        try { return await sharpenAndSaveVst(url, roomId * 1000 + suffix); }
-        catch (e: any) { log(`[ai-tour] R2 save failed (fallback): ${e?.message}`); return url; }
-      };
+      const persistCollov = (url: string, suffix: number): Promise<string> =>
+        sharpenAndSaveVst(url, roomId * 1000 + suffix);
       if (after1) after1 = await persistCollov(after1, 1);
       if (after2) after2 = await persistCollov(after2, 2);
 
@@ -6242,7 +6237,7 @@ export async function registerRoutes(
       if (prop.floorplanUrl.startsWith("http")) {
         falInputUrl = prop.floorplanUrl;
       } else {
-        const localPath = path.join(uploadDir, path.basename(prop.floorplanUrl));
+        const localPath = await ensureLocalUpload(prop.floorplanUrl);
         const ext = path.extname(localPath).toLowerCase();
         const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
         falInputUrl = await uploadToFal(localPath, mime);
@@ -6255,7 +6250,8 @@ export async function registerRoutes(
         storage.refundQuota(user.id, "floorPlan").catch(() => {});
         throw e;
       }
-      const updated = await storage.updateAiTourProperty(id, user.id, { threedPlanUrl: imageUrl });
+      const durableImageUrl = await sharpenAndSaveVst(imageUrl, id * 1_000_000 + Date.now() % 1_000_000);
+      const updated = await storage.updateAiTourProperty(id, user.id, { threedPlanUrl: durableImageUrl });
       return res.json(updated);
     } catch (err: any) {
       log(`[ai-tour] 3d plan error: ${err.message}`);
@@ -6386,9 +6382,13 @@ export async function registerRoutes(
         const failed = settled.length - synthetic.length;
         if (failed > 0) log(`[ai-tour] panorama room=${room.name}: ${failed} synthetic anchor(s) failed — proceeding with what we have`);
 
-        // Cache successful synthetic angles so panorama-regenerations don't pay again.
+        // Cache only durable copies. The remote Collov links are still used for
+        // this in-flight panorama request, but are never written to the case.
         if (synthetic.length > 0) {
-          await storage.updateAiTourRoom(roomId, user.id, { syntheticAngleUrls: synthetic } as any);
+          const durableSynthetic = await Promise.all(
+            synthetic.map((url, index) => sharpenAndSaveVst(url, roomId * 10_000 + index)),
+          );
+          await storage.updateAiTourRoom(roomId, user.id, { syntheticAngleUrls: durableSynthetic } as any);
         }
       }
 
@@ -6397,10 +6397,11 @@ export async function registerRoutes(
       const { generate360Panorama } = await import("./fal");
       log(`[ai-tour] generate panorama room=${room.name} style=${styleLabel} anchors=${allAnchors.length} (real=${realAnchors.length}, synth=${synthetic.length})`);
       const { imageUrl } = await generate360Panorama(allAnchors, room.name, styleLabel, archFactsForPanorama);
+      const durablePanoramaUrl = await sharpenAndSaveVst(imageUrl, roomId * 1_000_000 + Date.now() % 1_000_000);
 
       const anchorMeta = { real: realAnchors.length, synthetic: synthetic.length, total: allAnchors.length };
       const updated = await storage.updateAiTourRoom(roomId, user.id, {
-        panoramaUrl: imageUrl,
+        panoramaUrl: durablePanoramaUrl,
         panoramaAnchors: anchorMeta,
       } as any);
       return res.json(updated);

@@ -1542,17 +1542,10 @@ async function assembleVideo(
     for (const f of tmpFiles) fs.promises.unlink(f).catch(() => {});
   }
 
-  // Upload til R2 og slet derefter fra Render-disk (sparer diskplads).
-  // Filen serveres fremover via R2-fallback i /uploads-middlewaren.
-  // Fejler R2, beholdes den lokale kopi som fallback.
-  if (isR2Configured()) {
-    try {
-      await r2UploadFile(outPath);
-      fs.promises.unlink(outPath).catch(() => {});
-    } catch (err: any) {
-      console.warn(`[showcase] R2 upload fejlede for ${filename} — beholder lokal kopi:`, err?.message);
-    }
-  }
+  // A completed showcase is never published until R2 has acknowledged it.
+  // The local file is only a transient working copy on Render.
+  await r2UploadFile(outPath);
+  fs.promises.unlink(outPath).catch(() => {});
   return `/uploads/${filename}`;
 }
 

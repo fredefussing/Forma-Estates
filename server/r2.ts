@@ -1,9 +1,9 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Readable } from "stream";
 import path from "path";
 import fs from "fs";
 import { isLoadTestMode } from "./load-test";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 
 function makeClient(): S3Client | null {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
@@ -26,9 +26,15 @@ export function isR2Configured(): boolean {
 
 const bucket = () => process.env.R2_BUCKET_NAME || "forma-billeder";
 
-export async function r2Upload(key: string, body: Buffer, contentType: string): Promise<void> {
+function requireR2Configuration(): S3Client {
   const client = makeClient();
-  if (!client) throw new Error("R2 not configured");
+  if (!client || !process.env.R2_BUCKET_NAME) {
+    throw new Error("Durable media storage is not configured. Set all R2_* variables before accepting customer media.");
+  }
+  return client;
+}
+export async function r2Upload(key: string, body: Buffer, contentType: string): Promise<void> {
+  const client = requireR2Configuration();
   await client.send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: body, ContentType: contentType }));
 }
 
@@ -43,6 +49,17 @@ export async function r2GetStream(key: string): Promise<Readable | null> {
   }
 }
 
+export async function r2ObjectExists(key: string): Promise<boolean> {
+  const client = requireR2Configuration();
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
+    return true;
+  } catch (error: any) {
+    const code = error?.$metadata?.httpStatusCode;
+    if (code === 404 || error?.name === "NotFound") return false;
+    throw error;
+  }
+}
 function mimeForExt(ext: string): string {
   if (ext === ".png") return "image/png";
   if (ext === ".webp") return "image/webp";
@@ -66,26 +83,31 @@ export function createR2MulterStorage(uploadDir: string): any {
       file.stream.on("data", (chunk: Buffer) => chunks.push(chunk));
       file.stream.on("error", (err: Error) => cb(err));
       file.stream.on("end", async () => {
-        const buffer = Buffer.concat(chunks);
-        // Always write to local disk so downstream processing (fal upload, crop, etc.) works
-        try { fs.writeFileSync(localPath, buffer); } catch { /* non-fatal */ }
+        try {
+          const buffer = Buffer.concat(chunks);
+          // Keep a local working copy for downstream transformations, but do not
+          // hand the request to a route until the durable copy has been accepted.
+          fs.writeFileSync(localPath, buffer);
+          // The capacity harness runs only under NODE_ENV=test and deliberately
+          // avoids external writes. Every real customer upload waits for R2.
+          if (!isLoadTestMode()) {
+            await r2Upload(filename, buffer, file.mimetype || mimeForExt(path.extname(filename)));
+          }
 
-        // Upload to R2 (non-blocking — local disk copy handles immediate needs)
-        if (isR2Configured() && !isLoadTestMode()) {
-          r2Upload(filename, buffer, file.mimetype || mimeForExt(path.extname(filename)))
-            .catch((err) => console.warn("[R2] Upload failed (falling back to disk):", err?.message));
+          cb(null, {
+            fieldname: file.fieldname,
+            originalname: file.originalname,
+            encoding: file.encoding,
+            mimetype: file.mimetype,
+            destination: uploadDir,
+            filename,
+            path: localPath,
+            size: buffer.length,
+          });
+        } catch (error) {
+          fs.promises.unlink(localPath).catch(() => {});
+          cb(error);
         }
-
-        cb(null, {
-          fieldname: file.fieldname,
-          originalname: file.originalname,
-          encoding: file.encoding,
-          mimetype: file.mimetype,
-          destination: uploadDir,
-          filename,
-          path: localPath,
-          size: buffer.length,
-        });
       });
     },
     _removeFile: (_req: any, file: any, cb: Function) => {
@@ -162,11 +184,8 @@ export function r2GetPublicUrl(key: string): string | null {
 // Upload a local file to R2 som en stream med ContentLength.
 // ContentLength er KRITISK — uden den bufferer AWS SDK hele filen i RAM.
 // Kaster fejl ved fejl — kalder skal selv catch/warn.
-export async function r2UploadFile(localPath: string): Promise<void> {
-  if (!isR2Configured()) return;
-  const client = makeClient();
-  if (!client) return;
-  const key = path.basename(localPath);
+export async function r2UploadFile(localPath: string, key = path.basename(localPath)): Promise<void> {
+  const client = requireR2Configuration();
   const ext = path.extname(localPath).toLowerCase();
   const contentType = mimeForExt(ext);
   const contentLength = fs.statSync(localPath).size;

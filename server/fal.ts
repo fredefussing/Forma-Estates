@@ -115,7 +115,8 @@ export async function uploadVideoPairToFal(
   ]);
 
   if (opts?.uploadDir && opts?.publicBaseUrl) {
-    // Gem til disk (+ R2 non-blocking) og returner vores egne public URL'er.
+    // Persist the normalized pair before giving the model URLs that must
+    // survive a restart while its job is in flight.
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const beforeName = `film-pair-${stamp}-b.jpg`;
     const afterName  = `film-pair-${stamp}-a.jpg`;
@@ -123,10 +124,10 @@ export async function uploadVideoPairToFal(
     const afterLocal  = path.join(opts.uploadDir, afterName);
     fs.writeFileSync(beforeLocal, Buffer.from(beforeBuf));
     fs.writeFileSync(afterLocal,  Buffer.from(afterBuf));
-    // Upload til R2 non-blocking — sørger for at billederne overlever en redeploy
-    // hvis Seedance tager lang tid og vi restarter serveren undervejs (sjælden).
-    r2UploadFile(beforeLocal).catch(() => {});
-    r2UploadFile(afterLocal).catch(() => {});
+    await Promise.all([
+      r2UploadFile(beforeLocal),
+      r2UploadFile(afterLocal),
+    ]);
     const base = opts.publicBaseUrl.replace(/\/$/, "");
     return {
       beforeUrl: `${base}/uploads/${beforeName}`,
@@ -935,7 +936,8 @@ export async function downloadToFile(remoteUrl: string, destPath: string): Promi
   await pipeline(Readable.fromWeb(resp.body as any), fs.createWriteStream(destPath));
 }
 
-// Download a remote URL (e.g. fal-hosted mp4) to local /uploads and return /uploads/<file>.
+// Download a remote URL (e.g. fal-hosted mp4), persist it to R2, then return
+// the stable /uploads/<file> route. It throws when durable storage fails.
 export async function downloadToUploads(
   remoteUrl: string,
   uploadDir: string,
@@ -944,6 +946,6 @@ export async function downloadToUploads(
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
   const full = path.join(uploadDir, filename);
   await downloadToFile(remoteUrl, full); // streamer til disk, ingen buffer i RAM
-  r2UploadFile(full).catch(() => {});
+  await r2UploadFile(full);
   return `/uploads/${filename}`;
 }

@@ -176,10 +176,7 @@ async function renderTour(
         tempClips.push(dest);
         // Persistér klippet på rummet med det samme, så den interaktive viser
         // kan afspille færdige rum mens resten stadig genereres.
-        if (isR2Configured()) {
-          try { await r2UploadFile(dest); fs.promises.unlink(dest).catch(() => {}); }
-          catch (e: any) { console.warn(`[GuidedTour] R2 upload fejlede for ${base}:`, e?.message); }
-        }
+        await r2UploadFile(dest);
         await storage.updateAiTourRoom(room.roomId, userId, { videoUrl: `/uploads/${base}` } as any);
         done++;
         setProgress(jobId, { stage: "generating", currentClip: done, totalClips: total, message: `Laver rundvisningsklip ${done}/${total}…` });
@@ -221,10 +218,9 @@ async function renderTour(
       finalPath,
     ]);
 
-    if (isR2Configured()) {
-      try { await r2UploadFile(finalPath); fs.promises.unlink(finalPath).catch(() => {}); }
-      catch (e: any) { console.warn(`[GuidedTour] R2 upload fejlede for ${finalBase}:`, e?.message); }
-    }
+    await r2UploadFile(finalPath);
+    fs.promises.unlink(finalPath).catch(() => {});
+    for (const clip of tempClips) fs.promises.unlink(clip).catch(() => {});
     const tourVideoUrl = `/uploads/${finalBase}`;
     await storage.updateAiTourProperty(propertyId, userId, { tourVideoUrl, tourStatus: "done" } as any);
 
