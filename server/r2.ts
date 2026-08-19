@@ -3,6 +3,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Readable } from "stream";
 import path from "path";
 import fs from "fs";
+import { isLoadTestMode } from "./load-test";
 
 function makeClient(): S3Client | null {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
@@ -70,7 +71,7 @@ export function createR2MulterStorage(uploadDir: string): any {
         try { fs.writeFileSync(localPath, buffer); } catch { /* non-fatal */ }
 
         // Upload to R2 (non-blocking — local disk copy handles immediate needs)
-        if (isR2Configured()) {
+        if (isR2Configured() && !isLoadTestMode()) {
           r2Upload(filename, buffer, file.mimetype || mimeForExt(path.extname(filename)))
             .catch((err) => console.warn("[R2] Upload failed (falling back to disk):", err?.message));
         }

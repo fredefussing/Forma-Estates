@@ -9,6 +9,7 @@ import { startDripScheduler } from "./drip";
 import { storage } from "./storage";
 import { ensureRendyJobsTable } from "./rendy";
 import { assertLockFileIntegrity } from "./promptGuard";
+import { isLoadTestMode } from "./load-test";
 
 const app = express();
 const httpServer = createServer(app);
@@ -270,40 +271,44 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
 
-      // On boot: refund any video jobs that were still 'pending' from before the
-      // last restart (in-memory maps were cleared; DB is the source of truth).
-      storage.getStuckVideoJobs(30 * 60 * 1000).then(async (stuck) => {
-        if (stuck.length > 0) log(`[Boot] Refunding ${stuck.length} stuck video job(s) from previous boot`);
-        for (const job of stuck) {
-          for (let i = 0; i < job.refundCount; i++) {
-            await storage.refundQuota(job.userId, job.feature as any).catch(() => {});
+      // The capacity harness runs fully local and must not mutate/refund
+      // background production work or call external providers.
+      if (!isLoadTestMode()) {
+        // On boot: refund any video jobs that were still 'pending' from before the
+        // last restart (in-memory maps were cleared; DB is the source of truth).
+        storage.getStuckVideoJobs(30 * 60 * 1000).then(async (stuck) => {
+          if (stuck.length > 0) log(`[Boot] Refunding ${stuck.length} stuck video job(s) from previous boot`);
+          for (const job of stuck) {
+            for (let i = 0; i < job.refundCount; i++) {
+              await storage.refundQuota(job.userId, job.feature as any).catch(() => {});
+            }
+            await storage.failVideoJob(job.requestId).catch(() => {});
           }
-          await storage.failVideoJob(job.requestId).catch(() => {});
-        }
-      }).catch(() => {});
+        }).catch(() => {});
 
-      // Start system tracker (isolated background loops)
-      setTimeout(() => startTracker(), 5000);
+        // Start system tracker (isolated background loops)
+        setTimeout(() => startTracker(), 5000);
 
-      // Onboarding-drip: dagligt sweep for dag-2/dag-5 mails
-      startDripScheduler();
+        // Onboarding-drip: dagligt sweep for dag-2/dag-5 mails
+        startDripScheduler();
 
-      // Pre-warm Collov GPU models 10s after start
-      setTimeout(async () => {
-        try {
-          log("[Pre-warm] Warming Collov models...");
-          const form = new FormData();
-          form.append("uploadUrl", "https://example.com/dummy.jpg");
-          await fetch("https://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom", {
-            method: "POST",
-            headers: { apiKey: process.env.COLLOV_API_KEY || "" },
-            body: form,
-          });
-          log("[Pre-warm] Done");
-        } catch {
-          log("[Pre-warm] Done (expected error)");
-        }
-      }, 10_000);
+        // Pre-warm Collov GPU models 10s after start
+        setTimeout(async () => {
+          try {
+            log("[Pre-warm] Warming Collov models...");
+            const form = new FormData();
+            form.append("uploadUrl", "https://example.com/dummy.jpg");
+            await fetch("https://api.collov.ai/flair/enterpriseApi/vst/generateEmptyRoom", {
+              method: "POST",
+              headers: { apiKey: process.env.COLLOV_API_KEY || "" },
+              body: form,
+            });
+            log("[Pre-warm] Done");
+          } catch {
+            log("[Pre-warm] Done (expected error)");
+          }
+        }, 10_000);
+      }
     },
   );
 })();

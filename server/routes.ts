@@ -22,13 +22,14 @@ import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStri
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
-import { startWalkthroughVideo, startTransformFilm, getShowcaseJob, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
 
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
 // to prevent API-key abuse and prompt-flooding.
+import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowcaseJob, getShowcaseQueueMetrics, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
+import { isLoadTestMode } from "./load-test";
 const chatRateMap = new Map<string, number[]>();
 function chatRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -182,7 +183,6 @@ const upload = multer({
 
 const COLLOV_API_KEY = process.env.COLLOV_API_KEY;
 const COLLOV_BASE = "https://api.collov.ai";
-
 
 
 // ── Room-type furniture hints — hjælper Collov forstå rumtypen ───────────────
@@ -726,7 +726,27 @@ export async function registerRoutes(
 
   app.get("/api/health/live-diag", (_req, res) => res.status(404).json({ message: "Not found" }));
 
-
+  // The capacity harness is the only consumer. This route cannot be
+  // registered in production because isLoadTestMode requires NODE_ENV=test.
+  if (isLoadTestMode()) {
+    app.get("/api/load-test/metrics", (_req, res) => {
+      const memory = process.memoryUsage();
+      return res.json({
+        queue: getShowcaseQueueMetrics(),
+        database: {
+          totalConnections: pool.totalCount,
+          idleConnections: pool.idleCount,
+          waitingRequests: pool.waitingCount,
+        },
+        memory: {
+          rssBytes: memory.rss,
+          heapUsedBytes: memory.heapUsed,
+          heapTotalBytes: memory.heapTotal,
+          externalBytes: memory.external,
+        },
+      });
+    });
+  }
 
 
   // One-time admin bootstrap — protected by ADMIN_PASSWORD, safe to leave in
@@ -791,7 +811,7 @@ export async function registerRoutes(
         const didAutoVerify = await storage.verifyUserEmail(user.id);
         user = { ...user, emailVerified: true };
         log(`[auth] Auto-verified email via provider claim: ${user.email} (didVerify=${didAutoVerify})`);
-        if (didAutoVerify) {
+        if (didAutoVerify && !isLoadTestMode()) {
           // Welcome email fires here (not at account creation) so the user
           // only receives it once they're actually inside the app.
           const autoVerifyLang = String(req.headers["x-lang"] || req.body?.lang || "da");
@@ -805,6 +825,24 @@ export async function registerRoutes(
       if (name && user.displayName !== name) {
         await storage.updateUser(user.id, { displayName: name });
         user = { ...user, displayName: name };
+      }
+
+      // Synthetic identities exist only in NODE_ENV=test. Mark them as admin
+      // so paid-feature quota checks execute without the harness needing plans.
+      if (isLoadTestMode() && (!user.isAdmin || !user.emailVerified)) {
+        await storage.updateUser(user.id, {
+          isAdmin: true,
+          emailVerified: true,
+          subscriptionStatus: "active",
+          subscriptionTier: "unlimited",
+        });
+        user = {
+          ...user,
+          isAdmin: true,
+          emailVerified: true,
+          subscriptionStatus: "active",
+          subscriptionTier: "unlimited",
+        };
       }
 
       // Super-admins are always elevated to full access on every login,
@@ -1176,7 +1214,7 @@ export async function registerRoutes(
 
       const tier = parsed.data.budget ? budgetToTier(parsed.data.budget) : undefined;
 
-      if (!COLLOV_API_KEY) {
+      if (!COLLOV_API_KEY && !isLoadTestMode()) {
         return res.status(500).json({ message: "API nøgle ikke konfigureret. Kontakt support.", errorCode: "api_key_missing" });
       }
 
@@ -4194,6 +4232,35 @@ export async function registerRoutes(
       }
       log(`[BoligPotentiale] prompt OK (lås verificeret + strukturbeskyttelse): ${prompt.slice(0, 120)}…`);
 
+      if (isLoadTestMode()) {
+        const generated = await storage.createGeneratedImage({
+          userId: authedUserId,
+          caseId: (caseId && !isNaN(caseId)) ? caseId : null,
+          isQuickGeneration: isQuickGeneration || !caseId,
+          isDesignAgent,
+          isRefinement,
+          sourceImageId: isRefinement && sourceCaseImageId ? sourceCaseImageId : null,
+          imageUrl: originalForRecord,
+          originalImageUrl: originalForRecord,
+          roomType: room,
+          style,
+          budgetTier: isDesignAgent ? "0" : tier,
+          promptText: isDesignAgent ? customPromptText : prompt,
+          generationTimeMs: 0,
+          createdDate: new Date().toISOString().slice(0, 10),
+        });
+        const response = {
+          success: true,
+          image_url: originalForRecord,
+          original_url: originalForRecord,
+          processing_time: 0,
+          prompt_used: prompt,
+          generation_id: generated.id,
+        };
+        fs.promises.unlink(path.join(uploadDir, req.file!.filename)).catch(() => {});
+        return res.json(response);
+      }
+
       // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
       // 2 retries med 10s mellem forsøg.
       const maxRetries = 2;
@@ -4361,7 +4428,7 @@ export async function registerRoutes(
     // Hoisted so the outer catch block can refund quota if generation fails
     let floorPlanUserId: number | null = null;
     try {
-      if (!isFalConfigured()) {
+      if (!isLoadTestMode() && !isFalConfigured()) {
         return res.status(500).json({ success: false, message: "FAL_KEY ikke konfigureret" });
       }
       if (!req.file) {
@@ -4385,6 +4452,17 @@ export async function registerRoutes(
         if (authErr?.status === 403) return res.status(403).json({ success: false, quotaExceeded: true, feature: authErr.feature, message: authErr.message });
         fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
         return res.status(401).json({ success: false, message: "Log ind for at generere 3D plantegninger." });
+      }
+
+      if (isLoadTestMode()) {
+        const response = {
+          success: true,
+          image_url: `/uploads/${req.file.filename}`,
+          source_url: `/uploads/${req.file.filename}`,
+          processing_time: 0,
+        };
+        fs.promises.unlink(path.join(uploadDir, req.file.filename)).catch(() => {});
+        return res.json(response);
       }
 
       const localPath = path.join(uploadDir, req.file.filename);
@@ -4980,6 +5058,22 @@ export async function registerRoutes(
         const rawVfx = typeof req.body?.vfxKeys === "string" ? JSON.parse(req.body.vfxKeys) : undefined;
         if (Array.isArray(rawVfx)) vfxKeys = rawVfx.map((k) => (typeof k === "string" && k ? k : null));
       } catch { /* ignore malformed */ }
+
+      // Preserve multipart parsing, authentication and quota admission while
+      // replacing only the Rendy provider submission with the local queue.
+      if (isLoadTestMode()) {
+        const jobId = startShowcaseVideo(filePaths, uploadDir, address, undefined, undefined, undefined, "clean", ["calm"]);
+        if (!jobId) {
+          if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
+          for (const filePath of filePaths) fs.promises.unlink(filePath).catch(() => {});
+          return res.status(429).json({ success: false, message: "Serveren er optaget lige nu. Prøv igen om lidt." });
+        }
+        if (showcaseUserId) {
+          showcaseVideoRefunds.set(jobId, showcaseUserId);
+          storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
+        }
+        return res.json({ success: true, job_id: jobId });
+      }
 
       // ── Rendy API key normalisation ──────────────────────────────────────────
       // Frontend stores human-readable keys (lowercase-with-dashes).

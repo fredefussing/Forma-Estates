@@ -5,6 +5,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { isFalConfigured, uploadToFal, generateShowcaseClip, generateDroneClip, generateWalkthroughClip, uploadVideoPairToFal, generateAnimationVideo, downloadToFile, selectCameraMove, CameraMove } from "./fal";
 import { r2UploadFile, isR2Configured } from "./r2";
+import { getLoadTestRenderDelayMs, isLoadTestMode } from "./load-test";
 
 // ===== BOLIG SHOWCASE VIDEO =====
 // Vertical (9:16) property reel. PRIMARY path: each photo becomes one real AI
@@ -66,6 +67,9 @@ const MAX_CONCURRENT = 1;  // 1 job ad gangen — FFmpeg + clip-downloads er tun
 const MAX_BACKLOG = 12; // active + queued
 let activeRenders = 0;
 const waiters: Array<() => void> = [];
+let rejectedRenders = 0;
+let completedRenders = 0;
+let failedRenders = 0;
 
 function acquireSlot(): Promise<void> {
   if (activeRenders < MAX_CONCURRENT) {
@@ -94,6 +98,23 @@ const H = 1920;
 const MAX_FFMPEG_SLOTS = 2;
 let _ffmpegSlots = 0;
 const _ffmpegQueue: Array<() => void> = [];
+let _loadTestFfmpegPeakRssBytes = 0;
+
+export function getShowcaseQueueMetrics() {
+  return {
+    active: activeRenders,
+    waiting: waiters.length,
+    maxConcurrent: MAX_CONCURRENT,
+    maxBacklog: MAX_BACKLOG,
+    rejected: rejectedRenders,
+    completed: completedRenders,
+    failed: failedRenders,
+    ffmpegActive: _ffmpegSlots,
+    ffmpegWaiting: _ffmpegQueue.length,
+    maxFfmpegSlots: MAX_FFMPEG_SLOTS,
+    loadTestFfmpegPeakRssBytes: _loadTestFfmpegPeakRssBytes,
+  };
+}
 
 function acquireFfmpegSlot(): Promise<void> {
   return new Promise(resolve => {
@@ -111,13 +132,27 @@ function runFfmpeg(args: string[]): Promise<void> {
   return acquireFfmpegSlot().then(
     () => new Promise<void>((resolve, reject) => {
       const proc = spawn("ffmpeg", args);
+      const sampleRss = () => {
+        if (!isLoadTestMode() || !proc.pid) return;
+        try {
+          const status = fs.readFileSync(`/proc/${proc.pid}/status`, "utf8");
+          const kb = Number.parseInt(status.match(/^VmRSS:\s+(\d+)\s+kB$/m)?.[1] ?? "0", 10);
+          _loadTestFfmpegPeakRssBytes = Math.max(_loadTestFfmpegPeakRssBytes, kb * 1024);
+        } catch { /* process may have exited between pid lookup and read */ }
+      };
+      sampleRss();
+      const sampler = isLoadTestMode() ? setInterval(sampleRss, 25) : undefined;
+      const finish = () => {
+        if (sampler) clearInterval(sampler);
+      };
       let stderr = "";
       proc.stderr.on("data", (d) => {
         stderr += d.toString();
         if (stderr.length > 8000) stderr = stderr.slice(-8000);
       });
-      proc.on("error", (err) => { releaseFfmpegSlot(); reject(err); });
+      proc.on("error", (err) => { finish(); releaseFfmpegSlot(); reject(err); });
       proc.on("close", (code) => {
+        finish();
         releaseFfmpegSlot();
         if (code === 0) resolve();
         else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
@@ -1528,6 +1563,35 @@ async function render(
     const emit = (p: ShowcaseProgress) => setProgress(jobId, p);
     emit({ stage: "uploading", currentClip: 0, totalClips: imagePaths.length, message: `Uploader ${imagePaths.length} billeder…` });
 
+    // The capacity harness exercises the production admission queue and one
+    // local full-frame encode, replacing only paid clips and full assembly.
+    if (isLoadTestMode()) {
+      const outputPath = path.join(outDir, `load-test-${jobId}.mp4`);
+      try {
+        // One short full-frame encode exercises the actual local CPU/RAM path
+        // without producing a paid clip or retaining a test video.
+        await runFfmpeg([
+          "-y", "-loop", "1", "-i", imagePaths[0],
+          "-t", "1", "-r", "30",
+          "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+          "-c:v", "libx264", "-pix_fmt", "yuv420p", outputPath,
+        ]);
+        await new Promise((resolve) => setTimeout(resolve, getLoadTestRenderDelayMs()));
+      } finally {
+        fs.promises.unlink(outputPath).catch(() => {});
+      }
+      const videoUrls = { synthetic: "/test-only/showcase.mp4" };
+      emit({ stage: "complete", currentClip: imagePaths.length, totalClips: imagePaths.length, message: "Syntetisk testvideo klar", videoUrls });
+      jobs.set(jobId, {
+        status: "completed",
+        videoUrls,
+        createdAt: Date.now(),
+        progress: { stage: "complete", currentClip: imagePaths.length, totalClips: imagePaths.length, message: "Syntetisk testvideo klar", videoUrls },
+      });
+      completedRenders++;
+      return;
+    }
+
     // Drone mode: activated when the caller supplies startText or endText.
     // Image[0] and image[1] are paired as Kling start+end-frame → ONE transition
     // clip. Images[2+] use the normal interior gimbal prompts.
@@ -1781,6 +1845,7 @@ export function startShowcaseVideo(
 ): string | null {
   pruneJobs();
   if (activeRenders + waiters.length >= MAX_BACKLOG) {
+    rejectedRenders++;
     return null;
   }
   const jobId = randomUUID();
@@ -1793,6 +1858,7 @@ export function startShowcaseVideo(
 
   render(jobId, imagePaths, outDir, address, startText, endText, mood, cutStyle, moods)
     .catch((err: any) => {
+      failedRenders++;
       const cur = jobs.get(jobId);
       jobs.set(jobId, {
         status: "failed",

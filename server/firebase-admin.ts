@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, cert, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getLoadTestIdentity } from "./load-test";
 
 // Accept tokens from both old and new Firebase project
 const ACCEPTED_PROJECTS = [
@@ -61,6 +62,8 @@ export async function verifyFirebaseToken(
     throw new Error("Ingen token");
   }
   const token = authHeader.split("Bearer ")[1];
+  const loadTestIdentity = getLoadTestIdentity(token);
+  if (loadTestIdentity) return loadTestIdentity;
 
   let lastError: unknown;
   for (const projectId of ACCEPTED_PROJECTS) {
