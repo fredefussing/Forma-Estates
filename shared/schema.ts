@@ -604,3 +604,38 @@ export const videoJobs = pgTable("video_jobs", {
 });
 
 export type VideoJob = typeof videoJobs.$inferSelect;
+
+// ── Rendy Voice-Over Projects ──────────────────────────────────────────────────
+// Persists each user-initiated voice-over project for a completed Rendy video.
+// Preparation (noise-reduction, STT) and export (mix + subtitle burn) run async.
+export const rendyVoiceProjects = pgTable("rendy_voice_projects", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  listingId: text("listing_id").notNull(),
+  sourceVideoId: text("source_video_id").notNull(),
+  // processing | review | exporting | ready | failed
+  status: text("status").notNull().default("processing"),
+  language: text("language").notNull().default("da"),
+  // Caption segments (JSONB: {id,start,end,text,hidden?}[])
+  segments: jsonb("segments"),
+  subtitlesEnabled: boolean("subtitles_enabled").notNull().default(true),
+  // Stable /uploads/<key> URLs
+  sourceUrl: text("source_url"),        // localized source video
+  audioUrl: text("audio_url"),          // cleaned/polished voice-over
+  outputUrl: text("output_url"),        // final mixed output
+  // Durability anchors — persisted immediately after the raw upload lands in R2
+  // so server restarts can re-derive everything without asking the client again.
+  sourceInputUrl: text("source_input_url"),  // validated original source URL (may be /uploads/ or HTTPS CDN)
+  rawAudioKey: text("raw_audio_key"),        // R2 key for the raw uploaded audio file
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),    // set when status transitions to ready
+  // Distributed lease — prevents duplicate work across Render instances / restarts.
+  // A worker atomically claims a row by writing a unique token + 5-min expiry.
+  leaseToken: text("lease_token"),
+  leaseExpiresAt: timestamp("lease_expires_at"),
+});
+
+export type RendyVoiceProject = typeof rendyVoiceProjects.$inferSelect;
+export type InsertRendyVoiceProject = typeof rendyVoiceProjects.$inferInsert;

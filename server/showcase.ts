@@ -129,6 +129,12 @@ function releaseFfmpegSlot(): void {
   if (next) next();
 }
 
+/** Wrapper around the bounded FFmpeg queue — exported for use by other modules.
+ *  Delegates to runFfmpeg (declared below) so load-test metrics are retained. */
+export function runFfmpegQueued(args: string[]): Promise<void> {
+  return runFfmpeg(args);
+}
+
 function runFfmpeg(args: string[]): Promise<void> {
   return acquireFfmpegSlot().then(
     () => new Promise<void>((resolve, reject) => {

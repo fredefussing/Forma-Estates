@@ -31,6 +31,7 @@ import { PaywallBanner, PaywallAction, PaywallPage } from "@/components/paywall-
 import { FloorplanTripo3DViewer } from "@/components/floorplan-tripo3d-viewer";
 import { TripoOrbitViewer } from "@/components/tripo-orbit-viewer";
 import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
+import { RendyVoiceoverEditor } from "@/components/rendy-voiceover-editor";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
   LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
@@ -4718,7 +4719,27 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [showcaseShowCaseDropdown, setShowcaseShowCaseDropdown] = useState(false);
   const showcaseDropdownRef = useRef<HTMLDivElement>(null);
   const showcaseResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showcaseResultStorageKey = user?.uid ? `forma-showcase-result:${user.uid}` : null;
   useEffect(() => () => { if (showcaseResetTimerRef.current) clearTimeout(showcaseResetTimerRef.current); }, []);
+  useEffect(() => {
+    setResultVideos([]);
+    setListingId(null);
+    localStorage.removeItem("forma-showcase-result");
+    if (!showcaseResultStorageKey) return;
+    try {
+      const raw = localStorage.getItem(showcaseResultStorageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { at: number; resultVideos: RendyVideo[]; listingId: string | null; ratio: "portrait" | "landscape" };
+      if (Date.now() - saved.at < 7 * 24 * 60 * 60 * 1000 && Array.isArray(saved.resultVideos)) {
+        setResultVideos(saved.resultVideos); setListingId(saved.listingId); if (saved.ratio) setRatio(saved.ratio);
+      } else localStorage.removeItem(showcaseResultStorageKey);
+    } catch { localStorage.removeItem(showcaseResultStorageKey); }
+  }, [showcaseResultStorageKey]);
+  useEffect(() => {
+    if (showcaseResultStorageKey && resultVideos.length > 0 && listingId) {
+      localStorage.setItem(showcaseResultStorageKey, JSON.stringify({ at: Date.now(), resultVideos, listingId, ratio }));
+    }
+  }, [listingId, ratio, resultVideos, showcaseResultStorageKey]);
 
   // Example video: only play while actually visible. The flow is always-mounted
   // (CSS-hidden by the parent), so an unconditional autoPlay would download and
@@ -4784,6 +4805,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       showcaseResetTimerRef.current = setTimeout(() => {
         showcaseResetTimerRef.current = null;
         setImages([]); setResultVideos([]); setListingId(null); setExportUrl(null);
+         if (showcaseResultStorageKey) localStorage.removeItem(showcaseResultStorageKey);
         setExportJobId(null); setError(null); setProgressPct(0); setProgressMsg("");
         setShowcaseSaveCaseId(null); setShowcaseShowCaseDropdown(false);
       }, 1500);
@@ -5104,6 +5126,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     setVideoDurations({});
     setShowcaseSaveCaseId(null);
     setShowcaseShowCaseDropdown(false);
+    if (showcaseResultStorageKey) localStorage.removeItem(showcaseResultStorageKey);
   };
 
   const handleDownload = async (url: string, name: string) => {
@@ -5860,6 +5883,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 </div>
                 {video.url ? (
                   <video
+                    id={`rendy-video-${video.id}`}
                     src={video.url}
                     controls
                     loop
@@ -5888,6 +5912,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     >
                       <Download className="w-3 h-3" /> Download
                     </button>
+                    <RendyVoiceoverEditor
+                      sourceVideoUrl={video.url}
+                      sourceVideoId={video.id}
+                      listingId={listingId || ""}
+                      duration={videoDurations[video.id]}
+                      videoElementId={`rendy-video-${video.id}`}
+                      onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url } : item))}
+                    />
                   </div>
                 )}
               </div>

@@ -1220,7 +1220,13 @@
       "hentZip": "Télécharger le zip",
       "nyShowcase": "Nouveau showcase",
       "videoNr": "Vidéo {{num}}",
-      "videoIkkeKlar": "Vidéo pas prête"
+      "videoIkkeKlar": "Vidéo pas prête",
+      "voiceover": {"add":"Ajouter une voix off","title":"Ajouter une narration","soundNote":"La bande-son Rendy originale est conservée et automatiquement réduite pendant la parole.","close":"Fermer","record":"Enregistrer la narration","stop":"Arrêter l’enregistrement","upload":"Importer un audio","recordHint":"L’enregistrement démarre la vidéo au début pour aligner le timing.","removeAudio":"Supprimer l’audio sélectionné","cleaningNote":"Nous réduisons le bruit et le son de la pièce, sans pouvoir réparer une forte distorsion.","continue":"Continuer","preparing":"Préparation…","processing":"Préparation de la narration…","exporting":"Exportation…","failed":"Une erreur est survenue.","micError":"Le microphone n’a pas pu être ouvert.","retry":"Réessayer","reviewHint":"Vérifiez et modifiez les sous-titres avant l’export.","captionLabel":"Sous-titre à {{time}} secondes","show":"Afficher","hide":"Masquer","subtitles":"Incruster les sous-titres dans la vidéo","replace":"Remplacer la narration","export":"Exporter la vidéo","ready":"Votre vidéo est prête","download":"Télécharger la vidéo"}
+    },
+    "voiceoverErrors": {
+      "invalidType": "Choisissez un fichier audio dans un format pris en charge.",
+      "fileTooLarge": "Le fichier audio doit faire au maximum 50 Mo.",
+      "micUnavailable": "Votre navigateur ne prend pas en charge l’enregistrement au microphone."
     },
     "tour": {
       "balanceretStil": "Style équilibré",

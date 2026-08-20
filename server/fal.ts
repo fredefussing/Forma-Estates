@@ -927,6 +927,84 @@ export async function generateDroneClip(
   return { videoUrl };
 }
 
+// ── DeepFilterNet3 voice enhancement ─────────────────────────────────────────
+// Input:  { audio_url, audio_format: 'wav'|'m4a', bitrate? }
+// Output: { audio_file: { url } }
+export async function falDeepFilter(audioUrl: string, audioFormat: "wav" | "m4a"): Promise<string> {
+  assertNotLockedDown();
+  const timeoutMs = 5 * 60 * 1000;
+  const result = await Promise.race([
+    fal.subscribe("fal-ai/deepfilternet3", {
+      input: { audio_url: audioUrl, audio_format: audioFormat },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DeepFilterNet3 timeout (5 min)")), timeoutMs),
+    ),
+  ]);
+  const url = (result.data as any)?.audio_file?.url;
+  if (!url) throw new Error("DeepFilterNet3: no output audio URL");
+  return url;
+}
+
+// ISO-639-3 language code mapping for Scribe v2
+const SCRIBE_LANGUAGE_MAP: Record<string, string> = {
+  da: "dan",
+  en: "eng",
+  de: "deu",
+  fr: "fra",
+  es: "spa",
+  nb: "nor",
+  sv: "swe",
+};
+
+export function toScribeLanguageCode(lang: string): string {
+  return SCRIBE_LANGUAGE_MAP[lang.toLowerCase()] ?? "eng";
+}
+
+// ── ElevenLabs Scribe v2 speech-to-text ──────────────────────────────────────
+// Input:  { audio_url, language_code (ISO-639-3), tag_audio_events, diarize }
+// Output: { text, language_code, language_probability, words[{text,start,end,type,speaker_id}] }
+export interface ScribeWord {
+  text: string;
+  start: number;
+  end: number;
+  type: string;
+  speaker_id?: string;
+}
+
+export interface ScribeResult {
+  text: string;
+  language_code: string;
+  language_probability: number;
+  words: ScribeWord[];
+}
+
+export async function falScribeTranscribe(audioUrl: string, languageCode: string): Promise<ScribeResult> {
+  assertNotLockedDown();
+  const timeoutMs = 10 * 60 * 1000;
+  const result = await Promise.race([
+    fal.subscribe("fal-ai/elevenlabs/speech-to-text/scribe-v2", {
+      input: {
+        audio_url: audioUrl,
+        language_code: languageCode,
+        tag_audio_events: false,
+        diarize: false,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Scribe v2 timeout (10 min)")), timeoutMs),
+    ),
+  ]);
+  const data = result.data as any;
+  if (!data?.words) throw new Error("Scribe v2: no words in result");
+  return {
+    text: data.text ?? "",
+    language_code: data.language_code ?? languageCode,
+    language_probability: data.language_probability ?? 1,
+    words: data.words as ScribeWord[],
+  };
+}
+
 // Download a remote URL to an explicit local path — streamer direkte til disk,
 // ingen hel videofil i RAM. Throws on a non-2xx response.
 export async function downloadToFile(remoteUrl: string, destPath: string): Promise<void> {

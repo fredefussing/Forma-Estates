@@ -1233,7 +1233,13 @@
       "hentZip": "Hämta zip",
       "nyShowcase": "Ny showcase",
       "videoNr": "Video {{num}}",
-      "videoIkkeKlar": "Video inte klar"
+      "videoIkkeKlar": "Video inte klar",
+      "voiceover": {"add":"Lägg till voice-over","title":"Lägg till berättarröst","soundNote":"Det ursprungliga Rendy-ljudspåret behålls och sänks automatiskt när du talar.","close":"Stäng","record":"Spela in berättarröst","stop":"Stoppa inspelning","upload":"Ladda upp ljud","recordHint":"Inspelningen startar videon från början så att timingen stämmer.","removeAudio":"Ta bort valt ljud","cleaningNote":"Vi minskar brus och rumsljud, men kan inte reparera kraftig distorsion.","continue":"Fortsätt","preparing":"Förbereder…","processing":"Förbereder din berättarröst…","exporting":"Exporterar…","failed":"Något gick fel.","micError":"Mikrofonen kunde inte öppnas.","retry":"Försök igen","reviewHint":"Granska och redigera undertexterna före export.","captionLabel":"Undertext vid {{time}} sekunder","show":"Visa","hide":"Dölj","subtitles":"Bränn in undertexter i videon","replace":"Ersätt berättarröst","export":"Exportera video","ready":"Din video är klar","download":"Ladda ner video"}
+    },
+    "voiceoverErrors": {
+      "invalidType": "Välj en ljudfil i ett format som stöds.",
+      "fileTooLarge": "Ljudfilen får vara högst 50 MB.",
+      "micUnavailable": "Din webbläsare stöder inte mikrofoninspelning."
     },
     "tour": {
       "balanceretStil": "Balanserad stil",

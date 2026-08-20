@@ -26,6 +26,7 @@ import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowc
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
 import { isLoadTestMode } from "./load-test";
+import { registerRendyVoiceoverRoutes } from "./rendy-voiceover";
 
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
@@ -666,6 +667,15 @@ export async function registerRoutes(
       ".webp": "image/webp",
       ".mp4":  "video/mp4",
       ".glb":  "model/gltf-binary",
+      // Audio formats (voice-over projects)
+      ".wav":  "audio/wav",
+      ".m4a":  "audio/mp4",
+      ".mp3":  "audio/mpeg",
+      ".ogg":  "audio/ogg",
+      ".webm": "audio/webm",
+      // Subtitle formats
+      ".ass":  "text/x-ssa",
+      ".srt":  "text/plain",
     };
     const contentType = SAFE_MIME[ext];
     if (!contentType) {
@@ -5249,7 +5259,7 @@ export async function registerRoutes(
             );
           }
         : undefined;
-      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, onVideosReady);
+      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, onVideosReady, showcaseUserId ?? undefined);
       capturedJobId = jobId; // assign synchronously before any await fires in the IIFE
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
@@ -8245,6 +8255,9 @@ REGLER
     try { return res.json(calcPackage(req.body)); }
     catch (err: any) { return res.status(400).json({ error: err.message }); }
   });
+
+  // ── Rendy Voice-Over feature (task #153) ─────────────────────────────────
+  registerRendyVoiceoverRoutes(app, uploadDir);
 
   return httpServer;
 }

@@ -1490,6 +1490,80 @@ export async function ensureSchema(): Promise<void> {
     if (inserted > 0) console.log(`[ensure-schema] cold-leads-runde3: ${inserted} nye leads indsat`);
   } catch(e: any) { console.error('[ensure-schema] cold-leads-runde3:', e.message); }
 
+  // ── rendy_jobs: add user_id and videos columns (ownership + delivered URL store) ──
+  try {
+    await pool.query(`ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS user_id integer REFERENCES users(id)`);
+    await pool.query(`ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS videos jsonb`);
+    // Best-effort backfill user_id from video_jobs where request_id matches job_id
+    await pool.query(`
+      UPDATE rendy_jobs rj
+         SET user_id = vj.user_id
+        FROM video_jobs vj
+       WHERE vj.request_id = rj.job_id
+         AND rj.user_id IS NULL
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS rendy_jobs_user_id_idx ON rendy_jobs (user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS rendy_jobs_listing_id_idx ON rendy_jobs (listing_id)
+    `);
+  } catch (e: any) {
+    console.error(`[ensure-schema] rendy_jobs columns: ${e.message}`);
+  }
+
+  // ── rendy_voice_projects table ────────────────────────────────────────────
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS rendy_voice_projects (
+        id                serial PRIMARY KEY,
+        user_id           integer NOT NULL REFERENCES users(id),
+        listing_id        text NOT NULL,
+        source_video_id   text NOT NULL,
+        status            text NOT NULL DEFAULT 'processing',
+        language          text NOT NULL DEFAULT 'da',
+        segments          jsonb,
+        subtitles_enabled boolean NOT NULL DEFAULT true,
+        source_url        text,
+        audio_url         text,
+        output_url        text,
+        source_input_url  text,
+        raw_audio_key     text,
+        error             text,
+        completed_at      timestamptz,
+        lease_token       text,
+        lease_expires_at  timestamptz,
+        created_at        timestamptz NOT NULL DEFAULT NOW(),
+        updated_at        timestamptz NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS rendy_voice_projects_user_id_idx
+        ON rendy_voice_projects (user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS rendy_voice_projects_listing_video_idx
+        ON rendy_voice_projects (listing_id, source_video_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS rendy_voice_projects_lease_idx
+        ON rendy_voice_projects (lease_expires_at)
+        WHERE status IN ('processing', 'exporting')
+    `);
+    // Additive columns for pre-existing tables (idempotent)
+    for (const col of [
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS source_input_url text`,
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS raw_audio_key text`,
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS completed_at timestamptz`,
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS lease_token text`,
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz`,
+    ]) {
+      await pool.query(col);
+    }
+  } catch (e: any) {
+    console.error(`[ensure-schema] rendy_voice_projects: ${e.message}`);
+  }
+
   for (const { step, sql } of statements) {
     try {
       await pool.query(sql);

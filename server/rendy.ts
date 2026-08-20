@@ -9,25 +9,54 @@ const RENDY_BASE = "https://api.rendy.io/api/public/v1";
 export async function ensureRendyJobsTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS rendy_jobs (
-      job_id   TEXT PRIMARY KEY,
+      job_id     TEXT PRIMARY KEY,
       listing_id TEXT,
-      status   TEXT NOT NULL DEFAULT 'processing',
+      user_id    INTEGER REFERENCES users(id),
+      videos     JSONB,
+      status     TEXT NOT NULL DEFAULT 'processing',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  // Clean up jobs older than 24 h
-  await pool.query(`DELETE FROM rendy_jobs WHERE created_at < NOW() - INTERVAL '24 hours'`);
+  // Additive columns for pre-existing tables
+  for (const col of [
+    `ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS user_id integer REFERENCES users(id)`,
+    `ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS videos jsonb`,
+  ]) {
+    try { await pool.query(col); } catch {}
+  }
+  // Only prune rows that never got a listing_id (orphaned submission attempts).
+  // Completed listings with ownership/videos are retained indefinitely so the
+  // voiceover service can verify ownership at any future time.
+  await pool.query(`
+    DELETE FROM rendy_jobs
+     WHERE listing_id IS NULL
+       AND created_at < NOW() - INTERVAL '24 hours'
+  `);
 }
 
-async function dbUpsertJob(jobId: string, listingId?: string, status?: string) {
+async function dbUpsertJob(
+  jobId: string,
+  listingId?: string,
+  status?: string,
+  userId?: number,
+  videos?: RendyVideo[],
+) {
   try {
     await pool.query(
-      `INSERT INTO rendy_jobs (job_id, listing_id, status)
-       VALUES ($1, $2, $3)
+      `INSERT INTO rendy_jobs (job_id, listing_id, status, user_id, videos)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (job_id) DO UPDATE
          SET listing_id = COALESCE($2, rendy_jobs.listing_id),
-             status     = COALESCE($3, rendy_jobs.status)`,
-      [jobId, listingId ?? null, status ?? "processing"]
+             status     = COALESCE($3, rendy_jobs.status),
+             user_id    = COALESCE($4, rendy_jobs.user_id),
+             videos     = COALESCE($5::jsonb, rendy_jobs.videos)`,
+      [
+        jobId,
+        listingId ?? null,
+        status ?? "processing",
+        userId ?? null,
+        videos ? JSON.stringify(videos) : null,
+      ],
     );
   } catch (err: any) {
     console.error("[Rendy] dbUpsertJob failed:", err.message);
@@ -43,6 +72,45 @@ export async function getRendyListingIdForJob(jobId: string): Promise<string | n
   } catch {
     return null;
   }
+}
+
+/**
+ * Verify that userId owns the Rendy listing that contains videoId, and return
+ * the exact delivered video URL stored in rendy_jobs.videos for that videoId.
+ *
+ * For legacy rows that have listing_id but no videos JSON yet, returns null so
+ * the caller can fall back to a live Rendy API lookup (which must still match
+ * the provider URL exactly; arbitrary /uploads URLs are not accepted in that path).
+ *
+ * Throws if the user does not own the listing.
+ */
+export async function verifyRendyOwnershipAndGetVideoUrl(
+  listingId: string,
+  videoId: string,
+  userId: number,
+): Promise<{ deliveredUrl: string | null; isLegacy: boolean }> {
+  const res = await pool.query<{ user_id: number | null; videos: RendyVideo[] | null }>(
+    `SELECT user_id, videos FROM rendy_jobs WHERE listing_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [listingId],
+  );
+  const row = res.rows[0];
+  if (!row) throw new Error(`Listing ${listingId} ikke fundet i job-registret`);
+  // A listing without a persisted owner cannot be proven safe. The additive
+  // backfill covers old rows that have a matching video_jobs record; any row
+  // still left NULL must fail closed rather than becoming globally accessible.
+  if (row.user_id !== userId) {
+    throw new Error("Du ejer ikke denne Rendy-video");
+  }
+
+  const videos = row.videos as RendyVideo[] | null;
+  if (!videos || videos.length === 0) {
+    // Legacy row — no stored videos JSON yet
+    return { deliveredUrl: null, isLegacy: true };
+  }
+  const video = videos.find((v) => v.id === videoId);
+  if (!video) throw new Error(`Video ${videoId} ikke fundet i den gemte levering`);
+  if (!video.url) throw new Error(`Video ${videoId} har ingen gemt URL`);
+  return { deliveredUrl: video.url, isLegacy: false };
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -288,7 +356,7 @@ export async function getRendyListingStatus(listingId: string): Promise<{ progre
 }
 
 export async function getRendyListing(listingId: string): Promise<RendyListingFull> {
-  const res = await rendyFetch(`/listings/${listingId}`);
+  const res = await rendyFetch(`/listings/${listingId}`, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`Rendy listing fejlede (${res.status})`);
   return res.json() as Promise<RendyListingFull>;
 }
@@ -317,7 +385,9 @@ export function startRendyShowcase(
   ratio: "portrait" | "landscape",
   imageKeys: RendyImageKeys[],
   /** Optional post-processor: download Rendy CDN videos and burn EU AI Act badge */
-  onVideosReady?: (videos: RendyVideo[]) => Promise<RendyVideo[]>
+  onVideosReady?: (videos: RendyVideo[]) => Promise<RendyVideo[]>,
+  /** Authenticated DB user id — stored so voiceover can verify ownership later */
+  userId?: number,
 ): string {
   pruneJobs();
   const jobId = randomUUID();
@@ -336,7 +406,7 @@ export function startRendyShowcase(
     try {
       // Gem job_id i DB STRAKS — inden uploads starter — så SSE-recovery
       // altid kan finde jobbet selvom serveren genstarter undervejs.
-      await dbUpsertJob(jobId);
+      await dbUpsertJob(jobId, undefined, "processing", userId);
 
       // Step 1: Upload all images concurrently
       const uploadedImages: RendyUploadedImage[] = new Array(filePaths.length);
@@ -445,6 +515,7 @@ export function startRendyShowcase(
                   listingId,
                 },
               });
+              await dbUpsertJob(jobId, listingId, "completed", userId, finalVideos);
               return;
             }
           } catch (detailErr) {
@@ -500,6 +571,7 @@ export function startRendyShowcase(
               listingId,
             },
           });
+          await dbUpsertJob(jobId, listingId, "completed", userId, finalVideos);
           return;
         }
       }
@@ -511,6 +583,7 @@ export function startRendyShowcase(
         error: msg,
         progress: { stage: "failed", progress: 0, message: msg },
       });
+      await dbUpsertJob(jobId, undefined, "failed", userId);
     } finally {
       for (const fp of filePaths) {
         fs.promises.unlink(fp).catch(() => {});

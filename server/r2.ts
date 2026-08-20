@@ -65,6 +65,15 @@ function mimeForExt(ext: string): string {
   if (ext === ".webp") return "image/webp";
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".gif") return "image/gif";
+  // Audio formats for voice-over projects
+  if (ext === ".wav") return "audio/wav";
+  if (ext === ".m4a") return "audio/mp4";
+  if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".ogg") return "audio/ogg";
+  if (ext === ".webm") return "audio/webm";
+  // Subtitle formats
+  if (ext === ".ass") return "text/x-ssa";
+  if (ext === ".srt") return "text/plain";
   return "image/jpeg";
 }
 
