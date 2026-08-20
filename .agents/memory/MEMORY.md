@@ -22,6 +22,7 @@
 - [Render ephemeral uploads & R2](render-ephemeral-uploads.md) — prod disk wipes on deploy; /uploads needs R2 vars on Render + real 404s; Collov CDN blocks browser CORS, use the proxy (plain=1+token skips watermark).
 - [R2 cleanup media inventory](r2-cleanup-media-inventory.md) — every durable-media table must feed both reconciliation and orphan cleanup, or valid customer files can be deleted later.
 - [MediaRecorder final chunk](mediarecorder-final-chunk.md) — keep tracks alive through onstop, or end-of-video narration can lose its last buffered audio.
+- [ASS caption crispness](ass-caption-crispness.md) — premium mobile captions need a clean sans-serif and thin contour; detailed serif + heavy effects blur when downscaled.
 - [Bolig gallery image tables](bolig-image-tables.md) — gallery ids are generated_images rows; bolig_case_images is legacy (no writes) — use generatedImageId + getGeneratedImage + userId check.
 - [E2E customer testing](e2e-customer-testing.md) — test signups: flip users.email_verified in dev DB; ALWAYS verify tester "blocked/failed" claims against generated_images; trial gating differs per entry point.
 - [Dashboard banner overlay](dashboard-banner-overlay.md) — top-strip elements are covered by the -mt sibling's transparent padding: visible but unclickable; fix with relative z-10 on the element, never the wrapper.

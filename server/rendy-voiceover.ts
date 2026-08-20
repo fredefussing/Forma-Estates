@@ -506,10 +506,10 @@ function buildAssSubtitles(segments: CaptionSegment[]): string {
     "ScaledBorderAndShadow: yes\n\n" +
     "[V4+ Styles]\n" +
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
-    // Editorial serif captions with a warm-white fill, restrained navy
-    // contour and soft shadow. It reads like a property-film title, while
-    // remaining legible across bright interior footage.
-    "Style: Premium,DejaVu Serif,54,&H00F1EEE8,&H000000FF,&H00100D0B,&H900A0806,-1,0,0,0,100,100,0.8,0,1,1.4,1.4,2,96,96,220,1\n\n" +
+    // A clean, premium sans-serif with warm white text, a very thin navy
+    // contour and restrained shadow. Serif details plus a heavy contour
+    // softened at mobile size, while this stays crisp in the final MP4.
+    "Style: Premium,DejaVu Sans,54,&H00F7F3EA,&H000000FF,&H00120F0C,&H900A0806,-1,0,0,0,100,100,0.25,0,1,1.1,0.7,2,96,96,220,1\n\n" +
     "[Events]\n" +
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
 
