@@ -174,3 +174,10 @@ uri = "file://attached_assets/rendy-premium-caption-preview.png"
 type = "image"
 title = "Tekst-preview"
 description = "Editorial premium serif-tekst i varm knækket hvid med diskret skygge."
+
+[[outputs]]
+id = "kfNfXDKbCQsptxtsnv3y1"
+uri = "file://attached_assets/rendy-premium-caption-preview-focus.png"
+type = "image"
+title = "Tekst-preview — tæt på"
+description = "Cormorant Garamond SemiBold med varm knækket hvid og meget diskret skygge."
