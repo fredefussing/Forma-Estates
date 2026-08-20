@@ -1221,12 +1221,13 @@
       "nyShowcase": "Nuevo showcase",
       "videoNr": "Vídeo {{num}}",
       "videoIkkeKlar": "Vídeo no listo",
-      "voiceover": {"add":"Añadir voz en off","title":"Añadir narración","soundNote":"La banda sonora original de Rendy se conserva y se reduce automáticamente mientras hablas.","close":"Cerrar","record":"Grabar narración","stop":"Detener grabación","upload":"Subir audio","recordHint":"La grabación inicia el vídeo desde el principio para alinear el tiempo.","removeAudio":"Quitar audio seleccionado","cleaningNote":"Reducimos el ruido y el sonido de la sala, pero no podemos reparar una distorsión grave.","continue":"Continuar","preparing":"Preparando…","processing":"Preparando tu narración…","exporting":"Exportando…","failed":"Algo salió mal.","micError":"No se pudo abrir el micrófono.","retry":"Reintentar","reviewHint":"Revisa y edita los subtítulos antes de exportar.","captionLabel":"Subtítulo en {{time}} segundos","show":"Mostrar","hide":"Ocultar","subtitles":"Incrustar subtítulos en el vídeo","replace":"Reemplazar narración","export":"Exportar vídeo","ready":"Tu vídeo está listo","download":"Descargar vídeo"}
+      "voiceover": {"add":"Añadir voz en off","title":"Añadir narración","soundNote":"La banda sonora original de Rendy se conserva y se reduce automáticamente mientras hablas.","close":"Cerrar","record":"Grabar narración","stop":"Detener grabación","upload":"Subir audio","recordHint":"La grabación inicia el vídeo desde el principio. Cuando el vídeo termina, tu narración se guarda automáticamente.","savingRecording":"Guardando grabación…","recordingEnding":"El vídeo terminó; guardando la última parte de tu narración…","removeAudio":"Quitar audio seleccionado","cleaningNote":"Reducimos el ruido y el sonido de la sala, pero no podemos reparar una distorsión grave.","continue":"Continuar","preparing":"Preparando…","processing":"Preparando tu narración…","exporting":"Exportando…","failed":"Algo salió mal.","micError":"No se pudo abrir el micrófono.","retry":"Reintentar","reviewHint":"Revisa y edita los subtítulos antes de exportar.","captionLabel":"Subtítulo en {{time}} segundos","show":"Mostrar","hide":"Ocultar","subtitles":"Incrustar subtítulos en el vídeo","replace":"Reemplazar narración","export":"Exportar vídeo","ready":"Tu vídeo está listo","download":"Descargar vídeo","saveToFolder":"Guardar en carpeta","saving":"Guardando…","saveFallback":"No se pudo abrir el selector de carpetas. El vídeo se descargará en su lugar."}
     },
     "voiceoverErrors": {
       "invalidType": "Elige un archivo de audio en un formato compatible.",
       "fileTooLarge": "El archivo de audio debe ocupar 50 MB o menos.",
-      "micUnavailable": "Tu navegador no admite la grabación con micrófono."
+      "micUnavailable": "Tu navegador no admite la grabación con micrófono.",
+      "emptyRecording": "No se grabó ningún audio. Inténtalo de nuevo."
     },
     "tour": {
       "balanceretStil": "Estilo equilibrado",

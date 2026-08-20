@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  AudioLines, Check, Download, Loader2, Mic, Pause, RotateCcw,
+  AudioLines, Check, Download, FolderDown, Loader2, Mic, Pause, RotateCcw,
   Trash2, Upload, X,
 } from "lucide-react";
 
@@ -52,6 +52,20 @@ const ACCEPTED_MIME_TYPES = new Set([
 ]);
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
+type SaveFileHandle = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+type SavePickerWindow = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName: string;
+    types: Array<{ description: string; accept: Record<string, string[]> }>;
+  }) => Promise<SaveFileHandle>;
+};
+
 export function RendyVoiceoverEditor({
   sourceVideoUrl,
   sourceVideoId,
@@ -67,8 +81,10 @@ export function RendyVoiceoverEditor({
   const [audio, setAudio] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState("");
   const [recording, setRecording] = useState(false);
+  const [finalizingRecording, setFinalizingRecording] = useState(false);
   const [recordedSeconds, setRecordedSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [savingOutput, setSavingOutput] = useState(false);
   const [message, setMessage] = useState("");
   const [replacementSourceUrl, setReplacementSourceUrl] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -147,11 +163,11 @@ export function RendyVoiceoverEditor({
       ACCEPTED_MIME_TYPES.has(file.type.toLowerCase()) ||
       ACCEPTED_EXTENSIONS.test(file.name);
     if (!validType) {
-      setMessage(t("dashboard.showcase.voiceoverErrors.invalidType"));
+      setMessage(t("dashboard.voiceoverErrors.invalidType"));
       return;
     }
     if (file.size > MAX_AUDIO_BYTES) {
-      setMessage(t("dashboard.showcase.voiceoverErrors.fileTooLarge"));
+      setMessage(t("dashboard.voiceoverErrors.fileTooLarge"));
       return;
     }
     clearLocalAudio();
@@ -231,14 +247,22 @@ export function RendyVoiceoverEditor({
   const stopRecording = useCallback(() => {
     const activeRecorder = recorder.current;
     pauseAlignedVideo();
-    if (activeRecorder && activeRecorder.state !== "inactive") activeRecorder.stop();
     setRecording(false);
-    stopTracks();
+    if (activeRecorder && activeRecorder.state !== "inactive") {
+      // Do not end mic tracks yet. Browsers deliver the final audio chunk after
+      // stop(), and stopping tracks early can make an end-of-video recording
+      // look like it vanished.
+      setFinalizingRecording(true);
+      activeRecorder.stop();
+    } else {
+      stopTracks();
+      setFinalizingRecording(false);
+    }
   }, [pauseAlignedVideo, stopTracks]);
 
   const startRecording = async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setMessage(t("dashboard.showcase.voiceoverErrors.micUnavailable"));
+      setMessage(t("dashboard.voiceoverErrors.micUnavailable"));
       return;
     }
     try {
@@ -257,7 +281,6 @@ export function RendyVoiceoverEditor({
         const handleEnded = () => stopRecording();
         videoEndedHandlerRef.current = handleEnded;
         video.addEventListener("ended", handleEnded, { once: true });
-        void video.play();
       }
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
@@ -273,22 +296,41 @@ export function RendyVoiceoverEditor({
       };
       activeRecorder.onstop = () => {
         const blob = new Blob(chunks.current, { type: activeRecorder.mimeType || "audio/webm" });
-        if (blob.size) chooseAudio(new File([blob], "narration.webm", { type: blob.type }));
+        if (blob.size) {
+          chooseAudio(new File([blob], "narration.webm", { type: blob.type }));
+        } else {
+          setMessage(t("dashboard.voiceoverErrors.emptyRecording"));
+        }
+        recorder.current = null;
         stopTracks();
+        setFinalizingRecording(false);
       };
       activeRecorder.onerror = () => {
         pauseAlignedVideo();
         stopTracks();
+        recorder.current = null;
         setRecording(false);
+        setFinalizingRecording(false);
         setMessage(t("dashboard.showcase.voiceover.micError"));
       };
       activeRecorder.start();
       setRecordedSeconds(0);
       setRecording(true);
+      setFinalizingRecording(false);
+      // Start the microphone recorder first, then play the video. This keeps
+      // the narration from losing its opening syllable and makes its end
+      // reliably land at the end of the source video.
+      if (video) {
+        void video.play().catch(() => {
+          setMessage(t("dashboard.showcase.voiceover.micError"));
+          stopRecording();
+        });
+      }
     } catch {
       pauseAlignedVideo();
       stopTracks();
       setRecording(false);
+      setFinalizingRecording(false);
       setMessage(t("dashboard.showcase.voiceover.micError"));
     }
   };
@@ -394,6 +436,53 @@ export function RendyVoiceoverEditor({
     });
   };
 
+  const outputFilename = `forma-showcase-${sourceVideoId.slice(0, 16) || "video"}-fortaelling.mp4`;
+
+  const downloadOutput = useCallback(() => {
+    if (!project?.outputUrl) return;
+    const anchor = document.createElement("a");
+    anchor.href = project.outputUrl;
+    anchor.download = outputFilename;
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }, [outputFilename, project?.outputUrl]);
+
+  const saveOutputToFolder = async () => {
+    if (!project?.outputUrl || savingOutput) return;
+    setSavingOutput(true);
+    setMessage("");
+    try {
+      const showSaveFilePicker = (window as SavePickerWindow).showSaveFilePicker;
+      if (!showSaveFilePicker) {
+        downloadOutput();
+        return;
+      }
+      // Open the picker as part of this click so browsers keep the user gesture
+      // and let the user choose the exact folder and filename.
+      const handle = await showSaveFilePicker({
+        suggestedName: outputFilename,
+        types: [{ description: "MP4 video", accept: { "video/mp4": [".mp4"] } }],
+      });
+      const response = await fetch(project.outputUrl);
+      if (!response.ok) throw new Error(`Could not fetch finished video (${response.status})`);
+      const writable = await handle.createWritable();
+      try {
+        await writable.write(await response.blob());
+      } finally {
+        await writable.close();
+      }
+    } catch (error: unknown) {
+      // Cancelling the native picker is an expected user choice, not an error.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      downloadOutput();
+      setMessage(t("dashboard.showcase.voiceover.saveFallback"));
+    } finally {
+      setSavingOutput(false);
+    }
+  };
+
   const status = project?.status;
 
   return (
@@ -437,12 +526,14 @@ export function RendyVoiceoverEditor({
                 <button
                   type="button"
                   onClick={recording ? stopRecording : startRecording}
-                  disabled={busy}
+                  disabled={busy || finalizingRecording}
                   className="flex-1 h-9 rounded-lg bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
                   data-testid="button-record-voiceover"
                 >
-                  {recording ? <Pause className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  {recording
+                  {finalizingRecording ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : recording ? <Pause className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  {finalizingRecording
+                    ? t("dashboard.showcase.voiceover.savingRecording")
+                    : recording
                     ? `${t("dashboard.showcase.voiceover.stop")} ${recordedSeconds}s`
                     : t("dashboard.showcase.voiceover.record")}
                 </button>
@@ -462,6 +553,11 @@ export function RendyVoiceoverEditor({
                 </label>
               </div>
               <p className="text-[10px] text-[#77736D]">{t("dashboard.showcase.voiceover.recordHint")}</p>
+              {finalizingRecording && (
+                <p className="text-[10px] text-[#855F45]" role="status" aria-live="polite">
+                  {t("dashboard.showcase.voiceover.recordingEnding")}
+                </p>
+              )}
               {audioUrl && (
                 <div className="flex items-center gap-2 rounded-lg bg-[#F4EEE8] p-2">
                   <audio src={audioUrl} controls className="min-w-0 flex-1 h-8" />
@@ -541,13 +637,23 @@ export function RendyVoiceoverEditor({
                 <Check className="w-4 h-4" />{t("dashboard.showcase.voiceover.ready")}
               </div>
               <video src={project.outputUrl} controls playsInline className="w-full rounded-lg bg-black" data-testid="video-voiceover-final" />
-              <div className="flex gap-2">
-                <button type="button" onClick={reset} className="flex-1 h-9 rounded-lg border text-xs font-semibold">
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={reset} className="col-span-2 h-9 rounded-lg border text-xs font-semibold">
                   <RotateCcw className="w-3 h-3 inline mr-1" />{t("dashboard.showcase.voiceover.replace")}
                 </button>
-                <a href={project.outputUrl} download className="flex-1 h-9 rounded-lg bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5" data-testid="link-download-voiceover">
+                <button
+                  type="button"
+                  onClick={saveOutputToFolder}
+                  disabled={savingOutput}
+                  className="h-9 rounded-lg bg-[#C8956C] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
+                  data-testid="button-save-voiceover"
+                >
+                  {savingOutput ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderDown className="w-3.5 h-3.5" />}
+                  {savingOutput ? t("dashboard.showcase.voiceover.saving") : t("dashboard.showcase.voiceover.saveToFolder")}
+                </button>
+                <button type="button" onClick={downloadOutput} className="h-9 rounded-lg bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5" data-testid="link-download-voiceover">
                   <Download className="w-3.5 h-3.5" />{t("dashboard.showcase.voiceover.download")}
-                </a>
+                </button>
               </div>
             </div>
           )}

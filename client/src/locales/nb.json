@@ -1234,12 +1234,13 @@
       "nyShowcase": "Ny showcase",
       "videoNr": "Video {{num}}",
       "videoIkkeKlar": "Video ikke klar",
-      "voiceover": {"add":"Legg til voice-over","title":"Legg til fortelling","soundNote":"Det originale Rendy-lydsporet beholdes og dempes automatisk mens du snakker.","close":"Lukk","record":"Ta opp fortelling","stop":"Stopp opptak","upload":"Last opp lyd","recordHint":"Opptaket starter videoen fra begynnelsen slik at timingen stemmer.","removeAudio":"Fjern valgt lyd","cleaningNote":"Vi reduserer støy og romlyd, men kan ikke reparere kraftig forvrengning.","continue":"Fortsett","preparing":"Forbereder…","processing":"Forbereder fortellingen…","exporting":"Eksporterer…","failed":"Noe gikk galt.","micError":"Kunne ikke åpne mikrofonen.","retry":"Prøv igjen","reviewHint":"Se over og rediger undertekstene før eksport.","captionLabel":"Undertekst ved {{time}} sekunder","show":"Vis","hide":"Skjul","subtitles":"Brenn undertekster inn i videoen","replace":"Bytt fortelling","export":"Eksporter video","ready":"Videoen er klar","download":"Last ned video"}
+      "voiceover": {"add":"Legg til voice-over","title":"Legg til fortelling","soundNote":"Det originale Rendy-lydsporet beholdes og dempes automatisk mens du snakker.","close":"Lukk","record":"Ta opp fortelling","stop":"Stopp opptak","upload":"Last opp lyd","recordHint":"Opptaket starter videoen fra begynnelsen. Når videoen er ferdig, lagres fortellingen automatisk.","savingRecording":"Lagrer opptak…","recordingEnding":"Videoen er ferdig — lagrer siste del av fortellingen…","removeAudio":"Fjern valgt lyd","cleaningNote":"Vi reduserer støy og romlyd, men kan ikke reparere kraftig forvrengning.","continue":"Fortsett","preparing":"Forbereder…","processing":"Forbereder fortellingen…","exporting":"Eksporterer…","failed":"Noe gikk galt.","micError":"Kunne ikke åpne mikrofonen.","retry":"Prøv igjen","reviewHint":"Se over og rediger undertekstene før eksport.","captionLabel":"Undertekst ved {{time}} sekunder","show":"Vis","hide":"Skjul","subtitles":"Brenn undertekster inn i videoen","replace":"Bytt fortelling","export":"Eksporter video","ready":"Videoen er klar","download":"Last ned video","saveToFolder":"Lagre i mappe","saving":"Lagrer…","saveFallback":"Kunne ikke åpne mappevelgeren. Videoen lastes ned i stedet."}
     },
     "voiceoverErrors": {
       "invalidType": "Velg en lydfil i et støttet format.",
       "fileTooLarge": "Lydfilen kan være maks 50 MB.",
-      "micUnavailable": "Nettleseren støtter ikke mikrofonopptak."
+      "micUnavailable": "Nettleseren støtter ikke mikrofonopptak.",
+      "emptyRecording": "Det ble ikke tatt opp lyd. Prøv igjen."
     },
     "tour": {
       "balanceretStil": "Balansert stil",

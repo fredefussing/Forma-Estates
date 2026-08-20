@@ -1209,12 +1209,13 @@
       "nyShowcase": "Ny showcase",
       "videoNr": "Video {{num}}",
       "videoIkkeKlar": "Video ikke klar",
-      "voiceover": {"add":"Tilføj voice-over","title":"Tilføj fortælling","soundNote":"Den originale Rendy-lyd bevares og dæmpes automatisk under tale.","close":"Luk","record":"Optag fortælling","stop":"Stop optagelse","upload":"Upload lyd","recordHint":"Optagelsen starter videoen fra begyndelsen, så timingen passer.","removeAudio":"Fjern valgt lyd","cleaningNote":"Vi reducerer støj og rumlyd, men kan ikke reparere kraftig forvrængning.","continue":"Fortsæt","preparing":"Forbereder…","processing":"Forbereder din fortælling…","exporting":"Eksporterer…","failed":"Noget gik galt.","micError":"Mikrofonen kunne ikke åbnes.","retry":"Prøv igen","reviewHint":"Gennemgå og ret underteksterne, før du eksporterer.","captionLabel":"Undertekst ved {{time}} sekunder","show":"Vis","hide":"Skjul","subtitles":"Brænd undertekster ind i videoen","replace":"Erstat fortælling","export":"Eksportér video","ready":"Din video er klar","download":"Download video"}
+      "voiceover": {"add":"Tilføj voice-over","title":"Tilføj fortælling","soundNote":"Den originale Rendy-lyd bevares og dæmpes automatisk under tale.","close":"Luk","record":"Optag fortælling","stop":"Stop optagelse","upload":"Upload lyd","recordHint":"Optagelsen starter videoen fra begyndelsen. Når videoen slutter, gemmes din fortælling automatisk.","savingRecording":"Gemmer optagelse…","recordingEnding":"Videoen er slut — gemmer den sidste del af din fortælling…","removeAudio":"Fjern valgt lyd","cleaningNote":"Vi reducerer støj og rumlyd, men kan ikke reparere kraftig forvrængning.","continue":"Fortsæt","preparing":"Forbereder…","processing":"Forbereder din fortælling…","exporting":"Eksporterer…","failed":"Noget gik galt.","micError":"Mikrofonen kunne ikke åbnes.","retry":"Prøv igen","reviewHint":"Gennemgå og ret underteksterne, før du eksporterer.","captionLabel":"Undertekst ved {{time}} sekunder","show":"Vis","hide":"Skjul","subtitles":"Brænd undertekster ind i videoen","replace":"Erstat fortælling","export":"Eksportér video","ready":"Din video er klar","download":"Download video","saveToFolder":"Gem i mappe","saving":"Gemmer…","saveFallback":"Kunne ikke åbne mappevælgeren. Videoen downloades i stedet."}
     },
     "voiceoverErrors": {
       "invalidType": "Vælg en lydfil i et understøttet format.",
       "fileTooLarge": "Lydfilen må højst være 50 MB.",
-      "micUnavailable": "Din browser understøtter ikke mikrofonoptagelse."
+      "micUnavailable": "Din browser understøtter ikke mikrofonoptagelse.",
+      "emptyRecording": "Der blev ikke optaget nogen lyd. Prøv igen."
     },
     "tour": {
       "balanceretStil": "Balanceret stil",
