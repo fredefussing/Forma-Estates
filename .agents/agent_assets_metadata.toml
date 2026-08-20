@@ -167,3 +167,10 @@ id = "DzllLPIOugejB636UiyhW"
 uri = "file://attached_assets/Sk%C3%A6rmbillede_2026-07-28_kl._09.17.24_1785223047009_0.5pct_zoom.png"
 type = "image"
 title = "Plantegning — 0,5 % mere zoom"
+
+[[outputs]]
+id = "Z9BGTEWtKGQOVjaNIPToN"
+uri = "file://attached_assets/rendy-premium-caption-preview.png"
+type = "image"
+title = "Premium tekst-preview"
+description = "Preview af den nye indbrændte tekststil: varm serif-tekst, diskret mørk kontur og blød skygge."

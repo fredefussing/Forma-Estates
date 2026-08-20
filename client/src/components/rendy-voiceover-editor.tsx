@@ -339,13 +339,18 @@ export function RendyVoiceoverEditor({
     if (!recording) return;
     const timer = setInterval(() => {
       setRecordedSeconds((seconds) => {
-        const next = seconds + 1;
-        if (duration && next >= Math.ceil(duration)) stopRecording();
-        return next;
+        const video = recordingVideoRef.current ?? alignedVideo();
+        // The metadata duration can be shorter than the actual delivered
+        // video. Use playback time only for the counter; the video's real
+        // `ended` event is the sole automatic stop signal.
+        if (video && Number.isFinite(video.currentTime)) {
+          return Math.max(seconds, Math.floor(video.currentTime));
+        }
+        return seconds + 1;
       });
-    }, 1000);
+    }, 250);
     return () => clearInterval(timer);
-  }, [duration, recording, stopRecording]);
+  }, [alignedVideo, recording]);
 
   const upload = async () => {
     if (!audio) return;

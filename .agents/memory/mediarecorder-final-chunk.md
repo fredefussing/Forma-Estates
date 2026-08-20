@@ -15,4 +15,5 @@ recording appear to disappear, even though the user spoke for the whole video.
 **How to apply:** Use a brief finalising state after manual stop or video
 `ended`; create the audio `Blob` in `onstop`, then stop tracks. Start the
 recorder immediately before starting the timed video so opening speech is
-captured too.
+captured too. Use the video's actual `ended` event as the only automatic stop
+signal—duration metadata may be short and must only drive display counters.
