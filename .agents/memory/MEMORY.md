@@ -20,6 +20,7 @@
 - [Background processes need setsid](bash-background-setsid.md) — plain `nohup &` from the bash tool is killed with the process group; use `(setsid nohup … &)`; pkill -f can match its own shell.
 - [In-memory job maps vs DB status flags](inmemory-job-db-status.md) — DB "generating" flags from memory-only jobs need boot-time reset + frontend 404 bail-out, or restarts strand the UI.
 - [Render ephemeral uploads & R2](render-ephemeral-uploads.md) — prod disk wipes on deploy; /uploads needs R2 vars on Render + real 404s; Collov CDN blocks browser CORS, use the proxy (plain=1+token skips watermark).
+- [R2 cleanup media inventory](r2-cleanup-media-inventory.md) — every durable-media table must feed both reconciliation and orphan cleanup, or valid customer files can be deleted later.
 - [Bolig gallery image tables](bolig-image-tables.md) — gallery ids are generated_images rows; bolig_case_images is legacy (no writes) — use generatedImageId + getGeneratedImage + userId check.
 - [E2E customer testing](e2e-customer-testing.md) — test signups: flip users.email_verified in dev DB; ALWAYS verify tester "blocked/failed" claims against generated_images; trial gating differs per entry point.
 - [Dashboard banner overlay](dashboard-banner-overlay.md) — top-strip elements are covered by the -mt sibling's transparent padding: visible but unclickable; fix with relative z-10 on the element, never the wrapper.

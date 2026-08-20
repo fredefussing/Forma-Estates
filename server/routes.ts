@@ -27,6 +27,7 @@ import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
 import { isLoadTestMode } from "./load-test";
 import { registerRendyVoiceoverRoutes } from "./rendy-voiceover";
+import { collectRendyMediaKeys } from "./rendy-media-keys";
 
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
@@ -1952,6 +1953,12 @@ export async function registerRoutes(
         read(`SELECT agency_logo_url FROM users`, row => addUrl(row.agency_logo_url)),
       ]);
 
+      const [voiceProjects, rendyJobs] = await Promise.all([
+        pool.query(`SELECT source_url, audio_url, output_url, source_input_url, raw_audio_key FROM rendy_voice_projects`),
+        pool.query(`SELECT videos FROM rendy_jobs WHERE videos IS NOT NULL`),
+      ]);
+      collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows).forEach(key => keys.add(key));
+
       const alreadyDurable: string[] = [];
       const backfilled: string[] = [];
       const missingFromDisk: string[] = [];
@@ -2086,6 +2093,15 @@ export async function registerRoutes(
       await pool.query(`SELECT agency_logo_url FROM users WHERE agency_logo_url IS NOT NULL`)
         .then(r => r.rows.forEach(row => addUrl(row.agency_logo_url)))
         .catch(() => {});
+
+      // Rendy narration is durable customer media. Keep the finished export,
+      // localized source/audio, raw recovery audio, and locally delivered
+      // Rendy videos recorded as JSON on their showcase job.
+      const [voiceProjects, rendyJobs] = await Promise.all([
+        pool.query(`SELECT source_url, audio_url, output_url, source_input_url, raw_audio_key FROM rendy_voice_projects`),
+        pool.query(`SELECT videos FROM rendy_jobs WHERE videos IS NOT NULL`),
+      ]);
+      collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows).forEach(key => liveKeys.add(key));
 
       // ── Step 3: find orphaned R2 files (zero DB tables know about them) ─
       const orphaned = r2Objects.filter(o => !liveKeys.has(o.key));
