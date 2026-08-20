@@ -506,10 +506,10 @@ function buildAssSubtitles(segments: CaptionSegment[]): string {
     "ScaledBorderAndShadow: yes\n\n" +
     "[V4+ Styles]\n" +
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
-    // A clean, premium sans-serif with warm white text, a very thin navy
-    // contour and restrained shadow. Serif details plus a heavy contour
-    // softened at mobile size, while this stays crisp in the final MP4.
-    "Style: Premium,DejaVu Sans,54,&H00F7F3EA,&H000000FF,&H00120F0C,&H900A0806,-1,0,0,0,100,100,0.25,0,1,1.1,0.7,2,96,96,220,1\n\n" +
+    // Editorial property-magazine typography: high-contrast Cormorant
+    // Garamond in warm white, with no outline and only a subtle soft shadow.
+    // The semi-bold cut preserves the fine serif character on phone screens.
+    "Style: Premium,Cormorant Garamond SemiBold,70,&H00F1EEE6,&H000000FF,&H00110F0C,&H88080604,0,0,0,0,100,100,1.0,0,1,0,0.65,2,108,108,230,1\n\n" +
     "[Events]\n" +
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
 
@@ -803,8 +803,10 @@ export function buildRendyVoiceoverExportArgs(
 ): string[] {
   const args: string[] = ["-y", "-i", srcVideo, "-i", voiceAudio];
 
+  const escapeAssFilterPath = (value: string) =>
+    value.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
   const assFilter = assPath
-    ? `ass='${assPath.replace(/\\/g, "\\\\").replace(/:/g, "\\:")}'`
+    ? `ass='${escapeAssFilterPath(assPath)}':fontsdir='${escapeAssFilterPath(path.join(process.cwd(), "public", "fonts"))}'`
     : null;
 
   const durStr = sourceDuration.toFixed(3);
