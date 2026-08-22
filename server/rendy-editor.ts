@@ -929,6 +929,42 @@ export function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH:
   return header + event + "\n";
 }
 
+/**
+ * Probe an assembled output file without applying the source-clip duration cap.
+ *
+ * `probeVideo` enforces MAX_SOURCE_DURATION because individual source clips above
+ * that threshold are pathological. The assembled output may legitimately exceed
+ * 30 min when the user includes many clips, so we parse ffprobe results directly
+ * here and only check that the file is a valid, playable MP4 with a video stream.
+ */
+async function probeOutputVideo(
+  filePath: string,
+): Promise<{ duration: number; width: number; height: number }> {
+  const output = await new Promise<string>((resolve, reject) => {
+    const proc = spawn("ffprobe", [
+      "-v", "error", "-show_entries",
+      "format=duration:stream=codec_type,width,height",
+      "-of", "json", filePath,
+    ]);
+    let out = "";
+    let err = "";
+    proc.stdout.on("data", (d) => { out += d.toString(); });
+    proc.stderr.on("data", (d) => { err += d.toString(); });
+    proc.on("error", reject);
+    proc.on("close", (code) =>
+      code === 0 ? resolve(out) : reject(new Error(`ffprobe fejlede: ${err.slice(-500)}`)),
+    );
+  });
+  const data = JSON.parse(output) as {
+    format?: Record<string, unknown>;
+    streams?: Array<Record<string, unknown>>;
+  };
+  const videoStream = data.streams?.find((s) => s.codec_type === "video");
+  const duration = finite(data.format?.duration);
+  const width = finite(videoStream?.width);
+  const height = finite(videoStream?.height);
+  return { duration, width, height };
+}
 async function runRender(id: string, token: string, uploadDir: string) {
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-render-"));
   try {
@@ -964,6 +1000,10 @@ async function runRender(id: string, token: string, uploadDir: string) {
     const cleanName = `rendy-edit-clean-${id}-${ts}.mp4`;
     const cleanPath = path.join(tempDir, cleanName);
     await runFfmpegQueued(finalRenderArgs(normalized, cleanPath, plan));
+
+    // ── Quality gate: validate clean assembled output before upload ───────────
+    await validateOutput(cleanPath, plan.totalDuration);
+
     await r2UploadFile(cleanPath, cleanName);
     const cleanUrl = `/uploads/${cleanName}`;
 
@@ -989,6 +1029,14 @@ async function runRender(id: string, token: string, uploadDir: string) {
         "-movflags", "+faststart",
         headlinePath,
       ]);
+      // Validate headline-burned output; delete the file if it fails so it
+      // does not accumulate on disk (same pattern as the clean output gate).
+      try {
+        await validateOutput(headlinePath, plan.totalDuration);
+      } catch (validationError) {
+        fs.promises.unlink(headlinePath).catch(() => {});
+        throw validationError;
+      }
       await r2UploadFile(headlinePath, headlineName);
       outputUrl = `/uploads/${headlineName}`;
       fs.promises.unlink(headlinePath).catch(() => {});
@@ -1448,4 +1496,36 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
       return res.status(error?.status ?? 500).json({ success: false, message: error?.message ?? "Kunne ikke genstarte AI-redigeringen" });
     }
   });
+}
+
+/**
+ * Validate the rendered output file before marking a project ready.
+ *
+ * Checks:
+ * - File exists and is non-empty (≥ 10 KB)
+ * - ffprobe can parse it as a valid MP4 container
+ * - Has at least one video stream with nonzero dimensions
+ * - Actual duration is within ±50% of the planned duration (catches black/silent renders)
+ *
+ * Deliberately does NOT apply the 30-minute source-clip cap: the assembled output
+ * may exceed that when many clips are concatenated.
+ */
+async function validateOutput(outputPath: string, expectedDuration: number): Promise<void> {
+  const stat = await fs.promises.stat(outputPath).catch(() => null);
+  if (!stat || stat.size < 10_000) {
+    throw new Error("Den genererede videofil er tom eller for lille — prøv igen");
+  }
+  const info = await probeOutputVideo(outputPath);
+  if (!info.width || !info.height) {
+    throw new Error("Den genererede video mangler en video-strøm — prøv igen");
+  }
+  if (info.duration <= 0) {
+    throw new Error("Den genererede video har ingen registreret varighed — prøv igen");
+  }
+  const ratio = info.duration / expectedDuration;
+  if (ratio < 0.50 || ratio > 1.50) {
+    throw new Error(
+      `Videolængden (${info.duration.toFixed(1)}s) afviger for meget fra det forventede (${expectedDuration.toFixed(1)}s) — prøv igen`,
+    );
+  }
 }

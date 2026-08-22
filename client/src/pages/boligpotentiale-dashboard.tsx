@@ -5868,7 +5868,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         listingId={listingId}
                         sourceVideoId={video.id}
                         sourceVideoUrl={video.url}
-                        onOutputReady={() => {}}
+                        onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url } : item))}
                       />
                     )}
                   </div>
@@ -6577,8 +6577,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
 }
 
 
-// ============================================================================
-// PropertyTourFinal — "AI boligfremvisning" final view.
+// ── PropertyTourFinal — "AI boligfremvisning" final view ─────────────────────
 //   - Shows the auto-generated 3D dollhouse render of the floor plan with
 //     clickable hotspots overlaid using each room's saved bounding rectangle
 //     (from the 2D plan — coordinates are stored as % so they line up on the
@@ -6587,7 +6586,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
 //   - Clicking a hotspot opens a fullscreen viewer that zooms into the
 //     after-image with a slow Ken Burns animation + mouse-driven parallax —
 //     gives a 3D feel without the cost / complexity of a real 360° panorama.
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function PropertyTourFinal({
   propertyId,
   onBack,
