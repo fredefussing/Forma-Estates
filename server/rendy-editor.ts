@@ -92,7 +92,8 @@ interface TimelineItem {
 }
 
 interface TransitionPlan {
-  type: "fade" | "dissolve";
+  /** Edit exports use hard, frame-accurate cuts. Audio is a separate continuous bed. */
+  type: "cut";
   duration: number;
   confidence: number;
 }
@@ -110,6 +111,17 @@ interface EditPlan {
   clips: RenderClipPlan[];
   transitions: TransitionPlan[];
   totalDuration: number;
+}
+
+const EDIT_OUTPUT_FPS = 30;
+
+function cleanEditClipFrames(clip: Pick<RenderClipPlan, "start" | "end">): number {
+  return Math.max(1, Math.round(Math.max(0, clip.end - clip.start) * EDIT_OUTPUT_FPS));
+}
+
+export function cleanEditDuration(plan: Pick<EditPlan, "clips">): number {
+  const frameCount = plan.clips.reduce((sum, clip) => sum + cleanEditClipFrames(clip), 0);
+  return frameCount / EDIT_OUTPUT_FPS;
 }
 
 interface ProjectRow {
@@ -717,15 +729,12 @@ function makeEditPlan(manifest: RendyShotManifest, timeline: TimelineItem[]): Ed
     const from = manifest.shots.find(shot => shot.id === clips[index].shotId)?.candidates.find(candidate => candidate.id === clips[index].candidateId)!;
     const to = manifest.shots.find(shot => shot.id === clips[index + 1].shotId)?.candidates.find(candidate => candidate.id === clips[index + 1].candidateId)!;
     const visualDifference = signatureDistance(from.endSignature, to.startSignature);
-    // Short complete scenes are common in Rendy deliveries. A brief dissolve is
-    // safe and looks better than rejecting an otherwise valid timeline.
-    const duration = transitionDurationForClips(
-      clips[index].end - clips[index].start,
-      clips[index + 1].end - clips[index + 1].start,
-    );
     transitions.push({
-      type: visualDifference > 0.38 ? "fade" : "dissolve",
-      duration,
+      // Rendy shots already contain camera movement. Automatic dissolves blend
+      // two unrelated rooms and made the resulting edit look smeared. A clean
+      // frame-accurate cut keeps the visual story intentional.
+      type: "cut",
+      duration: 0,
       confidence: Math.max(0, Math.min(1, 1 - visualDifference * 0.65)),
     });
   }
@@ -828,44 +837,56 @@ async function runPreparation(id: string, token: string) {
   }
 }
 
-async function normaliseClip(sourcePath: string, outputPath: string, clip: RenderClipPlan, targetW: number, targetH: number, hasAudio: boolean) {
+async function normaliseClip(sourcePath: string, outputPath: string, clip: RenderClipPlan, targetW: number, targetH: number) {
   const duration = clip.end - clip.start;
-  const videoFilter = `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30,format=yuv420p`;
-  if (hasAudio) {
-    await runFfmpegQueued([
-      "-y", "-ss", clip.start.toFixed(3), "-t", duration.toFixed(3), "-i", sourcePath,
-      "-vf", videoFilter, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "medium",
-      "-crf", "20", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", outputPath,
-    ]);
-    return;
-  }
+  const frameCount = cleanEditClipFrames(clip);
+  const videoFilter = `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=${EDIT_OUTPUT_FPS},format=yuv420p`;
   await runFfmpegQueued([
     "-y", "-ss", clip.start.toFixed(3), "-t", duration.toFixed(3), "-i", sourcePath,
-    "-f", "lavfi", "-t", duration.toFixed(3), "-i", "anullsrc=r=48000:cl=stereo",
-    "-vf", videoFilter, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "libx264", "-preset", "medium",
-    "-crf", "20", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", outputPath,
+    "-vf", videoFilter, "-map", "0:v:0", "-an", "-c:v", "libx264", "-preset", "medium",
+    "-crf", "20", "-frames:v", String(frameCount), "-movflags", "+faststart", outputPath,
   ]);
 }
 
-function finalRenderArgs(normalizedPaths: string[], outputPath: string, plan: EditPlan): string[] {
+export function buildCleanEditRenderArgs(
+  normalizedPaths: string[],
+  selectedSourcePath: string,
+  selectedSourceHasAudio: boolean,
+  selectedSourceDuration: number,
+  outputPath: string,
+  plan: EditPlan,
+): string[] {
+  if (!normalizedPaths.length) throw new Error("Der er ingen klip at samle");
+  const outputDuration = cleanEditDuration(plan);
   const args = ["-y", ...normalizedPaths.flatMap(file => ["-i", file])];
-  if (normalizedPaths.length === 1) return [...args, "-c", "copy", outputPath];
-  let filter = "";
-  let videoLabel = "[0:v]";
-  let audioLabel = "[0:a]";
-  let elapsed = plan.clips[0].end - plan.clips[0].start;
-  for (let index = 0; index < plan.transitions.length; index++) {
-    const transition = plan.transitions[index];
-    const vOut = index === plan.transitions.length - 1 ? "[vout]" : `[v${index}]`;
-    const aOut = index === plan.transitions.length - 1 ? "[aout]" : `[a${index}]`;
-    const offset = Math.max(0, elapsed - transition.duration);
-    filter += `${videoLabel}[${index + 1}:v]xfade=transition=${transition.type}:duration=${transition.duration.toFixed(3)}:offset=${offset.toFixed(3)}${vOut};`;
-    filter += `${audioLabel}[${index + 1}:a]acrossfade=d=${transition.duration.toFixed(3)}:c1=tri:c2=tri${aOut};`;
-    videoLabel = vOut;
-    audioLabel = aOut;
-    elapsed += plan.clips[index + 1].end - plan.clips[index + 1].start - transition.duration;
+  const audioInputIndex = normalizedPaths.length;
+  if (selectedSourceHasAudio) {
+    args.push("-i", selectedSourcePath);
+  } else {
+    args.push(
+      "-f", "lavfi", "-t", Math.max(0.01, outputDuration).toFixed(3),
+      "-i", "anullsrc=r=48000:cl=stereo",
+    );
   }
-  return [...args, "-filter_complex", filter.slice(0, -1), "-map", "[vout]", "-map", "[aout]", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", outputPath];
+  const videoFilter = normalizedPaths.length === 1
+    ? "[0:v]null[vout]"
+    : `${normalizedPaths.map((_, index) => `[${index}:v]`).join("")}concat=n=${normalizedPaths.length}:v=1:a=0[vout]`;
+  const sourceDuration = Math.max(0.1, selectedSourceDuration);
+  const sourceSamples = Math.max(1, Math.ceil(sourceDuration * 48_000));
+  // Decode the chosen soundtrack once, reset it to an exact sample clock and
+  // loop those decoded samples. This avoids the AAC priming gap that can occur
+  // when repeatedly opening an MP4 input with -stream_loop.
+  const audioFilter = selectedSourceHasAudio
+    ? `[${audioInputIndex}:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,atrim=start=0:end=${sourceDuration.toFixed(3)},asetpts=N/SR/TB,aloop=loop=-1:size=${sourceSamples},atrim=duration=${outputDuration.toFixed(3)},asetpts=N/SR/TB[aout]`
+    : `[${audioInputIndex}:a]atrim=duration=${outputDuration.toFixed(3)},asetpts=N/SR/TB[aout]`;
+  return [
+    ...args,
+    "-filter_complex", `${videoFilter};${audioFilter}`,
+    "-map", "[vout]", "-map", "[aout]",
+    "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+    "-c:a", "aac", "-ar", "48000", "-ac", "2",
+    "-movflags", "+faststart", outputPath,
+  ];
 }
 
 // ── ASS headline builder ──────────────────────────────────────────────────────
@@ -939,11 +960,18 @@ export function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH:
  */
 async function probeOutputVideo(
   filePath: string,
-): Promise<{ duration: number; width: number; height: number }> {
+): Promise<{
+  duration: number;
+  videoDuration: number;
+  audioDuration: number;
+  width: number;
+  height: number;
+  hasAudio: boolean;
+}> {
   const output = await new Promise<string>((resolve, reject) => {
     const proc = spawn("ffprobe", [
       "-v", "error", "-show_entries",
-      "format=duration:stream=codec_type,width,height",
+      "format=duration:stream=codec_type,width,height,duration",
       "-of", "json", filePath,
     ]);
     let out = "";
@@ -960,10 +988,13 @@ async function probeOutputVideo(
     streams?: Array<Record<string, unknown>>;
   };
   const videoStream = data.streams?.find((s) => s.codec_type === "video");
+  const audioStream = data.streams?.find((s) => s.codec_type === "audio");
   const duration = finite(data.format?.duration);
+  const videoDuration = finite(videoStream?.duration) || duration;
+  const audioDuration = finite(audioStream?.duration) || 0;
   const width = finite(videoStream?.width);
   const height = finite(videoStream?.height);
-  return { duration, width, height };
+  return { duration, videoDuration, audioDuration, width, height, hasAudio: !!audioStream };
 }
 async function runRender(id: string, token: string, uploadDir: string) {
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-render-"));
@@ -971,6 +1002,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
     const project = await getProject(id);
     if (!project?.analysis_plan) throw new Error("Redigeringsanalysen mangler. Start analysen igen.");
     const plan = project.analysis_plan;
+    const outputDuration = cleanEditDuration(plan);
     const sourcePaths: string[] = [];
     const normalized: string[] = [];
     const candidateMeta = new Map<string, MediaInfo>();
@@ -981,13 +1013,27 @@ async function runRender(id: string, token: string, uploadDir: string) {
       sourcePaths.push(source);
       candidateMeta.set(clip.candidateId, await probeVideo(source));
     }
+    const manifest = await manifestForProject(project);
+    const durableSelectedSourceUrl = manifest?.shots
+      .flatMap((shot) => shot.candidates)
+      .find((candidate) => candidate.sourceVideoId === project.source_video_id)
+      ?.sourceUrl;
+    const selectedDelivery = (await getOwnedDeliveryVideos(project.listing_id, project.user_id))
+      .find((video) => video.id === project.source_video_id);
+    const selectedSourceUrl = durableSelectedSourceUrl ?? selectedDelivery?.url;
+    if (!selectedSourceUrl) {
+      throw new Error("Startvideoen til det sammenhængende lydspor kunne ikke findes");
+    }
+    const selectedSourcePath = path.join(tempDir, "selected-audio-source.mp4");
+    await materializeSource(selectedSourceUrl, selectedSourcePath);
+    const selectedSourceMeta = await probeVideo(selectedSourcePath);
     const first = candidateMeta.get(plan.clips[0].candidateId)!;
     const portrait = first.height > first.width;
     const targetW = portrait ? 1080 : 1920;
     const targetH = portrait ? 1920 : 1080;
     for (let index = 0; index < plan.clips.length; index++) {
       const output = path.join(tempDir, `clip-${index}.mp4`);
-      await normaliseClip(sourcePaths[index], output, plan.clips[index], targetW, targetH, candidateMeta.get(plan.clips[index].candidateId)?.hasAudio ?? false);
+      await normaliseClip(sourcePaths[index], output, plan.clips[index], targetW, targetH);
       normalized.push(output);
     }
     await pool.query(`UPDATE rendy_edit_projects SET status = 'rendering', job_stage = 'render', updated_at = NOW() WHERE id = $1 AND lease_token = $2`, [id, token]);
@@ -999,10 +1045,19 @@ async function runRender(id: string, token: string, uploadDir: string) {
     // headline-burned file.
     const cleanName = `rendy-edit-clean-${id}-${ts}.mp4`;
     const cleanPath = path.join(tempDir, cleanName);
-    await runFfmpegQueued(finalRenderArgs(normalized, cleanPath, plan));
+    await runFfmpegQueued(
+      buildCleanEditRenderArgs(
+        normalized,
+        selectedSourcePath,
+        selectedSourceMeta.hasAudio,
+        selectedSourceMeta.duration,
+        cleanPath,
+        plan,
+      ),
+    );
 
     // ── Quality gate: validate clean assembled output before upload ───────────
-    await validateOutput(cleanPath, plan.totalDuration);
+    await validateOutput(cleanPath, outputDuration);
 
     await r2UploadFile(cleanPath, cleanName);
     const cleanUrl = `/uploads/${cleanName}`;
@@ -1020,7 +1075,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
       const fontsDir = path.join(process.cwd(), "public", "fonts");
       const escapeAssFilterPath = (v: string) =>
         v.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
-      fs.writeFileSync(assPath, buildAssHeadline(headline, targetW, targetH, plan.totalDuration), "utf8");
+      fs.writeFileSync(assPath, buildAssHeadline(headline, targetW, targetH, outputDuration), "utf8");
       await runFfmpegQueued([
         "-y", "-i", cleanPath,
         "-vf", `ass='${escapeAssFilterPath(assPath)}':fontsdir='${escapeAssFilterPath(fontsDir)}'`,
@@ -1032,7 +1087,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
       // Validate headline-burned output; delete the file if it fails so it
       // does not accumulate on disk (same pattern as the clean output gate).
       try {
-        await validateOutput(headlinePath, plan.totalDuration);
+        await validateOutput(headlinePath, outputDuration);
       } catch (validationError) {
         fs.promises.unlink(headlinePath).catch(() => {});
         throw validationError;
@@ -1505,7 +1560,7 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
  * - File exists and is non-empty (≥ 10 KB)
  * - ffprobe can parse it as a valid MP4 container
  * - Has at least one video stream with nonzero dimensions
- * - Actual duration is within ±50% of the planned duration (catches black/silent renders)
+ * - Video and audio both match the planned 30-fps frame duration closely
  *
  * Deliberately does NOT apply the 30-minute source-clip cap: the assembled output
  * may exceed that when many clips are concatenated.
@@ -1522,10 +1577,17 @@ async function validateOutput(outputPath: string, expectedDuration: number): Pro
   if (info.duration <= 0) {
     throw new Error("Den genererede video har ingen registreret varighed — prøv igen");
   }
-  const ratio = info.duration / expectedDuration;
-  if (ratio < 0.50 || ratio > 1.50) {
+  if (!info.hasAudio || info.audioDuration <= 0) {
+    throw new Error("Den genererede video mangler det sammenhængende lydspor — prøv igen");
+  }
+  const durationTolerance = 0.12;
+  if (
+    Math.abs(info.duration - expectedDuration) > durationTolerance ||
+    Math.abs(info.videoDuration - expectedDuration) > durationTolerance ||
+    Math.abs(info.audioDuration - expectedDuration) > durationTolerance
+  ) {
     throw new Error(
-      `Videolængden (${info.duration.toFixed(1)}s) afviger for meget fra det forventede (${expectedDuration.toFixed(1)}s) — prøv igen`,
+      `Video og lyd har ikke samme forventede længde (${expectedDuration.toFixed(2)}s) — prøv igen`,
     );
   }
 }

@@ -25,6 +25,23 @@ hot-reload server-side code. After editing `server/*.ts` you MUST restart the
 "Start application" workflow before re-testing, or you'll keep hitting the old
 bug and think the fix didn't work.
 
+## Sample-precise looping for AAC/MP4 soundtracks
+
+For an edited video that must keep one source soundtrack continuously, do not
+loop the compressed MP4 input itself. Decode its audio once, reset timestamps,
+and use FFmpeg's `aloop` with the decoded sample count; then trim that branch to
+the picture track's frame-quantized duration.
+
+**Why:** looping an AAC/MP4 input can repeat encoder priming and leave a short
+audio tail mismatch even when the branch is trimmed. Picture clips also round to
+whole output frames, so summing raw millisecond bounds can make audio end before
+the last frame.
+
+**How to apply:** choose one output FPS, force an explicit frame count for every
+normalized clip, derive total picture duration from those same frame counts, and
+trim the sample-looped audio to that duration. Probe video and audio stream
+durations separately before accepting the export.
+
 ## Beat-synced cuts (the "edited to the music" look)
 
 To make image switches land on the music's beat: measure each fixed track's pulse

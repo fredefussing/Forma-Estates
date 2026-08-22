@@ -25,7 +25,9 @@ import { buildCombinedAss } from "./rendy-voiceover";
 import type { CaptionSegment } from "./rendy-voiceover";
 import {
   buildAssHeadline,
+  buildCleanEditRenderArgs,
   buildHeadlineOverlayArgs,
+  cleanEditDuration,
   isLegacyShortTransitionError,
   renderBoundsForCandidate,
   transitionDurationForClips,
@@ -382,6 +384,79 @@ console.log("\n[11] Headline preview/export fidelity");
     !isLegacyShortTransitionError("En videoramme kunne ikke læses"),
     "legacy project: unrelated failures are never reopened automatically",
   );
+}
+
+console.log("\n[12] Clean Edit picture cuts and continuous source audio");
+{
+  const cleanPlan = {
+    clips: [
+      {
+        shotId: "shot-1",
+        candidateId: "candidate-1",
+        sourceUrl: "/uploads/one.mp4",
+        sourceVideoId: "source-1",
+        start: 0,
+        end: 1.2,
+      },
+      {
+        shotId: "shot-2",
+        candidateId: "candidate-2",
+        sourceUrl: "/uploads/two.mp4",
+        sourceVideoId: "source-2",
+        start: 0.2,
+        end: 1.2,
+      },
+    ],
+    transitions: [
+      { type: "cut" as const, duration: 0, confidence: 1 },
+    ],
+    // A stale pre-clean-cut plan may still contain the formerly overlapped
+    // duration. The new renderer must derive duration from clip bounds.
+    totalDuration: 2.08,
+  };
+  assert(
+    Math.abs(cleanEditDuration(cleanPlan) - 2.2) < 0.0001,
+    "edit duration: derives exact clean-cut picture length from clip bounds",
+  );
+  assert(
+    Math.abs(cleanEditDuration({
+      ...cleanPlan,
+      clips: [
+        { ...cleanPlan.clips[0], end: 0.7 },
+        { ...cleanPlan.clips[1], start: 0, end: 0.65 },
+      ],
+    }) - (41 / 30)) < 0.0001,
+    "edit duration: quantizes non-frame-aligned clips to the emitted 30-fps frame clock",
+  );
+  const args = buildCleanEditRenderArgs(
+    ["/tmp/clip-1.mp4", "/tmp/clip-2.mp4"],
+    "/tmp/selected-source.mp4",
+    true,
+    0.4,
+    "/tmp/clean-output.mp4",
+    cleanPlan,
+  );
+  const filter = args[args.indexOf("-filter_complex") + 1];
+  assert(args.filter((arg) => arg === "-i").length === 3, "clean edit: two picture inputs plus one selected audio source");
+  assert(filter.includes("aloop=loop=-1:size=19200"), "clean edit: decoded selected music loops sample-precisely");
+  assert(!args.includes("-stream_loop"), "clean edit: avoids MP4/AAC loop priming gaps");
+  assert(filter.includes("concat=n=2:v=1:a=0"), "clean edit: picture clips use frame-accurate hard concat");
+  assert(!filter.includes("xfade"), "clean edit: no smeared automatic picture crossfade");
+  assert(!filter.includes("acrossfade"), "clean edit: clip audio is never crossfaded");
+  assert(filter.includes("[2:a]"), "clean edit: audio comes only from the selected source input");
+  assert(filter.includes("atrim=duration=2.200"), "clean edit: continuous audio ends with the exact picture duration");
+  assert(args.includes("[aout]"), "clean edit: maps the continuous selected-source audio bed");
+
+  const silentArgs = buildCleanEditRenderArgs(
+    ["/tmp/clip-1.mp4"],
+    "/tmp/selected-source.mp4",
+    false,
+    0,
+    "/tmp/silent-output.mp4",
+    { ...cleanPlan, clips: cleanPlan.clips.slice(0, 1), transitions: [], totalDuration: 1.2 },
+  );
+  assert(silentArgs.includes("anullsrc=r=48000:cl=stereo"), "clean edit: source without audio gets deterministic silence");
+  assert(!silentArgs.includes("-stream_loop"), "clean edit: silent source is not pointlessly looped");
 }
 
 // Case 2: without audio — drops audio (-an), no -c:a copy

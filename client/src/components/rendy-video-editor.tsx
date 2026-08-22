@@ -4,8 +4,6 @@ import { RendyVoiceoverEditor } from "@/components/rendy-voiceover-editor";
 import { RendyHeadlineEditor } from "@/components/rendy-headline-editor";
 import {
   Check,
-  ChevronDown,
-  ChevronUp,
   Film,
   Loader2,
   Minus,
@@ -15,7 +13,10 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { DEFAULT_HEADLINE_SETTINGS, type HeadlineSettings } from "@shared/rendy-text";
+import {
+  DEFAULT_HEADLINE_SETTINGS,
+  type HeadlineSettings,
+} from "@shared/rendy-text";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,8 @@ interface EditProject {
   id: string;
   listingId: string;
   sourceVideoId: string;
-  status: "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
+  status:
+    "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
   manifest: Manifest | null;
   timeline: TimelineItem[];
   headline?: HeadlineSettings;
@@ -64,6 +66,13 @@ interface EditProject {
    *  previously burned-in headline. Falls back to sourceVideoUrl when absent. */
   cleanOutputUrl?: string;
   error?: string;
+}
+
+interface SourceGroup {
+  id: string;
+  label: string;
+  isSoundSource: boolean;
+  entries: Array<{ shot: Shot; candidate: Candidate }>;
 }
 
 interface Props {
@@ -104,7 +113,10 @@ function ClipThumbnail({
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const at = candidate
-    ? Math.max(candidate.safeStart, candidate.safeStart + (candidate.safeEnd - candidate.safeStart) / 2)
+    ? Math.max(
+        candidate.safeStart,
+        candidate.safeStart + (candidate.safeEnd - candidate.safeStart) / 2,
+      )
     : 0;
 
   useEffect(() => {
@@ -145,11 +157,56 @@ function ClipThumbnail({
   );
 }
 
-const POLLING_STATUSES: EditProject["status"][] = ["preparing", "analyzing", "rendering"];
+function groupLibraryBySource(
+  manifest: Manifest | null | undefined,
+  selectedSourceVideoId: string,
+): SourceGroup[] {
+  if (!manifest) return [];
+  const sourceIds = Array.from(
+    new Set([
+      ...Object.keys(manifest.sourceMembership ?? {}),
+      ...manifest.shots.flatMap((shot) =>
+        shot.candidates.map((candidate) => candidate.sourceVideoId),
+      ),
+    ]),
+  );
+  return sourceIds
+    .map((sourceId, index) => {
+      const knownShotIds = manifest.sourceMembership?.[sourceId];
+      const sourceShots = knownShotIds
+        ? knownShotIds
+            .map((shotId) => manifest.shots.find((shot) => shot.id === shotId))
+            .filter((shot): shot is Shot => !!shot)
+        : manifest.shots;
+      return {
+        id: sourceId,
+        label: `Video ${index + 1}`,
+        isSoundSource: sourceId === selectedSourceVideoId,
+        entries: sourceShots.flatMap((shot) => {
+          const candidate = shot.candidates.find(
+            (entry) => entry.sourceVideoId === sourceId,
+          );
+          return candidate ? [{ shot, candidate }] : [];
+        }),
+      };
+    })
+    .filter((group) => group.entries.length > 0);
+}
+
+const POLLING_STATUSES: EditProject["status"][] = [
+  "preparing",
+  "analyzing",
+  "rendering",
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onOutputReady }: Props) {
+export function RendyVideoEditor({
+  listingId,
+  sourceVideoId,
+  sourceVideoUrl,
+  onOutputReady,
+}: Props) {
   const { user } = useAuth();
 
   const [open, setOpen] = useState(false);
@@ -158,10 +215,11 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-  const [pickerOpen, setPickerOpen] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   // Headline state — always reset to proj.headline ?? DEFAULT on every project load/poll
-  const [headline, setHeadline] = useState<HeadlineSettings>(DEFAULT_HEADLINE_SETTINGS);
+  const [headline, setHeadline] = useState<HeadlineSettings>(
+    DEFAULT_HEADLINE_SETTINGS,
+  );
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onOutputReadyRef = useRef(onOutputReady);
@@ -189,7 +247,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
       if (!res.ok || data.success === false) {
         const technical = data.error || data.message;
         if (technical) console.warn("Rendy video editor:", technical);
-        throw new Error(data.error || data.message || "Anmodningen mislykkedes");
+        throw new Error(
+          data.error || data.message || "Anmodningen mislykkedes",
+        );
       }
       return data;
     },
@@ -221,7 +281,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
       } catch (err: unknown) {
         pollTimer.current = null;
         setBusy(false);
-        setMessage(err instanceof Error ? err.message : "Fejl under opdatering");
+        setMessage(
+          err instanceof Error ? err.message : "Fejl under opdatering",
+        );
       }
     },
     [api, applyProject, clearPoll],
@@ -246,7 +308,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
       }
     } catch (err: unknown) {
       setBusy(false);
-      setMessage(err instanceof Error ? err.message : "Kunne ikke oprette projekt");
+      setMessage(
+        err instanceof Error ? err.message : "Kunne ikke oprette projekt",
+      );
     }
   }, [api, applyProject, listingId, poll, sourceVideoId]);
 
@@ -265,44 +329,64 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
   }, [project?.status, project?.outputUrl]);
 
   useEffect(() => {
-    if (open && project && POLLING_STATUSES.includes(project.status) && !pollTimer.current) {
+    if (
+      open &&
+      project &&
+      POLLING_STATUSES.includes(project.status) &&
+      !pollTimer.current
+    ) {
       void poll(project.id);
     }
   }, [open, poll, project]);
 
   // ── Timeline mutations ──────────────────────────────────────────────────────
   const shots: Shot[] = project?.manifest?.shots ?? [];
-  const timelineCandidateIds = new Set(timeline.map((t) => t.candidateId));
 
-  function addShot(shot: Shot) {
-    const cand =
-      shot.candidates.find((c) => !timelineCandidateIds.has(c.id)) ?? shot.candidates[0];
-    if (!cand) return;
-    setTimeline((prev) => [...prev, { shotId: shot.id, candidateId: cand.id }]);
-    setPickerOpen(null);
+  function useCandidate(shot: Shot, candidate: Candidate) {
+    const existingIndex = timeline.findIndex((item) => item.shotId === shot.id);
+    if (existingIndex >= 0) {
+      setTimeline((previous) =>
+        previous.map((item, index) =>
+          index === existingIndex
+            ? { ...item, candidateId: candidate.id }
+            : item,
+        ),
+      );
+      setSelectedIndex(existingIndex);
+      return;
+    }
+    setTimeline((previous) => [
+      ...previous,
+      { shotId: shot.id, candidateId: candidate.id },
+    ]);
+    setSelectedIndex(timeline.length);
   }
 
   function removeItem(index: number) {
-    setTimeline((prev) => prev.filter((_, i) => i !== index));
-    setPickerOpen(null);
-  }
-
-  function moveItem(index: number, dir: -1 | 1) {
-    const next = index + dir;
-    if (next < 0 || next >= timeline.length) return;
-    setTimeline((prev) => {
-      const arr = [...prev];
-      [arr[index], arr[next]] = [arr[next], arr[index]];
-      return arr;
-    });
-    setPickerOpen(null);
-  }
-
-  function selectCandidate(index: number, candidateId: string) {
-    setTimeline((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, candidateId } : item)),
+    setTimeline((previous) =>
+      previous.filter((_, itemIndex) => itemIndex !== index),
     );
-    setPickerOpen(null);
+    setSelectedIndex((previous) => {
+      if (previous == null) return null;
+      if (previous === index) return null;
+      return previous > index ? previous - 1 : previous;
+    });
+  }
+
+  function moveItemTo(index: number, targetIndex: number) {
+    if (
+      targetIndex < 0 ||
+      targetIndex >= timeline.length ||
+      targetIndex === index
+    )
+      return;
+    setTimeline((previous) => {
+      const next = [...previous];
+      const [item] = next.splice(index, 1);
+      next.splice(targetIndex, 0, item);
+      return next;
+    });
+    setSelectedIndex(targetIndex);
   }
 
   // ── Server actions ──────────────────────────────────────────────────────────
@@ -376,7 +460,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
       }
     } catch (err: unknown) {
       setBusy(false);
-      setMessage(err instanceof Error ? err.message : "Kunne ikke anvende overskrift");
+      setMessage(
+        err instanceof Error ? err.message : "Kunne ikke anvende overskrift",
+      );
     }
   }, [api, applyProject, clearPoll, headline, poll, project]);
 
@@ -386,9 +472,12 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
     setBusy(true);
     setMessage("");
     try {
-      const data = await api(`/api/bolig/rendy/edit-projects/${project.id}/retry`, {
-        method: "POST",
-      });
+      const data = await api(
+        `/api/bolig/rendy/edit-projects/${project.id}/retry`,
+        {
+          method: "POST",
+        },
+      );
       const proj: EditProject = data.project;
       applyProject(proj);
       void poll(proj.id);
@@ -402,23 +491,11 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
   const editTimeline = useCallback(async () => {
     if (!project) return;
     setMessage("");
-    const updated = await patchTimeline();
-    if (updated) setPickerOpen(null);
+    await patchTimeline();
   }, [patchTimeline, project]);
 
   const status = project?.status;
-
-  // ── Shot library helpers ──────────────────────────────────────────────────
-  function shotInTimeline(shot: Shot): boolean {
-    return shot.candidates.some((c) => timelineCandidateIds.has(c.id));
-  }
-
-  function activeCandidateIdForShot(shot: Shot): string | null {
-    for (const item of timeline) {
-      if (item.shotId === shot.id) return item.candidateId;
-    }
-    return null;
-  }
+  const sourceGroups = groupLibraryBySource(project?.manifest, sourceVideoId);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   if (!open) {
@@ -439,7 +516,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
 
   const totalSec = totalDuration(timeline, shots);
   const previewIndex =
-    selectedIndex != null && selectedIndex >= 0 && selectedIndex < timeline.length
+    selectedIndex != null &&
+    selectedIndex >= 0 &&
+    selectedIndex < timeline.length
       ? selectedIndex
       : 0;
   const previewItem = timeline[previewIndex];
@@ -447,7 +526,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
     ? shots.find((shot) => shot.id === previewItem.shotId)
     : null;
   const previewCandidate = previewItem
-    ? previewShot?.candidates.find((candidate) => candidate.id === previewItem.candidateId)
+    ? previewShot?.candidates.find(
+        (candidate) => candidate.id === previewItem.candidateId,
+      )
     : null;
 
   return (
@@ -463,9 +544,12 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
               <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
               Forma videostudie
             </div>
-            <h3 className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">Redigér video</h3>
-            <p className="text-[11px] text-[#6C6964]">
-              Sæt klip sammen, tilføj overskrift og generer en ny video
+            <h3 className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">
+              Redigér video
+            </h3>
+            <p className="max-w-xl text-[11px] leading-relaxed text-[#6C6964]">
+              Byg videoen i den rækkefølge, den skal ses. Musikken fra
+              startvideoen fortsætter hele vejen.
             </p>
           </div>
           <button
@@ -481,36 +565,78 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
           </button>
         </div>
         {shots.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto border-y border-[#E4D8CC] py-2 text-[10px] text-[#77736D]">
-            <span className="shrink-0 font-semibold uppercase tracking-[0.14em] text-[#A36F4E]">Rækkefølge</span>
-            {timeline.map((item, index) => {
-              const shot = shots.find((entry) => entry.id === item.shotId);
-              const candidate = shot?.candidates.find((entry) => entry.id === item.candidateId);
-              return (
-                <div key={`${item.shotId}-context-${index}`} className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#EEE5DC] px-2 py-1 text-[#4D4943]">
-                  <span className="font-mono text-[9px] text-[#A36F4E]">{String(index + 1).padStart(2, "0")}</span>
-                  <ClipThumbnail candidate={candidate} className="h-4 w-6 shrink-0 rounded" />
-                  <span className="max-w-[100px] truncate">{shot?.label ?? "Klip"}</span>
-                </div>
-              );
-            })}
-            {timeline.length === 0 && <span>Tilføj klip fra biblioteket for at starte sekvensen</span>}
+          <div className="border-y border-[#E4D8CC] py-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A36F4E]">
+                  Din rækkefølge
+                </p>
+                <p className="text-[10px] leading-relaxed text-[#77736D]">
+                  Fra venstre mod højre er præcis den rækkefølge, dine klip
+                  afspilles i.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#F4EEE8] px-2.5 py-1 text-[10px] font-semibold text-[#855F45]">
+                {timeline.length} klip
+              </span>
+            </div>
+            <div
+              className="flex gap-3 overflow-x-auto pb-2"
+              aria-label="Videoens rækkefølge"
+            >
+              {timeline.map((item, index) => {
+                const shot = shots.find((entry) => entry.id === item.shotId);
+                const candidate = shot?.candidates.find(
+                  (entry) => entry.id === item.candidateId,
+                );
+                return (
+                  <button
+                    key={`${item.shotId}-context-${index}`}
+                    type="button"
+                    onClick={() => setSelectedIndex(index)}
+                    aria-label={`Åbn klip ${index + 1}: ${shot?.label ?? "Klip"}`}
+                    className={`relative w-32 shrink-0 overflow-hidden rounded-xl border text-left transition-colors ${
+                      previewIndex === index
+                        ? "border-[#C8956C] bg-[#FFF9F4]"
+                        : "border-[#E1DAD2] bg-white"
+                    }`}
+                  >
+                    <ClipThumbnail
+                      candidate={candidate}
+                      className="aspect-video w-full"
+                    />
+                    <span className="absolute left-2 top-2 grid h-7 min-w-7 place-items-center rounded-md bg-[#0F1D2F]/90 px-1.5 font-mono text-[10px] font-semibold text-white">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="block truncate px-2 py-1.5 text-[10px] font-semibold text-[#4D4943]">
+                      {shot?.label ?? "Klip"}
+                    </span>
+                  </button>
+                );
+              })}
+              {timeline.length === 0 && (
+                <span className="rounded-xl border border-dashed border-[#DCC9B9] px-4 py-5 text-xs text-[#77736D]">
+                  Brug plus-knapperne under hver video for at begynde.
+                </span>
+              )}
+            </div>
           </div>
         )}
 
         {/* Loading / preparing */}
-        {busy && (!status || status === "preparing" || status === "analyzing") && (
-          <div
-            className="rounded-lg bg-[#F4EEE8] p-3 text-xs text-[#4D4943] flex items-center gap-2"
-            role="status"
-            aria-live="polite"
-          >
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {!status || status === "preparing"
-              ? "Forbereder projekt…"
-              : "Analyserer video…"}
-          </div>
-        )}
+        {busy &&
+          (!status || status === "preparing" || status === "analyzing") && (
+            <div
+              className="rounded-lg bg-[#F4EEE8] p-3 text-xs text-[#4D4943] flex items-center gap-2"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {!status || status === "preparing"
+                ? "Forbereder projekt…"
+                : "Analyserer video…"}
+            </div>
+          )}
 
         {/* Rendering */}
         {status === "rendering" && (
@@ -564,54 +690,65 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
             HeadlineEditor.onApply = startRender so user can add/change/remove
             headline by building a new immutable video from the clean source. */}
         {status === "ready" && project?.outputUrl && (
-          <div className="space-y-2">
-            <div
-              className="flex items-center gap-2 text-xs font-semibold text-[#385B49]"
-              role="status"
-              aria-live="polite"
-            >
-              <Check className="w-4 h-4" />
-              Video klar
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-3">
+              <div
+                className="flex items-center gap-2 text-xs font-semibold text-[#385B49]"
+                role="status"
+                aria-live="polite"
+              >
+                <Check className="w-4 h-4" />
+                Video klar
+              </div>
+              <div className="flex min-h-48 items-center justify-center rounded-2xl bg-[#0A1422] p-3 sm:min-h-56 sm:p-4">
+                <video
+                  id={`rendy-edited-video-${project.id}`}
+                  src={project.outputUrl}
+                  controls
+                  playsInline
+                  className="mx-auto max-h-[30vh] w-auto max-w-[420px] rounded-xl bg-black object-contain"
+                  data-testid="video-edit-final"
+                />
+              </div>
+              <p className="text-center text-[10px] text-[#77736D]">
+                Afspilleren er gjort kompakt, så redigeringsværktøjerne altid er
+                synlige.
+              </p>
             </div>
-            <video
-              id={`rendy-edited-video-${project.id}`}
-              src={project.outputUrl}
-              controls
-              playsInline
-              className="w-full rounded-lg bg-black"
-              data-testid="video-edit-final"
-            />
-            <RendyVoiceoverEditor
-              sourceVideoUrl={project.outputUrl}
-              sourceVideoId={`edit:${project.id}`}
-              listingId={listingId}
-              videoElementId={`rendy-edited-video-${project.id}`}
-              onOutputReady={onOutputReady}
-            />
-            {/* Headline editor in ready state:
-                - Preview base is the clean assembled Edit export (cleanOutputUrl)
-                  so the preview is never contaminated by a previously burned
-                  headline; falls back to the raw source if not yet available.
-                - Apply = applyHeadline re-burns text directly onto the existing
-                  clean export via a dedicated endpoint. It never rebuilds the
-                  timeline or PATCHes it for headline-only changes. */}
-            <RendyHeadlineEditor
-              sourceVideoUrl={project.cleanOutputUrl ?? sourceVideoUrl}
-              value={headline}
-              onChange={setHeadline}
-              onApply={applyHeadline}
-              applyBusy={busy}
-            />
-            <button
-              type="button"
-              onClick={editTimeline}
-              disabled={saving || busy}
-              className="w-full h-8 rounded-lg border border-[#DCC9B9] text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              data-testid="button-edit-video-again"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Redigér igen
-            </button>
+            <aside className="space-y-3 rounded-2xl border border-[#E1DAD2] bg-white p-4 shadow-sm">
+              <div className="rounded-xl bg-[#EAF2ED] px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#385B49]">
+                  Sammenhængende lyd
+                </p>
+                <p className="mt-1 text-[11px] text-[#4D5E54]">
+                  Musikken følger den valgte startvideo gennem hele resultatet.
+                </p>
+              </div>
+              <RendyVoiceoverEditor
+                sourceVideoUrl={project.outputUrl}
+                sourceVideoId={`edit:${project.id}`}
+                listingId={listingId}
+                videoElementId={`rendy-edited-video-${project.id}`}
+                onOutputReady={onOutputReady}
+              />
+              <RendyHeadlineEditor
+                sourceVideoUrl={project.cleanOutputUrl ?? sourceVideoUrl}
+                value={headline}
+                onChange={setHeadline}
+                onApply={applyHeadline}
+                applyBusy={busy}
+              />
+              <button
+                type="button"
+                onClick={editTimeline}
+                disabled={saving || busy}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#C8956C] text-xs font-semibold text-[#855F45]"
+                data-testid="button-edit-video-again"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Redigér klip og rækkefølge
+              </button>
+            </aside>
           </div>
         )}
 
@@ -658,9 +795,12 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
                 <div className="rounded-2xl border border-[#E1DAD2] bg-white p-3 shadow-sm sm:p-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-semibold text-[#0F1D2F]">Din tidslinje</h4>
-                      <p className="text-[11px] text-[#77736D]">
-                        Tryk på et klip for at se det. Brug pilene til at ændre rækkefølgen.
+                      <h4 className="text-sm font-semibold text-[#0F1D2F]">
+                        Din tidslinje
+                      </h4>
+                      <p className="text-[11px] leading-relaxed text-[#77736D]">
+                        Tryk på et klip for at se det. Brug bibliotekets plus og
+                        minus til at vælge dine klip.
                       </p>
                     </div>
                     <span className="rounded-full bg-[#F4EEE8] px-2.5 py-1 text-[10px] font-semibold text-[#855F45]">
@@ -676,11 +816,17 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
 
                   <ol className="space-y-2.5">
                     {timeline.map((item, index) => {
-                      const shot = shots.find((candidateShot) => candidateShot.id === item.shotId);
+                      const shot = shots.find(
+                        (candidateShot) => candidateShot.id === item.shotId,
+                      );
                       if (!shot) return null;
-                      const candidate = shot.candidates.find((entry) => entry.id === item.candidateId);
-                      const isPicker = pickerOpen === index;
+                      const candidate = shot.candidates.find(
+                        (entry) => entry.id === item.candidateId,
+                      );
                       const isSelected = previewIndex === index;
+                      const sourceGroup = sourceGroups.find(
+                        (group) => group.id === candidate?.sourceVideoId,
+                      );
 
                       return (
                         <li
@@ -702,15 +848,17 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A36F4E]">
-                                    Klip {String(index + 1).padStart(2, "0")} i rækkefølgen
+                                    Plads {String(index + 1).padStart(2, "0")}
                                   </p>
                                   <p className="mt-0.5 truncate text-sm font-semibold text-[#0F1D2F]">
                                     {shot.label}
                                   </p>
                                   <p className="text-[11px] text-[#77736D]">
-                                    {candidate ? fmtDuration(candidate.duration) : "Ukendt længde"}
-                                    {shot.candidates.length > 1
-                                      ? ` · ${shot.candidates.length} varianter`
+                                    {candidate
+                                      ? fmtDuration(candidate.duration)
+                                      : "Ukendt længde"}
+                                    {sourceGroup
+                                      ? ` · ${sourceGroup.label}`
                                       : ""}
                                   </p>
                                 </div>
@@ -720,41 +868,33 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-3 grid grid-cols-4 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    moveItem(index, -1);
-                                  }}
-                                  disabled={index === 0}
-                                  aria-label={`Flyt ${shot.label} tidligere`}
-                                  className="h-9 rounded-lg border border-[#E1DAD2] bg-white text-[#4D4943] inline-flex items-center justify-center disabled:opacity-30"
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <div
+                                  className="flex min-h-10 min-w-[130px] flex-1 items-center justify-between gap-3 rounded-xl border border-[#E1DAD2] bg-white px-3 text-[11px] font-semibold text-[#4D4943]"
+                                  onClick={(event) => event.stopPropagation()}
                                 >
-                                  <ChevronUp className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    moveItem(index, 1);
-                                  }}
-                                  disabled={index === timeline.length - 1}
-                                  aria-label={`Flyt ${shot.label} senere`}
-                                  className="h-9 rounded-lg border border-[#E1DAD2] bg-white text-[#4D4943] inline-flex items-center justify-center disabled:opacity-30"
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setPickerOpen(isPicker ? null : index);
-                                  }}
-                                  className="h-9 rounded-lg border border-[#DCC9B9] bg-white px-2 text-[11px] font-semibold text-[#0F1D2F]"
-                                >
-                                  Skift
-                                </button>
+                                  <span>Flyt til plads</span>
+                                  <div className="flex flex-wrap justify-end gap-1">
+                                    {timeline.map((_, position) => (
+                                      <button
+                                        key={position}
+                                        type="button"
+                                        onClick={() =>
+                                          moveItemTo(index, position)
+                                        }
+                                        aria-label={`Flyt ${shot.label} til plads ${position + 1}`}
+                                        aria-pressed={index === position}
+                                        className={`grid h-6 min-w-6 place-items-center rounded-md px-1 font-mono text-[10px] transition-colors focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40 ${
+                                          index === position
+                                            ? "bg-[#0F1D2F] text-white"
+                                            : "bg-[#F4EEE8] text-[#855F45] hover:bg-[#E7C6A9]"
+                                        }`}
+                                      >
+                                        {String(position + 1).padStart(2, "0")}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={(event) => {
@@ -762,56 +902,14 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
                                     removeItem(index);
                                   }}
                                   aria-label={`Fjern ${shot.label}`}
-                                  className="h-9 rounded-lg border border-[#E8D4D0] bg-white text-[#A34D43] inline-flex items-center justify-center"
+                                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E8D4D0] bg-[#FFFDFC] px-3.5 text-[11px] font-semibold text-[#A34D43] transition-colors hover:bg-[#FBF0EE] focus:outline-none focus:ring-2 focus:ring-[#A34D43]/30"
                                 >
                                   <Minus className="h-4 w-4" />
+                                  Fjern
                                 </button>
                               </div>
                             </div>
                           </div>
-
-                          {isPicker && (
-                            <div
-                              className="mt-3 border-t border-[#E8E0D8] pt-3"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <p className="mb-2 text-[11px] font-semibold text-[#0F1D2F]">
-                                Vælg en anden version af {shot.label}
-                              </p>
-                              <div className="flex gap-2 overflow-x-auto pb-1">
-                                {shot.candidates.map((candidateOption, candidateIndex) => {
-                                  const isActive = candidateOption.id === item.candidateId;
-                                  const inUseElsewhere =
-                                    !isActive && timelineCandidateIds.has(candidateOption.id);
-                                  return (
-                                    <button
-                                      key={candidateOption.id}
-                                      type="button"
-                                      onClick={() =>
-                                        !inUseElsewhere &&
-                                        selectCandidate(index, candidateOption.id)
-                                      }
-                                      disabled={inUseElsewhere}
-                                      className={`w-36 shrink-0 overflow-hidden rounded-xl border text-left disabled:opacity-40 ${
-                                        isActive
-                                          ? "border-[#C8956C] bg-[#FDF5EE]"
-                                          : "border-[#E1DAD2] bg-white"
-                                      }`}
-                                    >
-                                      <ClipThumbnail
-                                        candidate={candidateOption}
-                                        className="aspect-video w-full"
-                                      />
-                                      <span className="block px-2.5 py-2 text-[10px] font-semibold text-[#4D4943]">
-                                        Version {candidateIndex + 1} · {fmtDuration(candidateOption.duration)}
-                                        {isActive ? " · Valgt" : ""}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </li>
                       );
                     })}
@@ -835,60 +933,104 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
 
                 <div className="rounded-2xl border border-[#E1DAD2] bg-white p-3 shadow-sm">
                   <div className="mb-3">
-                    <h4 className="text-sm font-semibold text-[#0F1D2F]">Klipbibliotek</h4>
+                    <h4 className="text-sm font-semibold text-[#0F1D2F]">
+                      Klipbibliotek
+                    </h4>
                     <p className="text-[11px] text-[#77736D]">
                       Se motivet, før du føjer et klip til videoen.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:max-h-[68vh] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1">
-                    {shots.map((shot) => {
-                      const inTimeline = shotInTimeline(shot);
-                      const activeCandidateId = activeCandidateIdForShot(shot);
-                      const activeCandidate = activeCandidateId
-                        ? shot.candidates.find((candidate) => candidate.id === activeCandidateId)
-                        : null;
-                      const libraryCandidate = activeCandidate ?? shot.candidates[0];
-                      return (
-                        <article
-                          key={shot.id}
-                          className="overflow-hidden rounded-xl border border-[#E1DAD2] bg-[#FFFDFC]"
-                        >
-                          <ClipThumbnail
-                            candidate={libraryCandidate}
-                            className="aspect-video w-full"
-                          />
-                          <div className="flex items-center gap-3 p-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-semibold text-[#0F1D2F]">
-                                {shot.label}
-                              </p>
-                              <p className="text-[10px] text-[#77736D]">
-                                {fmtDuration(shot.duration)}
-                                {shot.candidates.length > 1
-                                  ? ` · ${shot.candidates.length} varianter`
-                                  : ""}
-                              </p>
-                            </div>
-                            {inTimeline ? (
-                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#EAF2ED] px-2 py-1 text-[9px] font-semibold text-[#385B49]">
-                                <Check className="h-3 w-3" />
-                                Tilføjet
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => addShot(shot)}
-                                aria-label={`Tilsæt ${shot.label}`}
-                                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#C8956C] px-3 text-[10px] font-semibold text-[#855F45]"
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                                Tilføj
-                              </button>
-                            )}
+                  <div className="space-y-4 xl:max-h-[68vh] xl:overflow-y-auto xl:pr-1">
+                    {sourceGroups.map((group) => (
+                      <section
+                        key={group.id}
+                        className={`rounded-xl border p-2.5 ${
+                          group.isSoundSource
+                            ? "border-[#9CB9A8] bg-[#F3F8F5]"
+                            : "border-[#E1DAD2] bg-[#FAF8F5]"
+                        }`}
+                      >
+                        <div className="mb-2.5 flex items-start justify-between gap-3 px-1">
+                          <div>
+                            <h5 className="text-xs font-semibold text-[#0F1D2F]">
+                              {group.label}
+                            </h5>
+                            <p className="text-[10px] text-[#77736D]">
+                              {group.entries.length} tilgængelige klip
+                            </p>
                           </div>
-                        </article>
-                      );
-                    })}
+                          {group.isSoundSource && (
+                            <span className="rounded-full bg-[#DDECE2] px-2 py-1 text-[9px] font-semibold text-[#385B49]">
+                              Fast musikspor
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                          {group.entries.map(({ shot, candidate }) => {
+                            const timelineIndex = timeline.findIndex(
+                              (item) => item.shotId === shot.id,
+                            );
+                            const activeItem =
+                              timelineIndex >= 0
+                                ? timeline[timelineIndex]
+                                : null;
+                            const isActiveCandidate =
+                              activeItem?.candidateId === candidate.id;
+                            return (
+                              <article
+                                key={`${group.id}-${shot.id}-${candidate.id}`}
+                                className={`overflow-hidden rounded-xl border bg-white ${
+                                  isActiveCandidate
+                                    ? "border-[#C8956C] ring-1 ring-[#C8956C]/20"
+                                    : "border-[#E1DAD2]"
+                                }`}
+                              >
+                                <ClipThumbnail
+                                  candidate={candidate}
+                                  className="aspect-video w-full"
+                                />
+                                <div className="flex items-center gap-2.5 p-2.5">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-[11px] font-semibold text-[#0F1D2F]">
+                                      {shot.label}
+                                    </p>
+                                    <p className="text-[10px] text-[#77736D]">
+                                      {fmtDuration(candidate.duration)}
+                                      {activeItem && !isActiveCandidate
+                                        ? " · anden version valgt"
+                                        : ""}
+                                    </p>
+                                  </div>
+                                  {isActiveCandidate ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeItem(timelineIndex)}
+                                      aria-label={`Fjern ${shot.label}`}
+                                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#E8D4D0] px-3 text-[10px] font-semibold text-[#A34D43]"
+                                    >
+                                      <Minus className="h-3.5 w-3.5" />
+                                      Fjern
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        useCandidate(shot, candidate)
+                                      }
+                                      aria-label={`Tilsæt ${shot.label} fra ${group.label}`}
+                                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#C8956C] px-3 text-[10px] font-semibold text-[#855F45]"
+                                    >
+                                      <Plus className="h-3.5 w-3.5" />
+                                      {activeItem ? "Brug" : "Tilføj"}
+                                    </button>
+                                  )}
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ))}
                   </div>
                 </div>
               </aside>
@@ -929,7 +1071,11 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
 
         {/* Error message */}
         {message && (
-          <p className="text-[11px] text-[#A34D43]" role="alert" aria-live="assertive">
+          <p
+            className="text-[11px] text-[#A34D43]"
+            role="alert"
+            aria-live="assertive"
+          >
             {message}
           </p>
         )}
