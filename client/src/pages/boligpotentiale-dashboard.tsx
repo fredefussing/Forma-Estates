@@ -5811,12 +5811,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             </div>
           </div>
 
-          <div className={`grid gap-4 ${ratio === "portrait" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+          <div className={`grid gap-3 sm:gap-5 ${ratio === "portrait" ? "grid-cols-2 lg:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
             {resultVideos.map((video, idx) => (
-              <div key={video.id} className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]" data-testid={`card-rendy-video-${idx}`}>
-                <div className="bg-[#0F1D2F] px-3 py-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
+              <div key={video.id} className="group overflow-hidden rounded-[20px] border border-[#DED4C8] bg-[#FCFAF7] shadow-[0_10px_30px_rgba(33,40,49,0.07)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#C8956C] hover:shadow-[0_16px_36px_rgba(33,40,49,0.12)]" data-testid={`card-rendy-video-${idx}`}>
+                <div className="flex items-center justify-between bg-[#17283A] px-2.5 py-2.5 sm:px-3.5">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="grid h-5 min-w-5 place-items-center rounded-md bg-[#D6A77D] px-1 font-mono text-[10px] font-bold text-[#17283A]">{String(idx + 1).padStart(2, "0")}</span>
+                    <span className="text-white text-[11px] font-semibold tracking-[0.01em]">Reel {idx + 1}</span>
                     {video.edited && (
                       <span className="rounded-full bg-[#E7C6A9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5E432F]">
                         Redigeret
@@ -5825,43 +5826,45 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   </div>
                   <div className="flex items-center gap-1.5">
                     {videoDurations[video.id] != null && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.14)", color: "#D4CEC7" }}>
+                      <span className="hidden rounded px-1.5 py-0.5 text-[10px] font-semibold sm:inline-flex" style={{ background: "rgba(255,255,255,0.14)", color: "#D4CEC7" }}>
                         {videoDurations[video.id]}s
                       </span>
                     )}
-                    <span className="text-[10px] font-mono" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
+                    <span className="hidden text-[10px] font-mono lg:inline" style={{ color: "#9B9690" }}>#{video.id.slice(0, 6)}</span>
                   </div>
                 </div>
                 {video.url ? (
-                  <video
-                    id={`rendy-video-${video.id}`}
-                    src={video.url}
-                    controls
-                    loop
-                    muted
-                    playsInline
-                    onLoadedMetadata={(e) => {
-                      const dur = e.currentTarget.duration;
-                      if (dur && isFinite(dur)) setVideoDurations(prev => ({ ...prev, [video.id]: Math.round(dur) }));
-                    }}
-                    className={`w-full object-contain bg-black ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
-                    data-testid={`video-rendy-${idx}`}
-                  />
+                  <div className={`flex w-full items-center justify-center bg-[#0B1520] ${ratio === "portrait" ? "h-[260px] sm:h-[340px]" : "aspect-video"}`}>
+                    <video
+                      id={`rendy-video-${video.id}`}
+                      src={video.url}
+                      controls
+                      loop
+                      muted
+                      playsInline
+                      onLoadedMetadata={(e) => {
+                        const dur = e.currentTarget.duration;
+                        if (dur && isFinite(dur)) setVideoDurations(prev => ({ ...prev, [video.id]: Math.round(dur) }));
+                      }}
+                      className={`max-h-full max-w-full object-contain ${ratio === "portrait" ? "h-full w-auto" : "w-full"}`}
+                      data-testid={`video-rendy-${idx}`}
+                    />
+                  </div>
                 ) : (
                   <div className={`w-full flex items-center justify-center ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`} style={{ background: "#1A1A2E", color: "#fff" }}>
                     <span className="text-xs">{i18n.t("dashboard.showcase.videoIkkeKlar")}</span>
                   </div>
                 )}
                 {video.url && (
-                  <div className="p-2">
+                  <div className="border-t border-[#E8E0D8] p-2.5">
                     <button
                       onClick={() => { const ts = new Date().toISOString().slice(0, 10); handleDownload(video.url!, `rendy-video-${idx + 1}-${ts}.mp4`); }}
                       disabled={!!downloading}
-                      className="w-full h-8 rounded-full text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-                      style={{ background: "#0F1D2F" }}
+                      className="w-full h-11 rounded-xl text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition-[transform,background-color] hover:-translate-y-px disabled:opacity-50"
+                      style={{ background: "#17283A" }}
                       data-testid={`button-download-video-${idx}`}
                     >
-                      <Download className="w-3 h-3" /> Download
+                      <Download className="w-3.5 h-3.5" /> Hent video
                     </button>
                     <RendyVoiceoverEditor
                       sourceVideoUrl={video.url}

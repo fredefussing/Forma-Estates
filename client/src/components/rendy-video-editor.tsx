@@ -237,6 +237,8 @@ export function RendyVideoEditor({
   );
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
 
   // ── Apply project helper — always syncs headline to proj value or DEFAULT ──
   const applyProject = useCallback((proj: EditProject) => {
@@ -513,6 +515,48 @@ export function RendyVideoEditor({
     setOpen(false);
   }, [clearPoll, onOutputReady, pendingOutputUrl]);
 
+  useEffect(() => {
+    if (!open) {
+      openerRef.current?.focus();
+      return;
+    }
+    const dialog = dialogRef.current;
+    const first = dialog?.querySelector<HTMLElement>(
+      "button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), video[controls]",
+    );
+    first?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      const openDialogs = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[role="dialog"][aria-modal="true"]',
+        ),
+      );
+      if (openDialogs.at(-1) !== dialog) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        clearPoll();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), video[controls], [tabindex]:not([tabindex='-1'])",
+      ));
+      if (!focusable.length) return;
+      const current = document.activeElement;
+      const index = focusable.indexOf(current as HTMLElement);
+      if (event.shiftKey && (index <= 0 || index === -1)) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && index === focusable.length - 1) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [clearPoll, open]);
+
   const status = project?.status;
   const sourceGroups = groupLibraryBySource(project?.manifest, sourceVideoId);
   const readyOutputUrl = pendingOutputUrl ?? project?.outputUrl;
@@ -524,7 +568,8 @@ export function RendyVideoEditor({
         <button
           type="button"
           onClick={openEditor}
-          className="w-full h-8 rounded-full text-xs font-semibold border border-[#C8956C] text-[#855F45] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5"
+          ref={openerRef}
+          className="w-full h-9 rounded-xl text-xs font-semibold border border-[#C8956C] text-[#6F4E38] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5 transition-[transform,background-color,box-shadow] hover:-translate-y-px hover:bg-[#FFF6EF] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
           data-testid="button-open-video-editor"
         >
           <Film className="w-3.5 h-3.5" />
@@ -552,10 +597,15 @@ export function RendyVideoEditor({
     : null;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#0F1D2F]/95 p-3 sm:p-6">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#152536]/[.94] p-2 sm:p-6" role="presentation">
       <section
-        className="mx-auto min-h-[calc(100dvh-1.5rem)] max-w-7xl rounded-[24px] border border-white/10 bg-[#F8F5F0] p-4 shadow-2xl space-y-4 sm:min-h-[calc(100dvh-3rem)] sm:p-6"
+        className="mx-auto min-h-[calc(100dvh-1rem)] max-w-7xl rounded-[22px] border border-[#E9DED2] bg-[#F6F1EA] p-4 shadow-2xl space-y-4 sm:min-h-[calc(100dvh-3rem)] sm:rounded-[28px] sm:p-6"
         aria-label="Videoredigering"
+        aria-labelledby="rendy-video-editor-heading"
+        aria-modal="true"
+        role="dialog"
+        ref={dialogRef}
+        tabIndex={-1}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
@@ -564,12 +614,12 @@ export function RendyVideoEditor({
               <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
               Forma videostudie
             </div>
-            <h3 className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">
+            <h3 id="rendy-video-editor-heading" className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">
               Redigér video
             </h3>
-            <p className="max-w-xl text-[11px] leading-relaxed text-[#6C6964]">
-              Byg videoen i den rækkefølge, den skal ses. Musikken fra
-              startvideoen fortsætter hele vejen.
+              <p className="max-w-xl text-[11px] leading-relaxed text-[#6C6964]">
+               Byg videoen i den rækkefølge, den skal ses. Musikken fra den
+               oprindelige video fortsætter hele vejen.
             </p>
           </div>
           <button
@@ -579,7 +629,7 @@ export function RendyVideoEditor({
               setOpen(false);
             }}
             aria-label="Luk"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#DCC9B9] bg-white text-[#0F1D2F] transition-colors hover:bg-[#F4EEE8]"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#DCC9B9] bg-[#FFFDFC] text-[#0F1D2F] transition-[transform,background-color] hover:scale-105 hover:bg-[#F0E7DD] focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
           >
             <X className="h-5 w-5" />
           </button>
@@ -601,7 +651,7 @@ export function RendyVideoEditor({
               </span>
             </div>
             <div
-              className="flex gap-3 overflow-x-auto pb-2"
+              className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
               aria-label="Videoens rækkefølge"
             >
               {timeline.map((item, index) => {
@@ -615,10 +665,10 @@ export function RendyVideoEditor({
                     type="button"
                     onClick={() => setSelectedIndex(index)}
                     aria-label={`Åbn klip ${index + 1}: ${shot?.label ?? "Klip"}`}
-                    className={`relative w-32 shrink-0 overflow-hidden rounded-xl border text-left transition-colors ${
+                    className={`relative w-32 shrink-0 snap-start overflow-hidden rounded-xl border text-left transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40 ${
                       previewIndex === index
-                        ? "border-[#C8956C] bg-[#FFF9F4]"
-                        : "border-[#E1DAD2] bg-white"
+                        ? "border-[#B87852] bg-[#FFF9F4] shadow-[0_7px_18px_rgba(114,71,43,.16)]"
+                        : "border-[#E1DAD2] bg-[#FFFDFC] hover:border-[#C8956C]"
                     }`}
                   >
                     <div className="flex h-24 items-center justify-center bg-[#EDE8E3]">
@@ -744,7 +794,7 @@ export function RendyVideoEditor({
                   Sammenhængende lyd
                 </p>
                 <p className="mt-1 text-[11px] text-[#4D5E54]">
-                  Musikken følger den valgte startvideo gennem hele resultatet.
+                  Musikken kommer fra den oprindelige video og følger resultatet.
                 </p>
               </div>
               <RendyVoiceoverEditor
@@ -872,14 +922,23 @@ export function RendyVideoEditor({
                           key={`${item.shotId}-${index}`}
                           aria-current={isSelected ? "step" : undefined}
                           onClick={() => setSelectedIndex(index)}
-                          className={`w-[164px] shrink-0 snap-start rounded-xl border p-2 transition-all sm:w-[176px] ${
+                           onKeyDown={(event) => {
+                             if ((event.target as HTMLElement).closest("select, button, input, textarea")) return;
+                             if (event.key === "Enter" || event.key === " ") {
+                               event.preventDefault();
+                               setSelectedIndex(index);
+                             }
+                           }}
+                           tabIndex={0}
+                           aria-label={`Vælg klip ${index + 1}: ${shot.label}`}
+                           className={`w-[164px] shrink-0 snap-start rounded-xl border p-2 transition-[transform,border-color,box-shadow] sm:w-[176px] ${
                             isSelected
                               ? "border-[#C8956C] bg-[#FFF9F4] shadow-sm"
-                              : "border-[#E1DAD2] bg-white hover:border-[#C8956C]/60"
+                               : "border-[#E1DAD2] bg-[#FFFDFC] hover:-translate-y-0.5 hover:border-[#C8956C]/60"
                           }`}
                         >
                           <div className="space-y-2">
-                            <div className="flex h-28 items-center justify-center rounded-lg bg-[#EDE8E3]">
+                                <div className="flex h-28 items-center justify-center rounded-lg bg-[#EDE8E3]">
                               <ClipThumbnail
                                 candidate={candidate}
                                 className="mx-auto h-28 w-auto max-w-full rounded-lg"
@@ -910,32 +969,19 @@ export function RendyVideoEditor({
                                 )}
                               </div>
                               <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <div
-                                  className="flex min-h-10 min-w-[130px] flex-1 items-center justify-between gap-3 rounded-xl border border-[#E1DAD2] bg-white px-3 text-[11px] font-semibold text-[#4D4943]"
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <span>Flyt til plads</span>
-                                  <div className="flex flex-wrap justify-end gap-1">
-                                    {timeline.map((_, position) => (
-                                      <button
-                                        key={position}
-                                        type="button"
-                                        onClick={() =>
-                                          moveItemTo(index, position)
-                                        }
-                                        aria-label={`Flyt ${shot.label} til plads ${position + 1}`}
-                                        aria-pressed={index === position}
-                                        className={`grid h-6 min-w-6 place-items-center rounded-md px-1 font-mono text-[10px] transition-colors focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40 ${
-                                          index === position
-                                            ? "bg-[#0F1D2F] text-white"
-                                            : "bg-[#F4EEE8] text-[#855F45] hover:bg-[#E7C6A9]"
-                                        }`}
-                                      >
-                                        {String(position + 1).padStart(2, "0")}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
+                                 <label className="flex min-h-11 min-w-[130px] flex-1 items-center justify-between gap-2 rounded-xl border border-[#E1DAD2] bg-white px-3 text-[11px] font-semibold text-[#4D4943]" onClick={(event) => event.stopPropagation()}>
+                                   <span>Flyt til plads</span>
+                                   <select
+                                     value={index}
+                                     onChange={(event) => moveItemTo(index, Number(event.target.value))}
+                                     aria-label={`Flyt ${shot.label} til plads`}
+                                     className="min-h-9 rounded-lg border border-[#DCC9B9] bg-[#F4EEE8] px-2 font-mono text-[11px] text-[#855F45] focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
+                                   >
+                                     {timeline.map((_, position) => (
+                                       <option key={position} value={position}>Plads {String(position + 1).padStart(2, "0")}</option>
+                                     ))}
+                                   </select>
+                                 </label>
                                 <button
                                   type="button"
                                   onClick={(event) => {
@@ -943,7 +989,7 @@ export function RendyVideoEditor({
                                     removeItem(index);
                                   }}
                                   aria-label={`Fjern ${shot.label}`}
-                                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E8D4D0] bg-[#FFFDFC] px-3.5 text-[11px] font-semibold text-[#A34D43] transition-colors hover:bg-[#FBF0EE] focus:outline-none focus:ring-2 focus:ring-[#A34D43]/30"
+                                   className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#E8D4D0] bg-[#FFFDFC] px-3.5 text-[11px] font-semibold text-[#A34D43] transition-colors hover:bg-[#FBF0EE] focus:outline-none focus:ring-2 focus:ring-[#A34D43]/30"
                                 >
                                   <Minus className="h-4 w-4" />
                                   Fjern
@@ -972,7 +1018,7 @@ export function RendyVideoEditor({
                   />
                 </div>
 
-                <div className="rounded-2xl border border-[#E1DAD2] bg-white p-3 shadow-sm">
+                <div className="rounded-2xl border border-[#E1DAD2] bg-[#FFFDFC] p-3 shadow-sm">
                   <div className="mb-3">
                     <h4 className="text-sm font-semibold text-[#0F1D2F]">
                       Klipbibliotek
@@ -1020,7 +1066,7 @@ export function RendyVideoEditor({
                             return (
                               <article
                                 key={`${group.id}-${shot.id}-${candidate.id}`}
-                                className={`w-[160px] shrink-0 overflow-hidden rounded-xl border bg-white ${
+                            className={`w-[160px] shrink-0 overflow-hidden rounded-xl border bg-[#FFFDFC] transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 ${
                                   isActiveCandidate
                                     ? "border-[#C8956C] ring-1 ring-[#C8956C]/20"
                                     : "border-[#E1DAD2]"
@@ -1049,7 +1095,7 @@ export function RendyVideoEditor({
                                       type="button"
                                       onClick={() => removeItem(timelineIndex)}
                                       aria-label={`Fjern ${shot.label}`}
-                                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#E8D4D0] px-3 text-[10px] font-semibold text-[#A34D43]"
+                                       className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-[#E8D4D0] px-3 text-[10px] font-semibold text-[#A34D43]"
                                     >
                                       <Minus className="h-3.5 w-3.5" />
                                       Fjern
@@ -1061,7 +1107,7 @@ export function RendyVideoEditor({
                                         useCandidate(shot, candidate)
                                       }
                                       aria-label={`Tilsæt ${shot.label} fra ${group.label}`}
-                                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#C8956C] px-3 text-[10px] font-semibold text-[#855F45]"
+                                       className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-[#C8956C] px-3 text-[10px] font-semibold text-[#855F45]"
                                     >
                                       <Plus className="h-3.5 w-3.5" />
                                       {activeItem ? "Brug" : "Tilføj"}
@@ -1079,12 +1125,12 @@ export function RendyVideoEditor({
               </aside>
             </div>
 
-            <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-[#E1DAD2] bg-[#F8F5F0]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
+            <div className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-[#E1DAD2] bg-[#F6F1EA]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:flex-row sm:rounded-xl sm:border">
               <button
                 type="button"
                 onClick={patchTimeline}
                 disabled={saving || busy}
-                className="flex-1 h-9 rounded-lg border border-[#DCC9B9] text-[#0F1D2F] text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
+                className="flex-1 h-10 rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] text-[#0F1D2F] text-xs font-semibold inline-flex justify-center items-center gap-1.5 transition-colors hover:bg-[#F0E7DD] disabled:opacity-50"
                 data-testid="button-save-timeline"
               >
                 {saving ? (
@@ -1098,7 +1144,7 @@ export function RendyVideoEditor({
                 type="button"
                 onClick={startRender}
                 disabled={busy || saving || timeline.length === 0}
-                className="flex-1 h-9 rounded-lg bg-[#C8956C] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
+                className="flex-1 h-10 rounded-xl bg-[#17283A] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 shadow-sm transition-[transform,background-color] hover:-translate-y-px hover:bg-[#263C52] disabled:opacity-50"
                 data-testid="button-render-video"
               >
                 {busy ? (

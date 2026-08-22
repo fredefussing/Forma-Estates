@@ -111,6 +111,8 @@ export function RendyVoiceoverEditor({
   const recordingVideoLoopRef = useRef<boolean | null>(null);
   const recordingVideoMutedRef = useRef<boolean | null>(null);
   const videoEndedHandlerRef = useRef<(() => void) | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
   const outputReadyRef = useRef(onOutputReady);
   outputReadyRef.current = onOutputReady;
   const setWorkBusy = useCallback(
@@ -320,6 +322,49 @@ export function RendyVoiceoverEditor({
       setFinalizingRecording(false);
     }
   }, [pauseAlignedVideo, stopTracks]);
+
+  useEffect(() => {
+    if (!editorOpen) {
+      if (!immersive) openerRef.current?.focus();
+      return;
+    }
+    const dialog = dialogRef.current;
+    const first = dialog?.querySelector<HTMLElement>(
+      "button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), video[controls]",
+    );
+    first?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      const openDialogs = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[role="dialog"][aria-modal="true"]',
+        ),
+      );
+      if (openDialogs.at(-1) !== dialog) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        stopRecording();
+        clearPoll();
+        setOpen(false);
+        onRequestClose?.();
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), video[controls], [tabindex]:not([tabindex='-1'])",
+      ));
+      if (!focusable.length) return;
+      const index = focusable.indexOf(document.activeElement as HTMLElement);
+      if (event.shiftKey && (index <= 0 || index === -1)) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && index === focusable.length - 1) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [clearPoll, editorOpen, immersive, onRequestClose, stopRecording]);
 
   const startRecording = async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -558,7 +603,8 @@ export function RendyVoiceoverEditor({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="w-full h-8 rounded-full text-xs font-semibold border border-[#C8956C] text-[#855F45] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5"
+          ref={openerRef}
+          className="w-full h-11 rounded-xl text-xs font-semibold border border-[#C8956C] text-[#6F4E38] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5 transition-[transform,background-color,box-shadow] hover:-translate-y-px hover:bg-[#FFF6EF] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
           data-testid="button-add-voiceover"
         >
           <AudioLines className="w-3.5 h-3.5" />
@@ -566,17 +612,22 @@ export function RendyVoiceoverEditor({
         </button>
       ) : (
         <section
-          className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#0F1D2F]/95 p-3 sm:p-6" : ""}`}
+          className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#152536]/[.94] p-2 sm:p-6" : ""}`}
           aria-label={t("dashboard.showcase.voiceover.title")}
+           aria-labelledby="rendy-voiceover-heading"
+           aria-modal="true"
+           role="dialog"
+           ref={dialogRef}
+           tabIndex={-1}
         >
-          <div className={(immersive || open) ? "mx-auto max-w-6xl rounded-[24px] border border-white/10 bg-[#F8F5F0] p-4 shadow-2xl sm:p-6 space-y-3" : "rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 space-y-3"}>
+          <div className={(immersive || open) ? "mx-auto max-w-6xl rounded-[22px] border border-[#E9DED2] bg-[#F6F1EA] p-4 shadow-2xl sm:rounded-[28px] sm:p-6 space-y-3" : "rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 space-y-3"}>
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#A36F4E]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
                 Voice-over
               </div>
-              <h3 className="text-sm font-semibold text-[#0F1D2F]">
+             <h3 id="rendy-voiceover-heading" className="text-sm font-semibold text-[#0F1D2F]">
                 {t("dashboard.showcase.voiceover.title")}
               </h3>
               <p className="text-[11px] text-[#6C6964]">
@@ -586,7 +637,8 @@ export function RendyVoiceoverEditor({
             <button
               type="button"
               onClick={() => { stopRecording(); setOpen(false); onRequestClose?.(); }}
-              aria-label={t("dashboard.showcase.voiceover.close")}
+               aria-label={t("dashboard.showcase.voiceover.close")}
+               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#17283A] transition-colors hover:bg-[#F0E7DD] focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
             >
               <X className="w-4 h-4" />
             </button>
@@ -599,7 +651,7 @@ export function RendyVoiceoverEditor({
                   type="button"
                   onClick={recording ? stopRecording : startRecording}
                   disabled={busy || finalizingRecording}
-                  className="flex-1 h-9 rounded-lg bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
+                   className="flex-1 h-11 rounded-xl bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
                   data-testid="button-record-voiceover"
                 >
                   {finalizingRecording ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : recording ? <Pause className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
@@ -609,7 +661,7 @@ export function RendyVoiceoverEditor({
                     ? `${t("dashboard.showcase.voiceover.stop")} ${recordedSeconds}s`
                     : t("dashboard.showcase.voiceover.record")}
                 </button>
-                <label className="flex-1 h-9 rounded-lg border border-[#D9D5CF] text-[#0F1D2F] text-xs font-semibold inline-flex justify-center items-center gap-1.5 cursor-pointer">
+                 <label className="flex-1 h-11 rounded-xl border border-[#D9D5CF] text-[#0F1D2F] text-xs font-semibold inline-flex justify-center items-center gap-1.5 cursor-pointer">
                   <Upload className="w-3.5 h-3.5" />
                   {t("dashboard.showcase.voiceover.upload")}
                   <input
@@ -643,7 +695,7 @@ export function RendyVoiceoverEditor({
                 type="button"
                 onClick={upload}
                 disabled={!audio || busy}
-                className="w-full h-9 rounded-lg bg-[#C8956C] text-white text-xs font-semibold disabled:opacity-45"
+                 className="w-full h-11 rounded-xl bg-[#C8956C] text-white text-xs font-semibold disabled:opacity-45"
                 data-testid="button-upload-voiceover"
               >
                 {busy ? t("dashboard.showcase.voiceover.preparing") : t("dashboard.showcase.voiceover.continue")}
@@ -719,20 +771,20 @@ export function RendyVoiceoverEditor({
               </div>
               <video src={project.outputUrl} controls playsInline className="w-full rounded-lg bg-black" data-testid="video-voiceover-final" />
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={reset} className="col-span-2 h-9 rounded-lg border text-xs font-semibold">
+              <button type="button" onClick={reset} className="col-span-2 h-11 rounded-xl border bg-[#FFFDFC] text-xs font-semibold transition-colors hover:bg-[#F0E7DD]">
                   <RotateCcw className="w-3 h-3 inline mr-1" />{t("dashboard.showcase.voiceover.replace")}
                 </button>
                 <button
                   type="button"
                   onClick={saveOutputToFolder}
                   disabled={savingOutput}
-                  className="h-9 rounded-lg bg-[#C8956C] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
+                  className="h-11 rounded-xl bg-[#C8956C] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
                   data-testid="button-save-voiceover"
                 >
                   {savingOutput ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderDown className="w-3.5 h-3.5" />}
                   {savingOutput ? t("dashboard.showcase.voiceover.saving") : t("dashboard.showcase.voiceover.saveToFolder")}
                 </button>
-                <button type="button" onClick={downloadOutput} className="h-9 rounded-lg bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5" data-testid="link-download-voiceover">
+                <button type="button" onClick={downloadOutput} className="h-11 rounded-xl bg-[#0F1D2F] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5" data-testid="link-download-voiceover">
                   <Download className="w-3.5 h-3.5" />{t("dashboard.showcase.voiceover.download")}
                 </button>
               </div>
