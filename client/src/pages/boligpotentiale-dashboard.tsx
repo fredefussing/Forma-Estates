@@ -5834,7 +5834,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   </div>
                 </div>
                 {video.url ? (
-                  <div className={`flex w-full items-center justify-center bg-[#0B1520] ${ratio === "portrait" ? "h-[260px] sm:h-[340px]" : "aspect-video"}`}>
+                  <div className={`w-full overflow-hidden ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}>
                     <video
                       id={`rendy-video-${video.id}`}
                       src={video.url}
@@ -5842,11 +5842,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       loop
                       muted
                       playsInline
+                      preload="metadata"
                       onLoadedMetadata={(e) => {
                         const dur = e.currentTarget.duration;
                         if (dur && isFinite(dur)) setVideoDurations(prev => ({ ...prev, [video.id]: Math.round(dur) }));
                       }}
-                      className={`max-h-full max-w-full object-contain ${ratio === "portrait" ? "h-full w-auto" : "w-full"}`}
+                      className="h-full w-full bg-transparent object-contain"
                       data-testid={`video-rendy-${idx}`}
                     />
                   </div>

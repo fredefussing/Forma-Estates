@@ -112,10 +112,18 @@ function ClipThumbnail({
   className: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [fallbackVisible, setFallbackVisible] = useState(false);
+  const fallbackVideoRef = useRef<HTMLVideoElement | null>(null);
   const aspectRatio =
     candidate && candidate.width > 0 && candidate.height > 0
       ? `${candidate.width} / ${candidate.height}`
       : undefined;
+  const thumbnailPreservesFullFrame =
+    candidate?.thumbnailUrl?.includes("rendy-edit-thumb-v2-") ||
+    !candidate?.thumbnailUrl?.includes("rendy-edit-thumb-");
+  const usesVideoFallback = Boolean(
+    candidate && (!candidate.thumbnailUrl || imageFailed || !thumbnailPreservesFullFrame),
+  );
   const at = candidate
     ? Math.max(
         candidate.safeStart,
@@ -125,7 +133,27 @@ function ClipThumbnail({
 
   useEffect(() => {
     setImageFailed(false);
+    setFallbackVisible(false);
   }, [candidate?.id, candidate?.thumbnailUrl]);
+
+  useEffect(() => {
+    if (!usesVideoFallback) return;
+    const video = fallbackVideoRef.current;
+    if (!video || typeof IntersectionObserver === "undefined") {
+      setFallbackVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setFallbackVisible(true);
+        observer.disconnect();
+      },
+      { rootMargin: "160px" },
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [candidate?.id, usesVideoFallback]);
 
   if (!candidate) {
     return <div className={`${className} bg-[#EDE8E3]`} aria-hidden="true" />;
@@ -134,10 +162,6 @@ function ClipThumbnail({
   // Existing manifests can contain the legacy 320×180 center-cropped asset.
   // New v2 thumbnails preserve the complete frame; old projects fall back to
   // the source video so portrait rooms are never silently cropped.
-  const thumbnailPreservesFullFrame =
-    candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-") ||
-    !candidate.thumbnailUrl?.includes("rendy-edit-thumb-");
-
   if (candidate.thumbnailUrl && thumbnailPreservesFullFrame && !imageFailed) {
     return (
       <img
@@ -152,15 +176,17 @@ function ClipThumbnail({
 
   return (
     <video
+      ref={fallbackVideoRef}
       src={`${candidate.sourceUrl}#t=${at.toFixed(3)}`}
       muted
       playsInline
-      preload="metadata"
+      preload={fallbackVisible ? "metadata" : "none"}
       tabIndex={-1}
       aria-hidden="true"
       className={`${className} pointer-events-none object-contain bg-[#EDE8E3]`}
       style={aspectRatio ? { aspectRatio } : undefined}
       onLoadedMetadata={(event) => {
+        if (!fallbackVisible) return;
         const video = event.currentTarget;
         if (Number.isFinite(at) && Math.abs(video.currentTime - at) > 0.05) {
           video.currentTime = at;
@@ -773,19 +799,18 @@ export function RendyVideoEditor({
                 <Check className="w-4 h-4" />
                 Video klar
               </div>
-              <div className="flex min-h-48 items-center justify-center rounded-2xl bg-[#0A1422] p-3 sm:min-h-56 sm:p-4">
+              <div className="flex min-h-64 items-center justify-center rounded-2xl bg-[#0A1422] p-3 sm:min-h-80 sm:p-4">
                 <video
                   id={`rendy-edited-video-${project.id}`}
                   src={readyOutputUrl}
                   controls
                   playsInline
-                  className="mx-auto max-h-[30vh] w-auto max-w-[420px] rounded-xl bg-black object-contain"
+                  className="mx-auto h-auto max-h-[68vh] w-full max-w-full rounded-xl bg-black object-contain"
                   data-testid="video-edit-final"
                 />
               </div>
               <p className="text-center text-[10px] text-[#77736D]">
-                Afspilleren er gjort kompakt, så redigeringsværktøjerne altid er
-                synlige.
+                Se hele videoen her, før du vælger hvad der skal ske videre.
               </p>
             </div>
             <aside className="space-y-3 rounded-2xl border border-[#E1DAD2] bg-white p-4 shadow-sm">
@@ -868,7 +893,7 @@ export function RendyVideoEditor({
                       controls
                       playsInline
                       muted
-                      className="mx-auto max-h-[52vh] w-full bg-black object-contain"
+                      className="mx-auto h-auto max-h-[68vh] w-full max-w-full bg-black object-contain"
                       data-testid="video-active-clip-preview"
                     />
                   ) : (
