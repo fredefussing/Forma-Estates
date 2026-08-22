@@ -4030,7 +4030,12 @@ export async function registerRoutes(
           const { data: jpgRaw, info: jpgInfo } = await pipeline.flatten().raw().toBuffer({ resolveWithObject: true });
           const jpgMarked = ssWatermarkEmbed(jpgRaw, jpgInfo.width, jpgInfo.height, jpgInfo.channels);
           const rawJpeg = await sharp(jpgMarked, { raw: { width: jpgInfo.width, height: jpgInfo.height, channels: jpgInfo.channels } })
-            .jpeg({ quality: 92 }).toBuffer();
+            // Final export only: retain the raw Collov master's detail and
+            // colour information while adding the optional visible label,
+            // invisible mark and XMP. Preview and refinement bytes are never
+            // routed through this encoder.
+            .jpeg({ quality: 100, chromaSubsampling: "4:4:4", mozjpeg: false })
+            .toBuffer();
           const out = injectXmpIntoJpeg(rawJpeg, xmpPacket);
           res.setHeader("Content-Type", "image/jpeg");
           res.setHeader("Cache-Control", "private, max-age=86400");
