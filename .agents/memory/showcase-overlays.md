@@ -7,4 +7,4 @@ Rendy showcase generation must return and durably store the clean provider MP4 w
 
 **Why:** The user confirmed that Rendy's clean video is the quality target. Burning a placeholder/address in the lower-left and an “AI Redigeret” badge into every frame looks poor, reduces flexibility, and forces text decisions before the video can be judged.
 
-**How to apply:** Localize the provider MP4 and upload it to durable storage byte-for-byte; the recovery path must do the same. Keep job/listing ownership as internal provenance. Add sales text only in a separate, optional post-generation editor where the user can preview font, placement, and wording before exporting.
+**How to apply:** Localize the provider MP4 and upload it to durable storage byte-for-byte; the recovery path must do the same. Keep job/listing ownership as internal provenance. Only after all requested Rendy videos have arrived may the user open Edit for clip composition, voiceover, headlines, captions, font choice, placement, or final export. Never collect or apply any of these editing choices during generation.
