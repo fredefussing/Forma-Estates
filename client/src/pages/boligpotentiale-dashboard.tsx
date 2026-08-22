@@ -209,7 +209,10 @@ function buildImageFilename(opts: { address?: string | null; room?: string | nul
   const ext = (opts.ext || "jpg").replace(/^\./, "");
   return `${stem}-${date}.${ext}`;
 }
-async function fetchImageAsDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number; mime: string } | null> {
+async function fetchImageAsDataUrl(
+  url: string,
+  opts: { finalize?: boolean; skipWatermark?: boolean } = {},
+): Promise<{ dataUrl: string; w: number; h: number; mime: string } | null> {
   try {
     // External images (Collov CDN m.fl.) cannot be fetched directly from the
     // browser in production (no CORS headers) — route them through our own
@@ -217,7 +220,12 @@ async function fetchImageAsDataUrl(url: string): Promise<{ dataUrl: string; w: n
     // own vector watermark doesn't get doubled (and FØR stays unbranded).
     let fetchUrl = url;
     let init: RequestInit = { mode: "cors", credentials: "omit" };
-    if (url.startsWith("http") && !url.startsWith(window.location.origin)) {
+    if (opts.finalize) {
+      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+      const plainParam = opts.skipWatermark ? "&plain=1" : "";
+      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=jpg${plainParam}&lang=${i18n.language}`;
+      init = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    } else if (url.startsWith("http") && !url.startsWith(window.location.origin)) {
       const token = await auth.currentUser?.getIdToken().catch(() => undefined);
       fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&plain=1&lang=${i18n.language}`;
       init = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
@@ -256,7 +264,10 @@ async function downloadCasePdf(opts: {
   const skipWm = opts.skipWatermark ?? false;
   try {
     const { jsPDF } = await import("jspdf");
-    const after = await fetchImageAsDataUrl(opts.url);
+    const after = await fetchImageAsDataUrl(opts.url, {
+      finalize: true,
+      skipWatermark: skipWm,
+    });
     if (!after) return { ok: false, error: i18n.t("dashboard.media.kunneIkkeHenteBillede") };
     const before = opts.beforeUrl ? await fetchImageAsDataUrl(opts.beforeUrl) : null;
 
@@ -273,29 +284,6 @@ async function downloadCasePdf(opts: {
         format: [pageW, pageH],
       });
       pdfImg.addImage(after.dataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
-      if (!skipWm) {
-        // Watermark for images-only mode
-        const drawWatermarkImg = (imgX: number, imgY: number, imgW: number, imgH: number) => {
-          const label = "AI-redigeret";
-          const fs = Math.max(6.5, imgH * 0.032);
-          const approxW = fs * 5.6;
-          const boxH = fs * 1.55;
-          const padX = 1.8;
-          const padBottom = imgH * 0.022;
-          const bx = imgX + imgW - approxW - padX - 1;
-          const by = imgY + imgH - boxH - padBottom;
-          pdfImg.saveGraphicsState();
-          (pdfImg as any).setGState(new (pdfImg as any).GState({ opacity: 0.55 }));
-          pdfImg.setFillColor(0, 0, 0);
-          pdfImg.roundedRect(bx, by, approxW + 2, boxH, 0.8, 0.8, "F");
-          pdfImg.restoreGraphicsState();
-          pdfImg.setFont("helvetica", "bold");
-          pdfImg.setFontSize(fs);
-          pdfImg.setTextColor(255, 255, 255);
-          pdfImg.text(label, imgX + imgW - padX - 0.5, by + boxH - fs * 0.38, { align: "right" });
-        };
-        drawWatermarkImg(0, 0, pageW, pageH);
-      }
       const filenameImg = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: "pdf" });
       pdfImg.save(filenameImg);
       return { ok: true };
@@ -312,26 +300,6 @@ async function downloadCasePdf(opts: {
     const navy = [15, 29, 47] as const;
     const muted = [107, 107, 107] as const;
     const accent = [200, 149, 108] as const;
-
-    const drawWatermark = (imgX: number, imgY: number, imgW: number, imgH: number) => {
-      const label = "AI-redigeret";
-      const fs = 6.5;
-      const approxW = 19;
-      const boxH = 4.2;
-      const padX = 1.4;
-      const bx = imgX + imgW - approxW - padX;
-      const by = imgY + imgH - boxH - 1.8;
-      pdf.saveGraphicsState();
-      (pdf as any).setGState(new (pdf as any).GState({ opacity: 0.45 }));
-      pdf.setFillColor(0, 0, 0);
-      pdf.roundedRect(bx, by, approxW, boxH, 0.8, 0.8, "F");
-      pdf.restoreGraphicsState();
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(fs);
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(label, imgX + imgW - padX - 0.5, by + boxH - 1.1, { align: "right" });
-      pdf.setTextColor(navy[0], navy[1], navy[2]);
-    };
 
     const drawFooter = () => {
       pdf.setDrawColor(217, 213, 207);
@@ -387,7 +355,6 @@ async function downloadCasePdf(opts: {
     const heroX = (pageW - heroW) / 2;
     const heroY = metaY + 8;
     pdf.addImage(after.dataUrl, "JPEG", heroX, heroY, heroW, heroH, undefined, "FAST");
-    if (!skipWm) drawWatermark(heroX, heroY, heroW, heroH);
     drawFooter();
 
     // ── Page 2: Før / Efter (or large single) ────────────────────────────────
@@ -403,21 +370,20 @@ async function downloadCasePdf(opts: {
     const imgBottom = pageH - 22;
     if (before) {
       const half = (pageW - margin * 2 - 6) / 2;
-      const drawHalf = (img: { dataUrl: string; w: number; h: number }, x: number, label: string, addWatermark: boolean) => {
+      const drawHalf = (img: { dataUrl: string; w: number; h: number }, x: number, label: string) => {
         const r = img.w / img.h;
         let w = half, h = half / r;
         const maxH = imgBottom - imgTop - 8;
         if (h > maxH) { h = maxH; w = maxH * r; }
         const ox = x + (half - w) / 2;
         pdf.addImage(img.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
-        if (addWatermark && !skipWm) drawWatermark(ox, imgTop, w, h);
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(9);
         pdf.setTextColor(accent[0], accent[1], accent[2]);
         pdf.text(label, x + half / 2, imgTop + h + 6, { align: "center" });
       };
-      drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
-      drawHalf(after, margin + half + 6, i18n.t("dashboard.pdf.efter"), true);
+      drawHalf(before, margin, i18n.t("dashboard.common.foer"));
+      drawHalf(after, margin + half + 6, i18n.t("dashboard.pdf.efter"));
     } else {
       const maxW = pageW - margin * 2;
       const maxH = imgBottom - imgTop;
@@ -426,7 +392,6 @@ async function downloadCasePdf(opts: {
       if (h > maxH) { h = maxH; w = maxH * r; }
       const singleX = (pageW - w) / 2;
       pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
-      if (!skipWm) drawWatermark(singleX, imgTop, w, h);
     }
     drawFooter();
 
@@ -453,14 +418,11 @@ async function downloadImageFile(
   const filename = buildImageFilename({ address: opts.address, room: opts.room, style: opts.style, ext: format });
   let fetchUrl: string;
   let fetchInit: RequestInit = {};
-  if (url.startsWith("http")) {
-    if (opts.skipWatermark) {
-      const token = await auth.currentUser?.getIdToken().catch(() => undefined);
-      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}&plain=1&lang=${i18n.language}`;
-      if (token) fetchInit = { headers: { Authorization: `Bearer ${token}` } };
-    } else {
-      fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}&lang=${i18n.language}`;
-    }
+  if (url.startsWith("http") || url.startsWith("/uploads/")) {
+    const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+    const plainParam = opts.skipWatermark ? "&plain=1" : "";
+    fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=${format}${plainParam}&lang=${i18n.language}`;
+    if (token) fetchInit = { headers: { Authorization: `Bearer ${token}` } };
   } else {
     fetchUrl = url;
   }
@@ -470,10 +432,7 @@ async function downloadImageFile(
     const blob = await res.blob();
     triggerBlobDownload(blob, filename);
   } catch {
-    // Last-resort fallback — should rarely happen.
-    const a = document.createElement("a");
-    a.href = url; a.download = filename; a.target = "_blank"; a.rel = "noopener noreferrer";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    throw new Error(i18n.t("dashboard.media.kunneIkkeHenteBillede"));
   }
 }
 
@@ -506,6 +465,8 @@ function DownloadMenu(props: {
         const r = await downloadCasePdf({ url, beforeUrl, address, room, style, mode, skipWatermark });
         if (!r.ok) alert(i18n.t("dashboard.pdf.pdfEnKunneIkkeGenereres"));
       }
+    } catch {
+      alert(i18n.t("dashboard.media.kunneIkkeHenteBillede"));
     } finally {
       setBusy(null);
     }
@@ -7795,6 +7756,10 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             onBlur={(e) => (e.target.style.borderColor = "#D9D5CF")}
             data-testid="bolig-agent-prompt"
           />
+            <p className="mt-2 text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
+              <Sparkles className="inline-block w-3.5 h-3.5 mr-1 align-[-2px]" style={{ color: "#C8956C" }} />
+              {i18n.t("dashboard.agentX.qualityGuardNote")}
+            </p>
           <p className="text-[11px] mt-1.5 text-right" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.tegnAf6000", { count: promptText.length })}</p>
         </div>
         )}

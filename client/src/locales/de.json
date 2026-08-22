@@ -1361,6 +1361,7 @@
       "foerAiDesignAgent": "Vor Design Agent",
       "lavDineEgneAendringer": "Nehmen Sie Ihre eigenen Änderungen vor",
       "uploadEtBilledeOgBeskriv": "Laden Sie ein Bild hoch und beschreiben Sie genau, was Sie ändern möchten — Möbel entfernen, Farben wechseln, Details hinzufügen oder dem Raum ganz neues Leben einhauchen.",
+      "qualityGuardNote": "Sie können Ihre Anweisung auf Dänisch schreiben. Der Agent bewahrt Kamera, Architektur, Licht und natürliche Materialdetails automatisch, sofern Sie keine Änderung verlangen.",
       "atFjerneEllerTilfoejeElementer": "Elemente in einem bereits generierten Bild entfernen oder hinzufügen",
       "uploadDitSatellitBilledeHer": "Laden Sie hier Ihr Satellitenbild hoch",
       "traekEtBilledeHertil": "Ein Bild hierher ziehen",

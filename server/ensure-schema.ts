@@ -1304,6 +1304,7 @@ export async function ensureSchema(): Promise<void> {
   {
     const cols = [
       { step: "generated_images.source_image_id", sql: `ALTER TABLE generated_images ADD COLUMN IF NOT EXISTS source_image_id integer` },
+      { step: "generated_images.refinement_source_url", sql: `ALTER TABLE generated_images ADD COLUMN IF NOT EXISTS refinement_source_url text` },
     ];
     for (const { step, sql } of cols) {
       try { await pool.query(sql); } catch (e: any) { console.error(`[ensure-schema] ${step}: ${e.message}`); }

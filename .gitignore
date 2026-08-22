@@ -11,3 +11,16 @@ attached_assets/Pasted--type-service-account*
 
 # Replit uploaded assets — serveres lokalt, hører ikke i Git/Render
 attached_assets/
+
+# Runtime-generated customer media is stored durably in R2, never in Git.
+/uploads/
+
+# Keep the referenced Rendy-editor preview derivatives only; originals and
+# intermediate sandbox render outputs must not enter repository history.
+/artifacts/mockup-sandbox/public/images/rendy-editor/
+/artifacts/mockup-sandbox/public/videos/rendy-editor/clip-*.mp4
+/artifacts/mockup-sandbox/public/videos/rendy-editor/clip-*.webm
+/artifacts/mockup-sandbox/public/videos/rendy-editor/poster-*.jpg
+/artifacts/mockup-sandbox/public/videos/rendy-editor/scene-*.webm
+/artifacts/mockup-sandbox/public/videos/rendy-editor/rendy-output-*.mp4
+/artifacts/mockup-sandbox/public/videos/rendy-editor/rendy-showcase.*

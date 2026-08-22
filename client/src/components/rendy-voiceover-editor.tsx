@@ -191,14 +191,17 @@ export function RendyVoiceoverEditor({
     }
   }, [api, listingId, sourceVideoId, t]);
 
-  const poll = useCallback(async (id: string | number, delay = 1200) => {
+  // Voice preparation and export are asynchronous. Poll promptly while a job
+  // is new, then back off gently so completed text/video appears quickly
+  // without creating constant background traffic on longer jobs.
+  const poll = useCallback(async (id: string | number, delay = 600) => {
     clearPoll();
     try {
       const data = await api(`/api/bolig/rendy/voice-projects/${id}`);
       setProject(data.project);
       if (data.project.status === "processing" || data.project.status === "exporting") {
         pollTimer.current = setTimeout(
-          () => void poll(id, Math.min(delay * 1.35, 7000)),
+          () => void poll(id, Math.min(Math.round(delay * 1.25), 3000)),
           delay,
         );
       } else {

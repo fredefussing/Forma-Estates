@@ -301,6 +301,7 @@ export const generatedImages = pgTable("generated_images", {
   quickSessionId: text("quick_session_id"),
   imageUrl: text("image_url").notNull(),
   originalImageUrl: text("original_image_url"),
+  refinementSourceUrl: text("refinement_source_url"),
   roomType: text("room_type").notNull(),
   style: text("style").notNull(),
   budgetTier: text("budget_tier").notNull().default("tier2"),

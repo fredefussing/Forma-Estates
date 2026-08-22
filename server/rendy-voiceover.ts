@@ -642,7 +642,15 @@ async function runPreparation(
       cleanedAudioUrl = wavSignedUrl;
     }
 
-    // ── 5. Download cleaned audio, apply FFmpeg polish ─────────────────────────
+    // ── 5. Polish audio while Scribe transcribes the cleaned source ────────────
+    // Scribe does not need to wait for the local mastering pass or a second R2
+    // upload. Starting it from the cleaned provider URL saves that serial wait
+    // while keeping the transcription on the noise-reduced signal.
+    const langCode = toScribeLanguageCode(language);
+    const transcription = falScribeTranscribe(cleanedAudioUrl, langCode)
+      .then((result) => ({ result } as const))
+      .catch((error: unknown) => ({ error } as const));
+
     const cleanedLocalPath = path.join(os.tmpdir(), `rvp-clean-${stamp}.wav`);
     tmpFiles.push(cleanedLocalPath);
     await curlDownload(cleanedAudioUrl, cleanedLocalPath, 100 * 1024 * 1024);
@@ -666,13 +674,10 @@ async function runPreparation(
     const audioUrl = `/uploads/${polishedName}`;
     await dbUpdateWithLease(projectId, leaseToken, { audio_url: audioUrl });
 
-    // ── 6. Transcribe with ElevenLabs Scribe v2 ───────────────────────────────
-    const polishedSignedUrl = await r2GetSignedUrl(polishedName, 3600);
-    if (!polishedSignedUrl) throw new Error("Cannot get signed URL for polished audio");
-
-    const langCode = toScribeLanguageCode(language);
-    const scribeResult = await falScribeTranscribe(polishedSignedUrl, langCode);
-    const segments = groupWordsToSegments(scribeResult.words);
+    // ── 6. Collect transcription started in parallel above ─────────────────────
+    const transcriptionResult = await transcription;
+    if ("error" in transcriptionResult) throw transcriptionResult.error;
+    const segments = groupWordsToSegments(transcriptionResult.result.words);
 
     // ── 7. Persist status=review (clears lease atomically) ────────────────────
     await pool.query(
@@ -825,7 +830,11 @@ export function buildRendyVoiceoverExportArgs(
       `level_sc=0.9:makeup=1[bed_ducked]`;
 
     const mixFilter =
-      `[bed_ducked][voice_mix]amix=inputs=2:duration=first:weights=1 1,` +
+      // The source audio stream may end a little before its video stream.
+      // The voice is padded to the video duration, so use the longest input to
+      // preserve narration through the final frame instead of cutting it with
+      // the shorter original-audio bed.
+      `[bed_ducked][voice_mix]amix=inputs=2:duration=longest:weights=1 1,` +
       `atrim=duration=${durStr},` +
       `alimiter=level_in=1:level_out=1:limit=0.95:attack=5:release=50[aout]`;
 

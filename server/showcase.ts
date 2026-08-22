@@ -1009,7 +1009,28 @@ export async function burnShowcaseOverlays(
   const tmpFiles: string[] = [];
 
   const titleLine = (overskrift ?? "").trim().slice(0, 80);
-  const addrLine  = (address ?? "").trim().slice(0, 80);
+  // The showcase route accepts up to 120 address characters. Keep every
+  // accepted character visible by wrapping for portrait video rather than
+  // silently discarding everything after the first 80.
+  const wrapForLowerThird = (value: string, maxCharsPerLine = 48): string => {
+    const words = value.trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
+    const lines: string[] = [];
+    let line = "";
+    for (const word of words) {
+      if (!line) {
+        line = word;
+      } else if (line.length + word.length + 1 <= maxCharsPerLine) {
+        line += ` ${word}`;
+      } else {
+        lines.push(line);
+        line = word;
+      }
+    }
+    if (line) lines.push(line);
+    return lines.join("\n");
+  };
+  const addrLine = wrapForLowerThird((address ?? "").trim().slice(0, 120));
+  const addressLineCount = addrLine ? addrLine.split("\n").length : 0;
 
   // Only add lower-third when at least one text line is present
   if (titleLine || addrLine) {
@@ -1023,7 +1044,9 @@ export async function burnShowcaseOverlays(
       const tFile = path.join(tmpDir, `sc-title-${rand}.txt`);
       fs.writeFileSync(tFile, titleLine, "utf8");
       tmpFiles.push(tFile);
-      const titleY = addrLine ? "h-text_h-186" : "h-text_h-108";
+      const titleY = addrLine
+        ? `h-text_h-${186 + Math.max(0, addressLineCount - 1) * 46}`
+        : "h-text_h-108";
       filters.push(
         `drawtext=fontfile=${FONT_BOLD}:textfile='${tFile}':expansion=none:` +
         `fontcolor=white:fontsize=46:` +
@@ -1040,7 +1063,7 @@ export async function burnShowcaseOverlays(
       tmpFiles.push(aFile);
       filters.push(
         `drawtext=fontfile=${FONT_REG}:textfile='${aFile}':expansion=none:` +
-        `fontcolor=white:fontsize=30:` +
+        `fontcolor=white:fontsize=30:line_spacing=8:` +
         `box=1:boxcolor=0x0A0A14@0.88:boxborderw=12:` +
         `x=32:y=h-text_h-108`,
       );

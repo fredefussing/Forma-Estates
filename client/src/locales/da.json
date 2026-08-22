@@ -1336,6 +1336,7 @@
       "foerAiDesignAgent": "Før AI Design Agent",
       "lavDineEgneAendringer": "Lav dine egne ændringer",
       "uploadEtBilledeOgBeskriv": "Upload et billede og beskriv præcis hvad du vil ændre — fjern møbler, skift farver, tilføj detaljer, eller giv rummet helt nyt liv.",
+      "qualityGuardNote": "Skriv gerne på dansk. Agenten bevarer automatisk kamera, arkitektur, lys og naturlige materialedetaljer, medmindre du beder om at ændre dem.",
       "atFjerneEllerTilfoejeElementer": "At fjerne eller tilføje elementer i et allerede genereret billede",
       "uploadDitSatellitBilledeHer": "Upload dit satellit billede her",
       "traekEtBilledeHertil": "Træk et billede hertil",

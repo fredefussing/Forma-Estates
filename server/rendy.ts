@@ -21,6 +21,7 @@ export async function ensureRendyJobsTable() {
   for (const col of [
     `ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS user_id integer REFERENCES users(id)`,
     `ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS videos jsonb`,
+    `ALTER TABLE rendy_jobs ADD COLUMN IF NOT EXISTS delivery_status text NOT NULL DEFAULT 'pending'`,
   ]) {
     try { await pool.query(col); } catch {}
   }
@@ -40,22 +41,25 @@ async function dbUpsertJob(
   status?: string,
   userId?: number,
   videos?: RendyVideo[],
+  deliveryStatus?: "pending" | "provider" | "delivered",
 ) {
   try {
     await pool.query(
-      `INSERT INTO rendy_jobs (job_id, listing_id, status, user_id, videos)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO rendy_jobs (job_id, listing_id, status, user_id, videos, delivery_status)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'pending'))
        ON CONFLICT (job_id) DO UPDATE
          SET listing_id = COALESCE($2, rendy_jobs.listing_id),
              status     = COALESCE($3, rendy_jobs.status),
              user_id    = COALESCE($4, rendy_jobs.user_id),
-             videos     = COALESCE($5::jsonb, rendy_jobs.videos)`,
+              videos     = COALESCE($5::jsonb, rendy_jobs.videos),
+              delivery_status = COALESCE($6, rendy_jobs.delivery_status)`,
       [
         jobId,
         listingId ?? null,
         status ?? "processing",
         userId ?? null,
         videos ? JSON.stringify(videos) : null,
+        deliveryStatus ?? null,
       ],
     );
   } catch (err: any) {
@@ -72,6 +76,51 @@ export async function getRendyListingIdForJob(jobId: string): Promise<string | n
   } catch {
     return null;
   }
+}
+
+export interface PersistedRendyJob {
+  listingId: string | null;
+  status: "processing" | "completed" | "failed";
+  videos: RendyVideo[];
+  deliveryStatus: "pending" | "provider" | "delivered";
+}
+
+/**
+ * Read the durable delivery state used by the SSE recovery route. A video is
+ * safe to return without reprocessing only once it has reached `delivered`;
+ * older rows default to pending and are completed again from the provider.
+ */
+export async function getPersistedRendyJob(jobId: string): Promise<PersistedRendyJob | null> {
+  try {
+    const res = await pool.query<{
+      listing_id: string | null;
+      status: PersistedRendyJob["status"];
+      videos: RendyVideo[] | null;
+      delivery_status: PersistedRendyJob["deliveryStatus"] | null;
+    }>(
+      `SELECT listing_id, status, videos, delivery_status FROM rendy_jobs WHERE job_id = $1`,
+      [jobId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      listingId: row.listing_id,
+      status: row.status,
+      videos: Array.isArray(row.videos) ? row.videos : [],
+      deliveryStatus: row.delivery_status ?? "pending",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the exact delivery URLs only after post-processing has completed. */
+export async function saveDeliveredRendyVideos(
+  jobId: string,
+  listingId: string,
+  videos: RendyVideo[],
+): Promise<void> {
+  await dbUpsertJob(jobId, listingId, "completed", undefined, videos, "delivered");
 }
 
 /**
@@ -495,14 +544,14 @@ export function startRendyShowcase(
             if (successVideos.length > 0) {
               console.error(`[Rendy] returnerer ${successVideos.length} succesfulde videoer trods delfejl`);
               let finalVideos = successVideos;
-              if (onVideosReady) {
-                try {
-                  const fallback = new Promise<RendyVideo[]>((resolve) =>
-                    setTimeout(() => { console.error("[Rendy] partial onVideosReady timeout 120s"); resolve(successVideos); }, 120_000)
+                if (onVideosReady) {
+                  const fallback = new Promise<RendyVideo[]>((_, reject) =>
+                    setTimeout(() => reject(new Error("Efterbehandling af videoerne tog for lang tid")), 120_000)
                   );
+                  // Never deliver the provider video when Forma's finalization
+                  // fails or times out: it is missing the required overlay.
                   finalVideos = await Promise.race([onVideosReady(successVideos), fallback]);
-                } catch (wmErr: any) { console.error("[Rendy] post-process (partial) fejl:", wmErr?.message); }
-              }
+                }
               jobs.set(jobId, {
                 ...jobs.get(jobId)!,
                 status: "completed",
@@ -515,7 +564,7 @@ export function startRendyShowcase(
                   listingId,
                 },
               });
-              await dbUpsertJob(jobId, listingId, "completed", userId, finalVideos);
+                await dbUpsertJob(jobId, listingId, "completed", userId, finalVideos, onVideosReady ? "delivered" : "provider");
               return;
             }
           } catch (detailErr) {
@@ -544,20 +593,15 @@ export function startRendyShowcase(
             // Rendy said "success" but every individual video failed — treat as error
             throw new Error(`Videogenerering fejlede — 0 ud af ${full.videos.length} videoer lykkedes. Prøv med bedre billeder (min. 800×600px, god belysning).`);
           }
-          // Burn EU AI Act Art. 50 badge into each Rendy CDN video before delivering
-          // URLs to the client. Falls back to original CDN URLs if burning fails or
-          // takes longer than 120 s (belt-and-suspenders on top of per-video 90 s timeouts).
+          // Burn the required Forma delivery treatment before returning URLs.
+          // A provider CDN URL is not an acceptable fallback because it lacks the
+          // address text / EU badge promised in the finished delivery.
           let finalVideos = videos;
           if (onVideosReady) {
-            try {
-              const fallback = new Promise<RendyVideo[]>((resolve) =>
-                setTimeout(() => {
-                  console.error("[Rendy] onVideosReady global timeout 120s — leverer originale CDN URLs");
-                  resolve(videos);
-                }, 120_000)
-              );
-              finalVideos = await Promise.race([onVideosReady(videos), fallback]);
-            } catch (wmErr: any) { console.error("[Rendy] post-process fejl:", wmErr?.message); }
+            const fallback = new Promise<RendyVideo[]>((_, reject) =>
+              setTimeout(() => reject(new Error("Efterbehandling af videoerne tog for lang tid")), 120_000)
+            );
+            finalVideos = await Promise.race([onVideosReady(videos), fallback]);
           }
           jobs.set(jobId, {
             ...jobs.get(jobId)!,
@@ -571,7 +615,7 @@ export function startRendyShowcase(
               listingId,
             },
           });
-          await dbUpsertJob(jobId, listingId, "completed", userId, finalVideos);
+          await dbUpsertJob(jobId, listingId, "completed", userId, finalVideos, onVideosReady ? "delivered" : "provider");
           return;
         }
       }

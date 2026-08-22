@@ -24,10 +24,16 @@ import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
 import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowcaseJob, getShowcaseQueueMetrics, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
-import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getRendyListingIdForJob, getRendyListing, getRendyListingStatus, setRendyJobProgress } from "./rendy";
+import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getPersistedRendyJob, getRendyListing, getRendyListingStatus, saveDeliveredRendyVideos, setRendyJobProgress, type RendyVideo } from "./rendy";
 import { isLoadTestMode } from "./load-test";
 import { registerRendyVoiceoverRoutes } from "./rendy-voiceover";
 import { collectRendyMediaKeys } from "./rendy-media-keys";
+import { buildRefinementPrompt, getRefinementInputUrl } from "@shared/refinementPrompt";
+import {
+  buildDesignAgentInitialPrompt,
+  DESIGN_AGENT_INITIAL_PROMPT_PROFILE,
+  DESIGN_AGENT_REFINEMENT_PROMPT_PROFILE,
+} from "@shared/designAgentPrompt";
 
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
@@ -79,6 +85,37 @@ function adminPasswordOk(candidate: string | undefined): boolean {
 const transformVideoRefunds = new Map<string, number>();
 const showcaseVideoRefunds = new Map<string, number>();
 const walkthroughVideoRefunds = new Map<string, number>();
+
+/**
+ * Convert Rendy's temporary provider videos into Forma's finished delivery.
+ * The address layer and EU badge must be present before any URL reaches the
+ * client; successful local deliveries are uploaded to durable storage.
+ */
+async function finalizeRendyShowcaseVideos(
+  videos: RendyVideo[],
+  address: string,
+  lang: string,
+): Promise<RendyVideo[]> {
+  const overlayAddress = address.trim().slice(0, 120) || undefined;
+  log(`[Showcase] finalizing ${videos.length} Rendy video(s) with${overlayAddress ? "" : "out"} address overlay…`);
+  return Promise.all(
+    videos.map(async (video) => {
+      if (!video.url) return video;
+      const localUrl = await downloadToUploads(video.url, uploadDir, ".mp4");
+      const rawMp4 = path.join(uploadDir, path.basename(localUrl));
+      const renderedMp4 = rawMp4.replace(/\.mp4$/, "-overlay.mp4");
+      try {
+        await burnShowcaseOverlays(rawMp4, renderedMp4, lang, undefined, overlayAddress);
+        fs.renameSync(renderedMp4, rawMp4);
+        await r2UploadFile(rawMp4);
+        log(`[Showcase] finalized Rendy delivery → ${localUrl}`);
+        return { ...video, url: localUrl };
+      } finally {
+        fs.promises.unlink(renderedMp4).catch(() => {});
+      }
+    }),
+  );
+}
 
 function refundTransformVideo(requestId: string) {
   const uid = transformVideoRefunds.get(requestId);
@@ -274,6 +311,26 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     return await fetch(url, { ...options, signal: ctrl.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+type ImageDimensionTrace = {
+  width: number | null;
+  height: number | null;
+  format: string | null;
+};
+
+async function inspectImageDimensions(input: string | Buffer | null | undefined): Promise<ImageDimensionTrace | null> {
+  if (!input) return null;
+  try {
+    const metadata = await sharp(input).metadata();
+    return {
+      width: metadata.width ?? null,
+      height: metadata.height ?? null,
+      format: metadata.format ?? null,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -583,26 +640,124 @@ function ssWatermarkEmbed(
   return out;
 }
 
-// ── VST finalize: download (curl) + sharp post-processing + R2 upload ─────────
-// Uses spawn("curl") because Node.js fetch is intercepted by Replit's network layer.
-async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<string> {
-  const buffer = await new Promise<Buffer>((resolve, reject) => {
+// Uses the validated curl downloader because Node.js fetch is intercepted by
+// Replit's network layer. Every HTTPS redirect target is checked before follow.
+async function downloadCollovBuffer(collovUrl: string): Promise<Buffer> {
+  return downloadTrustedProxyImage(collovUrl);
+}
+
+function isTrustedProxyImageUrl(value: string): boolean {
+  try {
+    const { protocol, hostname, username, password } = new URL(value);
+    if (protocol !== "https:" || username || password) return false;
+    const h = hostname.toLowerCase();
+    return (
+      h.endsWith(".cloudfront.net") ||
+      h === "fal.media" ||
+      h.endsWith(".fal.media") ||
+      h.endsWith(".rendy.io") ||
+      h.endsWith(".collov.ai")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function curlImageWithoutRedirect(url: string): Promise<{
+  status: number;
+  headers: Map<string, string>;
+  body: Buffer;
+}> {
+  return await new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const curl = spawn("curl", ["-sL", "--max-time", "60", "--fail", collovUrl]);
-    curl.stdout.on("data", (c: Buffer) => chunks.push(c));
-    curl.on("close", (code: number) => {
-      if (code !== 0) return reject(new Error(`curl exit ${code} fetching Collov image`));
-      resolve(Buffer.concat(chunks));
-    });
+    const errors: Buffer[] = [];
+    const curl = spawn("curl", [
+      "-sS",
+      "--max-time", "30",
+      "--max-redirs", "0",
+      "-D", "-",
+      "-o", "-",
+      url,
+    ]);
+    curl.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    curl.stderr.on("data", (chunk: Buffer) => errors.push(chunk));
     curl.on("error", reject);
+    curl.on("close", (code: number) => {
+      if (code !== 0) {
+        reject(new Error(Buffer.concat(errors).toString("utf8").trim() || `curl exit ${code}`));
+        return;
+      }
+      const response = Buffer.concat(chunks);
+      const separator = response.indexOf(Buffer.from("\r\n\r\n"));
+      if (separator < 0) {
+        reject(new Error("Image host returned an invalid HTTP response"));
+        return;
+      }
+      const headerText = response.subarray(0, separator).toString("latin1");
+      const statusMatch = headerText.match(/^HTTP\/\S+\s+(\d{3})/i);
+      if (!statusMatch) {
+        reject(new Error("Image host returned an invalid HTTP status"));
+        return;
+      }
+      const headers = new Map<string, string>();
+      for (const line of headerText.split(/\r\n/).slice(1)) {
+        const colon = line.indexOf(":");
+        if (colon > 0) {
+          headers.set(line.slice(0, colon).trim().toLowerCase(), line.slice(colon + 1).trim());
+        }
+      }
+      resolve({
+        status: Number(statusMatch[1]),
+        headers,
+        body: response.subarray(separator + 4),
+      });
+    });
   });
-  if (buffer.length < 1000) throw new Error("VST: image buffer too small — fetch likely failed");
+}
+
+async function downloadTrustedProxyImage(initialUrl: string): Promise<Buffer> {
+  let currentUrl = initialUrl;
+  for (let redirectCount = 0; redirectCount <= 3; redirectCount++) {
+    if (!isTrustedProxyImageUrl(currentUrl)) {
+      throw new Error("Proxy-url ikke tilladt");
+    }
+    const response = await curlImageWithoutRedirect(currentUrl);
+    if (response.status >= 200 && response.status < 300) {
+      if (response.body.length < 1000) throw new Error("Image response is too small");
+      return response.body;
+    }
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) throw new Error("Image redirect is missing Location");
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+    throw new Error(`Image host returned HTTP ${response.status}`);
+  }
+  throw new Error("Image host redirected too many times");
+}
+
+// ── VST finalize: download (curl) + sharp post-processing + R2 upload ─────────
+// `sourceBuffer` lets the request reuse the provider download that was already
+// made for the refinement master, avoiding a second network round-trip.
+async function sharpenAndSaveVst(
+  collovUrl: string,
+  designId: number,
+  sourceBuffer?: Buffer,
+): Promise<string> {
+  const buffer = sourceBuffer ?? await downloadCollovBuffer(collovUrl);
+  const sourceMetadata = await sharp(buffer).metadata();
+  log(
+    `Design ${designId}: Collov source ${sourceMetadata.width ?? "?"}×${sourceMetadata.height ?? "?"} ` +
+    `${sourceMetadata.format ?? "unknown"}, ${(buffer.length / 1024).toFixed(0)} KB`,
+  );
   // EU Art. 50 Regel 1+2: get raw pixels → SS-vandmærke → JPEG → XMP-injection.
-  // Ét encode-pass (ingen dobbelt JPEG-komprimering, ingen kvalitetstab).
+  // A single lossless raw-pixel pass keeps the provider's fine detail intact
+  // before the compliance watermark and delivery encoding are applied.
   const { data: vstRaw, info: vstInfo } = await (sharp(buffer) as any)
-    .sharpen({ sigma: 1.0, flat: 0.5, jagged: 2 })
-    .clahe({ width: 50, height: 50, maxSlope: 3 })
-    .modulate({ saturation: 1.05, brightness: 1.02 })
+    .sharpen({ sigma: 1.35, flat: 0.1, jagged: 2 })
+    .clahe({ width: 40, height: 40, maxSlope: 2 })
+    .modulate({ saturation: 1.025, brightness: 1.01 })
     .flatten()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -610,15 +765,36 @@ async function sharpenAndSaveVst(collovUrl: string, designId: number): Promise<s
   const rawEnhanced = await (sharp(vstMarked, {
     raw: { width: vstInfo.width, height: vstInfo.height, channels: vstInfo.channels },
   }) as any)
-    .jpeg({ quality: 96, mozjpeg: true })
+    .jpeg({ quality: 100, chromaSubsampling: "4:4:4", mozjpeg: false })
     .toBuffer();
   const enhanced = injectXmpIntoJpeg(rawEnhanced, buildEuXmpPacket("c2pa.modified", "Virtual Staging"));
   const filename = `result-${designId}-${Date.now()}.jpg`;
   const localFilePath = path.join(uploadDir, filename);
   fs.writeFileSync(localFilePath, enhanced);
   await r2UploadFile(localFilePath);
-  log(`Design ${designId}: durably saved to /uploads/${filename}`);
+  const deliveryMetadata = await sharp(enhanced).metadata();
+  log(
+    `Design ${designId}: delivery ${deliveryMetadata.width ?? "?"}×${deliveryMetadata.height ?? "?"} ` +
+    `${deliveryMetadata.format ?? "unknown"}, ${(enhanced.length / 1024).toFixed(0)} KB → /uploads/${filename}`,
+  );
   return `/uploads/${filename}`;
+}
+
+// Keep an unmodified copy of the provider file exclusively for the next
+// refinement. The customer-facing delivery is separately watermarked/branded,
+// which can require a JPEG encode and must not become the next model input.
+async function saveRawCollovRefinementSource(
+  buffer: Buffer,
+  designId: number,
+): Promise<{ url: string; localFilePath: string }> {
+  const format = (await sharp(buffer).metadata()).format;
+  const extension = format === "png" ? "png" : format === "webp" ? "webp" : "jpg";
+  const filename = `refinement-source-${designId}-${Date.now()}.${extension}`;
+  const localFilePath = path.join(uploadDir, filename);
+  fs.writeFileSync(localFilePath, buffer);
+  await r2UploadFile(localFilePath);
+  log(`Design ${designId}: saved unmodified Collov source to /uploads/${filename}`);
+  return { url: `/uploads/${filename}`, localFilePath };
 }
 
 // ── Main workflow ─────────────────────────────────────────────────────────────
@@ -1940,7 +2116,9 @@ export async function registerRoutes(
     try {
       await Promise.all([
         read(`SELECT original_image_url, result_image_url, versions FROM designs`, row => { addUrl(row.original_image_url); addUrl(row.result_image_url); addArray(row.versions); }),
-        read(`SELECT image_url, original_image_url FROM generated_images`, row => { addUrl(row.image_url); addUrl(row.original_image_url); }),
+        read(`SELECT image_url, original_image_url, refinement_source_url FROM generated_images`, row => {
+          addUrl(row.image_url); addUrl(row.original_image_url); addUrl(row.refinement_source_url);
+        }),
         read(`SELECT original_image_url, result_image_url FROM agent_designs`, row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }),
         read(`SELECT original_image_url, result_image_url FROM special_requests`, row => { addUrl(row.original_image_url); addUrl(row.result_image_url); }),
         read(`SELECT generated_image_url FROM quote_requests`, row => addUrl(row.generated_image_url)),
@@ -2043,8 +2221,8 @@ export async function registerRoutes(
       const addUrl = (url: string | null) => { const k = toR2Key(url); if (k) liveKeys.add(k); };
 
       // generated_images
-      const gi = await pool.query(`SELECT image_url, original_image_url FROM generated_images`);
-      gi.rows.forEach(r => { addUrl(r.image_url); addUrl(r.original_image_url); });
+      const gi = await pool.query(`SELECT image_url, original_image_url, refinement_source_url FROM generated_images`);
+      gi.rows.forEach(r => { addUrl(r.image_url); addUrl(r.original_image_url); addUrl(r.refinement_source_url); });
 
       // designs (including the version history array)
       await pool.query(`SELECT original_image_url, result_image_url, versions FROM designs`)
@@ -3659,43 +3837,71 @@ export async function registerRoutes(
     const url = req.query.url as string;
     const format = (req.query.format as string | undefined) ?? "jpg";
     const isDemo = req.query.demo === "1";
-    if (!url || !url.startsWith("http")) { res.status(400).send("Invalid url"); return; }
+    const isLocalUpload = typeof url === "string" && url.startsWith("/uploads/");
+    if (!url || (!isLocalUpload && !url.startsWith("http"))) {
+      res.status(400).send("Invalid url");
+      return;
+    }
+
+    let localUploadPath: string | null = null;
+    if (isLocalUpload) {
+      try {
+        localUploadPath = await ensureLocalUpload(url);
+      } catch {
+        res.status(404).send("Image not found");
+        return;
+      }
+    }
 
     // SSRF-guard: kun whitelistede hosts må proxyes server-side.
     // Forhindrer brug af serveren til at sonde interne adresser (DB, metadata).
-    try {
-      const { protocol, hostname } = new URL(url);
-      const h = hostname.toLowerCase();
-      const trusted =
-        protocol === "https:" && (
-          h.endsWith(".cloudfront.net") ||   // Collov CDN
-          h === "fal.media"            ||    // fal.ai resultater
-          h.endsWith(".fal.media")     ||    // fal.ai subdomæner (v3b.fal.media)
-          h.endsWith(".rendy.io")      ||    // Rendy video CDN
-          h.endsWith(".collov.ai")           // Collov direkte CDN
-        );
-      if (!trusted) { res.status(403).json({ error: "Proxy-url ikke tilladt" }); return; }
-    } catch { res.status(400).send("Ugyldig URL"); return; }
+    if (!isLocalUpload && !isTrustedProxyImageUrl(url)) {
+      res.status(403).json({ error: "Proxy-url ikke tilladt" });
+      return;
+    }
 
     // plain=1: KUN admin (is_admin=true i DB) kan springe vandmærket over.
     // EU AI Act (Art. 50) kræver tvungen automatisk mærkning — ingen bruger
     // må have mulighed for at slå det fra. Undtagelse: ejerkonto til intern brug.
     let skipWatermark = false;
-    if (req.query.plain === "1") {
+    let downloadAgencyLogo: Buffer | null = null;
+    if (req.headers.authorization) {
       try {
         const { uid } = await verifyFirebaseToken(req.headers.authorization);
-        const r = await pool.query(
-          `SELECT is_admin FROM users WHERE firebase_uid = $1`, [uid]
-        );
-        if (r.rows[0]?.is_admin === true) skipWatermark = true;
+        const downloadUser = await storage.getUserByFirebaseUid(uid);
+        if (req.query.plain === "1" && downloadUser?.isAdmin === true) {
+          skipWatermark = true;
+        }
+        if (downloadUser?.agencyLogoUrl) {
+          downloadAgencyLogo = await readLogoBuffer(downloadUser.agencyLogoUrl);
+        }
       } catch {}
     }
 
-    const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", url]);
+    let proxyTempPath: string | null = null;
+    let sourceUrl: string;
+    if (localUploadPath) {
+      sourceUrl = `file://${localUploadPath}`;
+    } else {
+      try {
+        const trustedBuffer = await downloadTrustedProxyImage(url);
+        proxyTempPath = path.join(
+          "/tmp",
+          `proxy-image-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`,
+        );
+        fs.writeFileSync(proxyTempPath, trustedBuffer);
+        sourceUrl = `file://${proxyTempPath}`;
+      } catch (error: any) {
+        res.status(502).send(error?.message || "Image fetch failed");
+        return;
+      }
+    }
+    const curl = spawn("curl", ["-sL", "--max-time", "30", "--fail", sourceUrl]);
 
     const chunks: Buffer[] = [];
     curl.stdout.on("data", (c: Buffer) => chunks.push(c));
     curl.on("close", async (code: number) => {
+      if (proxyTempPath) fs.promises.unlink(proxyTempPath).catch(() => {});
       if (code !== 0) { res.status(502).send("Image fetch failed"); return; }
       try {
         const buf = Buffer.concat(chunks);
@@ -3784,8 +3990,30 @@ export async function registerRoutes(
         // EU Art. 50 Regel 1+2+3: composite badge → raw pixels → SS-vandmærke → JPEG → XMP.
         // Ét encode-pass (ingen dobbelt JPEG-komprimering).
         // skipWatermark (admin): fjerner KUN det synlige badge — SS+XMP altid til stede.
+        const finalComposites: any[] = [];
+        if (downloadAgencyLogo) {
+          const logoTargetW = Math.round(imgW * 0.13);
+          const resizedLogo = await sharp(downloadAgencyLogo)
+            .resize(logoTargetW, null, { fit: "inside", withoutEnlargement: true })
+            .png()
+            .toBuffer();
+          const logoMeta = await sharp(resizedLogo).metadata();
+          const logoPad = Math.round(imgW * 0.025);
+          finalComposites.push({
+            input: resizedLogo,
+            top: logoPad,
+            left: imgW - (logoMeta.width || logoTargetW) - logoPad,
+            blend: "over",
+          });
+        }
+        if (!skipWatermark) {
+          finalComposites.push({ input: svgWatermark, blend: "over" });
+        }
+
         let pipeline = sharp(buf);
-        if (!skipWatermark) pipeline = pipeline.composite([{ input: svgWatermark, blend: "over" }]);
+        if (finalComposites.length > 0) {
+          pipeline = pipeline.composite(finalComposites);
+        }
 
         if (format === "png") {
           // PNG: SS-vandmærke via raw pixels + XMP via manuel iTXt-chunk injection.
@@ -3812,7 +4040,10 @@ export async function registerRoutes(
         res.status(502).send(e.message || "Conversion failed");
       }
     });
-    curl.on("error", (e: Error) => res.status(502).send(e.message));
+    curl.on("error", (e: Error) => {
+      if (proxyTempPath) fs.promises.unlink(proxyTempPath).catch(() => {});
+      res.status(502).send(e.message);
+    });
   });
 
   app.get("/api/bolig/quota", async (req, res) => {
@@ -4227,7 +4458,14 @@ export async function registerRoutes(
       const tier = (tierRaw === "tier1" || tierRaw === "tier2" || tierRaw === "tier3") ? tierRaw : "tier2";
       const caseId = req.body.caseId ? parseInt(req.body.caseId as string) : null;
       const isQuickGeneration = req.body.isQuick === "true" || req.body.isQuick === true;
-      const customPromptText = (req.body.promptText as string) || "";
+      const promptTextValue = req.body.promptText;
+      const customPromptText = typeof promptTextValue === "string" ? promptTextValue : "";
+      if (isDesignAgent && !season && !customPromptText.trim()) {
+        return res.status(400).json({ success: false, message: "Skriv hvad du vil ændre, før billedet genereres." });
+      }
+      if (isDesignAgent && customPromptText.length > 6000) {
+        return res.status(400).json({ success: false, message: "Instruktionen må højst være 6.000 tegn." });
+      }
 
       // Email must be verified before generating (existing users grandfathered as verified)
       if (authedUserId) {
@@ -4268,6 +4506,7 @@ export async function registerRoutes(
       // pege på vilkårlige URL'er.
       let originalForRecord: string;
       let publicUrl: string;
+      let agentInputLocalPath: string | null = null;
       if (sourceCaseImageId) {
         const srcImg = await storage.getGeneratedImage(sourceCaseImageId);
         if (!srcImg || srcImg.userId !== authedUserId) {
@@ -4301,22 +4540,37 @@ export async function registerRoutes(
         // Always store the root original (the uploaded file) as the before-image,
         // not the intermediate result, so the folder always shows the real before/after.
         originalForRecord = srcImg.originalImageUrl ?? srcImg.imageUrl;
-        publicUrl = srcImg.imageUrl.startsWith("http") ? srcImg.imageUrl : `${effectiveProtocol}://${effectiveHost}${srcImg.imageUrl}`;
+        const refinementInputUrl = getRefinementInputUrl(srcImg.refinementSourceUrl, srcImg.imageUrl);
+        publicUrl = refinementInputUrl.startsWith("http") ? refinementInputUrl : `${effectiveProtocol}://${effectiveHost}${refinementInputUrl}`;
+        if (isDesignAgent && refinementInputUrl.startsWith("/uploads/")) {
+          const localCandidate = path.join(uploadDir, decodeURIComponent(refinementInputUrl.slice("/uploads/".length)));
+          if (fs.existsSync(localCandidate)) {
+            agentInputLocalPath = localCandidate;
+          }
+        }
         if (season) room = srcImg.roomType || room;
       } else {
         originalForRecord = `/uploads/${req.file!.filename}`;
         publicUrl = `${effectiveProtocol}://${effectiveHost}/uploads/${req.file!.filename}`;
+        agentInputLocalPath = path.join(uploadDir, req.file!.filename);
       }
       log(`[BoligPotentiale] generate: room=${room}, style=${style}, tier=${tier}, season=${season ?? "-"}, url=${publicUrl}`);
 
       const startTime = Date.now();
 
-      // Build prompt — season refresh and design agent bypass the prompt lock
+      // Build prompt — standard styles use the locked prompt. The Design Agent
+      // has its own server-owned quality contract so short free-text requests
+      // cannot trigger a broad, soft re-render of the entire image.
       let prompt: string;
+      let agentPromptProfile: string | null = null;
       if (season) {
         prompt = SEASON_PROMPTS[season].prompt + SEASON_SUFFIX;
+      } else if (isDesignAgent && isRefinement) {
+        prompt = buildRefinementPrompt(customPromptText);
+        agentPromptProfile = DESIGN_AGENT_REFINEMENT_PROMPT_PROFILE;
       } else if (isDesignAgent) {
-        prompt = customPromptText;
+        prompt = buildDesignAgentInitialPrompt(customPromptText);
+        agentPromptProfile = DESIGN_AGENT_INITIAL_PROMPT_PROFILE;
       } else {
         const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
         try {
@@ -4337,16 +4591,33 @@ export async function registerRoutes(
             detail: guardErr.message,
           });
         }
-        // ── Strukturbeskyttelse: prefix tilføjes EFTER låse-tjek (låsen verificerer stilprompten uændret) ──
-        prompt = guardedPrefix() + prompt;
+        // The approved quality profile sends the locked room/style prompt
+        // directly to Collov, matching the concise visual benchmark.
       }
-      log(`[BoligPotentiale] prompt OK (lås verificeret + strukturbeskyttelse): ${prompt.slice(0, 120)}…`);
+      const agentTraceId = isDesignAgent ? crypto.randomUUID() : null;
+      const agentPromptHash = isDesignAgent
+        ? crypto.createHash("sha256").update(prompt).digest("hex").slice(0, 16)
+        : null;
+      const agentInputDimensions = isDesignAgent
+        ? await inspectImageDimensions(agentInputLocalPath)
+        : null;
+      if (isDesignAgent) {
+        log(`[AgentTrace] ${JSON.stringify({
+          traceId: agentTraceId,
+          stage: "submitted",
+          promptProfile: agentPromptProfile,
+          promptHash: agentPromptHash,
+          input: agentInputDimensions,
+        })}`);
+      }
+      log(`[BoligPotentiale] prompt OK (${agentPromptProfile ?? "locked-standard"}): ${prompt.slice(0, 120)}…`);
 
       // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
       // 2 retries med 10s mellem forsøg.
       const maxRetries = 2;
       let collovImageUrl: string | null = null;
       let lastFailReason: string | null = null;
+      let collovJobUuid: string | null = null;
 
       for (let attempt = 0; attempt <= maxRetries && !collovImageUrl; attempt++) {
         if (attempt > 0) {
@@ -4372,6 +4643,16 @@ export async function registerRoutes(
         }
 
         const uuid = collovJson.data.uuid;
+        collovJobUuid = uuid;
+        if (isDesignAgent) {
+          log(`[AgentTrace] ${JSON.stringify({
+            traceId: agentTraceId,
+            stage: "provider_accepted",
+            promptProfile: agentPromptProfile,
+            promptHash: agentPromptHash,
+            collovUuid: uuid,
+          })}`);
+        }
         const maxAttempts = 45; // 45 × 2s = 90s
         let attemptFailed = false;
 
@@ -4406,52 +4687,45 @@ export async function registerRoutes(
         return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes" });
       }
 
-      // ── Agency logo compositing ──────────────────────────────────────────
-      // If the user has uploaded an agency logo, composite it onto the
-      // generated image (bottom-right corner, 13 % of image width, with padding).
-      // Non-fatal: any failure falls through to the raw Collov URL.
-      if (authedUserId) {
-        try {
-          const logoUser = await storage.getUserById(authedUserId);
-          if (logoUser?.agencyLogoUrl) {
-            const logoBuf = await readLogoBuffer(logoUser.agencyLogoUrl);
-            if (logoBuf) {
-              // Download Collov image to disk (uses curl under the hood for Replit compat)
-              const tmpRelPath = await downloadToUploads(collovImageUrl, uploadDir, ".jpg");
-              const tmpAbsPath = path.join(process.cwd(), tmpRelPath);
-              const imgMeta = await sharp(tmpAbsPath).metadata();
-              const imgW = imgMeta.width || 1024;
-              const imgH = imgMeta.height || 768;
-              const logoTargetW = Math.round(imgW * 0.13);
-              const resizedLogo = await sharp(logoBuf)
-                .resize(logoTargetW, null, { fit: "inside", withoutEnlargement: true })
-                .png()
-                .toBuffer();
-              const lMeta = await sharp(resizedLogo).metadata();
-              const pad = Math.round(imgW * 0.025);
-              const outName = `branded-${authedUserId}-${Date.now()}.jpg`;
-              const outPath = path.join(uploadDir, outName);
-              // Logo placeres i øverste højre hjørne (top-right) så det ikke
-              // overlapper "AI Redigeret"-badge der altid sidder nede i
-              // højre hjørne (bottom-right) og tilføjes ved download.
-              await sharp(tmpAbsPath)
-                .composite([{ input: resizedLogo, top: pad, left: imgW - (lMeta.width || logoTargetW) - pad }])
-                .jpeg({ quality: 92 })
-                .toFile(outPath);
-              fs.unlink(tmpAbsPath, () => {});
-              await r2UploadFile(outPath);
-              collovImageUrl = `/uploads/${outName}`;
-            }
-          }
-        } catch (logoErr: any) {
-          log(`[logo-composite] non-fatal: ${logoErr.message}`);
-        }
+      // Preserve the provider pixels as the customer-facing working master.
+      // Preview and refinements use these exact Collov bytes. Branding, the
+      // visible "AI Redigeret" badge, SS watermarking and XMP are applied only
+      // when the customer downloads the finished image.
+      const providerImageUrl = collovImageUrl;
+      const providerBuffer = await downloadCollovBuffer(providerImageUrl);
+      const providerDimensions = isDesignAgent ? await inspectImageDimensions(providerBuffer) : null;
+      if (isDesignAgent) {
+        log(`[AgentTrace] ${JSON.stringify({
+          traceId: agentTraceId,
+          stage: "provider_result",
+          promptProfile: agentPromptProfile,
+          promptHash: agentPromptHash,
+          collovUuid: collovJobUuid,
+          rawProvider: providerDimensions,
+        })}`);
       }
-
-      // Persist every generated result before it reaches generated_images.
-      // Provider CDN URLs can expire and Render's disk is not durable.
-      if (!collovImageUrl.startsWith("/uploads/")) {
-        collovImageUrl = await sharpenAndSaveVst(collovImageUrl, Date.now());
+      // This durable raw master is now also the image shown in the app. Saving
+      // it is mandatory: returning an expiring provider URL would strand the
+      // preview after the Collov CDN URL expires.
+      const rawSource = await saveRawCollovRefinementSource(providerBuffer, Date.now());
+      const refinementSourceUrl = rawSource.url;
+      collovImageUrl = rawSource.url;
+      if (isDesignAgent) {
+        let deliveryDimensions: ImageDimensionTrace | null = null;
+        if (collovImageUrl.startsWith("/uploads/")) {
+          const deliveryLocalPath = path.join(uploadDir, decodeURIComponent(collovImageUrl.slice("/uploads/".length)));
+          deliveryDimensions = await inspectImageDimensions(deliveryLocalPath);
+        }
+        log(`[AgentTrace] ${JSON.stringify({
+          traceId: agentTraceId,
+          stage: "delivered",
+          promptProfile: agentPromptProfile,
+          promptHash: agentPromptHash,
+          collovUuid: collovJobUuid,
+          input: agentInputDimensions,
+          rawProvider: providerDimensions,
+          delivery: deliveryDimensions,
+        })}`);
       }
       const processingTimeMs = Date.now() - startTime;
       const processingTime = Math.round(processingTimeMs / 1000);
@@ -4470,6 +4744,7 @@ export async function registerRoutes(
             sourceImageId: isRefinement && sourceCaseImageId ? sourceCaseImageId : null,
             imageUrl: collovImageUrl,
             originalImageUrl: originalForRecord,
+            refinementSourceUrl,
             roomType: room,
             style,
             budgetTier: isDesignAgent ? "0" : tier,
@@ -5246,37 +5521,12 @@ export async function registerRoutes(
       const showcaseLang = String(req.body?.lang || req.headers["x-lang"] || "da");
       log(`[Showcase] address="${address}" (${address.length} chars) ratio=${ratio}`);
 
-      // Mutable ref filled synchronously once startRendyShowcase() returns jobId.
-      // Safe: JS is single-threaded; the IIFE's first await (DB write) runs after
-      // this assignment, so onVideosReady can never be called before jobId is set.
-      let capturedJobId = "";
-
-      // When address is provided, burn it as a visible lower-third text overlay into
-      // each Rendy CDN video after generation. Rendy stores the address as listing
-      // metadata (shown in their dashboard) but does NOT render it as visible text
-      // in the video — that requires our own FFmpeg pass via burnShowcaseOverlays.
-      // A finished case must not retain a temporary provider CDN URL.
-      const showcaseAddress = address || undefined;
-      const onVideosReady = showcaseAddress
-        ? async (videos: import("./rendy").RendyVideo[]) => {
-            log(`[Showcase] burning address overlay for ${videos.length} video(s)…`);
-            return Promise.all(
-              videos.map(async (v) => {
-                if (!v.url) return v;
-                const localUrl = await downloadToUploads(v.url, uploadDir, ".mp4");
-                const rawMp4 = path.join(uploadDir, path.basename(localUrl));
-                const wmTmp = rawMp4.replace(/\.mp4$/, "-wmtmp.mp4");
-                await burnShowcaseOverlays(rawMp4, wmTmp, showcaseLang, undefined, showcaseAddress);
-                fs.renameSync(wmTmp, rawMp4);
-                await r2UploadFile(rawMp4);
-                log(`[Showcase] overlay durably saved → ${localUrl}`);
-                return { ...v, url: localUrl };
-              })
-            );
-          }
-        : undefined;
+      // Rendy stores the field as listing metadata only. Every finished delivery
+      // therefore passes through Forma's finalizer, which burns the address (when
+      // supplied) and the required EU badge before returning a durable URL.
+      const onVideosReady = (videos: RendyVideo[]) =>
+        finalizeRendyShowcaseVideos(videos, address, showcaseLang);
       const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, onVideosReady, showcaseUserId ?? undefined);
-      capturedJobId = jobId; // assign synchronously before any await fires in the IIFE
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
@@ -5335,16 +5585,23 @@ export async function registerRoutes(
       return;
     }
 
-    // ── Recovery path: server restarted — look up listingId from DB and poll Rendy directly ──
-    log(`[Rendy] job ${jobId} not in memory — checking DB for listingId`);
-    const listingId = await getRendyListingIdForJob(jobId);
-    if (!listingId) {
+    // ── Recovery path: server restarted — recover Forma's finished delivery first ──
+    log(`[Rendy] job ${jobId} not in memory — checking durable delivery state`);
+    const persisted = await getPersistedRendyJob(jobId);
+    if (!persisted?.listingId) {
       send({ stage: "failed", progress: 0, message: "Job ikke fundet — serveren er genstartet. Upload venligst billederne igen." });
       res.end();
       return;
     }
+    const listingId = persisted.listingId;
+    if (persisted.status === "completed" && persisted.deliveryStatus === "delivered" && persisted.videos.length > 0) {
+      log(`[Rendy] recovered finished Forma delivery job=${jobId} videos=${persisted.videos.length}`);
+      send({ stage: "complete", progress: 100, message: `${persisted.videos.length} video${persisted.videos.length === 1 ? "" : "er"} klar!`, videos: persisted.videos, listingId });
+      endSoon();
+      return;
+    }
 
-    log(`[Rendy] recovered listingId=${listingId} from DB for job ${jobId} — polling Rendy directly`);
+    log(`[Rendy] recovered listingId=${listingId} from DB for job ${jobId} — completing Forma delivery`);
     send({ stage: "generating", progress: 40, message: "Gendanner videogenerering…", listingId });
 
     const hb = setInterval(ping, 20_000);
@@ -5391,10 +5648,14 @@ export async function registerRoutes(
         try {
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
-          log(`[Rendy] SSE recovery-complete job=${jobId} videos=${videos.length}`);
-          send({ stage: "complete", progress: 100, message: `${videos.length} video${videos.length === 1 ? "" : "er"} klar!`, videos, listingId });
-        } catch {
-          send({ stage: "failed", progress: 0, message: "Kunne ikke hente færdige videoer fra Rendy." });
+          if (videos.length === 0) throw new Error("Rendy leverede ingen færdige videoer");
+          const deliveredVideos = await finalizeRendyShowcaseVideos(videos, full.listing.address || "", "da");
+          await saveDeliveredRendyVideos(jobId, listingId, deliveredVideos);
+          log(`[Rendy] recovery finalized Forma delivery job=${jobId} videos=${deliveredVideos.length}`);
+          send({ stage: "complete", progress: 100, message: `${deliveredVideos.length} video${deliveredVideos.length === 1 ? "" : "er"} klar!`, videos: deliveredVideos, listingId });
+        } catch (err: any) {
+          log(`[Rendy] recovery finalization failed job=${jobId}: ${err?.message || "unknown error"}`);
+          send({ stage: "failed", progress: 0, message: "Kunne ikke færdiggøre videoen med adressetekst. Prøv igen." });
         }
         break;
       }

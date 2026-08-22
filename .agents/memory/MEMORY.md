@@ -7,6 +7,8 @@
 - [fal.storage URLs blocked by nano-banana-2/edit](fal-storage-forbidden.md) — fal.storage.upload() via Replit proxy produces v3b.fal.media URLs that return 403 to model workers; fix: preprocess to disk, pass ${protocol}://${host}/uploads/... instead.
 - [Seedance 2.0 transform video](fal-seedance-transform-video.md) — morph mode needs aspect_ratio "auto" or landscape inputs crop-zoom to 9:16; endpoint id has no fal-ai/ prefix; free schema probe via fal openapi URL.
 - [Floorplan wall detection](floorplan-wall-detection.md) — paper-white-relative threshold + dilate + keep-large-components beats Otsu+absolute-minArea for thin grey walls.
+- [Collov refinement fidelity](collov-refinement-fidelity.md) — raw Collov bytes are the preview/refinement master; branding, AI badge and compliance processing happen only on final export.
+- [Collov output-quality variation](collov-output-quality-variation.md) — compare raw provider output with durable delivery; post-processing settings are not proven to explain a quality regression.
 - [Screenshot tool has no WebGL](screenshot-no-webgl.md) — app_preview headless browser can't create a WebGL context; 3D/Three.js scenes never render in screenshots.
 - [Depth-displacement diorama viewer](depth-displacement-diorama.md) — single-plane depth viewer is 2.5D relief; lay flat + constrain polar angle so users never see the torn edge-on view.
 - [Quota usage-counter reset must be opt-in](quota-usage-reset.md) — setUserQuotas is shared by login/top-up/activation; reset used_* via explicit resetUsage flag, never off resetsAt, or you regress lifetime caps & hand back paid quota.
@@ -22,6 +24,7 @@
 - [Render ephemeral uploads & R2](render-ephemeral-uploads.md) — prod disk wipes on deploy; /uploads needs R2 vars on Render + real 404s; Collov CDN blocks browser CORS, use the proxy (plain=1+token skips watermark).
 - [R2 cleanup media inventory](r2-cleanup-media-inventory.md) — every durable-media table must feed both reconciliation and orphan cleanup, or valid customer files can be deleted later.
 - [MediaRecorder final chunk](mediarecorder-final-chunk.md) — keep tracks alive through onstop, or end-of-video narration can lose its last buffered audio.
+- [Voice-over final audio tail](voiceover-final-audio-tail.md) — original video audio can end before video frames; mix narration to the longest input, then trim to video duration.
 - [ASS caption crispness](ass-caption-crispness.md) — use bundled static Cormorant Garamond SemiBold with no outline; serif + heavy effects blur when downscaled.
 - [Bolig gallery image tables](bolig-image-tables.md) — gallery ids are generated_images rows; bolig_case_images is legacy (no writes) — use generatedImageId + getGeneratedImage + userId check.
 - [E2E customer testing](e2e-customer-testing.md) — test signups: flip users.email_verified in dev DB; ALWAYS verify tester "blocked/failed" claims against generated_images; trial gating differs per entry point.
@@ -36,3 +39,5 @@
 - [Long-running server calls need timeouts](server-timeout-pattern.md) — fal.subscribe, Collov fetch, Tripo3D poll all have no built-in timeout; wrap with Promise.race/AbortController or they hang the route forever.
 - [Security hardening patterns](security-hardening.md) — adminPasswordOk() helper (timingSafeEqual), SSRF allowlist on proxy-image, admin pw via X-Admin-Pw header (not URL), rate limiter on admin login.
 - [Mockup sandbox isolation](mockup-sandbox-isolation.md) — sandbox cartographer can load the main app Tailwind config and cause a preview error overlay; keep sandbox Vite independent.
+- [Sandbox video preview codec](sandbox-video-preview-codec.md) — use VP9 WebM for derived browser previews when Rendy H.264 MP4 stays at readyState 0; preserve original deliveries separately.
+- [Frame-accurate preview clip cuts](ffmpeg-frame-accurate-clips.md) — always output-seek (-ss after -i) for derived scene clips; fast-seek snaps to keyframes and shows the wrong room; audit with timestamped contact sheets.
