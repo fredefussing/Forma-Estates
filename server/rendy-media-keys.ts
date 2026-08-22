@@ -10,6 +10,14 @@ type RendyJobMediaRow = {
   videos?: unknown;
 };
 
+type RendyEditProjectMediaRow = {
+  output_url?: unknown;
+};
+
+type RendyEditManifestMediaRow = {
+  payload?: unknown;
+};
+
 function keyFromUploadsUrl(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   let pathname = value.trim();
@@ -37,6 +45,8 @@ function addRawR2Key(keys: Set<string>, value: unknown): void {
 export function collectRendyMediaKeys(
   projects: VoiceProjectMediaRow[],
   jobs: RendyJobMediaRow[],
+  editProjects: RendyEditProjectMediaRow[] = [],
+  editManifests: RendyEditManifestMediaRow[] = [],
 ): Set<string> {
   const keys = new Set<string>();
   const addUrl = (value: unknown) => {
@@ -56,6 +66,20 @@ export function collectRendyMediaKeys(
     if (!Array.isArray(job.videos)) continue;
     for (const video of job.videos) {
       if (video && typeof video === "object") addUrl((video as { url?: unknown }).url);
+    }
+  }
+
+  for (const project of editProjects) {
+    addUrl(project.output_url);
+  }
+
+  for (const row of editManifests) {
+    const shots = (row.payload as { shots?: unknown } | null)?.shots;
+    if (!Array.isArray(shots)) continue;
+    for (const shot of shots) {
+      const candidates = (shot as { candidates?: unknown } | null)?.candidates;
+      if (!Array.isArray(candidates)) continue;
+      for (const candidate of candidates) addUrl((candidate as { sourceUrl?: unknown } | null)?.sourceUrl);
     }
   }
 

@@ -32,6 +32,7 @@ import { FloorplanTripo3DViewer } from "@/components/floorplan-tripo3d-viewer";
 import { TripoOrbitViewer } from "@/components/tripo-orbit-viewer";
 import { QuotaWidget, useQuotaData, QuotaGate } from "@/components/quota-widget";
 import { RendyVoiceoverEditor } from "@/components/rendy-voiceover-editor";
+import { RendyVideoEditor } from "@/components/rendy-video-editor";
 import {
   Upload, X, ChevronLeft, ChevronRight, Download, Search, Home,
   LayoutDashboard, FolderOpen, Users, Settings, CreditCard, Plus,
@@ -5862,6 +5863,13 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       videoElementId={`rendy-video-${video.id}`}
                       onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url } : item))}
                     />
+                    {listingId && (
+                      <RendyVideoEditor
+                        listingId={listingId}
+                        sourceVideoId={video.id}
+                        onOutputReady={() => {}}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -6566,7 +6574,6 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
     </div>
   );
 }
-
 
 
 // ============================================================================

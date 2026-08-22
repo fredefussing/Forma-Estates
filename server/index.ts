@@ -8,6 +8,7 @@ import { startTracker } from "./tracker";
 import { startDripScheduler } from "./drip";
 import { storage } from "./storage";
 import { ensureRendyJobsTable } from "./rendy";
+import { ensureRendyEditorTables } from "./rendy-editor";
 import { assertLockFileIntegrity } from "./promptGuard";
 import { isLoadTestMode } from "./load-test";
 
@@ -223,6 +224,7 @@ app.use((req, res, next) => {
 
   // Ensure Rendy job tracking table exists (survives server restarts)
   try { await ensureRendyJobsTable(); } catch (e: any) { console.error("[init] ensureRendyJobsTable:", e.message); }
+  try { await ensureRendyEditorTables(); } catch (e: any) { console.error("[init] ensureRendyEditorTables:", e.message); }
 
   // Additive schema guard: creates newer tables/columns if missing (also on Render)
   try {

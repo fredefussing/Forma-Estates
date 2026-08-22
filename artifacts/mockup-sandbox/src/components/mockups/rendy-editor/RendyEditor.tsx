@@ -5,7 +5,6 @@ import {
   Play, Plus, RotateCcw, Save, Sparkles, Trash2, Undo2, Upload, Volume2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
-
 type Stage = 'delivery' | 'editor' | 'analyzing' | 'saved' | 'voiceover';
 type VoiceoverMode = 'ready' | 'recording' | 'recorded' | 'uploaded';
 
@@ -20,6 +19,9 @@ type Clip = {
   speed: number;
   source: string;
 };
+
+type PreviewState = 'ready' | 'loading' | 'empty' | 'error';
+
 
 type Output = {
   id: string;
@@ -963,3 +965,5 @@ export function RendyEditor() {
     </main>
   );
 }
+
+const videoPath = (name: string) => `/__mockup/videos/rendy-editor/${name}`;

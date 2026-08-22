@@ -36,6 +36,7 @@ import {
 } from "./fal";
 import { runFfmpegQueued } from "./showcase";
 import { getRendyListing, verifyRendyOwnershipAndGetVideoUrl } from "./rendy";
+import { verifyRendyEditedVideoOwnership } from "./rendy-editor";
 
 // ── Allowed languages ──────────────────────────────────────────────────────────
 const ALLOWED_LANGUAGES = new Set(["da", "en", "de", "fr", "es", "nb", "sv"]);
@@ -300,39 +301,38 @@ async function dbUpdateWithLease(
   }
 }
 
-// ── SSRF-safe source video URL resolver (Part A) ───────────────────────────────
-//
-// Requires DB-backed ownership before accepting any URL.
-//
-//  1. Verify userId owns the listing via verifyRendyOwnershipAndGetVideoUrl().
-//  2. For a non-legacy row (has stored videos JSON):
-//       - /uploads/<key>: must equal the stored delivered URL exactly.
-//       - HTTPS URL: must equal the stored delivered URL (normalized, no query/hash).
-//  3. For a legacy owned row (no stored videos JSON):
-//       - /uploads/ sources are NOT accepted (we can't verify them without stored data).
-//       - HTTPS URL: fetched live from Rendy API and compared exactly.
-//
-// Never broadens host allowlist; normalizes only query/hash.
-
+function normaliseForComparison(u: string): string {
+  try {
+    const parsed = new URL(u);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return u;
+  }
+}
 async function resolveSourceUrl(
   rawUrl: string,
   listingId: string,
   videoId: string,
   userId: number,
 ): Promise<string> {
+  // Edited videos are durable assets owned by a specific Rendy edit project.
+  // They are intentionally resolved before the provider-delivery check because
+  // their id is not present in rendy_jobs.videos.
+  if (videoId.startsWith("edit:")) {
+    const outputUrl = await verifyRendyEditedVideoOwnership(listingId, videoId, userId);
+    if (!outputUrl || normaliseForComparison(rawUrl) !== normaliseForComparison(outputUrl)) {
+      throw new Error("Kilde-URL matcher ikke den færdige redigerede video");
+    }
+    return outputUrl;
+  }
   // ── 1. Verify ownership and get stored delivered URL ──────────────────────
   const { deliveredUrl, isLegacy } = await verifyRendyOwnershipAndGetVideoUrl(
     listingId, videoId, userId,
   );
 
-  const normalise = (u: string) => {
-    try {
-      const p = new URL(u);
-      p.search = "";
-      p.hash = "";
-      return p.toString();
-    } catch { return u; }
-  };
+  const normalise = normaliseForComparison;
 
   // ── 2. Non-legacy: stored delivered URL is ground truth ───────────────────
   if (!isLegacy && deliveredUrl) {

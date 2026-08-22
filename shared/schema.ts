@@ -640,3 +640,34 @@ export const rendyVoiceProjects = pgTable("rendy_voice_projects", {
 
 export type RendyVoiceProject = typeof rendyVoiceProjects.$inferSelect;
 export type InsertRendyVoiceProject = typeof rendyVoiceProjects.$inferInsert;
+
+export const rendyEditManifests = pgTable("rendy_edit_manifests", {
+  listingId: text("listing_id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  revision: integer("revision").notNull().default(1),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const rendyEditProjects = pgTable("rendy_edit_projects", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  listingId: text("listing_id").notNull(),
+  sourceVideoId: text("source_video_id").notNull(),
+  manifestRevision: integer("manifest_revision"),
+  timeline: jsonb("timeline").notNull(),
+  analysisPlan: jsonb("analysis_plan"),
+  status: text("status").notNull().default("preparing"),
+  jobStage: text("job_stage"),
+  outputUrl: text("output_url"),
+  error: text("error"),
+  leaseToken: text("lease_token"),
+  leaseExpiresAt: timestamp("lease_expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type RendyEditManifest = typeof rendyEditManifests.$inferSelect;
+
+export type RendyEditProject = typeof rendyEditProjects.$inferSelect;

@@ -38,6 +38,7 @@ import {
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
 // to prevent API-key abuse and prompt-flooding.
+import { registerRendyEditorRoutes } from "./rendy-editor";
 const chatRateMap = new Map<string, number[]>();
 function chatRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -2121,11 +2122,13 @@ export async function registerRoutes(
         read(`SELECT agency_logo_url FROM users`, row => addUrl(row.agency_logo_url)),
       ]);
 
-      const [voiceProjects, rendyJobs] = await Promise.all([
+      const [voiceProjects, rendyJobs, rendyEditProjects, rendyEditManifests] = await Promise.all([
         pool.query(`SELECT source_url, audio_url, output_url, source_input_url, raw_audio_key FROM rendy_voice_projects`),
         pool.query(`SELECT videos FROM rendy_jobs WHERE videos IS NOT NULL`),
+        pool.query(`SELECT output_url FROM rendy_edit_projects WHERE output_url IS NOT NULL`),
+        pool.query(`SELECT payload FROM rendy_edit_manifests`),
       ]);
-      collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows).forEach(key => keys.add(key));
+      collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows, rendyEditProjects.rows, rendyEditManifests.rows).forEach(key => keys.add(key));
 
       const alreadyDurable: string[] = [];
       const backfilled: string[] = [];
@@ -2265,11 +2268,13 @@ export async function registerRoutes(
       // Rendy narration is durable customer media. Keep the finished export,
       // localized source/audio, raw recovery audio, and locally delivered
       // Rendy videos recorded as JSON on their showcase job.
-      const [voiceProjects, rendyJobs] = await Promise.all([
+      const [voiceProjects, rendyJobs, rendyEditProjects, rendyEditManifests] = await Promise.all([
         pool.query(`SELECT source_url, audio_url, output_url, source_input_url, raw_audio_key FROM rendy_voice_projects`),
         pool.query(`SELECT videos FROM rendy_jobs WHERE videos IS NOT NULL`),
+        pool.query(`SELECT output_url FROM rendy_edit_projects WHERE output_url IS NOT NULL`),
+        pool.query(`SELECT payload FROM rendy_edit_manifests`),
       ]);
-      collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows).forEach(key => liveKeys.add(key));
+      collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows, rendyEditProjects.rows, rendyEditManifests.rows).forEach(key => liveKeys.add(key));
 
       // ── Step 3: find orphaned R2 files (zero DB tables know about them) ─
       const orphaned = r2Objects.filter(o => !liveKeys.has(o.key));
@@ -8540,6 +8545,7 @@ REGLER
   });
 
   // ── Rendy Voice-Over feature (task #153) ─────────────────────────────────
+  registerRendyEditorRoutes(app, uploadDir);
   registerRendyVoiceoverRoutes(app, uploadDir);
 
   return httpServer;

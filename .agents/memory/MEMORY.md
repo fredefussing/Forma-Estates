@@ -32,6 +32,7 @@
 - [Prompt lock sync](prompt-lock-sync.md) — editing shared/structuralPrompt.ts requires tsx-syncing promptLock.json to byte-identical or ALL generations throw; restart server after.
 - [Server-side URL fetch allowlist](server-side-url-fetch-allowlist.md) — stored/user-influenced URLs must pass a host allowlist before server-side download (SSRF); settle paid-job credits in the job's then/catch, not only via polling routes.
 - [Video jobs DB registry](video-jobs-db.md) — video_jobs table (requestId, userId, feature, refundCount, status) persists in-flight jobs; boot reset in index.ts refunds stuck pending rows; all 5 job types write on start + mark complete/failed.
+- [Token-scoped worker heartbeats](token-scoped-worker-heartbeats.md) — lease cleanup must only stop the heartbeat with the same lease token, or a stale worker can strand a recovered job.
 - [Dashboard i18n externalization](i18n-dashboard-externalization.md) — scripted replacements corrupt comments/types; parallel same-file subagents lose edits; consts store keys, logic values stay Danish; always end with a segment-level no-æøå sweep.
 - [Cookie banner is global](cookie-banner-global.md) — CookieBanner lives in client/src/components/cookie-banner.tsx and is mounted once in App.tsx; localStorage key "forma-cookie-consent"; all 7 locale files have cookie.* keys.
 - [Clean Rendy master videos](showcase-overlays.md) — store provider MP4s without visible AI/address/headline overlays; optional text belongs in a separate post-generation editor.
@@ -41,3 +42,5 @@
 - [Mockup sandbox isolation](mockup-sandbox-isolation.md) — sandbox cartographer can load the main app Tailwind config and cause a preview error overlay; keep sandbox Vite independent.
 - [Sandbox video preview codec](sandbox-video-preview-codec.md) — use VP9 WebM for derived browser previews when Rendy H.264 MP4 stays at readyState 0; preserve original deliveries separately.
 - [Frame-accurate preview clip cuts](ffmpeg-frame-accurate-clips.md) — always output-seek (-ss after -i) for derived scene clips; fast-seek snaps to keyframes and shows the wrong room; audit with timestamped contact sheets.
+- [Showcase video overlays](showcase-overlays.md) — burnShowcaseOverlays() burns EU badge + overskrift + address; always use textfile= not text= to avoid Danish special-char FFmpeg escaping issues.
+- [Video transparency on save](video-transparency-on-save.md) — previews stay clean; apply the AI-circle badge and XMP/C2PA-compatible data only to the saved delivery copy.
