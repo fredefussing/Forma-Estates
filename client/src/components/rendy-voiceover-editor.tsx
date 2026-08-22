@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -28,6 +29,11 @@ export interface VoiceProject {
   audioUrl?: string;
   outputUrl?: string;
   error?: string;
+}
+
+function BrowserPortal({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
 }
 
 interface Props {
@@ -611,6 +617,7 @@ export function RendyVoiceoverEditor({
           {t("dashboard.showcase.voiceover.add")}
         </button>
       ) : (
+        <BrowserPortal>
         <section
           className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#152536]/[.94] p-2 sm:p-6" : ""}`}
           aria-label={t("dashboard.showcase.voiceover.title")}
@@ -793,6 +800,7 @@ export function RendyVoiceoverEditor({
           {message && <p className="text-[11px] text-[#A34D43]" role="alert" aria-live="assertive">{message}</p>}
           </div>
         </section>
+        </BrowserPortal>
       )}
     </div>
   );

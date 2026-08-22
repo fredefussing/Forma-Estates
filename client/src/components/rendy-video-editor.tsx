@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { RendyVoiceoverEditor } from "@/components/rendy-voiceover-editor";
 import { RendyHeadlineEditor } from "@/components/rendy-headline-editor";
@@ -31,6 +32,11 @@ interface Candidate {
   height: number;
   qualityScore: number;
   thumbnailUrl?: string;
+}
+
+function BrowserPortal({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
 }
 
 interface Shot {
@@ -112,57 +118,24 @@ function ClipThumbnail({
   className: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const [fallbackVisible, setFallbackVisible] = useState(false);
-  const fallbackVideoRef = useRef<HTMLVideoElement | null>(null);
   const aspectRatio =
     candidate && candidate.width > 0 && candidate.height > 0
       ? `${candidate.width} / ${candidate.height}`
       : undefined;
-  const thumbnailPreservesFullFrame =
-    candidate?.thumbnailUrl?.includes("rendy-edit-thumb-v2-") ||
-    !candidate?.thumbnailUrl?.includes("rendy-edit-thumb-");
-  const usesVideoFallback = Boolean(
-    candidate && (!candidate.thumbnailUrl || imageFailed || !thumbnailPreservesFullFrame),
-  );
-  const at = candidate
-    ? Math.max(
-        candidate.safeStart,
-        candidate.safeStart + (candidate.safeEnd - candidate.safeStart) / 2,
-      )
-    : 0;
 
   useEffect(() => {
     setImageFailed(false);
-    setFallbackVisible(false);
   }, [candidate?.id, candidate?.thumbnailUrl]);
-
-  useEffect(() => {
-    if (!usesVideoFallback) return;
-    const video = fallbackVideoRef.current;
-    if (!video || typeof IntersectionObserver === "undefined") {
-      setFallbackVisible(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        setFallbackVisible(true);
-        observer.disconnect();
-      },
-      { rootMargin: "160px" },
-    );
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, [candidate?.id, usesVideoFallback]);
 
   if (!candidate) {
     return <div className={`${className} bg-[#EDE8E3]`} aria-hidden="true" />;
   }
 
-  // Existing manifests can contain the legacy 320×180 center-cropped asset.
-  // New v2 thumbnails preserve the complete frame; old projects fall back to
-  // the source video so portrait rooms are never silently cropped.
-  if (candidate.thumbnailUrl && thumbnailPreservesFullFrame && !imageFailed) {
+  // Never mount source videos for filmstrip thumbnails. A project can contain
+  // dozens of candidates; decoding them in parallel made the full-screen editor
+  // reflow and stall. New projects use full-frame v2 thumbnails, while legacy
+  // projects keep their existing static poster until their manifest is rebuilt.
+  if (candidate.thumbnailUrl && !imageFailed) {
     return (
       <img
         src={candidate.thumbnailUrl}
@@ -175,24 +148,13 @@ function ClipThumbnail({
   }
 
   return (
-    <video
-      ref={fallbackVideoRef}
-      src={`${candidate.sourceUrl}#t=${at.toFixed(3)}`}
-      muted
-      playsInline
-      preload={fallbackVisible ? "metadata" : "none"}
-      tabIndex={-1}
+    <div
       aria-hidden="true"
-      className={`${className} pointer-events-none object-contain bg-[#EDE8E3]`}
+      className={`${className} grid place-items-center bg-[#EDE8E3] text-[#9A8D82]`}
       style={aspectRatio ? { aspectRatio } : undefined}
-      onLoadedMetadata={(event) => {
-        if (!fallbackVisible) return;
-        const video = event.currentTarget;
-        if (Number.isFinite(at) && Math.abs(video.currentTime - at) > 0.05) {
-          video.currentTime = at;
-        }
-      }}
-    />
+    >
+      <Film className="h-5 w-5" />
+    </div>
   );
 }
 
@@ -623,6 +585,7 @@ export function RendyVideoEditor({
     : null;
 
   return (
+    <BrowserPortal>
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#152536]/[.94] p-2 sm:p-6" role="presentation">
       <section
         className="mx-auto min-h-[calc(100dvh-1rem)] max-w-7xl rounded-[22px] border border-[#E9DED2] bg-[#F6F1EA] p-4 shadow-2xl space-y-4 sm:min-h-[calc(100dvh-3rem)] sm:rounded-[28px] sm:p-6"
@@ -805,6 +768,12 @@ export function RendyVideoEditor({
                   src={readyOutputUrl}
                   controls
                   playsInline
+                  preload="metadata"
+                  style={
+                    previewCandidate?.width && previewCandidate?.height
+                      ? { aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}` }
+                      : undefined
+                  }
                   className="mx-auto h-auto max-h-[68vh] w-full max-w-full rounded-xl bg-black object-contain"
                   data-testid="video-edit-final"
                 />
@@ -893,6 +862,10 @@ export function RendyVideoEditor({
                       controls
                       playsInline
                       muted
+                      preload="metadata"
+                      style={{
+                        aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}`,
+                      }}
                       className="mx-auto h-auto max-h-[68vh] w-full max-w-full bg-black object-contain"
                       data-testid="video-active-clip-preview"
                     />
@@ -1195,5 +1168,6 @@ export function RendyVideoEditor({
         )}
       </section>
     </div>
+    </BrowserPortal>
   );
 }
