@@ -112,6 +112,10 @@ function ClipThumbnail({
   className: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const aspectRatio =
+    candidate && candidate.width > 0 && candidate.height > 0
+      ? `${candidate.width} / ${candidate.height}`
+      : undefined;
   const at = candidate
     ? Math.max(
         candidate.safeStart,
@@ -127,12 +131,20 @@ function ClipThumbnail({
     return <div className={`${className} bg-[#EDE8E3]`} aria-hidden="true" />;
   }
 
-  if (candidate.thumbnailUrl && !imageFailed) {
+  // Existing manifests can contain the legacy 320×180 center-cropped asset.
+  // New v2 thumbnails preserve the complete frame; old projects fall back to
+  // the source video so portrait rooms are never silently cropped.
+  const thumbnailPreservesFullFrame =
+    candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-") ||
+    !candidate.thumbnailUrl?.includes("rendy-edit-thumb-");
+
+  if (candidate.thumbnailUrl && thumbnailPreservesFullFrame && !imageFailed) {
     return (
       <img
         src={candidate.thumbnailUrl}
         alt=""
-        className={`${className} object-cover bg-[#EDE8E3]`}
+        className={`${className} object-contain bg-[#EDE8E3]`}
+        style={aspectRatio ? { aspectRatio } : undefined}
         onError={() => setImageFailed(true)}
       />
     );
@@ -146,7 +158,8 @@ function ClipThumbnail({
       preload="metadata"
       tabIndex={-1}
       aria-hidden="true"
-      className={`${className} pointer-events-none object-cover bg-[#EDE8E3]`}
+      className={`${className} pointer-events-none object-contain bg-[#EDE8E3]`}
+      style={aspectRatio ? { aspectRatio } : undefined}
       onLoadedMetadata={(event) => {
         const video = event.currentTarget;
         if (Number.isFinite(at) && Math.abs(video.currentTime - at) > 0.05) {
@@ -216,19 +229,24 @@ export function RendyVideoEditor({
   const [message, setMessage] = useState("");
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [pendingOutputUrl, setPendingOutputUrl] = useState<string | null>(null);
+  const [voiceoverBusy, setVoiceoverBusy] = useState(false);
   // Headline state — always reset to proj.headline ?? DEFAULT on every project load/poll
   const [headline, setHeadline] = useState<HeadlineSettings>(
     DEFAULT_HEADLINE_SETTINGS,
   );
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onOutputReadyRef = useRef(onOutputReady);
-  onOutputReadyRef.current = onOutputReady;
 
   // ── Apply project helper — always syncs headline to proj value or DEFAULT ──
   const applyProject = useCallback((proj: EditProject) => {
+    const isReady = proj.status === "ready" && !!proj.outputUrl;
     setProject(proj);
     setTimeline(proj.timeline ?? []);
+    setPendingOutputUrl(isReady ? proj.outputUrl! : null);
+    // A ready edit mounts the voice-over workspace. Keep finish disabled until
+    // it has checked whether an earlier voice job is still in flight.
+    setVoiceoverBusy(isReady);
     // Always reset — prevents stale local edits surviving across render cycles
     setHeadline(proj.headline ?? DEFAULT_HEADLINE_SETTINGS);
   }, []);
@@ -321,12 +339,6 @@ export function RendyVideoEditor({
     }
     return () => clearPoll();
   }, [clearPoll, open]);
-
-  useEffect(() => {
-    if (project?.status === "ready" && project.outputUrl) {
-      onOutputReadyRef.current(project.outputUrl);
-    }
-  }, [project?.status, project?.outputUrl]);
 
   useEffect(() => {
     if (
@@ -494,8 +506,16 @@ export function RendyVideoEditor({
     await patchTimeline();
   }, [patchTimeline, project]);
 
+  const finishEditing = useCallback(() => {
+    if (!pendingOutputUrl) return;
+    clearPoll();
+    onOutputReady(pendingOutputUrl);
+    setOpen(false);
+  }, [clearPoll, onOutputReady, pendingOutputUrl]);
+
   const status = project?.status;
   const sourceGroups = groupLibraryBySource(project?.manifest, sourceVideoId);
+  const readyOutputUrl = pendingOutputUrl ?? project?.outputUrl;
 
   // ── Render ──────────────────────────────────────────────────────────────────
   if (!open) {
@@ -601,10 +621,12 @@ export function RendyVideoEditor({
                         : "border-[#E1DAD2] bg-white"
                     }`}
                   >
-                    <ClipThumbnail
-                      candidate={candidate}
-                      className="aspect-video w-full"
-                    />
+                    <div className="flex h-24 items-center justify-center bg-[#EDE8E3]">
+                      <ClipThumbnail
+                        candidate={candidate}
+                        className="mx-auto h-24 w-auto max-w-full"
+                      />
+                    </div>
                     <span className="absolute left-2 top-2 grid h-7 min-w-7 place-items-center rounded-md bg-[#0F1D2F]/90 px-1.5 font-mono text-[10px] font-semibold text-white">
                       {String(index + 1).padStart(2, "0")}
                     </span>
@@ -690,6 +712,7 @@ export function RendyVideoEditor({
             HeadlineEditor.onApply = startRender so user can add/change/remove
             headline by building a new immutable video from the clean source. */}
         {status === "ready" && project?.outputUrl && (
+          <>
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="space-y-3">
               <div
@@ -703,7 +726,7 @@ export function RendyVideoEditor({
               <div className="flex min-h-48 items-center justify-center rounded-2xl bg-[#0A1422] p-3 sm:min-h-56 sm:p-4">
                 <video
                   id={`rendy-edited-video-${project.id}`}
-                  src={project.outputUrl}
+                  src={readyOutputUrl}
                   controls
                   playsInline
                   className="mx-auto max-h-[30vh] w-auto max-w-[420px] rounded-xl bg-black object-contain"
@@ -729,7 +752,9 @@ export function RendyVideoEditor({
                 sourceVideoId={`edit:${project.id}`}
                 listingId={listingId}
                 videoElementId={`rendy-edited-video-${project.id}`}
-                onOutputReady={onOutputReady}
+                onOutputReady={setPendingOutputUrl}
+                onBusyChange={setVoiceoverBusy}
+                preloadProject
               />
               <RendyHeadlineEditor
                 sourceVideoUrl={project.cleanOutputUrl ?? sourceVideoUrl}
@@ -750,6 +775,17 @@ export function RendyVideoEditor({
               </button>
             </aside>
           </div>
+          <button
+            type="button"
+            onClick={finishEditing}
+            disabled={busy || voiceoverBusy || !readyOutputUrl}
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0F1D2F] px-4 text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#1A3048] focus:outline-none focus:ring-2 focus:ring-[#C8956C]/50 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="button-save-and-finish-video"
+          >
+            <Check className="h-4 w-4" />
+            Gem og afslut
+          </button>
+          </>
         )}
 
         {/* Draft / editing UI — a focused visual workspace for clip decisions. */}
@@ -814,7 +850,10 @@ export function RendyVideoEditor({
                     </p>
                   )}
 
-                  <ol className="space-y-2.5">
+                  <ol
+                    className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2"
+                    aria-label="Klip i videoens rækkefølge"
+                  >
                     {timeline.map((item, index) => {
                       const shot = shots.find(
                         (candidateShot) => candidateShot.id === item.shotId,
@@ -833,17 +872,19 @@ export function RendyVideoEditor({
                           key={`${item.shotId}-${index}`}
                           aria-current={isSelected ? "step" : undefined}
                           onClick={() => setSelectedIndex(index)}
-                          className={`rounded-xl border p-3 transition-all ${
+                          className={`w-[164px] shrink-0 snap-start rounded-xl border p-2 transition-all sm:w-[176px] ${
                             isSelected
                               ? "border-[#C8956C] bg-[#FFF9F4] shadow-sm"
                               : "border-[#E1DAD2] bg-white hover:border-[#C8956C]/60"
                           }`}
                         >
-                          <div className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)]">
-                            <ClipThumbnail
-                              candidate={candidate}
-                              className="aspect-video w-full rounded-lg"
-                            />
+                          <div className="space-y-2">
+                            <div className="flex h-28 items-center justify-center rounded-lg bg-[#EDE8E3]">
+                              <ClipThumbnail
+                                candidate={candidate}
+                                className="mx-auto h-28 w-auto max-w-full rounded-lg"
+                              />
+                            </div>
                             <div className="min-w-0">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -965,7 +1006,7 @@ export function RendyVideoEditor({
                             </span>
                           )}
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                        <div className="flex gap-2 overflow-x-auto pb-1">
                           {group.entries.map(({ shot, candidate }) => {
                             const timelineIndex = timeline.findIndex(
                               (item) => item.shotId === shot.id,
@@ -979,16 +1020,18 @@ export function RendyVideoEditor({
                             return (
                               <article
                                 key={`${group.id}-${shot.id}-${candidate.id}`}
-                                className={`overflow-hidden rounded-xl border bg-white ${
+                                className={`w-[160px] shrink-0 overflow-hidden rounded-xl border bg-white ${
                                   isActiveCandidate
                                     ? "border-[#C8956C] ring-1 ring-[#C8956C]/20"
                                     : "border-[#E1DAD2]"
                                 }`}
                               >
-                                <ClipThumbnail
-                                  candidate={candidate}
-                                  className="aspect-video w-full"
-                                />
+                                <div className="flex h-28 items-center justify-center bg-[#EDE8E3]">
+                                  <ClipThumbnail
+                                    candidate={candidate}
+                                    className="mx-auto h-28 w-auto max-w-full"
+                                  />
+                                </div>
                                 <div className="flex items-center gap-2.5 p-2.5">
                                   <div className="min-w-0 flex-1">
                                     <p className="truncate text-[11px] font-semibold text-[#0F1D2F]">

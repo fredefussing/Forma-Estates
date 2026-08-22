@@ -27,8 +27,10 @@ import {
   buildAssHeadline,
   buildCleanEditRenderArgs,
   buildHeadlineOverlayArgs,
+  cleanEditAudioFade,
   cleanEditDuration,
   isLegacyShortTransitionError,
+  RENDY_CANDIDATE_THUMBNAIL_FILTER,
   renderBoundsForCandidate,
   transitionDurationForClips,
 } from "./rendy-editor";
@@ -388,6 +390,12 @@ console.log("\n[11] Headline preview/export fidelity");
 
 console.log("\n[12] Clean Edit picture cuts and continuous source audio");
 {
+  assert(
+    RENDY_CANDIDATE_THUMBNAIL_FILTER.includes(
+      "force_original_aspect_ratio=decrease",
+    ) && !RENDY_CANDIDATE_THUMBNAIL_FILTER.includes("crop="),
+    "edit thumbnails: preserve the complete portrait or landscape frame",
+  );
   const cleanPlan = {
     clips: [
       {
@@ -428,6 +436,18 @@ console.log("\n[12] Clean Edit picture cuts and continuous source audio");
     }) - (41 / 30)) < 0.0001,
     "edit duration: quantizes non-frame-aligned clips to the emitted 30-fps frame clock",
   );
+  const longFade = cleanEditAudioFade(28.7);
+  assert(
+    Math.abs(longFade.duration - 2.5) < 0.0001 &&
+      Math.abs(longFade.start - 26.2) < 0.0001,
+    "edit audio: long videos receive a clean 2.5-second outro",
+  );
+  const shortFade = cleanEditAudioFade(2.2);
+  assert(
+    Math.abs(shortFade.duration - 0.264) < 0.0001 &&
+      Math.abs(shortFade.start - 1.936) < 0.0001,
+    "edit audio: short videos use a proportional outro",
+  );
   const args = buildCleanEditRenderArgs(
     ["/tmp/clip-1.mp4", "/tmp/clip-2.mp4"],
     "/tmp/selected-source.mp4",
@@ -438,13 +458,21 @@ console.log("\n[12] Clean Edit picture cuts and continuous source audio");
   );
   const filter = args[args.indexOf("-filter_complex") + 1];
   assert(args.filter((arg) => arg === "-i").length === 3, "clean edit: two picture inputs plus one selected audio source");
-  assert(filter.includes("aloop=loop=-1:size=19200"), "clean edit: decoded selected music loops sample-precisely");
+  assert(
+    filter.includes("atrim=start_sample=0:end_sample=19200") &&
+      filter.includes("aloop=loop=-1:size=19200"),
+    "clean edit: trim and loop use the exact same decoded sample count",
+  );
   assert(!args.includes("-stream_loop"), "clean edit: avoids MP4/AAC loop priming gaps");
   assert(filter.includes("concat=n=2:v=1:a=0"), "clean edit: picture clips use frame-accurate hard concat");
   assert(!filter.includes("xfade"), "clean edit: no smeared automatic picture crossfade");
   assert(!filter.includes("acrossfade"), "clean edit: clip audio is never crossfaded");
   assert(filter.includes("[2:a]"), "clean edit: audio comes only from the selected source input");
   assert(filter.includes("atrim=duration=2.200"), "clean edit: continuous audio ends with the exact picture duration");
+  assert(
+    filter.includes("afade=t=out:st=1.936:d=0.264"),
+    "clean edit: soundtrack fades cleanly before the final frame",
+  );
   assert(args.includes("[aout]"), "clean edit: maps the continuous selected-source audio bed");
 
   const silentArgs = buildCleanEditRenderArgs(

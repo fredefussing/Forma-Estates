@@ -4643,6 +4643,7 @@ interface RendyVideo {
   status: "rendering" | "success" | "error" | null;
   progress: number;
   clips: string[];
+  edited?: boolean;
 }
 
 function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
@@ -5814,7 +5815,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             {resultVideos.map((video, idx) => (
               <div key={video.id} className="rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]" data-testid={`card-rendy-video-${idx}`}>
                 <div className="bg-[#0F1D2F] px-3 py-2 flex items-center justify-between">
-                  <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white text-[11px] font-semibold">Video {idx + 1}</span>
+                    {video.edited && (
+                      <span className="rounded-full bg-[#E7C6A9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5E432F]">
+                        Redigeret
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5">
                     {videoDurations[video.id] != null && (
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.14)", color: "#D4CEC7" }}>
@@ -5861,14 +5869,14 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       listingId={listingId || ""}
                       duration={videoDurations[video.id]}
                       videoElementId={`rendy-video-${video.id}`}
-                      onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url } : item))}
+                      onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url, edited: true } : item))}
                     />
                     {listingId && (
                       <RendyVideoEditor
                         listingId={listingId}
                         sourceVideoId={video.id}
                         sourceVideoUrl={video.url}
-                        onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url } : item))}
+                        onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url, edited: true } : item))}
                       />
                     )}
                   </div>

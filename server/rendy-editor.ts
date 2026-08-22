@@ -124,6 +124,23 @@ export function cleanEditDuration(plan: Pick<EditPlan, "clips">): number {
   return frameCount / EDIT_OUTPUT_FPS;
 }
 
+export function cleanEditAudioFade(outputDuration: number): {
+  start: number;
+  duration: number;
+} {
+  const safeDuration = Math.max(0, outputDuration);
+  if (safeDuration === 0) return { start: 0, duration: 0 };
+  const duration = Math.min(
+    2.5,
+    Math.max(0.2, safeDuration * 0.12),
+    safeDuration * 0.35,
+  );
+  return {
+    start: Math.max(0, safeDuration - duration),
+    duration,
+  };
+}
+
 interface ProjectRow {
   id: string;
   user_id: number;
@@ -145,7 +162,15 @@ interface ProjectRow {
   updated_at: Date;
 }
 
-type MediaInfo = { duration: number; width: number; height: number; fps: number; bitrate: number; hasAudio: boolean };
+type MediaInfo = {
+  duration: number;
+  audioDuration: number;
+  width: number;
+  height: number;
+  fps: number;
+  bitrate: number;
+  hasAudio: boolean;
+};
 const activeLeases = new Map<string, { token: string; timer: ReturnType<typeof setInterval> }>();
 
 function finite(value: unknown, fallback = 0): number {
@@ -331,6 +356,7 @@ export async function probeVideo(filePath: string): Promise<MediaInfo> {
   });
   const data = JSON.parse(output) as { format?: Record<string, unknown>; streams?: Array<Record<string, unknown>> };
   const video = data.streams?.find(stream => stream.codec_type === "video");
+  const audio = data.streams?.find(stream => stream.codec_type === "audio");
   if (!video) throw new Error("Videofilen indeholder ingen videostrøm");
   const formatDuration = finite(data.format?.duration);
   const videoDuration = finite(video.duration);
@@ -342,11 +368,12 @@ export async function probeVideo(filePath: string): Promise<MediaInfo> {
   if (!duration || duration > MAX_SOURCE_DURATION) throw new Error("Videolængden er uden for det tilladte interval");
   return {
     duration,
+    audioDuration: audio ? finite(audio.duration, formatDuration) : 0,
     width: finite(video.width),
     height: finite(video.height),
     fps: parseFps(video.avg_frame_rate),
     bitrate: finite(video.bit_rate, finite(data.format?.bit_rate)),
-    hasAudio: data.streams?.some(stream => stream.codec_type === "audio") ?? false,
+    hasAudio: !!audio,
   };
 }
 
@@ -404,7 +431,7 @@ async function createCandidateThumbnail(
   const coarseSeek = Math.max(0, safeAt - 2);
   const accurateSeek = safeAt - coarseSeek;
   const safeListingId = listingId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const key = `rendy-edit-thumb-${safeListingId}-${candidateId}.jpg`;
+  const key = `rendy-edit-thumb-v2-${safeListingId}-${candidateId}.jpg`;
   const outputPath = path.join(tempDir, key);
 
   try {
@@ -413,7 +440,7 @@ async function createCandidateThumbnail(
       "-ss", coarseSeek.toFixed(3), "-i", filePath,
       "-ss", accurateSeek.toFixed(3),
       "-map", "0:v:0", "-frames:v", "1",
-      "-vf", "scale=320:180:force_original_aspect_ratio=increase,crop=320:180",
+      "-vf", RENDY_CANDIDATE_THUMBNAIL_FILTER,
       "-q:v", "4",
       outputPath,
     ]);
@@ -429,6 +456,9 @@ async function createCandidateThumbnail(
     fs.promises.unlink(outputPath).catch(() => {});
   }
 }
+
+export const RENDY_CANDIDATE_THUMBNAIL_FILTER =
+  "scale=320:320:force_original_aspect_ratio=decrease";
 
 export async function signatureForFrame(
   filePath: string,
@@ -872,12 +902,14 @@ export function buildCleanEditRenderArgs(
     ? "[0:v]null[vout]"
     : `${normalizedPaths.map((_, index) => `[${index}:v]`).join("")}concat=n=${normalizedPaths.length}:v=1:a=0[vout]`;
   const sourceDuration = Math.max(0.1, selectedSourceDuration);
-  const sourceSamples = Math.max(1, Math.ceil(sourceDuration * 48_000));
+  const sourceSamples = Math.max(1, Math.round(sourceDuration * 48_000));
+  const audioFade = cleanEditAudioFade(outputDuration);
   // Decode the chosen soundtrack once, reset it to an exact sample clock and
   // loop those decoded samples. This avoids the AAC priming gap that can occur
-  // when repeatedly opening an MP4 input with -stream_loop.
+  // when repeatedly opening an MP4 input with -stream_loop. The final fade keeps
+  // a late loop boundary or hard song ending from becoming the video's last beat.
   const audioFilter = selectedSourceHasAudio
-    ? `[${audioInputIndex}:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,atrim=start=0:end=${sourceDuration.toFixed(3)},asetpts=N/SR/TB,aloop=loop=-1:size=${sourceSamples},atrim=duration=${outputDuration.toFixed(3)},asetpts=N/SR/TB[aout]`
+    ? `[${audioInputIndex}:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,atrim=start_sample=0:end_sample=${sourceSamples},asetpts=N/SR/TB,aloop=loop=-1:size=${sourceSamples},atrim=duration=${outputDuration.toFixed(3)},afade=t=out:st=${audioFade.start.toFixed(3)}:d=${audioFade.duration.toFixed(3)},asetpts=N/SR/TB[aout]`
     : `[${audioInputIndex}:a]atrim=duration=${outputDuration.toFixed(3)},asetpts=N/SR/TB[aout]`;
   return [
     ...args,
@@ -1050,7 +1082,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
         normalized,
         selectedSourcePath,
         selectedSourceMeta.hasAudio,
-        selectedSourceMeta.duration,
+        selectedSourceMeta.audioDuration || selectedSourceMeta.duration,
         cleanPath,
         plan,
       ),

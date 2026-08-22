@@ -42,6 +42,13 @@ normalized clip, derive total picture duration from those same frame counts, and
 trim the sample-looped audio to that duration. Probe video and audio stream
 durations separately before accepting the export.
 
+The decoded source trim and `aloop` must use the **same integer sample count**:
+derive `N` from the audio stream duration, then use both `atrim=end_sample=N` and
+`aloop=size=N`. Do not trim with a duration rounded to milliseconds while looping
+an unrounded sample count; that creates a different loop boundary for ordinary
+fractional durations. Apply the final output-duration trim and outro fade only
+after this sample-exact loop branch.
+
 ## Beat-synced cuts (the "edited to the music" look)
 
 To make image switches land on the music's beat: measure each fixed track's pulse

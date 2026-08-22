@@ -37,6 +37,10 @@ interface Props {
   duration?: number;
   videoElementId: string;
   onOutputReady: (url: string) => void;
+  /** Reports work that must finish before a parent can safely save and close. */
+  onBusyChange?: (busy: boolean) => void;
+  /** Loads/polls an existing project even while the compact editor is closed. */
+  preloadProject?: boolean;
   /** Opens the editor directly as a focused full-screen workspace. */
   immersive?: boolean;
   onRequestClose?: () => void;
@@ -79,6 +83,8 @@ export function RendyVoiceoverEditor({
   duration,
   videoElementId,
   onOutputReady,
+  onBusyChange,
+  preloadProject = false,
   immersive = false,
   onRequestClose,
 }: Props) {
@@ -107,6 +113,32 @@ export function RendyVoiceoverEditor({
   const videoEndedHandlerRef = useRef<(() => void) | null>(null);
   const outputReadyRef = useRef(onOutputReady);
   outputReadyRef.current = onOutputReady;
+  const setWorkBusy = useCallback(
+    (nextBusy: boolean) => {
+      // Notify a containing editor synchronously so its save-and-close action
+      // cannot win a click race against a voice-over export.
+      onBusyChange?.(nextBusy);
+      setBusy(nextBusy);
+    },
+    [onBusyChange],
+  );
+  const voiceWorkActive =
+    busy ||
+    recording ||
+    finalizingRecording ||
+    project?.status === "processing" ||
+    project?.status === "exporting";
+
+  useEffect(() => {
+    onBusyChange?.(voiceWorkActive);
+  }, [onBusyChange, voiceWorkActive]);
+
+  useEffect(
+    () => () => {
+      onBusyChange?.(false);
+    },
+    [onBusyChange],
+  );
 
   const alignedVideo = useCallback(
     () => document.getElementById(videoElementId) as HTMLVideoElement | null,
@@ -191,20 +223,34 @@ export function RendyVoiceoverEditor({
   const applyProject = useCallback((proj: VoiceProject | null) => {
     setProject(proj);
     if (proj?.captionStyle) setCaptionStyle(proj.captionStyle);
+    if (proj?.status === "ready" && proj.outputUrl) {
+      // Publish the new URL before clearing the shared busy state. The parent
+      // can therefore never re-enable save with the previous output selected.
+      outputReadyRef.current(proj.outputUrl);
+    }
   }, []);
 
   const loadProject = useCallback(async () => {
     if (!listingId || !sourceVideoId) return;
+    setWorkBusy(true);
     try {
       const data = await api(
         `/api/bolig/rendy/voice-projects/by-video?listingId=${encodeURIComponent(listingId)}&videoId=${encodeURIComponent(sourceVideoId)}`,
       );
-      applyProject(data.project || null);
+      const loadedProject: VoiceProject | null = data.project || null;
+      applyProject(loadedProject);
+      if (
+        loadedProject?.status !== "processing" &&
+        loadedProject?.status !== "exporting"
+      ) {
+        setWorkBusy(false);
+      }
       setMessage("");
     } catch {
+      setWorkBusy(false);
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
-  }, [api, applyProject, listingId, sourceVideoId, t]);
+  }, [api, applyProject, listingId, setWorkBusy, sourceVideoId, t]);
 
   // Voice preparation and export are asynchronous. Poll promptly while a job
   // is new, then back off gently so completed text/video appears quickly
@@ -221,41 +267,36 @@ export function RendyVoiceoverEditor({
         );
       } else {
         pollTimer.current = null;
-        setBusy(false);
+        setWorkBusy(false);
       }
     } catch {
       pollTimer.current = null;
-      setBusy(false);
+      setWorkBusy(false);
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
-  }, [api, applyProject, clearPoll, t]);
+  }, [api, applyProject, clearPoll, setWorkBusy, t]);
 
   const editorOpen = open || immersive;
+  const shouldLoadProject = editorOpen || preloadProject;
 
   useEffect(() => {
-    if (editorOpen) void loadProject();
+    if (shouldLoadProject) void loadProject();
     return () => {
       clearPoll();
       pauseAlignedVideo();
     };
-  }, [clearPoll, editorOpen, loadProject, pauseAlignedVideo]);
+  }, [clearPoll, loadProject, pauseAlignedVideo, shouldLoadProject]);
 
   useEffect(() => {
     if (
-      editorOpen &&
+      shouldLoadProject &&
       project &&
       (project.status === "processing" || project.status === "exporting") &&
       !pollTimer.current
     ) {
       void poll(project.id);
     }
-  }, [editorOpen, poll, project]);
-
-  useEffect(() => {
-    if (project?.status === "ready" && project.outputUrl) {
-      outputReadyRef.current(project.outputUrl);
-    }
-  }, [project?.outputUrl, project?.status]);
+  }, [poll, project, shouldLoadProject]);
 
   useEffect(() => () => {
     clearPoll();
@@ -375,7 +416,7 @@ export function RendyVoiceoverEditor({
   const upload = async () => {
     if (!audio) return;
     clearPoll();
-    setBusy(true);
+    setWorkBusy(true);
     setMessage("");
     try {
       const formData = new FormData();
@@ -394,7 +435,7 @@ export function RendyVoiceoverEditor({
       clearLocalAudio();
       void poll(data.project.id);
     } catch {
-      setBusy(false);
+      setWorkBusy(false);
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
   };
@@ -422,7 +463,7 @@ export function RendyVoiceoverEditor({
   const exportProject = async () => {
     if (!project) return;
     clearPoll();
-    setBusy(true);
+    setWorkBusy(true);
     try {
       await saveCaptions(project.segments, project.subtitlesEnabled);
       const data = await api(`/api/bolig/rendy/voice-projects/${project.id}/export`, {
@@ -431,7 +472,7 @@ export function RendyVoiceoverEditor({
       applyProject(data.project);
       void poll(project.id);
     } catch {
-      setBusy(false);
+      setWorkBusy(false);
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
   };
@@ -439,7 +480,7 @@ export function RendyVoiceoverEditor({
   const retry = async () => {
     if (!project) return;
     clearPoll();
-    setBusy(true);
+    setWorkBusy(true);
     try {
       const data = await api(`/api/bolig/rendy/voice-projects/${project.id}/retry`, {
         method: "POST",
@@ -447,7 +488,7 @@ export function RendyVoiceoverEditor({
       applyProject(data.project);
       void poll(project.id);
     } catch {
-      setBusy(false);
+      setWorkBusy(false);
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
   };
