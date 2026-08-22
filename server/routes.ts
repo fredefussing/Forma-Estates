@@ -2125,7 +2125,7 @@ export async function registerRoutes(
       const [voiceProjects, rendyJobs, rendyEditProjects, rendyEditManifests] = await Promise.all([
         pool.query(`SELECT source_url, audio_url, output_url, source_input_url, raw_audio_key FROM rendy_voice_projects`),
         pool.query(`SELECT videos FROM rendy_jobs WHERE videos IS NOT NULL`),
-        pool.query(`SELECT output_url FROM rendy_edit_projects WHERE output_url IS NOT NULL`),
+        pool.query(`SELECT output_url, clean_output_url FROM rendy_edit_projects WHERE output_url IS NOT NULL OR clean_output_url IS NOT NULL`),
         pool.query(`SELECT payload FROM rendy_edit_manifests`),
       ]);
       collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows, rendyEditProjects.rows, rendyEditManifests.rows).forEach(key => keys.add(key));
@@ -2271,7 +2271,7 @@ export async function registerRoutes(
       const [voiceProjects, rendyJobs, rendyEditProjects, rendyEditManifests] = await Promise.all([
         pool.query(`SELECT source_url, audio_url, output_url, source_input_url, raw_audio_key FROM rendy_voice_projects`),
         pool.query(`SELECT videos FROM rendy_jobs WHERE videos IS NOT NULL`),
-        pool.query(`SELECT output_url FROM rendy_edit_projects WHERE output_url IS NOT NULL`),
+        pool.query(`SELECT output_url, clean_output_url FROM rendy_edit_projects WHERE output_url IS NOT NULL OR clean_output_url IS NOT NULL`),
         pool.query(`SELECT payload FROM rendy_edit_manifests`),
       ]);
       collectRendyMediaKeys(voiceProjects.rows, rendyJobs.rows, rendyEditProjects.rows, rendyEditManifests.rows).forEach(key => liveKeys.add(key));

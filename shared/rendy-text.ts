@@ -254,6 +254,14 @@ export const HEADLINE_POSITION_MIN_Y = HEADLINE_POSITION_MIN;
 export const HEADLINE_POSITION_MAX_X = 0.95;
 /** Maximum safe-zone y position (vertical). */
 export const HEADLINE_POSITION_MAX_Y = 0.92;
+/** Browser preview colour for durable Rendy headlines. */
+export const HEADLINE_TEXT_COLOR = "#F1EEE6";
+/** The same RGB colour encoded as ASS &HAABBGGRR. */
+export const HEADLINE_TEXT_ASS_COLOR = "&H00E6EEF1";
+/** Headline entrance fade used in both browser preview and ASS export. */
+export const HEADLINE_FADE_IN_SECONDS = 0.18;
+/** Headline exit fade used in both browser preview and ASS export. */
+export const HEADLINE_FADE_OUT_SECONDS = 0.35;
 /** Minimum caption font size as a fraction of frame height. */
 export const CAPTION_SIZE_MIN = 0.03;
 /** Maximum caption font size as a fraction of frame height. */
@@ -275,6 +283,34 @@ export interface HeadlineSettings {
   start: number;
   /** Headline out-time (seconds from video start) */
   end: number;
+}
+
+export function headlineFadeDurations(start: number, end: number): {
+  fadeInSeconds: number;
+  fadeOutSeconds: number;
+} {
+  const visibleDuration = Math.max(0, end - start);
+  const fadeInSeconds = Math.min(HEADLINE_FADE_IN_SECONDS, visibleDuration * 0.3);
+  const fadeOutSeconds = Math.min(
+    HEADLINE_FADE_OUT_SECONDS,
+    Math.max(0, visibleDuration - fadeInSeconds) * 0.7,
+  );
+  return { fadeInSeconds, fadeOutSeconds };
+}
+
+/** Exact preview opacity for the fade that is burned into the exported video. */
+export function headlineOpacityAtTime(
+  currentTime: number,
+  start: number,
+  end: number,
+): number {
+  if (currentTime < start || currentTime >= end || end <= start) return 0;
+  const { fadeInSeconds, fadeOutSeconds } = headlineFadeDurations(start, end);
+  const fadeInOpacity =
+    fadeInSeconds > 0 ? Math.min(1, (currentTime - start) / fadeInSeconds) : 1;
+  const fadeOutOpacity =
+    fadeOutSeconds > 0 ? Math.min(1, (end - currentTime) / fadeOutSeconds) : 1;
+  return Math.max(0, Math.min(1, fadeInOpacity, fadeOutOpacity));
 }
 
 export const DEFAULT_HEADLINE_SETTINGS: HeadlineSettings = {

@@ -12,6 +12,7 @@ type RendyJobMediaRow = {
 
 type RendyEditProjectMediaRow = {
   output_url?: unknown;
+  clean_output_url?: unknown;
 };
 
 type RendyEditManifestMediaRow = {
@@ -71,6 +72,7 @@ export function collectRendyMediaKeys(
 
   for (const project of editProjects) {
     addUrl(project.output_url);
+    addUrl(project.clean_output_url);
   }
 
   for (const row of editManifests) {
@@ -79,7 +81,11 @@ export function collectRendyMediaKeys(
     for (const shot of shots) {
       const candidates = (shot as { candidates?: unknown } | null)?.candidates;
       if (!Array.isArray(candidates)) continue;
-      for (const candidate of candidates) addUrl((candidate as { sourceUrl?: unknown } | null)?.sourceUrl);
+      for (const candidate of candidates) {
+        const media = candidate as { sourceUrl?: unknown; thumbnailUrl?: unknown } | null;
+        addUrl(media?.sourceUrl);
+        addUrl(media?.thumbnailUrl);
+      }
     }
   }
 

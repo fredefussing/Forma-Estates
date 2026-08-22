@@ -95,6 +95,56 @@ function totalDuration(items: TimelineItem[], shots: Shot[]): number {
   }, 0);
 }
 
+function ClipThumbnail({
+  candidate,
+  className,
+}: {
+  candidate?: Candidate | null;
+  className: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const at = candidate
+    ? Math.max(candidate.safeStart, candidate.safeStart + (candidate.safeEnd - candidate.safeStart) / 2)
+    : 0;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [candidate?.id, candidate?.thumbnailUrl]);
+
+  if (!candidate) {
+    return <div className={`${className} bg-[#EDE8E3]`} aria-hidden="true" />;
+  }
+
+  if (candidate.thumbnailUrl && !imageFailed) {
+    return (
+      <img
+        src={candidate.thumbnailUrl}
+        alt=""
+        className={`${className} object-cover bg-[#EDE8E3]`}
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <video
+      src={`${candidate.sourceUrl}#t=${at.toFixed(3)}`}
+      muted
+      playsInline
+      preload="metadata"
+      tabIndex={-1}
+      aria-hidden="true"
+      className={`${className} pointer-events-none object-cover bg-[#EDE8E3]`}
+      onLoadedMetadata={(event) => {
+        const video = event.currentTarget;
+        if (Number.isFinite(at) && Math.abs(video.currentTime - at) > 0.05) {
+          video.currentTime = at;
+        }
+      }}
+    />
+  );
+}
+
 const POLLING_STATUSES: EditProject["status"][] = ["preparing", "analyzing", "rendering"];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -109,6 +159,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
   const [message, setMessage] = useState("");
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   // Headline state — always reset to proj.headline ?? DEFAULT on every project load/poll
   const [headline, setHeadline] = useState<HeadlineSettings>(DEFAULT_HEADLINE_SETTINGS);
 
@@ -387,17 +438,32 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
   }
 
   const totalSec = totalDuration(timeline, shots);
+  const previewIndex =
+    selectedIndex != null && selectedIndex >= 0 && selectedIndex < timeline.length
+      ? selectedIndex
+      : 0;
+  const previewItem = timeline[previewIndex];
+  const previewShot = previewItem
+    ? shots.find((shot) => shot.id === previewItem.shotId)
+    : null;
+  const previewCandidate = previewItem
+    ? previewShot?.candidates.find((candidate) => candidate.id === previewItem.candidateId)
+    : null;
 
   return (
-    <div className="mt-2">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#0F1D2F]/95 p-3 sm:p-6">
       <section
-        className="rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 space-y-3"
+        className="mx-auto min-h-[calc(100dvh-1.5rem)] max-w-7xl rounded-[24px] border border-white/10 bg-[#F8F5F0] p-4 shadow-2xl space-y-4 sm:min-h-[calc(100dvh-3rem)] sm:p-6"
         aria-label="Videoredigering"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-[#0F1D2F]">Redigér video</h3>
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A36F4E]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
+              Forma videostudie
+            </div>
+            <h3 className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">Redigér video</h3>
             <p className="text-[11px] text-[#6C6964]">
               Sæt klip sammen, tilføj overskrift og generer en ny video
             </p>
@@ -409,10 +475,28 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
               setOpen(false);
             }}
             aria-label="Luk"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#DCC9B9] bg-white text-[#0F1D2F] transition-colors hover:bg-[#F4EEE8]"
           >
-            <X className="w-4 h-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
+        {shots.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto border-y border-[#E4D8CC] py-2 text-[10px] text-[#77736D]">
+            <span className="shrink-0 font-semibold uppercase tracking-[0.14em] text-[#A36F4E]">Rækkefølge</span>
+            {timeline.map((item, index) => {
+              const shot = shots.find((entry) => entry.id === item.shotId);
+              const candidate = shot?.candidates.find((entry) => entry.id === item.candidateId);
+              return (
+                <div key={`${item.shotId}-context-${index}`} className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#EEE5DC] px-2 py-1 text-[#4D4943]">
+                  <span className="font-mono text-[9px] text-[#A36F4E]">{String(index + 1).padStart(2, "0")}</span>
+                  <ClipThumbnail candidate={candidate} className="h-4 w-6 shrink-0 rounded" />
+                  <span className="max-w-[100px] truncate">{shot?.label ?? "Klip"}</span>
+                </div>
+              );
+            })}
+            {timeline.length === 0 && <span>Tilføj klip fra biblioteket for at starte sekvensen</span>}
+          </div>
+        )}
 
         {/* Loading / preparing */}
         {busy && (!status || status === "preparing" || status === "analyzing") && (
@@ -531,208 +615,286 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
           </div>
         )}
 
-        {/* Draft / editing UI — headline editor available here too, before first export */}
+        {/* Draft / editing UI — a focused visual workspace for clip decisions. */}
         {(status === "draft" || (!status && !busy)) && shots.length > 0 && (
-          <>
-            {/* Keep the text tool visible at the top of Edit instead of hiding it
-                below a potentially long timeline and clip library. */}
-            <RendyHeadlineEditor
-              sourceVideoUrl={sourceVideoUrl}
-              value={headline}
-              onChange={setHeadline}
-              onApply={startRender}
-              applyBusy={busy}
-            />
-
-            {/* Timeline */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-semibold text-[#0F1D2F]">
-                  Din tidslinje
-                </span>
-                {timeline.length > 0 && (
-                  <span className="text-[10px] text-[#77736D]">
-                    {fmtDuration(totalSec)} total
-                  </span>
-                )}
-              </div>
-
-              {timeline.length === 0 && (
-                <p className="text-[11px] text-[#77736D] py-2">
-                  Tilsæt klip fra biblioteket nedenfor.
-                </p>
-              )}
-
-              <ol className="space-y-1.5">
-                {timeline.map((item, index) => {
-                  const shot = shots.find((sh) => sh.id === item.shotId);
-                  if (!shot) return null;
-                  const cand = shot.candidates.find((c) => c.id === item.candidateId);
-                  const isPicker = pickerOpen === index;
-
-                  return (
-                    <li
-                      key={`${item.shotId}-${index}`}
-                      className="rounded-lg border border-[#E1DAD2] bg-white p-2 space-y-1.5"
-                    >
-                      <div className="flex items-center gap-2">
-                        {cand?.thumbnailUrl ? (
-                          <img
-                            src={cand.thumbnailUrl}
-                            alt=""
-                            className="w-12 h-8 rounded object-cover flex-shrink-0 bg-[#EDE8E3]"
-                          />
-                        ) : (
-                          <div className="w-12 h-8 rounded bg-[#EDE8E3] flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-semibold text-[#0F1D2F] truncate">
-                            {shot.label}
-                          </p>
-                          {cand && (
-                            <p className="text-[10px] text-[#77736D]">
-                              {fmtDuration(cand.duration)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => moveItem(index, -1)}
-                            disabled={index === 0}
-                            aria-label="Flyt op"
-                            className="w-6 h-6 rounded flex items-center justify-center border border-[#E1DAD2] disabled:opacity-30"
-                          >
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveItem(index, 1)}
-                            disabled={index === timeline.length - 1}
-                            aria-label="Flyt ned"
-                            className="w-6 h-6 rounded flex items-center justify-center border border-[#E1DAD2] disabled:opacity-30"
-                          >
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPickerOpen(isPicker ? null : index)}
-                            aria-label="Skift klip"
-                            className="h-6 px-1.5 rounded border border-[#E1DAD2] text-[10px] font-semibold"
-                          >
-                            Skift
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            aria-label="Fjern klip"
-                            className="w-6 h-6 rounded flex items-center justify-center border border-[#E1DAD2] text-[#A34D43]"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {isPicker && (
-                        <div className="space-y-1">
-                          <p className="text-[10px] text-[#77736D]">Vælg alternativt klip:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {shot.candidates.map((c) => {
-                              const isActive = c.id === item.candidateId;
-                              const inUseElsewhere =
-                                !isActive && timelineCandidateIds.has(c.id);
-                              return (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onClick={() =>
-                                    !inUseElsewhere && selectCandidate(index, c.id)
-                                  }
-                                  disabled={inUseElsewhere}
-                                  className={`rounded border px-2 py-1 text-[10px] font-semibold inline-flex flex-col items-center gap-0.5 disabled:opacity-40 ${
-                                    isActive
-                                      ? "border-[#C8956C] bg-[#FDF5EE] text-[#855F45]"
-                                      : "border-[#E1DAD2] text-[#4D4943]"
-                                  }`}
-                                >
-                                  {c.thumbnailUrl && (
-                                    <img
-                                      src={c.thumbnailUrl}
-                                      alt=""
-                                      className="w-14 h-9 rounded object-cover bg-[#EDE8E3]"
-                                    />
-                                  )}
-                                  <span>{fmtDuration(c.duration)}</span>
-                                  {isActive && <span className="text-[9px]">Valgt</span>}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-
-            {/* Shot library */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#0F1D2F] mb-1.5">Bibliotek</p>
-              <div className="space-y-1">
-                {shots.map((shot) => {
-                  const inTimeline = shotInTimeline(shot);
-                  const activeCandId = activeCandidateIdForShot(shot);
-                  const activeCand = activeCandId
-                    ? shot.candidates.find((c) => c.id === activeCandId)
-                    : null;
-                  return (
-                    <div
-                      key={shot.id}
-                      className="flex items-center gap-2 rounded-lg border border-[#E1DAD2] bg-white p-2"
-                    >
-                      {(activeCand ?? shot.candidates[0])?.thumbnailUrl ? (
-                        <img
-                          src={(activeCand ?? shot.candidates[0])!.thumbnailUrl}
-                          alt=""
-                          className="w-12 h-8 rounded object-cover flex-shrink-0 bg-[#EDE8E3]"
-                        />
-                      ) : (
-                        <div className="w-12 h-8 rounded bg-[#EDE8E3] flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold text-[#0F1D2F] truncate">
-                          {shot.label}
-                        </p>
-                        <p className="text-[10px] text-[#77736D]">
-                          {fmtDuration(shot.duration)}
-                          {shot.candidates.length > 1 &&
-                            ` · ${shot.candidates.length} varianter`}
-                        </p>
-                      </div>
-                      {inTimeline ? (
-                        <span className="text-[10px] text-[#385B49] font-semibold flex items-center gap-0.5 flex-shrink-0">
-                          <Check className="w-3 h-3" />
-                          I din video
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => addShot(shot)}
-                          aria-label={`Tilsæt ${shot.label}`}
-                          className="w-7 h-7 rounded-full border border-[#C8956C] text-[#855F45] flex items-center justify-center flex-shrink-0"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+          <div className="space-y-5">
+            <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
+              <main className="min-w-0 space-y-5">
+                <div className="overflow-hidden rounded-2xl bg-[#0A1422] shadow-lg">
+                  <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D9AF8D]">
+                        Aktivt klip
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold">
+                        {previewShot
+                          ? `${String(previewIndex + 1).padStart(2, "0")} · ${previewShot.label}`
+                          : "Vælg et klip i tidslinjen"}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
+                    {previewCandidate && (
+                      <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] text-white/75">
+                        {fmtDuration(previewCandidate.duration)}
+                      </span>
+                    )}
+                  </div>
+                  {previewCandidate ? (
+                    <video
+                      key={previewCandidate.id}
+                      src={`${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`}
+                      controls
+                      playsInline
+                      muted
+                      className="mx-auto max-h-[52vh] w-full bg-black object-contain"
+                      data-testid="video-active-clip-preview"
+                    />
+                  ) : (
+                    <div className="grid min-h-56 place-items-center px-6 text-center text-sm text-white/60">
+                      Tilsæt et klip fra biblioteket for at se det her.
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-[#E1DAD2] bg-white p-3 shadow-sm sm:p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold text-[#0F1D2F]">Din tidslinje</h4>
+                      <p className="text-[11px] text-[#77736D]">
+                        Tryk på et klip for at se det. Brug pilene til at ændre rækkefølgen.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-[#F4EEE8] px-2.5 py-1 text-[10px] font-semibold text-[#855F45]">
+                      {timeline.length} klip · {fmtDuration(totalSec)}
+                    </span>
+                  </div>
+
+                  {timeline.length === 0 && (
+                    <p className="rounded-xl border border-dashed border-[#DCC9B9] px-4 py-8 text-center text-xs text-[#77736D]">
+                      Tilsæt klip fra biblioteket for at begynde.
+                    </p>
+                  )}
+
+                  <ol className="space-y-2.5">
+                    {timeline.map((item, index) => {
+                      const shot = shots.find((candidateShot) => candidateShot.id === item.shotId);
+                      if (!shot) return null;
+                      const candidate = shot.candidates.find((entry) => entry.id === item.candidateId);
+                      const isPicker = pickerOpen === index;
+                      const isSelected = previewIndex === index;
+
+                      return (
+                        <li
+                          key={`${item.shotId}-${index}`}
+                          aria-current={isSelected ? "step" : undefined}
+                          onClick={() => setSelectedIndex(index)}
+                          className={`rounded-xl border p-3 transition-all ${
+                            isSelected
+                              ? "border-[#C8956C] bg-[#FFF9F4] shadow-sm"
+                              : "border-[#E1DAD2] bg-white hover:border-[#C8956C]/60"
+                          }`}
+                        >
+                          <div className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)]">
+                            <ClipThumbnail
+                              candidate={candidate}
+                              className="aspect-video w-full rounded-lg"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A36F4E]">
+                                    Klip {String(index + 1).padStart(2, "0")} i rækkefølgen
+                                  </p>
+                                  <p className="mt-0.5 truncate text-sm font-semibold text-[#0F1D2F]">
+                                    {shot.label}
+                                  </p>
+                                  <p className="text-[11px] text-[#77736D]">
+                                    {candidate ? fmtDuration(candidate.duration) : "Ukendt længde"}
+                                    {shot.candidates.length > 1
+                                      ? ` · ${shot.candidates.length} varianter`
+                                      : ""}
+                                  </p>
+                                </div>
+                                {isSelected && (
+                                  <span className="shrink-0 rounded-full bg-[#E7C6A9] px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-[#855F45]">
+                                    Vises nu
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-3 grid grid-cols-4 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    moveItem(index, -1);
+                                  }}
+                                  disabled={index === 0}
+                                  aria-label={`Flyt ${shot.label} tidligere`}
+                                  className="h-9 rounded-lg border border-[#E1DAD2] bg-white text-[#4D4943] inline-flex items-center justify-center disabled:opacity-30"
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    moveItem(index, 1);
+                                  }}
+                                  disabled={index === timeline.length - 1}
+                                  aria-label={`Flyt ${shot.label} senere`}
+                                  className="h-9 rounded-lg border border-[#E1DAD2] bg-white text-[#4D4943] inline-flex items-center justify-center disabled:opacity-30"
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setPickerOpen(isPicker ? null : index);
+                                  }}
+                                  className="h-9 rounded-lg border border-[#DCC9B9] bg-white px-2 text-[11px] font-semibold text-[#0F1D2F]"
+                                >
+                                  Skift
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    removeItem(index);
+                                  }}
+                                  aria-label={`Fjern ${shot.label}`}
+                                  className="h-9 rounded-lg border border-[#E8D4D0] bg-white text-[#A34D43] inline-flex items-center justify-center"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {isPicker && (
+                            <div
+                              className="mt-3 border-t border-[#E8E0D8] pt-3"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <p className="mb-2 text-[11px] font-semibold text-[#0F1D2F]">
+                                Vælg en anden version af {shot.label}
+                              </p>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {shot.candidates.map((candidateOption, candidateIndex) => {
+                                  const isActive = candidateOption.id === item.candidateId;
+                                  const inUseElsewhere =
+                                    !isActive && timelineCandidateIds.has(candidateOption.id);
+                                  return (
+                                    <button
+                                      key={candidateOption.id}
+                                      type="button"
+                                      onClick={() =>
+                                        !inUseElsewhere &&
+                                        selectCandidate(index, candidateOption.id)
+                                      }
+                                      disabled={inUseElsewhere}
+                                      className={`w-36 shrink-0 overflow-hidden rounded-xl border text-left disabled:opacity-40 ${
+                                        isActive
+                                          ? "border-[#C8956C] bg-[#FDF5EE]"
+                                          : "border-[#E1DAD2] bg-white"
+                                      }`}
+                                    >
+                                      <ClipThumbnail
+                                        candidate={candidateOption}
+                                        className="aspect-video w-full"
+                                      />
+                                      <span className="block px-2.5 py-2 text-[10px] font-semibold text-[#4D4943]">
+                                        Version {candidateIndex + 1} · {fmtDuration(candidateOption.duration)}
+                                        {isActive ? " · Valgt" : ""}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              </main>
+
+              <aside className="space-y-4 xl:sticky xl:top-0">
+                <div className="rounded-2xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 shadow-sm">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A36F4E]">
+                    Tekst på videoen
+                  </p>
+                  <RendyHeadlineEditor
+                    sourceVideoUrl={sourceVideoUrl}
+                    value={headline}
+                    onChange={setHeadline}
+                    onApply={startRender}
+                    applyBusy={busy}
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-[#E1DAD2] bg-white p-3 shadow-sm">
+                  <div className="mb-3">
+                    <h4 className="text-sm font-semibold text-[#0F1D2F]">Klipbibliotek</h4>
+                    <p className="text-[11px] text-[#77736D]">
+                      Se motivet, før du føjer et klip til videoen.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:max-h-[68vh] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1">
+                    {shots.map((shot) => {
+                      const inTimeline = shotInTimeline(shot);
+                      const activeCandidateId = activeCandidateIdForShot(shot);
+                      const activeCandidate = activeCandidateId
+                        ? shot.candidates.find((candidate) => candidate.id === activeCandidateId)
+                        : null;
+                      const libraryCandidate = activeCandidate ?? shot.candidates[0];
+                      return (
+                        <article
+                          key={shot.id}
+                          className="overflow-hidden rounded-xl border border-[#E1DAD2] bg-[#FFFDFC]"
+                        >
+                          <ClipThumbnail
+                            candidate={libraryCandidate}
+                            className="aspect-video w-full"
+                          />
+                          <div className="flex items-center gap-3 p-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-semibold text-[#0F1D2F]">
+                                {shot.label}
+                              </p>
+                              <p className="text-[10px] text-[#77736D]">
+                                {fmtDuration(shot.duration)}
+                                {shot.candidates.length > 1
+                                  ? ` · ${shot.candidates.length} varianter`
+                                  : ""}
+                              </p>
+                            </div>
+                            {inTimeline ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#EAF2ED] px-2 py-1 text-[9px] font-semibold text-[#385B49]">
+                                <Check className="h-3 w-3" />
+                                Tilføjet
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => addShot(shot)}
+                                aria-label={`Tilsæt ${shot.label}`}
+                                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#C8956C] px-3 text-[10px] font-semibold text-[#855F45]"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Tilføj
+                              </button>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              </aside>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-2">
+            <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-[#E1DAD2] bg-[#F8F5F0]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
               <button
                 type="button"
                 onClick={patchTimeline}
@@ -762,7 +924,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
                 Generer video
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {/* Error message */}

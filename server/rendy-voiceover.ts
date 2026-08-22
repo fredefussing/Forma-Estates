@@ -43,6 +43,8 @@ import {
   isRendyTypographyId,
   CAPTION_SIZE_MIN,
   CAPTION_SIZE_MAX,
+  HEADLINE_TEXT_ASS_COLOR,
+  headlineFadeDurations,
   type CaptionStyleSettings,
   type CaptionContrast,
   type CaptionPosition,
@@ -726,11 +728,14 @@ export function buildCombinedAss(
     const hlFontSize = Math.round(headline.size * videoH);
     const hlStart = Math.max(0, Math.min(headline.start, sourceDuration));
     const hlEnd   = Math.max(hlStart + 0.04, Math.min(headline.end, sourceDuration));
+    const { fadeInSeconds, fadeOutSeconds } = headlineFadeDurations(hlStart, hlEnd);
+    const fadeInMs = Math.round(fadeInSeconds * 1000);
+    const fadeOutMs = Math.round(fadeOutSeconds * 1000);
     const hlPosX  = Math.round(headline.x * videoW);
     const hlPosY  = Math.round(headline.y * videoH);
     const displayText = hlPreset.assUppercase ? headline.text.toUpperCase() : headline.text;
-    hlStyleLine = `\nStyle: Headline,${hlPreset.assFontName},${hlFontSize},&H00F1EEE6,&H000000FF,&H00110F0C,&H88080604,${hlPreset.assBold},${hlPreset.assItalic},0,0,100,100,${hlPreset.assSpacing},0,1,0,0.65,5,0,0,0,1`;
-    hlEvent = `\nDialogue: 1,${secondsToAssTime(hlStart)},${secondsToAssTime(hlEnd)},Headline,,0,0,0,,{\\pos(${hlPosX},${hlPosY})}${sanitizeAssText(displayText)}`;
+    hlStyleLine = `\nStyle: Headline,${hlPreset.assFontName},${hlFontSize},${HEADLINE_TEXT_ASS_COLOR},&H000000FF,&H00110F0C,&H88080604,${hlPreset.assBold},${hlPreset.assItalic},0,0,100,100,${hlPreset.assSpacing},0,1,0,0.65,5,0,0,0,1`;
+    hlEvent = `\nDialogue: 1,${secondsToAssTime(hlStart)},${secondsToAssTime(hlEnd)},Headline,,0,0,0,,{\\pos(${hlPosX},${hlPosY})\\fad(${fadeInMs},${fadeOutMs})}${sanitizeAssText(displayText)}`;
   }
 
   // ── Assemble script ──────────────────────────────────────────────────────────

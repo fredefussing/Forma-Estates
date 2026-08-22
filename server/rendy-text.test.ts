@@ -18,10 +18,18 @@ import {
   HEADLINE_POSITION_MAX_Y,
   CAPTION_SIZE_MIN,
   CAPTION_SIZE_MAX,
+  HEADLINE_TEXT_ASS_COLOR,
+  headlineOpacityAtTime,
 } from "../shared/rendy-text";
 import { buildCombinedAss } from "./rendy-voiceover";
 import type { CaptionSegment } from "./rendy-voiceover";
-import { buildHeadlineOverlayArgs } from "./rendy-editor";
+import {
+  buildAssHeadline,
+  buildHeadlineOverlayArgs,
+  isLegacyShortTransitionError,
+  renderBoundsForCandidate,
+  transitionDurationForClips,
+} from "./rendy-editor";
 
 // ── Minimal test harness ──────────────────────────────────────────────────────
 
@@ -319,6 +327,61 @@ console.log("\n[10] buildHeadlineOverlayArgs — direct overlay ffmpeg args");
   assert(args.includes("-c:v") && args[args.indexOf("-c:v") + 1] === "libx264", "overlay(audio): single libx264 video encode");
   assert(args[args.length - 1] === "/tmp/out.mp4", "overlay(audio): output path is last arg");
   assert(!args.includes("-an"), "overlay(audio): does NOT drop audio");
+}
+
+console.log("\n[11] Headline preview/export fidelity");
+{
+  assert(headlineOpacityAtTime(-0.1, 0, 4) === 0, "preview: hidden before start");
+  assert(headlineOpacityAtTime(0, 0, 4) === 0, "preview: fade starts fully transparent");
+  assert(headlineOpacityAtTime(1, 0, 4) === 1, "preview: fully visible after fade-in");
+  assert(headlineOpacityAtTime(4, 0, 4) === 0, "preview: fully transparent at end");
+  assert(headlineOpacityAtTime(5, 0, 4) === 0, "preview: remains hidden after end");
+
+  const hl = {
+    enabled: true,
+    text: "Samme udtryk",
+    fontId: "cormorant-regular" as const,
+    size: 0.08,
+    x: 0.5,
+    y: 0.18,
+    start: 0,
+    end: 4,
+  };
+  const ass = buildAssHeadline(hl, testW, testH, testDuration);
+  assert(ass.includes(HEADLINE_TEXT_ASS_COLOR), "export: uses shared warm-white headline colour");
+  assert(ass.includes("\\fad(180,350)"), "export: includes the shared full fade-in/out");
+  const combined = buildCombinedAss([], testCaptionStyle, hl, testW, testH, testDuration);
+  assert(combined.includes(HEADLINE_TEXT_ASS_COLOR), "voice-over export: keeps the same headline colour");
+  assert(combined.includes("\\fad(180,350)"), "voice-over export: keeps the same headline fade");
+  assert(
+    transitionDurationForClips(0.85, 0.85) >= 0.12 &&
+      transitionDurationForClips(0.85, 0.85) < 0.18,
+    "timeline: short valid neighbouring clips receive a safe brief transition",
+  );
+  assert(
+    transitionDurationForClips(3, 4) === 0.42,
+    "timeline: longer clips keep the polished maximum transition",
+  );
+  const movingBounds = renderBoundsForCandidate(1, 1.65, 0.1);
+  assert(
+    Math.abs(movingBounds.end - movingBounds.start - 0.65) < 0.0001,
+    "timeline: a complete 0.65s moving scene remains renderable",
+  );
+  const staticBounds = renderBoundsForCandidate(1, 1.65, 0.01);
+  assert(
+    staticBounds.end - staticBounds.start > 0.6,
+    "timeline: a complete 0.65s static scene remains renderable after settle trim",
+  );
+  assert(
+    isLegacyShortTransitionError(
+      "To naboklip er for korte til en sikker overgang. Vælg en længere variant eller fjern et klip.",
+    ),
+    "legacy project: former adjacent-clip error is recognised for safe reopening",
+  );
+  assert(
+    !isLegacyShortTransitionError("En videoramme kunne ikke læses"),
+    "legacy project: unrelated failures are never reopened automatically",
+  );
 }
 
 // Case 2: without audio — drops audio (-an), no -c:a copy

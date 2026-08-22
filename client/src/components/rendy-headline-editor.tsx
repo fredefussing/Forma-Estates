@@ -34,6 +34,8 @@ import {
   HEADLINE_POSITION_MIN,
   HEADLINE_POSITION_MAX_X,
   HEADLINE_POSITION_MAX_Y,
+  HEADLINE_TEXT_COLOR,
+  headlineOpacityAtTime,
   type HeadlineSettings,
   type RendyTypographyId,
 } from "@shared/rendy-text";
@@ -98,6 +100,10 @@ interface Props {
   onApply: () => void;
   /** True while the parent render job is in flight. */
   applyBusy: boolean;
+  /** Opens the editor as an immersive workspace instead of an embedded card. */
+  immersive?: boolean;
+  /** Lets a parent close the immersive workspace without owning editor state. */
+  onRequestClose?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -107,6 +113,8 @@ export function RendyHeadlineEditor({
   onChange,
   onApply,
   applyBusy,
+  immersive = false,
+  onRequestClose,
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -160,10 +168,10 @@ export function RendyHeadlineEditor({
     [set, value.x, value.y],
   );
 
-  // Show overlay only when playback is within [start, end]
-  const overlayVisible =
-    value.enabled && value.text.trim().length > 0 &&
-    currentTime >= value.start && currentTime <= value.end;
+  const overlayOpacity =
+    value.enabled && value.text.trim().length > 0
+      ? headlineOpacityAtTime(currentTime, value.start, value.end)
+      : 0;
 
   const preset =
     RENDY_TYPOGRAPHY_PRESETS.find((p) => p.id === value.fontId) ?? RENDY_TYPOGRAPHY_PRESETS[0];
@@ -182,7 +190,7 @@ export function RendyHeadlineEditor({
   // Compute aspect ratio string from loaded video dimensions, fallback to 9/16
   const aspectRatio = videoDims ? `${videoDims.w} / ${videoDims.h}` : "9 / 16";
 
-  if (!open) {
+  if (!open && !immersive) {
     return (
       <div className="mt-1">
         <button
@@ -200,13 +208,18 @@ export function RendyHeadlineEditor({
 
   return (
     <section
-      className="mt-1 rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 space-y-3"
+      className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#0F1D2F]/95 p-3 sm:p-6" : "mt-1 rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3"} space-y-3`}
       aria-label={t("dashboard.showcase.headline.title")}
     >
+      <div className={(immersive || open) ? "mx-auto max-w-6xl rounded-[24px] border border-white/10 bg-[#F8F5F0] p-4 shadow-2xl sm:p-6 space-y-3" : ""}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-[#0F1D2F]">
+          <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#A36F4E]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
+            Overskrift
+          </div>
+          <h3 className="text-base font-semibold text-[#0F1D2F] sm:text-lg">
             {t("dashboard.showcase.headline.title")}
           </h3>
           <p className="text-[11px] text-[#6C6964]">
@@ -215,7 +228,10 @@ export function RendyHeadlineEditor({
         </div>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setOpen(false);
+            onRequestClose?.();
+          }}
           aria-label={t("dashboard.showcase.headline.close")}
         >
           <X className="w-4 h-4" />
@@ -237,8 +253,9 @@ export function RendyHeadlineEditor({
 
       {value.enabled && (
         <>
+          <div className="grid gap-3 lg:grid-cols-[minmax(280px,0.75fr)_minmax(420px,1.25fr)]">
           {/* Text input */}
-          <div>
+          <div className="lg:col-start-2">
             <label
               htmlFor="headline-text-input"
               className="block text-[11px] font-semibold text-[#0F1D2F] mb-1"
@@ -258,7 +275,7 @@ export function RendyHeadlineEditor({
           </div>
 
           {/* Typography tiles */}
-          <div>
+          <div className="lg:col-start-2">
             <p className="text-[11px] font-semibold text-[#0F1D2F] mb-1.5">
               {t("dashboard.showcase.headline.fontLabel")}
             </p>
@@ -304,7 +321,7 @@ export function RendyHeadlineEditor({
           </div>
 
           {/* Size control */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 lg:col-start-2">
             <span className="text-[11px] font-semibold text-[#0F1D2F] w-16 flex-shrink-0">
               {t("dashboard.showcase.headline.sizeLabel")}
             </span>
@@ -342,7 +359,7 @@ export function RendyHeadlineEditor({
           </div>
 
           {/* Start + End controls */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 lg:col-start-2">
             <div>
               <label
                 htmlFor="headline-start-input"
@@ -395,7 +412,7 @@ export function RendyHeadlineEditor({
           </div>
 
           {/* Video preview with draggable overlay */}
-          <div>
+          <div className="lg:col-start-1 lg:row-start-1 lg:row-span-5">
             <p className="text-[11px] font-semibold text-[#0F1D2F] mb-1">
               {t("dashboard.showcase.headline.positionLabel")}
               <span className="font-normal text-[#77736D] ml-1">
@@ -411,7 +428,7 @@ export function RendyHeadlineEditor({
             <div
               ref={previewRef}
               className="relative w-full rounded-lg overflow-hidden bg-black select-none"
-              style={{ aspectRatio, containerType: "size", maxHeight: "380px" }}
+              style={{ aspectRatio, containerType: "size", maxHeight: "68vh" }}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerLeave={onPointerUp}
@@ -446,8 +463,8 @@ export function RendyHeadlineEditor({
                       left: `${value.x * 100}%`,
                       top: `${value.y * 100}%`,
                       transform: "translate(-50%, -50%)",
-                      opacity: overlayVisible ? 1 : 0.4,
-                      transition: "opacity 0.2s",
+                      opacity: overlayOpacity,
+                      transition: "opacity 80ms linear",
                       pointerEvents: "auto",
                     }}
                   >
@@ -463,9 +480,10 @@ export function RendyHeadlineEditor({
                           container height the query base, matching the backend's
                           frame-height calculation exactly. */}
                       <p
-                        className="text-white text-center"
+                        className="text-center"
                         style={{
                           ...fontStyle,
+                          color: HEADLINE_TEXT_COLOR,
                           fontSize: `${value.size * 100}cqh`,
                           textShadow: "0 1px 6px rgba(0,0,0,0.75)",
                           whiteSpace: "pre-wrap",
@@ -493,12 +511,13 @@ export function RendyHeadlineEditor({
           <button
             type="button"
             onClick={() => onChange({ ...DEFAULT_HEADLINE_SETTINGS, enabled: true })}
-            className="inline-flex items-center gap-1.5 text-[11px] text-[#77736D] underline"
+            className="inline-flex items-center gap-1.5 text-[11px] text-[#77736D] underline lg:col-start-2"
             data-testid="button-headline-reset"
           >
             <RotateCcw className="w-3 h-3" />
             {t("dashboard.showcase.headline.reset")}
           </button>
+          </div>
         </>
       )}
 
@@ -528,6 +547,7 @@ export function RendyHeadlineEditor({
           ? t("dashboard.showcase.headline.applying")
           : t("dashboard.showcase.headline.apply")}
       </button>
+      </div>
     </section>
   );
 }

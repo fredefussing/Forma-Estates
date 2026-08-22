@@ -37,6 +37,9 @@ interface Props {
   duration?: number;
   videoElementId: string;
   onOutputReady: (url: string) => void;
+  /** Opens the editor directly as a focused full-screen workspace. */
+  immersive?: boolean;
+  onRequestClose?: () => void;
 }
 
 const ACCEPTED_AUDIO = "audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm,audio/aac,.mp3,.m4a,.wav,.ogg,.webm,.aac";
@@ -76,6 +79,8 @@ export function RendyVoiceoverEditor({
   duration,
   videoElementId,
   onOutputReady,
+  immersive = false,
+  onRequestClose,
 }: Props) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -225,24 +230,26 @@ export function RendyVoiceoverEditor({
     }
   }, [api, applyProject, clearPoll, t]);
 
+  const editorOpen = open || immersive;
+
   useEffect(() => {
-    if (open) void loadProject();
+    if (editorOpen) void loadProject();
     return () => {
       clearPoll();
       pauseAlignedVideo();
     };
-  }, [clearPoll, loadProject, open, pauseAlignedVideo]);
+  }, [clearPoll, editorOpen, loadProject, pauseAlignedVideo]);
 
   useEffect(() => {
     if (
-      open &&
+      editorOpen &&
       project &&
       (project.status === "processing" || project.status === "exporting") &&
       !pollTimer.current
     ) {
       void poll(project.id);
     }
-  }, [open, poll, project]);
+  }, [editorOpen, poll, project]);
 
   useEffect(() => {
     if (project?.status === "ready" && project.outputUrl) {
@@ -506,7 +513,7 @@ export function RendyVoiceoverEditor({
 
   return (
     <div className="mt-2">
-      {!open ? (
+      {!open && !immersive ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -518,11 +525,16 @@ export function RendyVoiceoverEditor({
         </button>
       ) : (
         <section
-          className="rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 space-y-3"
+          className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#0F1D2F]/95 p-3 sm:p-6" : ""}`}
           aria-label={t("dashboard.showcase.voiceover.title")}
         >
+          <div className={(immersive || open) ? "mx-auto max-w-6xl rounded-[24px] border border-white/10 bg-[#F8F5F0] p-4 shadow-2xl sm:p-6 space-y-3" : "rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3 space-y-3"}>
           <div className="flex items-start justify-between gap-2">
             <div>
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#A36F4E]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
+                Voice-over
+              </div>
               <h3 className="text-sm font-semibold text-[#0F1D2F]">
                 {t("dashboard.showcase.voiceover.title")}
               </h3>
@@ -532,7 +544,7 @@ export function RendyVoiceoverEditor({
             </div>
             <button
               type="button"
-              onClick={() => { stopRecording(); setOpen(false); }}
+              onClick={() => { stopRecording(); setOpen(false); onRequestClose?.(); }}
               aria-label={t("dashboard.showcase.voiceover.close")}
             >
               <X className="w-4 h-4" />
@@ -686,6 +698,7 @@ export function RendyVoiceoverEditor({
             </div>
           )}
           {message && <p className="text-[11px] text-[#A34D43]" role="alert" aria-live="assertive">{message}</p>}
+          </div>
         </section>
       )}
     </div>

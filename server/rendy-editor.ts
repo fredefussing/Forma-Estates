@@ -26,6 +26,8 @@ import {
   HEADLINE_POSITION_MIN,
   HEADLINE_POSITION_MAX_X,
   HEADLINE_POSITION_MAX_Y,
+  HEADLINE_TEXT_ASS_COLOR,
+  headlineFadeDurations,
   type HeadlineSettings,
 } from "../shared/rendy-text";
 
@@ -66,6 +68,7 @@ export interface RendyShotCandidate {
   startSignature: Signature;
   midSignature: Signature;
   endSignature: Signature;
+  thumbnailUrl?: string;
 }
 
 export interface RendyShot {
@@ -375,6 +378,46 @@ async function rawSignatureFrame(filePath: string, at: number): Promise<Buffer> 
   ], SIGNATURE_BYTES, 30_000);
 }
 
+async function createCandidateThumbnail(
+  filePath: string,
+  at: number,
+  duration: number,
+  fps: number,
+  listingId: string,
+  candidateId: string,
+  tempDir: string,
+): Promise<string | undefined> {
+  const endMargin = Math.max(0.12, 3 / Math.max(1, fps));
+  const safeAt = Math.min(Math.max(0, at), Math.max(0, duration - endMargin));
+  const coarseSeek = Math.max(0, safeAt - 2);
+  const accurateSeek = safeAt - coarseSeek;
+  const safeListingId = listingId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const key = `rendy-edit-thumb-${safeListingId}-${candidateId}.jpg`;
+  const outputPath = path.join(tempDir, key);
+
+  try {
+    await runFfmpegQueued([
+      "-y", "-hide_banner", "-loglevel", "error",
+      "-ss", coarseSeek.toFixed(3), "-i", filePath,
+      "-ss", accurateSeek.toFixed(3),
+      "-map", "0:v:0", "-frames:v", "1",
+      "-vf", "scale=320:180:force_original_aspect_ratio=increase,crop=320:180",
+      "-q:v", "4",
+      outputPath,
+    ]);
+    await r2UploadFile(outputPath, key);
+    return `/uploads/${key}`;
+  } catch (error) {
+    console.warn(
+      `[rendy-edit] Could not create thumbnail for ${candidateId}:`,
+      error instanceof Error ? error.message : error,
+    );
+    return undefined;
+  } finally {
+    fs.promises.unlink(outputPath).catch(() => {});
+  }
+}
+
 export async function signatureForFrame(
   filePath: string,
   at: number,
@@ -451,8 +494,18 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
         signatureForFrame(inputPath, safeEnd - Math.min(0.10, duration * 0.08), info.duration, info.fps),
       ]);
       const motionScore = signatureDistance(startSignature, endSignature);
+      const candidateId = randomUUID();
+      const thumbnailUrl = await createCandidateThumbnail(
+        inputPath,
+        safeStart + duration / 2,
+        info.duration,
+        info.fps,
+        listingId,
+        candidateId,
+        tempDir,
+      );
       candidates.push({
-        id: randomUUID(),
+        id: candidateId,
         sourceVideoId: video.id,
         sourceUrl: archivedUrl,
         duration,
@@ -465,6 +518,7 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
         motionScore, midSignature,
         startSignature,
         endSignature,
+        thumbnailUrl,
       });
     }
     // A difficult source can have no detected scene boundary. Treat its full,
@@ -475,11 +529,22 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
         signatureForFrame(inputPath, info.duration / 2, info.duration, info.fps),
         signatureForFrame(inputPath, Math.max(0.05, info.duration - 0.05), info.duration, info.fps),
       ]);
+      const candidateId = randomUUID();
+      const thumbnailUrl = await createCandidateThumbnail(
+        inputPath,
+        info.duration / 2,
+        info.duration,
+        info.fps,
+        listingId,
+        candidateId,
+        tempDir,
+      );
       candidates.push({
-        id: randomUUID(), sourceVideoId: video.id, sourceUrl: archivedUrl, duration: info.duration,
+        id: candidateId, sourceVideoId: video.id, sourceUrl: archivedUrl, duration: info.duration,
         safeStart: 0, safeEnd: info.duration, width: info.width, height: info.height, fps: info.fps,
         qualityScore: info.width * info.height + Math.min(info.bitrate, 25_000_000) / 10,
         motionScore: signatureDistance(startSignature, endSignature), startSignature, midSignature, endSignature,
+        thumbnailUrl,
       });
     }
     return candidates;
@@ -609,17 +674,42 @@ function validateTimeline(manifest: RendyShotManifest, timeline: unknown): Timel
   });
 }
 
+export function transitionDurationForClips(fromDuration: number, toDuration: number): number {
+  return Math.max(
+    0.12,
+    Math.min(0.42, fromDuration * 0.18, toDuration * 0.18),
+  );
+}
+
+export function renderBoundsForCandidate(
+  safeStart: number,
+  safeEnd: number,
+  motionScore: number,
+): { start: number; end: number } {
+  const duration = safeEnd - safeStart;
+  const handle = motionScore < 0.035 ? Math.min(0.08, duration * 0.025) : 0;
+  const start = safeStart + handle;
+  const end = safeEnd - handle;
+  // candidatesForVideo accepts complete scenes from 0.65s. Keep a defensive
+  // floor below that contract, while still leaving ample room for a 0.12s
+  // crossfade and several frames on each side at 30fps.
+  if (end - start < 0.5) {
+    throw new Error("Klippet er for kort til en sikker overgang");
+  }
+  return { start, end };
+}
+
 function makeEditPlan(manifest: RendyShotManifest, timeline: TimelineItem[]): EditPlan {
   const clips = timeline.map(item => {
     const candidate = manifest.shots.find(shot => shot.id === item.shotId)?.candidates.find(value => value.id === item.candidateId);
     if (!candidate) throw new Error("Et valgt klip findes ikke længere");
-    const duration = candidate.safeEnd - candidate.safeStart;
     // Moving shots retain their natural beginning and ending. Static scenes may
     // lose a tiny encoder settle frame; moving action is never trimmed away.
-    const handle = candidate.motionScore < 0.035 ? Math.min(0.08, duration * 0.025) : 0;
-    const start = candidate.safeStart + handle;
-    const end = candidate.safeEnd - handle;
-    if (end - start < 0.85) throw new Error(`"${manifest.shots.find(shot => shot.id === item.shotId)?.label}" er for kort til en sikker overgang`);
+    const { start, end } = renderBoundsForCandidate(
+      candidate.safeStart,
+      candidate.safeEnd,
+      candidate.motionScore,
+    );
     return { shotId: item.shotId, candidateId: candidate.id, sourceUrl: candidate.sourceUrl, sourceVideoId: candidate.sourceVideoId, start, end };
   });
   const transitions: TransitionPlan[] = [];
@@ -627,8 +717,12 @@ function makeEditPlan(manifest: RendyShotManifest, timeline: TimelineItem[]): Ed
     const from = manifest.shots.find(shot => shot.id === clips[index].shotId)?.candidates.find(candidate => candidate.id === clips[index].candidateId)!;
     const to = manifest.shots.find(shot => shot.id === clips[index + 1].shotId)?.candidates.find(candidate => candidate.id === clips[index + 1].candidateId)!;
     const visualDifference = signatureDistance(from.endSignature, to.startSignature);
-    const duration = Math.min(0.42, (clips[index].end - clips[index].start) * 0.18, (clips[index + 1].end - clips[index + 1].start) * 0.18);
-    if (duration < 0.18) throw new Error("To naboklip er for korte til en sikker overgang. Vælg en længere variant eller fjern et klip.");
+    // Short complete scenes are common in Rendy deliveries. A brief dissolve is
+    // safe and looks better than rejecting an otherwise valid timeline.
+    const duration = transitionDurationForClips(
+      clips[index].end - clips[index].start,
+      clips[index + 1].end - clips[index + 1].start,
+    );
     transitions.push({
       type: visualDifference > 0.38 ? "fade" : "dissolve",
       duration,
@@ -799,7 +893,7 @@ function sanitizeAssText(raw: string): string {
  * size is a fraction of frame height (e.g. 0.08 = 8 % of H).
  * Timing is clipped to [0, outputDuration].
  */
-function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH: number, outputDuration: number): string {
+export function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH: number, outputDuration: number): string {
   const preset = RENDY_TYPOGRAPHY_PRESETS.find(p => p.id === hl.fontId) ?? RENDY_TYPOGRAPHY_PRESETS[1];
   const fontSize = Math.round(hl.size * targetH);
   // ASS alignment=5 = center-middle; we use absolute position override {\pos(x,y)}
@@ -807,6 +901,9 @@ function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH: number
   const posY = Math.round(hl.y * targetH);
   const start = Math.max(0, Math.min(hl.start, outputDuration));
   const end = Math.max(start + 0.04, Math.min(hl.end, outputDuration));
+  const { fadeInSeconds, fadeOutSeconds } = headlineFadeDurations(start, end);
+  const fadeInMs = Math.round(fadeInSeconds * 1000);
+  const fadeOutMs = Math.round(fadeOutSeconds * 1000);
 
   // Uppercase transform must be applied in JS since ASS has no text-transform
   const displayText = preset.assUppercase
@@ -822,11 +919,11 @@ function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH: number
     "[V4+ Styles]\n" +
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
     // Warm white, no outline, soft drop shadow, center-aligned
-    `Style: Headline,${preset.assFontName},${fontSize},&H00F1EEE6,&H000000FF,&H00110F0C,&H88080604,${preset.assBold},${preset.assItalic},0,0,100,100,${preset.assSpacing},0,1,0,0.65,5,0,0,0,1\n\n` +
+    `Style: Headline,${preset.assFontName},${fontSize},${HEADLINE_TEXT_ASS_COLOR},&H000000FF,&H00110F0C,&H88080604,${preset.assBold},${preset.assItalic},0,0,100,100,${preset.assSpacing},0,1,0,0.65,5,0,0,0,1\n\n` +
     "[Events]\n" +
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
 
-  const posTag = `{\\pos(${posX},${posY})}`;
+  const posTag = `{\\pos(${posX},${posY})\\fad(${fadeInMs},${fadeOutMs})}`;
   const text = posTag + sanitizeAssText(displayText);
   const event = `Dialogue: 0,${secondsToAssTime(start)},${secondsToAssTime(end)},Headline,,0,0,0,,${text}`;
   return header + event + "\n";
@@ -1105,6 +1202,10 @@ export async function verifyRendyEditedVideoOwnership(
   return outputUrl;
 }
 
+export function isLegacyShortTransitionError(error: string | null | undefined): boolean {
+  return !!error?.includes("To naboklip er for korte til en sikker overgang");
+}
+
 /**
  * Resolve an edit:<id> source for a voiceover project.
  *
@@ -1193,6 +1294,28 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
         if (!cached && project.status === "preparing" && project.manifest_revision == null) {
           await startProjectWork(project, "prepare", uploadDir);
         }
+      }
+      // Projects that failed only because of the former overly strict
+      // short-transition threshold can be reopened directly. The timeline is
+      // still intact, and the current planner now supports those clips safely.
+      if (
+        project.status === "failed" &&
+        isLegacyShortTransitionError(project.error)
+      ) {
+        const reopened = await pool.query<ProjectRow>(
+          `UPDATE rendy_edit_projects
+              SET status = 'draft',
+                  job_stage = NULL,
+                  analysis_plan = NULL,
+                  error = NULL,
+                  lease_token = NULL,
+                  lease_expires_at = NULL,
+                  updated_at = NOW()
+            WHERE id = $1 AND user_id = $2
+            RETURNING *`,
+          [project.id, userId],
+        );
+        project = reopened.rows[0] ?? project;
       }
       const manifest = await manifestForProject(project);
       return res.json({ success: true, project: toPublicProject(project, manifest) });
