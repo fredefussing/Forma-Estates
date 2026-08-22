@@ -620,6 +620,11 @@ export const rendyVoiceProjects = pgTable("rendy_voice_projects", {
   // Caption segments (JSONB: {id,start,end,text,hidden?}[])
   segments: jsonb("segments"),
   subtitlesEnabled: boolean("subtitles_enabled").notNull().default(true),
+  // Caption style settings (JSONB: CaptionStyleSettings). Nullable = use default.
+  captionStyle: jsonb("caption_style"),
+  // Snapshot of HeadlineSettings from the edit project at voice project creation time.
+  // Only populated for edit:<id> sources; null for provider-delivered sources.
+  headlineSnapshot: jsonb("headline_snapshot"),
   // Stable /uploads/<key> URLs
   sourceUrl: text("source_url"),        // localized source video
   audioUrl: text("audio_url"),          // cleaned/polished voice-over
@@ -658,6 +663,10 @@ export const rendyEditProjects = pgTable("rendy_edit_projects", {
   manifestRevision: integer("manifest_revision"),
   timeline: jsonb("timeline").notNull(),
   analysisPlan: jsonb("analysis_plan"),
+  // Headline text layer (JSONB: HeadlineSettings). Nullable = disabled/default.
+  headline: jsonb("headline"),
+  // Clean assembled output before headline burn (private — used by voiceover layer).
+  cleanOutputUrl: text("clean_output_url"),
   status: text("status").notNull().default("preparing"),
   jobStage: text("job_stage"),
   outputUrl: text("output_url"),

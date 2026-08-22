@@ -1558,11 +1558,34 @@ export async function ensureSchema(): Promise<void> {
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS completed_at timestamptz`,
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS lease_token text`,
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz`,
+      // Caption style settings (nullable jsonb — null means use DEFAULT_CAPTION_STYLE)
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS caption_style jsonb`,
     ]) {
       await pool.query(col);
     }
   } catch (e: any) {
     console.error(`[ensure-schema] rendy_voice_projects: ${e.message}`);
+  }
+
+  // ── rendy_edit_projects: headline + clean_output_url ──────────────────────────
+  try {
+    await pool.query(
+      `ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS headline jsonb`,
+    );
+    await pool.query(
+      `ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS clean_output_url text`,
+    );
+  } catch (e: any) {
+    console.error(`[ensure-schema] rendy_edit_projects additive columns: ${e.message}`);
+  }
+
+  // ── rendy_voice_projects: headline_snapshot ───────────────────────────────────
+  try {
+    await pool.query(
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS headline_snapshot jsonb`,
+    );
+  } catch (e: any) {
+    console.error(`[ensure-schema] rendy_voice_projects.headline_snapshot: ${e.message}`);
   }
 
   for (const { step, sql } of statements) {

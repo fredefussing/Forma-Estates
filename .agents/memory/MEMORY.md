@@ -37,10 +37,9 @@
 - [Cookie banner is global](cookie-banner-global.md) — CookieBanner lives in client/src/components/cookie-banner.tsx and is mounted once in App.tsx; localStorage key "forma-cookie-consent"; all 7 locale files have cookie.* keys.
 - [Clean Rendy master videos](showcase-overlays.md) — store provider MP4s without visible AI/address/headline overlays; optional text belongs in a separate post-generation editor.
 - [Video transparency without obstructing Rendy](video-transparency-on-save.md) — Rendy previews and saved videos stay visually clean; provenance remains non-visual.
+- [Rendy post-generation text layers](rendy-post-generation-text-layers.md) — edit from a retained clean output; normalized font geometry; compose headline and captions once during voice export.
 - [Long-running server calls need timeouts](server-timeout-pattern.md) — fal.subscribe, Collov fetch, Tripo3D poll all have no built-in timeout; wrap with Promise.race/AbortController or they hang the route forever.
 - [Security hardening patterns](security-hardening.md) — adminPasswordOk() helper (timingSafeEqual), SSRF allowlist on proxy-image, admin pw via X-Admin-Pw header (not URL), rate limiter on admin login.
 - [Mockup sandbox isolation](mockup-sandbox-isolation.md) — sandbox cartographer can load the main app Tailwind config and cause a preview error overlay; keep sandbox Vite independent.
 - [Sandbox video preview codec](sandbox-video-preview-codec.md) — use VP9 WebM for derived browser previews when Rendy H.264 MP4 stays at readyState 0; preserve original deliveries separately.
 - [Frame-accurate preview clip cuts](ffmpeg-frame-accurate-clips.md) — always output-seek (-ss after -i) for derived scene clips; fast-seek snaps to keyframes and shows the wrong room; audit with timestamped contact sheets.
-- [Showcase video overlays](showcase-overlays.md) — burnShowcaseOverlays() burns EU badge + overskrift + address; always use textfile= not text= to avoid Danish special-char FFmpeg escaping issues.
-- [Video transparency on save](video-transparency-on-save.md) — previews stay clean; apply the AI-circle badge and XMP/C2PA-compatible data only to the saved delivery copy.

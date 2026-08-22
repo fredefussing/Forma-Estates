@@ -5867,6 +5867,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       <RendyVideoEditor
                         listingId={listingId}
                         sourceVideoId={video.id}
+                        sourceVideoUrl={video.url}
                         onOutputReady={() => {}}
                       />
                     )}

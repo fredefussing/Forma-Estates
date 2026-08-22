@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { RendyVoiceoverEditor } from "@/components/rendy-voiceover-editor";
+import { RendyHeadlineEditor } from "@/components/rendy-headline-editor";
 import {
   Check,
   ChevronDown,
@@ -14,6 +15,7 @@ import {
   Save,
   X,
 } from "lucide-react";
+import { DEFAULT_HEADLINE_SETTINGS, type HeadlineSettings } from "@shared/rendy-text";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,13 +57,21 @@ interface EditProject {
   status: "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
   manifest: Manifest | null;
   timeline: TimelineItem[];
+  headline?: HeadlineSettings;
   outputUrl?: string;
+  /** Clean assembled Edit export (no headline burned in). Used as the headline
+   *  preview base in the ready state so the preview is never contaminated by a
+   *  previously burned-in headline. Falls back to sourceVideoUrl when absent. */
+  cleanOutputUrl?: string;
   error?: string;
 }
 
 interface Props {
   listingId: string;
   sourceVideoId: string;
+  /** URL of the clean Rendy source delivery — used for HeadlineEditor preview
+   *  so the preview is never contaminated by previously burned headline text. */
+  sourceVideoUrl: string;
   onOutputReady: (url: string) => void;
 }
 
@@ -89,7 +99,7 @@ const POLLING_STATUSES: EditProject["status"][] = ["preparing", "analyzing", "re
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Props) {
+export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onOutputReady }: Props) {
   const { user } = useAuth();
 
   const [open, setOpen] = useState(false);
@@ -97,14 +107,22 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  // local timeline edits (mirrors project.timeline while editing)
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-  // which timeline slot has its candidate-picker open
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
+  // Headline state — always reset to proj.headline ?? DEFAULT on every project load/poll
+  const [headline, setHeadline] = useState<HeadlineSettings>(DEFAULT_HEADLINE_SETTINGS);
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onOutputReadyRef = useRef(onOutputReady);
   onOutputReadyRef.current = onOutputReady;
+
+  // ── Apply project helper — always syncs headline to proj value or DEFAULT ──
+  const applyProject = useCallback((proj: EditProject) => {
+    setProject(proj);
+    setTimeline(proj.timeline ?? []);
+    // Always reset — prevents stale local edits surviving across render cycles
+    setHeadline(proj.headline ?? DEFAULT_HEADLINE_SETTINGS);
+  }, []);
 
   // ── Auth fetch ──────────────────────────────────────────────────────────────
   const api = useCallback(
@@ -139,8 +157,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
       try {
         const data = await api(`/api/bolig/rendy/edit-projects/${id}`);
         const proj: EditProject = data.project;
-        setProject(proj);
-        setTimeline(proj.timeline ?? []);
+        applyProject(proj);
         if (POLLING_STATUSES.includes(proj.status)) {
           pollTimer.current = setTimeout(
             () => void poll(id, Math.min(delay * 1.4, 8000)),
@@ -156,7 +173,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
         setMessage(err instanceof Error ? err.message : "Fejl under opdatering");
       }
     },
-    [api, clearPoll],
+    [api, applyProject, clearPoll],
   );
 
   // ── Open: create or find existing project ──────────────────────────────────
@@ -170,8 +187,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
         body: JSON.stringify({ listingId, sourceVideoId }),
       });
       const proj: EditProject = data.project;
-      setProject(proj);
-      setTimeline(proj.timeline ?? []);
+      applyProject(proj);
       if (POLLING_STATUSES.includes(proj.status)) {
         void poll(proj.id);
       } else {
@@ -181,7 +197,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
       setBusy(false);
       setMessage(err instanceof Error ? err.message : "Kunne ikke oprette projekt");
     }
-  }, [api, listingId, poll, sourceVideoId]);
+  }, [api, applyProject, listingId, poll, sourceVideoId]);
 
   // ── Effects ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -197,7 +213,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
     }
   }, [project?.status, project?.outputUrl]);
 
-  // Resume polling if project is in a transient state when component mounts
   useEffect(() => {
     if (open && project && POLLING_STATUSES.includes(project.status) && !pollTimer.current) {
       void poll(project.id);
@@ -206,11 +221,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
 
   // ── Timeline mutations ──────────────────────────────────────────────────────
   const shots: Shot[] = project?.manifest?.shots ?? [];
-  // candidateIds currently in the timeline
   const timelineCandidateIds = new Set(timeline.map((t) => t.candidateId));
 
   function addShot(shot: Shot) {
-    // Default to first candidate not already in timeline, else first candidate
     const cand =
       shot.candidates.find((c) => !timelineCandidateIds.has(c.id)) ?? shot.candidates[0];
     if (!cand) return;
@@ -249,11 +262,10 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
     try {
       const data = await api(`/api/bolig/rendy/edit-projects/${project.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ timeline }),
+        body: JSON.stringify({ timeline, headline }),
       });
       const proj: EditProject = data.project;
-      setProject(proj);
-      setTimeline(proj.timeline ?? []);
+      applyProject(proj);
       return proj;
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : "Kunne ikke gemme");
@@ -261,14 +273,13 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
     } finally {
       setSaving(false);
     }
-  }, [api, project, timeline]);
+  }, [api, applyProject, headline, project, timeline]);
 
   const startRender = useCallback(async () => {
     if (!project) return;
     clearPoll();
     setBusy(true);
     setMessage("");
-    // Persist timeline first
     const patched = await patchTimeline();
     if (!patched) {
       setBusy(false);
@@ -280,14 +291,43 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
         method: "POST",
       });
       const proj: EditProject = data.project;
-      setProject(proj);
-      setTimeline(proj.timeline ?? []);
+      applyProject(proj);
       void poll(proj.id);
     } catch (err: unknown) {
       setBusy(false);
       setMessage(err instanceof Error ? err.message : "Rendering mislykkedes");
     }
-  }, [api, clearPoll, patchTimeline, poll, project]);
+  }, [api, applyProject, clearPoll, patchTimeline, poll, project]);
+
+  // ── Direct ready-state headline apply ──────────────────────────────────────
+  // Ready headline-only changes must NOT rebuild the timeline. This POSTs just
+  // the headline to a dedicated endpoint that re-burns text onto the existing
+  // clean Edit export, producing a new immutable output URL.
+  const applyHeadline = useCallback(async () => {
+    if (!project) return;
+    clearPoll();
+    setBusy(true);
+    setMessage("");
+    try {
+      const data = await api(
+        `/api/bolig/rendy/edit-projects/${project.id}/apply-headline`,
+        {
+          method: "POST",
+          body: JSON.stringify({ headline }),
+        },
+      );
+      const proj: EditProject = data.project;
+      applyProject(proj);
+      if (POLLING_STATUSES.includes(proj.status)) {
+        void poll(proj.id);
+      } else {
+        setBusy(false);
+      }
+    } catch (err: unknown) {
+      setBusy(false);
+      setMessage(err instanceof Error ? err.message : "Kunne ikke anvende overskrift");
+    }
+  }, [api, applyProject, clearPoll, headline, poll, project]);
 
   const retry = useCallback(async () => {
     if (!project) return;
@@ -299,18 +339,15 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
         method: "POST",
       });
       const proj: EditProject = data.project;
-      setProject(proj);
-      setTimeline(proj.timeline ?? []);
+      applyProject(proj);
       void poll(proj.id);
     } catch (err: unknown) {
       setBusy(false);
       setMessage(err instanceof Error ? err.message : "Prøv igen mislykkedes");
     }
-  }, [api, clearPoll, poll, project]);
+  }, [api, applyProject, clearPoll, poll, project]);
 
-  // A finished or failed project keeps its durable timeline. Reopening it
-  // explicitly PATCHes that timeline back to draft before exposing controls,
-  // rather than creating a second project for the same delivery.
+  // Reopen draft editing from a finished/failed project (patches headline too)
   const editTimeline = useCallback(async () => {
     if (!project) return;
     setMessage("");
@@ -320,13 +357,11 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
 
   const status = project?.status;
 
-  // ── Shot library helpers ───────────────────────────────────────────────────
-  // A shot is "in timeline" if any of its candidates are used in the timeline
+  // ── Shot library helpers ──────────────────────────────────────────────────
   function shotInTimeline(shot: Shot): boolean {
     return shot.candidates.some((c) => timelineCandidateIds.has(c.id));
   }
 
-  // candidateId used in timeline for a given shot (if any)
   function activeCandidateIdForShot(shot: Shot): string | null {
     for (const item of timeline) {
       if (item.shotId === shot.id) return item.candidateId;
@@ -334,7 +369,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
     return null;
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────────
   if (!open) {
     return (
       <div className="mt-2">
@@ -408,12 +443,11 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
         {/* Failed */}
         {status === "failed" && (
           <div className="space-y-2">
-            {project?.error && (
+            {project?.error ? (
               <p className="text-[11px] text-[#A34D43]" role="alert">
                 {project.error}
               </p>
-            )}
-            {!project?.error && (
+            ) : (
               <p className="text-[11px] text-[#A34D43]" role="alert">
                 Generering mislykkedes.
               </p>
@@ -440,7 +474,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
           </div>
         )}
 
-        {/* Ready */}
+        {/* Ready — show output, voiceover, AND headline editor.
+            HeadlineEditor.onApply = startRender so user can add/change/remove
+            headline by building a new immutable video from the clean source. */}
         {status === "ready" && project?.outputUrl && (
           <div className="space-y-2">
             <div
@@ -466,6 +502,20 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
               videoElementId={`rendy-edited-video-${project.id}`}
               onOutputReady={onOutputReady}
             />
+            {/* Headline editor in ready state:
+                - Preview base is the clean assembled Edit export (cleanOutputUrl)
+                  so the preview is never contaminated by a previously burned
+                  headline; falls back to the raw source if not yet available.
+                - Apply = applyHeadline re-burns text directly onto the existing
+                  clean export via a dedicated endpoint. It never rebuilds the
+                  timeline or PATCHes it for headline-only changes. */}
+            <RendyHeadlineEditor
+              sourceVideoUrl={project.cleanOutputUrl ?? sourceVideoUrl}
+              value={headline}
+              onChange={setHeadline}
+              onApply={applyHeadline}
+              applyBusy={busy}
+            />
             <button
               type="button"
               onClick={editTimeline}
@@ -479,7 +529,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
           </div>
         )}
 
-        {/* Draft / editing UI */}
+        {/* Draft / editing UI — headline editor available here too, before first export */}
         {(status === "draft" || (!status && !busy)) && shots.length > 0 && (
           <>
             {/* Timeline */}
@@ -514,7 +564,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                       className="rounded-lg border border-[#E1DAD2] bg-white p-2 space-y-1.5"
                     >
                       <div className="flex items-center gap-2">
-                        {/* Thumbnail */}
                         {cand?.thumbnailUrl ? (
                           <img
                             src={cand.thumbnailUrl}
@@ -524,8 +573,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                         ) : (
                           <div className="w-12 h-8 rounded bg-[#EDE8E3] flex-shrink-0" />
                         )}
-
-                        {/* Label + duration */}
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-semibold text-[#0F1D2F] truncate">
                             {shot.label}
@@ -536,8 +583,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                             </p>
                           )}
                         </div>
-
-                        {/* Controls */}
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             type="button"
@@ -576,7 +621,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                         </div>
                       </div>
 
-                      {/* Candidate picker */}
                       {isPicker && (
                         <div className="space-y-1">
                           <p className="text-[10px] text-[#77736D]">Vælg alternativt klip:</p>
@@ -589,7 +633,9 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                                 <button
                                   key={c.id}
                                   type="button"
-                                  onClick={() => !inUseElsewhere && selectCandidate(index, c.id)}
+                                  onClick={() =>
+                                    !inUseElsewhere && selectCandidate(index, c.id)
+                                  }
                                   disabled={inUseElsewhere}
                                   className={`rounded border px-2 py-1 text-[10px] font-semibold inline-flex flex-col items-center gap-0.5 disabled:opacity-40 ${
                                     isActive
@@ -633,7 +679,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                       key={shot.id}
                       className="flex items-center gap-2 rounded-lg border border-[#E1DAD2] bg-white p-2"
                     >
-                      {/* Thumbnail */}
                       {(activeCand ?? shot.candidates[0])?.thumbnailUrl ? (
                         <img
                           src={(activeCand ?? shot.candidates[0])!.thumbnailUrl}
@@ -643,8 +688,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                       ) : (
                         <div className="w-12 h-8 rounded bg-[#EDE8E3] flex-shrink-0" />
                       )}
-
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-semibold text-[#0F1D2F] truncate">
                           {shot.label}
@@ -655,8 +698,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                             ` · ${shot.candidates.length} varianter`}
                         </p>
                       </div>
-
-                      {/* Add / in-use badge */}
                       {inTimeline ? (
                         <span className="text-[10px] text-[#385B49] font-semibold flex items-center gap-0.5 flex-shrink-0">
                           <Check className="w-3 h-3" />
@@ -677,6 +718,16 @@ export function RendyVideoEditor({ listingId, sourceVideoId, onOutputReady }: Pr
                 })}
               </div>
             </div>
+
+            {/* Headline editor — available in draft state (pre-export).
+                Preview always uses clean sourceVideoUrl. */}
+            <RendyHeadlineEditor
+              sourceVideoUrl={sourceVideoUrl}
+              value={headline}
+              onChange={setHeadline}
+              onApply={startRender}
+              applyBusy={busy}
+            />
 
             {/* Actions */}
             <div className="flex gap-2">

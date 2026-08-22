@@ -5,6 +5,8 @@ import {
   AudioLines, Check, Download, FolderDown, Loader2, Mic, Pause, RotateCcw,
   Trash2, Upload, X,
 } from "lucide-react";
+import { RendyCaptionStyleEditor } from "@/components/rendy-caption-style-editor";
+import { DEFAULT_CAPTION_STYLE, type CaptionStyleSettings } from "@shared/rendy-text";
 
 export interface VoiceSegment {
   id: string;
@@ -20,6 +22,7 @@ export interface VoiceProject {
   language: string;
   segments: VoiceSegment[];
   subtitlesEnabled: boolean;
+  captionStyle?: CaptionStyleSettings;
   sourceUrl?: string;
   sourceInputUrl?: string;
   audioUrl?: string;
@@ -78,6 +81,7 @@ export function RendyVoiceoverEditor({
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [project, setProject] = useState<VoiceProject | null>(null);
+  const [captionStyle, setCaptionStyle] = useState<CaptionStyleSettings>(DEFAULT_CAPTION_STYLE);
   const [audio, setAudio] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState("");
   const [recording, setRecording] = useState(false);
@@ -178,18 +182,24 @@ export function RendyVoiceoverEditor({
     setMessage("");
   };
 
+  // Helper: apply project + sync captionStyle from it if present
+  const applyProject = useCallback((proj: VoiceProject | null) => {
+    setProject(proj);
+    if (proj?.captionStyle) setCaptionStyle(proj.captionStyle);
+  }, []);
+
   const loadProject = useCallback(async () => {
     if (!listingId || !sourceVideoId) return;
     try {
       const data = await api(
         `/api/bolig/rendy/voice-projects/by-video?listingId=${encodeURIComponent(listingId)}&videoId=${encodeURIComponent(sourceVideoId)}`,
       );
-      setProject(data.project || null);
+      applyProject(data.project || null);
       setMessage("");
     } catch {
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
-  }, [api, listingId, sourceVideoId, t]);
+  }, [api, applyProject, listingId, sourceVideoId, t]);
 
   // Voice preparation and export are asynchronous. Poll promptly while a job
   // is new, then back off gently so completed text/video appears quickly
@@ -198,7 +208,7 @@ export function RendyVoiceoverEditor({
     clearPoll();
     try {
       const data = await api(`/api/bolig/rendy/voice-projects/${id}`);
-      setProject(data.project);
+      applyProject(data.project);
       if (data.project.status === "processing" || data.project.status === "exporting") {
         pollTimer.current = setTimeout(
           () => void poll(id, Math.min(Math.round(delay * 1.25), 3000)),
@@ -213,7 +223,7 @@ export function RendyVoiceoverEditor({
       setBusy(false);
       setMessage(t("dashboard.showcase.voiceover.failed"));
     }
-  }, [api, clearPoll, t]);
+  }, [api, applyProject, clearPoll, t]);
 
   useEffect(() => {
     if (open) void loadProject();
@@ -372,7 +382,7 @@ export function RendyVoiceoverEditor({
         method: "POST",
         body: formData,
       });
-      setProject(data.project);
+      applyProject(data.project);
       setReplacementSourceUrl(null);
       clearLocalAudio();
       void poll(data.project.id);
@@ -387,7 +397,8 @@ export function RendyVoiceoverEditor({
     clearPoll();
     clearLocalAudio();
     setReplacementSourceUrl(project?.sourceInputUrl ?? sourceVideoUrl);
-    setProject(null);
+    applyProject(null);
+    setCaptionStyle(DEFAULT_CAPTION_STYLE);
     setMessage("");
   };
 
@@ -396,9 +407,9 @@ export function RendyVoiceoverEditor({
     const data = await api(`/api/bolig/rendy/voice-projects/${project.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ segments, subtitlesEnabled }),
+      body: JSON.stringify({ segments, subtitlesEnabled, captionStyle }),
     });
-    setProject(data.project);
+    applyProject(data.project);
   };
 
   const exportProject = async () => {
@@ -410,7 +421,7 @@ export function RendyVoiceoverEditor({
       const data = await api(`/api/bolig/rendy/voice-projects/${project.id}/export`, {
         method: "POST",
       });
-      setProject(data.project);
+      applyProject(data.project);
       void poll(project.id);
     } catch {
       setBusy(false);
@@ -426,7 +437,7 @@ export function RendyVoiceoverEditor({
       const data = await api(`/api/bolig/rendy/voice-projects/${project.id}/retry`, {
         method: "POST",
       });
-      setProject(data.project);
+      applyProject(data.project);
       void poll(project.id);
     } catch {
       setBusy(false);
@@ -628,6 +639,15 @@ export function RendyVoiceoverEditor({
                 <input type="checkbox" checked={project.subtitlesEnabled} onChange={(event) => setProject({ ...project, subtitlesEnabled: event.target.checked })} />
                 {t("dashboard.showcase.voiceover.subtitles")}
               </label>
+              {/* Caption style editor — shown when subtitles are enabled */}
+              {project.subtitlesEnabled && (
+                <RendyCaptionStyleEditor
+                  previewVideoUrl={project.sourceUrl ?? sourceVideoUrl}
+                  sampleText={project.segments.find((s) => !s.hidden)?.text ?? t("dashboard.showcase.captionStyle.sampleText")}
+                  value={captionStyle}
+                  onChange={setCaptionStyle}
+                />
+              )}
               <div className="flex gap-2">
                 <button type="button" onClick={reset} className="flex-1 h-9 rounded-lg border text-xs font-semibold">
                   <RotateCcw className="w-3 h-3 inline mr-1" />{t("dashboard.showcase.voiceover.replace")}

@@ -36,7 +36,18 @@ import {
 } from "./fal";
 import { runFfmpegQueued } from "./showcase";
 import { getRendyListing, verifyRendyOwnershipAndGetVideoUrl } from "./rendy";
-import { verifyRendyEditedVideoOwnership } from "./rendy-editor";
+import { verifyRendyEditedVideoOwnership, resolveEditSourceForVoiceover } from "./rendy-editor";
+import {
+  RENDY_TYPOGRAPHY_PRESETS,
+  DEFAULT_CAPTION_STYLE,
+  isRendyTypographyId,
+  CAPTION_SIZE_MIN,
+  CAPTION_SIZE_MAX,
+  type CaptionStyleSettings,
+  type CaptionContrast,
+  type CaptionPosition,
+  type HeadlineSettings,
+} from "../shared/rendy-text";
 
 // ── Allowed languages ──────────────────────────────────────────────────────────
 const ALLOWED_LANGUAGES = new Set(["da", "en", "de", "fr", "es", "nb", "sv"]);
@@ -66,6 +77,9 @@ interface VoiceProjectRow {
   language: string;
   segments: CaptionSegment[] | null;
   subtitles_enabled: boolean;
+  caption_style: CaptionStyleSettings | null;
+  /** Snapshot of edit project's HeadlineSettings at creation time; null for non-edit sources. */
+  headline_snapshot: HeadlineSettings | null;
   source_url: string | null;
   audio_url: string | null;
   output_url: string | null;
@@ -88,6 +102,7 @@ function toPublicProject(row: VoiceProjectRow) {
     language: row.language,
     segments: row.segments ?? [],
     subtitlesEnabled: row.subtitles_enabled,
+    captionStyle: row.caption_style ?? DEFAULT_CAPTION_STYLE,
     sourceUrl: row.source_url,
     sourceInputUrl: row.source_input_url,
     audioUrl: row.audio_url,
@@ -311,6 +326,35 @@ function normaliseForComparison(u: string): string {
     return u;
   }
 }
+/**
+ * Resolve an edit:<id> source for creation of a new voice project.
+ * Returns { validatedUrl, headlineSnapshot } where validatedUrl is the clean
+ * assembled URL (pre-headline burn) if available, falling back to output_url.
+ * Throws if ownership fails or URL does not match the stored output.
+ */
+async function resolveEditSource(
+  rawUrl: string,
+  listingId: string,
+  videoId: string,
+  userId: number,
+): Promise<{ validatedUrl: string; headlineSnapshot: HeadlineSettings | null }> {
+  const result = await resolveEditSourceForVoiceover(listingId, videoId, userId);
+  if (!result) throw new Error("Ikke et redigeret video-id");
+  // The client sends the output_url it knows about; the clean URL may differ.
+  // Accept if raw matches either the public output_url OR the clean_output_url.
+  const { sourceUrl, headlineSnapshot } = result;
+  const rawNorm = normaliseForComparison(rawUrl);
+  // Also fetch output_url for the compatibility check
+  const outputUrl = await verifyRendyEditedVideoOwnership(listingId, videoId, userId);
+  if (
+    outputUrl && rawNorm !== normaliseForComparison(outputUrl) &&
+    rawNorm !== normaliseForComparison(sourceUrl)
+  ) {
+    throw new Error("Kilde-URL matcher ikke den færdige redigerede video");
+  }
+  return { validatedUrl: sourceUrl, headlineSnapshot };
+}
+
 async function resolveSourceUrl(
   rawUrl: string,
   listingId: string,
@@ -321,11 +365,8 @@ async function resolveSourceUrl(
   // They are intentionally resolved before the provider-delivery check because
   // their id is not present in rendy_jobs.videos.
   if (videoId.startsWith("edit:")) {
-    const outputUrl = await verifyRendyEditedVideoOwnership(listingId, videoId, userId);
-    if (!outputUrl || normaliseForComparison(rawUrl) !== normaliseForComparison(outputUrl)) {
-      throw new Error("Kilde-URL matcher ikke den færdige redigerede video");
-    }
-    return outputUrl;
+    const { validatedUrl } = await resolveEditSource(rawUrl, listingId, videoId, userId);
+    return validatedUrl;
   }
   // ── 1. Verify ownership and get stored delivered URL ──────────────────────
   const { deliveredUrl, isLegacy } = await verifyRendyOwnershipAndGetVideoUrl(
@@ -478,6 +519,36 @@ async function probeDuration(videoPath: string): Promise<number | null> {
   });
 }
 
+/** Probe actual width and height of the first video stream. Returns null on failure. */
+async function probeVideoDimensions(videoPath: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const proc = spawn("ffprobe", [
+      "-v", "error",
+      "-select_streams", "v:0",
+      "-show_entries", "stream=width,height",
+      "-of", "csv=p=0",
+      videoPath,
+    ]);
+    let out = "";
+    const finish = (value: { width: number; height: number } | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    proc.stdout.on("data", (d: Buffer) => { out += d.toString(); });
+    const timer = setTimeout(() => { proc.kill("SIGKILL"); finish(null); }, 30_000);
+    proc.on("close", () => {
+      const parts = out.trim().split(",");
+      const w = parseInt(parts[0], 10);
+      const h = parseInt(parts[1], 10);
+      finish(isFinite(w) && w > 0 && isFinite(h) && h > 0 ? { width: w, height: h } : null);
+    });
+    proc.on("error", () => finish(null));
+  });
+}
+
 // ── ASS subtitle builder ───────────────────────────────────────────────────────
 
 function secondsToAssTime(s: number): string {
@@ -497,19 +568,86 @@ function sanitizeAssText(raw: string): string {
     .replace(/\r?\n/g, "\\N");
 }
 
-function buildAssSubtitles(segments: CaptionSegment[]): string {
+/**
+ * Build an ASS subtitle file using actual video dimensions and the user's
+ * chosen caption style preset. Never uses hardcoded dimensions.
+ *
+ * @param segments   Active caption segments (not hidden, non-empty text).
+ * @param style      Caption style settings (font, size, contrast, position).
+ * @param videoW     Actual target video width in pixels.
+ * @param videoH     Actual target video height in pixels.
+ */
+function buildAssSubtitles(
+  segments: CaptionSegment[],
+  style: CaptionStyleSettings,
+  videoW: number,
+  videoH: number,
+): string {
+  const preset = RENDY_TYPOGRAPHY_PRESETS.find(p => p.id === style.fontId) ?? RENDY_TYPOGRAPHY_PRESETS[1];
+  const fontSize = Math.round(style.size * videoH);
+
+  // Vertical placement — margin from bottom (or top for "high")
+  // ASS alignment: 2 = bottom-center, 8 = top-center, 5 = center-middle
+  let alignment: number;
+  let marginV: number;
+  switch (style.position) {
+    case "high":
+      alignment = 8;  // top-center
+      marginV = Math.round(videoH * 0.08);
+      break;
+    case "center":
+      alignment = 5;  // middle-center
+      marginV = 0;
+      break;
+    case "low":
+    default:
+      alignment = 2;  // bottom-center
+      marginV = Math.round(videoH * 0.06);
+      break;
+  }
+
+  const marginH = Math.round(videoW * 0.05);
+
+  // Contrast treatment — maps to ASS BorderStyle + Outline + Shadow + BackColour
+  let borderStyle: number;
+  let outline: number;
+  let shadow: number;
+  let backColour: string;
+
+  switch (style.contrast as CaptionContrast) {
+    case "box":
+      // Solid opaque box background
+      borderStyle = 3;
+      outline = 0;
+      shadow = 0;
+      backColour = "&H99080604";
+      break;
+    case "outline":
+      // Hard outline, no shadow, transparent background
+      borderStyle = 1;
+      outline = 2;
+      shadow = 0;
+      backColour = "&H00000000";
+      break;
+    case "shadow":
+    default:
+      // Soft drop shadow, no outline
+      borderStyle = 1;
+      outline = 0;
+      shadow = Math.max(1, Math.round(fontSize * 0.04));
+      backColour = "&H88080604";
+      break;
+  }
+
   const header =
     "[Script Info]\n" +
     "ScriptType: v4.00+\n" +
-    "PlayResX: 1080\n" +
-    "PlayResY: 1920\n" +
+    `PlayResX: ${videoW}\n` +
+    `PlayResY: ${videoH}\n` +
     "ScaledBorderAndShadow: yes\n\n" +
     "[V4+ Styles]\n" +
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
-    // Editorial property-magazine typography: high-contrast Cormorant
-    // Garamond in warm white, with no outline and only a subtle soft shadow.
-    // The semi-bold cut preserves the fine serif character on phone screens.
-    "Style: Premium,Cormorant Garamond SemiBold,70,&H00F1EEE6,&H000000FF,&H00110F0C,&H88080604,0,0,0,0,100,100,1.0,0,1,0,0.65,2,108,108,230,1\n\n" +
+    `Style: Caption,${preset.assFontName},${fontSize},&H00F1EEE6,&H000000FF,&H00110F0C,${backColour},${preset.assBold},${preset.assItalic},0,0,100,100,${preset.assSpacing},0,${borderStyle},${outline},${shadow},${alignment},${marginH},${marginH},${marginV},1\n\n` +
     "[Events]\n" +
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
 
@@ -517,11 +655,104 @@ function buildAssSubtitles(segments: CaptionSegment[]): string {
     .filter((s) => !s.hidden && s.text.trim())
     .map((s) => {
       const text = sanitizeAssText(s.text);
-      return `Dialogue: 0,${secondsToAssTime(s.start)},${secondsToAssTime(s.end)},Premium,,0,0,0,,${text}`;
+      return `Dialogue: 0,${secondsToAssTime(s.start)},${secondsToAssTime(s.end)},Caption,,0,0,0,,${text}`;
     })
     .join("\n");
 
   return header + events + "\n";
+}
+
+/**
+ * Build a single combined ASS script that may contain both:
+ *   - A `Caption` style + events (from subtitle segments)
+ *   - A `Headline` style + event (from an edit-project headline snapshot)
+ *
+ * Having one script and one `-vf ass=...` filter is more reliable than chaining
+ * two separate ass filters, and avoids double-encoding.
+ *
+ * @param segments       Caption segments to render (filtered: not hidden, non-empty).
+ * @param captionStyle   Caption style settings.
+ * @param headline       Headline snapshot from the edit project, or null.
+ * @param videoW         Video width in pixels.
+ * @param videoH         Video height in pixels.
+ * @param sourceDuration Video duration in seconds — used to clip headline timing.
+ */
+export function buildCombinedAss(
+  segments: CaptionSegment[],
+  captionStyle: CaptionStyleSettings,
+  headline: HeadlineSettings | null,
+  videoW: number,
+  videoH: number,
+  sourceDuration: number,
+): string {
+  // ── Caption style params ─────────────────────────────────────────────────────
+  const captionPreset = RENDY_TYPOGRAPHY_PRESETS.find(p => p.id === captionStyle.fontId) ?? RENDY_TYPOGRAPHY_PRESETS[1];
+  const captionFontSize = Math.round(captionStyle.size * videoH);
+
+  let capAlignment: number;
+  let capMarginV: number;
+  switch (captionStyle.position) {
+    case "high":   capAlignment = 8; capMarginV = Math.round(videoH * 0.08); break;
+    case "center": capAlignment = 5; capMarginV = 0; break;
+    case "low":
+    default:       capAlignment = 2; capMarginV = Math.round(videoH * 0.06); break;
+  }
+  const capMarginH = Math.round(videoW * 0.05);
+
+  let capBorderStyle: number;
+  let capOutline: number;
+  let capShadow: number;
+  let capBackColour: string;
+  switch (captionStyle.contrast as CaptionContrast) {
+    case "box":
+      capBorderStyle = 3; capOutline = 0; capShadow = 0; capBackColour = "&H99080604"; break;
+    case "outline":
+      capBorderStyle = 1; capOutline = 2; capShadow = 0; capBackColour = "&H00000000"; break;
+    case "shadow":
+    default:
+      capBorderStyle = 1; capOutline = 0;
+      capShadow = Math.max(1, Math.round(captionFontSize * 0.04));
+      capBackColour = "&H88080604"; break;
+  }
+
+  const capStyleLine = `Style: Caption,${captionPreset.assFontName},${captionFontSize},&H00F1EEE6,&H000000FF,&H00110F0C,${capBackColour},${captionPreset.assBold},${captionPreset.assItalic},0,0,100,100,${captionPreset.assSpacing},0,${capBorderStyle},${capOutline},${capShadow},${capAlignment},${capMarginH},${capMarginH},${capMarginV},1`;
+
+  // ── Headline style params ────────────────────────────────────────────────────
+  let hlStyleLine = "";
+  let hlEvent = "";
+  const wantHeadline = headline && headline.enabled && headline.text.trim().length > 0;
+  if (wantHeadline && headline) {
+    const hlPreset = RENDY_TYPOGRAPHY_PRESETS.find(p => p.id === headline.fontId) ?? RENDY_TYPOGRAPHY_PRESETS[1];
+    const hlFontSize = Math.round(headline.size * videoH);
+    const hlStart = Math.max(0, Math.min(headline.start, sourceDuration));
+    const hlEnd   = Math.max(hlStart + 0.04, Math.min(headline.end, sourceDuration));
+    const hlPosX  = Math.round(headline.x * videoW);
+    const hlPosY  = Math.round(headline.y * videoH);
+    const displayText = hlPreset.assUppercase ? headline.text.toUpperCase() : headline.text;
+    hlStyleLine = `\nStyle: Headline,${hlPreset.assFontName},${hlFontSize},&H00F1EEE6,&H000000FF,&H00110F0C,&H88080604,${hlPreset.assBold},${hlPreset.assItalic},0,0,100,100,${hlPreset.assSpacing},0,1,0,0.65,5,0,0,0,1`;
+    hlEvent = `\nDialogue: 1,${secondsToAssTime(hlStart)},${secondsToAssTime(hlEnd)},Headline,,0,0,0,,{\\pos(${hlPosX},${hlPosY})}${sanitizeAssText(displayText)}`;
+  }
+
+  // ── Assemble script ──────────────────────────────────────────────────────────
+  const script =
+    "[Script Info]\n" +
+    "ScriptType: v4.00+\n" +
+    `PlayResX: ${videoW}\n` +
+    `PlayResY: ${videoH}\n` +
+    "ScaledBorderAndShadow: yes\n\n" +
+    "[V4+ Styles]\n" +
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
+    capStyleLine +
+    hlStyleLine +
+    "\n\n[Events]\n" +
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+
+  const captionEvents = segments
+    .filter(s => !s.hidden && s.text.trim())
+    .map(s => `Dialogue: 0,${secondsToAssTime(s.start)},${secondsToAssTime(s.end)},Caption,,0,0,0,,${sanitizeAssText(s.text)}`)
+    .join("\n");
+
+  return script + captionEvents + hlEvent + "\n";
 }
 
 // ── Caption segment grouper ───────────────────────────────────────────────────
@@ -737,18 +968,44 @@ async function runExport(projectId: number, leaseToken: string, uploadDir: strin
     );
     if (audioTmp) tmpFiles.push(audioPath);
 
-    const [hasSourceAudio, sourceDuration] = await Promise.all([
+    const [hasSourceAudio, sourceDuration, videoDims] = await Promise.all([
       probeHasAudio(srcVideoPath),
       probeDuration(srcVideoPath),
+      probeVideoDimensions(srcVideoPath),
     ]);
     if (!sourceDuration) throw new Error("Source video duration could not be determined");
 
+    // Resolve caption style — use stored style or fall back to default
+    const captionStyle: CaptionStyleSettings = project.caption_style ?? DEFAULT_CAPTION_STYLE;
+    // Use actual probed dimensions; fall back to portrait 1080×1920 if probe fails
+    const videoW = videoDims?.width ?? 1080;
+    const videoH = videoDims?.height ?? 1920;
+
+    // The headline snapshot is stored at voice project creation from the edit project.
+    // It is null for non-edit sources or when the edit project had no active headline.
+    const headlineSnapshot = project.headline_snapshot ?? null;
+
+    // Build a single combined ASS script for both captions and headline (if any).
+    // Using one script + one ass= filter avoids re-encoding the video twice.
     let assPath: string | null = null;
     const enabledSegments = (segments ?? []).filter((s: CaptionSegment) => !s.hidden && s.text.trim());
-    if (subtitles_enabled && enabledSegments.length > 0) {
+    const wantCaptions = subtitles_enabled && enabledSegments.length > 0;
+    const wantHeadline = headlineSnapshot && headlineSnapshot.enabled && headlineSnapshot.text.trim().length > 0;
+    if (wantCaptions || wantHeadline) {
       assPath = path.join(os.tmpdir(), `rvp-subs-${stamp}.ass`);
       tmpFiles.push(assPath);
-      fs.writeFileSync(assPath, buildAssSubtitles(enabledSegments), "utf8");
+      fs.writeFileSync(
+        assPath,
+        buildCombinedAss(
+          wantCaptions ? enabledSegments : [],
+          captionStyle,
+          wantHeadline ? headlineSnapshot! : null,
+          videoW,
+          videoH,
+          sourceDuration,
+        ),
+        "utf8",
+      );
     }
 
     const outputName = `rvp-output-${projectId}-${stamp}.mp4`;
@@ -1093,8 +1350,17 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
         const lang = ALLOWED_LANGUAGES.has(rawLang) ? rawLang : "da";
 
         let validatedUrl: string;
+        let headlineSnapshot: HeadlineSettings | null = null;
         try {
-          validatedUrl = await resolveSourceUrl(sourceVideoUrl, listingId, sourceVideoId, userId);
+          if (sourceVideoId.startsWith("edit:")) {
+            // For edit sources, resolve the clean assembled URL and snapshot the headline
+            // at creation time so later edits to the edit project don't affect this export.
+            const editResult = await resolveEditSource(sourceVideoUrl, listingId, sourceVideoId, userId);
+            validatedUrl = editResult.validatedUrl;
+            headlineSnapshot = editResult.headlineSnapshot;
+          } else {
+            validatedUrl = await resolveSourceUrl(sourceVideoUrl, listingId, sourceVideoId, userId);
+          }
         } catch (err: any) {
           await fs.promises.unlink(uploadedPath).catch(() => {});
           uploadedPath = undefined;
@@ -1113,10 +1379,12 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
         const insertRes = await pool.query<{ id: number }>(
           `INSERT INTO rendy_voice_projects
              (user_id, listing_id, source_video_id, status, language, source_input_url,
-              lease_token, lease_expires_at)
-           VALUES ($1, $2, $3, 'processing', $4, $5, $6, $7)
+              headline_snapshot, lease_token, lease_expires_at)
+           VALUES ($1, $2, $3, 'processing', $4, $5, $6::jsonb, $7, $8)
            RETURNING id`,
-          [userId, listingId, sourceVideoId, lang, validatedUrl, token, expiresAt],
+          [userId, listingId, sourceVideoId, lang, validatedUrl,
+           headlineSnapshot != null ? JSON.stringify(headlineSnapshot) : null,
+           token, expiresAt],
         );
         const projectId = insertRes.rows[0].id;
         claimedProjectId = projectId;
@@ -1225,7 +1493,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
         return res.status(409).json({ success: false, message: "Segmenter kan kun redigeres i review-tilstand" });
       }
 
-      const { segments, subtitlesEnabled } = req.body;
+      const { segments, subtitlesEnabled, captionStyle } = req.body;
 
       let validatedSegments: CaptionSegment[] | undefined;
       if (segments !== undefined) {
@@ -1261,6 +1529,40 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
         });
       }
 
+      // Validate captionStyle if provided
+      let validatedCaptionStyle: CaptionStyleSettings | null | undefined;
+      if (captionStyle !== undefined) {
+        if (captionStyle === null) {
+          validatedCaptionStyle = null; // reset to default
+        } else if (typeof captionStyle !== "object" || Array.isArray(captionStyle)) {
+          return res.status(400).json({ success: false, message: "captionStyle skal være et objekt" });
+        } else {
+          const cs = captionStyle as Record<string, unknown>;
+
+          if (!isRendyTypographyId(cs.fontId)) {
+            return res.status(400).json({ success: false, message: "captionStyle.fontId er ikke et gyldigt skrifttype-id" });
+          }
+          const size = Number(cs.size);
+          if (!Number.isFinite(size) || size < CAPTION_SIZE_MIN || size > CAPTION_SIZE_MAX) {
+            return res.status(400).json({ success: false, message: `captionStyle.size skal være et tal mellem ${CAPTION_SIZE_MIN} og ${CAPTION_SIZE_MAX}` });
+          }
+          const VALID_CONTRASTS: CaptionContrast[] = ["shadow", "box", "outline"];
+          if (!VALID_CONTRASTS.includes(cs.contrast as CaptionContrast)) {
+            return res.status(400).json({ success: false, message: "captionStyle.contrast skal være 'shadow', 'box' eller 'outline'" });
+          }
+          const VALID_POSITIONS: CaptionPosition[] = ["high", "center", "low"];
+          if (!VALID_POSITIONS.includes(cs.position as CaptionPosition)) {
+            return res.status(400).json({ success: false, message: "captionStyle.position skal være 'high', 'center' eller 'low'" });
+          }
+          validatedCaptionStyle = {
+            fontId: cs.fontId,
+            size,
+            contrast: cs.contrast as CaptionContrast,
+            position: cs.position as CaptionPosition,
+          };
+        }
+      }
+
       const updatedResult = await pool.query<VoiceProjectRow>(
         `UPDATE rendy_voice_projects
             SET segments = CASE
@@ -1268,6 +1570,10 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
                   ELSE $1::jsonb
                 END,
                 subtitles_enabled = COALESCE($2::boolean, subtitles_enabled),
+                caption_style = CASE
+                  WHEN $5::text = '__omit__' THEN caption_style
+                  ELSE $5::jsonb
+                END,
                 updated_at = NOW()
           WHERE id = $3 AND user_id = $4 AND status = 'review'
           RETURNING *`,
@@ -1276,6 +1582,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
           typeof subtitlesEnabled === "boolean" ? subtitlesEnabled : null,
           id,
           userId,
+          validatedCaptionStyle === undefined ? "__omit__" : JSON.stringify(validatedCaptionStyle),
         ],
       );
       const updated = updatedResult.rows[0];

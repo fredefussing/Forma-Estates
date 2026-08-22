@@ -18,6 +18,17 @@ import { verifyFirebaseToken } from "./firebase-admin";
 import { storage } from "./storage";
 import { r2GetStream, r2UploadFile } from "./r2";
 import { runFfmpegQueued } from "./showcase";
+import {
+  RENDY_TYPOGRAPHY_PRESETS,
+  DEFAULT_HEADLINE_SETTINGS,
+  isRendyTypographyId,
+  HEADLINE_SIZE_MIN,
+  HEADLINE_SIZE_MAX,
+  HEADLINE_POSITION_MIN,
+  HEADLINE_POSITION_MAX_X,
+  HEADLINE_POSITION_MAX_Y,
+  type HeadlineSettings,
+} from "../shared/rendy-text";
 
 const LEASE_TTL_MS = 5 * 60 * 1000;
 const MAX_SOURCE_BYTES = 500 * 1024 * 1024;
@@ -26,7 +37,7 @@ const SCENE_THRESHOLD = 0.32;
 const MAX_SCENES_PER_DELIVERY = 40;
 
 type ProjectStatus = "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
-type JobStage = "prepare" | "analyze" | "render";
+type JobStage = "prepare" | "analyze" | "render" | "headline";
 
 interface DeliveredVideo {
   id: string;
@@ -104,9 +115,12 @@ interface ProjectRow {
   manifest_revision: number | null;
   timeline: TimelineItem[] | null;
   analysis_plan: EditPlan | null;
+  headline: HeadlineSettings | null;
   status: ProjectStatus;
   job_stage: JobStage | null;
   output_url: string | null;
+  /** Clean assembled output before headline burn (private — not exposed in public API). */
+  clean_output_url: string | null;
   error: string | null;
   lease_token: string | null;
   lease_expires_at: Date | null;
@@ -139,8 +153,12 @@ function toPublicProject(row: ProjectRow, manifest: RendyShotManifest | null) {
     manifestRevision: row.manifest_revision,
     manifest: toPublicManifest(manifest),
     timeline: row.timeline ?? [],
+    headline: row.headline ?? DEFAULT_HEADLINE_SETTINGS,
     status: row.status,
     outputUrl: row.output_url,
+    // Clean assembled master (pre-headline). Exposed only via owner-scoped
+    // responses so the client can preview / compose without the burned headline.
+    cleanOutputUrl: row.clean_output_url,
     error: row.error,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -180,6 +198,10 @@ export async function ensureRendyEditorTables() {
   await pool.query(`CREATE INDEX IF NOT EXISTS rendy_edit_projects_owner_idx ON rendy_edit_projects (user_id, listing_id, created_at DESC)`);
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS rendy_edit_projects_source_unique_idx ON rendy_edit_projects (user_id, listing_id, source_video_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS rendy_edit_projects_recovery_idx ON rendy_edit_projects (lease_expires_at) WHERE status IN ('preparing', 'analyzing', 'rendering')`);
+  // Additive: headline text layer (nullable jsonb — null = disabled/default)
+  await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS headline jsonb`);
+  // Additive: clean assembled output before headline burn (private, used by voiceover layer)
+  await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS clean_output_url text`);
 }
 
 async function requireUser(req: Request): Promise<{ userId: number }> {
@@ -472,6 +494,64 @@ function timelineForSource(manifest: RendyShotManifest, sourceVideoId: string): 
   });
 }
 
+/**
+ * Strictly validate an inbound headline object from a PATCH request body.
+ * Returns a sanitised HeadlineSettings or throws a 400 error.
+ * Accepts null/undefined to mean "clear to default (disabled)".
+ */
+function validateHeadline(raw: unknown): HeadlineSettings | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw Object.assign(new Error("headline skal være et objekt"), { status: 400 });
+  }
+  const h = raw as Record<string, unknown>;
+
+  const enabled = h.enabled;
+  if (typeof enabled !== "boolean") {
+    throw Object.assign(new Error("headline.enabled skal være boolean"), { status: 400 });
+  }
+
+  const text = h.text;
+  if (typeof text !== "string") {
+    throw Object.assign(new Error("headline.text skal være en tekststreng"), { status: 400 });
+  }
+  if (text.length > 120) {
+    throw Object.assign(new Error("headline.text må højst have 120 tegn"), { status: 400 });
+  }
+
+  const fontId = h.fontId;
+  if (!isRendyTypographyId(fontId)) {
+    throw Object.assign(new Error("headline.fontId er ikke et gyldigt skrifttype-id"), { status: 400 });
+  }
+
+  const size = Number(h.size);
+  if (!Number.isFinite(size) || size < HEADLINE_SIZE_MIN || size > HEADLINE_SIZE_MAX) {
+    throw Object.assign(new Error(`headline.size skal være et tal mellem ${HEADLINE_SIZE_MIN} og ${HEADLINE_SIZE_MAX}`), { status: 400 });
+  }
+
+  const x = Number(h.x);
+  if (!Number.isFinite(x) || x < HEADLINE_POSITION_MIN || x > HEADLINE_POSITION_MAX_X) {
+    throw Object.assign(new Error(`headline.x skal være et tal i sikker zone [${HEADLINE_POSITION_MIN}, ${HEADLINE_POSITION_MAX_X}]`), { status: 400 });
+  }
+
+  const y = Number(h.y);
+  if (!Number.isFinite(y) || y < HEADLINE_POSITION_MIN || y > HEADLINE_POSITION_MAX_Y) {
+    throw Object.assign(new Error(`headline.y skal være et tal i sikker zone [${HEADLINE_POSITION_MIN}, ${HEADLINE_POSITION_MAX_Y}]`), { status: 400 });
+  }
+
+  const start = Number(h.start);
+  if (!Number.isFinite(start) || start < 0 || start > 1800) {
+    throw Object.assign(new Error("headline.start skal være et tal i [0, 1800]"), { status: 400 });
+  }
+
+  const end = Number(h.end);
+  if (!Number.isFinite(end) || end <= start || end > 1800) {
+    throw Object.assign(new Error("headline.end skal være et tal i (start, 1800]"), { status: 400 });
+  }
+
+  return { enabled, text: text.trim(), fontId, size, x, y, start, end };
+}
+
 function validateTimeline(manifest: RendyShotManifest, timeline: unknown): TimelineItem[] {
   if (!Array.isArray(timeline) || !timeline.length) throw Object.assign(new Error("Vælg mindst ét komplet klip til videoen"), { status: 400 });
   if (timeline.length > manifest.shots.length) throw Object.assign(new Error("Tidslinjen indeholder for mange klip"), { status: 400 });
@@ -656,6 +736,64 @@ function finalRenderArgs(normalizedPaths: string[], outputPath: string, plan: Ed
   return [...args, "-filter_complex", filter.slice(0, -1), "-map", "[vout]", "-map", "[aout]", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", outputPath];
 }
 
+// ── ASS headline builder ──────────────────────────────────────────────────────
+
+function secondsToAssTime(s: number): string {
+  const totalCentiseconds = Math.max(0, Math.round(s * 100));
+  const h = Math.floor(totalCentiseconds / 360_000);
+  const m = Math.floor((totalCentiseconds % 360_000) / 6_000);
+  const sec = Math.floor((totalCentiseconds % 6_000) / 100);
+  const frac = totalCentiseconds % 100;
+  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(frac).padStart(2, "0")}`;
+}
+
+function sanitizeAssText(raw: string): string {
+  return raw
+    .replace(/\{[^}]*\}/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\r?\n/g, "\\N");
+}
+
+/**
+ * Build an ASS file for a single headline text layer.
+ * x/y are normalised [0,1] fractions of frame dimensions.
+ * size is a fraction of frame height (e.g. 0.08 = 8 % of H).
+ * Timing is clipped to [0, outputDuration].
+ */
+function buildAssHeadline(hl: HeadlineSettings, targetW: number, targetH: number, outputDuration: number): string {
+  const preset = RENDY_TYPOGRAPHY_PRESETS.find(p => p.id === hl.fontId) ?? RENDY_TYPOGRAPHY_PRESETS[1];
+  const fontSize = Math.round(hl.size * targetH);
+  // ASS alignment=5 = center-middle; we use absolute position override {\pos(x,y)}
+  const posX = Math.round(hl.x * targetW);
+  const posY = Math.round(hl.y * targetH);
+  const start = Math.max(0, Math.min(hl.start, outputDuration));
+  const end = Math.max(start + 0.04, Math.min(hl.end, outputDuration));
+
+  // Uppercase transform must be applied in JS since ASS has no text-transform
+  const displayText = preset.assUppercase
+    ? hl.text.toUpperCase()
+    : hl.text;
+
+  const header =
+    "[Script Info]\n" +
+    "ScriptType: v4.00+\n" +
+    `PlayResX: ${targetW}\n` +
+    `PlayResY: ${targetH}\n` +
+    "ScaledBorderAndShadow: yes\n\n" +
+    "[V4+ Styles]\n" +
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
+    // Warm white, no outline, soft drop shadow, center-aligned
+    `Style: Headline,${preset.assFontName},${fontSize},&H00F1EEE6,&H000000FF,&H00110F0C,&H88080604,${preset.assBold},${preset.assItalic},0,0,100,100,${preset.assSpacing},0,1,0,0.65,5,0,0,0,1\n\n` +
+    "[Events]\n" +
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+
+  const posTag = `{\\pos(${posX},${posY})}`;
+  const text = posTag + sanitizeAssText(displayText);
+  const event = `Dialogue: 0,${secondsToAssTime(start)},${secondsToAssTime(end)},Headline,,0,0,0,,${text}`;
+  return header + event + "\n";
+}
+
 async function runRender(id: string, token: string, uploadDir: string) {
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-render-"));
   try {
@@ -682,17 +820,60 @@ async function runRender(id: string, token: string, uploadDir: string) {
       normalized.push(output);
     }
     await pool.query(`UPDATE rendy_edit_projects SET status = 'rendering', job_stage = 'render', updated_at = NOW() WHERE id = $1 AND lease_token = $2`, [id, token]);
-    const outputName = `rendy-edit-${id}-${Date.now()}.mp4`;
-    const outputPath = path.join(uploadDir, outputName);
-    await runFfmpegQueued(finalRenderArgs(normalized, outputPath, plan));
-    await r2UploadFile(outputPath, outputName);
+
+    const ts = Date.now();
+    // The clean assembled output (no headline burn) is always produced.
+    // It is stored durably so that a voiceover layer can source clean frames
+    // and burn headline + captions in a single pass without re-encoding a
+    // headline-burned file.
+    const cleanName = `rendy-edit-clean-${id}-${ts}.mp4`;
+    const cleanPath = path.join(tempDir, cleanName);
+    await runFfmpegQueued(finalRenderArgs(normalized, cleanPath, plan));
+    await r2UploadFile(cleanPath, cleanName);
+    const cleanUrl = `/uploads/${cleanName}`;
+
+    // Determine whether a headline overlay is needed
+    const headline = project.headline;
+    const wantHeadline = headline && headline.enabled && headline.text.trim().length > 0;
+
+    let outputUrl: string;
+    if (wantHeadline) {
+      // Burn headline onto the clean assembled output
+      const headlineName = `rendy-edit-${id}-${ts}.mp4`;
+      const headlinePath = path.join(uploadDir, headlineName);
+      const assPath = path.join(tempDir, "headline.ass");
+      const fontsDir = path.join(process.cwd(), "public", "fonts");
+      const escapeAssFilterPath = (v: string) =>
+        v.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
+      fs.writeFileSync(assPath, buildAssHeadline(headline, targetW, targetH, plan.totalDuration), "utf8");
+      await runFfmpegQueued([
+        "-y", "-i", cleanPath,
+        "-vf", `ass='${escapeAssFilterPath(assPath)}':fontsdir='${escapeAssFilterPath(fontsDir)}'`,
+        "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+        "-c:a", "copy",
+        "-movflags", "+faststart",
+        headlinePath,
+      ]);
+      await r2UploadFile(headlinePath, headlineName);
+      outputUrl = `/uploads/${headlineName}`;
+      fs.promises.unlink(headlinePath).catch(() => {});
+    } else {
+      // No headline: the public output IS the clean output — no duplicate upload
+      outputUrl = cleanUrl;
+    }
+
     await pool.query(
       `UPDATE rendy_edit_projects
-          SET status = 'ready', output_url = $1, error = NULL, lease_token = NULL, lease_expires_at = NULL, updated_at = NOW()
-        WHERE id = $2 AND lease_token = $3`,
-      [`/uploads/${outputName}`, id, token],
+          SET status = 'ready',
+              output_url = $1,
+              clean_output_url = $2,
+              error = NULL,
+              lease_token = NULL,
+              lease_expires_at = NULL,
+              updated_at = NOW()
+        WHERE id = $3 AND lease_token = $4`,
+      [outputUrl, cleanUrl, id, token],
     );
-    fs.promises.unlink(outputPath).catch(() => {});
     clearOwnedHeartbeat(id, token);
   } catch (error) {
     await failProject(id, token, error);
@@ -719,12 +900,152 @@ async function runAnalysisAndRender(id: string, token: string, uploadDir: string
   }
 }
 
+// ── Direct headline overlay (single text pass over an existing clean master) ──
+
+/**
+ * Build ffmpeg args that burn a single headline ASS layer onto an already
+ * assembled clean master in ONE pass. Video is re-encoded (text burn requires
+ * it); any existing audio stream is copied verbatim so the master's audio is
+ * preserved. Pure helper — exported for focused testing.
+ *
+ * @param inputPath  Path to the clean master MP4 (never a headline-burned file).
+ * @param assPath    Path to the ASS script produced by buildAssHeadline.
+ * @param fontsDir   Directory containing bundled fonts.
+ * @param outputPath Destination for the new immutable output MP4.
+ * @param hasAudio   Whether the clean master carries an audio stream.
+ */
+export function buildHeadlineOverlayArgs(
+  inputPath: string,
+  assPath: string,
+  fontsDir: string,
+  outputPath: string,
+  hasAudio: boolean,
+): string[] {
+  const escapeAssFilterPath = (v: string) =>
+    v.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
+  const args = [
+    "-y", "-i", inputPath,
+    "-vf", `ass='${escapeAssFilterPath(assPath)}':fontsdir='${escapeAssFilterPath(fontsDir)}'`,
+    "-map", "0:v:0",
+  ];
+  if (hasAudio) {
+    args.push("-map", "0:a:0?", "-c:a", "copy");
+  } else {
+    args.push("-an");
+  }
+  args.push(
+    "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+    "-movflags", "+faststart",
+    outputPath,
+  );
+  return args;
+}
+
+/**
+ * Direct ready-headline apply worker.
+ *
+ * Renders a NEW immutable output MP4 by burning the persisted headline onto the
+ * durable clean master, then atomically swaps output_url on success. It never
+ * rebuilds clips, never touches clean_output_url, and never uses an already
+ * headline-burned output as the clean source.
+ *
+ * The previous output_url stays live until the new render succeeds, so a
+ * failure leaves the project retryable with its prior output intact.
+ */
+async function runHeadlineApply(id: string, token: string, uploadDir: string) {
+  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-headline-"));
+  try {
+    const project = await getProject(id);
+    if (!project) throw new Error("Redigeringsprojektet findes ikke");
+
+    const headline = project.headline;
+    const wantHeadline = !!(headline && headline.enabled && headline.text.trim().length > 0);
+
+    // Resolve the clean master. Prefer the durable clean_output_url. Legacy rows
+    // rendered before clean_output_url existed predate headlines entirely, so
+    // their output_url is guaranteed un-burned and is a safe fallback. Once a
+    // headline has been applied the row always has clean_output_url set, so we
+    // never fall back to a possibly-burned output_url in that case.
+    const cleanUrl = project.clean_output_url ?? project.output_url;
+    if (!cleanUrl) throw new Error("Der findes ingen ren video at lægge overskrift på");
+
+    if (!wantHeadline) {
+      // Disabled/blank: no FFmpeg. Point the public output back at the clean
+      // master and mark ready. clean_output_url is left intact.
+      await pool.query(
+        `UPDATE rendy_edit_projects
+            SET status = 'ready',
+                output_url = $1,
+                clean_output_url = COALESCE(clean_output_url, $1),
+                job_stage = NULL,
+                error = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                updated_at = NOW()
+          WHERE id = $2 AND lease_token = $3`,
+        [cleanUrl, id, token],
+      );
+      clearOwnedHeartbeat(id, token);
+      return;
+    }
+
+    // Materialize the persisted clean master and probe its exact geometry.
+    const cleanPath = path.join(tempDir, "clean.mp4");
+    await materializeSource(cleanUrl, cleanPath);
+    const info = await probeVideo(cleanPath);
+    if (!info.width || !info.height || !info.duration) {
+      throw new Error("Den rene video kunne ikke måles korrekt");
+    }
+
+    // Build the ASS script clipped to the clean master's exact duration.
+    const assPath = path.join(tempDir, "headline.ass");
+    const fontsDir = path.join(process.cwd(), "public", "fonts");
+    fs.writeFileSync(assPath, buildAssHeadline(headline!, info.width, info.height, info.duration), "utf8");
+
+    const outputName = `rendy-edit-${id}-${Date.now()}.mp4`;
+    const outputPath = path.join(uploadDir, outputName);
+    await runFfmpegQueued(
+      buildHeadlineOverlayArgs(cleanPath, assPath, fontsDir, outputPath, info.hasAudio),
+    );
+    await r2UploadFile(outputPath, outputName);
+    const newOutputUrl = `/uploads/${outputName}`;
+
+    // Atomically swap output_url. clean_output_url is deliberately untouched.
+    await pool.query(
+      `UPDATE rendy_edit_projects
+          SET status = 'ready',
+              output_url = $1,
+              clean_output_url = COALESCE(clean_output_url, $2),
+              job_stage = NULL,
+              error = NULL,
+              lease_token = NULL,
+              lease_expires_at = NULL,
+              updated_at = NOW()
+        WHERE id = $3 AND lease_token = $4`,
+      [newOutputUrl, cleanUrl, id, token],
+    );
+    fs.promises.unlink(outputPath).catch(() => {});
+    clearOwnedHeartbeat(id, token);
+  } catch (error) {
+    // Failure keeps the prior output_url and the clean master untouched, and
+    // the row remains retryable (status=failed, job_stage=headline preserved by
+    // failProject leaving job_stage alone).
+    await failProject(id, token, error);
+  } finally {
+    fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function startProjectWork(project: ProjectRow, stage: JobStage, uploadDir: string) {
-  const status: ProjectStatus = stage === "prepare" ? "preparing" : "analyzing";
+  const status: ProjectStatus =
+    stage === "prepare" ? "preparing" :
+    stage === "headline" || stage === "render" ? "rendering" :
+    "analyzing";
   const token = await claimLease(project.id, status, stage);
   if (!token) return;
   if (stage === "prepare") void runPreparation(project.id, token);
   else if (stage === "analyze") void runAnalysisAndRender(project.id, token, uploadDir);
+  else if (stage === "headline") void runHeadlineApply(project.id, token, uploadDir);
   else void runRender(project.id, token, uploadDir);
 }
 
@@ -744,6 +1065,46 @@ export async function verifyRendyEditedVideoOwnership(
   const outputUrl = result.rows[0]?.output_url;
   if (!outputUrl) throw new Error("Den redigerede video er ikke klar");
   return outputUrl;
+}
+
+/**
+ * Resolve an edit:<id> source for a voiceover project.
+ *
+ * Returns:
+ *  - `sourceUrl`: the clean assembled output (no headline burn) if available,
+ *    otherwise the regular output_url. Voiceover burns headline + captions in
+ *    a single pass rather than re-encoding an already-burned file.
+ *  - `headlineSnapshot`: the stored HeadlineSettings from the edit project, or
+ *    null if there is no active headline. The snapshot is captured at voiceover
+ *    creation time so later edits to the edit project don't mutate running exports.
+ *
+ * Throws if the edit project is not found, not owned, or not ready.
+ */
+export async function resolveEditSourceForVoiceover(
+  listingId: string,
+  sourceVideoId: string,
+  userId: number,
+): Promise<{ sourceUrl: string; headlineSnapshot: HeadlineSettings | null } | null> {
+  if (!sourceVideoId.startsWith("edit:")) return null;
+  const id = sourceVideoId.slice("edit:".length);
+  if (!/^[a-f0-9-]{36}$/i.test(id)) throw new Error("Ugyldigt redigeret video-id");
+  const result = await pool.query<{ output_url: string | null; clean_output_url: string | null; headline: HeadlineSettings | null }>(
+    `SELECT output_url, clean_output_url, headline FROM rendy_edit_projects
+      WHERE id = $1 AND listing_id = $2 AND user_id = $3 AND status = 'ready'`,
+    [id, listingId, userId],
+  );
+  const row = result.rows[0];
+  if (!row?.output_url) throw new Error("Den redigerede video er ikke klar");
+
+  // Prefer the clean URL (pre-headline) so voiceover can burn both layers together.
+  // Fall back to output_url for projects rendered before clean_output_url was added.
+  const sourceUrl = row.clean_output_url ?? row.output_url;
+
+  // Only snapshot the headline if it is active and has non-blank text
+  const hl = row.headline;
+  const headlineSnapshot = hl && hl.enabled && hl.text.trim().length > 0 ? hl : null;
+
+  return { sourceUrl, headlineSnapshot };
 }
 
 async function recoverProjects(uploadDir: string) {
@@ -822,11 +1183,28 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
       const manifest = await manifestForProject(project);
       if (!manifest) return res.status(409).json({ success: false, message: "Klipbiblioteket er ikke klar endnu" });
       const timeline = validateTimeline(manifest, req.body?.timeline);
+      // headline is optional — omit key to keep existing; send null to reset to default
+      let headlineJson: string | null;
+      if (!("headline" in (req.body ?? {}))) {
+        // Key not present: preserve current headline from DB
+        headlineJson = project.headline != null ? JSON.stringify(project.headline) : null;
+      } else {
+        const validated = validateHeadline(req.body.headline);
+        headlineJson = validated != null ? JSON.stringify(validated) : null;
+      }
       const updated = await pool.query<ProjectRow>(
         `UPDATE rendy_edit_projects
-            SET timeline = $1::jsonb, analysis_plan = NULL, output_url = NULL, status = 'draft', job_stage = NULL, error = NULL, updated_at = NOW()
+            SET timeline = $1::jsonb,
+                headline = $4::jsonb,
+                analysis_plan = NULL,
+                output_url = NULL,
+                clean_output_url = NULL,
+                status = 'draft',
+                job_stage = NULL,
+                error = NULL,
+                updated_at = NOW()
           WHERE id = $2 AND user_id = $3 RETURNING *`,
-        [JSON.stringify(timeline), project.id, userId],
+        [JSON.stringify(timeline), project.id, userId, headlineJson],
       );
       return res.json({ success: true, project: toPublicProject(updated.rows[0], manifest) });
     } catch (error: any) {
@@ -848,6 +1226,50 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
       return res.json({ success: true, project: toPublicProject(updated!, manifest) });
     } catch (error: any) {
       return res.status(error?.status ?? 500).json({ success: false, message: error?.message ?? "Kunne ikke starte AI-redigeringen" });
+    }
+  });
+
+  // Direct ready-headline apply. Burns/updates the headline layer on the
+  // durable clean master WITHOUT rebuilding clips or touching the timeline or
+  // clean master. Intended for a project that is already `ready` (a rendered
+  // clean master exists); also tolerates `failed`/`draft` when a clean master
+  // is present so a stuck project can still (re)apply a headline.
+  app.post("/api/bolig/rendy/edit-projects/:id/apply-headline", async (req, res) => {
+    try {
+      const { userId } = await requireUser(req);
+      const project = await getProject(req.params.id, userId);
+      if (!project) return res.status(404).json({ success: false, message: "Redigeringsprojektet blev ikke fundet" });
+      if (["preparing", "analyzing", "rendering"].includes(project.status)) {
+        return res.status(409).json({ success: false, message: "Videoen behandles allerede — vent til den er klar" });
+      }
+      // A clean master must exist to overlay onto. Legacy `ready` rows without a
+      // clean_output_url predate headlines and carry an un-burned output_url,
+      // which runHeadlineApply safely uses as the clean source.
+      const cleanSource = project.clean_output_url ?? project.output_url;
+      if (!cleanSource) {
+        return res.status(409).json({ success: false, message: "Der findes endnu ingen færdig video at lægge overskrift på" });
+      }
+
+      // Validate strictly via the shared validator. null → reset to default (disabled).
+      const validated = validateHeadline(req.body?.headline);
+      const headlineJson = validated != null ? JSON.stringify(validated) : null;
+
+      // Persist the headline setting only. Deliberately does NOT touch timeline,
+      // analysis_plan, clean_output_url, or output_url (the previous output stays
+      // live until the new render succeeds).
+      await pool.query(
+        `UPDATE rendy_edit_projects
+            SET headline = $1::jsonb, updated_at = NOW()
+          WHERE id = $2 AND user_id = $3`,
+        [headlineJson, project.id, userId],
+      );
+
+      const refreshed = await getProject(project.id, userId);
+      await startProjectWork(refreshed!, "headline", uploadDir);
+      const updated = await getProject(project.id, userId);
+      return res.json({ success: true, project: toPublicProject(updated!, await manifestForProject(updated!)) });
+    } catch (error: any) {
+      return res.status(error?.status ?? 400).json({ success: false, message: error?.message ?? "Kunne ikke anvende overskriften" });
     }
   });
 
