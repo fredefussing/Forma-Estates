@@ -34,6 +34,9 @@ const MAX_SOURCE_BYTES = 500 * 1024 * 1024;
 const MAX_SOURCE_DURATION = 30 * 60;
 const SCENE_THRESHOLD = 0.32;
 const MAX_SCENES_PER_DELIVERY = 40;
+const SIGNATURE_WIDTH = 16;
+const SIGNATURE_HEIGHT = 16;
+const SIGNATURE_BYTES = SIGNATURE_WIDTH * SIGNATURE_HEIGHT;
 
 type ProjectStatus = "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
 type JobStage = "prepare" | "analyze" | "render" | "headline";
@@ -297,11 +300,11 @@ async function materializeSource(sourceUrl: string, tempPath: string): Promise<v
   await downloadWithCurl(sourceUrl, tempPath);
 }
 
-async function probeVideo(filePath: string): Promise<MediaInfo> {
+export async function probeVideo(filePath: string): Promise<MediaInfo> {
   const output = await new Promise<string>((resolve, reject) => {
     const proc = spawn("ffprobe", [
       "-v", "error", "-show_entries",
-      "format=duration,bit_rate:stream=codec_type,width,height,avg_frame_rate,bit_rate",
+      "format=duration,bit_rate:stream=codec_type,width,height,avg_frame_rate,bit_rate,duration",
       "-of", "json", filePath,
     ]);
     let out = "";
@@ -314,7 +317,13 @@ async function probeVideo(filePath: string): Promise<MediaInfo> {
   const data = JSON.parse(output) as { format?: Record<string, unknown>; streams?: Array<Record<string, unknown>> };
   const video = data.streams?.find(stream => stream.codec_type === "video");
   if (!video) throw new Error("Videofilen indeholder ingen videostrøm");
-  const duration = finite(data.format?.duration);
+  const formatDuration = finite(data.format?.duration);
+  const videoDuration = finite(video.duration);
+  // Containers often inherit their duration from a slightly longer audio track.
+  // Scene sampling must never seek beyond the final decodable video frame.
+  const duration = videoDuration > 0 && formatDuration > 0
+    ? Math.min(videoDuration, formatDuration)
+    : videoDuration || formatDuration;
   if (!duration || duration > MAX_SOURCE_DURATION) throw new Error("Videolængden er uden for det tilladte interval");
   return {
     duration,
@@ -350,21 +359,49 @@ async function sceneBoundaries(filePath: string, duration: number): Promise<numb
   return points;
 }
 
-async function signatureForFrame(filePath: string, at: number): Promise<Signature> {
-  // Keep extracted pixels in memory. A temporary JPG could disappear during
-  // preparation on an ephemeral/multi-process host before Sharp opened it.
-  const data = await runFfmpegQueuedToBuffer([
+async function rawSignatureFrame(filePath: string, at: number): Promise<Buffer> {
+  // A short input seek keeps long videos fast; the output seek then decodes
+  // accurately from the nearby keyframe instead of trusting a fast seek alone.
+  const coarseSeek = Math.max(0, at - 2);
+  const accurateSeek = at - coarseSeek;
+  return runFfmpegQueuedToBuffer([
     "-hide_banner", "-loglevel", "error",
-    "-ss", Math.max(0, at).toFixed(3), "-i", filePath,
-    "-frames:v", "1",
-    "-vf", "scale=16:16:flags=area,format=gray",
+    "-ss", coarseSeek.toFixed(3), "-i", filePath,
+    "-ss", accurateSeek.toFixed(3),
+    "-map", "0:v:0", "-frames:v", "1",
+    "-vf", `scale=${SIGNATURE_WIDTH}:${SIGNATURE_HEIGHT}:flags=area,format=gray`,
     "-an", "-sn", "-dn",
     "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1",
-  ], 16 * 16);
-  if (data.length !== 16 * 16) {
-    throw new Error(`Videorammen kunne ikke analyseres (forventede 256 bytes, modtog ${data.length})`);
+  ], SIGNATURE_BYTES, 30_000);
+}
+
+export async function signatureForFrame(
+  filePath: string,
+  at: number,
+  duration: number,
+  fps: number,
+): Promise<Signature> {
+  // Keep extracted pixels in memory. Clamp against the video stream (not the
+  // possibly longer audio/container duration) and retry slightly earlier when a
+  // VFR/edit-list source has no decodable frame at the requested timestamp.
+  const endMargin = Math.max(0.12, 3 / Math.max(1, fps));
+  const latestSafeTime = Math.max(0, duration - endMargin);
+  const requested = Math.min(Math.max(0, at), latestSafeTime);
+  const attempts = Array.from(new Set([
+    requested,
+    Math.max(0, requested - 0.15),
+    Math.max(0, requested - 0.5),
+    Math.min(latestSafeTime, 0.05),
+  ].map(value => value.toFixed(3)))).map(Number);
+
+  for (const attempt of attempts) {
+    const data = await rawSignatureFrame(filePath, attempt);
+    if (data.length === SIGNATURE_BYTES) {
+      return { values: Array.from(data.values(), value => value / 255) };
+    }
   }
-  return { values: Array.from(data.values(), value => value / 255) };
+
+  throw new Error("En videoramme kunne ikke læses. Prøv igen, eller vælg en anden Rendy-video.");
 }
 
 function signatureDistance(a: Signature, b: Signature): number {
@@ -409,9 +446,9 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
       const duration = safeEnd - safeStart;
       if (duration < 0.65) continue;
       const [startSignature, midSignature, endSignature] = await Promise.all([
-        signatureForFrame(inputPath, safeStart + Math.min(0.10, duration * 0.08)),
-        signatureForFrame(inputPath, safeStart + duration / 2),
-        signatureForFrame(inputPath, safeEnd - Math.min(0.10, duration * 0.08)),
+        signatureForFrame(inputPath, safeStart + Math.min(0.10, duration * 0.08), info.duration, info.fps),
+        signatureForFrame(inputPath, safeStart + duration / 2, info.duration, info.fps),
+        signatureForFrame(inputPath, safeEnd - Math.min(0.10, duration * 0.08), info.duration, info.fps),
       ]);
       const motionScore = signatureDistance(startSignature, endSignature);
       candidates.push({
@@ -434,9 +471,9 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
     // complete delivery as one shot rather than inventing a partial segment.
     if (!candidates.length) {
       const [startSignature, midSignature, endSignature] = await Promise.all([
-        signatureForFrame(inputPath, 0.05),
-        signatureForFrame(inputPath, info.duration / 2),
-        signatureForFrame(inputPath, Math.max(0.05, info.duration - 0.05)),
+        signatureForFrame(inputPath, 0.05, info.duration, info.fps),
+        signatureForFrame(inputPath, info.duration / 2, info.duration, info.fps),
+        signatureForFrame(inputPath, Math.max(0.05, info.duration - 0.05), info.duration, info.fps),
       ]);
       candidates.push({
         id: randomUUID(), sourceVideoId: video.id, sourceUrl: archivedUrl, duration: info.duration,

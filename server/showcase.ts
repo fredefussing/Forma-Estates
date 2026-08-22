@@ -143,9 +143,13 @@ export function runFfmpegQueued(args: string[]): Promise<void> {
 export function runFfmpegQueuedToBuffer(
   args: string[],
   maxOutputBytes = 1024 * 1024,
+  timeoutMs = 30_000,
 ): Promise<Buffer> {
   if (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes <= 0) {
     return Promise.reject(new Error("maxOutputBytes must be a positive integer"));
+  }
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    return Promise.reject(new Error("timeoutMs must be a positive integer"));
   }
 
   return acquireFfmpegSlot().then(
@@ -156,10 +160,17 @@ export function runFfmpegQueuedToBuffer(
       let stderr = "";
       let settled = false;
       let outputLimitExceeded = false;
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        proc.kill("SIGKILL");
+      }, timeoutMs);
+      timeout.unref();
 
       const finish = (error?: Error) => {
         if (settled) return;
         settled = true;
+        clearTimeout(timeout);
         releaseFfmpegSlot();
         if (error) reject(error);
         else resolve(Buffer.concat(chunks, outputBytes));
@@ -179,7 +190,9 @@ export function runFfmpegQueuedToBuffer(
       });
       proc.on("error", (error) => finish(error));
       proc.on("close", (code) => {
-        if (outputLimitExceeded) {
+        if (timedOut) {
+          finish(new Error(`ffmpeg timed out after ${timeoutMs}ms`));
+        } else if (outputLimitExceeded) {
           finish(new Error(`ffmpeg output exceeded ${maxOutputBytes} bytes`));
         } else if (code === 0) {
           finish();
