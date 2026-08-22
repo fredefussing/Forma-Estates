@@ -430,10 +430,9 @@ export interface RendyImageKeys {
 
 export function startRendyShowcase(
   filePaths: string[],
-  address: string,
   ratio: "portrait" | "landscape",
   imageKeys: RendyImageKeys[],
-  /** Optional post-processor: download Rendy CDN videos and burn EU AI Act badge */
+  /** Optional finalizer: localize Rendy CDN videos in durable storage */
   onVideosReady?: (videos: RendyVideo[]) => Promise<RendyVideo[]>,
   /** Authenticated DB user id — stored so voiceover can verify ownership later */
   userId?: number,
@@ -489,7 +488,7 @@ export function startRendyShowcase(
         ...(imageKeys[i]?.cameraActionKey ? { cameraActionKey: imageKeys[i].cameraActionKey } : {}),
       }));
 
-      const listingId = await createRendyListing(address || "Boligfremvisning", ratio, imageUrls);
+      const listingId = await createRendyListing("Boligfremvisning", ratio, imageUrls);
       const cur = jobs.get(jobId)!;
       jobs.set(jobId, { ...cur, listingId });
       // Gem listingId med await — ingen vindue hvor listing er skabt men ikke i DB
@@ -548,8 +547,8 @@ export function startRendyShowcase(
                   const fallback = new Promise<RendyVideo[]>((_, reject) =>
                     setTimeout(() => reject(new Error("Efterbehandling af videoerne tog for lang tid")), 120_000)
                   );
-                  // Never deliver the provider video when Forma's finalization
-                  // fails or times out: it is missing the required overlay.
+                   // Never deliver an expiring provider URL when durable
+                   // localization fails or times out.
                   finalVideos = await Promise.race([onVideosReady(successVideos), fallback]);
                 }
               jobs.set(jobId, {
@@ -593,9 +592,8 @@ export function startRendyShowcase(
             // Rendy said "success" but every individual video failed — treat as error
             throw new Error(`Videogenerering fejlede — 0 ud af ${full.videos.length} videoer lykkedes. Prøv med bedre billeder (min. 800×600px, god belysning).`);
           }
-          // Burn the required Forma delivery treatment before returning URLs.
-          // A provider CDN URL is not an acceptable fallback because it lacks the
-          // address text / EU badge promised in the finished delivery.
+          // Localize the clean provider bytes before returning durable URLs.
+          // An expiring provider CDN URL is not an acceptable fallback.
           let finalVideos = videos;
           if (onVideosReady) {
             const fallback = new Promise<RendyVideo[]>((_, reject) =>

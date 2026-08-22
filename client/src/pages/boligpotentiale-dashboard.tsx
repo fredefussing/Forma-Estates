@@ -4648,7 +4648,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
-  const [address, setAddress] = useState("");
   const [ratio, setRatio] = useState<"portrait" | "landscape">("portrait");
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
@@ -4752,7 +4751,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             roomType: "showcase-video",
             style: `showcase-video-${idx + 1}`,
             budgetTier: "tier2",
-            promptText: `Bolig showcase video ${idx + 1}${address ? ` — ${address}` : ""}`,
+            promptText: `Bolig showcase video ${idx + 1}`,
             isDesignAgent: true,
           }),
         });
@@ -4961,7 +4960,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         const file = img.cropBox ? await cropImageToFile(img.file, img.cropBox) : img.file;
         fd.append("images", file);
       }
-      fd.append("address", address.trim());
       fd.append("ratio", ratio);
       fd.append("presetKeys", JSON.stringify(images.map((img) => img.presetKey || "DEFAULT")));
       fd.append("vfxKeys", JSON.stringify(images.map((img) => img.vfxKey || null)));
@@ -5255,25 +5253,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
       <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden" style={{ order: 1 }}>
 
-        {/* ── Top bar: Address + Format ── */}
-        <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex-1 min-w-0">
-            <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.boligadresse")}</span>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "#C8956C" }} />
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                disabled={isGenerating}
-                placeholder={i18n.t("dashboard.showcase.adressePlaceholder")}
-                maxLength={120}
-                className="w-full h-9 rounded-lg border pl-8 pr-3 text-sm outline-none disabled:opacity-50"
-                style={{ borderColor: "#E8E4DE", background: "#F8F6F3", color: "#0F1D2F" }}
-                data-testid="input-showcase-address"
-              />
-            </div>
-          </div>
+        {/* ── Top bar: output format ── */}
+        <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex items-center">
           <div className="shrink-0">
             <span className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.showcase.videoFormat")}</span>
             <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E8E4DE" }}>

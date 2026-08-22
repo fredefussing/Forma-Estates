@@ -22,7 +22,7 @@ import { buildStripePending, claimAndGrant, claimPendingPurchasesForUser, isStri
 import { verifyFirebaseToken, updateFirebasePassword } from "./firebase-admin";
 import { pool } from "./db";
 import { generate3DFloorplan, generate3DFloorplanFromUrl, preprocessFloorplanToDisk, generateAnimationVideo, submitAnimationVideo, getAnimationVideoStatus, submitMagicTransformVideo, getMagicTransformStatus, MagicTransformStyle, isFalConfigured, uploadToFal, uploadVideoPairToFal, downloadToUploads, translateFalError } from "./fal";
-import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowcaseJob, getShowcaseQueueMetrics, burnEuWatermark, burnShowcaseOverlays } from "./showcase";
+import { startWalkthroughVideo, startShowcaseVideo, startTransformFilm, getShowcaseJob, getShowcaseQueueMetrics, burnEuWatermark } from "./showcase";
 import { startGuidedTour, getGuidedTourJob } from "./tour-walkthrough";
 import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, getRendyCameraMovementKeys, exportRendyListing, getRendyExportStatus, getPersistedRendyJob, getRendyListing, getRendyListingStatus, saveDeliveredRendyVideos, setRendyJobProgress, type RendyVideo } from "./rendy";
 import { isLoadTestMode } from "./load-test";
@@ -87,32 +87,22 @@ const showcaseVideoRefunds = new Map<string, number>();
 const walkthroughVideoRefunds = new Map<string, number>();
 
 /**
- * Convert Rendy's temporary provider videos into Forma's finished delivery.
- * The address layer and EU badge must be present before any URL reaches the
- * client; successful local deliveries are uploaded to durable storage.
+ * Localize Rendy's temporary provider videos without changing their pixels.
+ * Text is an optional editing step after generation, never part of the raw
+ * preview. Successful local deliveries are uploaded to durable storage.
  */
 async function finalizeRendyShowcaseVideos(
   videos: RendyVideo[],
-  address: string,
-  lang: string,
 ): Promise<RendyVideo[]> {
-  const overlayAddress = address.trim().slice(0, 120) || undefined;
-  log(`[Showcase] finalizing ${videos.length} Rendy video(s) with${overlayAddress ? "" : "out"} address overlay…`);
+  log(`[Showcase] preserving ${videos.length} clean Rendy video(s) without text overlays…`);
   return Promise.all(
     videos.map(async (video) => {
       if (!video.url) return video;
       const localUrl = await downloadToUploads(video.url, uploadDir, ".mp4");
       const rawMp4 = path.join(uploadDir, path.basename(localUrl));
-      const renderedMp4 = rawMp4.replace(/\.mp4$/, "-overlay.mp4");
-      try {
-        await burnShowcaseOverlays(rawMp4, renderedMp4, lang, undefined, overlayAddress);
-        fs.renameSync(renderedMp4, rawMp4);
-        await r2UploadFile(rawMp4);
-        log(`[Showcase] finalized Rendy delivery → ${localUrl}`);
-        return { ...video, url: localUrl };
-      } finally {
-        fs.promises.unlink(renderedMp4).catch(() => {});
-      }
+      await r2UploadFile(rawMp4);
+      log(`[Showcase] stored clean Rendy delivery → ${localUrl}`);
+      return { ...video, url: localUrl };
     }),
   );
 }
@@ -5391,7 +5381,6 @@ export async function registerRoutes(
       }
 
       const filePaths = files.map((f) => path.join(uploadDir, f.filename));
-      const address    = typeof req.body?.address    === "string" ? req.body.address.trim().slice(0, 120)    : "";
       const ratio: "portrait" | "landscape" = req.body?.ratio === "landscape" ? "landscape" : "portrait";
 
       let presetKeys: (string | undefined)[] = new Array(files.length).fill(undefined);
@@ -5408,7 +5397,7 @@ export async function registerRoutes(
       } catch { /* ignore malformed */ }
 
       if (isLoadTestMode()) {
-        const jobId = startShowcaseVideo(filePaths, uploadDir, address, undefined, undefined, undefined, "clean", ["calm"]);
+        const jobId = startShowcaseVideo(filePaths, uploadDir, "", undefined, undefined, undefined, "clean", ["calm"]);
         if (!jobId) {
           if (showcaseUserId) storage.refundQuota(showcaseUserId, "showcase").catch(() => {});
           for (const filePath of filePaths) fs.promises.unlink(filePath).catch(() => {});
@@ -5523,15 +5512,23 @@ export async function registerRoutes(
       });
 
       log(`[Rendy] presets (raw)=${JSON.stringify(presetKeys.map((c, i) => vfxKeys[i] || c))} normalised=${JSON.stringify(mergedKeys)}`);
-      const showcaseLang = String(req.body?.lang || req.headers["x-lang"] || "da");
-      log(`[Showcase] address="${address}" (${address.length} chars) ratio=${ratio}`);
+      log(`[Showcase] clean Rendy generation ratio=${ratio}`);
 
-      // Rendy stores the field as listing metadata only. Every finished delivery
-      // therefore passes through Forma's finalizer, which burns the address (when
-      // supplied) and the required EU badge before returning a durable URL.
-      const onVideosReady = (videos: RendyVideo[]) =>
-        finalizeRendyShowcaseVideos(videos, address, showcaseLang);
-      const jobId = startRendyShowcase(filePaths, address, ratio, mergedKeys, onVideosReady, showcaseUserId ?? undefined);
+      // Keep the provider pixels clean. The finalizer only localizes the MP4 and
+      // uploads it to durable storage; optional text belongs in a later edit.
+      let jobId = "";
+      const onVideosReady = async (videos: RendyVideo[]) => {
+        const deliveredVideos = await finalizeRendyShowcaseVideos(videos);
+        if (showcaseUserId && jobId) {
+          // Idempotent create-before-complete prevents a late initial insert
+          // from reverting a successfully delivered job to pending.
+          await storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" });
+          await storage.completeVideoJob(jobId);
+          showcaseVideoRefunds.delete(jobId);
+        }
+        return deliveredVideos;
+      };
+      jobId = startRendyShowcase(filePaths, ratio, mergedKeys, onVideosReady, showcaseUserId ?? undefined);
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
@@ -5600,6 +5597,8 @@ export async function registerRoutes(
     }
     const listingId = persisted.listingId;
     if (persisted.status === "completed" && persisted.deliveryStatus === "delivered" && persisted.videos.length > 0) {
+      await storage.completeVideoJob(jobId);
+      showcaseVideoRefunds.delete(jobId);
       log(`[Rendy] recovered finished Forma delivery job=${jobId} videos=${persisted.videos.length}`);
       send({ stage: "complete", progress: 100, message: `${persisted.videos.length} video${persisted.videos.length === 1 ? "" : "er"} klar!`, videos: persisted.videos, listingId });
       endSoon();
@@ -5654,13 +5653,15 @@ export async function registerRoutes(
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
           if (videos.length === 0) throw new Error("Rendy leverede ingen færdige videoer");
-          const deliveredVideos = await finalizeRendyShowcaseVideos(videos, full.listing.address || "", "da");
+          const deliveredVideos = await finalizeRendyShowcaseVideos(videos);
           await saveDeliveredRendyVideos(jobId, listingId, deliveredVideos);
-          log(`[Rendy] recovery finalized Forma delivery job=${jobId} videos=${deliveredVideos.length}`);
+          await storage.completeVideoJob(jobId);
+          showcaseVideoRefunds.delete(jobId);
+          log(`[Rendy] recovery stored clean Forma delivery job=${jobId} videos=${deliveredVideos.length}`);
           send({ stage: "complete", progress: 100, message: `${deliveredVideos.length} video${deliveredVideos.length === 1 ? "" : "er"} klar!`, videos: deliveredVideos, listingId });
         } catch (err: any) {
           log(`[Rendy] recovery finalization failed job=${jobId}: ${err?.message || "unknown error"}`);
-          send({ stage: "failed", progress: 0, message: "Kunne ikke færdiggøre videoen med adressetekst. Prøv igen." });
+          send({ stage: "failed", progress: 0, message: "Kunne ikke gemme den færdige video. Prøv igen." });
         }
         break;
       }

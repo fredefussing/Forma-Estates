@@ -987,9 +987,9 @@ export async function burnEuWatermark(inputPath: string, outputPath: string, lan
   }
 }
 
-// ── Showcase-specific overlay: EU badge + optional property headline + address ─
-// Burns a "lower-third" into every Rendy showcase video so the property title
-// and address the user entered in the UI actually appear as visible text.
+// ── Legacy showcase overlay: EU badge + optional headline + address ──────────
+// Do not use this during Rendy generation or delivery. Rendy videos remain
+// clean; any customer-selected text belongs in a separate post-generation edit.
 // Uses textfile= (not text=) to avoid FFmpeg drawtext escaping issues with any
 // special chars (apostrophes, colons, etc.) in Danish/foreign addresses.
 export async function burnShowcaseOverlays(
