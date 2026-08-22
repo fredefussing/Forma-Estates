@@ -21,7 +21,7 @@ import {
   HEADLINE_TEXT_ASS_COLOR,
   headlineOpacityAtTime,
 } from "../shared/rendy-text";
-import { buildCombinedAss } from "./rendy-voiceover";
+import { buildCombinedAss, isVoiceSourceRevisionCurrent } from "./rendy-voiceover";
 import type { CaptionSegment } from "./rendy-voiceover";
 import {
   buildAssHeadline,
@@ -65,6 +65,24 @@ function assertThrows(fn: () => unknown, substring: string, label: string): void
     }
   }
 }
+
+console.log("\nVoice-over source revisions");
+assert(
+  isVoiceSourceRevisionCurrent("provider-video", null, null),
+  "provider deliveries do not require an Edit revision",
+);
+assert(
+  isVoiceSourceRevisionCurrent("edit:project", 4, 4),
+  "voice-over remains valid for the exact Edit revision",
+);
+assert(
+  !isVoiceSourceRevisionCurrent("edit:project", 3, 4),
+  "voice-over becomes stale after clips or headline change",
+);
+assert(
+  !isVoiceSourceRevisionCurrent("edit:project", null, 0),
+  "legacy Edit voice-over without a revision is never silently reused",
+);
 
 // ── Import private helpers via re-export trick ────────────────────────────────
 // We test the pure logic helpers by re-implementing a minimal version here,

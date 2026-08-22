@@ -1521,6 +1521,7 @@ export async function ensureSchema(): Promise<void> {
         user_id           integer NOT NULL REFERENCES users(id),
         listing_id        text NOT NULL,
         source_video_id   text NOT NULL,
+        source_edit_revision integer,
         status            text NOT NULL DEFAULT 'processing',
         language          text NOT NULL DEFAULT 'da',
         segments          jsonb,
@@ -1558,6 +1559,8 @@ export async function ensureSchema(): Promise<void> {
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS completed_at timestamptz`,
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS lease_token text`,
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz`,
+      // Exact rendy_edit_projects.output_revision used to create this narration.
+      `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS source_edit_revision integer`,
       // Caption style settings (nullable jsonb — null means use DEFAULT_CAPTION_STYLE)
       `ALTER TABLE rendy_voice_projects ADD COLUMN IF NOT EXISTS caption_style jsonb`,
     ]) {

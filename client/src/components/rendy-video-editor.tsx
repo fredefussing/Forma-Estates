@@ -62,6 +62,7 @@ interface EditProject {
   id: string;
   listingId: string;
   sourceVideoId: string;
+  outputRevision: number;
   status:
     "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
   manifest: Manifest | null;
@@ -90,6 +91,8 @@ interface Props {
   sourceVideoUrl: string;
   onOutputReady: (url: string) => void;
 }
+
+type MediaLoadState = "idle" | "loading" | "ready" | "error";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -231,6 +234,10 @@ export function RendyVideoEditor({
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [previewPlaybackId, setPreviewPlaybackId] = useState<string | null>(null);
+  const [previewMediaState, setPreviewMediaState] = useState<MediaLoadState>("idle");
+  const [previewMediaAttempt, setPreviewMediaAttempt] = useState(0);
+  const [finalMediaState, setFinalMediaState] = useState<MediaLoadState>("idle");
+  const [finalMediaAttempt, setFinalMediaAttempt] = useState(0);
   const [pendingOutputUrl, setPendingOutputUrl] = useState<string | null>(null);
   const [voiceoverBusy, setVoiceoverBusy] = useState(false);
   // Headline state — always reset to proj.headline ?? DEFAULT on every project load/poll
@@ -249,6 +256,7 @@ export function RendyVideoEditor({
     setProject(proj);
     setTimeline(proj.timeline ?? []);
     setPendingOutputUrl(isReady ? proj.outputUrl! : null);
+    setFinalMediaState(isReady ? "loading" : "idle");
     // A ready edit mounts the voice-over workspace. Keep finish disabled until
     // it has checked whether an earlier voice job is still in flight.
     setVoiceoverBusy(isReady);
@@ -304,8 +312,10 @@ export function RendyVideoEditor({
       } catch (err: unknown) {
         pollTimer.current = null;
         setBusy(false);
+        const technical = err instanceof Error ? err.message : "Fejl under opdatering";
+        console.warn("Rendy render status could not be refreshed:", technical);
         setMessage(
-          err instanceof Error ? err.message : "Fejl under opdatering",
+          "Vi kunne ikke hente den seneste status. Videoen kan stadig være under behandling — luk og åbn editoren igen for at fortsætte sikkert.",
         );
       }
     },
@@ -315,6 +325,8 @@ export function RendyVideoEditor({
   // ── Open: create or find existing project ──────────────────────────────────
   const openEditor = useCallback(async () => {
     setPreviewPlaybackId(null);
+    setPreviewMediaState("idle");
+    setFinalMediaState("idle");
     setOpen(true);
     setMessage("");
     setBusy(true);
@@ -610,7 +622,7 @@ export function RendyVideoEditor({
       if (event.shiftKey && (index <= 0 || index === -1)) {
         event.preventDefault();
         focusable[focusable.length - 1].focus();
-      } else if (!event.shiftKey && index === focusable.length - 1) {
+      } else if (!event.shiftKey && (index === -1 || index === focusable.length - 1)) {
         event.preventDefault();
         focusable[0].focus();
       }
@@ -622,6 +634,11 @@ export function RendyVideoEditor({
   const status = project?.status;
   const sourceGroups = groupLibraryBySource(project?.manifest, sourceVideoId);
   const readyOutputUrl = pendingOutputUrl ?? project?.outputUrl;
+  const handleVoiceOutputReady = useCallback((url: string) => {
+    setPendingOutputUrl(url);
+    setFinalMediaState("loading");
+    setFinalMediaAttempt((attempt) => attempt + 1);
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   if (!open) {
@@ -631,7 +648,7 @@ export function RendyVideoEditor({
           type="button"
           onClick={openEditor}
           ref={openerRef}
-          className="w-full h-9 rounded-xl text-xs font-semibold border border-[#C8956C] text-[#6F4E38] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5 transition-[transform,background-color,box-shadow] hover:-translate-y-px hover:bg-[#FFF6EF] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
+          className="w-full min-h-11 rounded-xl text-xs font-semibold border border-[#C8956C] text-[#6F4E38] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5 transition-[transform,background-color,box-shadow] hover:-translate-y-px hover:bg-[#FFF6EF] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
           data-testid="button-open-video-editor"
         >
           <Film className="w-3.5 h-3.5" />
@@ -788,6 +805,21 @@ export function RendyVideoEditor({
           </div>
         )}
 
+        {!busy && project?.manifest && shots.length === 0 && status !== "failed" && (
+          <div
+            className="rounded-xl border border-dashed border-[#DCC9B9] bg-white px-5 py-8 text-center"
+            role="status"
+          >
+            <Film className="mx-auto h-6 w-6 text-[#A36F4E]" aria-hidden="true" />
+            <p className="mt-2 text-sm font-semibold text-[#0F1D2F]">
+              Der blev ikke fundet nogen redigerbare klip
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-[#77736D]">
+              Luk editoren og prøv igen senere. Din oprindelige video er ikke ændret.
+            </p>
+          </div>
+        )}
+
         {/* Failed */}
         {status === "failed" && (
           <div className="space-y-2">
@@ -839,19 +871,50 @@ export function RendyVideoEditor({
                 <Check className="w-4 h-4" />
                 Video klar
               </div>
-              <div className="flex min-h-64 items-center justify-center rounded-2xl bg-[#0A1422] p-3 sm:min-h-80 sm:p-4">
+              <div className="relative flex min-h-64 items-center justify-center overflow-hidden rounded-2xl bg-[#0A1422] p-3 sm:min-h-80 sm:p-4">
+                {finalMediaState === "loading" && (
+                  <div className="absolute inset-0 z-10 grid place-items-center bg-[#0A1422]/70 text-white" role="status" aria-live="polite">
+                    <span className="inline-flex items-center gap-2 text-xs">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Indlæser den færdige video…
+                    </span>
+                  </div>
+                )}
+                {finalMediaState === "error" && (
+                  <div className="absolute inset-0 z-20 grid place-items-center bg-[#0A1422] px-6 text-center text-white" role="alert">
+                    <div>
+                      <p className="text-sm font-semibold">Videoen kunne ikke indlæses til kontrol.</p>
+                      <p className="mt-1 text-xs text-white/70">Prøv at hente previewet igen, før du gemmer.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFinalMediaState("loading");
+                          setFinalMediaAttempt((attempt) => attempt + 1);
+                        }}
+                        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-xs font-semibold text-[#0F1D2F]"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Indlæs igen
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <video
+                  key={`${readyOutputUrl}-${finalMediaAttempt}`}
                   id={`rendy-edited-video-${project.id}`}
                   src={readyOutputUrl}
                   controls
                   playsInline
                   preload="metadata"
+                  onLoadStart={() => setFinalMediaState("loading")}
+                  onCanPlay={() => setFinalMediaState("ready")}
+                  onError={() => setFinalMediaState("error")}
                   style={
                     previewCandidate?.width && previewCandidate?.height
                       ? { aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}` }
-                      : undefined
+                      : { aspectRatio: "9 / 16" }
                   }
-                  className="mx-auto h-auto max-h-[68vh] w-full max-w-full rounded-xl bg-black object-contain"
+                  className="mx-auto h-auto max-h-[68vh] w-auto max-w-full rounded-xl bg-black object-contain"
                   data-testid="video-edit-final"
                 />
               </div>
@@ -869,11 +932,12 @@ export function RendyVideoEditor({
                 </p>
               </div>
               <RendyVoiceoverEditor
+                key={`voice-${project.id}-${project.outputRevision}`}
                 sourceVideoUrl={project.outputUrl}
                 sourceVideoId={`edit:${project.id}`}
                 listingId={listingId}
                 videoElementId={`rendy-edited-video-${project.id}`}
-                onOutputReady={setPendingOutputUrl}
+                onOutputReady={handleVoiceOutputReady}
                 onBusyChange={setVoiceoverBusy}
                 preloadProject
               />
@@ -899,7 +963,7 @@ export function RendyVideoEditor({
           <button
             type="button"
             onClick={finishEditing}
-            disabled={busy || voiceoverBusy || !readyOutputUrl}
+            disabled={busy || voiceoverBusy || !readyOutputUrl || finalMediaState !== "ready"}
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0F1D2F] px-4 text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#1A3048] focus:outline-none focus:ring-2 focus:ring-[#C8956C]/50 disabled:cursor-not-allowed disabled:opacity-50"
             data-testid="button-save-and-finish-video"
           >
@@ -938,19 +1002,50 @@ export function RendyVideoEditor({
                       data-testid="video-active-clip-preview"
                     >
                       {previewPlaybackId === previewCandidate.id ? (
-                        <video
-                          key={previewCandidate.id}
-                          src={`${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`}
-                          controls
-                          autoPlay
-                          playsInline
-                          muted
-                          preload="auto"
-                          className="block max-h-full max-w-full rounded-xl object-contain"
-                          style={{
-                            aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}`,
-                          }}
-                        />
+                        <>
+                          {previewMediaState === "loading" && (
+                            <div className="absolute inset-0 z-10 grid place-items-center bg-[#F6F1EA]/85 text-[#0F1D2F]" role="status" aria-live="polite">
+                              <span className="inline-flex items-center gap-2 text-xs">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Indlæser klippet…
+                              </span>
+                            </div>
+                          )}
+                          {previewMediaState === "error" && (
+                            <div className="absolute inset-0 z-20 grid place-items-center bg-[#F6F1EA] px-6 text-center text-[#0F1D2F]" role="alert">
+                              <div>
+                                <p className="text-sm font-semibold">Klippet kunne ikke afspilles.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewMediaState("loading");
+                                    setPreviewMediaAttempt((attempt) => attempt + 1);
+                                  }}
+                                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#0F1D2F] px-4 text-xs font-semibold text-white"
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                  Prøv igen
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <video
+                            key={`${previewCandidate.id}-${previewMediaAttempt}`}
+                            src={`${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`}
+                            controls
+                            autoPlay
+                            playsInline
+                            muted
+                            preload="auto"
+                            onLoadStart={() => setPreviewMediaState("loading")}
+                            onCanPlay={() => setPreviewMediaState("ready")}
+                            onError={() => setPreviewMediaState("error")}
+                            className="block max-h-full max-w-full rounded-xl object-contain"
+                            style={{
+                              aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}`,
+                            }}
+                          />
+                        </>
                       ) : (
                         <>
                           {previewCandidate.thumbnailUrl ? (
@@ -970,7 +1065,11 @@ export function RendyVideoEditor({
                           )}
                           <button
                             type="button"
-                            onClick={() => setPreviewPlaybackId(previewCandidate.id)}
+                            onClick={() => {
+                              setPreviewMediaState("loading");
+                              setPreviewMediaAttempt((attempt) => attempt + 1);
+                              setPreviewPlaybackId(previewCandidate.id);
+                            }}
                             className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#D9AF8D]"
                             aria-label={`Afspil ${previewShot?.label ?? "klip"}`}
                           >

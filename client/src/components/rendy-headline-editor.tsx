@@ -13,7 +13,9 @@ import {
   useState,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   Check,
@@ -39,6 +41,11 @@ import {
   type HeadlineSettings,
   type RendyTypographyId,
 } from "@shared/rendy-text";
+
+function BrowserPortal({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
+}
 
 // ── @font-face injection (runs once) ─────────────────────────────────────────
 const FONT_FACE_ID = "rendy-headline-fonts";
@@ -123,8 +130,65 @@ export function RendyHeadlineEditor({
   const [videoDims, setVideoDims] = useState<{ w: number; h: number } | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const dragging = useRef(false);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => { injectFonts(); }, []);
+
+  const editorOpen = open || immersive;
+  const closeEditor = useCallback(() => {
+    setOpen(false);
+    onRequestClose?.();
+  }, [onRequestClose]);
+
+  useEffect(() => {
+    if (!editorOpen) {
+      if (wasOpenRef.current && !immersive) openerRef.current?.focus();
+      wasOpenRef.current = false;
+      return;
+    }
+    wasOpenRef.current = true;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusableSelector =
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])';
+    const first = dialog.querySelector<HTMLElement>(focusableSelector);
+    (first ?? dialog).focus();
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      const dialogs = Array.from(
+        document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'),
+      );
+      if (dialogs.at(-1) !== dialog) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeEditor();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(focusableSelector),
+      ).filter((element) => !element.hasAttribute("disabled"));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const firstFocusable = focusable[0];
+      const lastFocusable = focusable[focusable.length - 1];
+      const focusIndex = focusable.indexOf(document.activeElement as HTMLElement);
+      if (event.shiftKey && (focusIndex <= 0 || focusIndex === -1)) {
+        event.preventDefault();
+        lastFocusable.focus();
+      } else if (!event.shiftKey && (focusIndex === -1 || document.activeElement === lastFocusable)) {
+        event.preventDefault();
+        firstFocusable.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [closeEditor, editorOpen, immersive]);
 
   const set = useCallback(
     (patch: Partial<HeadlineSettings>) => onChange({ ...value, ...patch }),
@@ -194,9 +258,10 @@ export function RendyHeadlineEditor({
     return (
       <div className="mt-1">
         <button
+          ref={openerRef}
           type="button"
           onClick={() => setOpen(true)}
-          className="w-full h-8 rounded-full text-xs font-semibold border border-[#C8956C] text-[#855F45] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5"
+          className="w-full min-h-11 rounded-full text-xs font-semibold border border-[#C8956C] text-[#855F45] bg-[#FFFDFC] inline-flex items-center justify-center gap-1.5"
           data-testid="button-open-headline-editor"
         >
           <Type className="w-3.5 h-3.5" />
@@ -207,9 +272,14 @@ export function RendyHeadlineEditor({
   }
 
   return (
+    <BrowserPortal>
     <section
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rendy-headline-dialog-title"
+      tabIndex={-1}
       className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#0F1D2F]/95 p-3 sm:p-6" : "mt-1 rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3"} space-y-3`}
-      aria-label={t("dashboard.showcase.headline.title")}
     >
       <div className={(immersive || open) ? "mx-auto max-w-6xl rounded-[24px] border border-white/10 bg-[#F8F5F0] p-4 shadow-2xl sm:p-6 space-y-3" : ""}>
       {/* Header */}
@@ -219,7 +289,7 @@ export function RendyHeadlineEditor({
             <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
             Overskrift
           </div>
-          <h3 className="text-base font-semibold text-[#0F1D2F] sm:text-lg">
+          <h3 id="rendy-headline-dialog-title" className="text-base font-semibold text-[#0F1D2F] sm:text-lg">
             {t("dashboard.showcase.headline.title")}
           </h3>
           <p className="text-[11px] text-[#6C6964]">
@@ -228,11 +298,9 @@ export function RendyHeadlineEditor({
         </div>
         <button
           type="button"
-          onClick={() => {
-            setOpen(false);
-            onRequestClose?.();
-          }}
+          onClick={closeEditor}
           aria-label={t("dashboard.showcase.headline.close")}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C8956C]"
         >
           <X className="w-4 h-4" />
         </button>
@@ -329,7 +397,7 @@ export function RendyHeadlineEditor({
               type="button"
               onClick={() => set({ size: clamp(value.size - 0.005, HEADLINE_SIZE_MIN, HEADLINE_SIZE_MAX) })}
               aria-label={t("dashboard.showcase.headline.smaller")}
-              className="w-6 h-6 rounded border border-[#E1DAD2] flex items-center justify-center flex-shrink-0"
+              className="min-w-11 min-h-11 rounded border border-[#E1DAD2] flex items-center justify-center flex-shrink-0"
             >
               <Minus className="w-3 h-3" />
             </button>
@@ -349,7 +417,7 @@ export function RendyHeadlineEditor({
               type="button"
               onClick={() => set({ size: clamp(value.size + 0.005, HEADLINE_SIZE_MIN, HEADLINE_SIZE_MAX) })}
               aria-label={t("dashboard.showcase.headline.larger")}
-              className="w-6 h-6 rounded border border-[#E1DAD2] flex items-center justify-center flex-shrink-0"
+              className="min-w-11 min-h-11 rounded border border-[#E1DAD2] flex items-center justify-center flex-shrink-0"
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -432,10 +500,12 @@ export function RendyHeadlineEditor({
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerLeave={onPointerUp}
+              onPointerCancel={onPointerUp}
             >
               <video
                 src={sourceVideoUrl}
                 controls
+                preload="metadata"
                 playsInline
                 muted
                 className="absolute inset-0 w-full h-full object-contain"
@@ -455,7 +525,6 @@ export function RendyHeadlineEditor({
               {value.text.trim() && (
                 <div
                   className="absolute inset-0 pointer-events-none"
-                  aria-hidden="true"
                 >
                   <div
                     className="absolute"
@@ -469,9 +538,10 @@ export function RendyHeadlineEditor({
                     }}
                   >
                     <div
-                      role="button"
+                      role="group"
                       tabIndex={0}
                       aria-label={t("dashboard.showcase.headline.dragLabel")}
+                      aria-describedby="rendy-headline-position-help"
                       onPointerDown={onPointerDown}
                       onKeyDown={onDragKeyDown}
                       className="group cursor-grab active:cursor-grabbing touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C8956C] rounded"
@@ -496,6 +566,9 @@ export function RendyHeadlineEditor({
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
                         <GripHorizontal className="w-4 h-4 text-white drop-shadow" />
                       </div>
+                      <span id="rendy-headline-position-help" className="sr-only">
+                        Brug piletasterne til at flytte teksten. Hold Shift nede for større trin.
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -535,7 +608,7 @@ export function RendyHeadlineEditor({
             ? t("dashboard.showcase.headline.applying")
             : t("dashboard.showcase.headline.apply")
         }
-        className="w-full h-9 rounded-lg bg-[#C8956C] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
+        className="w-full min-h-11 rounded-lg bg-[#C8956C] text-white text-xs font-semibold inline-flex justify-center items-center gap-1.5 disabled:opacity-50"
         data-testid="button-headline-apply"
       >
         {applyBusy ? (
@@ -549,5 +622,6 @@ export function RendyHeadlineEditor({
       </button>
       </div>
     </section>
+    </BrowserPortal>
   );
 }

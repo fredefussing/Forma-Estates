@@ -117,7 +117,11 @@ export function RendyVoiceoverEditor({
   const recordingVideoLoopRef = useRef<boolean | null>(null);
   const recordingVideoMutedRef = useRef<boolean | null>(null);
   const videoEndedHandlerRef = useRef<(() => void) | null>(null);
+  const [outputVideoState, setOutputVideoState] = useState<"loading" | "ready" | "error">("loading");
+  const [outputRetryAttempt, setOutputRetryAttempt] = useState(0);
+  const outputVideoRef = useRef<HTMLVideoElement | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
+  const preFocusRef = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const outputReadyRef = useRef(onOutputReady);
   outputReadyRef.current = onOutputReady;
@@ -331,9 +335,21 @@ export function RendyVoiceoverEditor({
 
   useEffect(() => {
     if (!editorOpen) {
-      if (!immersive) openerRef.current?.focus();
+      // Restore focus to the element that was active before the dialog opened.
+      // Fall back to the opener button when no prior element was recorded
+      // (e.g. immersive mode) or when the previously-focused element is no
+      // longer in the document.
+      const target = preFocusRef.current;
+      if (target && document.contains(target)) {
+        target.focus();
+      } else if (!immersive) {
+        openerRef.current?.focus();
+      }
+      preFocusRef.current = null;
       return;
     }
+    // Record which element was focused before we trap focus inside the dialog.
+    preFocusRef.current = document.activeElement as HTMLElement | null;
     const dialog = dialogRef.current;
     const first = dialog?.querySelector<HTMLElement>(
       "button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), video[controls]",
@@ -363,7 +379,7 @@ export function RendyVoiceoverEditor({
       if (event.shiftKey && (index <= 0 || index === -1)) {
         event.preventDefault();
         focusable[focusable.length - 1].focus();
-      } else if (!event.shiftKey && index === focusable.length - 1) {
+      } else if (!event.shiftKey && (index === -1 || index === focusable.length - 1)) {
         event.preventDefault();
         focusable[0].focus();
       }
@@ -574,7 +590,12 @@ export function RendyVoiceoverEditor({
     try {
       const showSaveFilePicker = (window as SavePickerWindow).showSaveFilePicker;
       if (!showSaveFilePicker) {
-        downloadOutput();
+        // No File System Access API — use the anchor-download fallback directly.
+        try {
+          downloadOutput();
+        } catch {
+          setMessage(t("dashboard.common.kunneIkkeGemmeTilMappen"));
+        }
         return;
       }
       // Open the picker as part of this click so browsers keep the user gesture
@@ -594,14 +615,44 @@ export function RendyVoiceoverEditor({
     } catch (error: unknown) {
       // Cancelling the native picker is an expected user choice, not an error.
       if (error instanceof DOMException && error.name === "AbortError") return;
-      downloadOutput();
-      setMessage(t("dashboard.showcase.voiceover.saveFallback"));
+      // Picker save failed — attempt the anchor-download fallback and report
+      // the appropriate status to the user.
+      let fallbackSucceeded = false;
+      try {
+        downloadOutput();
+        fallbackSucceeded = true;
+      } catch {
+        /* fallback itself threw */
+      }
+      setMessage(
+        fallbackSucceeded
+          ? t("dashboard.showcase.voiceover.saveFallback")
+          : t("dashboard.common.kunneIkkeGemmeTilMappen"),
+      );
     } finally {
       setSavingOutput(false);
     }
   };
 
   const status = project?.status;
+  const outputUrl = project?.outputUrl;
+
+  // Reset video load state whenever the output URL changes (new export).
+  useEffect(() => {
+    if (outputUrl) {
+      setOutputVideoState("loading");
+      setOutputRetryAttempt(0);
+    }
+  }, [outputUrl]);
+
+  // Explicitly reload the media resource on retry. Bumping the key remounts the
+  // <video>, but we also call load() as a belt-and-braces guarantee the browser
+  // re-fetches the same URL after a transient failure.
+  const retryOutputVideo = useCallback(() => {
+    setOutputVideoState("loading");
+    setOutputRetryAttempt((attempt) => attempt + 1);
+    outputVideoRef.current?.load();
+  }, []);
 
   return (
     <div className="mt-2">
@@ -692,7 +743,12 @@ export function RendyVoiceoverEditor({
               {audioUrl && (
                 <div className="flex items-center gap-2 rounded-lg bg-[#F4EEE8] p-2">
                   <audio src={audioUrl} controls className="min-w-0 flex-1 h-8" />
-                  <button type="button" onClick={clearLocalAudio} aria-label={t("dashboard.showcase.voiceover.removeAudio")}>
+                  <button
+                    type="button"
+                    onClick={clearLocalAudio}
+                    aria-label={t("dashboard.showcase.voiceover.removeAudio")}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[#EDE3D9] focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40"
+                  >
                     <Trash2 className="w-4 h-4 text-[#855F45]" />
                   </button>
                 </div>
@@ -776,9 +832,55 @@ export function RendyVoiceoverEditor({
               <div className="flex items-center gap-2 text-xs font-semibold text-[#385B49]" role="status" aria-live="polite">
                 <Check className="w-4 h-4" />{t("dashboard.showcase.voiceover.ready")}
               </div>
-              <video src={project.outputUrl} controls playsInline className="w-full rounded-lg bg-black" data-testid="video-voiceover-final" />
+
+              {/* Output video with explicit loading / ready / error states */}
+              <div className="relative w-full rounded-lg overflow-hidden bg-black">
+                {outputVideoState === "loading" && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center bg-black/60"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={t("dashboard.common.indlaeser2")}
+                  >
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+                {outputVideoState === "error" && (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 p-4"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    <p className="text-xs text-white/90 text-center">
+                      {t("dashboard.common.forbindelsesfejlProevIgen")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retryOutputVideo}
+                      className="h-8 px-3 rounded-lg border border-white/40 text-xs text-white font-semibold inline-flex items-center gap-1.5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      {t("dashboard.common.proevIgen")}
+                    </button>
+                  </div>
+                )}
+                <video
+                  key={`${project.outputUrl}#${outputRetryAttempt}`}
+                  ref={outputVideoRef}
+                  src={project.outputUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full"
+                  data-testid="video-voiceover-final"
+                  onLoadedMetadata={() => setOutputVideoState("ready")}
+                  onCanPlay={() => setOutputVideoState("ready")}
+                  onError={() => setOutputVideoState("error")}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={reset} className="col-span-2 h-11 rounded-xl border bg-[#FFFDFC] text-xs font-semibold transition-colors hover:bg-[#F0E7DD]">
+                <button type="button" onClick={reset} className="col-span-2 h-11 rounded-xl border bg-[#FFFDFC] text-xs font-semibold transition-colors hover:bg-[#F0E7DD]">
                   <RotateCcw className="w-3 h-3 inline mr-1" />{t("dashboard.showcase.voiceover.replace")}
                 </button>
                 <button

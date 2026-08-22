@@ -75,6 +75,7 @@ interface VoiceProjectRow {
   user_id: number;
   listing_id: string;
   source_video_id: string;
+  source_edit_revision: number | null;
   status: VoiceProjectStatus;
   language: string;
   segments: CaptionSegment[] | null;
@@ -95,11 +96,28 @@ interface VoiceProjectRow {
   updated_at: Date;
 }
 
+// Append to writes on rendy_voice_projects whenever a voice job becomes
+// externally usable. The revision comparison is evaluated by PostgreSQL in
+// the same statement as the status transition, closing the check/write race.
+const CURRENT_EDIT_REVISION_PREDICATE = `
+  AND (
+    rendy_voice_projects.source_video_id NOT LIKE 'edit:%'
+    OR EXISTS (
+      SELECT 1
+        FROM rendy_edit_projects edit
+       WHERE edit.id = substring(rendy_voice_projects.source_video_id FROM 6)
+         AND edit.user_id = rendy_voice_projects.user_id
+         AND edit.listing_id = rendy_voice_projects.listing_id
+         AND edit.output_revision = rendy_voice_projects.source_edit_revision
+    )
+  )`;
+
 function toPublicProject(row: VoiceProjectRow) {
   return {
     id: row.id,
     listingId: row.listing_id,
     sourceVideoId: row.source_video_id,
+    sourceEditRevision: row.source_edit_revision,
     status: row.status,
     language: row.language,
     segments: row.segments ?? [],
@@ -160,6 +178,7 @@ async function claimLease(
         AND user_id   = $5
         AND status    = $6
         AND (lease_token IS NULL OR lease_expires_at IS NULL OR lease_expires_at < NOW())
+      ${CURRENT_EDIT_REVISION_PREDICATE}
       RETURNING id`,
     [newStatus, token, expiresAt, id, userId, expectedStatus],
   );
@@ -265,6 +284,28 @@ async function dbGetProjectOwned(id: number, userId: number): Promise<VoiceProje
   return res.rows[0] ?? null;
 }
 
+async function requireCurrentProjectOwned(id: number, userId: number): Promise<VoiceProjectRow> {
+  const current = await pool.query<VoiceProjectRow>(
+    `SELECT *
+       FROM rendy_voice_projects
+      WHERE id = $1
+        AND user_id = $2
+      ${CURRENT_EDIT_REVISION_PREDICATE}
+      LIMIT 1`,
+    [id, userId],
+  );
+  if (current.rows[0]) return current.rows[0];
+
+  const owned = await dbGetProjectOwned(id, userId);
+  if (!owned) {
+    throw Object.assign(new Error("Projekt ikke fundet"), { status: 404 });
+  }
+  throw Object.assign(
+    new Error("Videoen eller overskriften er ændret. Opret voice-over igen til den nyeste version."),
+    { status: 409 },
+  );
+}
+
 type DbUpdateFields = Partial<{
   status: VoiceProjectStatus;
   segments: CaptionSegment[];
@@ -339,12 +380,12 @@ async function resolveEditSource(
   listingId: string,
   videoId: string,
   userId: number,
-): Promise<{ validatedUrl: string; headlineSnapshot: HeadlineSettings | null }> {
+): Promise<{ validatedUrl: string; headlineSnapshot: HeadlineSettings | null; outputRevision: number }> {
   const result = await resolveEditSourceForVoiceover(listingId, videoId, userId);
   if (!result) throw new Error("Ikke et redigeret video-id");
   // The client sends the output_url it knows about; the clean URL may differ.
   // Accept if raw matches either the public output_url OR the clean_output_url.
-  const { sourceUrl, headlineSnapshot } = result;
+  const { sourceUrl, headlineSnapshot, outputRevision } = result;
   const rawNorm = normaliseForComparison(rawUrl);
   // Also fetch output_url for the compatibility check
   const outputUrl = await verifyRendyEditedVideoOwnership(listingId, videoId, userId);
@@ -354,7 +395,42 @@ async function resolveEditSource(
   ) {
     throw new Error("Kilde-URL matcher ikke den færdige redigerede video");
   }
-  return { validatedUrl: sourceUrl, headlineSnapshot };
+  return { validatedUrl: sourceUrl, headlineSnapshot, outputRevision };
+}
+
+export function isVoiceSourceRevisionCurrent(
+  sourceVideoId: string,
+  sourceEditRevision: number | null,
+  currentEditRevision: number | null,
+): boolean {
+  if (!sourceVideoId.startsWith("edit:")) return true;
+  return (
+    sourceEditRevision != null &&
+    currentEditRevision != null &&
+    sourceEditRevision === currentEditRevision
+  );
+}
+
+async function assertCurrentEditRevision(project: VoiceProjectRow): Promise<void> {
+  if (!project.source_video_id.startsWith("edit:")) return;
+  const editId = project.source_video_id.slice("edit:".length);
+  const result = await pool.query<{ output_revision: number }>(
+    `SELECT output_revision
+       FROM rendy_edit_projects
+      WHERE id = $1 AND user_id = $2 AND listing_id = $3`,
+    [editId, project.user_id, project.listing_id],
+  );
+  const currentRevision = result.rows[0]?.output_revision;
+  if (!isVoiceSourceRevisionCurrent(
+    project.source_video_id,
+    project.source_edit_revision,
+    currentRevision ?? null,
+  )) {
+    throw Object.assign(
+      new Error("Videoen eller overskriften er ændret. Opret voice-over igen til den nyeste version."),
+      { status: 409 },
+    );
+  }
 }
 
 async function resolveSourceUrl(
@@ -811,6 +887,10 @@ async function runPreparation(
   const tmpFiles: string[] = [];
 
   try {
+    const revisionProject = await dbGetProject(projectId);
+    if (!revisionProject) throw new Error("Project not found");
+    await assertCurrentEditRevision(revisionProject);
+
     // ── 1. Localise source video ───────────────────────────────────────────────
     let sourceUploadsUrl: string;
 
@@ -915,8 +995,13 @@ async function runPreparation(
     if ("error" in transcriptionResult) throw transcriptionResult.error;
     const segments = groupWordsToSegments(transcriptionResult.result.words);
 
+    // The edit may have changed while audio processing was running.
+    const currentProject = await dbGetProject(projectId);
+    if (!currentProject) throw new Error("Project not found");
+    await assertCurrentEditRevision(currentProject);
+
     // ── 7. Persist status=review (clears lease atomically) ────────────────────
-    await pool.query(
+    const reviewResult = await pool.query<{ id: number }>(
       `UPDATE rendy_voice_projects
           SET status           = 'review',
               segments         = $1,
@@ -924,9 +1009,14 @@ async function runPreparation(
               lease_token      = NULL,
               lease_expires_at = NULL,
               updated_at       = NOW()
-        WHERE id = $2 AND lease_token = $3`,
+        WHERE id = $2 AND lease_token = $3
+        ${CURRENT_EDIT_REVISION_PREDICATE}
+        RETURNING id`,
       [JSON.stringify(segments), projectId, leaseToken],
     );
+    if (reviewResult.rowCount !== 1) {
+      throw new Error("Videoen eller overskriften blev ændret under voice-over-behandlingen");
+    }
 
     console.log(`[VoiceProject ${projectId}] preparation complete — ${segments.length} segments`);
   } catch (err: any) {
@@ -956,6 +1046,7 @@ async function runExport(projectId: number, leaseToken: string, uploadDir: strin
   try {
     const project = await dbGetProject(projectId);
     if (!project) throw new Error("Project not found");
+    await assertCurrentEditRevision(project);
 
     const { source_url, audio_url, segments, subtitles_enabled } = project;
     if (!source_url) throw new Error("No source video URL");
@@ -1022,11 +1113,14 @@ async function runExport(projectId: number, leaseToken: string, uploadDir: strin
     );
     await runFfmpegQueued(ffArgs);
 
+    const currentProject = await dbGetProject(projectId);
+    if (!currentProject) throw new Error("Project not found");
+    await assertCurrentEditRevision(currentProject);
     await r2UploadFile(outputPath, outputName);
     const outputUrl = `/uploads/${outputName}`;
 
     // Persist status=ready, clear lease atomically
-    await pool.query(
+    const readyResult = await pool.query<{ id: number }>(
       `UPDATE rendy_voice_projects
           SET status           = 'ready',
               output_url       = $1,
@@ -1035,9 +1129,14 @@ async function runExport(projectId: number, leaseToken: string, uploadDir: strin
               lease_token      = NULL,
               lease_expires_at = NULL,
               updated_at       = NOW()
-        WHERE id = $2 AND lease_token = $3`,
+        WHERE id = $2 AND lease_token = $3
+        ${CURRENT_EDIT_REVISION_PREDICATE}
+        RETURNING id`,
       [outputUrl, projectId, leaseToken],
     );
+    if (readyResult.rowCount !== 1) {
+      throw new Error("Videoen eller overskriften blev ændret under voice-over-eksporten");
+    }
 
     console.log(`[VoiceProject ${projectId}] export complete → ${outputUrl}`);
   } catch (err: any) {
@@ -1147,7 +1246,11 @@ async function retryTranscription(
     const scribeResult = await falScribeTranscribe(signedUrl, langCode);
     const segments = groupWordsToSegments(scribeResult.words);
 
-    await pool.query(
+    const currentProject = await dbGetProject(projectId);
+    if (!currentProject) throw new Error("Project not found");
+    await assertCurrentEditRevision(currentProject);
+
+    const reviewResult = await pool.query<{ id: number }>(
       `UPDATE rendy_voice_projects
           SET status           = 'review',
               segments         = $1,
@@ -1155,9 +1258,14 @@ async function retryTranscription(
               lease_token      = NULL,
               lease_expires_at = NULL,
               updated_at       = NOW()
-        WHERE id = $2 AND lease_token = $3`,
+        WHERE id = $2 AND lease_token = $3
+        ${CURRENT_EDIT_REVISION_PREDICATE}
+        RETURNING id`,
       [JSON.stringify(segments), projectId, leaseToken],
     );
+    if (reviewResult.rowCount !== 1) {
+      throw new Error("Videoen eller overskriften blev ændret under transskriptionen");
+    }
     console.log(`[VoiceProject ${projectId}] retryTranscription complete — ${segments.length} segments`);
   } catch (err: any) {
     console.error(`[VoiceProject ${projectId}] retryTranscription failed:`, err.message);
@@ -1356,6 +1464,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
 
         let validatedUrl: string;
         let headlineSnapshot: HeadlineSettings | null = null;
+        let sourceEditRevision: number | null = null;
         try {
           if (sourceVideoId.startsWith("edit:")) {
             // For edit sources, resolve the clean assembled URL and snapshot the headline
@@ -1363,6 +1472,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
             const editResult = await resolveEditSource(sourceVideoUrl, listingId, sourceVideoId, userId);
             validatedUrl = editResult.validatedUrl;
             headlineSnapshot = editResult.headlineSnapshot;
+            sourceEditRevision = editResult.outputRevision;
           } else {
             validatedUrl = await resolveSourceUrl(sourceVideoUrl, listingId, sourceVideoId, userId);
           }
@@ -1384,12 +1494,12 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
         const insertRes = await pool.query<{ id: number }>(
           `INSERT INTO rendy_voice_projects
              (user_id, listing_id, source_video_id, status, language, source_input_url,
-              headline_snapshot, lease_token, lease_expires_at)
-           VALUES ($1, $2, $3, 'processing', $4, $5, $6::jsonb, $7, $8)
+               headline_snapshot, source_edit_revision, lease_token, lease_expires_at)
+            VALUES ($1, $2, $3, 'processing', $4, $5, $6::jsonb, $7, $8, $9)
            RETURNING id`,
           [userId, listingId, sourceVideoId, lang, validatedUrl,
            headlineSnapshot != null ? JSON.stringify(headlineSnapshot) : null,
-           token, expiresAt],
+            sourceEditRevision, token, expiresAt],
         );
         const projectId = insertRes.rows[0].id;
         claimedProjectId = projectId;
@@ -1440,12 +1550,28 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       if (!listingId || !videoId) {
         return res.status(400).json({ success: false, message: "Mangler listingId eller videoId" });
       }
-      const result = await pool.query<VoiceProjectRow>(
-        `SELECT * FROM rendy_voice_projects
-         WHERE user_id = $1 AND listing_id = $2 AND source_video_id = $3
-         ORDER BY created_at DESC LIMIT 1`,
-        [userId, listingId, videoId],
-      );
+      const result = videoId.startsWith("edit:")
+        ? await pool.query<VoiceProjectRow>(
+            `SELECT voice.*
+               FROM rendy_voice_projects voice
+               JOIN rendy_edit_projects edit
+                 ON edit.id = $4
+                AND edit.user_id = voice.user_id
+                AND edit.listing_id = voice.listing_id
+                AND edit.output_revision = voice.source_edit_revision
+              WHERE voice.user_id = $1
+                AND voice.listing_id = $2
+                AND voice.source_video_id = $3
+              ORDER BY voice.created_at DESC
+              LIMIT 1`,
+            [userId, listingId, videoId, videoId.slice("edit:".length)],
+          )
+        : await pool.query<VoiceProjectRow>(
+            `SELECT * FROM rendy_voice_projects
+              WHERE user_id = $1 AND listing_id = $2 AND source_video_id = $3
+              ORDER BY created_at DESC LIMIT 1`,
+            [userId, listingId, videoId],
+          );
       const project = result.rows[0] ?? null;
       return res.json({ success: true, project: project ? toPublicProject(project) : null });
     } catch (err: any) {
@@ -1460,7 +1586,19 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       const { userId } = await requireUser(req);
       const result = await pool.query<VoiceProjectRow>(
         `SELECT * FROM rendy_voice_projects
-         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
+         WHERE user_id = $1
+           AND (
+             source_video_id NOT LIKE 'edit:%'
+             OR EXISTS (
+               SELECT 1
+                 FROM rendy_edit_projects edit
+                WHERE edit.id = substring(rendy_voice_projects.source_video_id FROM 6)
+                  AND edit.user_id = rendy_voice_projects.user_id
+                  AND edit.listing_id = rendy_voice_projects.listing_id
+                  AND edit.output_revision = rendy_voice_projects.source_edit_revision
+             )
+           )
+         ORDER BY created_at DESC LIMIT 20`,
         [userId],
       );
       return res.json({ success: true, projects: result.rows.map(toPublicProject) });
@@ -1476,12 +1614,11 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       const { userId } = await requireUser(req);
       const id = parseInt(req.params["id"] as string, 10);
       if (!id) return res.status(400).json({ success: false, message: "Ugyldigt projekt-id" });
-      const project = await dbGetProjectOwned(id, userId);
-      if (!project) return res.status(404).json({ success: false, message: "Projekt ikke fundet" });
+      const project = await requireCurrentProjectOwned(id, userId);
       return res.json({ success: true, project: toPublicProject(project) });
     } catch (err: any) {
       if (err?.status === 401) return res.status(401).json({ success: false, message: err.message });
-      return res.status(500).json({ success: false, message: err.message });
+      return res.status(err?.status ?? 500).json({ success: false, message: err.message });
     }
   });
 
@@ -1492,8 +1629,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       const id = parseInt(req.params["id"] as string, 10);
       if (!id) return res.status(400).json({ success: false, message: "Ugyldigt projekt-id" });
 
-      const project = await dbGetProjectOwned(id, userId);
-      if (!project) return res.status(404).json({ success: false, message: "Projekt ikke fundet" });
+      const project = await requireCurrentProjectOwned(id, userId);
       if (project.status !== "review") {
         return res.status(409).json({ success: false, message: "Segmenter kan kun redigeres i review-tilstand" });
       }
@@ -1581,6 +1717,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
                 END,
                 updated_at = NOW()
           WHERE id = $3 AND user_id = $4 AND status = 'review'
+          ${CURRENT_EDIT_REVISION_PREDICATE}
           RETURNING *`,
         [
           validatedSegments === undefined ? null : JSON.stringify(validatedSegments),
@@ -1611,8 +1748,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       const id = parseInt(req.params["id"] as string, 10);
       if (!id) return res.status(400).json({ success: false, message: "Ugyldigt projekt-id" });
 
-      const project = await dbGetProjectOwned(id, userId);
-      if (!project) return res.status(404).json({ success: false, message: "Projekt ikke fundet" });
+      const project = await requireCurrentProjectOwned(id, userId);
 
       if (project.status === "processing") {
         return res.status(409).json({ success: false, message: "Projektet er stadig under forberedelse" });
@@ -1628,7 +1764,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       const token = await claimLease(id, userId, "review", "exporting");
       if (!token) {
         // Another worker already claimed it — return current state
-        const current = await dbGetProjectOwned(id, userId);
+        const current = await requireCurrentProjectOwned(id, userId);
         return res.json({ success: true, project: toPublicProject(current!) });
       }
 
@@ -1636,11 +1772,11 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
         console.error(`[VoiceProject ${id}] export crash:`, e)
       );
 
-      const updated = await dbGetProjectOwned(id, userId);
+      const updated = await requireCurrentProjectOwned(id, userId);
       return res.json({ success: true, project: toPublicProject(updated!) });
     } catch (err: any) {
       if (err?.status === 401) return res.status(401).json({ success: false, message: err.message });
-      return res.status(500).json({ success: false, message: err.message });
+      return res.status(err?.status ?? 500).json({ success: false, message: err.message });
     }
   });
 
@@ -1651,8 +1787,7 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       const id = parseInt(req.params["id"] as string, 10);
       if (!id) return res.status(400).json({ success: false, message: "Ugyldigt projekt-id" });
 
-      const project = await dbGetProjectOwned(id, userId);
-      if (!project) return res.status(404).json({ success: false, message: "Projekt ikke fundet" });
+      const project = await requireCurrentProjectOwned(id, userId);
       if (project.status !== "failed") {
         return res.status(409).json({ success: false, message: "Kun mislykkede projekter kan genstarte" });
       }
@@ -1663,14 +1798,18 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
           `UPDATE rendy_voice_projects
               SET status = 'review', error = NULL, updated_at = NOW()
             WHERE id = $1 AND user_id = $2 AND status = 'failed'
+            ${CURRENT_EDIT_REVISION_PREDICATE}
             RETURNING id`,
           [id, userId],
         );
         if (!res2.rows[0]) {
-          const cur = await dbGetProjectOwned(id, userId);
-          return res.json({ success: true, project: toPublicProject(cur!) });
+          await requireCurrentProjectOwned(id, userId);
+          return res.status(409).json({
+            success: false,
+            message: "Projektet kunne ikke genstartes, fordi videoversionen blev ændret",
+          });
         }
-        const updated = await dbGetProjectOwned(id, userId);
+        const updated = await requireCurrentProjectOwned(id, userId);
         return res.json({ success: true, project: toPublicProject(updated!) });
       }
 
@@ -1678,13 +1817,13 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       if (project.audio_url) {
         const token = await claimLease(id, userId, "failed", "processing");
         if (!token) {
-          const cur = await dbGetProjectOwned(id, userId);
+          const cur = await requireCurrentProjectOwned(id, userId);
           return res.json({ success: true, project: toPublicProject(cur!) });
         }
         retryTranscription(id, token, project.audio_url, project.language).catch((e) =>
           console.error(`[VoiceProject ${id}] retry crash:`, e)
         );
-        const updated = await dbGetProjectOwned(id, userId);
+        const updated = await requireCurrentProjectOwned(id, userId);
         return res.json({ success: true, project: toPublicProject(updated!) });
       }
 
@@ -1692,19 +1831,19 @@ export function registerRendyVoiceoverRoutes(app: Express, uploadDir: string) {
       if (project.raw_audio_key && project.source_input_url) {
         const token = await claimLease(id, userId, "failed", "processing");
         if (!token) {
-          const cur = await dbGetProjectOwned(id, userId);
+          const cur = await requireCurrentProjectOwned(id, userId);
           return res.json({ success: true, project: toPublicProject(cur!) });
         }
         resumeFromRawAudio(id, token, project.raw_audio_key, project.source_input_url, project.language, uploadDir)
           .catch((e) => console.error(`[VoiceProject ${id}] resume crash:`, e));
-        const updated = await dbGetProjectOwned(id, userId);
+        const updated = await requireCurrentProjectOwned(id, userId);
         return res.json({ success: true, project: toPublicProject(updated!) });
       }
 
       return res.status(422).json({ success: false, message: "Ingen gendannelig lyddata — upload lydfilen igen" });
     } catch (err: any) {
       if (err?.status === 401) return res.status(401).json({ success: false, message: err.message });
-      return res.status(500).json({ success: false, message: err.message });
+      return res.status(err?.status ?? 500).json({ success: false, message: err.message });
     }
   });
 

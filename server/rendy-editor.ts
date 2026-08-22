@@ -147,6 +147,7 @@ interface ProjectRow {
   user_id: number;
   listing_id: string;
   source_video_id: string;
+  output_revision: number;
   manifest_revision: number | null;
   timeline: TimelineItem[] | null;
   analysis_plan: EditPlan | null;
@@ -193,6 +194,7 @@ function toPublicProject(row: ProjectRow, manifest: RendyShotManifest | null) {
     id: row.id,
     listingId: row.listing_id,
     sourceVideoId: row.source_video_id,
+    outputRevision: row.output_revision ?? 0,
     manifestRevision: row.manifest_revision,
     manifest: toPublicManifest(manifest),
     timeline: row.timeline ?? [],
@@ -225,6 +227,7 @@ export async function ensureRendyEditorTables() {
       user_id           integer NOT NULL REFERENCES users(id),
       listing_id        text NOT NULL,
       source_video_id   text NOT NULL,
+      output_revision   integer NOT NULL DEFAULT 0,
       manifest_revision integer,
       timeline          jsonb NOT NULL DEFAULT '[]'::jsonb,
       analysis_plan     jsonb,
@@ -245,6 +248,8 @@ export async function ensureRendyEditorTables() {
   await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS headline jsonb`);
   // Additive: clean assembled output before headline burn (private, used by voiceover layer)
   await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS clean_output_url text`);
+  // Monotonic identity for the exact rendered source used by voice-over jobs.
+  await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS output_revision integer NOT NULL DEFAULT 0`);
 }
 
 async function requireUser(req: Request): Promise<{ userId: number }> {
@@ -1453,12 +1458,12 @@ export async function resolveEditSourceForVoiceover(
   listingId: string,
   sourceVideoId: string,
   userId: number,
-): Promise<{ sourceUrl: string; headlineSnapshot: HeadlineSettings | null } | null> {
+): Promise<{ sourceUrl: string; headlineSnapshot: HeadlineSettings | null; outputRevision: number } | null> {
   if (!sourceVideoId.startsWith("edit:")) return null;
   const id = sourceVideoId.slice("edit:".length);
   if (!/^[a-f0-9-]{36}$/i.test(id)) throw new Error("Ugyldigt redigeret video-id");
-  const result = await pool.query<{ output_url: string | null; clean_output_url: string | null; headline: HeadlineSettings | null }>(
-    `SELECT output_url, clean_output_url, headline FROM rendy_edit_projects
+  const result = await pool.query<{ output_url: string | null; clean_output_url: string | null; headline: HeadlineSettings | null; output_revision: number }>(
+    `SELECT output_url, clean_output_url, headline, output_revision FROM rendy_edit_projects
       WHERE id = $1 AND listing_id = $2 AND user_id = $3 AND status = 'ready'`,
     [id, listingId, userId],
   );
@@ -1473,7 +1478,7 @@ export async function resolveEditSourceForVoiceover(
   const hl = row.headline;
   const headlineSnapshot = hl && hl.enabled && hl.text.trim().length > 0 ? hl : null;
 
-  return { sourceUrl, headlineSnapshot };
+  return { sourceUrl, headlineSnapshot, outputRevision: row.output_revision ?? 0 };
 }
 
 async function recoverProjects(uploadDir: string) {
@@ -1600,6 +1605,7 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
         `UPDATE rendy_edit_projects
             SET timeline = $1::jsonb,
                 headline = $4::jsonb,
+                output_revision = output_revision + 1,
                 analysis_plan = NULL,
                 output_url = NULL,
                 clean_output_url = NULL,
@@ -1663,7 +1669,9 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
       // live until the new render succeeds).
       await pool.query(
         `UPDATE rendy_edit_projects
-            SET headline = $1::jsonb, updated_at = NOW()
+            SET headline = $1::jsonb,
+                output_revision = output_revision + 1,
+                updated_at = NOW()
           WHERE id = $2 AND user_id = $3`,
         [headlineJson, project.id, userId],
       );

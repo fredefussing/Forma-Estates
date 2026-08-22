@@ -13,7 +13,7 @@
  * No backdrop-filter blur — the export pipeline does not produce blur.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   RENDY_TYPOGRAPHY_PRESETS,
@@ -164,6 +164,9 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+// ── Video state ───────────────────────────────────────────────────────────────
+type VideoState = "idle" | "loading" | "ready" | "error";
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export function RendyCaptionStyleEditor({
   previewVideoUrl,
@@ -174,8 +177,18 @@ export function RendyCaptionStyleEditor({
   const { t } = useTranslation();
   // Track video intrinsic dimensions for aspect-aware container
   const [videoDims, setVideoDims] = useState<{ w: number; h: number } | null>(null);
+  const [videoState, setVideoState] = useState<VideoState>("idle");
+  const [retryKey, setRetryKey] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => { injectFonts(); }, []);
+
+  // Reset video state when URL changes
+  useEffect(() => {
+    if (previewVideoUrl) {
+      setVideoState("idle");
+    }
+  }, [previewVideoUrl, retryKey]);
 
   const set = (patch: Partial<CaptionStyleSettings>) =>
     onChange({ ...value, ...patch });
@@ -184,6 +197,14 @@ export function RendyCaptionStyleEditor({
     sampleText ?? t("dashboard.showcase.captionStyle.sampleText");
 
   const aspectRatio = videoDims ? `${videoDims.w} / ${videoDims.h}` : "9 / 16";
+
+  // Status message for aria-live region
+  const videoStatusMsg =
+    videoState === "loading"
+      ? t("dashboard.showcase.voiceover.preparing")
+      : videoState === "error"
+      ? t("dashboard.showcase.voiceover.failed")
+      : "";
 
   return (
     <div className="space-y-3 rounded-xl border border-[#DCC9B9] bg-[#FFFDFC] p-3">
@@ -199,21 +220,78 @@ export function RendyCaptionStyleEditor({
         className="relative w-full rounded-lg overflow-hidden bg-black"
         style={{ aspectRatio, containerType: "size", maxHeight: "220px" }}
       >
+        {/* Aria-live status for screen readers */}
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {videoStatusMsg}
+        </span>
+
         {previewVideoUrl ? (
-          <video
-            src={previewVideoUrl}
-            muted
-            playsInline
-            loop
-            autoPlay
-            className="absolute inset-0 w-full h-full object-contain"
-            onLoadedMetadata={(e) => {
-              const v = e.target as HTMLVideoElement;
-              if (v.videoWidth && v.videoHeight) {
-                setVideoDims({ w: v.videoWidth, h: v.videoHeight });
-              }
-            }}
-          />
+          <>
+            <video
+              key={`${previewVideoUrl}-${retryKey}`}
+              ref={videoRef}
+              src={previewVideoUrl}
+              muted
+              playsInline
+              loop
+              autoPlay
+              preload="metadata"
+              className="absolute inset-0 w-full h-full object-contain"
+              onLoadStart={() => setVideoState("loading")}
+              onCanPlay={() => setVideoState("ready")}
+              onError={() => setVideoState("error")}
+              onLoadedMetadata={(e) => {
+                const v = e.target as HTMLVideoElement;
+                if (v.videoWidth && v.videoHeight) {
+                  setVideoDims({ w: v.videoWidth, h: v.videoHeight });
+                }
+              }}
+            />
+
+            {/* Loading spinner — shown until canPlay */}
+            {videoState === "loading" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+                <svg
+                  className="w-8 h-8 text-white/70 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12" cy="12" r="10"
+                    stroke="currentColor" strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
+                </svg>
+              </div>
+            )}
+
+            {/* Error overlay — explains the black frame and offers retry */}
+            {videoState === "error" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70">
+                <p className="text-[11px] text-white/80 text-center px-4">
+                  {t("dashboard.showcase.voiceover.failed")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRetryKey((k) => k + 1)}
+                  className="text-[11px] text-white underline underline-offset-2"
+                >
+                  {t("dashboard.showcase.voiceover.retry")}
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-b from-[#1a2a3a] to-[#0a1520]" />
         )}
@@ -306,7 +384,7 @@ export function RendyCaptionStyleEditor({
               type="button"
               onClick={() => set({ contrast: opt.value })}
               aria-pressed={value.contrast === opt.value}
-              className={`h-6 px-2 rounded text-[10px] font-semibold border transition-all ${
+              className={`min-h-11 px-3 rounded text-[10px] font-semibold border transition-all ${
                 value.contrast === opt.value
                   ? "border-[#C8956C] bg-[#FDF5EE] text-[#855F45]"
                   : "border-[#E1DAD2] text-[#4D4943]"
@@ -330,7 +408,7 @@ export function RendyCaptionStyleEditor({
               type="button"
               onClick={() => set({ position: opt.value })}
               aria-pressed={value.position === opt.value}
-              className={`h-6 px-2 rounded text-[10px] font-semibold border transition-all ${
+              className={`min-h-11 px-3 rounded text-[10px] font-semibold border transition-all ${
                 value.position === opt.value
                   ? "border-[#C8956C] bg-[#FDF5EE] text-[#855F45]"
                   : "border-[#E1DAD2] text-[#4D4943]"

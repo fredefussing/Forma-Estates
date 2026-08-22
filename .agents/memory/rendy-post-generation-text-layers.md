@@ -14,3 +14,9 @@ Browser preview and ASS export must also share the headline colour and fade dura
 **Why:** CSS-only fades disappear from the exported video, and treating ASS colour bytes as RGB produces a visibly different headline even when the hex digits look familiar.
 
 **How to apply:** Derive preview opacity and ASS `\fad(...)` timing from the same constants. Test that opacity is zero outside the active interval and that both standalone-headline and combined voice-over ASS use the shared BGR colour and fade.
+
+Every post-generation voice project must bind to the immutable revision of the clean Edit output it was created from. Clip or headline changes advance that revision, and stale voice projects must disappear from normal lookup and be rejected by direct GET, PATCH, export, retry, recovery, and terminal worker writes.
+
+**Why:** Voice-over snapshots both source frames and headline settings. Without revision binding, changing clips or text can make a later “Save and finish” publish narration rendered over an older video. A separate pre-check is not enough because the Edit can change between the check and the database write.
+
+**How to apply:** Store the source Edit revision on the voice project. Put the revision predicate inside every lease claim, externally visible read, review/ready transition, and retry restoration SQL statement; treat zero affected rows as stale. Remount client voice state when the Edit revision changes.
