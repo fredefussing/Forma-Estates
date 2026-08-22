@@ -1,0 +1,16 @@
+/* Rendy text-editors group — scoped fonts & app tokens */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@300;400;700&display=swap");
+
+:root {
+  --background: #FDFAF7;
+  --foreground: #0F1D2F;
+  --muted: #6C6964;
+  --border: #E1DAD2;
+  --accent: #C8956C;
+  --accent-light: #FDF5EE;
+  --accent-dark: #855F45;
+  --panel: #FFFDFC;
+  --panel-border: #DCC9B9;
+}
+
+/* Custom font-face using Google Fonts CDN names */

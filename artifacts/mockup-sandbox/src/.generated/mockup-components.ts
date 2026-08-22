@@ -3,5 +3,7 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/pricing-currency/CurrencySelector.tsx": () => import("../components/mockups/pricing-currency/CurrencySelector.tsx"),
   "./components/mockups/pricing-currency/Current.tsx": () => import("../components/mockups/pricing-currency/Current.tsx"),
-  "./components/mockups/rendy-editor/RendyEditor.tsx": () => import("../components/mockups/rendy-editor/RendyEditor.tsx")
+  "./components/mockups/rendy-editor/RendyEditor.tsx": () => import("../components/mockups/rendy-editor/RendyEditor.tsx"),
+  "./components/mockups/rendy-text-editors/CaptionStyleEditor.tsx": () => import("../components/mockups/rendy-text-editors/CaptionStyleEditor.tsx"),
+  "./components/mockups/rendy-text-editors/HeadlineEditor.tsx": () => import("../components/mockups/rendy-text-editors/HeadlineEditor.tsx")
 };
