@@ -9,6 +9,7 @@ import {
   Loader2,
   Minus,
   Pencil,
+  Play,
   Plus,
   RotateCcw,
   Save,
@@ -108,6 +109,18 @@ function totalDuration(items: TimelineItem[], shots: Shot[]): number {
     const cand = shot.candidates.find((c) => c.id === item.candidateId);
     return acc + (cand ? cand.duration : shot.duration);
   }, 0);
+}
+
+function manifestNeedsThumbnailBackfill(
+  manifest: Manifest | null | undefined,
+): boolean {
+  return Boolean(
+    manifest?.shots.some(shot =>
+      shot.candidates.some(candidate =>
+        !candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-"),
+      ),
+    ),
+  );
 }
 
 function ClipThumbnail({
@@ -217,6 +230,7 @@ export function RendyVideoEditor({
   const [message, setMessage] = useState("");
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [previewPlaybackId, setPreviewPlaybackId] = useState<string | null>(null);
   const [pendingOutputUrl, setPendingOutputUrl] = useState<string | null>(null);
   const [voiceoverBusy, setVoiceoverBusy] = useState(false);
   // Headline state — always reset to proj.headline ?? DEFAULT on every project load/poll
@@ -225,6 +239,7 @@ export function RendyVideoEditor({
   );
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thumbnailPollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
 
@@ -299,6 +314,7 @@ export function RendyVideoEditor({
 
   // ── Open: create or find existing project ──────────────────────────────────
   const openEditor = useCallback(async () => {
+    setPreviewPlaybackId(null);
     setOpen(true);
     setMessage("");
     setBusy(true);
@@ -331,6 +347,15 @@ export function RendyVideoEditor({
   }, [clearPoll, open]);
 
   useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (
       open &&
       project &&
@@ -340,6 +365,51 @@ export function RendyVideoEditor({
       void poll(project.id);
     }
   }, [open, poll, project]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !project?.id ||
+      !manifestNeedsThumbnailBackfill(project.manifest)
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const projectId = project.id;
+
+    const refreshThumbnails = async () => {
+      attempts += 1;
+      try {
+        const data = await api(`/api/bolig/rendy/edit-projects/${projectId}`);
+        if (cancelled) return;
+        const refreshed: EditProject = data.project;
+        setProject(previous =>
+          previous?.id === projectId
+            ? { ...previous, manifest: refreshed.manifest }
+            : previous,
+        );
+        if (
+          attempts < 20 &&
+          manifestNeedsThumbnailBackfill(refreshed.manifest)
+        ) {
+          thumbnailPollTimer.current = setTimeout(refreshThumbnails, 1_500);
+        }
+      } catch {
+        if (!cancelled && attempts < 20) {
+          thumbnailPollTimer.current = setTimeout(refreshThumbnails, 2_500);
+        }
+      }
+    };
+
+    thumbnailPollTimer.current = setTimeout(refreshThumbnails, 900);
+    return () => {
+      cancelled = true;
+      if (thumbnailPollTimer.current) clearTimeout(thumbnailPollTimer.current);
+      thumbnailPollTimer.current = null;
+    };
+  }, [api, open, project?.id]);
 
   // ── Timeline mutations ──────────────────────────────────────────────────────
   const shots: Shot[] = project?.manifest?.shots ?? [];
@@ -355,6 +425,7 @@ export function RendyVideoEditor({
         ),
       );
       setSelectedIndex(existingIndex);
+      setPreviewPlaybackId(null);
       return;
     }
     setTimeline((previous) => [
@@ -362,6 +433,7 @@ export function RendyVideoEditor({
       { shotId: shot.id, candidateId: candidate.id },
     ]);
     setSelectedIndex(timeline.length);
+    setPreviewPlaybackId(null);
   }
 
   function removeItem(index: number) {
@@ -373,6 +445,7 @@ export function RendyVideoEditor({
       if (previous === index) return null;
       return previous > index ? previous - 1 : previous;
     });
+    setPreviewPlaybackId(null);
   }
 
   function moveItemTo(index: number, targetIndex: number) {
@@ -389,6 +462,7 @@ export function RendyVideoEditor({
       return next;
     });
     setSelectedIndex(targetIndex);
+    setPreviewPlaybackId(null);
   }
 
   // ── Server actions ──────────────────────────────────────────────────────────
@@ -586,9 +660,9 @@ export function RendyVideoEditor({
 
   return (
     <BrowserPortal>
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#152536]/[.94] p-2 sm:p-6" role="presentation">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#152536]" role="presentation">
       <section
-        className="mx-auto min-h-[calc(100dvh-1rem)] max-w-7xl rounded-[22px] border border-[#E9DED2] bg-[#F6F1EA] p-4 shadow-2xl space-y-4 sm:min-h-[calc(100dvh-3rem)] sm:rounded-[28px] sm:p-6"
+        className="min-h-[100dvh] w-full space-y-4 bg-[#F6F1EA] p-4 sm:p-6"
         aria-label="Videoredigering"
         aria-labelledby="rendy-video-editor-heading"
         aria-modal="true"
@@ -652,7 +726,10 @@ export function RendyVideoEditor({
                   <button
                     key={`${item.shotId}-context-${index}`}
                     type="button"
-                    onClick={() => setSelectedIndex(index)}
+                    onClick={() => {
+                      setSelectedIndex(index);
+                      setPreviewPlaybackId(null);
+                    }}
                     aria-label={`Åbn klip ${index + 1}: ${shot?.label ?? "Klip"}`}
                     className={`relative w-32 shrink-0 snap-start overflow-hidden rounded-xl border text-left transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#C8956C]/40 ${
                       previewIndex === index
@@ -856,19 +933,55 @@ export function RendyVideoEditor({
                     )}
                   </div>
                   {previewCandidate ? (
-                    <video
-                      key={previewCandidate.id}
-                      src={`${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`}
-                      controls
-                      playsInline
-                      muted
-                      preload="metadata"
-                      style={{
-                        aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}`,
-                      }}
-                      className="mx-auto h-auto max-h-[68vh] w-full max-w-full bg-black object-contain"
+                    <div
+                      className="relative flex h-[58dvh] min-h-[300px] w-full items-center justify-center overflow-hidden bg-[#F6F1EA] p-3 sm:h-[70dvh] sm:max-h-[760px]"
                       data-testid="video-active-clip-preview"
-                    />
+                    >
+                      {previewPlaybackId === previewCandidate.id ? (
+                        <video
+                          key={previewCandidate.id}
+                          src={`${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`}
+                          controls
+                          autoPlay
+                          playsInline
+                          muted
+                          preload="auto"
+                          className="block max-h-full max-w-full rounded-xl object-contain"
+                          style={{
+                            aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}`,
+                          }}
+                        />
+                      ) : (
+                        <>
+                          {previewCandidate.thumbnailUrl ? (
+                            <img
+                              src={previewCandidate.thumbnailUrl}
+                              alt=""
+                              className="block max-h-full max-w-full rounded-xl object-contain shadow-sm"
+                              style={{
+                                aspectRatio: `${previewCandidate.width} / ${previewCandidate.height}`,
+                              }}
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <Film className="h-10 w-10 text-white/35" aria-hidden="true" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPlaybackId(previewCandidate.id)}
+                            className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#D9AF8D]"
+                            aria-label={`Afspil ${previewShot?.label ?? "klip"}`}
+                          >
+                            <span className="inline-flex h-14 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[#0F1D2F] shadow-xl">
+                              <Play className="h-5 w-5 fill-current" />
+                              Afspil klip
+                            </span>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   ) : (
                     <div className="grid min-h-56 place-items-center px-6 text-center text-sm text-white/60">
                       Tilsæt et klip fra biblioteket for at se det her.
@@ -919,12 +1032,16 @@ export function RendyVideoEditor({
                         <li
                           key={`${item.shotId}-${index}`}
                           aria-current={isSelected ? "step" : undefined}
-                          onClick={() => setSelectedIndex(index)}
+                          onClick={() => {
+                            setSelectedIndex(index);
+                            setPreviewPlaybackId(null);
+                          }}
                            onKeyDown={(event) => {
                              if ((event.target as HTMLElement).closest("select, button, input, textarea")) return;
                              if (event.key === "Enter" || event.key === " ") {
                                event.preventDefault();
                                setSelectedIndex(index);
+                               setPreviewPlaybackId(null);
                              }
                            }}
                            tabIndex={0}

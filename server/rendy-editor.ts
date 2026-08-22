@@ -39,6 +39,7 @@ const MAX_SCENES_PER_DELIVERY = 40;
 const SIGNATURE_WIDTH = 16;
 const SIGNATURE_HEIGHT = 16;
 const SIGNATURE_BYTES = SIGNATURE_WIDTH * SIGNATURE_HEIGHT;
+const manifestThumbnailBackfills = new Map<string, Promise<void>>();
 
 type ProjectStatus = "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
 type JobStage = "prepare" | "analyze" | "render" | "headline";
@@ -629,6 +630,100 @@ async function buildManifest(videos: DeliveredVideo[], listingId: string): Promi
   } finally {
     fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+function manifestNeedsThumbnailBackfill(manifest: RendyShotManifest): boolean {
+  return manifest.shots.some(shot =>
+    shot.candidates.some(candidate =>
+      !candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-"),
+    ),
+  );
+}
+
+async function backfillManifestThumbnails(
+  listingId: string,
+  userId: number,
+  revision: number,
+): Promise<void> {
+  const current = await getManifest(listingId, userId, revision);
+  if (!current || !manifestNeedsThumbnailBackfill(current.manifest)) return;
+
+  const tempDir = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "rendy-edit-thumbnail-backfill-"),
+  );
+  const sourcePaths = new Map<string, string>();
+  let changed = false;
+
+  try {
+    for (const shot of current.manifest.shots) {
+      for (const candidate of shot.candidates) {
+        if (candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-")) continue;
+
+        let sourcePath = sourcePaths.get(candidate.sourceUrl);
+        if (!sourcePath) {
+          sourcePath = path.join(
+            tempDir,
+            `${candidate.sourceVideoId.replace(/[^a-zA-Z0-9_-]/g, "_")}-${randomUUID()}.mp4`,
+          );
+          await materializeSource(candidate.sourceUrl, sourcePath);
+          sourcePaths.set(candidate.sourceUrl, sourcePath);
+        }
+
+        const midpoint =
+          candidate.safeStart + (candidate.safeEnd - candidate.safeStart) / 2;
+        const thumbnailUrl = await createCandidateThumbnail(
+          sourcePath,
+          midpoint,
+          Math.max(candidate.safeEnd + 0.5, midpoint + 0.5),
+          candidate.fps,
+          listingId,
+          candidate.id,
+          tempDir,
+        );
+        if (thumbnailUrl) {
+          candidate.thumbnailUrl = thumbnailUrl;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      await pool.query(
+        `UPDATE rendy_edit_manifests
+            SET payload = $1::jsonb
+          WHERE listing_id = $2 AND user_id = $3 AND revision = $4`,
+        [JSON.stringify(current.manifest), listingId, userId, revision],
+      );
+    }
+  } finally {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function queueManifestThumbnailBackfill(
+  listingId: string,
+  userId: number,
+  revision: number | null,
+  manifest: RendyShotManifest | null,
+): boolean {
+  if (revision == null || !manifest || !manifestNeedsThumbnailBackfill(manifest)) {
+    return false;
+  }
+  const key = `${userId}:${listingId}:${revision}`;
+  if (!manifestThumbnailBackfills.has(key)) {
+    const job = backfillManifestThumbnails(listingId, userId, revision)
+      .catch(error => {
+        console.warn(
+          `[rendy-edit] Thumbnail backfill failed for ${listingId}:`,
+          error instanceof Error ? error.message : error,
+        );
+      })
+      .finally(() => {
+        manifestThumbnailBackfills.delete(key);
+      });
+    manifestThumbnailBackfills.set(key, job);
+  }
+  return true;
 }
 
 function timelineForSource(manifest: RendyShotManifest, sourceVideoId: string): TimelineItem[] {
@@ -1453,6 +1548,12 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
         project = reopened.rows[0] ?? project;
       }
       const manifest = await manifestForProject(project);
+      queueManifestThumbnailBackfill(
+        project.listing_id,
+        project.user_id,
+        project.manifest_revision,
+        manifest,
+      );
       return res.json({ success: true, project: toPublicProject(project, manifest) });
     } catch (error: any) {
       return res.status(error?.status ?? 500).json({ success: false, message: error?.message ?? "Kunne ikke åbne videoredigeringen" });
@@ -1464,7 +1565,14 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
       const { userId } = await requireUser(req);
       const project = await getProject(req.params.id, userId);
       if (!project) return res.status(404).json({ success: false, message: "Redigeringsprojektet blev ikke fundet" });
-      return res.json({ success: true, project: toPublicProject(project, await manifestForProject(project)) });
+      const manifest = await manifestForProject(project);
+      queueManifestThumbnailBackfill(
+        project.listing_id,
+        project.user_id,
+        project.manifest_revision,
+        manifest,
+      );
+      return res.json({ success: true, project: toPublicProject(project, manifest) });
     } catch (error: any) {
       return res.status(error?.status ?? 500).json({ success: false, message: error?.message ?? "Kunne ikke hente redigeringsprojektet" });
     }
