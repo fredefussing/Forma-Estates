@@ -43,3 +43,4 @@
 - [Mockup sandbox isolation](mockup-sandbox-isolation.md) — sandbox cartographer can load the main app Tailwind config and cause a preview error overlay; keep sandbox Vite independent.
 - [Sandbox video preview codec](sandbox-video-preview-codec.md) — use VP9 WebM for derived browser previews when Rendy H.264 MP4 stays at readyState 0; preserve original deliveries separately.
 - [Frame-accurate preview clip cuts](ffmpeg-frame-accurate-clips.md) — always output-seek (-ss after -i) for derived scene clips; fast-seek snaps to keyframes and shows the wrong room; audit with timestamped contact sheets.
+- [Rendy frame analysis via pipe](rendy-frame-analysis-pipe.md) — never round-trip analysis frames through /tmp JPGs; pipe bounded raw pixels from the shared FFmpeg queue.

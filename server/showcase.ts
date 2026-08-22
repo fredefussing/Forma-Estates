@@ -135,6 +135,62 @@ export function runFfmpegQueued(args: string[]): Promise<void> {
   return runFfmpeg(args);
 }
 
+/**
+ * Runs FFmpeg through the shared concurrency limiter and returns stdout.
+ * Callers must set an explicit pipe output in args (for example `pipe:1`).
+ * The byte ceiling prevents an unexpected FFmpeg command from exhausting RAM.
+ */
+export function runFfmpegQueuedToBuffer(
+  args: string[],
+  maxOutputBytes = 1024 * 1024,
+): Promise<Buffer> {
+  if (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes <= 0) {
+    return Promise.reject(new Error("maxOutputBytes must be a positive integer"));
+  }
+
+  return acquireFfmpegSlot().then(
+    () => new Promise<Buffer>((resolve, reject) => {
+      const proc = spawn("ffmpeg", args);
+      const chunks: Buffer[] = [];
+      let outputBytes = 0;
+      let stderr = "";
+      let settled = false;
+      let outputLimitExceeded = false;
+
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        releaseFfmpegSlot();
+        if (error) reject(error);
+        else resolve(Buffer.concat(chunks, outputBytes));
+      };
+
+      proc.stdout.on("data", (chunk: Buffer) => {
+        outputBytes += chunk.length;
+        if (outputBytes > maxOutputBytes) {
+          outputLimitExceeded = true;
+          proc.kill("SIGKILL");
+          return;
+        }
+        chunks.push(Buffer.from(chunk));
+      });
+      proc.stderr.on("data", (chunk) => {
+        stderr = (stderr + chunk.toString()).slice(-8000);
+      });
+      proc.on("error", (error) => finish(error));
+      proc.on("close", (code) => {
+        if (outputLimitExceeded) {
+          finish(new Error(`ffmpeg output exceeded ${maxOutputBytes} bytes`));
+        } else if (code === 0) {
+          finish();
+        } else {
+          finish(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
+        }
+      });
+    }),
+  );
+}
+
 function runFfmpeg(args: string[]): Promise<void> {
   return acquireFfmpegSlot().then(
     () => new Promise<void>((resolve, reject) => {

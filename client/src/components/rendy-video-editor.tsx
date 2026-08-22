@@ -399,7 +399,7 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
           <div>
             <h3 className="text-sm font-semibold text-[#0F1D2F]">Redigér video</h3>
             <p className="text-[11px] text-[#6C6964]">
-              Sæt klip sammen og generer en ny video
+              Sæt klip sammen, tilføj overskrift og generer en ny video
             </p>
           </div>
           <button
@@ -461,16 +461,18 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
               <RotateCcw className="w-3 h-3" />
               Prøv igen
             </button>
-            <button
-              type="button"
-              onClick={editTimeline}
-              disabled={saving || busy}
-              className="ml-2 h-8 px-3 rounded-lg border border-[#DCC9B9] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
-              data-testid="button-edit-failed-timeline"
-            >
-              <Pencil className="w-3 h-3" />
-              Tilpas tidslinje
-            </button>
+            {shots.length > 0 && (
+              <button
+                type="button"
+                onClick={editTimeline}
+                disabled={saving || busy}
+                className="ml-2 h-8 px-3 rounded-lg border border-[#DCC9B9] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                data-testid="button-edit-failed-timeline"
+              >
+                <Pencil className="w-3 h-3" />
+                Tilpas tidslinje
+              </button>
+            )}
           </div>
         )}
 
@@ -532,6 +534,16 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
         {/* Draft / editing UI — headline editor available here too, before first export */}
         {(status === "draft" || (!status && !busy)) && shots.length > 0 && (
           <>
+            {/* Keep the text tool visible at the top of Edit instead of hiding it
+                below a potentially long timeline and clip library. */}
+            <RendyHeadlineEditor
+              sourceVideoUrl={sourceVideoUrl}
+              value={headline}
+              onChange={setHeadline}
+              onApply={startRender}
+              applyBusy={busy}
+            />
+
             {/* Timeline */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -718,16 +730,6 @@ export function RendyVideoEditor({ listingId, sourceVideoId, sourceVideoUrl, onO
                 })}
               </div>
             </div>
-
-            {/* Headline editor — available in draft state (pre-export).
-                Preview always uses clean sourceVideoUrl. */}
-            <RendyHeadlineEditor
-              sourceVideoUrl={sourceVideoUrl}
-              value={headline}
-              onChange={setHeadline}
-              onApply={startRender}
-              applyBusy={busy}
-            />
 
             {/* Actions */}
             <div className="flex gap-2">

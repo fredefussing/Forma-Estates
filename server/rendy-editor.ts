@@ -12,12 +12,11 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { spawn } from "child_process";
 import { pipeline } from "stream/promises";
-import sharp from "sharp";
 import { pool } from "./db";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { storage } from "./storage";
 import { r2GetStream, r2UploadFile } from "./r2";
-import { runFfmpegQueued } from "./showcase";
+import { runFfmpegQueued, runFfmpegQueuedToBuffer } from "./showcase";
 import {
   RENDY_TYPOGRAPHY_PRESETS,
   DEFAULT_HEADLINE_SETTINGS,
@@ -351,19 +350,21 @@ async function sceneBoundaries(filePath: string, duration: number): Promise<numb
   return points;
 }
 
-async function signatureForFrame(filePath: string, at: number, tempDir: string): Promise<Signature> {
-  const imagePath = path.join(tempDir, `${randomUUID()}.jpg`);
-  try {
-    await runFfmpegQueued([
-      "-y", "-ss", Math.max(0, at).toFixed(3), "-i", filePath,
-      "-frames:v", "1", "-vf", "scale=16:16:flags=area,format=gray",
-      "-q:v", "5", imagePath,
-    ]);
-    const data = await sharp(imagePath).resize(16, 16).grayscale().raw().toBuffer();
-    return { values: (Array.from(data.values()) as number[]).map(value => value / 255) };
-  } finally {
-    fs.promises.unlink(imagePath).catch(() => {});
+async function signatureForFrame(filePath: string, at: number): Promise<Signature> {
+  // Keep extracted pixels in memory. A temporary JPG could disappear during
+  // preparation on an ephemeral/multi-process host before Sharp opened it.
+  const data = await runFfmpegQueuedToBuffer([
+    "-hide_banner", "-loglevel", "error",
+    "-ss", Math.max(0, at).toFixed(3), "-i", filePath,
+    "-frames:v", "1",
+    "-vf", "scale=16:16:flags=area,format=gray",
+    "-an", "-sn", "-dn",
+    "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1",
+  ], 16 * 16);
+  if (data.length !== 16 * 16) {
+    throw new Error(`Videorammen kunne ikke analyseres (forventede 256 bytes, modtog ${data.length})`);
   }
+  return { values: Array.from(data.values(), value => value / 255) };
 }
 
 function signatureDistance(a: Signature, b: Signature): number {
@@ -408,9 +409,9 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
       const duration = safeEnd - safeStart;
       if (duration < 0.65) continue;
       const [startSignature, midSignature, endSignature] = await Promise.all([
-        signatureForFrame(inputPath, safeStart + Math.min(0.10, duration * 0.08), tempDir),
-        signatureForFrame(inputPath, safeStart + duration / 2, tempDir),
-        signatureForFrame(inputPath, safeEnd - Math.min(0.10, duration * 0.08), tempDir),
+        signatureForFrame(inputPath, safeStart + Math.min(0.10, duration * 0.08)),
+        signatureForFrame(inputPath, safeStart + duration / 2),
+        signatureForFrame(inputPath, safeEnd - Math.min(0.10, duration * 0.08)),
       ]);
       const motionScore = signatureDistance(startSignature, endSignature);
       candidates.push({
@@ -433,9 +434,9 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
     // complete delivery as one shot rather than inventing a partial segment.
     if (!candidates.length) {
       const [startSignature, midSignature, endSignature] = await Promise.all([
-        signatureForFrame(inputPath, 0.05, tempDir),
-        signatureForFrame(inputPath, info.duration / 2, tempDir),
-        signatureForFrame(inputPath, Math.max(0.05, info.duration - 0.05), tempDir),
+        signatureForFrame(inputPath, 0.05),
+        signatureForFrame(inputPath, info.duration / 2),
+        signatureForFrame(inputPath, Math.max(0.05, info.duration - 0.05)),
       ]);
       candidates.push({
         id: randomUUID(), sourceVideoId: video.id, sourceUrl: archivedUrl, duration: info.duration,
