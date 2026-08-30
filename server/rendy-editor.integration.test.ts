@@ -13,6 +13,7 @@ import {
   buildCleanEditRenderArgs,
   RENDY_CANDIDATE_THUMBNAIL_FILTER,
 } from "./rendy-editor";
+import { runFfmpegQueued } from "./showcase";
 
 function run(binary: string, args: string[]): string {
   const result = spawnSync(binary, args, {
@@ -259,6 +260,31 @@ try {
   assert(
     finalRms < beforeFadeRms * 0.35,
     "real soundtrack is strongly faded by the final frames",
+  );
+
+  const progressOutput = path.join(tempDir, "progress-output.mp4");
+  const progressEvents: Array<{ outTimeSeconds: number; state: string }> = [];
+  await runFfmpegQueued(
+    [
+      "-y",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=black:s=320x180:r=30:d=1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      progressOutput,
+    ],
+    (progress) => progressEvents.push(progress),
+  );
+  assert(
+    progressEvents.some((event) => event.outTimeSeconds > 0) &&
+      progressEvents.at(-1)?.state === "end",
+    "shared FFmpeg queue reports real processed media time through completion",
   );
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

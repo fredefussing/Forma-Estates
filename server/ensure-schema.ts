@@ -1570,13 +1570,19 @@ export async function ensureSchema(): Promise<void> {
     console.error(`[ensure-schema] rendy_voice_projects: ${e.message}`);
   }
 
-  // ── rendy_edit_projects: headline + clean_output_url ──────────────────────────
+  // ── rendy_edit_projects: output layers + durable render progress ──────────────
   try {
     await pool.query(
       `ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS headline jsonb`,
     );
     await pool.query(
       `ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS clean_output_url text`,
+    );
+    await pool.query(
+      `ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS progress jsonb`,
+    );
+    await pool.query(
+      `ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS progress_attempt integer NOT NULL DEFAULT 0`,
     );
   } catch (e: any) {
     console.error(`[ensure-schema] rendy_edit_projects additive columns: ${e.message}`);

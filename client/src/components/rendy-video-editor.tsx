@@ -58,6 +58,25 @@ interface TimelineItem {
   candidateId: string;
 }
 
+type RenderProgressStage =
+  | "prepare"
+  | "analyze"
+  | "download"
+  | "normalize"
+  | "assemble"
+  | "render"
+  | "headline"
+  | "upload"
+  | "finalize";
+
+interface RenderProgress {
+  stage: RenderProgressStage;
+  percent: number;
+  etaSeconds: number | null;
+  attempt: number;
+  updatedAt: string;
+}
+
 interface EditProject {
   id: string;
   listingId: string;
@@ -68,6 +87,7 @@ interface EditProject {
   manifest: Manifest | null;
   timeline: TimelineItem[];
   headline?: HeadlineSettings;
+  progress?: RenderProgress | null;
   outputUrl?: string;
   /** Clean assembled Edit export (no headline burned in). Used as the headline
    *  preview base in the ready state so the preview is never contaminated by a
@@ -102,6 +122,43 @@ function fmtDuration(seconds: number): string {
   const rem = s % 60;
   if (m === 0) return `${rem}s`;
   return `${m}:${String(rem).padStart(2, "0")}`;
+}
+
+function renderStageLabel(stage: RenderProgressStage | undefined): string {
+  switch (stage) {
+    case "prepare":
+      return "Forbereder projekt";
+    case "analyze":
+      return "Planlægger redigering";
+    case "download":
+      return "Henter videoklip";
+    case "normalize":
+      return "Klargør videoklip";
+    case "assemble":
+      return "Samler video og lyd";
+    case "render":
+      return "Genererer video";
+    case "headline":
+      return "Tilføjer overskrift";
+    case "upload":
+      return "Gemmer video";
+    case "finalize":
+      return "Færdiggør video";
+    default:
+      return "Genererer video";
+  }
+}
+
+function renderEtaLabel(seconds: number | null | undefined): string {
+  if (!Number.isFinite(seconds) || seconds == null || seconds <= 0) {
+    return "Beregner cirka tid tilbage…";
+  }
+  if (seconds < 60) {
+    const rounded = Math.max(10, Math.ceil(seconds / 10) * 10);
+    return `Ca. ${rounded} sek. tilbage`;
+  }
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `Ca. ${minutes} min. tilbage`;
 }
 
 function totalDuration(items: TimelineItem[], shots: Shot[]): number {
@@ -215,6 +272,8 @@ const POLLING_STATUSES: EditProject["status"][] = [
   "analyzing",
   "rendering",
 ];
+const TRANSIENT_POLL_MESSAGE =
+  "Forbindelsen blev kortvarigt afbrudt. Vi prøver automatisk at hente renderstatus igen.";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -246,6 +305,7 @@ export function RendyVideoEditor({
   );
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollFailures = useRef(0);
   const thumbnailPollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -299,6 +359,10 @@ export function RendyVideoEditor({
       try {
         const data = await api(`/api/bolig/rendy/edit-projects/${id}`);
         const proj: EditProject = data.project;
+        pollFailures.current = 0;
+        setMessage((previous) =>
+          previous === TRANSIENT_POLL_MESSAGE ? "" : previous,
+        );
         applyProject(proj);
         if (POLLING_STATUSES.includes(proj.status)) {
           pollTimer.current = setTimeout(
@@ -310,10 +374,23 @@ export function RendyVideoEditor({
           setBusy(false);
         }
       } catch (err: unknown) {
-        pollTimer.current = null;
-        setBusy(false);
+        pollFailures.current += 1;
         const technical = err instanceof Error ? err.message : "Fejl under opdatering";
         console.warn("Rendy render status could not be refreshed:", technical);
+        if (pollFailures.current <= 4) {
+          setMessage(TRANSIENT_POLL_MESSAGE);
+          const retryDelay = Math.min(
+            2_000 * pollFailures.current,
+            8_000,
+          );
+          pollTimer.current = setTimeout(
+            () => void poll(id, retryDelay),
+            retryDelay,
+          );
+          return;
+        }
+        pollTimer.current = null;
+        setBusy(false);
         setMessage(
           "Vi kunne ikke hente den seneste status. Videoen kan stadig være under behandling — luk og åbn editoren igen for at fortsætte sikkert.",
         );
@@ -324,6 +401,7 @@ export function RendyVideoEditor({
 
   // ── Open: create or find existing project ──────────────────────────────────
   const openEditor = useCallback(async () => {
+    pollFailures.current = 0;
     setPreviewPlaybackId(null);
     setPreviewMediaState("idle");
     setFinalMediaState("idle");
@@ -370,13 +448,14 @@ export function RendyVideoEditor({
   useEffect(() => {
     if (
       open &&
+      busy &&
       project &&
       POLLING_STATUSES.includes(project.status) &&
       !pollTimer.current
     ) {
       void poll(project.id);
     }
-  }, [open, poll, project]);
+  }, [busy, open, poll, project]);
 
   useEffect(() => {
     if (
@@ -632,6 +711,11 @@ export function RendyVideoEditor({
   }, [clearPoll, open]);
 
   const status = project?.status;
+  const renderProgress = project?.progress;
+  const renderPercent = Math.max(
+    0,
+    Math.min(100, Math.round(renderProgress?.percent ?? 0)),
+  );
   const sourceGroups = groupLibraryBySource(project?.manifest, sourceVideoId);
   const readyOutputUrl = pendingOutputUrl ?? project?.outputUrl;
   const handleVoiceOutputReady = useCallback((url: string) => {
@@ -778,30 +862,53 @@ export function RendyVideoEditor({
           </div>
         )}
 
-        {/* Loading / preparing */}
+        {/* Preparation / rendering progress */}
         {busy &&
-          (!status || status === "preparing" || status === "analyzing") && (
-            <div
-              className="rounded-lg bg-[#F4EEE8] p-3 text-xs text-[#4D4943] flex items-center gap-2"
-              role="status"
-              aria-live="polite"
-            >
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {!status || status === "preparing"
-                ? "Forbereder projekt…"
-                : "Analyserer video…"}
-            </div>
-          )}
-
-        {/* Rendering */}
-        {status === "rendering" && (
+          (!status || POLLING_STATUSES.includes(status)) && (
           <div
-            className="rounded-lg bg-[#F4EEE8] p-3 text-xs text-[#4D4943] flex items-center gap-2"
+            className="rounded-xl bg-[#F4EEE8] p-3 text-xs text-[#4D4943]"
             role="status"
             aria-live="polite"
           >
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Genererer video…
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 font-semibold text-[#0F1D2F]">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                <span className="truncate">
+                  {renderProgress
+                    ? `${renderStageLabel(renderProgress.stage)}…`
+                    : !status || status === "preparing"
+                      ? "Forbereder projekt…"
+                      : status === "analyzing"
+                        ? "Planlægger redigering…"
+                        : "Genererer video…"}
+                </span>
+              </span>
+              {renderProgress && (
+                <span className="shrink-0 tabular-nums" aria-label={`${renderPercent} procent`}>
+                  {renderPercent} %
+                </span>
+              )}
+            </div>
+            {renderProgress && (
+              <>
+                <div
+                  className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#DCC9B9]/60"
+                  role="progressbar"
+                  aria-label="Videogenerering"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={renderPercent}
+                >
+                  <div
+                    className="h-full rounded-full bg-[#A36F4E] transition-[width] duration-500 ease-out"
+                    style={{ width: `${renderPercent}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] text-[#77736D]">
+                  {renderEtaLabel(renderProgress.etaSeconds)}
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -1372,12 +1479,18 @@ export function RendyVideoEditor({
           </div>
         )}
 
-        {/* Error message */}
+        {/* Status / error message */}
         {message && (
           <p
-            className="text-[11px] text-[#A34D43]"
-            role="alert"
-            aria-live="assertive"
+            className={`text-[11px] ${
+              message === TRANSIENT_POLL_MESSAGE
+                ? "text-[#77736D]"
+                : "text-[#A34D43]"
+            }`}
+            role={message === TRANSIENT_POLL_MESSAGE ? "status" : "alert"}
+            aria-live={
+              message === TRANSIENT_POLL_MESSAGE ? "polite" : "assertive"
+            }
           >
             {message}
           </p>

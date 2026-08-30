@@ -131,8 +131,17 @@ function releaseFfmpegSlot(): void {
 
 /** Wrapper around the bounded FFmpeg queue — exported for use by other modules.
  *  Delegates to runFfmpeg (declared below) so load-test metrics are retained. */
-export function runFfmpegQueued(args: string[]): Promise<void> {
-  return runFfmpeg(args);
+export interface FfmpegProgress {
+  outTimeSeconds: number;
+  speed: number | null;
+  state: "continue" | "end";
+}
+
+export function runFfmpegQueued(
+  args: string[],
+  onProgress?: (progress: FfmpegProgress) => void,
+): Promise<void> {
+  return runFfmpeg(args, onProgress);
 }
 
 /**
@@ -204,10 +213,16 @@ export function runFfmpegQueuedToBuffer(
   );
 }
 
-function runFfmpeg(args: string[]): Promise<void> {
+function runFfmpeg(
+  args: string[],
+  onProgress?: (progress: FfmpegProgress) => void,
+): Promise<void> {
   return acquireFfmpegSlot().then(
     () => new Promise<void>((resolve, reject) => {
-      const proc = spawn("ffmpeg", args);
+      const proc = spawn(
+        "ffmpeg",
+        onProgress ? ["-progress", "pipe:1", "-nostats", ...args] : args,
+      );
       const sampleRss = () => {
         if (!isLoadTestMode() || !proc.pid) return;
         try {
@@ -222,6 +237,44 @@ function runFfmpeg(args: string[]): Promise<void> {
         if (sampler) clearInterval(sampler);
       };
       let stderr = "";
+      let progressBuffer = "";
+      let progressFields: Record<string, string> = {};
+      if (onProgress) {
+        proc.stdout.on("data", (chunk: Buffer) => {
+          progressBuffer += chunk.toString();
+          const lines = progressBuffer.split(/\r?\n/);
+          progressBuffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const separator = line.indexOf("=");
+            if (separator <= 0) continue;
+            const key = line.slice(0, separator);
+            const value = line.slice(separator + 1);
+            progressFields[key] = value;
+            if (key !== "progress") continue;
+
+            const micros = Number(
+              progressFields.out_time_us ?? progressFields.out_time_ms ?? 0,
+            );
+            const speedRaw = Number(
+              String(progressFields.speed ?? "").replace(/x$/i, ""),
+            );
+            try {
+              onProgress({
+                outTimeSeconds: Number.isFinite(micros)
+                  ? Math.max(0, micros / 1_000_000)
+                  : 0,
+                speed: Number.isFinite(speedRaw) && speedRaw > 0
+                  ? speedRaw
+                  : null,
+                state: value === "end" ? "end" : "continue",
+              });
+            } catch {
+              // Progress reporting must never be able to fail the render itself.
+            }
+            progressFields = {};
+          }
+        });
+      }
       proc.stderr.on("data", (d) => {
         stderr += d.toString();
         if (stderr.length > 8000) stderr = stderr.slice(-8000);

@@ -29,6 +29,7 @@ import {
   buildHeadlineOverlayArgs,
   cleanEditAudioFade,
   cleanEditDuration,
+  estimateRenderEtaSeconds,
   isLegacyShortTransitionError,
   RENDY_CANDIDATE_THUMBNAIL_FILTER,
   renderBoundsForCandidate,
@@ -82,6 +83,24 @@ assert(
 assert(
   !isVoiceSourceRevisionCurrent("edit:project", null, 0),
   "legacy Edit voice-over without a revision is never silently reused",
+);
+
+console.log("\nRender ETA");
+assert(
+  estimateRenderEtaSeconds(1, 10) === null,
+  "ETA waits for enough real progress before estimating",
+);
+assert(
+  estimateRenderEtaSeconds(50, 20) === 20,
+  "ETA derives remaining time from measured elapsed progress",
+);
+assert(
+  estimateRenderEtaSeconds(50, 20, 40) === 34,
+  "ETA smooths sudden estimate changes",
+);
+assert(
+  estimateRenderEtaSeconds(100, 20) === 0,
+  "completed render reports no remaining time",
 );
 
 // ── Import private helpers via re-export trick ────────────────────────────────

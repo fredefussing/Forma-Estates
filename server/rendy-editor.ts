@@ -43,6 +43,24 @@ const manifestThumbnailBackfills = new Map<string, Promise<void>>();
 
 type ProjectStatus = "preparing" | "draft" | "analyzing" | "rendering" | "ready" | "failed";
 type JobStage = "prepare" | "analyze" | "render" | "headline";
+type ProgressStage =
+  | "prepare"
+  | "analyze"
+  | "download"
+  | "normalize"
+  | "assemble"
+  | "render"
+  | "headline"
+  | "upload"
+  | "finalize";
+
+interface RenderProgress {
+  stage: ProgressStage;
+  percent: number;
+  etaSeconds: number | null;
+  attempt: number;
+  updatedAt: string;
+}
 
 interface DeliveredVideo {
   id: string;
@@ -154,6 +172,8 @@ interface ProjectRow {
   headline: HeadlineSettings | null;
   status: ProjectStatus;
   job_stage: JobStage | null;
+  progress: RenderProgress | null;
+  progress_attempt: number;
   output_url: string | null;
   /** Clean assembled output before headline burn (private — not exposed in public API). */
   clean_output_url: string | null;
@@ -175,6 +195,105 @@ type MediaInfo = {
 };
 const activeLeases = new Map<string, { token: string; timer: ReturnType<typeof setInterval> }>();
 
+export function estimateRenderEtaSeconds(
+  percent: number,
+  elapsedSeconds: number,
+  previousEtaSeconds: number | null = null,
+): number | null {
+  const safePercent = Math.max(0, Math.min(100, finite(percent)));
+  const safeElapsed = Math.max(0, finite(elapsedSeconds));
+  if (safePercent < 2 || safePercent >= 100 || safeElapsed < 2) {
+    return safePercent >= 100 ? 0 : null;
+  }
+  const raw = ((100 - safePercent) * safeElapsed) / safePercent;
+  if (!Number.isFinite(raw) || raw < 0) return null;
+  const bounded = Math.min(raw, 6 * 60 * 60);
+  const smoothed = previousEtaSeconds == null
+    ? bounded
+    : previousEtaSeconds * 0.7 + bounded * 0.3;
+  return Math.max(1, Math.round(smoothed));
+}
+
+function createProgressReporter(id: string, token: string) {
+  const startedAt = Date.now();
+  let lastPercent = 0;
+  let lastWriteAt = 0;
+  let previousEta: number | null = null;
+  let pending = Promise.resolve();
+
+  const report = (
+    stage: ProgressStage,
+    requestedPercent: number,
+    force = false,
+  ) => {
+    const percent = Math.max(
+      lastPercent,
+      Math.min(99.5, Math.max(0, finite(requestedPercent))),
+    );
+    const now = Date.now();
+    if (
+      !force &&
+      now - lastWriteAt < 900 &&
+      percent - lastPercent < 0.75
+    ) {
+      return;
+    }
+    lastPercent = percent;
+    lastWriteAt = now;
+    previousEta = estimateRenderEtaSeconds(
+      percent,
+      (now - startedAt) / 1000,
+      previousEta,
+    );
+
+    pending = pending
+      .then(() =>
+        pool.query(
+          `UPDATE rendy_edit_projects
+              SET progress = jsonb_build_object(
+                    'stage', $1::text,
+                    'percent', $2::double precision,
+                    'etaSeconds', $3::integer,
+                    'attempt', progress_attempt,
+                    'updatedAt', NOW()
+                  ),
+                  updated_at = NOW()
+            WHERE id = $4 AND lease_token = $5`,
+          [stage, percent, previousEta, id, token],
+        ),
+      )
+      .then(() => undefined)
+      .catch((error) => {
+        console.warn(`[RendyEditor ${id}] progress update failed:`, error);
+      });
+  };
+
+  return {
+    report,
+    flush: () => pending,
+  };
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const runners = Array.from(
+    { length: Math.min(Math.max(1, limit), items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex++;
+        results[index] = await worker(items[index], index);
+      }
+    },
+  );
+  await Promise.all(runners);
+  return results;
+}
+
 function finite(value: unknown, fallback = 0): number {
   const result = Number(value);
   return Number.isFinite(result) ? result : fallback;
@@ -190,6 +309,17 @@ function toPublicManifest(manifest: RendyShotManifest | null) {
 }
 
 function toPublicProject(row: ProjectRow, manifest: RendyShotManifest | null) {
+  const progress = row.progress && Number.isFinite(Number(row.progress.percent))
+    ? {
+        stage: row.progress.stage,
+        percent: Math.max(0, Math.min(100, Number(row.progress.percent))),
+        etaSeconds: Number.isFinite(Number(row.progress.etaSeconds))
+          ? Math.max(0, Math.round(Number(row.progress.etaSeconds)))
+          : null,
+        attempt: Math.max(0, Math.round(Number(row.progress.attempt) || 0)),
+        updatedAt: row.progress.updatedAt,
+      }
+    : null;
   return {
     id: row.id,
     listingId: row.listing_id,
@@ -200,6 +330,7 @@ function toPublicProject(row: ProjectRow, manifest: RendyShotManifest | null) {
     timeline: row.timeline ?? [],
     headline: row.headline ?? DEFAULT_HEADLINE_SETTINGS,
     status: row.status,
+    progress,
     outputUrl: row.output_url,
     // Clean assembled master (pre-headline). Exposed only via owner-scoped
     // responses so the client can preview / compose without the burned headline.
@@ -233,6 +364,8 @@ export async function ensureRendyEditorTables() {
       analysis_plan     jsonb,
       status            text NOT NULL DEFAULT 'preparing',
       job_stage         text,
+      progress          jsonb,
+      progress_attempt  integer NOT NULL DEFAULT 0,
       output_url        text,
       error             text,
       lease_token       text,
@@ -250,6 +383,9 @@ export async function ensureRendyEditorTables() {
   await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS clean_output_url text`);
   // Monotonic identity for the exact rendered source used by voice-over jobs.
   await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS output_revision integer NOT NULL DEFAULT 0`);
+  // Durable attempt-aware progress for polling, ETA and crash recovery.
+  await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS progress jsonb`);
+  await pool.query(`ALTER TABLE rendy_edit_projects ADD COLUMN IF NOT EXISTS progress_attempt integer NOT NULL DEFAULT 0`);
 }
 
 async function requireUser(req: Request): Promise<{ userId: number }> {
@@ -877,7 +1013,20 @@ async function claimLease(id: string, status: ProjectStatus, stage: JobStage): P
   const expires = new Date(Date.now() + LEASE_TTL_MS);
   const result = await pool.query<{ id: string }>(
     `UPDATE rendy_edit_projects
-        SET status = $1, job_stage = $2, lease_token = $3, lease_expires_at = $4, error = NULL, updated_at = NOW()
+        SET status = $1,
+            job_stage = $2,
+            lease_token = $3,
+            lease_expires_at = $4,
+            error = NULL,
+            progress_attempt = progress_attempt + 1,
+            progress = jsonb_build_object(
+              'stage', $2::text,
+              'percent', 0,
+              'etaSeconds', NULL,
+              'attempt', progress_attempt + 1,
+              'updatedAt', NOW()
+            ),
+            updated_at = NOW()
       WHERE id = $5
         AND (lease_token IS NULL OR lease_expires_at IS NULL OR lease_expires_at < NOW())
       RETURNING id`,
@@ -920,7 +1069,15 @@ async function failProject(id: string, token: string, error: unknown) {
   const message = error instanceof Error ? error.message : "Den AI-redigerede video kunne ikke færdiggøres";
   await pool.query(
     `UPDATE rendy_edit_projects
-        SET status = 'failed', error = $1, lease_token = NULL, lease_expires_at = NULL, updated_at = NOW()
+        SET status = 'failed',
+            error = $1,
+            progress = CASE
+              WHEN progress IS NULL THEN NULL
+              ELSE progress || jsonb_build_object('etaSeconds', NULL, 'updatedAt', NOW())
+            END,
+            lease_token = NULL,
+            lease_expires_at = NULL,
+            updated_at = NOW()
       WHERE id = $2 AND lease_token = $3`,
     [message.slice(0, 500), id, token],
   );
@@ -928,15 +1085,19 @@ async function failProject(id: string, token: string, error: unknown) {
 }
 
 async function runPreparation(id: string, token: string) {
+  const progress = createProgressReporter(id, token);
   try {
+    progress.report("prepare", 5, true);
     const project = await getProject(id);
     if (!project) throw new Error("Redigeringsprojektet findes ikke");
     const existing = await getManifest(project.listing_id, project.user_id);
     let manifest = existing?.manifest;
     let revision = existing?.revision;
     if (!manifest || revision == null) {
+      progress.report("prepare", 12, true);
       const videos = await getOwnedDeliveryVideos(project.listing_id, project.user_id);
       const generated = await buildManifest(videos, project.listing_id);
+      progress.report("prepare", 85, true);
       if (!await hasLease(id, token)) return;
       // A listing manifest is immutable once published. Concurrent preparation
       // can waste local analysis work, but never replace candidates used by an
@@ -957,7 +1118,15 @@ async function runPreparation(id: string, token: string) {
     await pool.query(
       `UPDATE rendy_edit_projects
           SET manifest_revision = $1, timeline = $2::jsonb, analysis_plan = NULL, status = 'draft',
-              job_stage = NULL, error = NULL, lease_token = NULL, lease_expires_at = NULL, updated_at = NOW()
+              job_stage = NULL,
+              progress = jsonb_build_object(
+                'stage', 'prepare',
+                'percent', 100,
+                'etaSeconds', 0,
+                'attempt', progress_attempt,
+                'updatedAt', NOW()
+              ),
+              error = NULL, lease_token = NULL, lease_expires_at = NULL, updated_at = NOW()
         WHERE id = $3 AND lease_token = $4`,
       [revision, JSON.stringify(timeline), id, token],
     );
@@ -967,15 +1136,28 @@ async function runPreparation(id: string, token: string) {
   }
 }
 
-async function normaliseClip(sourcePath: string, outputPath: string, clip: RenderClipPlan, targetW: number, targetH: number) {
+async function normaliseClip(
+  sourcePath: string,
+  outputPath: string,
+  clip: RenderClipPlan,
+  targetW: number,
+  targetH: number,
+  onProgress?: (processedSeconds: number) => void,
+) {
   const duration = clip.end - clip.start;
   const frameCount = cleanEditClipFrames(clip);
   const videoFilter = `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=${EDIT_OUTPUT_FPS},format=yuv420p`;
-  await runFfmpegQueued([
-    "-y", "-ss", clip.start.toFixed(3), "-t", duration.toFixed(3), "-i", sourcePath,
-    "-vf", videoFilter, "-map", "0:v:0", "-an", "-c:v", "libx264", "-preset", "medium",
-    "-crf", "20", "-frames:v", String(frameCount), "-movflags", "+faststart", outputPath,
-  ]);
+  await runFfmpegQueued(
+    [
+      "-y", "-ss", clip.start.toFixed(3), "-t", duration.toFixed(3), "-i", sourcePath,
+      "-vf", videoFilter, "-map", "0:v:0", "-an", "-c:v", "libx264", "-preset", "medium",
+      "-crf", "20", "-frames:v", String(frameCount), "-movflags", "+faststart", outputPath,
+    ],
+    onProgress
+      ? (progress) =>
+          onProgress(Math.min(duration, progress.outTimeSeconds))
+      : undefined,
+  );
 }
 
 export function buildCleanEditRenderArgs(
@@ -1130,21 +1312,15 @@ async function probeOutputVideo(
 }
 async function runRender(id: string, token: string, uploadDir: string) {
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-render-"));
+  const progress = createProgressReporter(id, token);
+  const renderStartedAt = Date.now();
   try {
     const project = await getProject(id);
     if (!project?.analysis_plan) throw new Error("Redigeringsanalysen mangler. Start analysen igen.");
     const plan = project.analysis_plan;
     const outputDuration = cleanEditDuration(plan);
-    const sourcePaths: string[] = [];
-    const normalized: string[] = [];
-    const candidateMeta = new Map<string, MediaInfo>();
-    for (let index = 0; index < plan.clips.length; index++) {
-      const clip = plan.clips[index];
-      const source = path.join(tempDir, `source-${index}.mp4`);
-      await materializeSource(clip.sourceUrl, source);
-      sourcePaths.push(source);
-      candidateMeta.set(clip.candidateId, await probeVideo(source));
-    }
+    progress.report("analyze", 4, true);
+
     const manifest = await manifestForProject(project);
     const durableSelectedSourceUrl = manifest?.shots
       .flatMap((shot) => shot.candidates)
@@ -1156,17 +1332,79 @@ async function runRender(id: string, token: string, uploadDir: string) {
     if (!selectedSourceUrl) {
       throw new Error("Startvideoen til det sammenhængende lydspor kunne ikke findes");
     }
-    const selectedSourcePath = path.join(tempDir, "selected-audio-source.mp4");
-    await materializeSource(selectedSourceUrl, selectedSourcePath);
-    const selectedSourceMeta = await probeVideo(selectedSourcePath);
+
+    // Several timeline clips commonly point at the same delivery. Downloading
+    // and probing that file once is byte-identical to the old per-clip approach,
+    // while removing the largest avoidable cost in multi-clip edits.
+    const uniqueSourceUrls = Array.from(
+      new Set([...plan.clips.map((clip) => clip.sourceUrl), selectedSourceUrl]),
+    );
+    let materializedCount = 0;
+    const materializedEntries = await mapWithConcurrency(
+      uniqueSourceUrls,
+      3,
+      async (sourceUrl, index) => {
+        const sourcePath = path.join(tempDir, `source-${index}.mp4`);
+        await materializeSource(sourceUrl, sourcePath);
+        const meta = await probeVideo(sourcePath);
+        materializedCount++;
+        progress.report(
+          "download",
+          4 + (materializedCount / uniqueSourceUrls.length) * 11,
+          true,
+        );
+        return { sourceUrl, sourcePath, meta };
+      },
+    );
+    const materializedByUrl = new Map(
+      materializedEntries.map((entry) => [entry.sourceUrl, entry]),
+    );
+    const sourcePaths = plan.clips.map((clip) => {
+      const source = materializedByUrl.get(clip.sourceUrl);
+      if (!source) throw new Error("Et videoklip kunne ikke klargøres");
+      return source.sourcePath;
+    });
+    const normalized: string[] = [];
+    const candidateMeta = new Map<string, MediaInfo>();
+    for (const clip of plan.clips) {
+      const source = materializedByUrl.get(clip.sourceUrl);
+      if (!source) throw new Error("Et videoklip kunne ikke måles");
+      candidateMeta.set(clip.candidateId, source.meta);
+    }
+    const selectedSource = materializedByUrl.get(selectedSourceUrl);
+    if (!selectedSource) throw new Error("Startvideoens lydspor kunne ikke klargøres");
+    const selectedSourcePath = selectedSource.sourcePath;
+    const selectedSourceMeta = selectedSource.meta;
     const first = candidateMeta.get(plan.clips[0].candidateId)!;
     const portrait = first.height > first.width;
     const targetW = portrait ? 1080 : 1920;
     const targetH = portrait ? 1920 : 1080;
+    let normalizedDuration = 0;
     for (let index = 0; index < plan.clips.length; index++) {
+      const clip = plan.clips[index];
+      const clipDuration = Math.max(0, clip.end - clip.start);
       const output = path.join(tempDir, `clip-${index}.mp4`);
-      await normaliseClip(sourcePaths[index], output, plan.clips[index], targetW, targetH);
+      await normaliseClip(
+        sourcePaths[index],
+        output,
+        clip,
+        targetW,
+        targetH,
+        (processedSeconds) => {
+          const completed = normalizedDuration + processedSeconds;
+          progress.report(
+            "normalize",
+            15 + (completed / Math.max(outputDuration, 0.001)) * 40,
+          );
+        },
+      );
       normalized.push(output);
+      normalizedDuration += clipDuration;
+      progress.report(
+        "normalize",
+        15 + (normalizedDuration / Math.max(outputDuration, 0.001)) * 40,
+        true,
+      );
     }
     await pool.query(`UPDATE rendy_edit_projects SET status = 'rendering', job_stage = 'render', updated_at = NOW() WHERE id = $1 AND lease_token = $2`, [id, token]);
 
@@ -1177,6 +1415,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
     // headline-burned file.
     const cleanName = `rendy-edit-clean-${id}-${ts}.mp4`;
     const cleanPath = path.join(tempDir, cleanName);
+    progress.report("assemble", 55, true);
     await runFfmpegQueued(
       buildCleanEditRenderArgs(
         normalized,
@@ -1186,11 +1425,27 @@ async function runRender(id: string, token: string, uploadDir: string) {
         cleanPath,
         plan,
       ),
+      (ffmpegProgress) => {
+        progress.report(
+          "assemble",
+          55 +
+            (Math.min(outputDuration, ffmpegProgress.outTimeSeconds) /
+              Math.max(outputDuration, 0.001)) *
+              27,
+        );
+      },
+    );
+    await Promise.all(
+      [...Array.from(new Set([...sourcePaths, selectedSourcePath])), ...normalized].map(
+        (filePath) => fs.promises.unlink(filePath).catch(() => {}),
+      ),
     );
 
     // ── Quality gate: validate clean assembled output before upload ───────────
+    progress.report("finalize", 82, true);
     await validateOutput(cleanPath, outputDuration);
 
+    progress.report("upload", 86, true);
     await r2UploadFile(cleanPath, cleanName);
     const cleanUrl = `/uploads/${cleanName}`;
 
@@ -1200,6 +1455,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
 
     let outputUrl: string;
     if (wantHeadline) {
+      progress.report("headline", 90, true);
       // Burn headline onto the clean assembled output
       const headlineName = `rendy-edit-${id}-${ts}.mp4`;
       const headlinePath = path.join(uploadDir, headlineName);
@@ -1208,14 +1464,25 @@ async function runRender(id: string, token: string, uploadDir: string) {
       const escapeAssFilterPath = (v: string) =>
         v.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
       fs.writeFileSync(assPath, buildAssHeadline(headline, targetW, targetH, outputDuration), "utf8");
-      await runFfmpegQueued([
-        "-y", "-i", cleanPath,
-        "-vf", `ass='${escapeAssFilterPath(assPath)}':fontsdir='${escapeAssFilterPath(fontsDir)}'`,
-        "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-        "-c:a", "copy",
-        "-movflags", "+faststart",
-        headlinePath,
-      ]);
+      await runFfmpegQueued(
+        [
+          "-y", "-i", cleanPath,
+          "-vf", `ass='${escapeAssFilterPath(assPath)}':fontsdir='${escapeAssFilterPath(fontsDir)}'`,
+          "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+          "-c:a", "copy",
+          "-movflags", "+faststart",
+          headlinePath,
+        ],
+        (ffmpegProgress) => {
+          progress.report(
+            "headline",
+            90 +
+              (Math.min(outputDuration, ffmpegProgress.outTimeSeconds) /
+                Math.max(outputDuration, 0.001)) *
+                7,
+          );
+        },
+      );
       // Validate headline-burned output; delete the file if it fails so it
       // does not accumulate on disk (same pattern as the clean output gate).
       try {
@@ -1224,6 +1491,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
         fs.promises.unlink(headlinePath).catch(() => {});
         throw validationError;
       }
+      progress.report("upload", 98, true);
       await r2UploadFile(headlinePath, headlineName);
       outputUrl = `/uploads/${headlineName}`;
       fs.promises.unlink(headlinePath).catch(() => {});
@@ -1232,11 +1500,20 @@ async function runRender(id: string, token: string, uploadDir: string) {
       outputUrl = cleanUrl;
     }
 
+    progress.report("finalize", 99.5, true);
+    await progress.flush();
     await pool.query(
       `UPDATE rendy_edit_projects
           SET status = 'ready',
               output_url = $1,
               clean_output_url = $2,
+               progress = jsonb_build_object(
+                 'stage', 'finalize',
+                 'percent', 100,
+                 'etaSeconds', 0,
+                 'attempt', progress_attempt,
+                 'updatedAt', NOW()
+               ),
               error = NULL,
               lease_token = NULL,
               lease_expires_at = NULL,
@@ -1245,6 +1522,12 @@ async function runRender(id: string, token: string, uploadDir: string) {
       [outputUrl, cleanUrl, id, token],
     );
     clearOwnedHeartbeat(id, token);
+    console.info(
+      `[RendyEditor ${id}] render completed in ${(
+        (Date.now() - renderStartedAt) /
+        1000
+      ).toFixed(1)}s (${plan.clips.length} clips, ${uniqueSourceUrls.length} unique sources)`,
+    );
   } catch (error) {
     await failProject(id, token, error);
   } finally {
@@ -1253,17 +1536,21 @@ async function runRender(id: string, token: string, uploadDir: string) {
 }
 
 async function runAnalysisAndRender(id: string, token: string, uploadDir: string) {
+  const progress = createProgressReporter(id, token);
   try {
+    progress.report("analyze", 1, true);
     const project = await getProject(id);
     if (!project) throw new Error("Redigeringsprojektet findes ikke");
     const manifest = await manifestForProject(project);
     if (!manifest) throw new Error("Klipbiblioteket mangler. Prøv igen.");
     const timeline = validateTimeline(manifest, project.timeline ?? []);
     const plan = makeEditPlan(manifest, timeline);
+    progress.report("analyze", 4, true);
     await pool.query(
       `UPDATE rendy_edit_projects SET analysis_plan = $1::jsonb, status = 'rendering', job_stage = 'render', updated_at = NOW() WHERE id = $2 AND lease_token = $3`,
       [JSON.stringify(plan), id, token],
     );
+    await progress.flush();
     await runRender(id, token, uploadDir);
   } catch (error) {
     await failProject(id, token, error);
@@ -1324,7 +1611,9 @@ export function buildHeadlineOverlayArgs(
  */
 async function runHeadlineApply(id: string, token: string, uploadDir: string) {
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-headline-"));
+  const progress = createProgressReporter(id, token);
   try {
+    progress.report("headline", 5, true);
     const project = await getProject(id);
     if (!project) throw new Error("Redigeringsprojektet findes ikke");
 
@@ -1348,6 +1637,13 @@ async function runHeadlineApply(id: string, token: string, uploadDir: string) {
                 output_url = $1,
                 clean_output_url = COALESCE(clean_output_url, $1),
                 job_stage = NULL,
+                progress = jsonb_build_object(
+                  'stage', 'finalize',
+                  'percent', 100,
+                  'etaSeconds', 0,
+                  'attempt', progress_attempt,
+                  'updatedAt', NOW()
+                ),
                 error = NULL,
                 lease_token = NULL,
                 lease_expires_at = NULL,
@@ -1362,6 +1658,7 @@ async function runHeadlineApply(id: string, token: string, uploadDir: string) {
     // Materialize the persisted clean master and probe its exact geometry.
     const cleanPath = path.join(tempDir, "clean.mp4");
     await materializeSource(cleanUrl, cleanPath);
+    progress.report("headline", 15, true);
     const info = await probeVideo(cleanPath);
     if (!info.width || !info.height || !info.duration) {
       throw new Error("Den rene video kunne ikke måles korrekt");
@@ -1376,17 +1673,36 @@ async function runHeadlineApply(id: string, token: string, uploadDir: string) {
     const outputPath = path.join(uploadDir, outputName);
     await runFfmpegQueued(
       buildHeadlineOverlayArgs(cleanPath, assPath, fontsDir, outputPath, info.hasAudio),
+      (ffmpegProgress) => {
+        progress.report(
+          "headline",
+          15 +
+            (Math.min(info.duration, ffmpegProgress.outTimeSeconds) /
+              Math.max(info.duration, 0.001)) *
+              75,
+        );
+      },
     );
+    progress.report("upload", 92, true);
     await r2UploadFile(outputPath, outputName);
     const newOutputUrl = `/uploads/${outputName}`;
 
     // Atomically swap output_url. clean_output_url is deliberately untouched.
+    progress.report("finalize", 99.5, true);
+    await progress.flush();
     await pool.query(
       `UPDATE rendy_edit_projects
           SET status = 'ready',
               output_url = $1,
               clean_output_url = COALESCE(clean_output_url, $2),
               job_stage = NULL,
+              progress = jsonb_build_object(
+                'stage', 'finalize',
+                'percent', 100,
+                'etaSeconds', 0,
+                'attempt', progress_attempt,
+                'updatedAt', NOW()
+              ),
               error = NULL,
               lease_token = NULL,
               lease_expires_at = NULL,
@@ -1543,6 +1859,7 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
                   job_stage = NULL,
                   analysis_plan = NULL,
                   error = NULL,
+                  progress = NULL,
                   lease_token = NULL,
                   lease_expires_at = NULL,
                   updated_at = NOW()
@@ -1611,6 +1928,7 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
                 clean_output_url = NULL,
                 status = 'draft',
                 job_stage = NULL,
+                 progress = NULL,
                 error = NULL,
                 updated_at = NOW()
           WHERE id = $2 AND user_id = $3 RETURNING *`,
