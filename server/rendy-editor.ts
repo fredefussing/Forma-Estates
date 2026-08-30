@@ -16,7 +16,11 @@ import { pool } from "./db";
 import { verifyFirebaseToken } from "./firebase-admin";
 import { storage } from "./storage";
 import { r2GetStream, r2UploadFile } from "./r2";
-import { runFfmpegQueued, runFfmpegQueuedToBuffer } from "./showcase";
+import {
+  runFfmpegQueued,
+  runFfmpegQueuedCaptureStderr,
+  runFfmpegQueuedToBuffer,
+} from "./showcase";
 import {
   RENDY_TYPOGRAPHY_PRESETS,
   DEFAULT_HEADLINE_SETTINGS,
@@ -520,17 +524,11 @@ export async function probeVideo(filePath: string): Promise<MediaInfo> {
 }
 
 async function sceneBoundaries(filePath: string, duration: number): Promise<number[]> {
-  const result = await new Promise<string>((resolve) => {
-    const proc = spawn("ffmpeg", [
+  const result = await runFfmpegQueuedCaptureStderr([
       "-hide_banner", "-i", filePath,
       "-vf", `select='gt(scene,${SCENE_THRESHOLD})',showinfo`,
       "-an", "-f", "null", "-",
-    ]);
-    let stderr = "";
-    proc.stderr.on("data", chunk => { stderr = (stderr + chunk.toString()).slice(-200_000); });
-    proc.on("close", () => resolve(stderr));
-    proc.on("error", () => resolve(""));
-  });
+    ]).catch(() => "");
   const points = [0];
   const matcher = /pts_time:([0-9.]+)/g;
   let match: RegExpExecArray | null;

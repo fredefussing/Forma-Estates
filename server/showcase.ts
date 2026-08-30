@@ -95,8 +95,10 @@ const H = 1920;
 
 // ── FFmpeg concurrency limiter ────────────────────────────────────────────────
 // Running too many FFmpeg processes in parallel exhausts Render instance RAM
-// (OOM / status 137). Cap at 2 simultaneous processes; extras queue and wait.
-const MAX_FFMPEG_SLOTS = 2;
+// (OOM / status 137). Render has already killed the service with two guarded
+// encodes plus legacy unguarded callers, so keep one process-wide heavy slot.
+// Extras wait instead of competing for RAM; codec and output quality are unchanged.
+const MAX_FFMPEG_SLOTS = 1;
 let _ffmpegSlots = 0;
 const _ffmpegQueue: Array<() => void> = [];
 let _loadTestFfmpegPeakRssBytes = 0;
@@ -142,6 +144,16 @@ export function runFfmpegQueued(
   onProgress?: (progress: FfmpegProgress) => void,
 ): Promise<void> {
   return runFfmpeg(args, onProgress);
+}
+
+export function runFfmpegQueuedCaptureStderr(
+  args: string[],
+  maxBytes = 200_000,
+): Promise<string> {
+  let captured = "";
+  return runFfmpeg(args, undefined, (chunk) => {
+    captured = (captured + chunk.toString()).slice(-maxBytes);
+  }).then(() => captured);
 }
 
 /**
@@ -216,6 +228,7 @@ export function runFfmpegQueuedToBuffer(
 function runFfmpeg(
   args: string[],
   onProgress?: (progress: FfmpegProgress) => void,
+  onStderr?: (chunk: Buffer) => void,
 ): Promise<void> {
   return acquireFfmpegSlot().then(
     () => new Promise<void>((resolve, reject) => {
@@ -233,8 +246,14 @@ function runFfmpeg(
       };
       sampleRss();
       const sampler = isLoadTestMode() ? setInterval(sampleRss, 25) : undefined;
-      const finish = () => {
+      let settled = false;
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
         if (sampler) clearInterval(sampler);
+        releaseFfmpegSlot();
+        if (error) reject(error);
+        else resolve();
       };
       let stderr = "";
       let progressBuffer = "";
@@ -276,15 +295,14 @@ function runFfmpeg(
         });
       }
       proc.stderr.on("data", (d) => {
+        onStderr?.(d);
         stderr += d.toString();
         if (stderr.length > 8000) stderr = stderr.slice(-8000);
       });
-      proc.on("error", (err) => { finish(); releaseFfmpegSlot(); reject(err); });
+      proc.on("error", (err) => finish(err));
       proc.on("close", (code) => {
-        finish();
-        releaseFfmpegSlot();
-        if (code === 0) resolve();
-        else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
+        if (code === 0) finish();
+        else finish(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
       });
     })
   );

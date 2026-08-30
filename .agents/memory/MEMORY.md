@@ -45,3 +45,4 @@
 - [Frame-accurate preview clip cuts](ffmpeg-frame-accurate-clips.md) — always output-seek (-ss after -i) for derived scene clips; fast-seek snaps to keyframes and shows the wrong room; audit with timestamped contact sheets.
 - [Rendy frame analysis via pipe](rendy-frame-analysis-pipe.md) — never round-trip analysis frames through /tmp JPGs; pipe bounded raw pixels from the shared FFmpeg queue.
 - [Rendy thumbnail performance](rendy-thumbnail-performance.md) — never decode source videos in clip grids; legacy manifests need durable full-frame poster backfill before removing fallbacks.
+- [Process-wide FFmpeg admission](ffmpeg-process-wide-admission.md) — every server FFmpeg call shares one production slot; overlapping guarded and bypass encodes caused a Render status-137 outage.

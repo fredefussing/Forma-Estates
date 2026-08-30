@@ -7,11 +7,11 @@
 
 import fs from "fs";
 import path from "path";
-import { spawn } from "child_process";
 import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { uploadToFal, generateGuidedTourClip, downloadToFile, isFalConfigured } from "./fal";
 import { isR2Configured, r2GetStream, r2UploadFile } from "./r2";
+import { runFfmpegQueued } from "./showcase";
 
 export interface TourProgress {
   stage: "preparing" | "generating" | "compositing" | "complete" | "failed";
@@ -70,22 +70,6 @@ function releaseSlot() {
   const next = waiters.shift();
   if (next) next();
   else activeRenders = Math.max(0, activeRenders - 1);
-}
-
-function runFfmpeg(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("ffmpeg", args);
-    let stderr = "";
-    proc.stderr.on("data", (d) => {
-      stderr += d.toString();
-      if (stderr.length > 8000) stderr = stderr.slice(-8000);
-    });
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
-    });
-  });
 }
 
 // Sørg for at en /uploads/<fil> findes lokalt — hent fra R2 hvis disken er
@@ -206,7 +190,7 @@ async function renderTour(
     const concatIn = okClips.map((_, i) => `[v${i}]`).join("");
     const filter = `${norm};${concatIn}concat=n=${okClips.length}:v=1:a=0[out]`;
 
-    await runFfmpeg([
+    await runFfmpegQueued([
       "-y",
       ...inputs,
       "-filter_complex", filter,
