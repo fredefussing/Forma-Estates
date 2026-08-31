@@ -541,7 +541,7 @@ export function RendyHeadlineEditor({
                       role="group"
                       tabIndex={0}
                       aria-label={t("dashboard.showcase.headline.dragLabel")}
-                      aria-describedby="rendy-headline-position-help"
+                      aria-describedby="showcase-headline-position-help"
                       onPointerDown={onPointerDown}
                       onKeyDown={onDragKeyDown}
                       className="group cursor-grab active:cursor-grabbing touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C8956C] rounded"
@@ -566,7 +566,7 @@ export function RendyHeadlineEditor({
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
                         <GripHorizontal className="w-4 h-4 text-white drop-shadow" />
                       </div>
-                      <span id="rendy-headline-position-help" className="sr-only">
+                      <span id="showcase-headline-position-help" className="sr-only">
                         Brug piletasterne til at flytte teksten. Hold Shift nede for større trin.
                       </span>
                     </div>

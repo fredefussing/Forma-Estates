@@ -108,6 +108,14 @@ async function finalizeRendyShowcaseVideos(
   );
 }
 
+async function localizeShowcaseArchive<T extends { downloadUrl?: string }>(
+  result: T,
+): Promise<T> {
+  if (!result.downloadUrl) return result;
+  const downloadUrl = await downloadToUploads(result.downloadUrl, uploadDir, ".zip");
+  return { ...result, downloadUrl };
+}
+
 function refundTransformVideo(requestId: string) {
   const uid = transformVideoRefunds.get(requestId);
   if (uid == null) return;
@@ -841,6 +849,7 @@ export async function registerRoutes(
       ".mp3":  "audio/mpeg",
       ".ogg":  "audio/ogg",
       ".webm": "audio/webm",
+      ".zip":  "application/zip",
       // Subtitle formats
       ".ass":  "text/x-ssa",
       ".srt":  "text/plain",
@@ -853,8 +862,9 @@ export async function registerRoutes(
 
     // GLB is a binary 3D model format — force attachment so the browser
     // never tries to render or execute it inline.
-    if (ext === ".glb") {
-      res.setHeader("Content-Disposition", "attachment");
+    if (ext === ".glb" || ext === ".zip") {
+      const downloadName = ext === ".zip" ? "forma-estates-showcase.zip" : path.basename(key);
+      res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
     }
 
     // 1. Serve from local disk if present (dev + same-session files)
@@ -5537,7 +5547,7 @@ export async function registerRoutes(
       if (showcaseUserId) showcaseVideoRefunds.set(jobId, showcaseUserId);
       if (showcaseUserId) storage.createVideoJob({ requestId: jobId, userId: showcaseUserId, feature: "showcase" }).catch(() => {});
       log(`[Rendy] started job=${jobId} images=${files.length} ratio=${ratio}`);
-      if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase (Rendy) · ${files.length} billeder`).catch(() => {});
+      if (showcaseUserId) storage.logCrmActivity(showcaseUserId, "video", `Bolig Showcase · ${files.length} billeder`).catch(() => {});
       return res.json({ success: true, job_id: jobId });
     } catch (err: any) {
       log(`[Rendy] submit error: ${err.message}`);
@@ -5657,7 +5667,7 @@ export async function registerRoutes(
         try {
           const full = await getRendyListing(listingId);
           const videos = full.videos.filter((v) => v.status === "success" && v.url);
-          if (videos.length === 0) throw new Error("Rendy leverede ingen færdige videoer");
+          if (videos.length === 0) throw new Error("Videotjenesten leverede ingen færdige videoer");
           const deliveredVideos = await finalizeRendyShowcaseVideos(videos);
           await saveDeliveredRendyVideos(jobId, listingId, deliveredVideos);
           await storage.completeVideoJob(jobId);
@@ -5686,7 +5696,7 @@ export async function registerRoutes(
   app.post("/api/bolig/showcase-video/:listingId/export", async (req, res) => {
     try {
       const { listingId } = req.params;
-      const result = await exportRendyListing(listingId);
+      const result = await localizeShowcaseArchive(await exportRendyListing(listingId));
       return res.json({ success: true, ...result });
     } catch (err: any) {
       return res.status(500).json({ success: false, message: err.message });
@@ -5694,14 +5704,19 @@ export async function registerRoutes(
   });
 
   // Poll zip export status
-  app.get("/api/bolig/rendy/export/:exportJobId", async (req, res) => {
+  const getShowcaseExportStatus = async (req: Request, res: express.Response) => {
     try {
-      const data = await getRendyExportStatus(req.params.exportJobId);
+      const data = await localizeShowcaseArchive(
+        await getRendyExportStatus(String(req.params.exportJobId)),
+      );
       return res.json({ success: true, ...data });
     } catch (err: any) {
       return res.status(500).json({ success: false, message: err.message });
     }
-  });
+  };
+  app.get("/api/bolig/showcase-video/export/:exportJobId", getShowcaseExportStatus);
+  // Compatibility for in-flight clients opened before the neutral route shipped.
+  app.get("/api/bolig/rendy/export/:exportJobId", getShowcaseExportStatus);
 
   // ── Cinematisk Walkthrough Video (multi-photo professional property tour) ──
   // Accepts 5-20 photos, generates one Seedance 2.0 clip per photo with

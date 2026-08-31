@@ -177,7 +177,8 @@ function manifestNeedsThumbnailBackfill(
   return Boolean(
     manifest?.shots.some(shot =>
       shot.candidates.some(candidate =>
-        !candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-"),
+        !candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-") &&
+        !candidate.thumbnailUrl?.includes("showcase-edit-thumb-v2-"),
       ),
     ),
   );
@@ -765,7 +766,7 @@ export function RendyVideoEditor({
       <section
         className="min-h-[100dvh] w-full space-y-4 bg-[#F6F1EA] p-4 sm:p-6"
         aria-label="Videoredigering"
-        aria-labelledby="rendy-video-editor-heading"
+        aria-labelledby="showcase-video-editor-heading"
         aria-modal="true"
         role="dialog"
         ref={dialogRef}
@@ -778,7 +779,7 @@ export function RendyVideoEditor({
               <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
               Forma videostudie
             </div>
-            <h3 id="rendy-video-editor-heading" className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">
+            <h3 id="showcase-video-editor-heading" className="text-xl font-semibold tracking-tight text-[#0F1D2F] sm:text-2xl">
               Redigér video
             </h3>
               <p className="max-w-xl text-[11px] leading-relaxed text-[#6C6964]">
@@ -1008,7 +1009,7 @@ export function RendyVideoEditor({
                 )}
                 <video
                   key={`${readyOutputUrl}-${finalMediaAttempt}`}
-                  id={`rendy-edited-video-${project.id}`}
+                  id={`showcase-edited-video-${project.id}`}
                   src={readyOutputUrl}
                   controls
                   playsInline
@@ -1043,7 +1044,7 @@ export function RendyVideoEditor({
                 sourceVideoUrl={project.outputUrl}
                 sourceVideoId={`edit:${project.id}`}
                 listingId={listingId}
-                videoElementId={`rendy-edited-video-${project.id}`}
+                videoElementId={`showcase-edited-video-${project.id}`}
                 onOutputReady={handleVoiceOutputReady}
                 onBusyChange={setVoiceoverBusy}
                 preloadProject

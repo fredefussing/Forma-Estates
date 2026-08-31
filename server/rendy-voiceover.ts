@@ -491,7 +491,7 @@ async function resolveSourceUrl(
   if (!video) throw new Error(`Video ${videoId} ikke fundet i listing ${listingId}`);
   if (!video.url) throw new Error(`Video ${videoId} har endnu ingen URL`);
   if (normalise(rawUrl) !== normalise(video.url)) {
-    throw new Error("Kilde-URL matcher ikke den forventede Rendy-video-URL");
+    throw new Error("Kilde-URL matcher ikke den forventede video-URL");
   }
   return rawUrl;
 }
@@ -1104,7 +1104,7 @@ async function runExport(projectId: number, leaseToken: string, uploadDir: strin
       );
     }
 
-    const outputName = `rvp-output-${projectId}-${stamp}.mp4`;
+    const outputName = `forma-showcase-fortaelling-${projectId}-${stamp}.mp4`;
     const outputPath = path.join(uploadDir, outputName);
     tmpFiles.push(outputPath);
 

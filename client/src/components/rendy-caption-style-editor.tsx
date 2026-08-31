@@ -25,7 +25,7 @@ import {
 } from "@shared/rendy-text";
 
 // ── @font-face injection (idempotent) ─────────────────────────────────────────
-const FONT_FACE_ID = "rendy-caption-fonts";
+const FONT_FACE_ID = "showcase-caption-fonts";
 function injectFonts() {
   if (typeof document === "undefined") return;
   if (document.getElementById(FONT_FACE_ID)) return;

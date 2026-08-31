@@ -672,7 +672,7 @@ export function RendyVoiceoverEditor({
         <section
           className={`${(immersive || open) ? "fixed inset-0 z-[80] overflow-y-auto bg-[#152536]/[.94] p-2 sm:p-6" : ""}`}
           aria-label={t("dashboard.showcase.voiceover.title")}
-           aria-labelledby="rendy-voiceover-heading"
+           aria-labelledby="showcase-voiceover-heading"
            aria-modal="true"
            role="dialog"
            ref={dialogRef}
@@ -685,7 +685,7 @@ export function RendyVoiceoverEditor({
                 <span className="h-1.5 w-1.5 rounded-full bg-[#C8956C]" />
                 Voice-over
               </div>
-             <h3 id="rendy-voiceover-heading" className="text-sm font-semibold text-[#0F1D2F]">
+             <h3 id="showcase-voiceover-heading" className="text-sm font-semibold text-[#0F1D2F]">
                 {t("dashboard.showcase.voiceover.title")}
               </h3>
               <p className="text-[11px] text-[#6C6964]">

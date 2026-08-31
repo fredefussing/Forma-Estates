@@ -148,7 +148,7 @@ export async function verifyRendyOwnershipAndGetVideoUrl(
   // backfill covers old rows that have a matching video_jobs record; any row
   // still left NULL must fail closed rather than becoming globally accessible.
   if (row.user_id !== userId) {
-    throw new Error("Du ejer ikke denne Rendy-video");
+    throw new Error("Du ejer ikke denne video");
   }
 
   const videos = row.videos as RendyVideo[] | null;
@@ -319,7 +319,7 @@ export async function uploadImageToRendy(filePath: string): Promise<RendyUploade
       const res = await rendyFetch("/images/upload", { method: "POST", body: form as any });
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        throw new Error(`Rendy upload fejlede (${res.status}): ${errText}`);
+        throw new Error(`Videoupload fejlede (${res.status}): ${errText}`);
       }
       const resp = await res.json() as { url: string };
       return { url: resp.url, width, height };
@@ -334,7 +334,7 @@ export async function uploadImageToRendy(filePath: string): Promise<RendyUploade
 
 export async function getRendyPresets(): Promise<RendyPreset[]> {
   const res = await rendyFetch("/presets");
-  if (!res.ok) throw new Error(`Rendy presets fejlede (${res.status})`);
+  if (!res.ok) throw new Error(`Videobevægelser kunne ikke hentes (${res.status})`);
   const data = await res.json() as { presets: RendyPreset[] };
   return data.presets ?? [];
 }
@@ -388,37 +388,37 @@ export async function createRendyListing(
   const responseText = await res.text().catch(() => "");
   console.log(`[Rendy] createListing response (${res.status}):`, responseText.slice(0, 500));
   if (!res.ok) {
-    throw new Error(`Rendy listing fejlede (${res.status}): ${responseText}`);
+    throw new Error(`Videoprojektet kunne ikke oprettes (${res.status}): ${responseText}`);
   }
   let data: any;
-  try { data = JSON.parse(responseText); } catch { throw new Error("Rendy listing: ugyldigt JSON svar"); }
+  try { data = JSON.parse(responseText); } catch { throw new Error("Videotjenesten returnerede et ugyldigt svar"); }
   // Rendy may return { listingId } or { id }
   const listingId = data.listingId || data.id;
-  if (!listingId) throw new Error(`Rendy listing: intet listingId i svar: ${responseText.slice(0, 200)}`);
+  if (!listingId) throw new Error(`Videotjenesten returnerede ikke et projekt-id: ${responseText.slice(0, 200)}`);
   return listingId;
 }
 
 export async function getRendyListingStatus(listingId: string): Promise<{ progress: number; status: string }> {
   const res = await rendyFetch(`/listings/${listingId}/status`);
-  if (!res.ok) throw new Error(`Rendy status fejlede (${res.status})`);
+  if (!res.ok) throw new Error(`Videostatus kunne ikke hentes (${res.status})`);
   return res.json() as Promise<{ progress: number; status: string }>;
 }
 
 export async function getRendyListing(listingId: string): Promise<RendyListingFull> {
   const res = await rendyFetch(`/listings/${listingId}`, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`Rendy listing fejlede (${res.status})`);
+  if (!res.ok) throw new Error(`Videoprojektet kunne ikke hentes (${res.status})`);
   return res.json() as Promise<RendyListingFull>;
 }
 
 export async function exportRendyListing(listingId: string): Promise<{ jobId: string; downloadUrl?: string }> {
   const res = await rendyFetch(`/listings/${listingId}/export`, { method: "POST", signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`Rendy export fejlede (${res.status})`);
+  if (!res.ok) throw new Error(`Videoeksport fejlede (${res.status})`);
   return res.json() as Promise<{ jobId: string; downloadUrl?: string }>;
 }
 
 export async function getRendyExportStatus(jobId: string): Promise<{ status: string; downloadUrl?: string; progress?: number; total?: number }> {
   const res = await rendyFetch(`/exports/${jobId}`, { signal: AbortSignal.timeout(10000) });
-  if (!res.ok) throw new Error(`Rendy export status fejlede (${res.status})`);
+  if (!res.ok) throw new Error(`Eksportstatus kunne ikke hentes (${res.status})`);
   return res.json();
 }
 

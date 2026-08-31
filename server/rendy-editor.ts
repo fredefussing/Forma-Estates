@@ -571,7 +571,7 @@ async function createCandidateThumbnail(
   const coarseSeek = Math.max(0, safeAt - 2);
   const accurateSeek = safeAt - coarseSeek;
   const safeListingId = listingId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const key = `rendy-edit-thumb-v2-${safeListingId}-${candidateId}.jpg`;
+  const key = `showcase-edit-thumb-v2-${safeListingId}-${candidateId}.jpg`;
   const outputPath = path.join(tempDir, key);
 
   try {
@@ -626,7 +626,7 @@ export async function signatureForFrame(
     }
   }
 
-  throw new Error("En videoramme kunne ikke læses. Prøv igen, eller vælg en anden Rendy-video.");
+  throw new Error("En videoramme kunne ikke læses. Prøv igen, eller vælg en anden video.");
 }
 
 function signatureDistance(a: Signature, b: Signature): number {
@@ -658,7 +658,7 @@ async function candidatesForVideo(video: DeliveredVideo, listingId: string, temp
     // archive, not a replacement of the customer's original Rendy delivery.
     const archivedUrl = localKey(video.url)
       ? video.url
-      : `/uploads/rendy-edit-source-${listingId.replace(/[^a-zA-Z0-9_-]/g, "_")}-${video.id.replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4`;
+      : `/uploads/showcase-edit-source-${listingId.replace(/[^a-zA-Z0-9_-]/g, "_")}-${video.id.replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4`;
     if (!localKey(video.url)) {
       await r2UploadFile(inputPath, archivedUrl.slice("/uploads/".length));
     }
@@ -774,7 +774,8 @@ async function buildManifest(videos: DeliveredVideo[], listingId: string): Promi
 function manifestNeedsThumbnailBackfill(manifest: RendyShotManifest): boolean {
   return manifest.shots.some(shot =>
     shot.candidates.some(candidate =>
-      !candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-"),
+      !candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-") &&
+      !candidate.thumbnailUrl?.includes("showcase-edit-thumb-v2-"),
     ),
   );
 }
@@ -796,7 +797,10 @@ async function backfillManifestThumbnails(
   try {
     for (const shot of current.manifest.shots) {
       for (const candidate of shot.candidates) {
-        if (candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-")) continue;
+        if (
+          candidate.thumbnailUrl?.includes("rendy-edit-thumb-v2-") ||
+          candidate.thumbnailUrl?.includes("showcase-edit-thumb-v2-")
+        ) continue;
 
         let sourcePath = sourcePaths.get(candidate.sourceUrl);
         if (!sourcePath) {
@@ -1411,7 +1415,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
     // It is stored durably so that a voiceover layer can source clean frames
     // and burn headline + captions in a single pass without re-encoding a
     // headline-burned file.
-    const cleanName = `rendy-edit-clean-${id}-${ts}.mp4`;
+    const cleanName = `forma-showcase-clean-${id}-${ts}.mp4`;
     const cleanPath = path.join(tempDir, cleanName);
     progress.report("assemble", 55, true);
     await runFfmpegQueued(
@@ -1455,7 +1459,7 @@ async function runRender(id: string, token: string, uploadDir: string) {
     if (wantHeadline) {
       progress.report("headline", 90, true);
       // Burn headline onto the clean assembled output
-      const headlineName = `rendy-edit-${id}-${ts}.mp4`;
+      const headlineName = `forma-showcase-${id}-${ts}.mp4`;
       const headlinePath = path.join(uploadDir, headlineName);
       const assPath = path.join(tempDir, "headline.ass");
       const fontsDir = path.join(process.cwd(), "public", "fonts");
@@ -1667,7 +1671,7 @@ async function runHeadlineApply(id: string, token: string, uploadDir: string) {
     const fontsDir = path.join(process.cwd(), "public", "fonts");
     fs.writeFileSync(assPath, buildAssHeadline(headline!, info.width, info.height, info.duration), "utf8");
 
-    const outputName = `rendy-edit-${id}-${Date.now()}.mp4`;
+    const outputName = `forma-showcase-${id}-${Date.now()}.mp4`;
     const outputPath = path.join(uploadDir, outputName);
     await runFfmpegQueued(
       buildHeadlineOverlayArgs(cleanPath, assPath, fontsDir, outputPath, info.hasAudio),

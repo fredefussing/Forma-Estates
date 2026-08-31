@@ -3624,7 +3624,14 @@ async function downloadFromUrl(url: string, filename: string) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
+    // Never expose a third-party delivery URL in a new browser tab. New videos
+    // are localized under Forma Estates before they reach this download flow.
+    const resolved = new URL(url, window.location.href);
+    if (resolved.origin === window.location.origin) {
+      window.open(resolved.href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    throw new Error("Videoen kunne ikke downloades");
   }
 }
 
@@ -5060,7 +5067,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       while (attempts < 90) {
         attempts++;
         await new Promise((r) => setTimeout(r, 2000));
-        const sr = await fetch(`/api/bolig/rendy/export/${ej}`);
+        const sr = await fetch(`/api/bolig/showcase-video/export/${ej}`);
         if (!sr.ok) continue; // transient — retry
         const sd = await sr.json();
         if (sd.status === "ready" && sd.downloadUrl) { setExportUrl(sd.downloadUrl); exportReady = true; break; }
@@ -5813,7 +5820,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
           <div className={`grid gap-3 sm:gap-5 ${ratio === "portrait" ? "grid-cols-2 lg:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
             {resultVideos.map((video, idx) => (
-              <div key={video.id} className="group overflow-hidden rounded-[20px] border border-[#DED4C8] bg-[#FCFAF7] shadow-[0_10px_30px_rgba(33,40,49,0.07)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#C8956C] hover:shadow-[0_16px_36px_rgba(33,40,49,0.12)]" data-testid={`card-rendy-video-${idx}`}>
+              <div key={video.id} className="group overflow-hidden rounded-[20px] border border-[#DED4C8] bg-[#FCFAF7] shadow-[0_10px_30px_rgba(33,40,49,0.07)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#C8956C] hover:shadow-[0_16px_36px_rgba(33,40,49,0.12)]" data-testid={`card-showcase-video-${idx}`}>
                 <div className="flex items-center justify-between bg-[#17283A] px-2.5 py-2.5 sm:px-3.5">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <span className="grid h-5 min-w-5 place-items-center rounded-md bg-[#D6A77D] px-1 font-mono text-[10px] font-bold text-[#17283A]">{String(idx + 1).padStart(2, "0")}</span>
@@ -5836,7 +5843,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 {video.url ? (
                   <div className={`w-full overflow-hidden ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}>
                     <video
-                      id={`rendy-video-${video.id}`}
+                      id={`showcase-video-${video.id}`}
                       src={video.url}
                       controls
                       loop
@@ -5848,7 +5855,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                         if (dur && isFinite(dur)) setVideoDurations(prev => ({ ...prev, [video.id]: Math.round(dur) }));
                       }}
                       className="h-full w-full bg-transparent object-contain"
-                      data-testid={`video-rendy-${idx}`}
+                      data-testid={`video-showcase-${idx}`}
                     />
                   </div>
                 ) : (
@@ -5859,7 +5866,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                 {video.url && (
                   <div className="border-t border-[#E8E0D8] p-2.5">
                     <button
-                      onClick={() => { const ts = new Date().toISOString().slice(0, 10); handleDownload(video.url!, `rendy-video-${idx + 1}-${ts}.mp4`); }}
+                      onClick={() => { const ts = new Date().toISOString().slice(0, 10); handleDownload(video.url!, `forma-estates-showcase-${idx + 1}-${ts}.mp4`); }}
                       disabled={!!downloading}
                       className="w-full h-11 rounded-xl text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition-[transform,background-color] hover:-translate-y-px disabled:opacity-50"
                       style={{ background: "#17283A" }}
@@ -5872,7 +5879,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       sourceVideoId={video.id}
                       listingId={listingId || ""}
                       duration={videoDurations[video.id]}
-                      videoElementId={`rendy-video-${video.id}`}
+                      videoElementId={`showcase-video-${video.id}`}
                       onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url, edited: true } : item))}
                     />
                     {listingId && (
