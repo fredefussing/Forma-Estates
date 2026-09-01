@@ -29,8 +29,8 @@ function assertNotLockedDown() {
 // Oversæt kendte fal.ai API-fejl til brugervenlige danske beskeder.
 export function translateFalError(err: any): Error {
   const msg: string = (err?.message ?? err?.detail ?? String(err)).toLowerCase();
-  if (msg.includes("exhausted balance") || msg.includes("locked") || msg.includes("top up")) {
-    return new Error("AI-generering er midlertidigt utilgængelig — kontakt support.");
+  if (msg.includes("exhausted balance") || msg.includes("user is locked") || msg.includes("top up")) {
+    return new Error("AI-generering er midlertidigt utilgængelig, fordi tjenestens saldo er opbrugt. Fyld saldoen op, eller kontakt support.");
   }
   if (msg.includes("forbidden") || msg.includes("unauthorized") || msg.includes("401") || msg.includes("403")) {
     return new Error("AI-tjenesten afviste anmodningen (adgang nægtet). Kontakt support.");
