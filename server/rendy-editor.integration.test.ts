@@ -214,8 +214,11 @@ try {
   assert(
     filter.includes(
       `atrim=start_sample=0:end_sample=${expectedLoopSamples}`,
-    ) && filter.includes(`aloop=loop=-1:size=${expectedLoopSamples}`),
-    "fractional source duration uses one identical sample count for trim and loop",
+    ) &&
+      filter.includes("asplit=") &&
+      filter.includes("afade=t=in") &&
+      filter.includes("amix="),
+    "fractional source duration is decoded once and repeated with crossfades",
   );
 
   run("ffmpeg", args);
@@ -243,23 +246,66 @@ try {
     Number.isFinite(videoDuration) &&
       Number.isFinite(audioDuration) &&
       Math.abs(videoDuration - audioDuration) <= 0.04,
-    "real output keeps audio and video durations aligned",
+    `real output keeps audio and video durations aligned (${videoDuration.toFixed(3)}s video / ${audioDuration.toFixed(3)}s audio)`,
   );
 
   const beforeFadeRms = audioRms(output, 0.9, 0.08);
+  const expectedCrossfade = nonMillisecondAudioDuration * 0.2;
   const loopBoundaryRms = audioRms(
     output,
-    nonMillisecondAudioDuration - 0.015,
+    nonMillisecondAudioDuration - expectedCrossfade - 0.015,
     0.03,
   );
   const finalRms = audioRms(output, 1.317, 0.045);
   assert(
     beforeFadeRms > 0.01 && loopBoundaryRms > beforeFadeRms * 0.55,
-    "sample-loop boundary remains audible without a silence gap",
+    "music crossfade remains audible without a silence gap",
   );
   assert(
     finalRms < beforeFadeRms * 0.35,
-    "real soundtrack is strongly faded by the final frames",
+    `real soundtrack is strongly faded by the final frames (${beforeFadeRms.toFixed(4)} → ${finalRms.toFixed(4)} RMS)`,
+  );
+
+  const silentOutput = path.join(tempDir, "silent-output.mp4");
+  const silentPlan = {
+    ...plan,
+    clips: [plan.clips[0]],
+    transitions: [],
+    totalDuration: 0.7,
+  };
+  run(
+    "ffmpeg",
+    buildCleanEditRenderArgs(
+      [firstClip],
+      soundtrack,
+      false,
+      0,
+      silentOutput,
+      silentPlan,
+    ),
+  );
+  const silentProbe = JSON.parse(
+    run("ffprobe", [
+      "-v",
+      "error",
+      "-show_entries",
+      "stream=codec_type,duration",
+      "-of",
+      "json",
+      silentOutput,
+    ]),
+  ) as { streams?: Array<{ codec_type?: string; duration?: string }> };
+  const silentVideoDuration = Number(
+    silentProbe.streams?.find((stream) => stream.codec_type === "video")?.duration,
+  );
+  const silentAudioDuration = Number(
+    silentProbe.streams?.find((stream) => stream.codec_type === "audio")?.duration,
+  );
+  assert(
+    Number.isFinite(silentVideoDuration) &&
+      Number.isFinite(silentAudioDuration) &&
+      Math.abs(silentVideoDuration - silentAudioDuration) <= 0.04,
+    "a source without audio receives silence through the final video frame",
   );
 
   const progressOutput = path.join(tempDir, "progress-output.mp4");

@@ -49,6 +49,24 @@ an unrounded sample count; that creates a different loop boundary for ordinary
 fractional durations. Apply the final output-duration trim and outro fade only
 after this sample-exact loop branch.
 
+For a musically seamless loop, do not chain `acrossfade` directly from branches
+of one `asplit` in this FFmpeg build: repeated chaining collapsed the output to
+roughly the accumulated overlap duration. Build one bounded periodic cycle
+instead: overlap three sample-aligned copies with complementary fades and
+delays, extract the middle period, reset its PTS, then `aloop` that period by its
+exact sample count. Reset PTS again before the final outro fade, or the fade's
+start time can miss the mixed stream. This keeps the graph constant-size even
+for very long edits or unusually short source audio.
+
+**Why:** Expanding one filter branch per repetition is user-media-driven and can
+turn a short soundtrack plus a long edit into an oversized FFmpeg graph. A
+three-copy periodic cycle has constant command size and still hides the restart.
+
+**How to apply:** Keep picture cuts separate and hard. Quantize any small
+music-fit trim upward to the picture frame clock so audio never ends one frame
+before video; if the mismatch cannot be removed without over-trimming the final
+clip, preserve every clip and use the seamless bounded cycle.
+
 ## Beat-synced cuts (the "edited to the music" look)
 
 To make image switches land on the music's beat: measure each fixed track's pulse

@@ -31,6 +31,7 @@ import {
   cleanEditDuration,
   estimateRenderEtaSeconds,
   isLegacyShortTransitionError,
+  musicFitTrimSeconds,
   RENDY_CANDIDATE_THUMBNAIL_FILTER,
   renderBoundsForCandidate,
   transitionDurationForClips,
@@ -485,6 +486,22 @@ console.log("\n[12] Clean Edit picture cuts and continuous source audio");
       Math.abs(shortFade.start - 1.936) < 0.0001,
     "edit audio: short videos use a proportional outro",
   );
+  assert(
+    Math.abs(musicFitTrimSeconds(20, 18.5, 4) - 1.5) < 0.0001,
+    "music fit: a small overrun can be removed from the final clip",
+  );
+  assert(
+    musicFitTrimSeconds(20, 10, 4) === 0,
+    "music fit: a large mismatch keeps all picture clips for a musical loop",
+  );
+  assert(
+    musicFitTrimSeconds(20, 18.5, 1) === 0,
+    "music fit: never trims the final clip below the safe minimum",
+  );
+  assert(
+    Math.abs(musicFitTrimSeconds(20, 19.98, 4) - 0.02) < 0.0001,
+    "music fit: even a sub-frame overrun is detected for frame-safe trimming",
+  );
   const args = buildCleanEditRenderArgs(
     ["/tmp/clip-1.mp4", "/tmp/clip-2.mp4"],
     "/tmp/selected-source.mp4",
@@ -497,20 +514,49 @@ console.log("\n[12] Clean Edit picture cuts and continuous source audio");
   assert(args.filter((arg) => arg === "-i").length === 3, "clean edit: two picture inputs plus one selected audio source");
   assert(
     filter.includes("atrim=start_sample=0:end_sample=19200") &&
-      filter.includes("aloop=loop=-1:size=19200"),
-    "clean edit: trim and loop use the exact same decoded sample count",
+      filter.includes("asplit="),
+    "clean edit: soundtrack copies use one sample-exact decoded source",
   );
   assert(!args.includes("-stream_loop"), "clean edit: avoids MP4/AAC loop priming gaps");
   assert(filter.includes("concat=n=2:v=1:a=0"), "clean edit: picture clips use frame-accurate hard concat");
   assert(!filter.includes("xfade"), "clean edit: no smeared automatic picture crossfade");
-  assert(!filter.includes("acrossfade"), "clean edit: clip audio is never crossfaded");
-  assert(filter.includes("[2:a]"), "clean edit: audio comes only from the selected source input");
-  assert(filter.includes("atrim=duration=2.200"), "clean edit: continuous audio ends with the exact picture duration");
   assert(
-    filter.includes("afade=t=out:st=1.936:d=0.264"),
+    filter.includes("afade=t=in") &&
+      filter.includes("afade=t=out") &&
+      filter.includes("amix="),
+    "clean edit: repeated music joins with a soft crossfade",
+  );
+  assert(filter.includes("[2:a]"), "clean edit: audio comes only from the selected source input");
+  assert(
+    filter.includes(`atrim=start_sample=0:end_sample=${Math.round(2.2 * 48_000)}`),
+    "clean edit: continuous audio ends with the exact picture duration",
+  );
+  assert(
+    filter.includes(
+      `afade=t=out:ss=${Math.round(1.936 * 48_000)}:ns=${Math.round(0.264 * 48_000)}`,
+    ),
     "clean edit: soundtrack fades cleanly before the final frame",
   );
   assert(args.includes("[aout]"), "clean edit: maps the continuous selected-source audio bed");
+
+  const longArgs = buildCleanEditRenderArgs(
+    ["/tmp/clip-1.mp4"],
+    "/tmp/selected-source.mp4",
+    true,
+    0.1,
+    "/tmp/long-clean-output.mp4",
+    {
+      ...cleanPlan,
+      clips: [{ ...cleanPlan.clips[0], start: 0, end: 600 }],
+      transitions: [],
+      totalDuration: 600,
+    },
+  );
+  const longFilter = longArgs[longArgs.indexOf("-filter_complex") + 1];
+  assert(
+    longFilter.includes("asplit=3") && longFilter.length < 2_000,
+    "clean edit: loop graph stays bounded even for a long edit and tiny source",
+  );
 
   const silentArgs = buildCleanEditRenderArgs(
     ["/tmp/clip-1.mp4"],

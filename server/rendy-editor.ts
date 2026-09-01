@@ -164,6 +164,51 @@ export function cleanEditAudioFade(outputDuration: number): {
   };
 }
 
+const MUSIC_LOOP_CROSSFADE_MAX_SECONDS = 0.8;
+const MUSIC_FIT_MAX_TRIM_SECONDS = 3;
+const MUSIC_FIT_MAX_PERCENT = 0.12;
+const MIN_RENDERABLE_CLIP_SECONDS = 0.5;
+
+/**
+ * Only shorten the final picture clip when the soundtrack is just slightly
+ * shorter than the edit. A large difference is better handled by a musical
+ * loop; removing a whole room from the customer's timeline would be
+ * surprising.
+ */
+export function musicFitTrimSeconds(
+  videoDuration: number,
+  musicDuration: number,
+  finalClipDuration: number,
+): number {
+  const overrun = videoDuration - musicDuration;
+  if (
+    !Number.isFinite(overrun) ||
+    overrun <= 0 ||
+    !Number.isFinite(finalClipDuration) ||
+    finalClipDuration <= MIN_RENDERABLE_CLIP_SECONDS
+  ) {
+    return 0;
+  }
+  const maximum = Math.min(
+    MUSIC_FIT_MAX_TRIM_SECONDS,
+    videoDuration * MUSIC_FIT_MAX_PERCENT,
+    finalClipDuration - MIN_RENDERABLE_CLIP_SECONDS,
+  );
+  return overrun <= maximum ? overrun : 0;
+}
+
+function musicLoopCrossfadeSeconds(
+  sourceDuration: number,
+  outputDuration: number,
+): number {
+  if (sourceDuration <= 0 || outputDuration <= sourceDuration) return 0;
+  return Math.min(
+    MUSIC_LOOP_CROSSFADE_MAX_SECONDS,
+    sourceDuration * 0.2,
+    outputDuration * 0.08,
+  );
+}
+
 interface ProjectRow {
   id: string;
   user_id: number;
@@ -1039,6 +1084,7 @@ function makeEditPlan(
   manifest: RendyShotManifest,
   timeline: TimelineItem[],
   hydratedDurations?: Map<string, MediaInfo>,
+  musicDuration?: number | null,
 ): EditPlan {
   const clips = timeline.map(item => {
     const candidate = manifest.shots.find(shot => shot.id === item.shotId)?.candidates.find(value => value.id === item.candidateId);
@@ -1062,6 +1108,26 @@ function makeEditPlan(
     );
     return { shotId: item.shotId, candidateId: candidate.id, sourceUrl: candidate.sourceUrl, sourceVideoId: candidate.sourceVideoId, start, end };
   });
+  if (musicDuration != null && musicDuration > 0 && clips.length > 0) {
+    const currentDuration = cleanEditDuration({ clips });
+    const lastClip = clips[clips.length - 1];
+    const lastClipDuration = lastClip.end - lastClip.start;
+    const trimSeconds = musicFitTrimSeconds(
+      currentDuration,
+      musicDuration,
+      lastClipDuration,
+    );
+    if (trimSeconds > 0) {
+      const currentFrames = cleanEditClipFrames(lastClip);
+      const trimFrames = Math.min(
+        Math.ceil(trimSeconds * EDIT_OUTPUT_FPS),
+        Math.max(0, currentFrames - Math.ceil(MIN_RENDERABLE_CLIP_SECONDS * EDIT_OUTPUT_FPS)),
+      );
+      if (trimFrames > 0) {
+        lastClip.end = lastClip.start + (currentFrames - trimFrames) / EDIT_OUTPUT_FPS;
+      }
+    }
+  }
   const transitions: TransitionPlan[] = [];
   for (let index = 0; index < clips.length - 1; index++) {
     const from = manifest.shots.find(shot => shot.id === clips[index].shotId)?.candidates.find(candidate => candidate.id === clips[index].candidateId)!;
@@ -1076,7 +1142,7 @@ function makeEditPlan(
       confidence: Math.max(0, Math.min(1, 1 - visualDifference * 0.65)),
     });
   }
-  const totalDuration = clips.reduce((sum, clip) => sum + clip.end - clip.start, 0) - transitions.reduce((sum, transition) => sum + transition.duration, 0);
+  const totalDuration = cleanEditDuration({ clips });
   return { clips, transitions, totalDuration };
 }
 
@@ -1258,20 +1324,43 @@ export function buildCleanEditRenderArgs(
   const sourceDuration = Math.max(0.1, selectedSourceDuration);
   const sourceSamples = Math.max(1, Math.round(sourceDuration * 48_000));
   const audioFade = cleanEditAudioFade(outputDuration);
-  // Decode the chosen soundtrack once, reset it to an exact sample clock and
-  // loop those decoded samples. This avoids the AAC priming gap that can occur
-  // when repeatedly opening an MP4 input with -stream_loop. The final fade keeps
-  // a late loop boundary or hard song ending from becoming the video's last beat.
-  const audioFilter = selectedSourceHasAudio
-    ? `[${audioInputIndex}:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,atrim=start_sample=0:end_sample=${sourceSamples},asetpts=N/SR/TB,aloop=loop=-1:size=${sourceSamples},atrim=duration=${outputDuration.toFixed(3)},afade=t=out:st=${audioFade.start.toFixed(3)}:d=${audioFade.duration.toFixed(3)},asetpts=N/SR/TB[aout]`
-    : `[${audioInputIndex}:a]atrim=duration=${outputDuration.toFixed(3)},asetpts=N/SR/TB[aout]`;
+  // Decode the chosen soundtrack once and reset it to an exact sample clock.
+  // When the edit is longer, three fixed copies create one sample-exact,
+  // crossfaded cycle; only that seamless cycle is looped. This removes the
+  // audible hard restart without growing the filter graph with video length.
+  let audioFilter: string;
+  if (!selectedSourceHasAudio) {
+    audioFilter = `[${audioInputIndex}:a]atrim=duration=${outputDuration.toFixed(3)},asetpts=N/SR/TB[aout]`;
+  } else {
+    const crossfade = musicLoopCrossfadeSeconds(sourceDuration, outputDuration);
+    if (crossfade <= 0) {
+      audioFilter = `[${audioInputIndex}:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,atrim=start_sample=0:end_sample=${sourceSamples},asetpts=N/SR/TB,atrim=duration=${outputDuration.toFixed(3)},afade=t=out:st=${audioFade.start.toFixed(3)}:d=${audioFade.duration.toFixed(3)},asetpts=N/SR/TB[aout]`;
+    } else {
+      const crossfadeSamples = Math.max(
+        1,
+        Math.min(sourceSamples - 1, Math.round(crossfade * 48_000)),
+      );
+      const periodSamples = sourceSamples - crossfadeSamples;
+      const outputSamples = Math.max(1, Math.round(outputDuration * 48_000));
+      const outroStartSamples = Math.max(0, Math.round(audioFade.start * 48_000));
+      const outroDurationSamples = Math.max(1, Math.round(audioFade.duration * 48_000));
+      const parts = [
+        `[${audioInputIndex}:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,atrim=start_sample=0:end_sample=${sourceSamples},asetpts=N/SR/TB,asplit=3[musicSource0][musicSource1][musicSource2]`,
+        `[musicSource0]afade=t=out:ss=${periodSamples}:ns=${crossfadeSamples}:curve=tri[music0]`,
+        `[musicSource1]afade=t=in:ss=0:ns=${crossfadeSamples}:curve=tri,afade=t=out:ss=${periodSamples}:ns=${crossfadeSamples}:curve=tri,adelay=${periodSamples}S:all=1[music1]`,
+        `[musicSource2]afade=t=in:ss=0:ns=${crossfadeSamples}:curve=tri,adelay=${periodSamples * 2}S:all=1[music2]`,
+        `[music0][music1][music2]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,atrim=start_sample=${periodSamples}:end_sample=${periodSamples * 2},asetpts=N/SR/TB,aloop=loop=-1:size=${periodSamples},atrim=start_sample=0:end_sample=${outputSamples},asetpts=N/SR/TB,afade=t=out:ss=${outroStartSamples}:ns=${outroDurationSamples}[aout]`,
+      ];
+      audioFilter = parts.join(";");
+    }
+  }
   return [
     ...args,
     "-filter_complex", `${videoFilter};${audioFilter}`,
     "-map", "[vout]", "-map", "[aout]",
     "-c:v", "libx264", "-preset", "medium", "-crf", "20",
     "-c:a", "aac", "-ar", "48000", "-ac", "2",
-    "-movflags", "+faststart", outputPath,
+    "-movflags", "+faststart", "-t", outputDuration.toFixed(3), outputPath,
   ];
 }
 
@@ -1620,9 +1709,19 @@ async function runAnalysisAndRender(id: string, token: string, uploadDir: string
     // opens. Resolve those complete-source durations only when the user starts
     // an export, so the editor remains immediately usable without compromising
     // render bounds or output quality.
-    const unresolvedSources = Array.from(
-      new Set(
-        timeline.flatMap(item => {
+    const selectedSoundCandidate = manifest.shots
+      .flatMap(shot => shot.candidates)
+      .find(candidate => candidate.sourceVideoId === project.source_video_id);
+    const selectedSoundUrl = selectedSoundCandidate?.sourceUrl ??
+      (await getOwnedDeliveryVideos(project.listing_id, project.user_id))
+        .find(video => video.id === project.source_video_id)?.url;
+    if (!selectedSoundUrl) {
+      throw new Error("Startvideoens musikspor kunne ikke findes");
+    }
+    const sourcesToProbe = Array.from(
+      new Set([
+        selectedSoundUrl,
+        ...timeline.flatMap(item => {
           const candidate = manifest.shots
             .find(shot => shot.id === item.shotId)
             ?.candidates.find(value => value.id === item.candidateId);
@@ -1630,13 +1729,13 @@ async function runAnalysisAndRender(id: string, token: string, uploadDir: string
             ? [candidate.sourceUrl]
             : [];
         }),
-      ),
+      ]),
     );
     const hydratedDurations = new Map<string, MediaInfo>();
-    if (unresolvedSources.length) {
+    if (sourcesToProbe.length) {
       const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-hydrate-"));
       try {
-        await mapWithConcurrency(unresolvedSources, 3, async (sourceUrl, index) => {
+        await mapWithConcurrency(sourcesToProbe, 3, async (sourceUrl, index) => {
           const sourcePath = path.join(tempDir, `source-${index}.mp4`);
           await materializeSource(sourceUrl, sourcePath);
           hydratedDurations.set(sourceUrl, await probeVideo(sourcePath));
@@ -1645,7 +1744,16 @@ async function runAnalysisAndRender(id: string, token: string, uploadDir: string
         await fs.promises.rm(tempDir, { recursive: true, force: true });
       }
     }
-    const plan = makeEditPlan(manifest, timeline, hydratedDurations);
+    const selectedSoundInfo = hydratedDurations.get(selectedSoundUrl);
+    const musicDuration = selectedSoundInfo?.hasAudio
+      ? selectedSoundInfo.audioDuration || selectedSoundInfo.duration
+      : null;
+    const plan = makeEditPlan(
+      manifest,
+      timeline,
+      hydratedDurations,
+      musicDuration,
+    );
     progress.report("analyze", 4, true);
     await pool.query(
       `UPDATE rendy_edit_projects SET analysis_plan = $1::jsonb, status = 'rendering', job_stage = 'render', updated_at = NOW() WHERE id = $2 AND lease_token = $3`,
