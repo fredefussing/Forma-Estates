@@ -4823,6 +4823,20 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     });
   };
 
+  const handleShowcaseFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+  };
+
+  const handleShowcaseFileDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((i) => i.id !== id));
     if (openPanelId === id) setOpenPanelId(null);
@@ -5302,9 +5316,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         {/* ── Upload zone (when no images) ── */}
         {images.length === 0 && (
           <label
-            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragOver={handleShowcaseFileDragOver}
             onDragLeave={() => setIsDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}
+            onDrop={handleShowcaseFileDrop}
             className="block cursor-pointer p-12 text-center transition-colors m-5 rounded-xl border-2 border-dashed"
             style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
             data-testid="dropzone-showcase"
@@ -5507,7 +5521,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           };
 
           return (
-            <div className="px-4 pt-4 space-y-2">
+            <div
+              className="px-4 pt-4 space-y-2"
+              onDragOver={handleShowcaseFileDragOver}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleShowcaseFileDrop}
+            >
               {Array.from({ length: totalRows }, (_, rowIdx) => {
                 const start = rowIdx * COLS;
                 const rowImgs = images.slice(start, Math.min(start + COLS, images.length));
@@ -5520,7 +5539,10 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       {isLastRow && images.length < 20 && !isGenerating && (
                         <label
                           className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
-                          style={{ borderColor: "#D9D5CF", background: "#F8F6F3" }}
+                          onDragOver={handleShowcaseFileDragOver}
+                          onDragLeave={() => setIsDragOver(false)}
+                          onDrop={handleShowcaseFileDrop}
+                          style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
                           data-testid="add-more-images"
                         >
                           <input type="file" accept="image/*" multiple className="hidden"
