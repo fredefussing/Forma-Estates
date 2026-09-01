@@ -878,6 +878,62 @@ function timelineForSource(manifest: RendyShotManifest, sourceVideoId: string): 
 }
 
 /**
+ * Create the editor's first usable state without reading every delivered MP4.
+ *
+ * The delivery itself is already complete when the editor is opened. Waiting
+ * here for scene detection, signatures and thumbnails made customers wait for
+ * a second, unrelated processing job before they could even reorder videos.
+ * Each delivered video is therefore exposed immediately as one complete clip.
+ * The render worker resolves the real duration and dimensions before encoding.
+ *
+ * This is deliberately a real source reference, not a fake media URL. The
+ * zero timing values mean "the complete source"; render-time hydration supplies
+ * the exact bounds before any output is generated.
+ */
+function buildInstantManifest(videos: DeliveredVideo[]): RendyShotManifest {
+  const blankSignature = (): Signature => ({ values: Array(SIGNATURE_BYTES).fill(0) });
+  const shots: RendyShot[] = [];
+  const sourceMembership: Record<string, string[]> = {};
+
+  for (let index = 0; index < videos.length; index++) {
+    const video = videos[index];
+    const candidateId = `instant-${video.id}`;
+    const shotId = `shot-${index + 1}-${video.id}`;
+    const candidate: RendyShotCandidate = {
+      id: candidateId,
+      sourceVideoId: video.id,
+      sourceUrl: video.url!,
+      duration: 0,
+      safeStart: 0,
+      safeEnd: 0,
+      width: 1080,
+      height: 1920,
+      fps: EDIT_OUTPUT_FPS,
+      qualityScore: 0,
+      motionScore: 0,
+      startSignature: blankSignature(),
+      midSignature: blankSignature(),
+      endSignature: blankSignature(),
+    };
+    shots.push({
+      id: shotId,
+      label: `Video ${index + 1}`,
+      duration: 0,
+      selectedCandidateId: candidateId,
+      candidates: [candidate],
+    });
+    sourceMembership[video.id] = [shotId];
+  }
+
+  return {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    shots,
+    sourceMembership,
+  };
+}
+
+/**
  * Strictly validate an inbound headline object from a PATCH request body.
  * Returns a sanitised HeadlineSettings or throws a 400 error.
  * Accepts null/undefined to mean "clear to default (disabled)".
@@ -979,15 +1035,29 @@ export function renderBoundsForCandidate(
   return { start, end };
 }
 
-function makeEditPlan(manifest: RendyShotManifest, timeline: TimelineItem[]): EditPlan {
+function makeEditPlan(
+  manifest: RendyShotManifest,
+  timeline: TimelineItem[],
+  hydratedDurations?: Map<string, MediaInfo>,
+): EditPlan {
   const clips = timeline.map(item => {
     const candidate = manifest.shots.find(shot => shot.id === item.shotId)?.candidates.find(value => value.id === item.candidateId);
     if (!candidate) throw new Error("Et valgt klip findes ikke længere");
+    const hydrated = hydratedDurations?.get(candidate.sourceUrl);
+    const safeStart = candidate.safeEnd > candidate.safeStart
+      ? candidate.safeStart
+      : 0;
+    const safeEnd = candidate.safeEnd > candidate.safeStart
+      ? candidate.safeEnd
+      : hydrated?.duration ?? 0;
+    if (safeEnd <= safeStart) {
+      throw new Error("Videolængden kunne ikke læses. Prøv igen.");
+    }
     // Moving shots retain their natural beginning and ending. Static scenes may
     // lose a tiny encoder settle frame; moving action is never trimmed away.
     const { start, end } = renderBoundsForCandidate(
-      candidate.safeStart,
-      candidate.safeEnd,
+      safeStart,
+      safeEnd,
       candidate.motionScore,
     );
     return { shotId: item.shotId, candidateId: candidate.id, sourceUrl: candidate.sourceUrl, sourceVideoId: candidate.sourceVideoId, start, end };
@@ -1546,7 +1616,36 @@ async function runAnalysisAndRender(id: string, token: string, uploadDir: string
     const manifest = await manifestForProject(project);
     if (!manifest) throw new Error("Klipbiblioteket mangler. Prøv igen.");
     const timeline = validateTimeline(manifest, project.timeline ?? []);
-    const plan = makeEditPlan(manifest, timeline);
+    // Instant manifests intentionally do not read every MP4 while the editor
+    // opens. Resolve those complete-source durations only when the user starts
+    // an export, so the editor remains immediately usable without compromising
+    // render bounds or output quality.
+    const unresolvedSources = Array.from(
+      new Set(
+        timeline.flatMap(item => {
+          const candidate = manifest.shots
+            .find(shot => shot.id === item.shotId)
+            ?.candidates.find(value => value.id === item.candidateId);
+          return candidate && candidate.safeEnd <= candidate.safeStart
+            ? [candidate.sourceUrl]
+            : [];
+        }),
+      ),
+    );
+    const hydratedDurations = new Map<string, MediaInfo>();
+    if (unresolvedSources.length) {
+      const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "rendy-edit-hydrate-"));
+      try {
+        await mapWithConcurrency(unresolvedSources, 3, async (sourceUrl, index) => {
+          const sourcePath = path.join(tempDir, `source-${index}.mp4`);
+          await materializeSource(sourceUrl, sourcePath);
+          hydratedDurations.set(sourceUrl, await probeVideo(sourcePath));
+        });
+      } finally {
+        await fs.promises.rm(tempDir, { recursive: true, force: true });
+      }
+    }
+    const plan = makeEditPlan(manifest, timeline, hydratedDurations);
     progress.report("analyze", 4, true);
     await pool.query(
       `UPDATE rendy_edit_projects SET analysis_plan = $1::jsonb, status = 'rendering', job_stage = 'render', updated_at = NOW() WHERE id = $2 AND lease_token = $3`,
@@ -1826,13 +1925,28 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
       }
       const videos = await getOwnedDeliveryVideos(listingId, userId);
       if (!videos.some(video => video.id === sourceVideoId)) return res.status(400).json({ success: false, message: "Startvideoen tilhører ikke denne levering" });
+      // Opening an editor must not wait for the expensive scene analysis. The
+      // delivery URLs are already complete and owned at this point, so create a
+      // usable whole-video manifest immediately. Existing detailed manifests
+      // remain fully compatible and are reused unchanged.
+      let cached = await getManifest(listingId, userId);
+      if (!cached) {
+        const instantManifest = buildInstantManifest(videos);
+        await pool.query(
+          `INSERT INTO rendy_edit_manifests (listing_id, user_id, revision, payload)
+           VALUES ($1, $2, 1, $3::jsonb)
+           ON CONFLICT (listing_id) DO NOTHING`,
+          [listingId, userId, JSON.stringify(instantManifest)],
+        );
+        cached = await getManifest(listingId, userId);
+      }
+      if (!cached) throw new Error("Klipbiblioteket kunne ikke åbnes");
       const existingResult = await pool.query<ProjectRow>(
         `SELECT * FROM rendy_edit_projects WHERE user_id = $1 AND listing_id = $2 AND source_video_id = $3 ORDER BY updated_at DESC LIMIT 1`,
         [userId, listingId, sourceVideoId],
       );
       let project = existingResult.rows[0];
       if (!project) {
-        const cached = await getManifest(listingId, userId);
         const id = randomUUID();
         const timeline = cached ? timelineForSource(cached.manifest, sourceVideoId) : [];
         const insert = await pool.query<ProjectRow>(
@@ -1841,12 +1955,34 @@ export function registerRendyEditorRoutes(app: Express, uploadDir: string) {
            ON CONFLICT (user_id, listing_id, source_video_id) DO UPDATE
              SET updated_at = NOW()
            RETURNING *`,
-          [id, userId, listingId, sourceVideoId, cached?.revision ?? null, JSON.stringify(timeline), cached ? "draft" : "preparing", cached ? null : "prepare"],
+           [id, userId, listingId, sourceVideoId, cached.revision, JSON.stringify(timeline), "draft", null],
         );
         project = insert.rows[0];
-        if (!cached && project.status === "preparing" && project.manifest_revision == null) {
-          await startProjectWork(project, "prepare", uploadDir);
-        }
+      } else if (
+        project.manifest_revision == null &&
+        ["preparing", "analyzing", "rendering"].includes(project.status)
+      ) {
+        // A project created by the previous blocking flow may still be waiting
+        // for scene analysis. The instant manifest is sufficient to let this
+        // customer edit now; an old worker can safely finish or lose its lease
+        // without changing the already persisted manifest.
+        const timeline = timelineForSource(cached.manifest, sourceVideoId);
+        const updated = await pool.query<ProjectRow>(
+          `UPDATE rendy_edit_projects
+              SET manifest_revision = $1,
+                  timeline = $2::jsonb,
+                  status = 'draft',
+                  job_stage = NULL,
+                  progress = NULL,
+                  error = NULL,
+                  lease_token = NULL,
+                  lease_expires_at = NULL,
+                  updated_at = NOW()
+            WHERE id = $3 AND user_id = $4
+            RETURNING *`,
+          [cached.revision, JSON.stringify(timeline), project.id, userId],
+        );
+        project = updated.rows[0] ?? project;
       }
       // Projects that failed only because of the former overly strict
       // short-transition threshold can be reopened directly. The timeline is

@@ -117,6 +117,7 @@ type MediaLoadState = "idle" | "loading" | "ready" | "error";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "Hele videoen";
   const s = Math.round(seconds);
   const m = Math.floor(s / 60);
   const rem = s % 60;
@@ -1139,7 +1140,11 @@ export function RendyVideoEditor({
                           )}
                           <video
                             key={`${previewCandidate.id}-${previewMediaAttempt}`}
-                            src={`${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`}
+                            src={
+                              previewCandidate.safeEnd > previewCandidate.safeStart
+                                ? `${previewCandidate.sourceUrl}#t=${previewCandidate.safeStart.toFixed(3)},${previewCandidate.safeEnd.toFixed(3)}`
+                                : previewCandidate.sourceUrl
+                            }
                             controls
                             autoPlay
                             playsInline
