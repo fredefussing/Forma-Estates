@@ -48,3 +48,4 @@
 - [Process-wide FFmpeg admission](ffmpeg-process-wide-admission.md) — every server FFmpeg call shares one production slot; overlapping guarded and bypass encodes caused a Render status-137 outage.
 - [White-label video delivery](white-label-video-delivery.md) — provider names stay internal; public media URLs, downloads, archives, DOM labels and user errors use Forma-neutral naming.
 - [Sales access is server-authoritative](sales-access-control.md) — Leads/Tele-salg permissions come from verified backend flags; never grant private sales data based on subscription tier.
+- [Browser image drop compatibility](browser-image-drop.md) — never gate file drops on DataTransfer.types "Files"; accept item/file paths and MIME-less image files by extension.

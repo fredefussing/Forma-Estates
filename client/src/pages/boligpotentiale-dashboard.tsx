@@ -4788,8 +4788,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   });
   const presets = presetsData?.presets ?? [];
 
+  const isImageFile = (file: File) =>
+    file.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(file.name);
+
   const addFiles = (files: FileList | File[]) => {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    const arr = Array.from(files).filter(isImageFile);
     if (arr.length === 0) { setError(i18n.t("dashboard.film.vaelgVenligstBilledfiler")); return; }
     if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setError(null);
@@ -4827,14 +4830,39 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
-    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+    // Some browsers expose dragged local files through items before files is
+    // populated. Read both paths so dropping works inside the preview iframe
+    // as well as on the published site.
+    const droppedFiles = Array.from(e.dataTransfer.files ?? []);
+    if (droppedFiles.length === 0) {
+      for (const item of Array.from(e.dataTransfer.items ?? [])) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile();
+        if (file) droppedFiles.push(file);
+      }
+    }
+    if (droppedFiles.length) addFiles(droppedFiles);
   };
 
-  const handleShowcaseFileDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes("Files")) return;
+  const handleShowcaseFileDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
+  };
+
+  const handleShowcaseFileDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    setIsDragOver(true);
+  };
+
+  const handleShowcaseFileDragLeave = (e: React.DragEvent) => {
+    // DragLeave also fires while moving between children inside the same
+    // drop zone. Keep the active state until the pointer leaves the zone.
+    const related = e.relatedTarget as Node | null;
+    if (related && e.currentTarget.contains(related)) return;
+    setIsDragOver(false);
   };
 
   const removeImage = (id: string) => {
@@ -5316,8 +5344,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         {/* ── Upload zone (when no images) ── */}
         {images.length === 0 && (
           <label
+            onDragEnter={handleShowcaseFileDragEnter}
             onDragOver={handleShowcaseFileDragOver}
-            onDragLeave={() => setIsDragOver(false)}
+            onDragLeave={handleShowcaseFileDragLeave}
             onDrop={handleShowcaseFileDrop}
             className="block cursor-pointer p-12 text-center transition-colors m-5 rounded-xl border-2 border-dashed"
             style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
@@ -5523,8 +5552,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           return (
             <div
               className="px-4 pt-4 space-y-2"
+              onDragEnter={handleShowcaseFileDragEnter}
               onDragOver={handleShowcaseFileDragOver}
-              onDragLeave={() => setIsDragOver(false)}
+              onDragLeave={handleShowcaseFileDragLeave}
               onDrop={handleShowcaseFileDrop}
             >
               {Array.from({ length: totalRows }, (_, rowIdx) => {
@@ -5539,8 +5569,9 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                       {isLastRow && images.length < 20 && !isGenerating && (
                         <label
                           className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${ratio === "portrait" ? "aspect-[9/16]" : "aspect-video"}`}
+                          onDragEnter={handleShowcaseFileDragEnter}
                           onDragOver={handleShowcaseFileDragOver}
-                          onDragLeave={() => setIsDragOver(false)}
+                          onDragLeave={handleShowcaseFileDragLeave}
                           onDrop={handleShowcaseFileDrop}
                           style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
                           data-testid="add-more-images"
