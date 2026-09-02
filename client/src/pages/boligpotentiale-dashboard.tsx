@@ -4844,6 +4844,17 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
     if (droppedFiles.length) addFiles(droppedFiles);
   };
 
+  const isShowcaseFileDrop = (e: React.DragEvent) =>
+    e.dataTransfer.files.length > 0 ||
+    Array.from(e.dataTransfer.items ?? []).some((item) => item.kind === "file");
+
+  // The thumbnails are draggable for reordering. Capture OS file drops before
+  // a thumbnail's internal reorder handler can see them, otherwise the browser
+  // may apply its default action and navigate to/open the dropped image.
+  const handleShowcaseFileDropCapture = (e: React.DragEvent) => {
+    if (isShowcaseFileDrop(e)) handleShowcaseFileDrop(e);
+  };
+
   const handleShowcaseFileDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -5347,6 +5358,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
             onDragEnter={handleShowcaseFileDragEnter}
             onDragOver={handleShowcaseFileDragOver}
             onDragLeave={handleShowcaseFileDragLeave}
+            onDropCapture={handleShowcaseFileDropCapture}
             onDrop={handleShowcaseFileDrop}
             className="block cursor-pointer p-12 text-center transition-colors m-5 rounded-xl border-2 border-dashed"
             style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
@@ -5555,7 +5567,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               onDragEnter={handleShowcaseFileDragEnter}
               onDragOver={handleShowcaseFileDragOver}
               onDragLeave={handleShowcaseFileDragLeave}
-              onDrop={handleShowcaseFileDrop}
+              onDropCapture={handleShowcaseFileDropCapture}
             >
               {Array.from({ length: totalRows }, (_, rowIdx) => {
                 const start = rowIdx * COLS;
@@ -5572,6 +5584,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                           onDragEnter={handleShowcaseFileDragEnter}
                           onDragOver={handleShowcaseFileDragOver}
                           onDragLeave={handleShowcaseFileDragLeave}
+                          onDropCapture={handleShowcaseFileDropCapture}
                           onDrop={handleShowcaseFileDrop}
                           style={{ borderColor: isDragOver ? "#C8956C" : "#D9D5CF", background: isDragOver ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
                           data-testid="add-more-images"
