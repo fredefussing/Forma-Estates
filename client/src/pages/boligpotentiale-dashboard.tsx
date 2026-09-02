@@ -9570,8 +9570,8 @@ export default function BoligpotentialeDashboard() {
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
-  const isLeadsUser = ["fredefussing@gmail.com", "henrilasse@icloud.com"].includes(user?.email?.toLowerCase() ?? "");
-  const isTelesalesUser = ["fredefussing@gmail.com", "mahad23_@hotmail.com"].includes(user?.email?.toLowerCase() ?? "");
+  const isLeadsUser = ["fredefussing@gmail.com", "henrilasse@icloud.com", "emilvoigt@gmail.com"].includes(user?.email?.toLowerCase() ?? "");
+  const isTelesalesUser = ["fredefussing@gmail.com", "mahad23_@hotmail.com", "emilvoigt@gmail.com"].includes(user?.email?.toLowerCase() ?? "");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
@@ -10943,7 +10943,7 @@ export default function BoligpotentialeDashboard() {
             </motion.div>
           )}
 
-          {/* Tele-salg — owner + Mahad only */}
+          {/* Tele-salg — owner + authorized tele-salg users */}
           {section === "telesales" && isTelesalesUser && (
             <motion.div key="telesales-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="h-full flex flex-col overflow-hidden">
               <TelesalesView />
