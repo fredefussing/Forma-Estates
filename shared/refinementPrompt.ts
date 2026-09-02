@@ -28,6 +28,22 @@ export function buildRefinementPrompt(userRequest: string): string {
   return REFINEMENT_PRESERVATION_PREFIX + userRequest.trim() + "\n--- END USER REQUEST ---";
 }
 
+export function buildCumulativeRefinementRequest(
+  priorRequests: string[],
+  currentRequest: string,
+): string {
+  const history = priorRequests.map((request) => request.trim()).filter(Boolean);
+  const current = currentRequest.trim();
+  if (history.length === 0) return current;
+
+  return [
+    "Apply all requested adjustments below to the clean master image.",
+    "Treat them as a chronological edit history; if instructions conflict, the newest instruction wins.",
+    ...history.map((request, index) => `${index + 1}. ${request}`),
+    `${history.length + 1}. ${current}`,
+  ].join("\n");
+}
+
 // Customer-facing files may be watermarked, branded, and JPEG-encoded. Future
 // Collov refinements instead use a provider-pixel copy when one is available.
 export function getRefinementInputUrl(

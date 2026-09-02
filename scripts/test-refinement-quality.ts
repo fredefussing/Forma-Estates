@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   REFINEMENT_PRESERVATION_PREFIX,
+  buildCumulativeRefinementRequest,
   buildRefinementPrompt,
   getRefinementInputUrl,
 } from "../shared/refinementPrompt";
@@ -22,6 +23,20 @@ assert.equal(
 assert.equal(
   getRefinementInputUrl(null, "/uploads/result-1.jpg"),
   "/uploads/result-1.jpg",
+);
+
+const cumulative = buildCumulativeRefinementRequest(
+  ["Replace the sofa with a blue sofa.", "Add an oak coffee table."],
+  "Make the sofa red instead.",
+);
+assert.match(cumulative, /^Apply all requested adjustments below to the clean master image\./);
+assert.match(cumulative, /1\. Replace the sofa with a blue sofa\./);
+assert.match(cumulative, /2\. Add an oak coffee table\./);
+assert.match(cumulative, /3\. Make the sofa red instead\./);
+assert.match(cumulative, /newest instruction wins/i);
+assert.equal(
+  buildCumulativeRefinementRequest([], "  Add one lamp.  "),
+  "Add one lamp.",
 );
 
 console.log("✓ Refinement quality prompt and raw-source selection are locked.");

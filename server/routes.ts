@@ -28,7 +28,7 @@ import { isRendyConfigured, startRendyShowcase, getRendyJob, getRendyPresets, ge
 import { isLoadTestMode } from "./load-test";
 import { registerRendyVoiceoverRoutes } from "./rendy-voiceover";
 import { collectRendyMediaKeys } from "./rendy-media-keys";
-import { buildRefinementPrompt, getRefinementInputUrl } from "@shared/refinementPrompt";
+import { buildCumulativeRefinementRequest, buildRefinementPrompt, getRefinementInputUrl } from "@shared/refinementPrompt";
 import {
   buildDesignAgentInitialPrompt,
   DESIGN_AGENT_INITIAL_PROMPT_PROFILE,
@@ -4535,6 +4535,7 @@ export async function registerRoutes(
       let originalForRecord: string;
       let publicUrl: string;
       let agentInputLocalPath: string | null = null;
+      let priorRefinementRequests: string[] = [];
       if (sourceCaseImageId) {
         const srcImg = await storage.getGeneratedImage(sourceCaseImageId);
         if (!srcImg || srcImg.userId !== authedUserId) {
@@ -4565,10 +4566,40 @@ export async function registerRoutes(
           }
         }
 
+        // Repeated AI-on-AI edits progressively soften fine detail even when
+        // every stored file is lossless. For refinements, always return to the
+        // first clean provider master and replay the prior requests together
+        // with the new one. This preserves cumulative edits without feeding a
+        // previously regenerated image back through the model each time.
+        let refinementBase = srcImg;
+        if (isRefinement && !season) {
+          const visited = new Set<number>();
+          let cursor = srcImg;
+          while (cursor.isRefinement && cursor.sourceImageId && !visited.has(cursor.id)) {
+            visited.add(cursor.id);
+            const previousRequest = cursor.promptText?.trim();
+            if (previousRequest) priorRefinementRequests.unshift(previousRequest);
+
+            const parent = await storage.getGeneratedImage(cursor.sourceImageId);
+            if (!parent || parent.userId !== authedUserId) {
+              return res.status(parent ? 403 : 404).json({
+                success: false,
+                message: "Det oprindelige masterbillede blev ikke fundet",
+              });
+            }
+            refinementBase = parent;
+            cursor = parent;
+          }
+          log(
+            `[BoligPotentiale] refinement: stable master=${refinementBase.id}, ` +
+            `latest=${srcImg.id}, replaying=${priorRefinementRequests.length}`,
+          );
+        }
+
         // Always store the root original (the uploaded file) as the before-image,
         // not the intermediate result, so the folder always shows the real before/after.
-        originalForRecord = srcImg.originalImageUrl ?? srcImg.imageUrl;
-        const refinementInputUrl = getRefinementInputUrl(srcImg.refinementSourceUrl, srcImg.imageUrl);
+        originalForRecord = refinementBase.originalImageUrl ?? srcImg.originalImageUrl ?? refinementBase.imageUrl;
+        const refinementInputUrl = getRefinementInputUrl(refinementBase.refinementSourceUrl, refinementBase.imageUrl);
         publicUrl = refinementInputUrl.startsWith("http") ? refinementInputUrl : `${effectiveProtocol}://${effectiveHost}${refinementInputUrl}`;
         if (isDesignAgent && refinementInputUrl.startsWith("/uploads/")) {
           const localCandidate = path.join(uploadDir, decodeURIComponent(refinementInputUrl.slice("/uploads/".length)));
@@ -4594,7 +4625,8 @@ export async function registerRoutes(
       if (season) {
         prompt = SEASON_PROMPTS[season].prompt + SEASON_SUFFIX;
       } else if (isDesignAgent && isRefinement) {
-        prompt = buildRefinementPrompt(customPromptText);
+        const cumulativeRequest = buildCumulativeRefinementRequest(priorRefinementRequests, customPromptText);
+        prompt = buildRefinementPrompt(cumulativeRequest);
         agentPromptProfile = DESIGN_AGENT_REFINEMENT_PROMPT_PROFILE;
       } else if (isDesignAgent) {
         prompt = buildDesignAgentInitialPrompt(customPromptText);
