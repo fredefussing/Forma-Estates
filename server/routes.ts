@@ -35,6 +35,15 @@ import {
   DESIGN_AGENT_REFINEMENT_PROMPT_PROFILE,
 } from "@shared/designAgentPrompt";
 
+const LEADS_OWNER_EMAIL = "fredefussing@gmail.com";
+const LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "henrilasse@icloud.com", "emilvoigt@gmail.com"]);
+const TELESALES_EMAILS = new Set([LEADS_OWNER_EMAIL, "mahad23_@hotmail.com", "emilvoigt@gmail.com"]);
+const SHARED_LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "emilvoigt@gmail.com"]);
+
+function normalizedUserEmail(email: string | null | undefined): string {
+  return (email ?? "").trim().toLowerCase();
+}
+
 // ── Public chat rate limiter ──────────────────────────────────────────────────
 // /api/chat is unauthenticated — limit to 10 requests per IP per 60 seconds
 // to prevent API-key abuse and prompt-flooding.
@@ -1134,6 +1143,8 @@ export async function registerRoutes(
           subscriptionTier: user.subscriptionTier,
           emailVerified: user.emailVerified,
           agencyLogoUrl: user.agencyLogoUrl ?? null,
+          canAccessLeads: LEADS_EMAILS.has(normalizedUserEmail(user.email)),
+          canAccessTelesales: TELESALES_EMAILS.has(normalizedUserEmail(user.email)),
         },
       });
     } catch (err: any) {
@@ -1347,7 +1358,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Bruger ikke fundet" });
       }
 
-      return res.json({ creditsRemaining: user.creditsRemaining, isAdmin: user.isAdmin, subscriptionStatus: user.subscriptionStatus, subscriptionTier: user.subscriptionTier });
+      return res.json({
+        creditsRemaining: user.creditsRemaining,
+        isAdmin: user.isAdmin,
+        subscriptionStatus: user.subscriptionStatus,
+        subscriptionTier: user.subscriptionTier,
+        canAccessLeads: LEADS_EMAILS.has(normalizedUserEmail(user.email)),
+        canAccessTelesales: TELESALES_EMAILS.has(normalizedUserEmail(user.email)),
+      });
     } catch (err: any) {
       return res.status(401).json({ error: "Ugyldig token" });
     }
@@ -7349,19 +7367,15 @@ export async function registerRoutes(
   });
 
   // ── Leads access guard (owner + leads collaborators) ─────────────────────────
-  const LEADS_OWNER_EMAIL = "fredefussing@gmail.com";
-  const LEADS_EMAILS      = [LEADS_OWNER_EMAIL, "henrilasse@icloud.com", "emilvoigt@gmail.com"];
-  const TELESALES_EMAILS  = [LEADS_OWNER_EMAIL, "mahad23_@hotmail.com", "emilvoigt@gmail.com"];
   // Emil collaborates on the owner's pipeline, while Henri keeps his own
   // isolated lead list. Tele-sales already reads/writes the owner's pipeline.
-  const SHARED_LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "emilvoigt@gmail.com"]);
 
   async function requireOwner(req: any, res: any): Promise<{ dbUser: any; ownerEmail: string } | null> {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const dbUser = await storage.getUserByFirebaseUid(uid);
-      const email = (dbUser?.email ?? "").toLowerCase();
-      if (!dbUser || !LEADS_EMAILS.includes(email)) {
+      const email = normalizedUserEmail(dbUser?.email);
+      if (!dbUser || !LEADS_EMAILS.has(email)) {
         res.status(403).json({ error: "Leads access only" }); return null;
       }
       if (email === LEADS_OWNER_EMAIL && !dbUser.isAdmin) {
@@ -7378,7 +7392,7 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const dbUser = await storage.getUserByFirebaseUid(uid);
-      if (!dbUser || !TELESALES_EMAILS.includes((dbUser.email ?? "").toLowerCase())) {
+      if (!dbUser || !TELESALES_EMAILS.has(normalizedUserEmail(dbUser.email))) {
         res.status(403).json({ error: "Tele-salg access only" }); return null;
       }
       return { dbUser };

@@ -10,11 +10,13 @@ interface AuthContextType {
   subscriptionStatus: string;
   subscriptionTier: string | null;
   emailVerified: boolean | null;
+  canAccessLeads: boolean;
+  canAccessTelesales: boolean;
   refreshCredits: () => Promise<void>;
   refreshVerification: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, subscriptionStatus: "none", subscriptionTier: null, emailVerified: null, refreshCredits: async () => {}, refreshVerification: async () => {} });
+const AuthContext = createContext<AuthContextType>({ user: null, loading: true, creditsRemaining: null, isAdmin: false, subscriptionStatus: "none", subscriptionTier: null, emailVerified: null, canAccessLeads: false, canAccessTelesales: false, refreshCredits: async () => {}, refreshVerification: async () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -24,6 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [subscriptionStatus, setSubscriptionStatus] = useState("none");
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  const [canAccessLeads, setCanAccessLeads] = useState(false);
+  const [canAccessTelesales, setCanAccessTelesales] = useState(false);
 
   const verifyWithBackend = useCallback(async (firebaseUser: User) => {
     try {
@@ -44,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscriptionStatus(data.user.subscriptionStatus || "none");
         setSubscriptionTier(data.user.subscriptionTier || null);
         setEmailVerified(data.user.emailVerified === true);
+        setCanAccessLeads(data.user.canAccessLeads === true);
+        setCanAccessTelesales(data.user.canAccessTelesales === true);
       } else {
         // If verify fails, retry once with a fresh token
         const freshToken = await firebaseUser.getIdToken(true);
@@ -58,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSubscriptionStatus(data.user.subscriptionStatus || "none");
           setSubscriptionTier(data.user.subscriptionTier || null);
           setEmailVerified(data.user.emailVerified === true);
+          setCanAccessLeads(data.user.canAccessLeads === true);
+          setCanAccessTelesales(data.user.canAccessTelesales === true);
         }
       }
     } catch {}
@@ -76,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin);
         setSubscriptionStatus(data.subscriptionStatus || "none");
         setSubscriptionTier(data.subscriptionTier || null);
+        setCanAccessLeads(data.canAccessLeads === true);
+        setCanAccessTelesales(data.canAccessTelesales === true);
       }
     } catch {}
   }, [user]);
@@ -103,6 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin);
               setSubscriptionStatus(data.subscriptionStatus || "none");
               setSubscriptionTier(data.subscriptionTier || null);
+              setCanAccessLeads(data.canAccessLeads === true);
+              setCanAccessTelesales(data.canAccessTelesales === true);
             }
           } catch {}
         }, 60000);
@@ -112,6 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscriptionStatus("none");
         setSubscriptionTier(null);
         setEmailVerified(null);
+        setCanAccessLeads(false);
+        setCanAccessTelesales(false);
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
       }
       setLoading(false);
@@ -124,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [verifyWithBackend]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, subscriptionStatus, subscriptionTier, emailVerified, refreshCredits, refreshVerification }}>
+    <AuthContext.Provider value={{ user, loading, creditsRemaining, isAdmin, subscriptionStatus, subscriptionTier, emailVerified, canAccessLeads, canAccessTelesales, refreshCredits, refreshVerification }}>
       {children}
     </AuthContext.Provider>
   );

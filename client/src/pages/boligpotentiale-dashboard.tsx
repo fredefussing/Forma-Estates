@@ -9557,7 +9557,7 @@ function SettingsView({ user, displayName, isAdmin, showToast }: {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function BoligpotentialeDashboard() {
   const { t, i18n } = useTranslation();
-  const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus, subscriptionTier } = useAuth();
+  const { user, loading: authLoading, isAdmin, creditsRemaining, subscriptionStatus, subscriptionTier, canAccessLeads, canAccessTelesales } = useAuth();
   const quotaData = useQuotaData();
   const lockedTV = !isAdmin && quotaData != null && quotaData.quota.transformVideo.limit === 0;
   const lockedSV = !isAdmin && quotaData != null && quotaData.quota.showcase.limit === 0;
@@ -9570,8 +9570,8 @@ export default function BoligpotentialeDashboard() {
   const SUPER_ADMIN_EMAILS_DASH = ["fredefussing@gmail.com", "nikolajthomsen0102@gmail.com"];
   const isSubscribed = SUPER_ADMIN_EMAILS_DASH.includes((user?.email ?? "").toLowerCase()) || isAdmin || subscriptionStatus === "active";
   const isOwner = user?.email?.toLowerCase() === "fredefussing@gmail.com";
-  const isLeadsUser = ["fredefussing@gmail.com", "henrilasse@icloud.com", "emilvoigt@gmail.com"].includes(user?.email?.toLowerCase() ?? "");
-  const isTelesalesUser = ["fredefussing@gmail.com", "mahad23_@hotmail.com", "emilvoigt@gmail.com"].includes(user?.email?.toLowerCase() ?? "");
+  const isLeadsUser = canAccessLeads;
+  const isTelesalesUser = canAccessTelesales;
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("dashboard");
