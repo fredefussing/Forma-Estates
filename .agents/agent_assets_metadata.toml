@@ -269,3 +269,17 @@ mtime_ms = 1789392135183
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/23e274b4-9884-4c7c-977d-9e3c777bb7c5/fbc971b1-357f-42cc-afdf-9f17dab9f729"
 storage_version_token = "1789392145718338"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "6SiqG6o9izKrn3xbLdw7n"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v3-smooth-60fps.mp4"
+type = "video"
+title = "Samlet video – clean smooth 60 fps"
+description = "Original 40,33-sekunders video bevaret i fuld længde og 1080×1920, med scene-bevidst 60 fps frame-interpolation, meget let støjreduktion og skarphedsforbedring."
+logical_id = "a4ceda7e-1201-44d9-9262-ec35bd958583"
+content_hash = "sha256:769d6e064db10626ce00c3ae47b2386b96c16671de9e35a9e41d4244fbc1e0e3"
+size = 83785193
+mtime_ms = 1789423520479
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/a4ceda7e-1201-44d9-9262-ec35bd958583/3007e0dc-3ceb-45a5-9204-bc8f593a22a3"
+storage_version_token = "1789423577552806"
+content_type = "video/mp4"
