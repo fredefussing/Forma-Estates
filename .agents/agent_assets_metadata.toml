@@ -213,3 +213,17 @@ mtime_ms = 1789387110000
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/d782256a-5efe-407b-bd32-d4be998849a9/cb0ae1db-d249-4819-a0a2-519527652cda"
 storage_version_token = "1789387212382228"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "cQDWeWHgBgot2QVeCmv1T"
+uri = "file://attached_assets/generated_videos/kling-3-boxing-dj-portrait.mp4"
+type = "video"
+title = "Kling 3.0 – Boksekamp og DJ-koncert"
+description = "15 sekunders lodret 9:16-video i 720p med forbedret karakterreference, to filmiske klip og native lyd."
+logical_id = "074b8ae4-15e7-4387-aa64-8580e34bef16"
+content_hash = "sha256:bcdca82f2fac1a7ffac7eb2f05094195e08aa7a8b9fbb6f3f4ca5423598f38d9"
+size = 18496910
+mtime_ms = 1789387647033
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/074b8ae4-15e7-4387-aa64-8580e34bef16/7879e5c5-3419-4fe8-bc7c-1a73400efd63"
+storage_version_token = "1789387753643400"
+content_type = "video/mp4"
