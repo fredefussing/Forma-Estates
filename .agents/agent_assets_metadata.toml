@@ -255,3 +255,17 @@ mtime_ms = 1789390930499
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/e4af36b9-eeb4-4275-a951-83ec391a5465/9ca6b29d-f506-4f85-be3e-09aa0516d515"
 storage_version_token = "1789390968836685"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "dCAWSsAML4UTt_pBmfmke"
+uri = "file://attached_assets/generated_videos/social-office-original-full-combined.mp4"
+type = "video"
+title = "Begge originalvideoer samlet – fuld længde"
+description = "Begge videoer i original kvalitet og fuld længde, samlet med ét rent klip uden AI-overgang, beskæring, farveændringer eller ændret kamerabevægelse."
+logical_id = "23e274b4-9884-4c7c-977d-9e3c777bb7c5"
+content_hash = "sha256:fcab3e8497d9e3d33a958d773c104014c012d0e9cca07a2b051397d759f7b547"
+size = 62359287
+mtime_ms = 1789392135183
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/23e274b4-9884-4c7c-977d-9e3c777bb7c5/fbc971b1-357f-42cc-afdf-9f17dab9f729"
+storage_version_token = "1789392145718338"
+content_type = "video/mp4"
