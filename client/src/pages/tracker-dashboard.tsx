@@ -376,7 +376,8 @@ export default function TrackerDashboard() {
         {/* Info footer */}
         <div className="bg-white rounded-2xl border border-[#E8DFD0] p-4 text-xs text-slate-400 space-y-1">
           <div className="font-medium text-slate-500 mb-2">Schedule</div>
-          <div>🔁 Credit checks (Collov AI, fal.ai) — hvert <strong>5. minut</strong></div>
+          <div>🔁 Collov AI credit check — hvert <strong>5. minut</strong></div>
+          <div>🔁 fal.ai credit check — én gang <strong>dagligt</strong></div>
           <div>🔁 Host flow checks (DB, App, Site) — hvert <strong>2. minut</strong></div>
           <div>🔁 Deep health check (Firebase) — hvert <strong>15. minut</strong></div>
           <div>📧 Email alert rate limit — max <strong>1 per 30 min</strong> for samme fejl</div>

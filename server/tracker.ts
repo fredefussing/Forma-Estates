@@ -376,11 +376,15 @@ export function startTracker() {
   // Run all checks immediately on startup
   void runAll();
 
-  // Credit checks every 5 minutes
+  // Collov credit check every 5 minutes
   setInterval(() => {
     void runCheck("collov_api", "Collov AI", checkCollovApi);
-    void runCheck("fal_api", "fal.ai", checkFalApi);
   }, 5 * 60 * 1000);
+
+  // fal.ai's queue probe can create a billable job, so run it only once daily.
+  setInterval(() => {
+    void runCheck("fal_api", "fal.ai", checkFalApi);
+  }, 24 * 60 * 60 * 1000);
 
   // Host flow checks every 2 minutes
   setInterval(() => {
@@ -412,7 +416,6 @@ async function runAll() {
   await Promise.allSettled([
     runCheck("db_health", "PostgreSQL", checkDatabase),
     runCheck("collov_api", "Collov AI", checkCollovApi),
-    runCheck("fal_api", "fal.ai", checkFalApi),
     runCheck("app_self", "App Server", checkAppSelf),
     runCheck("site_online", "formaestates.com", checkSiteOnline),
     runCheck("firebase_config", "Firebase", checkFirebaseConfig),
