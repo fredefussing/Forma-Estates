@@ -241,3 +241,17 @@ mtime_ms = 1789388661572
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/398b7923-6a3d-4a05-9c52-30d925a0a08f/d7bbd8cd-227a-4ef0-b2c7-4db944411594"
 storage_version_token = "1789388762947998"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "IRZj4JEzScJ5EIcngP6JI"
+uri = "file://attached_assets/generated_videos/social-office-professional-reel.mp4"
+type = "video"
+title = "Professionel kontor-Reel – færdig version"
+description = "22 sekunders social-medieversion i 1080×1920 med fal.ai-forbedret dørpassage og trappeopstigning, stram rumklipning, ensartet finish og samlet lydspor."
+logical_id = "e4af36b9-eeb4-4275-a951-83ec391a5465"
+content_hash = "sha256:94bb7d809fee2e9cb2c9dd0ecd61668003ea2fed2f791fc8bb18e4bb88ef7844"
+size = 32888376
+mtime_ms = 1789390930499
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/e4af36b9-eeb4-4275-a951-83ec391a5465/9ca6b29d-f506-4f85-be3e-09aa0516d515"
+storage_version_token = "1789390968836685"
+content_type = "video/mp4"
