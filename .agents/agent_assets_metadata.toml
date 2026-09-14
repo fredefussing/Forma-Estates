@@ -283,3 +283,17 @@ mtime_ms = 1789423520479
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/a4ceda7e-1201-44d9-9262-ec35bd958583/3007e0dc-3ceb-45a5-9204-bc8f593a22a3"
 storage_version_token = "1789423577552806"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "dxKcGWwIeB8Ic-HUDkydt"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v4-selective-master.mp4"
+type = "video"
+title = "Samlet video – selektiv 60 fps-master"
+description = "Sceneopdelt slutversion med bevarede klip og varighed, mild stabilisering, forsigtig farve- og detaljekorrektion samt interpolation uden blanding på tværs af klip."
+logical_id = "d301fa09-546d-4933-9e8d-80bc99f1af16"
+content_hash = "sha256:adde04408197b44dbcc36ecfed39c982f55a2503f1371115a716a32189deb5bb"
+size = 103281233
+mtime_ms = 1789426396787
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/d301fa09-546d-4933-9e8d-80bc99f1af16/7b60da32-b65c-4b47-b024-474c4beec4b0"
+storage_version_token = "1789426508236574"
+content_type = "video/mp4"
