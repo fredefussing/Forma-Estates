@@ -77,96 +77,112 @@ id = "viBqTeE5k129fcKlo1WRJ"
 uri = "file://clip_input.csv"
 type = "table"
 title = "clip_input.csv — 243.897 produkt-URLs"
+logical_id = "abffb58c-5667-42bd-b6ef-5611ec9ccf2b"
 
 [[outputs]]
 id = "fW8BH7_x5BVZ1hRqZyMeB"
 uri = "file://test-output/1779956134062-31ayfzb417l.mp4"
 type = "video"
 title = "Transformeringsvideo (test)"
+logical_id = "d64ec6a3-145f-4a5b-a29d-b995887352c4"
 
 [[outputs]]
 id = "dYHDa2aZxkMUbYYN_UKra"
 uri = "file://test-output/kling-v16-pro.mp4"
 type = "video"
 title = "Transformeringsvideo — Kling v1.6 pro"
+logical_id = "222c68ee-0787-4b1e-9390-3eb198692e34"
 
 [[outputs]]
 id = "yclBmfcsGmaBNJdhGTY1B"
 uri = "file://uploads/showcase-1780303016259-0szp6y.mp4"
 type = "video"
 title = "Test-reel: 8 billeder, 2,5s, varierede overgange"
+logical_id = "74ecb604-9728-4c5c-9459-beaab03774aa"
 
 [[outputs]]
 id = "-zooVH4xaF76Em0_NNkBh"
 uri = "file://server/music/calm.mp3"
 type = "audio"
 title = "calm elegant piano bed"
+logical_id = "d6c947c5-7c2d-4688-a20b-65d27093a5a1"
 
 [[outputs]]
 id = "JvI4LH9UoDPbgVM-iqdIq"
 uri = "file://server/music/uplifting.mp3"
 type = "audio"
 title = "uplifting acoustic bed"
+logical_id = "094a32f1-9b7f-41f5-858f-bd2ea28e6452"
 
 [[outputs]]
 id = "t6fyeaPKAcojuFH-wIVu8"
 uri = "file://server/music/modern.mp3"
 type = "audio"
 title = "modern lofi house bed"
+logical_id = "1b6b53fa-0c12-4a52-b852-d0a731416530"
 
 [[outputs]]
 id = "p5jt75fV8wV9jjPSNtA7W"
 uri = "file://client/public/test-watermark.jpg"
 type = "image"
 title = "Test: AI-redigeret watermark"
+logical_id = "e7fa7208-79a4-4f96-9ac1-aae1107fb133"
 
 [[outputs]]
 id = "TML-BEvBn2PzUyR9wAeXC"
 uri = "file://uploads/jake_showcase_uplifting_test.mp4"
 type = "video"
 title = "Jake showcase — Opløftende stemning (23s reel)"
+logical_id = "9deed368-8f49-4108-8734-3e4307ccf8e6"
 
 [[outputs]]
 id = "r4KGuLeTdTz2HCIlU3zmA"
 uri = "file://attached_assets/stock_images/facade-before.jpg"
 type = "image"
 title = "Danish residential apartment building exterior facade architecture"
+logical_id = "7fa9ca20-5b2e-4656-b317-335f047a186b"
 
 [[outputs]]
 id = "ay4tTDiwoS-5OTsXQSehj"
 uri = "file://attached_assets/stock_images/living-scandi-before.jpg"
 type = "image"
 title = "empty unfurnished living room white walls wooden floor natural light minimal"
+logical_id = "faced3dd-f98e-4656-a77a-8ea30395dec8"
 
 [[outputs]]
 id = "a_bqTBKpwLbY5Kf9j72B2"
 uri = "file://attached_assets/stock_images/kitchen-before.jpg"
 type = "image"
 title = "simple empty kitchen white cabinets clean minimal interior"
+logical_id = "7a3ef119-35e7-4b9a-b3cc-07cf85bbed8c"
 
 [[outputs]]
 id = "Ofs0u9U-42ycHSqeBjbmf"
 uri = "file://attached_assets/stock_images/living-modern-before.jpg"
 type = "image"
 title = "empty living room minimal white modern interior natural light"
+logical_id = "3f2326f6-9198-46fe-bf70-62c41d76bb0f"
 
 [[outputs]]
 id = "GTXktjqqVqL5IHfDcDkXX"
 uri = "file://public/bolig-images/demo-bathroom-after-clean.png"
 type = "image"
 title = "Badeværelse efter — vandmærke væk"
+logical_id = "bc8099dd-3435-4179-804d-4d6ebee95bd4"
 
 [[outputs]]
 id = "sEK9HwQbCsank5H8UMaAh"
 uri = "file://public/bolig-images/demo-room-after.jpg"
 type = "image"
 title = "Bryggers efter — vandmærke væk"
+logical_id = "f3d8c738-20ef-44a5-a8e4-9f354dee2162"
 
 [[outputs]]
 id = "DzllLPIOugejB636UiyhW"
 uri = "file://attached_assets/Sk%C3%A6rmbillede_2026-07-28_kl._09.17.24_1785223047009_0.5pct_zoom.png"
 type = "image"
 title = "Plantegning — 0,5 % mere zoom"
+logical_id = "adeee81b-c03c-48b6-bcc3-f499e8fd41f0"
 
 [[outputs]]
 id = "Z9BGTEWtKGQOVjaNIPToN"
@@ -174,6 +190,7 @@ uri = "file://attached_assets/rendy-premium-caption-preview.png"
 type = "image"
 title = "Tekst-preview"
 description = "Editorial premium serif-tekst i varm knækket hvid med diskret skygge."
+logical_id = "c0021bef-1d61-43a9-9846-d1aae4b8f325"
 
 [[outputs]]
 id = "kfNfXDKbCQsptxtsnv3y1"
@@ -181,3 +198,18 @@ uri = "file://attached_assets/rendy-premium-caption-preview-focus.png"
 type = "image"
 title = "Tekst-preview — tæt på"
 description = "Cormorant Garamond SemiBold med varm knækket hvid og meget diskret skygge."
+logical_id = "578430a1-d08a-4541-9307-b568773a2569"
+
+[[outputs]]
+id = "gArKYIia5RrcDMAW7MlHT"
+uri = "file://attached_assets/generated_videos/kling-3-nightclub-skateboard-portrait.mp4"
+type = "video"
+title = "Kling 3.0 – Natklub og skateboard"
+description = "15 sekunders lodret 9:16-video i 720p med referencepersonen, tre scener og native lyd."
+logical_id = "d782256a-5efe-407b-bd32-d4be998849a9"
+content_hash = "sha256:f3e31b8987df42e3e4bd32992a05742408e4d56a697bb44ae7750fa8e300532d"
+size = 16860647
+mtime_ms = 1789387110000
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/d782256a-5efe-407b-bd32-d4be998849a9/cb0ae1db-d249-4819-a0a2-519527652cda"
+storage_version_token = "1789387212382228"
+content_type = "video/mp4"
