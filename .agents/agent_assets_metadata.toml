@@ -227,3 +227,17 @@ mtime_ms = 1789387647033
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/074b8ae4-15e7-4387-aa64-8580e34bef16/7879e5c5-3419-4fe8-bc7c-1a73400efd63"
 storage_version_token = "1789387753643400"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "7QoYU_9tH_YmVZOgUhGq6"
+uri = "file://attached_assets/generated_videos/kling-3-fictional-surreal-office-comedy.mp4"
+type = "video"
+title = "Kling 3.0 – Fiktiv surrealistisk kontorkomedie"
+description = "15 sekunders tydeligt fiktiv sort komedie med en opdigtet hovedperson, slapstick-fysik, originale maskotter og native lyd."
+logical_id = "398b7923-6a3d-4a05-9c52-30d925a0a08f"
+content_hash = "sha256:b93fe2b3c489aeb638a4dfbd28fe697e311666fb34a910221a9e3a8ce290b0a7"
+size = 15833113
+mtime_ms = 1789388661572
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/398b7923-6a3d-4a05-9c52-30d925a0a08f/d7bbd8cd-227a-4ef0-b2c7-4db944411594"
+storage_version_token = "1789388762947998"
+content_type = "video/mp4"
