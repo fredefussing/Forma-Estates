@@ -10,8 +10,8 @@
     "getStarted": "Empezar"
   },
   "hero": {
-    "headline": "Prepara cualquier propiedad para la venta — en menos de 60 segundos",
-    "subline": "AI staging, planos 3D y vídeos showcase — resultados profesionales en menos de 60 segundos.",
+    "headline": "Imágenes con IA, planos 3D y vídeos inmobiliarios — en menos de 60 segundos",
+    "subline": "Para agentes residenciales, agentes comerciales, propietarios y promotores.",
     "cta": "Crear 2 imágenes IA gratis",
     "ctaSecondary": "Ver ejemplos",
     "trial": "Pruébalo con 2 imágenes gratis",
@@ -31,14 +31,14 @@
     },
     {
       "title": "Antes & después",
-      "caption": "La misma habitación — tres estilos. La IA rediseña el interior en aprox. 15 segundos.",
+      "caption": "La misma habitación — tres estilos. La IA crea un interior nuevo en aprox. 15 segundos.",
       "meta": "Salón · Riviera Luxe",
-      "beforeLabel": "Habitación vacía",
-      "afterLabel": "Riviera Luxe"
+      "beforeLabel": "Antes",
+      "afterLabel": "Después"
     },
     {
       "title": "Antes y después",
-      "caption": "Sube una foto de la habitación — la IA rediseña el interior en aprox. 15 segundos.",
+      "caption": "Sube una foto de la habitación — la IA crea un interior nuevo en aprox. 15 segundos.",
       "meta": "Comedor · Escandinavo",
       "beforeLabel": "Antes",
       "afterLabel": "Después"
@@ -89,8 +89,8 @@
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Describe tu visión",
-        "desc": "Dile a la IA lo que quieres — lo convierte en un diseño acabado."
+        "title": "Crea un nuevo interior",
+        "desc": "La IA crea un nuevo interior a partir de tus instrucciones."
       },
       {
         "eyebrow": "Property Showcase",
@@ -365,15 +365,9 @@
     "dragToCompare": "Arrastra para comparar"
   },
   "trustMarquee": [
-    "Diseñado para el mercado inmobiliario europeo",
-    "🔒 100% conforme con la Ley IA de la UE — Art. 50",
-    "Cumple con el RGPD — tus datos permanecen en la UE",
-    "Sin ataduras — cancela cuando quieras",
-    "Calidad profesional en 30 segundos",
-    "De propiedad vacía a lista para el anuncio — al instante",
-    "Visualizaciones IA · Planos 3D · Vídeos Showcase",
-    "Sin costes ocultos — precios transparentes",
-    "Ahorro documentado por propiedad"
+    "Creado para profesionales inmobiliarios",
+    "Cumple la Ley de IA de la UE · Art. 50",
+    "Material profesional en menos de 60 segundos"
   ],
   "loginPage": {
     "title": "Iniciar sesión",
@@ -1774,9 +1768,9 @@
     }
   },
   "videoSection": {
-    "overline": "Se det i aktion",
-    "headline": "De tu foto a un vídeo listo para la venta — en 2–3 minutos",
-    "subline": "Sube una foto — la IA rediseña el interior y entrega un vídeo listo para la venta, perfecto para el anuncio.",
+    "overline": "Míralo en acción",
+    "headline": "De una foto a un vídeo inmobiliario o promocional — listo en 2–3 minutos",
+    "subline": "Sube una foto de la propiedad. La IA crea un interior nuevo y entrega un vídeo listo para el anuncio.",
     "cta": "Se alle eksempler",
     "badge": "AI staging · aprox. 2–3 min"
   },

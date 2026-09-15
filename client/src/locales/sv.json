@@ -10,8 +10,8 @@
     "getStarted": "Kom igång"
   },
   "hero": {
-    "headline": "Gör dina bostäder säljklara — på under 60 sekunder",
-    "subline": "AI-staging, 3D-planritningar och showcase-videor — professionella resultat på under 60 sekunder.",
+    "headline": "AI-bilder, 3D-planritningar och fastighetsvideor — på under 60 sekunder",
+    "subline": "För bostadsmäklare, kommersiella mäklare, hyresvärdar och utvecklare.",
     "cta": "Skapa 2 gratis AI-bilder",
     "ctaSecondary": "Se exempel",
     "trial": "Prova med 2 gratis bilder",
@@ -31,14 +31,14 @@
     },
     {
       "title": "Före & efter",
-      "caption": "Samma rum — tre stilar. AI:n designar om interiören på ca. 15 sekunder.",
+      "caption": "Samma rum — tre stilar. AI skapar en ny interiör på ca. 15 sekunder.",
       "meta": "Vardagsrum · Riviera Luxe",
-      "beforeLabel": "Tomt rum",
-      "afterLabel": "Riviera Luxe"
+      "beforeLabel": "Före",
+      "afterLabel": "Efter"
     },
     {
       "title": "Före & efter",
-      "caption": "Ladda upp ett rumsfoto — AI omdesignar inredningen på ca. 15 sekunder.",
+      "caption": "Ladda upp ett rumsfoto — AI skapar en ny interiör på ca. 15 sekunder.",
       "meta": "Matsal · Skandinavisk",
       "beforeLabel": "Före",
       "afterLabel": "Efter"
@@ -89,8 +89,8 @@
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Beskriv din vision",
-        "desc": "Berätta för AI vad du önskar — den omvandlar det till ett färdigt design."
+        "title": "Skapa en ny inredning",
+        "desc": "AI skapar en ny inredning utifrån dina instruktioner."
       },
       {
         "eyebrow": "Bostad Showcase",
@@ -378,15 +378,9 @@
     ]
   },
   "trustMarquee": [
-    "Byggt för den skandinaviska fastighetsmarknaden",
-    "🔒 100% EU AI Act Compliant — Artikel 50",
-    "GDPR-compliant — dina data stannar i EU",
-    "Ingen bindning — avsluta när du vill",
-    "Professionell kvalitet på 30 sekunder",
-    "Från tomt hem till säljklart — direkt",
-    "AI-visualiseringar · 3D-planritningar · Showcase-videor",
-    "Inga dolda avgifter — transparent prissättning",
-    "Dokumenterad besparing per bostad"
+    "Byggt för fastighetsbranschen",
+    "Följer EU:s AI-förordning · Artikel 50",
+    "Professionellt material på under 60 sekunder"
   ],
   "loginPage": {
     "title": "Logga in",
@@ -1787,9 +1781,9 @@
     }
   },
   "videoSection": {
-    "overline": "Se det i aktion",
-    "headline": "Från ditt bostadsfoto till en säljklar video — klar på 2–3 minuter",
-    "subline": "Ladda upp ett foto — AI:n designar om interiören och levererar en säljklar video, klar för annonsen.",
+    "overline": "Se det i praktiken",
+    "headline": "Från foto till fastighets- eller reklamvideo — klar på 2–3 minuter",
+    "subline": "Ladda upp ett bostadsfoto. AI skapar en ny interiör och levererar en färdig video för annonsen.",
     "cta": "Se alle eksempler",
     "badge": "AI-staging · ca. 2–3 min"
   },

@@ -273,7 +273,7 @@ export default function AIDesignAgentPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
-        <div className="mx-auto max-w-5xl flex items-center justify-between px-6 h-16">
+        <div className="mx-auto w-full max-w-3xl min-[1440px]:max-w-5xl flex items-center justify-between px-6 h-16">
           <Link href="/">
             <span className="text-lg font-semibold tracking-tight cursor-pointer" data-testid="link-home">Forma Estates</span>
           </Link>
@@ -296,7 +296,7 @@ export default function AIDesignAgentPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-12">
+      <main className="mx-auto w-full max-w-3xl min-[1440px]:max-w-5xl px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }}>
           <div className="mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/5 border border-border/50 text-xs font-medium text-muted-foreground mb-4">

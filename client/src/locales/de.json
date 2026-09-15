@@ -10,8 +10,8 @@
     "getStarted": "Loslegen"
   },
   "hero": {
-    "headline": "Jede Immobilie verkaufsbereit — in unter 60 Sekunden",
-    "subline": "KI-Staging, 3D-Grundrisse und Showcase-Videos — professionelle Ergebnisse in unter 60 Sekunden.",
+    "headline": "KI-Bilder, 3D-Grundrisse und Immobilienvideos — in unter 60 Sekunden",
+    "subline": "Für Wohnimmobilienmakler, Gewerbemakler, Vermieter und Projektentwickler.",
     "cta": "2 KI-Bilder kostenlos erstellen",
     "ctaSecondary": "Beispiele ansehen",
     "trial": "Mit 2 kostenlosen Bildern testen",
@@ -31,14 +31,14 @@
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Dasselbe Zimmer — drei Stile. Die KI gestaltet das Interieur in ca. 15 Sekunden.",
+      "caption": "Dasselbe Zimmer — drei Stile. Die KI schafft ein neues Interieur in ca. 15 Sekunden.",
       "meta": "Wohnzimmer · Riviera Luxe",
-      "beforeLabel": "Leeres Zimmer",
-      "afterLabel": "Riviera Luxe"
+      "beforeLabel": "Vorher",
+      "afterLabel": "Nachher"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Laden Sie ein Raumfoto hoch — die KI redesignt die Einrichtung in ca. 15 Sekunden.",
+      "caption": "Laden Sie ein Raumfoto hoch — die KI schafft ein neues Interieur in ca. 15 Sekunden.",
       "meta": "Esszimmer · Skandinavisch",
       "beforeLabel": "Vorher",
       "afterLabel": "Nachher"
@@ -89,8 +89,8 @@
       },
       {
         "eyebrow": "KI Design Agent",
-        "title": "Beschreiben Sie Ihre Vision",
-        "desc": "Sagen Sie der KI, was Sie möchten — sie verwandelt es in ein fertiges Design."
+        "title": "Neue Einrichtung erstellen",
+        "desc": "Die KI erstellt anhand Ihrer Anweisungen eine neue Einrichtung."
       },
       {
         "eyebrow": "Immobilien Showcase",
@@ -378,15 +378,9 @@
     ]
   },
   "trustMarquee": [
-    "Für den europäischen Immobilienmarkt entwickelt",
-    "🔒 100% EU-KI-Verordnung konform — Art. 50",
-    "DSGVO-konform — Ihre Daten bleiben in der EU",
-    "Keine Bindung — jederzeit kündbar",
-    "Professionelle Qualität in 30 Sekunden",
-    "Vom leeren Raum zur Verkaufsreife — sofort",
-    "KI-Visualisierungen · 3D-Grundrisse · Showcase-Videos",
-    "Keine versteckten Gebühren — transparente Preisgestaltung",
-    "Dokumentierte Einsparung pro Immobilie"
+    "Für Immobilienprofis entwickelt",
+    "EU-KI-Verordnung konform · Art. 50",
+    "Professionelle Inhalte in unter 60 Sekunden"
   ],
   "loginPage": {
     "title": "Anmelden",
@@ -1788,8 +1782,8 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Vom Immobilienfoto zum verkaufsfertigen Video — fertig in 2–3 Minuten",
-    "subline": "Foto hochladen — die KI gestaltet das Interieur und liefert ein verkaufsfertiges Video, bereit für die Anzeige.",
+    "headline": "Vom Foto zum Immobilien- oder Promo-Video — fertig in 2–3 Minuten",
+    "subline": "Laden Sie ein Immobilienfoto hoch. Die KI schafft ein neues Interieur und liefert ein fertiges Video für die Anzeige.",
     "cta": "Se alle eksempler",
     "badge": "KI-Staging · ca. 2–3 Min."
   },

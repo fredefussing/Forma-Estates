@@ -10,8 +10,8 @@
     "getStarted": "Commencer"
   },
   "hero": {
-    "headline": "Préparez n'importe quel bien à la vente — en moins de 60 secondes",
-    "subline": "Staging IA, plans 3D et vidéos showcase — des résultats professionnels en moins de 60 secondes.",
+    "headline": "Images IA, plans 3D et vidéos immobilières — en moins de 60 secondes",
+    "subline": "Pour les agents résidentiels, agents commerciaux, bailleurs et promoteurs.",
     "cta": "Créer 2 visuels IA gratuits",
     "ctaSecondary": "Voir les exemples",
     "trial": "Essayez avec 2 images gratuites",
@@ -31,14 +31,14 @@
     },
     {
       "title": "Avant & après",
-      "caption": "La même pièce — trois styles. L'IA redessine l'intérieur en env. 15 secondes.",
+      "caption": "La même pièce — trois styles. L'IA crée un nouvel intérieur en env. 15 secondes.",
       "meta": "Salon · Riviera Luxe",
-      "beforeLabel": "Pièce vide",
-      "afterLabel": "Riviera Luxe"
+      "beforeLabel": "Avant",
+      "afterLabel": "Après"
     },
     {
       "title": "Avant & après",
-      "caption": "Téléchargez une photo de la pièce — l'IA redessine l'intérieur en env. 15 secondes.",
+      "caption": "Téléchargez une photo de la pièce — l'IA crée un nouvel intérieur en env. 15 secondes.",
       "meta": "Salle à manger · Scandinave",
       "beforeLabel": "Avant",
       "afterLabel": "Après"
@@ -89,8 +89,8 @@
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Décrivez votre vision",
-        "desc": "Dites à l'IA ce que vous voulez — elle le transforme en design finalisé."
+        "title": "Créez un nouvel intérieur",
+        "desc": "L'IA crée un nouvel intérieur à partir de vos instructions."
       },
       {
         "eyebrow": "Property Showcase",
@@ -365,15 +365,9 @@
     "dragToCompare": "Glissez pour comparer"
   },
   "trustMarquee": [
-    "Conçu pour le marché immobilier européen",
-    "🔒 100% conforme au règlement IA de l'UE — Art. 50",
-    "Conforme au RGPD — vos données restent dans l'UE",
-    "Sans engagement — annulez à tout moment",
-    "Qualité professionnelle en 30 secondes",
-    "De bien vide à prêt pour l'annonce — instantanément",
-    "Visualisations IA · Plans 3D · Vidéos Showcase",
-    "Sans frais cachés — tarification transparente",
-    "Économies documentées par bien"
+    "Pensé pour les professionnels de l'immobilier",
+    "Conforme au règlement IA de l'UE · Art. 50",
+    "Des supports professionnels en moins de 60 secondes"
   ],
   "loginPage": {
     "title": "Se connecter",
@@ -1774,9 +1768,9 @@
     }
   },
   "videoSection": {
-    "overline": "Se det i aktion",
-    "headline": "De votre photo à une vidéo prête pour l'annonce — en 2–3 minutes",
-    "subline": "Uploadez une photo — l'IA redessine l'intérieur et livre une vidéo prête pour l'annonce.",
+    "overline": "Voyez-le en action",
+    "headline": "De la photo à la vidéo immobilière ou promotionnelle — prête en 2–3 minutes",
+    "subline": "Téléchargez une photo du bien. L'IA crée un nouvel intérieur et livre une vidéo prête pour l'annonce.",
     "cta": "Se alle eksempler",
     "badge": "IA staging · env. 2–3 min"
   },

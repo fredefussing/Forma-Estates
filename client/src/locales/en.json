@@ -10,8 +10,8 @@
     "getStarted": "Get started"
   },
   "hero": {
-    "headline": "Make any property sale-ready — in under 60 seconds",
-    "subline": "AI staging, 3D floor plans and showcase videos — professional results in under 60 seconds.",
+    "headline": "AI images, 3D floor plans and property videos — in under 60 seconds",
+    "subline": "For residential agents, commercial agents, landlords and developers.",
     "cta": "Create 2 free AI images",
     "ctaSecondary": "See examples",
     "trial": "Try it with 2 free images",
@@ -31,14 +31,14 @@
     },
     {
       "title": "Before & after",
-      "caption": "Same room — three styles. The AI redesigns the interior in approx. 15 seconds.",
+      "caption": "Same room — three styles. AI creates a new interior in approx. 15 seconds.",
       "meta": "Living room · Riviera Luxe",
-      "beforeLabel": "Empty room",
-      "afterLabel": "Riviera Luxe"
+      "beforeLabel": "Before",
+      "afterLabel": "After"
     },
     {
       "title": "Before & after",
-      "caption": "Upload a room photo — AI redesigns the interior in approx. 15 seconds.",
+      "caption": "Upload a room photo — AI creates a new interior in approx. 15 seconds.",
       "meta": "Dining room · Scandinavian",
       "beforeLabel": "Before",
       "afterLabel": "After"
@@ -89,8 +89,8 @@
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Describe your vision",
-        "desc": "Tell the AI what you want — it turns it into a finished design."
+        "title": "Create a new interior",
+        "desc": "AI creates a new interior from your instructions."
       },
       {
         "eyebrow": "Property Showcase",
@@ -378,15 +378,9 @@
     ]
   },
   "trustMarquee": [
-    "Built for the European property market",
-    "🔒 100% EU AI Act Compliant — Article 50",
-    "GDPR-compliant — your data stays in the EU",
-    "No lock-in — cancel anytime",
-    "Professional quality in 30 seconds",
-    "From empty property to listing-ready — instantly",
-    "AI visualizations · 3D floor plans · Showcase videos",
-    "No hidden fees — transparent pricing",
-    "Documented savings per property"
+    "Built for property professionals",
+    "EU AI Act compliant · Article 50",
+    "Professional assets in under 60 seconds"
   ],
   "loginPage": {
     "title": "Log in",
@@ -1788,8 +1782,8 @@
   },
   "videoSection": {
     "overline": "See it in action",
-    "headline": "From your property photo to a sale-ready video — ready in 2–3 minutes",
-    "subline": "Upload a photo of the property — the AI redesigns the interior in your chosen style and delivers a sale-ready video, ready for the listing.",
+    "headline": "From photo to property or promo video — ready in 2–3 minutes",
+    "subline": "Upload a property photo. AI creates a new interior and delivers a polished video for the listing.",
     "cta": "See all examples",
     "badge": "AI staging · approx. 2–3 min"
   },

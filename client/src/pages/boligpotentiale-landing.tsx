@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
-import { TrustMarquee } from "@/components/TrustMarquee";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -169,7 +168,7 @@ function LanguageSwitcher({ dark = false }: { dark?: boolean }) {
         onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
       >
         <Globe style={{ width: 14, height: 14 }} />
-        <span>{currentLang.flag} {currentLang.name}</span>
+        <span>{currentLang.code.toUpperCase()}</span>
         <ChevronDown style={{ width: 12, height: 12, opacity: 0.6 }} />
       </button>
 
@@ -589,7 +588,6 @@ function HeroStage() {
                 {t("hero.ctaSecondary")}
               </Link>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS }}>
-                {t("hero.trial")}
               </span>
             </div>
           </div>
@@ -706,9 +704,6 @@ function HeroStage() {
                   {t("hero.ctaSecondary")}
                 </button>
               </Link>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS, margin: 0 }} data-testid="bolig-hero-trial-note">
-                {t("hero.trial")}
-              </p>
             </div>
           </div>
         </div>
@@ -1525,14 +1520,14 @@ export default function BoligpotentialeLanding() {
                     onClick={() => { setExplicitLang(lang.code); setMobileOpen(false); }}
                     className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1.5 border transition-colors"
                     style={{
-                      background: i18nCtx.language === lang.code ? C.navy : "transparent",
-                      color: i18nCtx.language === lang.code ? "white" : C.muted,
-                      border: `1px solid ${i18nCtx.language === lang.code ? C.navy : C.border}`,
+                      background: i18nCtx.language?.startsWith(lang.code) ? C.navy : "transparent",
+                      color: i18nCtx.language?.startsWith(lang.code) ? "white" : C.muted,
+                      border: `1px solid ${i18nCtx.language?.startsWith(lang.code) ? C.navy : C.border}`,
                       fontFamily: SANS,
                     }}
                     data-testid={`bolig-mobile-lang-${lang.code}`}
                   >
-                    {lang.flag} {lang.name}
+                    {lang.code.toUpperCase()}
                   </button>
                 ))}
               </div>
@@ -1561,36 +1556,20 @@ export default function BoligpotentialeLanding() {
       <div id="top" style={{ background: C.navy }} data-testid="bolig-hero">
         <HeroStage />
 
-        {/* Compact scroll cue */}
-        <div className="flex justify-center" style={{ paddingBottom: 8, paddingTop: 2 }}>
-          <a href="#how-it-works" style={{ color: "rgba(228,203,148,0.6)" }} data-testid="bolig-hero-scroll-cue">
-            <motion.div
-              animate={{ y: [0, 5, 0] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-              className="flex items-center justify-center rounded-full"
-              style={{ width: 24, height: 24, border: "1px solid rgba(228,203,148,0.3)" }}
-            >
-              <ChevronDown className="w-3 h-3" />
-            </motion.div>
-          </a>
-        </div>
       </div>
 
-      <TrustMarquee />
-
-      {/* ── SAVINGS NUDGE ── */}
-      <div style={{ background: "#0B1929", borderBottom: "1px solid rgba(200,149,108,0.12)", padding: "8px 24px" }}>
-        <div className="flex justify-center">
-          <a
-            href="#sammenligning"
-            style={{ fontSize: 11, color: "rgba(245,243,239,0.42)", fontFamily: SANS, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-            onMouseEnter={e => { e.currentTarget.style.color = "rgba(245,243,239,0.75)"; }}
-            onMouseLeave={e => { e.currentTarget.style.color = "rgba(245,243,239,0.42)"; }}
-          >
-            {t("savingsNudge.text")}{" "}
-            <span style={{ color: "#C8956C", textDecoration: "underline", textUnderlineOffset: "2px" }}>{t("savingsNudge.link")}</span>
-          </a>
-        </div>
+      {/* Three quiet, localized proof points — deliberately static on the landing page. */}
+      <div
+        className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-4"
+        style={{ background: "#0F1D2F", borderTop: "1px solid rgba(200,149,108,0.15)", borderBottom: "1px solid rgba(200,149,108,0.15)" }}
+        data-testid="bolig-selling-points"
+      >
+        {(t("trustMarquee", { returnObjects: true }) as string[]).slice(0, 3).map((point, i) => (
+          <span key={point} className="inline-flex items-center gap-3 text-center" style={{ color: "rgba(245,243,239,0.72)", fontSize: 11, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {i > 0 && <span aria-hidden="true" style={{ color: C.gold, opacity: 0.6 }}>◆</span>}
+            {point}
+          </span>
+        ))}
       </div>
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}

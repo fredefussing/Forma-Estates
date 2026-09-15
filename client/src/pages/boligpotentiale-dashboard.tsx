@@ -3354,7 +3354,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   };
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.plan3d.treDPlantegningTitel")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.plan3d.uploadEn2dPlantegningAi")}</p>
@@ -4074,7 +4074,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   );
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.film.transformeringVideo")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
@@ -6126,7 +6126,7 @@ function PropertyTourFlow() {
 
   if (mode === "create") {
     return (
-      <div className="max-w-5xl">
+      <div className="w-full max-w-5xl min-[1440px]:max-w-none">
         <div className="mb-8">
           <button
             onClick={() => { resetCreate(); setMode("list"); }}
@@ -6218,7 +6218,7 @@ function PropertyTourFlow() {
   }
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-ai-boligfremvisning">{i18n.t("dashboard.tour.aiBoligfremvisning")}</h1>
@@ -6498,7 +6498,7 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
   }
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
       {/* Header */}
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -6920,7 +6920,7 @@ function TourGeneratorPage({ propertyId, onBack }: { propertyId: number; onBack:
     queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
       <div className="mb-8">
         <button
           onClick={onBack}

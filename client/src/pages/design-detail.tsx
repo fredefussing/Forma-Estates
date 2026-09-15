@@ -228,7 +228,7 @@ export default function DesignDetailPage() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="w-full max-w-4xl min-[1440px]:max-w-6xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-semibold tracking-tight" data-testid="text-design-title">

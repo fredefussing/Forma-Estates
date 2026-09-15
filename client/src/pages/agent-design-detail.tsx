@@ -169,7 +169,7 @@ export default function AgentDesignDetailPage() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
+      <div className="w-full max-w-4xl min-[1440px]:max-w-6xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-6">
           <Link href="/mine-designs">
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors" data-testid="link-back">

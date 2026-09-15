@@ -50,3 +50,4 @@
 - [Sales access is server-authoritative](sales-access-control.md) — Leads/Tele-salg permissions come from verified backend flags; never grant private sales data based on subscription tier.
 - [Browser image drop compatibility](browser-image-drop.md) — never gate file drops on DataTransfer.types "Files"; accept item/file paths and MIME-less image files by extension.
 - [Selective frame interpolation](selective-frame-interpolation.md) — split at every hard cut; use repeated source frames rather than synthetic frames for fast pans that ghost.
+- [Large-monitor generator layouts](large-monitor-generator-layouts.md) — authenticated generation workspaces should use all available width from 1440px; keep modals and readable text capped.
