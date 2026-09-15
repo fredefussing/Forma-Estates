@@ -325,3 +325,31 @@ mtime_ms = 1789482761723
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/a4e1d955-0d18-4ce0-86e7-c4dff27a4e80/bc6e8a29-6dcc-466d-a8c9-fc7252e4a632"
 storage_version_token = "1789482873215524"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "8Xd8MqlvmmY2oRUVSe_rn"
+uri = "file://attached_assets/generated_audio/forma-high-energy-house-128bpm.mp3"
+type = "audio"
+title = "Forma High Energy House – 128 BPM"
+description = "Original instrumental high-energy modern house-musik, leveret separat til download og videre postproduktion."
+logical_id = "3214b7aa-6f06-4e38-a5b9-9af3ccfeae3e"
+content_hash = "sha256:330552562f0a380e01e71122130530dc4e2131c2781f9cab96226a4ce7ac5089"
+size = 1009416
+mtime_ms = 1789483001671
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/3214b7aa-6f06-4e38-a5b9-9af3ccfeae3e/74beeadc-8041-468b-8e46-973da60155dc"
+storage_version_token = "1789483074411391"
+content_type = "audio/mpeg"
+
+[[outputs]]
+id = "kI8YVyZnahvSM3F5KWSHS"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v6-high-energy-128bpm.mp4"
+type = "video"
+title = "Kontorvideo – high-energy house 128 BPM"
+description = "Samme 41,28 sekunders billedmaster og uændrede klip, nu med hurtigere moderne house og tydeligere energi omkring billedskiftene."
+logical_id = "e6425153-058f-4044-bb37-33320bb026ce"
+content_hash = "sha256:6df5b288828364755f9ea3439a73dcdc707a760552bb1c6cec5c4dcd9774f33b"
+size = 78470460
+mtime_ms = 1789483040379
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/e6425153-058f-4044-bb37-33320bb026ce/6212d0c2-f7aa-4bb3-872f-f25a48a60344"
+storage_version_token = "1789483073338723"
+content_type = "video/mp4"
