@@ -381,3 +381,17 @@ mtime_ms = 1789486846415
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/e4f2a13b-6929-4ec6-8cf0-5769c4cab43c/e99c1cb2-929d-42a8-99bc-d86f6b5922ab"
 storage_version_token = "1789486932395308"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "uF-DTfOI-aYCtW0N8xIdd"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v9-premium-final.mp4"
+type = "video"
+title = "Premium 60 fps kontorvideo"
+description = "Strammere 30,7 sekunders redigering med mere ensartet tempo, mindre loftstung framing, færre gentagne kontorbilleder og en tydelig facadeafslutning."
+logical_id = "cdb22d7a-c727-4553-918c-86a938d2a62b"
+content_hash = "sha256:c6f95c3cc0cf20c7abcd9344b32c9a4eb5d9fe1bcc18042f4fd9fcdc6bbffe48"
+size = 79932541
+mtime_ms = 1789487452819
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/cdb22d7a-c727-4553-918c-86a938d2a62b/879db4bd-b052-4a19-ad8b-25b61059ea52"
+storage_version_token = "1789487502031429"
+content_type = "video/mp4"
