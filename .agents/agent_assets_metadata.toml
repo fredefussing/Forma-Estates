@@ -353,3 +353,17 @@ mtime_ms = 1789483040379
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/e6425153-058f-4044-bb37-33320bb026ce/6212d0c2-f7aa-4bb3-872f-f25a48a60344"
 storage_version_token = "1789483073338723"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "ExDLuzwRo1FLfHJm1qi31"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v7-without-clip-2.mp4"
+type = "video"
+title = "Kontorvideo uden klip 2"
+description = "Sekund 2,00–4,00 er fjernet. Alt andet er bevaret i samme rækkefølge, med lydsporet klippet tilsvarende og synkroniseret."
+logical_id = "fa1aac41-7085-4e0e-8bbb-812d47beaa01"
+content_hash = "sha256:72b3d38bb525bbec14b4efc9f31d59bb005cdc19714d3d48eebb304cfd3ef6fc"
+size = 77463689
+mtime_ms = 1789486517317
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/fa1aac41-7085-4e0e-8bbb-812d47beaa01/a4e8ca45-8573-481d-9078-e4e62c4a7937"
+storage_version_token = "1789486537624521"
+content_type = "video/mp4"
