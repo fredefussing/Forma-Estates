@@ -297,3 +297,31 @@ mtime_ms = 1789426396787
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/d301fa09-546d-4933-9e8d-80bc99f1af16/7b60da32-b65c-4b47-b024-474c4beec4b0"
 storage_version_token = "1789426508236574"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "1ZUvFqHM0quVm-dQqFrGo"
+uri = "file://attached_assets/generated_audio/forma-modern-house-41s.mp3"
+type = "audio"
+title = "Forma Modern House – musikfil"
+description = "Original instrumental moderne melodic/deep-house-musik i fuld længde, klar til download og videre postproduktion."
+logical_id = "df8e9122-ba07-4e7c-b3fd-9e2ace9f9215"
+content_hash = "sha256:b24c8820de3e032b89b3f780192b5373a6e1e8601282381535c62f504ea76ad7"
+size = 1009416
+mtime_ms = 1789482615495
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/df8e9122-ba07-4e7c-b3fd-9e2ace9f9215/b1dcaf18-e966-4af0-af51-36162e256126"
+storage_version_token = "1789482874374271"
+content_type = "audio/mpeg"
+
+[[outputs]]
+id = "h1j0mHyV4y-cLiAPgSeJh"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v5-modern-house.mp4"
+type = "video"
+title = "Optimeret kontorvideo med moderne house"
+description = "41,28 sekunders 60 fps-master med uændrede klip, forsigtig billedoptimering og original moderne house-musik."
+logical_id = "a4e1d955-0d18-4ce0-86e7-c4dff27a4e80"
+content_hash = "sha256:b6744b1096d419a94b81998ccaf95971a2ad50765e4aebe129cbd0fc87bfcff7"
+size = 78383896
+mtime_ms = 1789482761723
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/a4e1d955-0d18-4ce0-86e7-c4dff27a4e80/bc6e8a29-6dcc-466d-a8c9-fc7252e4a632"
+storage_version_token = "1789482873215524"
+content_type = "video/mp4"
