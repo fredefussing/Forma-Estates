@@ -367,3 +367,17 @@ mtime_ms = 1789486517317
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/fa1aac41-7085-4e0e-8bbb-812d47beaa01/a4e8ca45-8573-481d-9078-e4e62c4a7937"
 storage_version_token = "1789486537624521"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "ZICoAwqbkBirUeewcbZWp"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v8-final-clean-cut.mp4"
+type = "video"
+title = "Færdig kontorvideo – rene klipskift"
+description = "Den korte rest ved første overgang er fjernet, klip 2 er forkortet ét sekund, og trappeklippet er forkortet ét sekund. Alle overgange er kontrolleret frame for frame."
+logical_id = "e4f2a13b-6929-4ec6-8cf0-5769c4cab43c"
+content_hash = "sha256:76c7d2043c0f3fd856eebd915504206f4335f43a9fd7059b50f93b9134adf562"
+size = 73087301
+mtime_ms = 1789486846415
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/e4f2a13b-6929-4ec6-8cf0-5769c4cab43c/e99c1cb2-929d-42a8-99bc-d86f6b5922ab"
+storage_version_token = "1789486932395308"
+content_type = "video/mp4"
