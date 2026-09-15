@@ -395,3 +395,17 @@ mtime_ms = 1789487452819
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/cdb22d7a-c727-4553-918c-86a938d2a62b/879db4bd-b052-4a19-ad8b-25b61059ea52"
 storage_version_token = "1789487502031429"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "ub-Ns0eYowPvIvghK_boM"
+uri = "file://attached_assets/generated_videos/Samlet-video-clean-v10-stairs-first-final.mp4"
+type = "video"
+title = "Færdig video – trappen tidligt"
+description = "Trappeklippet er flyttet direkte efter åbningen, det sidste klip er fjernet, og alle samlinger er kontrolleret i konstant 60 fps."
+logical_id = "112da02f-b2d8-4561-add3-1a49e20a3cb2"
+content_hash = "sha256:246a6576fb8eaf3faf7e1a1ae33594ad94b419356eaed83278910e2a67e6fcbd"
+size = 70965860
+mtime_ms = 1789489584567
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/112da02f-b2d8-4561-add3-1a49e20a3cb2/68eec851-c96d-4b84-97bd-a28b08e7e287"
+storage_version_token = "1789489627608390"
+content_type = "video/mp4"
