@@ -10,8 +10,8 @@
     "getStarted": "Loslegen"
   },
   "hero": {
-    "headline": "KI-Bilder, 3D-Grundrisse und Immobilienvideos — in unter 60 Sekunden",
-    "subline": "Für Wohnimmobilienmakler, Gewerbemakler, Vermieter und Projektentwickler.",
+    "headline": "KI-Bilder: 15 Sek. · Immobilienvideos: 2–3 Min.",
+    "subline": "Erstellen Sie auch 3D-Grundrisse — für Wohn- und Gewerbemakler, Vermieter und Projektentwickler.",
     "cta": "2 KI-Bilder kostenlos erstellen",
     "ctaSecondary": "Beispiele ansehen",
     "trial": "Mit 2 kostenlosen Bildern testen",
@@ -101,7 +101,7 @@
   },
   "howItWorks": {
     "overline": "So funktioniert es",
-    "headline": "Drei Schritte — unter einer Minute",
+    "headline": "Ihr KI-Bild in drei Schritten — ca. 15 Sekunden",
     "subline": "Keine Software, kein technisches Wissen — nur ein Foto und ein Klick.",
     "steps": [
       {
@@ -378,9 +378,13 @@
     ]
   },
   "trustMarquee": [
+    "KI-Bilder in ca. 15 Sekunden",
+    "Immobilien- und Promo-Videos in 2–3 Minuten",
+    "3D-Grundrisse",
     "Für Immobilienprofis entwickelt",
+    "Für Wohn- und Gewerbemakler",
     "EU-KI-Verordnung konform · Art. 50",
-    "Professionelle Inhalte in unter 60 Sekunden"
+    "Professionelles Verkaufsmaterial"
   ],
   "loginPage": {
     "title": "Anmelden",

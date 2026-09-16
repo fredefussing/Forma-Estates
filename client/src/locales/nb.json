@@ -10,8 +10,8 @@
     "getStarted": "Kom i gang"
   },
   "hero": {
-    "headline": "AI-bilder, 3D-plantegninger og boligvideoer — på under 60 sekunder",
-    "subline": "For boligmeglere, næringsmeglere, utleiere og utviklere.",
+    "headline": "AI-bilder: 15 sek. · boligvideoer: 2–3 min.",
+    "subline": "Lag også 3D-plantegninger — for bolig- og næringsmeglere, utleiere og utviklere.",
     "cta": "Lag 2 gratis AI-bilder",
     "ctaSecondary": "Se eksempler",
     "trial": "Prøv med 2 gratis bilder",
@@ -101,7 +101,7 @@
   },
   "howItWorks": {
     "overline": "Slik fungerer det",
-    "headline": "Tre steg — under ett minutt",
+    "headline": "AI-bildet ditt i tre steg — ca. 15 sekunder",
     "subline": "Ingen programvare, ingen teknisk kunnskap — bare et foto og et klikk.",
     "steps": [
       {
@@ -378,9 +378,13 @@
     ]
   },
   "trustMarquee": [
+    "AI-bilder på ca. 15 sekunder",
+    "Bolig- og promovideoer på 2–3 minutter",
+    "3D-plantegninger",
     "Bygget for eiendomsbransjen",
+    "For bolig- og næringsmeglere",
     "I samsvar med EUs AI-forordning · Artikkel 50",
-    "Profesjonelt materiell på under 60 sekunder"
+    "Profesjonelt salgsmateriell"
   ],
   "loginPage": {
     "title": "Logg inn",

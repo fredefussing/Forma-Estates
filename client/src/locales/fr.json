@@ -10,8 +10,8 @@
     "getStarted": "Commencer"
   },
   "hero": {
-    "headline": "Images IA, plans 3D et vidéos immobilières — en moins de 60 secondes",
-    "subline": "Pour les agents résidentiels, agents commerciaux, bailleurs et promoteurs.",
+    "headline": "Images IA : 15 s · vidéos immobilières : 2–3 min",
+    "subline": "Créez aussi des plans 3D — pour les agents résidentiels et commerciaux, bailleurs et promoteurs.",
     "cta": "Créer 2 visuels IA gratuits",
     "ctaSecondary": "Voir les exemples",
     "trial": "Essayez avec 2 images gratuites",
@@ -101,7 +101,7 @@
   },
   "howItWorks": {
     "overline": "Comment ça marche",
-    "headline": "Trois étapes — moins d'une minute",
+    "headline": "Votre image IA en trois étapes — env. 15 secondes",
     "subline": "Pas de logiciel, pas de compétences techniques — juste une photo et un clic.",
     "steps": [
       {
@@ -365,9 +365,13 @@
     "dragToCompare": "Glissez pour comparer"
   },
   "trustMarquee": [
+    "Images IA en env. 15 secondes",
+    "Vidéos immobilières et promotionnelles en 2–3 minutes",
+    "Plans 3D",
     "Pensé pour les professionnels de l'immobilier",
+    "Pour les agents résidentiels et commerciaux",
     "Conforme au règlement IA de l'UE · Art. 50",
-    "Des supports professionnels en moins de 60 secondes"
+    "Supports de vente professionnels"
   ],
   "loginPage": {
     "title": "Se connecter",

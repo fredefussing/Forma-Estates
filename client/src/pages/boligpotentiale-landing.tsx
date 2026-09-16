@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
+import { TrustMarquee } from "@/components/TrustMarquee";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1558,19 +1559,7 @@ export default function BoligpotentialeLanding() {
 
       </div>
 
-      {/* Three quiet, localized proof points — deliberately static on the landing page. */}
-      <div
-        className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-4"
-        style={{ background: "#0F1D2F", borderTop: "1px solid rgba(200,149,108,0.15)", borderBottom: "1px solid rgba(200,149,108,0.15)" }}
-        data-testid="bolig-selling-points"
-      >
-        {(t("trustMarquee", { returnObjects: true }) as string[]).slice(0, 3).map((point, i) => (
-          <span key={point} className="inline-flex items-center gap-3 text-center" style={{ color: "rgba(245,243,239,0.72)", fontSize: 11, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            {i > 0 && <span aria-hidden="true" style={{ color: C.gold, opacity: 0.6 }}>◆</span>}
-            {point}
-          </span>
-        ))}
-      </div>
+      <TrustMarquee />
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">

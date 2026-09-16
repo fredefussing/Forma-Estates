@@ -10,8 +10,8 @@
     "getStarted": "Get started"
   },
   "hero": {
-    "headline": "AI images, 3D floor plans and property videos — in under 60 seconds",
-    "subline": "For residential agents, commercial agents, landlords and developers.",
+    "headline": "AI images: 15 sec. · property videos: 2–3 min.",
+    "subline": "Also create 3D floor plans — for residential and commercial agents, landlords and developers.",
     "cta": "Create 2 free AI images",
     "ctaSecondary": "See examples",
     "trial": "Try it with 2 free images",
@@ -101,7 +101,7 @@
   },
   "howItWorks": {
     "overline": "How it works",
-    "headline": "Three steps — under one minute",
+    "headline": "Your AI image in three steps — approx. 15 seconds",
     "subline": "No software, no technical knowledge — just a photo and a click.",
     "steps": [
       {
@@ -378,9 +378,13 @@
     ]
   },
   "trustMarquee": [
+    "AI images in approx. 15 seconds",
+    "Property and promo videos in 2–3 minutes",
+    "3D floor plans",
     "Built for property professionals",
+    "For residential and commercial agents",
     "EU AI Act compliant · Article 50",
-    "Professional assets in under 60 seconds"
+    "Professional sales assets"
   ],
   "loginPage": {
     "title": "Log in",

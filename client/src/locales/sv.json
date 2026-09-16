@@ -10,8 +10,8 @@
     "getStarted": "Kom igång"
   },
   "hero": {
-    "headline": "AI-bilder, 3D-planritningar och fastighetsvideor — på under 60 sekunder",
-    "subline": "För bostadsmäklare, kommersiella mäklare, hyresvärdar och utvecklare.",
+    "headline": "AI-bilder: 15 sek. · fastighetsvideor: 2–3 min.",
+    "subline": "Skapa även 3D-planritningar — för bostads- och kommersiella mäklare, hyresvärdar och utvecklare.",
     "cta": "Skapa 2 gratis AI-bilder",
     "ctaSecondary": "Se exempel",
     "trial": "Prova med 2 gratis bilder",
@@ -101,7 +101,7 @@
   },
   "howItWorks": {
     "overline": "Så fungerar det",
-    "headline": "Tre steg — under en minut",
+    "headline": "Din AI-bild i tre steg — ca 15 sekunder",
     "subline": "Ingen mjukvara, ingen teknisk kunskap — bara ett foto och ett klick.",
     "steps": [
       {
@@ -378,9 +378,13 @@
     ]
   },
   "trustMarquee": [
+    "AI-bilder på ca 15 sekunder",
+    "Fastighets- och reklamvideor på 2–3 minuter",
+    "3D-planritningar",
     "Byggt för fastighetsbranschen",
+    "För bostads- och kommersiella mäklare",
     "Följer EU:s AI-förordning · Artikel 50",
-    "Professionellt material på under 60 sekunder"
+    "Professionellt försäljningsmaterial"
   ],
   "loginPage": {
     "title": "Logga in",
