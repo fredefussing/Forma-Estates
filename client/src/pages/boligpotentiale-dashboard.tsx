@@ -9980,6 +9980,10 @@ export default function BoligpotentialeDashboard() {
   if (!user) return null;
 
   const soldCount = cases.filter((c) => c.status === "sold").length;
+  const budgetTierLabelLocalized = (tier: string | null | undefined) => {
+    const budgetTier = BUDGET_TIERS.find((item) => item.value === tier);
+    return budgetTier ? t(budgetTier.short) : (tier ?? "");
+  };
 
   const NAV = [
     { id: "sager" as Section, label: t("dashboard.nav.allCases"), icon: <FolderOpen className="w-[18px] h-[18px]" /> },
@@ -10548,12 +10552,13 @@ export default function BoligpotentialeDashboard() {
                 </div>
               )}
 
-              {/* Hurtig-handlinger + Seneste aktivitet */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-stretch order-2" data-testid="bolig-bottom-row">
+              {/* Hurtig-handlinger + Seneste aktivitet — nederst på oversigten */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 mb-4 items-stretch order-7" data-testid="bolig-bottom-row">
 
                 {/* Venstre: Hurtig-handlinger + Genbrug seneste */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE] h-full" data-testid="bolig-quick-actions">
-                  <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.hurtigeHandlinger")}</h2>
+                  <h2 className="text-base font-semibold mb-1" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.hurtigeHandlinger")}</h2>
+                  <p className="text-xs leading-relaxed mb-4" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.hurtigeHandlingerBeskrivelse")}</p>
                   <div className="flex flex-wrap gap-3 mb-6">
                     <button onClick={() => setSection("upload")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90" style={{ background: "#C8956C" }} data-testid="bolig-quick-upload">
                       <Upload className="w-4 h-4" /> {t("dashboard.wizard.uploadImageLabel")}
@@ -10574,7 +10579,7 @@ export default function BoligpotentialeDashboard() {
                             <img src={img.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-[#E8E4DE]" />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium truncate" style={{ color: "#1A1A1A" }}>{roomLabelLocalized(img.roomType)}</p>
-                              <p className="text-[11px]" style={{ color: "#9B9690" }}>{styleLabelLocalized(img.style)} · {img.budgetTier.replace("tier", "T")}</p>
+                              <p className="text-[11px]" style={{ color: "#9B9690" }}>{styleLabelLocalized(img.style)} · {budgetTierLabelLocalized(img.budgetTier)}</p>
                             </div>
                             {img.caseId && (
                               <button
@@ -10638,7 +10643,7 @@ export default function BoligpotentialeDashboard() {
                                 <p className="text-xs font-medium leading-snug" style={{ color: "#1A1A1A" }}>
                                   {roomLabelLocalized(item.roomType ?? "")}
                                   {" · "}{styleLabelLocalized(item.style ?? "")}
-                                  {" · "}{item.tier?.replace("tier", "T")}
+                                  {" · "}{budgetTierLabelLocalized(item.tier)}
                                 </p>
                                 <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
                               </div>
@@ -10665,8 +10670,8 @@ export default function BoligpotentialeDashboard() {
                 </div>
               </div>
 
-              {/* Dine mest brugte valg — fuld bredde under begge kolonner */}
-              <div className="rounded-2xl p-6 border border-[#E8E4DE] mt-4 order-6" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
+              {/* Dine mest brugte valg — fuld bredde før de nederste genveje */}
+              <div className="rounded-2xl p-6 border border-[#E8E4DE] order-6" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
                 <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.dineStandardvalg")}</h2>
                 {!mostUsed ? (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -10689,7 +10694,7 @@ export default function BoligpotentialeDashboard() {
                     {[
                       { title: i18n.t("dashboard.homeX.statStil"), items: mostUsed.styles, labelFn: (k: string) => styleLabelLocalized(k) },
                       { title: i18n.t("dashboard.homeX.statRum"), items: mostUsed.rooms, labelFn: (k: string) => roomLabelLocalized(k) },
-                      { title: i18n.t("dashboard.homeX.statBudget"), items: mostUsed.tiers, labelFn: (k: string) => k.replace("tier", "T") },
+                      { title: i18n.t("dashboard.homeX.statBudget"), items: mostUsed.tiers, labelFn: (k: string) => budgetTierLabelLocalized(k) },
                     ].map((col) => {
                       const max = col.items[0]?.count ?? 1;
                       return (
