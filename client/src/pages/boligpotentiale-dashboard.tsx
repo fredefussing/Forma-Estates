@@ -49,7 +49,7 @@ import {
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "crm" | "leads" | "telesales";
+type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "kvota" | "crm" | "leads" | "telesales";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
 
@@ -9982,9 +9982,10 @@ export default function BoligpotentialeDashboard() {
   const soldCount = cases.filter((c) => c.status === "sold").length;
 
   const NAV = [
-    { id: "dashboard" as Section, label: t("dashboard.nav.dashboard"), icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
     { id: "sager" as Section, label: t("dashboard.nav.allCases"), icon: <FolderOpen className="w-[18px] h-[18px]" /> },
-    { id: "solgte" as Section, label: t("dashboard.nav.soldCases"), icon: <PackageCheck className="w-[18px] h-[18px]" />, badge: soldCount > 0 ? soldCount : null },
+    { id: "solgte" as Section, label: t("dashboard.nav.soldCases"), icon: <span className="relative inline-flex w-[18px] h-[18px]"><FolderOpen className="w-[18px] h-[18px]" /><Check className="absolute -right-1 -bottom-1 w-2.5 h-2.5 rounded-full" style={{ background: "#0F1D2F" }} /></span>, badge: soldCount > 0 ? soldCount : null },
+    { id: "dashboard" as Section, label: t("dashboard.nav.dashboard"), icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
+    { id: "kvota" as Section, label: t("dashboard.nav.quota"), icon: <BarChart3 className="w-[18px] h-[18px]" /> },
     { id: "ai-design-agent" as Section, label: t("dashboard.nav.aiDesignAgent"), icon: <PenTool className="w-[18px] h-[18px]" /> },
     { id: "3d-plantegning" as Section, label: t("dashboard.nav.floorPlan3d"), icon: <Box className="w-[18px] h-[18px]" />, locked: lockedFP },
     { id: "transformering-video" as Section, label: t("dashboard.nav.transformVideo"), icon: <Video className="w-[18px] h-[18px]" />, locked: lockedTV },
@@ -10036,7 +10037,7 @@ export default function BoligpotentialeDashboard() {
                 if (isLocked) return;
                 setSection(item.id); setSidebarOpen(false);
               }}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all"
+              className={`grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-2.5 w-full ${item.id === "solgte" ? "pl-7 pr-4" : "px-4"} py-3 rounded-xl text-sm font-medium transition-all text-left`}
               style={{
                 background: isActive ? "rgba(200,149,108,0.18)" : "transparent",
                 color: isLocked ? "rgba(245,243,239,0.3)" : isActive ? "#C8956C" : "rgba(245,243,239,0.7)",
@@ -10045,8 +10046,8 @@ export default function BoligpotentialeDashboard() {
               data-testid={`bolig-nav-${item.id}`}
               title={isLocked ? i18n.t("dashboard.billing.denneFunktionErIkkeInkluderet") : undefined}
             >
-              {item.icon}
-              <span className="md:inline flex-1 truncate min-w-0">{item.label}</span>
+              <span className="w-5 flex items-center justify-center">{item.icon}</span>
+              <span className="md:inline truncate min-w-0 text-left">{item.label}</span>
               {item.id === "ai-design-agent" && showOnboarding && !isActive && (
                 <span
                   className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
@@ -10069,11 +10070,12 @@ export default function BoligpotentialeDashboard() {
         {NAV_BOTTOM.map((item) => (
           <button key={item.id}
             onClick={() => { setSection(item.id); setSidebarOpen(false); }}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all"
+            className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-2.5 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all text-left"
             style={{ background: section === item.id ? "rgba(200,149,108,0.18)" : "transparent", color: section === item.id ? "#C8956C" : "rgba(245,243,239,0.7)" }}
             data-testid={`bolig-nav-${item.id}`}
           >
-            {item.icon} <span className="md:inline truncate min-w-0">{item.label}</span>
+            <span className="w-5 flex items-center justify-center">{item.icon}</span>
+            <span className="md:inline truncate min-w-0 text-left">{item.label}</span>
           </button>
         ))}
       </nav>
@@ -10150,13 +10152,13 @@ export default function BoligpotentialeDashboard() {
             src={formaEstatesLogo}
             alt={i18n.t("dashboard.homeX.formaEstatesTilbageTilForsiden")}
             title={i18n.t("dashboard.homeX.tilbageTilForsiden")}
-            className="h-12 md:h-16 w-auto max-w-[170px] md:max-w-[240px] object-contain select-none cursor-pointer"
+            className="h-14 md:h-24 w-auto max-w-[190px] md:max-w-[300px] object-contain select-none cursor-pointer"
             style={{ filter: "brightness(0) invert(1)" }}
             data-testid="bolig-topbar-logo"
           />
         </Link>
 
-        <div className="flex-1 max-w-xs hidden sm:block">
+        <div className="flex-1 max-w-md hidden sm:block">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 z-10" style={{ color: "rgba(245,243,239,0.45)" }} />
             <input
@@ -10296,13 +10298,13 @@ export default function BoligpotentialeDashboard() {
         </div>
       </header>
 
-      <div className="pt-20 md:pt-32 md:pl-56">
+      <div className="pt-20 md:pt-32 md:pl-72">
         <PaywallBanner onGenerate={() => { setSection("upload"); setSidebarOpen(false); }} />
       </div>
 
       <div className="flex flex-1 -mt-20 md:-mt-32 pt-20 md:pt-32">
         {/* ── DESKTOP SIDEBAR ── */}
-        <aside className="hidden md:flex flex-col w-56 flex-shrink-0 fixed left-0 top-32 bottom-0 px-4 py-5" style={{ background: "#0F1D2F" }} data-testid="bolig-sidebar">
+        <aside className="hidden md:flex flex-col w-72 flex-shrink-0 fixed left-0 top-32 bottom-0 px-4 py-5" style={{ background: "#0F1D2F" }} data-testid="bolig-sidebar">
           <SidebarContent />
         </aside>
 
@@ -10331,11 +10333,11 @@ export default function BoligpotentialeDashboard() {
         </AnimatePresence>
 
         {/* ── MAIN CONTENT ── */}
-        <main className="flex-1 md:ml-56 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)] min-w-0 max-w-full overflow-x-hidden" data-testid="bolig-main">
+        <main className="flex-1 md:ml-72 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)] min-w-0 max-w-full overflow-x-hidden" data-testid="bolig-main">
 
           {/* Dashboard overview */}
           {section === "dashboard" && (
-            <motion.div key="dashboard-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+            <motion.div key="dashboard-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="flex flex-col">
               <div className="mb-8">
                 <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{new Date().getHours() < 12 ? t("dashboard.home.greetingMorning") : new Date().getHours() < 18 ? t("dashboard.home.greetingAfternoon") : t("dashboard.home.greetingEvening")}, {displayName.split(" ")[0]}</h1>
                 <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{t("dashboard.home.subheader")}</p>
@@ -10446,7 +10448,7 @@ export default function BoligpotentialeDashboard() {
               )}
 
               {/* Statistik — 6 kort */}
-              <div className="mb-6" data-testid="bolig-stats">
+              <div className="mb-6 order-1" data-testid="bolig-stats">
                 <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.overblik")}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
@@ -10466,12 +10468,12 @@ export default function BoligpotentialeDashboard() {
               </div>
 
               {/* Månedlig kvota */}
-              <div className="mb-6">
+              <div className="mb-6 order-3">
                 <QuotaWidget />
               </div>
 
               {/* Aktive Sager */}
-              <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-active-cases">
+              <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE] order-4" data-testid="bolig-active-cases">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>{t("dashboard.nav.allCases")}</h2>
                   <button onClick={() => setSection("sager")} className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "#C8956C" }} data-testid="bolig-see-all-cases">
@@ -10517,7 +10519,7 @@ export default function BoligpotentialeDashboard() {
 
               {/* Solgte Sager — mini preview */}
               {soldCount > 0 && (
-                <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-sold-cases-preview">
+                <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE] order-5" data-testid="bolig-sold-cases-preview">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>{t("dashboard.nav.soldCases")}</h2>
@@ -10544,52 +10546,11 @@ export default function BoligpotentialeDashboard() {
                 </div>
               )}
 
-              {/* AI-funktioner — klikbare kort */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6" data-testid="bolig-feature-cards">
-                {[
-                  {
-                    eyebrow: "AI Design Agent",
-                    title: i18n.t("dashboard.homeX.beskrivDinVision"),
-                    desc: i18n.t("dashboard.homeX.fortaelAiEnHvadDu"),
-                    icon: <PenTool className="w-5 h-5" style={{ color: "#C8956C" }} />,
-                    section: "ai-design-agent" as Section,
-                    testId: "bolig-feature-ai-agent",
-                  },
-                  {
-                    eyebrow: "Bolig Showcase",
-                    title: i18n.t("dashboard.homeX.visPotentialet"),
-                    desc: i18n.t("dashboard.homeX.praesenteRBoligensFuldePotentiale"),
-                    icon: <Film className="w-5 h-5" style={{ color: "#C8956C" }} />,
-                    section: "showcase-video" as Section,
-                    testId: "bolig-feature-showcase",
-                  },
-                ].map((f) => (
-                  <button
-                    key={f.eyebrow}
-                    onClick={() => setSection(f.section)}
-                    className="group text-left bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
-                    data-testid={f.testId}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,108,0.1)" }}>
-                        {f.icon}
-                      </div>
-                      <span className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: "#C8956C" }}>{f.eyebrow}</span>
-                    </div>
-                    <h3 className="text-base font-semibold mb-1.5" style={{ color: "#0F1D2F" }}>{f.title}</h3>
-                    <p className="text-sm leading-relaxed mb-4" style={{ color: "#6B6B6B" }}>{f.desc}</p>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold transition-all group-hover:gap-2.5" style={{ color: "#0F1D2F" }}>
-                      {i18n.t("dashboard.homeX.seMere")} <ArrowUpRight className="w-3.5 h-3.5" style={{ color: "#C8956C" }} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-
               {/* Hurtig-handlinger + Seneste aktivitet */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4" data-testid="bolig-bottom-row">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-stretch order-2" data-testid="bolig-bottom-row">
 
                 {/* Venstre: Hurtig-handlinger + Genbrug seneste */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-quick-actions">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE] h-full" data-testid="bolig-quick-actions">
                   <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.hurtigeHandlinger")}</h2>
                   <div className="flex flex-wrap gap-3 mb-6">
                     <button onClick={() => setSection("upload")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90" style={{ background: "#C8956C" }} data-testid="bolig-quick-upload">
@@ -10597,6 +10558,9 @@ export default function BoligpotentialeDashboard() {
                     </button>
                     <button onClick={() => setModal("newSag")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm border transition-all hover:bg-[#F0EDE7]" style={{ color: "#1A1A1A", borderColor: "#D9D5CF" }} data-testid="bolig-quick-new-sag">
                       <Plus className="w-4 h-4" /> {t("dashboard.nav.newCase")}
+                    </button>
+                    <button onClick={() => setSection("sager")} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:bg-[#F0EDE7]" style={{ color: "#0F1D2F", borderColor: "rgba(200,149,108,0.5)" }} data-testid="bolig-quick-all-cases">
+                      <FolderOpen className="w-4 h-4" style={{ color: "#C8956C" }} /> {t("dashboard.homeX.seAlleSager")}
                     </button>
                   </div>
                   {recentImages.length > 0 && (
@@ -10628,8 +10592,8 @@ export default function BoligpotentialeDashboard() {
                 </div>
 
                 {/* Højre: Seneste aktivitet + Mest brugte */}
-                <div className="flex flex-col gap-4">
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-activity">
+                <div className="flex flex-col gap-4 h-full">
+                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE] h-full" data-testid="bolig-activity">
                     <h2 className="text-base font-semibold mb-4" style={{ color: "#1A1A1A" }}>{i18n.t("dashboard.homeX.senesteAktivitet")}</h2>
                     {activity.length === 0 ? (
                       <p className="text-sm" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.ingenAktivitetEndnu")}</p>
@@ -10700,7 +10664,7 @@ export default function BoligpotentialeDashboard() {
               </div>
 
               {/* Dine mest brugte valg — fuld bredde under begge kolonner */}
-              <div className="rounded-2xl p-6 border border-[#E8E4DE] mt-4" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
+              <div className="rounded-2xl p-6 border border-[#E8E4DE] mt-4 order-6" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
                 <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.dineStandardvalg")}</h2>
                 {!mostUsed ? (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -10750,6 +10714,16 @@ export default function BoligpotentialeDashboard() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {section === "kvota" && (
+            <motion.div key="kvota-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="max-w-2xl">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{t("dashboard.nav.quota")}</h1>
+                <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{t("dashboard.quota.viewDescription")}</p>
+              </div>
+              <QuotaWidget />
             </motion.div>
           )}
 

@@ -56,3 +56,4 @@
 - [About-page voice](about-page-voice.md) — keep the company story factual, human and customer-centered; use “Teknologi, der gør boliger lettere at forstå.” as the core motto.
 - [Contact-page hierarchy](contact-page-hierarchy.md) — contact form is primary, direct contact is one compact card, response time replaces CVR there; use the normal public header/footer and restrained palette.
 - [Auth-card branding](auth-card-branding.md) — signup, login and reset cards use the gold Forma wordmark and darker accessible gold links; name placeholders use plain “John Doe” without example prefixes.
+- [Dashboard E2E authentication](dashboard-e2e-auth.md) — ADMIN_PASSWORD is not the dev Firebase admin login; use a temporary verified test account and delete it after read-only UI checks.
