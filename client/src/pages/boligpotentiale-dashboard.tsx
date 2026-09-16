@@ -7714,7 +7714,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       </div>
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>AI Design Agent</h1>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.nav.aiDesignAgent")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.agent.subtitle")}</p>
       </div>
 
@@ -10037,7 +10037,7 @@ export default function BoligpotentialeDashboard() {
                 if (isLocked) return;
                 setSection(item.id); setSidebarOpen(false);
               }}
-              className={`grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-2.5 w-full ${item.id === "solgte" ? "pl-7 pr-4" : "px-4"} py-3 rounded-xl text-sm font-medium transition-all text-left`}
+              className={`grid grid-cols-[20px_minmax(0,1fr)] items-center gap-2.5 w-full ${item.id === "solgte" ? "pl-7 pr-4" : "px-4"} py-3 rounded-xl text-sm font-medium transition-all text-left`}
               style={{
                 background: isActive ? "rgba(200,149,108,0.18)" : "transparent",
                 color: isLocked ? "rgba(245,243,239,0.3)" : isActive ? "#C8956C" : "rgba(245,243,239,0.7)",
@@ -10047,20 +10047,22 @@ export default function BoligpotentialeDashboard() {
               title={isLocked ? i18n.t("dashboard.billing.denneFunktionErIkkeInkluderet") : undefined}
             >
               <span className="w-5 flex items-center justify-center">{item.icon}</span>
-              <span className="md:inline truncate min-w-0 text-left">{item.label}</span>
-              {item.id === "ai-design-agent" && showOnboarding && !isActive && (
-                <span
-                  className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
-                  style={{ background: "#C8956C", color: "white" }}
-                  data-testid="bolig-nav-design-agent-hint"
-                >
-                  <ArrowLeft className="w-3 h-3" /> {t("dashboard.nav.tryFree")}
-                </span>
-              )}
-              {isLocked && <Lock className="w-3.5 h-3.5 opacity-50" />}
-              {"badge" in item && item.badge != null && !isLocked && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.25)", color: "#86efac" }}>{item.badge}</span>
-              )}
+              <span className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="min-w-[120px] flex-1 text-left whitespace-normal leading-snug">{item.label}</span>
+                {item.id === "ai-design-agent" && showOnboarding && !isActive && (
+                  <span
+                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
+                    style={{ background: "#C8956C", color: "white" }}
+                    data-testid="bolig-nav-design-agent-hint"
+                  >
+                    <ArrowLeft className="w-3 h-3" /> {t("dashboard.nav.tryFree")}
+                  </span>
+                )}
+                {isLocked && <Lock className="w-3.5 h-3.5 opacity-50 flex-shrink-0" />}
+                {"badge" in item && item.badge != null && !isLocked && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(45,106,79,0.25)", color: "#86efac" }}>{item.badge}</span>
+                )}
+              </span>
             </button>
           );
         })}
@@ -10070,12 +10072,12 @@ export default function BoligpotentialeDashboard() {
         {NAV_BOTTOM.map((item) => (
           <button key={item.id}
             onClick={() => { setSection(item.id); setSidebarOpen(false); }}
-            className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-2.5 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all text-left"
+            className="grid grid-cols-[20px_minmax(0,1fr)] items-center gap-2.5 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all text-left"
             style={{ background: section === item.id ? "rgba(200,149,108,0.18)" : "transparent", color: section === item.id ? "#C8956C" : "rgba(245,243,239,0.7)" }}
             data-testid={`bolig-nav-${item.id}`}
           >
             <span className="w-5 flex items-center justify-center">{item.icon}</span>
-            <span className="md:inline truncate min-w-0 text-left">{item.label}</span>
+            <span className="min-w-0 text-left whitespace-normal leading-snug">{item.label}</span>
           </button>
         ))}
       </nav>
@@ -10314,8 +10316,8 @@ export default function BoligpotentialeDashboard() {
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
                 className="fixed inset-0 z-30 md:hidden" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => setSidebarOpen(false)} />
-              <motion.aside initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }} transition={{ duration: 0.22, ease: "easeOut" }}
-                className="fixed top-0 left-0 bottom-0 z-40 w-60 flex flex-col px-4 py-5 md:hidden" style={{ background: "#0F1D2F" }}>
+              <motion.aside initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ duration: 0.22, ease: "easeOut" }}
+                className="fixed top-0 left-0 bottom-0 z-40 w-72 max-w-[calc(100vw-1.5rem)] flex flex-col px-4 py-5 md:hidden" style={{ background: "#0F1D2F" }}>
                 <Link href="/" onClick={() => setSidebarOpen(false)}>
                   <img
                     src={formaEstatesLogo}
@@ -10386,7 +10388,7 @@ export default function BoligpotentialeDashboard() {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,108,0.12)" }}>
                           <PenTool className="w-5 h-5" style={{ color: "#C8956C" }} />
                         </div>
-                        <h3 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>AI Design Agent</h3>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{t("dashboard.nav.aiDesignAgent")}</h3>
                       </div>
                       <p className="text-xs leading-relaxed mb-3" style={{ color: "#6B6B6B" }}>
                         {t("dashboard.home.aiAgentDesc")}
@@ -10612,7 +10614,7 @@ export default function BoligpotentialeDashboard() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium leading-snug truncate" style={{ color: "#1A1A1A" }}>
-                                  {i18n.t("dashboard.homeX.designAgent")}{item.promptText ? `: "${item.promptText.slice(0, 30)}${item.promptText.length > 30 ? "…" : ""}"` : ""}
+                                  {t("dashboard.nav.aiDesignAgent")}{item.promptText ? `: "${item.promptText.slice(0, 30)}${item.promptText.length > 30 ? "…" : ""}"` : ""}
                                 </p>
                                 <p className="text-[11px] mt-0.5" style={{ color: "#9B9690" }}>{timeAgo(item.createdAt)}</p>
                               </div>

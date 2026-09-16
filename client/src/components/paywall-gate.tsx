@@ -173,18 +173,18 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
   if (isFreeTrial && aiLeft !== null && aiLeft > 0) {
     return (
       <div
-        className="relative z-10 w-full flex items-center justify-between gap-4 px-5 py-2.5 text-sm"
+        className="relative z-10 w-full flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-2.5 text-sm"
         style={{ background: "#0F1D2F", borderBottom: "1px solid rgba(200,149,108,0.25)" }}
         data-testid="paywall-banner"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-start sm:items-center gap-2.5 min-w-0">
           <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: "#C8956C" }} />
-          <span className="truncate" style={{ color: "rgba(245,243,239,0.85)", fontSize: "0.8rem" }}>
+          <span className="leading-snug" style={{ color: "rgba(245,243,239,0.85)", fontSize: "0.8rem" }}>
             <span className="font-semibold" style={{ color: "#C8956C" }}>{t("dashboard.paywall.freeTrialLabel")}</span>{" "}
             {t("dashboard.paywall.freeLeft", { count: aiLeft })} {t("dashboard.paywall.freeTrialSuffix")}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
           <button
             onClick={() => (onGenerate ? onGenerate() : setLocation("/boligpotentiale/dashboard"))}
             className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
@@ -213,11 +213,11 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
 
   return (
     <div
-      className="relative z-10 w-full flex items-center justify-between gap-4 px-5 py-2.5 text-sm"
+      className="relative z-10 w-full flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-2.5 text-sm"
       style={{ background: "#0F1D2F", borderBottom: "1px solid rgba(200,149,108,0.25)" }}
       data-testid="paywall-banner"
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start sm:items-center gap-2.5 min-w-0">
         <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: "#C8956C" }} />
         <span style={{ color: "rgba(245,243,239,0.78)", fontSize: "0.8rem" }}>
           {bannerText}
@@ -225,7 +225,7 @@ export function PaywallBanner({ onGenerate }: { onGenerate?: () => void }) {
       </div>
       <button
         onClick={() => setLocation("/boligpotentiale#pricing")}
-        className="shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
+        className="shrink-0 self-end sm:self-auto px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
         style={{ background: "#C8956C", color: "white" }}
         data-testid="button-upgrade"
       >
