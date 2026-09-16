@@ -103,23 +103,6 @@ const PRODUCTS: {
 const fmt = (n: number) =>
   n.toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-function getCurrentTierIdx(product: typeof PRODUCTS[0], qty: number) {
-  if (qty === 0) return -1;
-  let idx = 0;
-  for (let i = 0; i < product.tiers.length; i++) {
-    if (qty >= product.tiers[i].from) idx = i;
-    else break;
-  }
-  return idx;
-}
-
-function getNextTierInfo(product: typeof PRODUCTS[0], qty: number) {
-  const idx = getCurrentTierIdx(product, qty);
-  const next = product.tiers[idx + 1];
-  if (!next) return null;
-  return { stksLeft: next.from - qty, nextPct: next.pct };
-}
-
 // ── AnimatedNumber ─────────────────────────────────────────────────────────────
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
   const [display, setDisplay] = useState(value);
@@ -158,8 +141,6 @@ function ProductRow({
 }) {
   const { t } = useTranslation();
   const Icon = product.icon;
-  const tierIdx = getCurrentTierIdx(product, qty);
-  const nextTier = getNextTierInfo(product, qty);
   const discPct = item?.discountPercent ?? 0;
   const unitPrice = item?.unitPrice ?? product.basePrice;
   const lineTotal = item?.total ?? 0;
@@ -222,31 +203,6 @@ function ProductRow({
         </div>
       </div>
 
-      {/* Tier badges */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {product.tiers.map((tier, i) => {
-          const active = i === tierIdx;
-          const passed = i < tierIdx;
-          return (
-            <span
-              key={i}
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all"
-              style={{
-                background: active
-                  ? "rgba(34,197,94,0.18)"
-                  : passed
-                  ? "rgba(34,197,94,0.08)"
-                  : "rgba(255,255,255,0.05)",
-                color: active ? "#22c55e" : passed ? "rgba(34,197,94,0.6)" : "rgba(255,255,255,0.3)",
-                border: active ? "1px solid rgba(34,197,94,0.35)" : "1px solid transparent",
-              }}
-            >
-              {tier.pct > 0 ? `−${tier.pct}%` : "0%"} · {tier.range} {unit}
-            </span>
-          );
-        })}
-      </div>
-
       {/* Slider + counter */}
       <div className="flex items-center gap-3">
         <input
@@ -293,9 +249,9 @@ function ProductRow({
         </div>
       </div>
 
-      {/* Per-unit detail + next tier nudge */}
+      {/* Per-unit detail */}
       {qty > 0 && (
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3">
           <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
             {fmt(unitPrice)} kr./{unit}
             {discPct > 0 && (
@@ -304,11 +260,6 @@ function ProductRow({
               </span>
             )}
           </p>
-          {nextTier && (
-            <p className="text-[11px]" style={{ color: "#c9a96e" }}>
-              {t("enterpriseCalc.nextTier", { count: nextTier.stksLeft, pct: nextTier.nextPct })}
-            </p>
-          )}
         </div>
       )}
     </div>

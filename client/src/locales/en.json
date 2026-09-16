@@ -329,14 +329,7 @@
       }
     ]
   },
-  "footerCta": {
-    "headline": "Ready to show the property's potential?",
-    "subline": "Create an account in under 1 minute — no commitment.",
-    "cta": "Create account free",
-    "secondary": "See pricing"
-  },
   "footer": {
-    "tagline": "AI-powered visualization, 3D floor plans and videos for the property industry.",
     "product": "Product",
     "support": "Support",
     "getStarted": "Get started",
@@ -347,7 +340,6 @@
     "contact": "Contact",
     "privacy": "Privacy policy",
     "terms": "Terms",
-    "trustpilot": "Review us on Trustpilot",
     "copyright": "© 2026 Forma Estates · CVR: 46551796 · Built in Denmark · All rights reserved"
   },
   "cookie": {

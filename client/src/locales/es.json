@@ -122,7 +122,9 @@
     "overline": "Vende más rápido",
     "headline": "El home staging vende. Aquí están los datos.",
     "subline": "Las propiedades con visualización profesional se venden más rápido, a mejor precio y atraen más visitas online.",
+    "attribution": "Forma Estates convierte estos datos en resultados prácticos — desde la primera carga hasta el material de venta terminado.",
     "sources": "Fuentes: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
+    "savingsLink": "Consulta la comparación con un ahorro de 18.000 DKK",
     "items": [
       {
         "stat": "73%",
@@ -327,14 +329,7 @@
       }
     ]
   },
-  "footerCta": {
-    "headline": "¿Listo para mostrar el potencial de la propiedad?",
-    "subline": "Crea una cuenta en menos de 1 minuto — sin compromiso.",
-    "cta": "Crear cuenta gratis",
-    "secondary": "Ver precios"
-  },
   "footer": {
-    "tagline": "Visualización con IA, planos 3D y vídeos para el sector inmobiliario.",
     "product": "Producto",
     "support": "Soporte",
     "getStarted": "Empezar",
@@ -345,7 +340,6 @@
     "contact": "Contacto",
     "privacy": "Política de privacidad",
     "terms": "Términos y condiciones",
-    "trustpilot": "Valóranos en Trustpilot",
     "copyright": "© 2026 Forma Estates · CVR: 46551796 · Hecho en Dinamarca · Todos los derechos reservados"
   },
   "cookie": {
