@@ -54,3 +54,4 @@
 - [Landing-page timing claims](landing-timing-claims.md) — keep product times distinct: AI images about 15 seconds; property/promo videos 2–3 minutes; never collapse them into one claim.
 - [Showcase Video naming](showcase-video-naming.md) — customer-facing copy must consistently call the product “Showcase Video”; avoid alternate names such as sales, walkthrough or property video.
 - [About-page voice](about-page-voice.md) — keep the company story factual, human and customer-centered; use “Teknologi, der gør boliger lettere at forstå.” as the core motto.
+- [Contact-page hierarchy](contact-page-hierarchy.md) — contact form is primary, direct contact is one compact card, response time replaces CVR there; use the normal public header/footer and restrained palette.
