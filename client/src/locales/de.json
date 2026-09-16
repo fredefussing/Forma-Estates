@@ -68,40 +68,40 @@
   },
   "why": {
     "overline": "Warum Visualisierung",
-    "headline": "Zeigen Sie das Potenzial",
-    "headlineLine2": "Nicht den leeren Raum",
+    "headline": "Geben Sie Käufern eine Vision",
+    "headlineLine2": "mit Ihrem vorhandenen Material",
     "seeMore": "Mehr ansehen",
     "tiles": [
       {
         "eyebrow": "Vorher / Nachher",
-        "title": "KI-Inszenierung",
-        "desc": "Ein leerer Raum wird in Sekunden zum Zuhause."
+        "title": "KI-Bilder und virtuelles Staging",
+        "desc": "Richten Sie leere oder veraltete Räume in ca. 15 Sekunden realistisch ein."
       },
       {
         "eyebrow": "3D Grundriss",
-        "title": "Den Grundriss verstehen",
-        "desc": "Lassen Sie den Käufer den Raum vor der ersten Besichtigung erkunden."
+        "title": "3D-Grundrisse",
+        "desc": "Verwandeln Sie einen 2D-Grundriss in ein übersichtliches 3D-Layout."
       },
       {
         "eyebrow": "Immobilienvideo",
-        "title": "Cinematisches Storytelling",
-        "desc": "Wecken Sie Emotionen mit einem lebendigen Video-Rundgang."
+        "title": "Immobilien- und Promo-Videos",
+        "desc": "Erstellen Sie fertige Videos für Anzeigen und soziale Medien in 2–3 Minuten."
       },
       {
         "eyebrow": "KI Design Agent",
-        "title": "Neue Einrichtung erstellen",
-        "desc": "Die KI erstellt anhand Ihrer Anweisungen eine neue Einrichtung."
+        "title": "KI Design Agent",
+        "desc": "Bearbeiten Sie Innenräume, Fassaden, Gärten und Satellitenbilder nach eigenen Vorgaben."
       },
       {
         "eyebrow": "Immobilien Showcase",
-        "title": "Potenzial zeigen",
-        "desc": "Präsentieren Sie das volle Potenzial der Immobilie mit professionellen Visualisierungen."
+        "title": "Immobilien-Showcase",
+        "desc": "Kombinieren Sie Immobilienbilder zu einem professionellen Präsentationsvideo."
       }
     ]
   },
   "howItWorks": {
     "overline": "So funktioniert es",
-    "headline": "Ihr KI-Bild in drei Schritten — ca. 15 Sekunden",
+    "headline": "Jede Leistung in drei einfachen Schritten",
     "subline": "Keine Software, kein technisches Wissen — nur ein Foto und ein Klick.",
     "steps": [
       {
@@ -329,7 +329,7 @@
   },
   "footerCta": {
     "headline": "Bereit, das Potenzial Ihrer Immobilie zu zeigen?",
-    "subline": "Erstellen Sie in unter 1 Minute ein Konto — keine Kreditkarte erforderlich.",
+    "subline": "Erstellen Sie in unter 1 Minute ein Konto — ohne Bindung.",
     "cta": "Konto kostenlos erstellen",
     "secondary": "Preise ansehen"
   },
@@ -573,7 +573,7 @@
     "noSubscription": "Einmalzahlung · kein Abonnement",
     "checkoutFailed": "Checkout fehlgeschlagen: {{error}}",
     "youSave": "Sie sparen {{amount}} DKK ({{pct}}% Gesamtrabatt)",
-    "addMoreDiscount": "Mehr hinzufügen, um Mengenrabatt zu aktivieren",
+    "addMoreDiscount": "Mehr Zusatzleistungen senken den Stückpreis.",
     "dragSliders": "Nutzen Sie die Schieberegler oben, um Ihren Preis zu berechnen",
     "totalDiscountLabel": "Gesamtrabatt",
     "unknownError": "Unbekannter Fehler",
@@ -1800,12 +1800,12 @@
     "dashQ2": "Was ist der KI Design Agent?",
     "dashQ3": "Was ist Bolig Showcase?",
     "dashQ4": "Was kosten Credits?",
-    "welcomeLanding": "Hallo! Ich bin der KI-Assistent von Forma Estates — fragen Sie mich zu Preisen, Designstilen oder wie Sie beginnen.",
+    "welcomeLanding": "Hallo! Ich bin Form-AI, der virtuelle KI-Assistent von Forma Estates — fragen Sie mich zu Preisen, Designstilen oder wie Sie beginnen.",
     "welcomeDash": "Hallo! Ich bin Ihr Forma Estates-Guide — fragen Sie mich zu Funktionen, Preisen oder wie Sie einen neuen Fall anlegen.",
     "errorGeneral": "Entschuldigung, etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
     "errorNetwork": "Verbindung fehlgeschlagen. Überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
     "placeholder": "Schreiben Sie Ihre Frage...",
-    "title": "Forma Assistent",
+    "title": "Form-AI — der virtuelle KI-Assistent von Forma Estates",
     "online": "Jetzt online"
   }
 }

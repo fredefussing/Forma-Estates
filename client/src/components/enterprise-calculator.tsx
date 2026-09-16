@@ -361,8 +361,7 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
 
   const grandTotal = result?.grandTotal ?? 0;
   const origTotal = result?.originalTotal ?? 0;
-  const savings = result?.totalSavings ?? 0;
-  const discountPct = result?.totalDiscountPercent ?? 0;
+  const hasDiscount = origTotal > grandTotal;
 
   const handleCheckout = async () => {
     if (!hasItems || checkoutLoading) return;
@@ -448,25 +447,6 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
           </span>
         </div>
 
-        {/* Live discount badge */}
-        <div
-          className="flex-shrink-0 rounded-2xl px-4 py-2 text-center transition-all"
-          style={{
-            background: discountPct > 0 ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
-            border: `1px solid ${discountPct > 0 ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          <p
-            className="text-2xl font-black leading-none"
-            style={{ color: discountPct > 0 ? "#22c55e" : "rgba(255,255,255,0.2)" }}
-          >
-            {discountPct > 0 ? `${discountPct}%` : "0%"}
-          </p>
-          <p className="text-[10px] font-semibold mt-0.5" style={{ color: discountPct > 0 ? "#22c55e" : "rgba(255,255,255,0.2)" }}>
-            {t("enterpriseCalc.totalDiscount")}
-          </p>
-        </div>
       </div>
 
       {/* Subtitle */}
@@ -502,22 +482,15 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
                   <span className="text-3xl font-black text-white">
                     <AnimatedNumber value={grandTotal} /> kr.
                   </span>
-                  {savings > 0 && (
+                  {hasDiscount && (
                     <span className="text-base line-through" style={{ color: "#64748b" }}>
                       {fmt(origTotal)} kr.
                     </span>
                   )}
                 </div>
-                {savings > 0 && (
-                  <p className="text-sm font-semibold mt-1" style={{ color: "#22c55e" }}>
-                    {t("enterpriseCalc.youSave", { amount: fmt(savings), pct: discountPct })}
-                  </p>
-                )}
-                {savings === 0 && (
-                  <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    {t("enterpriseCalc.addMoreDiscount")}
-                  </p>
-                )}
+                <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {t("enterpriseCalc.addMoreDiscount")}
+                </p>
               </>
             ) : (
               <>
@@ -590,14 +563,6 @@ export function EnterpriseCalculator({ dark: _dark = true }: Props) {
                 </div>
               );
             })}
-            {savings > 0 && (
-              <div className="flex items-center justify-between pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                <span className="text-xs font-semibold" style={{ color: "#22c55e" }}>
-                  {t("enterpriseCalc.totalDiscountLabel")}
-                </span>
-                <span className="text-xs font-bold" style={{ color: "#22c55e" }}>−{fmt(savings)} kr.</span>
-              </div>
-            )}
           </div>
         )}
       </div>

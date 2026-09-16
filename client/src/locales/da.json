@@ -68,53 +68,53 @@
   },
   "why": {
     "overline": "Hvorfor visualisering",
-    "headline": "Vis potentialet",
-    "headlineLine2": "Ikke det tomme rum",
+    "headline": "Giv køberen en vision",
+    "headlineLine2": "med materialet, du allerede har",
     "seeMore": "Se mere",
     "tiles": [
       {
         "eyebrow": "Før / Efter",
-        "title": "AI-iscenesættelse",
-        "desc": "Et tomt rum bliver til et hjem på sekunder."
+        "title": "AI-billeder og virtuel indretning",
+        "desc": "Indret tomme eller slidte rum naturtro på ca. 15 sekunder."
       },
       {
         "eyebrow": "3D Plantegning",
-        "title": "Forstå flowet",
-        "desc": "Lad køber gå gennem rummet før første visning."
+        "title": "3D-plantegninger",
+        "desc": "Gør en 2D-plantegning til et overskueligt 3D-layout."
       },
       {
         "eyebrow": "Branchevideo",
-        "title": "Cinematisk fortælling",
-        "desc": "Væk følelser med en levende videogennemgang."
+        "title": "Bolig- og promovideoer",
+        "desc": "Skab færdige videoer til annoncer og sociale medier på 2–3 minutter."
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Skab en ny indretning",
-        "desc": "AI skaber en ny indretning ud fra dine instruktioner."
+        "title": "AI Design Agent",
+        "desc": "Redigér indretning, facade, have og satellitbilleder med egne instruktioner."
       },
       {
         "eyebrow": "Bolig Showcase",
-        "title": "Vis potentialet",
-        "desc": "Præsentér boligens fulde potentiale med professionelle visualiseringer."
+        "title": "Bolig Showcase",
+        "desc": "Saml ejendommens billeder i en professionel præsentationsvideo."
       }
     ]
   },
   "howItWorks": {
     "overline": "Sådan virker det",
-    "headline": "Dit AI-billede i tre trin — ca. 15 sekunder",
-    "subline": "Ingen software, ingen teknisk viden — bare et foto og et klik.",
+    "headline": "Alle tjenester i tre enkle trin",
+    "subline": "Upload, vælg og hent. Ingen software eller teknisk viden.",
     "steps": [
       {
-        "title": "Upload et rumfoto",
-        "desc": "Tag et foto af rummet med din telefon eller kamera. Ingen professionel fotografering nødvendig."
+        "title": "Upload dit materiale",
+        "desc": "Et foto, en plantegning eller billeder af ejendommen."
       },
       {
-        "title": "Vælg rumtype og stil",
-        "desc": "Angiv rumtype og vælg en af vores designstile — fra skandinavisk minimalisme til moderne luksus."
+        "title": "Vælg produkt og instruktion",
+        "desc": "Vælg tjeneste, stil og de ændringer, du ønsker."
       },
       {
-        "title": "Download din visualisering",
-        "desc": "AI'en genererer dit billede på ca. 15 sekunder. Klar til download i fuld kvalitet."
+        "title": "Modtag og download",
+        "desc": "Resultatet er klar til brug i din markedsføring."
       }
     ]
   },
@@ -122,7 +122,9 @@
     "overline": "Sælg hurtigere",
     "headline": "Staging sælger. Her er tallene.",
     "subline": "Boliger med professionel visualisering sælges hurtigere, til højere priser og tiltrækker flere visninger online.",
+    "attribution": "Forma Estates gør tallene anvendelige i praksis — fra første upload til færdigt salgsmateriale.",
     "sources": "Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
+    "savingsLink": "Se sammenligningen på 18.000 kr.",
     "items": [
       {
         "stat": "73%",
@@ -177,8 +179,8 @@
         "more": "Fx \"skift sofaen ud med en lys linnedsofa og tilføj en stor potteplante\". Du behøver ikke kende til design eller teknik."
       },
       {
-        "title": "Klar på ca. 15 sek.",
-        "desc": "Ingen ventetid. Visualiseringen er klar, mens du stadig er i rummet."
+        "title": "AI Design Agent til ejendommen",
+        "desc": "Redigér satellitbilleder, facade og omgivelser med en kort instruktion."
       },
       {
         "title": "Direkte i browseren",
@@ -329,7 +331,7 @@
   },
   "footerCta": {
     "headline": "Klar til at vise boligens potentiale?",
-    "subline": "Opret en konto på under 1 minut — ingen kreditkort nødvendigt.",
+    "subline": "Opret en konto på under 1 minut — uden binding.",
     "cta": "Opret konto gratis",
     "secondary": "Se priser"
   },
@@ -1773,7 +1775,7 @@
     "noSubscription": "Engangsbetaling · ingen abonnement",
     "checkoutFailed": "Checkout fejlede: {{error}}",
     "youSave": "Du sparer {{amount}} kr. ({{pct}}% samlet rabat)",
-    "addMoreDiscount": "Tilføj flere for at aktivere mængderabat",
+    "addMoreDiscount": "Flere tilvalg giver en lavere enhedspris.",
     "dragSliders": "Træk i sliderne ovenfor for at beregne din pris",
     "totalDiscountLabel": "Samlet rabat",
     "unknownError": "Ukendt fejl",
@@ -1800,12 +1802,12 @@
     "dashQ2": "Hvad er AI Design Agent?",
     "dashQ3": "Hvad er Bolig Showcase?",
     "dashQ4": "Hvad koster kreditter?",
-    "welcomeLanding": "Hej! Jeg er Forma Estates' AI-assistent — spørg mig fx om priser, designstile eller hvordan du kommer i gang.",
+    "welcomeLanding": "Hej! Jeg er Form-AI, Forma Estates' virtuelle AI-assistent — spørg mig om priser, designstile eller hvordan du kommer i gang.",
     "welcomeDash": "Hej! Jeg er din guide til Forma Estates — spørg mig om funktioner, priser eller hvordan du opretter en ny sag.",
     "errorGeneral": "Beklager, noget gik galt. Prøv igen.",
     "errorNetwork": "Kunne ikke oprette forbindelse. Tjek din internetforbindelse og prøv igen.",
     "placeholder": "Skriv dit spørgsmål...",
-    "title": "Forma Assistent",
+    "title": "Form-AI — Forma Estates' virtuelle AI-assistent",
     "online": "Online nu"
   }
 }

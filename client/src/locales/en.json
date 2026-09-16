@@ -68,53 +68,53 @@
   },
   "why": {
     "overline": "Why visualization",
-    "headline": "Show the potential",
-    "headlineLine2": "Not the empty room",
+    "headline": "Give the buyer a vision",
+    "headlineLine2": "using the material you already have",
     "seeMore": "See more",
     "tiles": [
       {
         "eyebrow": "Before / After",
-        "title": "AI Staging",
-        "desc": "An empty room becomes a home in seconds."
+        "title": "AI images and virtual staging",
+        "desc": "Stage empty or dated rooms realistically in approx. 15 seconds."
       },
       {
         "eyebrow": "3D Floor Plan",
-        "title": "Understand the layout",
-        "desc": "Let the buyer walk through the room before the first showing."
+        "title": "3D floor plans",
+        "desc": "Turn a 2D floor plan into a clear 3D layout."
       },
       {
         "eyebrow": "Property Video",
-        "title": "Cinematic storytelling",
-        "desc": "Evoke emotions with a vivid video walkthrough."
+        "title": "Property and promo videos",
+        "desc": "Create finished videos for listings and social media in 2–3 minutes."
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Create a new interior",
-        "desc": "AI creates a new interior from your instructions."
+        "title": "AI Design Agent",
+        "desc": "Edit interiors, façades, gardens and satellite images with your own instructions."
       },
       {
         "eyebrow": "Property Showcase",
-        "title": "Show the potential",
-        "desc": "Present the property's full potential with professional visualizations."
+        "title": "Property Showcase",
+        "desc": "Combine property images into a professional presentation video."
       }
     ]
   },
   "howItWorks": {
     "overline": "How it works",
-    "headline": "Your AI image in three steps — approx. 15 seconds",
-    "subline": "No software, no technical knowledge — just a photo and a click.",
+    "headline": "Every service in three simple steps",
+    "subline": "Upload, choose and download. No software or technical knowledge.",
     "steps": [
       {
-        "title": "Upload a room photo",
-        "desc": "Take a photo of the room with your phone or camera. No professional photography needed."
+        "title": "Upload your source material",
+        "desc": "A photo, floor plan or property images."
       },
       {
-        "title": "Choose room type and style",
-        "desc": "Select the room type and choose one of our design styles — from Scandinavian minimalism to modern luxury."
+        "title": "Choose a product and instructions",
+        "desc": "Select the service, style and changes you want."
       },
       {
-        "title": "Download your visualization",
-        "desc": "The AI generates your image in approx. 15 seconds. Ready to download in full quality."
+        "title": "Receive and download",
+        "desc": "Your result is ready to use in your marketing."
       }
     ]
   },
@@ -122,7 +122,9 @@
     "overline": "Sell faster",
     "headline": "Staging sells. Here are the numbers.",
     "subline": "Properties with professional visualization sell faster, at higher prices and attract more online views.",
+    "attribution": "Forma Estates turns the numbers into practical marketing material — from upload to finished asset.",
     "sources": "Sources: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
+    "savingsLink": "See the 18,000 DKK comparison",
     "items": [
       {
         "stat": "73%",
@@ -177,8 +179,8 @@
         "more": "E.g. \"swap the sofa for a light linen sofa and add a large potted plant\". No design or technical knowledge needed."
       },
       {
-        "title": "Ready in approx. 15 sec.",
-        "desc": "No waiting. The visualization is ready while you're still in the room."
+        "title": "AI Design Agent for the property",
+        "desc": "Edit satellite images, exteriors and surroundings with a short instruction."
       },
       {
         "title": "Directly in the browser",
@@ -329,7 +331,7 @@
   },
   "footerCta": {
     "headline": "Ready to show the property's potential?",
-    "subline": "Create an account in under 1 minute — no credit card required.",
+    "subline": "Create an account in under 1 minute — no commitment.",
     "cta": "Create account free",
     "secondary": "See pricing"
   },
@@ -573,7 +575,7 @@
     "noSubscription": "One-time payment · no subscription",
     "checkoutFailed": "Checkout failed: {{error}}",
     "youSave": "You save {{amount}} DKK ({{pct}}% total discount)",
-    "addMoreDiscount": "Add more to activate volume discount",
+    "addMoreDiscount": "More add-ons mean a lower unit price.",
     "dragSliders": "Use the sliders above to calculate your price",
     "totalDiscountLabel": "Total discount",
     "unknownError": "Unknown error",
@@ -1800,12 +1802,12 @@
     "dashQ2": "What is AI Design Agent?",
     "dashQ3": "What is Bolig Showcase?",
     "dashQ4": "How much do credits cost?",
-    "welcomeLanding": "Hi! I'm Forma Estates' AI assistant — ask me about pricing, design styles or how to get started.",
+    "welcomeLanding": "Hi! I'm Form-AI, Forma Estates' virtual AI assistant — ask me about pricing, design styles or how to get started.",
     "welcomeDash": "Hi! I'm your Forma Estates guide — ask me about features, pricing or how to create a new case.",
     "errorGeneral": "Sorry, something went wrong. Please try again.",
     "errorNetwork": "Could not connect. Check your internet connection and try again.",
     "placeholder": "Type your question...",
-    "title": "Forma Assistant",
+    "title": "Form-AI — Forma Estates' virtual AI assistant",
     "online": "Online now"
   }
 }

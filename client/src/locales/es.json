@@ -68,40 +68,40 @@
   },
   "why": {
     "overline": "Por qué visualizar",
-    "headline": "Muestra el potencial",
-    "headlineLine2": "No la habitación vacía",
+    "headline": "Da al comprador una visión",
+    "headlineLine2": "con el material que ya tienes",
     "seeMore": "Ver más",
     "tiles": [
       {
         "eyebrow": "Antes / Después",
-        "title": "Staging con IA",
-        "desc": "Una habitación vacía se convierte en un hogar en segundos."
+        "title": "Imágenes IA y staging virtual",
+        "desc": "Amuebla espacios vacíos o anticuados de forma realista en unos 15 segundos."
       },
       {
         "eyebrow": "Plano 3D",
-        "title": "Comprende la distribución",
-        "desc": "Deja que el comprador recorra la estancia antes de la primera visita."
+        "title": "Planos 3D",
+        "desc": "Convierte un plano 2D en una distribución 3D clara."
       },
       {
         "eyebrow": "Vídeo inmobiliario",
-        "title": "Narrativa cinematográfica",
-        "desc": "Despierta emociones con un recorrido en vídeo envolvente."
+        "title": "Vídeos inmobiliarios y promocionales",
+        "desc": "Crea vídeos terminados para anuncios y redes sociales en 2–3 minutos."
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Crea un nuevo interior",
-        "desc": "La IA crea un nuevo interior a partir de tus instrucciones."
+        "title": "AI Design Agent",
+        "desc": "Edita interiores, fachadas, jardines e imágenes de satélite con tus instrucciones."
       },
       {
         "eyebrow": "Property Showcase",
-        "title": "Muestra el potencial",
-        "desc": "Presenta todo el potencial de la propiedad con visualizaciones profesionales."
+        "title": "Property Showcase",
+        "desc": "Combina las imágenes del inmueble en un vídeo de presentación profesional."
       }
     ]
   },
   "howItWorks": {
     "overline": "Cómo funciona",
-    "headline": "Tu imagen con IA en tres pasos — aprox. 15 segundos",
+    "headline": "Cualquier servicio en tres pasos sencillos",
     "subline": "Sin software, sin conocimientos técnicos — solo una foto y un clic.",
     "steps": [
       {
@@ -329,7 +329,7 @@
   },
   "footerCta": {
     "headline": "¿Listo para mostrar el potencial de la propiedad?",
-    "subline": "Crea una cuenta en menos de 1 minuto — sin tarjeta de crédito.",
+    "subline": "Crea una cuenta en menos de 1 minuto — sin compromiso.",
     "cta": "Crear cuenta gratis",
     "secondary": "Ver precios"
   },
@@ -560,7 +560,7 @@
     "noSubscription": "Pago único · sin suscripción",
     "checkoutFailed": "Error en el pago: {{error}}",
     "youSave": "Ahorras {{amount}} DKK ({{pct}}% descuento total)",
-    "addMoreDiscount": "Añade más para activar el descuento por volumen",
+    "addMoreDiscount": "Más servicios adicionales significan un precio unitario menor.",
     "dragSliders": "Usa los controles deslizantes para calcular tu precio",
     "totalDiscountLabel": "Descuento total",
     "unknownError": "Error desconocido",
@@ -1787,12 +1787,12 @@
     "dashQ2": "¿Qué es AI Design Agent?",
     "dashQ3": "¿Qué es Bolig Showcase?",
     "dashQ4": "¿Cuánto cuestan los créditos?",
-    "welcomeLanding": "¡Hola! Soy el asistente IA de Forma Estates — pregúntame sobre precios, estilos de diseño o cómo empezar.",
+    "welcomeLanding": "¡Hola! Soy Form-AI, el asistente virtual de IA de Forma Estates — pregúntame sobre precios, estilos de diseño o cómo empezar.",
     "welcomeDash": "¡Hola! Soy tu guía de Forma Estates — pregúntame sobre funciones, precios o cómo crear un nuevo caso.",
     "errorGeneral": "Lo sentimos, algo salió mal. Inténtalo de nuevo.",
     "errorNetwork": "No se pudo conectar. Comprueba tu conexión a internet e inténtalo de nuevo.",
     "placeholder": "Escribe tu pregunta...",
-    "title": "Asistente Forma",
+    "title": "Form-AI — asistente virtual de IA de Forma Estates",
     "online": "En línea ahora"
   }
 }

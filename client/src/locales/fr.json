@@ -68,40 +68,40 @@
   },
   "why": {
     "overline": "Pourquoi visualiser",
-    "headline": "Montrez le potentiel",
-    "headlineLine2": "Pas la pièce vide",
+    "headline": "Donnez une vision à l'acheteur",
+    "headlineLine2": "avec vos contenus existants",
     "seeMore": "Voir plus",
     "tiles": [
       {
         "eyebrow": "Avant / Après",
-        "title": "Staging par IA",
-        "desc": "Une pièce vide devient un foyer en quelques secondes."
+        "title": "Images IA et staging virtuel",
+        "desc": "Aménagez des espaces vides ou datés de façon réaliste en 15 secondes environ."
       },
       {
         "eyebrow": "Plan 3D",
-        "title": "Comprendre la disposition",
-        "desc": "Laissez l'acheteur parcourir les espaces avant la première visite."
+        "title": "Plans 3D",
+        "desc": "Transformez un plan 2D en une disposition 3D claire."
       },
       {
         "eyebrow": "Vidéo immobilière",
-        "title": "Narration cinématographique",
-        "desc": "Suscitez des émotions avec une visite vidéo immersive."
+        "title": "Vidéos immobilières et promotionnelles",
+        "desc": "Créez des vidéos prêtes pour les annonces et réseaux sociaux en 2–3 minutes."
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Créez un nouvel intérieur",
-        "desc": "L'IA crée un nouvel intérieur à partir de vos instructions."
+        "title": "AI Design Agent",
+        "desc": "Modifiez intérieurs, façades, jardins et images satellite selon vos instructions."
       },
       {
         "eyebrow": "Property Showcase",
-        "title": "Montrez le potentiel",
-        "desc": "Présentez tout le potentiel du bien avec des visualisations professionnelles."
+        "title": "Property Showcase",
+        "desc": "Réunissez les images du bien dans une vidéo de présentation professionnelle."
       }
     ]
   },
   "howItWorks": {
     "overline": "Comment ça marche",
-    "headline": "Votre image IA en trois étapes — env. 15 secondes",
+    "headline": "Chaque service en trois étapes simples",
     "subline": "Pas de logiciel, pas de compétences techniques — juste une photo et un clic.",
     "steps": [
       {
@@ -329,7 +329,7 @@
   },
   "footerCta": {
     "headline": "Prêt à montrer le potentiel du bien ?",
-    "subline": "Créez un compte en moins d'1 minute — sans carte de crédit.",
+    "subline": "Créez un compte en moins d'1 minute — sans engagement.",
     "cta": "Créer un compte gratuitement",
     "secondary": "Voir les tarifs"
   },
@@ -560,7 +560,7 @@
     "noSubscription": "Paiement unique · sans abonnement",
     "checkoutFailed": "Échec du paiement : {{error}}",
     "youSave": "Vous économisez {{amount}} DKK ({{pct}}% de remise totale)",
-    "addMoreDiscount": "Ajoutez-en plus pour activer la remise sur volume",
+    "addMoreDiscount": "Plus d'options donnent un prix unitaire plus bas.",
     "dragSliders": "Utilisez les curseurs ci-dessus pour calculer votre prix",
     "totalDiscountLabel": "Remise totale",
     "unknownError": "Erreur inconnue",
@@ -1787,12 +1787,12 @@
     "dashQ2": "Qu'est-ce que l'AI Design Agent ?",
     "dashQ3": "Qu'est-ce que Bolig Showcase ?",
     "dashQ4": "Combien coûtent les crédits ?",
-    "welcomeLanding": "Bonjour ! Je suis l'assistant IA de Forma Estates — posez-moi des questions sur les prix, styles ou comment commencer.",
+    "welcomeLanding": "Bonjour ! Je suis Form-AI, l'assistant IA virtuel de Forma Estates — posez-moi des questions sur les prix, styles ou comment commencer.",
     "welcomeDash": "Bonjour ! Je suis votre guide Forma Estates — posez-moi des questions sur les fonctionnalités, prix ou comment créer un dossier.",
     "errorGeneral": "Désolé, quelque chose s'est mal passé. Veuillez réessayer.",
     "errorNetwork": "Impossible de se connecter. Vérifiez votre connexion Internet et réessayez.",
     "placeholder": "Écrivez votre question...",
-    "title": "Assistant Forma",
+    "title": "Form-AI — l'assistant IA virtuel de Forma Estates",
     "online": "En ligne maintenant"
   }
 }

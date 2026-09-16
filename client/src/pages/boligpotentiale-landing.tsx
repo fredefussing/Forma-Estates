@@ -29,7 +29,6 @@ import {
   Linkedin,
   Upload,
   Globe,
-  Star,
 } from "lucide-react";
 import { setExplicitLang } from "@/i18n";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -1249,7 +1248,6 @@ export default function BoligpotentialeLanding() {
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("home");
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-  const [openFeature, setOpenFeature] = useState<number | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   // Build translated data arrays (re-computed on language change)
@@ -1862,6 +1860,7 @@ export default function BoligpotentialeLanding() {
             <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, lineHeight: 1.6 }}>
               {t("stats.subline")}
             </p>
+            <p className="mt-3 text-xs" style={{ color: "rgba(255,255,255,0.46)" }}>{t("stats.attribution")}</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {(t("stats.items", { returnObjects: true }) as Array<{ stat: string; label: string; desc: string }>).map((s, i) => (
@@ -1888,7 +1887,8 @@ export default function BoligpotentialeLanding() {
             ))}
           </div>
           <div className="text-center mt-12" style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, letterSpacing: "0.04em" }}>
-            {t("stats.sources")}
+            <span>{t("stats.sources")}</span>{" · "}
+            <a href="#sammenligning" className="underline underline-offset-4 hover:text-white">{t("stats.savingsLink")}</a>
           </div>
         </div>
       </section>
@@ -1903,7 +1903,6 @@ export default function BoligpotentialeLanding() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {FEATURES.map((f, i) => {
               const Icon = f.Icon;
-              const isOpen = openFeature === i;
               return (
                 <motion.div
                   key={i}
@@ -1931,44 +1930,6 @@ export default function BoligpotentialeLanding() {
                   <h3 style={{ color: C.navy, fontSize: 16, fontWeight: 600 }}>{f.title}</h3>
                   <p className="mt-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>{f.desc}</p>
 
-                  {f.more && (
-                    <button
-                      type="button"
-                      onClick={() => setOpenFeature(isOpen ? null : i)}
-                      aria-expanded={isOpen}
-                      className="flex items-center gap-1.5 mt-4 transition-colors"
-                      style={{ color: C.gold, fontSize: 13, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = C.goldHover)}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = C.gold)}
-                      data-testid={`bolig-feature-toggle-${i}`}
-                    >
-                      {isOpen ? t("features.readLess") : t("features.readMore")}
-                      <ChevronDown
-                        className="w-4 h-4 transition-transform duration-300"
-                        style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-                      />
-                    </button>
-                  )}
-
-                  <AnimatePresence initial={false}>
-                    {isOpen && f.more && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        style={{ overflow: "hidden" }}
-                      >
-                        <p
-                          className="mt-3 pt-3"
-                          style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6, borderTop: `1px solid ${C.goldBorder}` }}
-                          data-testid={`bolig-feature-more-${i}`}
-                        >
-                          {f.more}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </motion.div>
               );
             })}
@@ -2220,13 +2181,13 @@ export default function BoligpotentialeLanding() {
             <Overline>{t("faq.overline")}</Overline>
             <H2>{t("faq.headline")}</H2>
           </div>
-          <div className="grid lg:grid-cols-[3fr_2fr] gap-12">
+          <div className="grid lg:grid-cols-[3fr_2fr] gap-12 items-start">
             <div>
               {FAQS.map((faq, i) => (
                 <FaqItem key={i} q={faq.q} a={faq.a} />
               ))}
             </div>
-            <aside className="hidden lg:block" data-testid="bolig-faq-info">
+            <aside className="hidden lg:block lg:sticky lg:top-24 self-start" data-testid="bolig-faq-info">
               <div
                 style={{
                   background: C.white,
@@ -2260,56 +2221,6 @@ export default function BoligpotentialeLanding() {
                 </a>
               </div>
             </aside>
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRE-FOOTER CTA ── */}
-      <section className="px-6" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-footer-cta">
-        <div className="mx-auto max-w-3xl text-center">
-          <H2 light style={{ fontSize: "clamp(28px, 4vw, 42px)" }}>{t("footerCta.headline")}</H2>
-          <p className="mt-5 mb-10" style={{ color: "rgba(255,255,255,0.7)", fontSize: 18, lineHeight: 1.6 }}>
-            {t("footerCta.subline")}
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/opret">
-              <button
-                className="inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--gold-h)]"
-                style={{
-                  ['--gold-h' as any]: C.goldHover,
-                  background: C.gold,
-                  color: C.navy,
-                  padding: "16px 32px",
-                  borderRadius: 8,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  fontFamily: SANS,
-                }}
-                data-testid="bolig-footer-cta-button"
-              >
-                {t("footerCta.cta")}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </Link>
-            <a href="#pricing">
-              <button
-                className="transition-colors hover:bg-white hover:text-[color:var(--navy)]"
-                style={{
-                  ['--navy' as any]: C.navy,
-                  background: "transparent",
-                  color: C.white,
-                  border: "1px solid rgba(255,255,255,0.9)",
-                  padding: "16px 32px",
-                  borderRadius: 8,
-                  fontSize: 15,
-                  fontWeight: 500,
-                  fontFamily: SANS,
-                }}
-                data-testid="bolig-footer-cta-secondary"
-              >
-                {t("footerCta.secondary")}
-              </button>
-            </a>
           </div>
         </div>
       </section>
@@ -2354,47 +2265,7 @@ export default function BoligpotentialeLanding() {
       {/* ── FOOTER ── */}
       <footer className="px-6" style={{ background: C.navyDeep, paddingTop: 64, paddingBottom: 32 }} data-testid="bolig-footer">
         <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr_1fr_1fr] gap-10 md:gap-12 mb-12">
-            <div className="text-center md:text-left">
-              <img
-                src={formaEstatesLogo}
-                alt="Forma Estates"
-                className="w-auto mx-auto md:mx-0"
-                style={{ height: 56, marginBottom: 16, filter: "brightness(0) invert(1)" }}
-              />
-              <div
-                className="uppercase"
-                style={{
-                  fontFamily: SERIF,
-                  color: C.white,
-                  fontSize: 22,
-                  fontWeight: 600,
-                  letterSpacing: "0.3em",
-                  marginBottom: 18,
-                  lineHeight: 1,
-                }}
-              >
-                FORMA ESTATES
-              </div>
-              <p className="mx-auto md:mx-0 mb-5" style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, lineHeight: 1.6, maxWidth: 280 }}>
-                {t("footer.tagline")}
-              </p>
-              <div
-                className="flex items-center justify-center md:justify-start"
-                style={{ gap: 20 }}
-                data-testid="bolig-footer-social"
-              >
-                <a href="https://www.linkedin.com/in/frederik-fussing-nielsen-443790264/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
-                  <Linkedin size={22} strokeWidth={1.5} />
-                </a>
-                <a href="https://www.facebook.com/profile.php?id=61592681127258" target="_blank" rel="noopener noreferrer" aria-label="Facebook" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
-                  <Facebook size={22} strokeWidth={1.5} />
-                </a>
-                <a href="https://instagram.com/formaestates" target="_blank" rel="noopener noreferrer" aria-label="Instagram" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
-                  <Instagram size={22} strokeWidth={1.5} />
-                </a>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-12">
             <div>
               <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{t("footer.product")}</div>
               <ul className="space-y-3">
@@ -2445,29 +2316,21 @@ export default function BoligpotentialeLanding() {
               </Link>
             </div>
           </div>
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }} className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }} className="flex flex-col sm:flex-row items-center justify-between gap-5">
             <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
               {t("footer.copyright")}
             </span>
-            <a
-              href="https://www.trustpilot.com/evaluate/formaestates.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 shrink-0 transition-opacity hover:opacity-90"
-              style={{
-                background: "#00B67A",
-                color: "#fff",
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "7px 14px",
-                borderRadius: 6,
-                letterSpacing: "0.02em",
-                textDecoration: "none",
-              }}
-            >
-              <Star size={13} fill="currentColor" strokeWidth={0} />
-              {t("footer.trustpilot")}
-            </a>
+            <div className="flex items-center" style={{ gap: 20 }} data-testid="bolig-footer-social">
+              <a href="https://www.linkedin.com/in/frederik-fussing-nielsen-443790264/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
+                <Linkedin size={20} strokeWidth={1.5} />
+              </a>
+              <a href="https://www.facebook.com/profile.php?id=61592681127258" target="_blank" rel="noopener noreferrer" aria-label="Facebook" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
+                <Facebook size={20} strokeWidth={1.5} />
+              </a>
+              <a href="https://instagram.com/formaestates" target="_blank" rel="noopener noreferrer" aria-label="Instagram" style={{ color: "rgba(255,255,255,0.45)", transition: "color 0.15s" }} onMouseEnter={e => (e.currentTarget.style.color = "#fff")} onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}>
+                <Instagram size={20} strokeWidth={1.5} />
+              </a>
+            </div>
           </div>
         </div>
       </footer>

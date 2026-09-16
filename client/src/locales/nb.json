@@ -68,40 +68,40 @@
   },
   "why": {
     "overline": "Hvorfor visualisering",
-    "headline": "Vis potensialet",
-    "headlineLine2": "Ikke det tomme rommet",
+    "headline": "Gi kjøperen en visjon",
+    "headlineLine2": "med materialet du allerede har",
     "seeMore": "Se mer",
     "tiles": [
       {
         "eyebrow": "Før / Etter",
-        "title": "AI-iscenesettelse",
-        "desc": "Et tomt rom blir til et hjem på sekunder."
+        "title": "AI-bilder og virtuell innredning",
+        "desc": "Innred tomme eller utdaterte rom realistisk på ca. 15 sekunder."
       },
       {
         "eyebrow": "3D Plantegning",
-        "title": "Forstå flyten",
-        "desc": "La kjøper gå gjennom rommet før første visning."
+        "title": "3D-plantegninger",
+        "desc": "Gjør en 2D-plantegning om til et oversiktlig 3D-oppsett."
       },
       {
         "eyebrow": "Eiendomsvideo",
-        "title": "Cinematisk fortelling",
-        "desc": "Vekk følelser med en levende videgjennomgang."
+        "title": "Bolig- og promovideoer",
+        "desc": "Lag ferdige videoer for annonser og sosiale medier på 2–3 minutter."
       },
       {
         "eyebrow": "AI Design Agent",
-        "title": "Skap et nytt interiør",
-        "desc": "AI skaper et nytt interiør ut fra instruksjonene dine."
+        "title": "AI Design Agent",
+        "desc": "Rediger interiør, fasade, hage og satellittbilder med egne instruksjoner."
       },
       {
         "eyebrow": "Bolig Showcase",
-        "title": "Vis potensialet",
-        "desc": "Presentér boligens fulle potensial med profesjonelle visualiseringer."
+        "title": "Bolig Showcase",
+        "desc": "Samle eiendomsbildene i en profesjonell presentasjonsvideo."
       }
     ]
   },
   "howItWorks": {
     "overline": "Slik fungerer det",
-    "headline": "AI-bildet ditt i tre steg — ca. 15 sekunder",
+    "headline": "Alle tjenester i tre enkle steg",
     "subline": "Ingen programvare, ingen teknisk kunnskap — bare et foto og et klikk.",
     "steps": [
       {
@@ -329,7 +329,7 @@
   },
   "footerCta": {
     "headline": "Klar til å vise boligens potensial?",
-    "subline": "Opprett en konto på under 1 minutt — intet kredittkort nødvendig.",
+    "subline": "Opprett en konto på under 1 minutt — uten binding.",
     "cta": "Opprett konto gratis",
     "secondary": "Se priser"
   },
@@ -573,7 +573,7 @@
     "noSubscription": "Engangsbetaling · intet abonnement",
     "checkoutFailed": "Checkout mislyktes: {{error}}",
     "youSave": "Du sparer {{amount}} kr. ({{pct}}% total rabatt)",
-    "addMoreDiscount": "Legg til flere for å aktivere mengderabatt",
+    "addMoreDiscount": "Flere tilvalg gir en lavere stykkpris.",
     "dragSliders": "Bruk glidebryterne ovenfor for å beregne prisen din",
     "totalDiscountLabel": "Total rabatt",
     "unknownError": "Ukjent feil",
@@ -1800,12 +1800,12 @@
     "dashQ2": "Hva er AI Design Agent?",
     "dashQ3": "Hva er Bolig Showcase?",
     "dashQ4": "Hva koster kreditter?",
-    "welcomeLanding": "Hei! Jeg er Forma Estates' AI-assistent — spør meg om priser, designstiler eller hvordan du kommer i gang.",
+    "welcomeLanding": "Hei! Jeg er Form-AI, Forma Estates' virtuelle AI-assistent — spør meg om priser, designstiler eller hvordan du kommer i gang.",
     "welcomeDash": "Hei! Jeg er din guide til Forma Estates — spør meg om funksjoner, priser eller hvordan du oppretter en ny sak.",
     "errorGeneral": "Beklager, noe gikk galt. Prøv igjen.",
     "errorNetwork": "Kunne ikke opprette forbindelse. Sjekk internettforbindelsen din og prøv igjen.",
     "placeholder": "Skriv spørsmålet ditt...",
-    "title": "Forma Assistent",
+    "title": "Form-AI — Forma Estates' virtuelle AI-assistent",
     "online": "Online nå"
   }
 }
