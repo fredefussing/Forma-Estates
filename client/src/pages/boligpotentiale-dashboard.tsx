@@ -43,7 +43,7 @@ import {
   User as UserIcon, Palette, SlidersHorizontal, Bell, KeyRound, Activity,
   FileText, FileImage, Box, Boxes, Video, ArrowLeft, Film, GripVertical, MapPin, Music, Play,
   Share2, Sun, Leaf, Snowflake, Flower2, CalendarDays, ExternalLink, MessageSquare,
-  Globe,
+  Globe, Pencil, FolderInput,
   Target,
   Phone,
 } from "lucide-react";
@@ -659,7 +659,7 @@ function ShareButton(props: {
   );
 }
 
-// ── Sælgerrapport-PDF: hele sagen som præsentation til sælgermødet ───────────
+// ── Boligpotentiale-PDF: kompakt, billeddrevet præsentation ──────────────────
 async function downloadSellerReportPdf(opts: {
   address: string;
   caseNo?: string | null;
@@ -826,39 +826,29 @@ async function downloadSellerReportPdf(opts: {
     if (!skipWm) drawWatermark(heroX, heroY, heroW, heroH);
     drawFooter();
 
-    // ── ÉN SIDE PR. VISUALISERING ────────────────────────────────────────────
-    for (const { img, after, before } of fetched) {
+    // ── TO VISUALISERINGER PR. SIDE ──────────────────────────────────────────
+    for (let index = 0; index < fetched.length; index += 2) {
       pdf.addPage();
       drawPageHeader();
+      const pageItems = fetched.slice(index, index + 2);
 
+      pageItems.forEach(({ img, after, before }, rowIndex) => {
       const roomLabel = roomLabelLocalized(img.room);
       const styleLabel = styleLabelLocalized(img.style);
+      const sectionTop = 16 + rowIndex * 128;
 
-      // Room name in navy bold
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(16);
+      pdf.setFontSize(12);
       pdf.setTextColor(navy[0], navy[1], navy[2]);
-      pdf.text(roomLabel, margin, 22, { maxWidth: pageW - margin * 2 });
+      pdf.text(roomLabel, margin, sectionTop + 5, { maxWidth: pageW - margin * 2 });
 
-      // Style in accent below
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
-      pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(styleLabel, margin, 30, { maxWidth: pageW - margin * 2 });
-
-      // Accent divider
-      pdf.setDrawColor(accent[0], accent[1], accent[2]);
-      pdf.setLineWidth(0.45);
-      pdf.line(margin, 34, margin + 22, 34);
-
-      // Subtitle
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
-      pdf.setTextColor(muted[0], muted[1], muted[2]);
-      pdf.text(i18n.t("dashboard.report.generatedDayOnMarket", { day: img.daysAfterMarket }), margin, 40);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(styleLabel, margin, sectionTop + 11, { maxWidth: pageW - margin * 2 });
 
-      const imgTop = 45;
-      const imgBottom = pageH - 20;
+      const imgTop = sectionTop + 16;
+      const imgBottom = sectionTop + 119;
 
       if (before) {
         const gap = 5;
@@ -875,12 +865,6 @@ async function downloadSellerReportPdf(opts: {
           drawImageLabel(label, ox, imgTop, h);
         };
 
-        // Subtle vertical divider between before/after
-        const divX = margin + half + gap / 2;
-        pdf.setDrawColor(210, 207, 203);
-        pdf.setLineWidth(0.25);
-        pdf.line(divX, imgTop, divX, imgBottom - 2);
-
         drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
         drawHalf(after, margin + half + gap, i18n.t("dashboard.pdf.efter"), true);
       } else {
@@ -893,62 +877,11 @@ async function downloadSellerReportPdf(opts: {
         pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
         if (!skipWm) drawWatermark(singleX, imgTop, w, h);
       }
+      });
       drawFooter();
     }
 
-    // ── AFSLUTNINGSSIDE ───────────────────────────────────────────────────────
-    pdf.addPage();
-
-    // Large navy section fills top half
-    const closingHdrH = 80;
-    pdf.setFillColor(navy[0], navy[1], navy[2]);
-    pdf.rect(0, 0, pageW, closingHdrH, "F");
-
-    // Eyebrow
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(8);
-    pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text(i18n.t("dashboard.report.naesteSkridt").toUpperCase(), margin, 18);
-
-    // Accent rule
-    pdf.setDrawColor(accent[0], accent[1], accent[2]);
-    pdf.setLineWidth(0.4);
-    pdf.line(margin, 22, margin + 18, 22);
-
-    // White headline
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(21);
-    pdf.setTextColor(255, 255, 255);
-    const closingLines = pdf.splitTextToSize(i18n.t("dashboard.report.klarTilAtVisePotentialet"), pageW - margin * 2);
-    pdf.text(closingLines, margin, 35);
-
-    // Address in accent at bottom of navy band
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8.5);
-    pdf.setTextColor(accent[0], accent[1], accent[2]);
-    pdf.text(opts.address, margin, closingHdrH - 10);
-
-    // Bullet points in white area below
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10.5);
-    pdf.setTextColor(muted[0], muted[1], muted[2]);
-    const bullets = [
-      i18n.t("dashboard.report.brugVisualiseringerneIBoligannoncenOg"),
-      i18n.t("dashboard.report.visFoerEfterBillederneTil"),
-      i18n.t("dashboard.report.opdaterBillederneLoebendeFxMed"),
-    ];
-    let bulletY = closingHdrH + 22;
-    for (const b of bullets) {
-      pdf.setFillColor(accent[0], accent[1], accent[2]);
-      pdf.circle(margin + 1.5, bulletY - 1.5, 1.5, "F");
-      const bLines = pdf.splitTextToSize(b, pageW - margin * 2 - 10);
-      pdf.setTextColor(muted[0], muted[1], muted[2]);
-      pdf.text(bLines, margin + 7, bulletY);
-      bulletY += bLines.length * 6 + 7;
-    }
-    drawFooter();
-
-    const filename = buildImageFilename({ address: opts.address, room: "saelgerrapport", ext: "pdf" });
+    const filename = buildImageFilename({ address: opts.address, room: "boligpotentiale-rapport", ext: "pdf" });
     pdf.save(filename);
     return { ok: true };
   } catch (e: any) {
@@ -1029,11 +962,13 @@ function liveDaysFromISO(iso: string, now: number): number {
 // ── Case Detail Panel ─────────────────────────────────────────────────────────
 function CaseDetailPanel({
   caseData,
+  allCases,
   onBack,
   onDeleted,
   onStatusChanged,
 }: {
   caseData: ApiCase;
+  allCases: ApiCase[];
   onBack: () => void;
   onDeleted: () => void;
   onStatusChanged: (newStatus: string) => void;
@@ -1062,6 +997,11 @@ function CaseDetailPanel({
   const [editingMarketDate, setEditingMarketDate] = useState(false);
   const [marketDateDraft, setMarketDateDraft] = useState("");
   const [sellerPdfBusy, setSellerPdfBusy] = useState(false);
+  const [editingCase, setEditingCase] = useState(false);
+  const [editAddress, setEditAddress] = useState(caseData.address);
+  const [editCaseNo, setEditCaseNo] = useState(caseData.caseNo ?? "");
+  const [editNotes, setEditNotes] = useState(caseData.notes ?? "");
+  const [movingImageId, setMovingImageId] = useState<number | null>(null);
   const [seasonBusy, setSeasonBusy] = useState<string | null>(null);
   const [seasonSourceId, setSeasonSourceId] = useState<number | null>(null);
   const [seasonError, setSeasonError] = useState<string | null>(null);
@@ -1165,6 +1105,48 @@ function CaseDetailPanel({
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       setEditingMarketDate(false);
+    },
+  });
+
+  const editCaseMutation = useMutation({
+    mutationFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/cases/${caseData.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address: editAddress, caseNo: editCaseNo, notes: editNotes }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || i18n.t("dashboard.caseView.kunneIkkeOpdatereSagen"));
+      return json as ApiCase;
+    },
+    onSuccess: (updatedCase) => {
+      queryClient.setQueryData(["/api/bolig/cases"], (old: ApiCase[] | undefined) =>
+        old ? old.map((c) => (c.id === updatedCase.id ? updatedCase : c)) : old
+      );
+      setEditingCase(false);
+    },
+  });
+
+  const moveImageMutation = useMutation({
+    mutationFn: async ({ imageId, caseId }: { imageId: number; caseId: number }) => {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/bolig/generated-images/${imageId}/case`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ caseId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || i18n.t("dashboard.caseView.kunneIkkeFlytteBilledet"));
+      return json;
+    },
+    onSuccess: async () => {
+      setMovingImageId(null);
+      await refetchImages();
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
     },
   });
 
@@ -1380,6 +1362,20 @@ function CaseDetailPanel({
           </div>
           {/* Action buttons — wrap below title on mobile */}
           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+          <button
+            onClick={() => {
+              setEditAddress(caseData.address);
+              setEditCaseNo(caseData.caseNo ?? "");
+              setEditNotes(caseData.notes ?? "");
+              setEditingCase((open) => !open);
+            }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full text-xs sm:text-sm font-medium border transition-colors"
+            style={{ borderColor: "#D9D5CF", color: "#0F1D2F", background: "#fff" }}
+            data-testid="bolig-case-edit-btn"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            <span>{i18n.t("dashboard.caseView.redigerSag")}</span>
+          </button>
           {seasonSources.length > 0 && (
             <button
               onClick={async () => {
@@ -1455,6 +1451,29 @@ function CaseDetailPanel({
           </button>
           </div>
         </div>
+        {editingCase && (
+          <div className="mt-4 rounded-xl border border-[#E8E4DE] bg-white p-4" data-testid="bolig-case-edit-form">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="text-xs font-medium" style={{ color: "#6B6B6B" }}>
+                {i18n.t("dashboard.caseView.sagensNavn")}
+                <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} maxLength={300} className="mt-1 w-full h-10 rounded-lg border border-[#D9D5CF] px-3 text-sm outline-none focus:border-[#C8956C]" />
+              </label>
+              <label className="text-xs font-medium" style={{ color: "#6B6B6B" }}>
+                {t("dashboard.case.caseNumber")}
+                <input value={editCaseNo} onChange={(e) => setEditCaseNo(e.target.value)} maxLength={100} className="mt-1 w-full h-10 rounded-lg border border-[#D9D5CF] px-3 text-sm outline-none focus:border-[#C8956C]" />
+              </label>
+            </div>
+            <label className="block text-xs font-medium mt-3" style={{ color: "#6B6B6B" }}>
+              {i18n.t("dashboard.caseView.noter")}
+              <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} maxLength={2000} rows={2} className="mt-1 w-full rounded-lg border border-[#D9D5CF] px-3 py-2 text-sm outline-none focus:border-[#C8956C] resize-y" />
+            </label>
+            {editCaseMutation.isError && <p className="text-xs mt-2 text-red-600">{(editCaseMutation.error as Error).message}</p>}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => editCaseMutation.mutate()} disabled={!editAddress.trim() || editCaseMutation.isPending} className="h-9 px-4 rounded-full text-xs font-semibold text-white disabled:opacity-50" style={{ background: "#0F1D2F" }}>{editCaseMutation.isPending ? "..." : i18n.t("dashboard.common.gem")}</button>
+              <button onClick={() => setEditingCase(false)} className="h-9 px-4 rounded-full text-xs border border-[#D9D5CF]">{i18n.t("dashboard.common.annuller")}</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════ */}
@@ -1589,8 +1608,32 @@ function CaseDetailPanel({
                         <div className="flex gap-1.5 flex-wrap">
                           <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{img.style}</span>
                           {img.tier && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(img.tier)}</span>}
-                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>{i18n.t("dashboard.caseView.dag", { day: img.daysAfterMarket })}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>{i18n.t("dashboard.caseView.dagEfterSalgsstart", { day: img.daysAfterMarket })}</span>
                         </div>
+                        {allCases.some((c) => c.id !== caseData.id) && (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            {movingImageId === img.id ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  defaultValue=""
+                                  onChange={(e) => e.target.value && moveImageMutation.mutate({ imageId: img.id, caseId: Number(e.target.value) })}
+                                  disabled={moveImageMutation.isPending}
+                                  className="h-8 min-w-0 flex-1 rounded-lg border border-[#D9D5CF] bg-white px-2 text-[11px]"
+                                  data-testid={`bolig-move-image-select-${img.id}`}
+                                >
+                                  <option value="" disabled>{i18n.t("dashboard.caseView.vaelgSag")}</option>
+                                  {allCases.filter((c) => c.id !== caseData.id).map((c) => <option key={c.id} value={c.id}>{c.address}</option>)}
+                                </select>
+                                <button onClick={() => setMovingImageId(null)} className="text-[11px] text-[#6B6B6B]">{i18n.t("dashboard.common.annuller")}</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setMovingImageId(img.id)} className="inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "#6B6B6B" }} data-testid={`bolig-move-image-btn-${img.id}`}>
+                                <FolderInput className="w-3 h-3" /> {i18n.t("dashboard.caseView.flytTilSag")}
+                              </button>
+                            )}
+                            {moveImageMutation.isError && movingImageId === img.id && <p className="text-[11px] mt-1 text-red-600">{(moveImageMutation.error as Error).message}</p>}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -10874,6 +10917,7 @@ export default function BoligpotentialeDashboard() {
             return c ? (
               <CaseDetailPanel
                 caseData={c}
+                allCases={cases}
                 onBack={closeCase}
                 onDeleted={() => {
                   showToast(i18n.t("dashboard.homeX.sagSlettet"));

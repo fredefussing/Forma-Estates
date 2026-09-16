@@ -117,6 +117,7 @@ export interface IStorage {
   createBoligCase(data: InsertBoligCase): Promise<BoligCase>;
   getBoligCasesByUser(userId: number): Promise<BoligCase[]>;
   getBoligCase(id: number): Promise<BoligCase | undefined>;
+  updateBoligCase(id: number, updates: { address?: string; caseNo?: string | null; notes?: string | null }): Promise<BoligCase>;
   deleteBoligCase(id: number): Promise<void>;
   updateBoligCaseStatus(id: number, status: string, soldDateISO?: string | null): Promise<BoligCase>;
   addBoligCaseImage(data: InsertBoligCaseImage): Promise<BoligCaseImage>;
@@ -131,6 +132,7 @@ export interface IStorage {
   setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date; resetUsage?: boolean }): Promise<void>;
   resetMonthlyUsage(userId: number): Promise<void>;
   createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage>;
+  moveGeneratedImageToCase(id: number, userId: number, caseId: number): Promise<GeneratedImage | undefined>;
   getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]>;
   getAllGeneratedImages(userId: number, limit?: number): Promise<GeneratedImage[]>;
   deleteGeneratedImage(id: number, userId: number): Promise<void>;
@@ -462,6 +464,14 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async updateBoligCase(id: number, updates: { address?: string; caseNo?: string | null; notes?: string | null }): Promise<BoligCase> {
+    const [result] = await db.update(boligCases)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(boligCases.id, id))
+      .returning();
+    return result;
+  }
+
   async deleteBoligCase(id: number): Promise<void> {
     await db.delete(boligCaseImages).where(eq(boligCaseImages.caseId, id));
     await db.delete(boligCases).where(eq(boligCases.id, id));
@@ -492,6 +502,14 @@ export class DatabaseStorage implements IStorage {
 
   async createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage> {
     const [result] = await db.insert(generatedImages).values(data).returning();
+    return result;
+  }
+
+  async moveGeneratedImageToCase(id: number, userId: number, caseId: number): Promise<GeneratedImage | undefined> {
+    const [result] = await db.update(generatedImages)
+      .set({ caseId })
+      .where(and(eq(generatedImages.id, id), eq(generatedImages.userId, userId)))
+      .returning();
     return result;
   }
 

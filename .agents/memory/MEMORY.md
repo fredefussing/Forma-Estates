@@ -57,3 +57,4 @@
 - [Contact-page hierarchy](contact-page-hierarchy.md) — contact form is primary, direct contact is one compact card, response time replaces CVR there; use the normal public header/footer and restrained palette.
 - [Auth-card branding](auth-card-branding.md) — signup, login and reset cards use the gold Forma wordmark and darker accessible gold links; name placeholders use plain “John Doe” without example prefixes.
 - [Dashboard E2E authentication](dashboard-e2e-auth.md) — ADMIN_PASSWORD is not the dev Firebase admin login; use a temporary verified test account and delete it after read-only UI checks.
+- [Boligpotentiale report purpose](boligpotentiale-report.md) — call it a property-potential report, not a seller report; keep the PDF compact, visual and free of generic advice pages.

@@ -3306,6 +3306,34 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/bolig/cases/:id", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getBoligCase(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+
+      const address = typeof req.body?.address === "string" ? req.body.address.trim() : undefined;
+      if (address !== undefined && !address) return res.status(400).json({ message: "address er påkrævet" });
+      const updates = {
+        ...(address !== undefined ? { address: address.slice(0, 300) } : {}),
+        ...(typeof req.body?.caseNo === "string" ? { caseNo: req.body.caseNo.trim().slice(0, 100) || null } : {}),
+        ...(typeof req.body?.notes === "string" ? { notes: req.body.notes.trim().slice(0, 2000) || null } : {}),
+      };
+      if (Object.keys(updates).length === 0) return res.status(400).json({ message: "Ingen ændringer modtaget" });
+      const updated = await storage.updateBoligCase(id, updates);
+      const imgs = await storage.getGeneratedImagesByCaseId(id, user.id);
+      const thumbs = imgs.filter((i) => i.style !== "transform-video" && i.style !== "3d-interactive");
+      return res.json({ ...updated, imageCount: imgs.length, latestImageUrl: thumbs[0]?.imageUrl ?? null });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.patch("/api/bolig/cases/:id/status", async (req, res) => {
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
@@ -3601,6 +3629,27 @@ export async function registerRoutes(
         daysAfterMarket: Math.max(0, Math.floor((new Date(img.createdAt).getTime() - marketMs) / 86_400_000)),
         createdAt: img.createdAt,
       })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/bolig/generated-images/:id/case", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const imageId = parseInt(req.params.id);
+      const targetCaseId = parseInt(req.body?.caseId);
+      if (isNaN(imageId) || isNaN(targetCaseId)) return res.status(400).json({ message: "Invalid id" });
+      const image = await storage.getGeneratedImage(imageId);
+      if (!image) return res.status(404).json({ message: "Not found" });
+      if (image.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const targetCase = await storage.getBoligCase(targetCaseId);
+      if (!targetCase) return res.status(404).json({ message: "Target case not found" });
+      if (targetCase.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const moved = await storage.moveGeneratedImageToCase(imageId, user.id, targetCaseId);
+      return res.json(moved);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
