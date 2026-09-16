@@ -69,7 +69,7 @@ const NAV_LINKS_BASE = [
   { navKey: "home",     href: "#top" },
   { navKey: "prices",   href: "#pricing" },
   { navKey: "examples", href: "/boligpotentiale/eksempler" },
-  { navKey: "about",    href: "/boligpotentiale/om-os" },
+  { navKey: "about",    href: "/om-os" },
   { navKey: "faq",      href: "#faq" },
 ];
 

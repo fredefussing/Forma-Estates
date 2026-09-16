@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Link } from "wouter";
-import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight, Volume2, VolumeX, MessageSquare } from "lucide-react";
+import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight, Volume2, VolumeX, MessageSquare, Facebook, Instagram, Linkedin } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
@@ -43,7 +43,7 @@ function SubpageLayout({
             <Link href="/boligpotentiale" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Forside</Link>
             <Link href="/boligpotentiale#pricing" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Priser</Link>
             <Link href="/boligpotentiale/eksempler" style={{ color: C.gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Eksempler</Link>
-            <Link href="/boligpotentiale/om-os" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Om os</Link>
+            <Link href="/om-os" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Om os</Link>
             <Link href="/boligpotentiale#faq" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>FAQ</Link>
           </nav>
           <div className="flex items-center gap-4">
@@ -88,12 +88,38 @@ function SubpageLayout({
         <div className="mx-auto" style={{ maxWidth: 1184 }}>{children}</div>
       </main>
 
-      {/* Footer */}
-      <footer style={{ background: C.navy, color: C.white, padding: "48px 24px" }}>
-        <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div style={{ fontFamily: SERIF, fontSize: 14, letterSpacing: "0.32em" }}>FORMA ESTATES</div>
-          <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
-            © {new Date().getFullYear()} Forma Estates · CVR: 46551796 · AI-visualisering for ejendomsbranchen.
+      {/* Footer — useful navigation, kept intentionally free of extra brand lockups */}
+      <footer className="px-6" style={{ background: C.navy, color: C.white, paddingTop: 64, paddingBottom: 32 }} data-testid="subpage-footer">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-12">
+            <div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Produkt</div>
+              <ul className="space-y-3">
+                {[["Sådan virker det", "/boligpotentiale#how-it-works"], ["Eksempler", "/boligpotentiale/eksempler"], ["Priser", "/boligpotentiale#pricing"]].map(([label, href]) => (
+                  <li key={href}><a href={href} style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, textDecoration: "none" }}>{label}</a></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Hjælp</div>
+              <ul className="space-y-3">
+                {[["FAQ", "/boligpotentiale#faq"], ["Kontakt", "mailto:kontakt@formaestates.com"], ["Privatlivspolitik", "/privatlivspolitik"], ["Handelsbetingelser", "/handelsbetingelser"]].map(([label, href]) => (
+                  <li key={href}><a href={href} style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, textDecoration: "none" }}>{label}</a></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Kom i gang</div>
+              <Link href="/opret" style={{ display: "block", width: "100%", background: C.gold, color: C.navy, padding: "12px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: "center", textDecoration: "none" }} data-testid="subpage-footer-cta">Opret konto</Link>
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }} className="flex flex-col sm:flex-row items-center justify-between gap-5">
+            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>© {new Date().getFullYear()} Forma Estates · CVR: 46551796</span>
+            <div className="flex items-center" style={{ gap: 20 }} data-testid="subpage-footer-social">
+              <a href="https://www.linkedin.com/in/frederik-fussing-nielsen-443790264/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style={{ color: "rgba(255,255,255,0.45)" }}><Linkedin size={20} strokeWidth={1.5} /></a>
+              <a href="https://www.facebook.com/profile.php?id=61592681127258" target="_blank" rel="noopener noreferrer" aria-label="Facebook" style={{ color: "rgba(255,255,255,0.45)" }}><Facebook size={20} strokeWidth={1.5} /></a>
+              <a href="https://instagram.com/formaestates" target="_blank" rel="noopener noreferrer" aria-label="Instagram" style={{ color: "rgba(255,255,255,0.45)" }}><Instagram size={20} strokeWidth={1.5} /></a>
+            </div>
           </div>
         </div>
       </footer>
@@ -939,82 +965,64 @@ export function BranchevideoPage() {
 }
 
 export function OmOsPage() {
-  usePageTitle("Om os", "Mød Forma Estates — vi hjælper ejendomsmæglere med AI-boligvisualisering, 3D plantegninger og salgsvideoer.");
+  usePageTitle("Om os", "Forma Estates bygger praktiske visualiseringsværktøjer til ejendomsbranchen.");
   const values = [
     {
-      title: "Lokal forandring",
-      desc: "Vi er danske, vi kender det danske marked, og vi udvikler specifikt til den danske ejendomsbranche — fra Københavns ejerlejligheder og ejendomsudviklere til boligforeninger og udlejere på landet.",
+      title: "Praktisk først",
+      desc: "Vi bygger værktøjer, der skal kunne bruges i en almindelig arbejdsdag — ikke bare se imponerende ud i en præsentation.",
     },
     {
-      title: "Innovation med mening",
-      desc: "Vi tager den nyeste teknologi til os — men kun hvor den skaber reel værdi. Hvert produkt skal løse et konkret problem. Teknologi for teknologiens skyld er ikke vores vej.",
+      title: "Tæt på arbejdet",
+      desc: "Vi udvikler til ejendomsmæglere, udviklere, boligforeninger og professionelle udlejere. Deres arbejdsgange er udgangspunktet.",
     },
     {
-      title: "Tilgængelighed",
-      desc: "Avanceret teknologi skal ikke være forbeholdt store aktører med dyre budgetter. Vores priser er designet til alle — fra den selvstændige mægler til det store ejendomsudviklingsselskab.",
+      title: "Let at forstå",
+      desc: "Et godt resultat er ikke nok. Det skal også være tydeligt, hvad man kan gøre, og hvad man får ud af det.",
     },
     {
-      title: "Kvalitet først",
-      desc: "Hvert billede, hver video og hver 3D-model skal leve op til professionelle standarder. Vi går aldrig på kompromis med kvaliteten — for jeres omdømme er også vores.",
-    },
-    {
-      title: "Mennesket i centrum",
-      desc: "Vores teknologi forstærker den professionelles rolle — den erstatter den aldrig. Din ekspertise og dine kunderelationer er uundværlige. Teknologien er værktøjet, du er håndværkeren.",
+      title: "Mennesket beholder overblikket",
+      desc: "Teknologien skal hjælpe den professionelle med at vise, forklare og beslutte. Den skal ikke stå i vejen for fagligheden.",
     },
   ];
 
   return (
     <SubpageLayout
       eyebrow="Om os"
-      title="Hvem er vi?"
-      intro="Forma Estates er et dansk teknologiselskab grundlagt i København med ét klart mål: at hjælpe ejendomsbranchen med at præsentere ejendomme professionelt og effektivt — uden at gå på kompromis med kvaliteten."
+      title="Vi bygger værktøjer til virkelige ejendomsopgaver"
+      intro="Forma Estates blev grundlagt i København i 2025 af Frederik Fussing Nielsen. Vi laver praktiske værktøjer til visualisering, 3D og video for mennesker, der arbejder professionelt med boliger."
     >
-      {/* Intro story */}
-      <div className="mx-auto" style={{ maxWidth: 760 }}>
-        <div className="space-y-5" data-testid="omos-intro">
+      <div className="mx-auto" style={{ maxWidth: 760 }} data-testid="omos-intro">
+        <div style={{ borderLeft: `3px solid ${C.gold}`, paddingLeft: 24 }}>
+          <p style={{ color: C.navy, fontFamily: SERIF, fontSize: "clamp(24px, 3vw, 34px)", lineHeight: 1.25, margin: 0 }}>
+            Teknologi, der gør boliger lettere at forstå.
+          </p>
+        </div>
+        <div className="space-y-5 mt-8">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi revolutionerer den danske ejendomsbranche gennem kunstig intelligens. Vi udvikler
-            skræddersyede værktøjer, der hjælper mæglere, udviklere, boligforeninger og udlejere med
-            at spare tid, reducere omkostninger og præsentere ejendomme hurtigere og mere professionelt
-            — uden at gå på kompromis med kvaliteten.
+            Vi kombinerer ny teknologi med de workflows, der allerede findes i ejendomsmarkedet. Det betyder, at vores værktøjer er lavet til den måde, boliger faktisk bliver præsenteret, vurderet og arbejdet med.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi tror på, at teknologi skal tjene mennesker — ikke erstatte dem. Vores produkter er
-            designet til at forstærke den professionelles ekspertise og frigøre tid til det, der
-            virkelig betyder noget: rådgivning, relationer og de beslutninger, der kræver et
-            menneskeligt øje.
-          </p>
-          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Forma Estates er jeres teknologipartner — uanset om du er selvstændig mægler, del af et
-            stort ejendomsudviklingsselskab, boligforening eller B2B-udlejer. Vi arbejder tæt sammen
-            med aktører på tværs af branchen for at forstå deres udfordringer og udvikle løsninger,
-            der virker i praksis, ikke kun på papiret.
+            I dag bygger vi løsninger til ejendomsmæglere, ejendomsudviklere, boligforeninger og professionelle udlejere — og vi udvikler med aktive brugere tæt på produktet.
           </p>
         </div>
       </div>
 
-      {/* Vision & Mission */}
+      {/* Vision & mission: intentionally equal in shape and weight. */}
       <div className="grid md:grid-cols-2 gap-6 mt-16" data-testid="omos-vision-mission">
-        <div style={{ background: C.navy, borderRadius: 16, padding: "34px 32px", color: C.white }}>
+        <div style={{ background: C.navy, borderRadius: 16, padding: "34px 32px", color: C.white, minHeight: 230, display: "flex", flexDirection: "column" }}>
           <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
             Vision
           </div>
-          <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 15.5, lineHeight: 1.7 }}>
-            At blive Danmarks største og mest betroede AI-platform for ejendomsbranchen — lokalt
-            udviklet, globalt inspireret. Vi vil sætte standarden for, hvordan teknologi transformerer
-            ejendomspræsentation i Norden, og gøre avanceret visualisering tilgængelig for alle
-            professionelle aktører, uanset størrelse eller budget.
+          <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 15.5, lineHeight: 1.7, margin: 0 }}>
+            At gøre det lettere for professionelle at vise og forstå boliger — med værktøjer, der passer ind i deres arbejde.
           </p>
         </div>
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: "34px 32px" }}>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: "34px 32px", minHeight: 230, display: "flex", flexDirection: "column" }}>
           <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
             Mission
           </div>
-          <p style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.7 }}>
-            At udvikle innovative produkter, der hjælper professionelle i ejendomsbranchen med at spare
-            tid og levere en overlegen præsentation — hvad enten formålet er salg, udlejning,
-            renovering eller projekter. Vi skaber værktøjer, der er intuitive, prisvenlige og designet
-            specifikt til det danske marked.
+          <p style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.7, margin: 0 }}>
+            At bygge brugbare produkter til visualisering, 3D og video sammen med de mennesker, der bruger dem i ejendomsmarkedet.
           </p>
         </div>
       </div>
@@ -1022,14 +1030,14 @@ export function OmOsPage() {
       {/* Values */}
       <div className="text-center mt-20 mb-2">
         <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
-          Vores værdier
+          Sådan arbejder vi
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8" data-testid="omos-values">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-8" data-testid="omos-values">
         {values.map((v) => (
           <div
             key={v.title}
-            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "26px 26px" }}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "26px 24px", minHeight: 214, display: "flex", flexDirection: "column" }}
             data-testid={`omos-value-${v.title}`}
           >
             <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{v.title}</div>
@@ -1038,48 +1046,37 @@ export function OmOsPage() {
         ))}
       </div>
 
-      {/* Journey */}
+      {/* Founder and product context, without inventing a growth story. */}
       <div className="mx-auto mt-20" style={{ maxWidth: 760 }} data-testid="omos-journey">
         <div className="text-center mb-8">
           <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
-            Vores rejse
+            Hvor vi kommer fra
           </div>
           <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 500, lineHeight: 1.15 }}>
-            Fra ét produkt til en hel platform.
+            Grundlagt i København i 2025.
           </h2>
         </div>
         <div className="space-y-5">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Forma Estates blev grundlagt i 2025 i København — midt i et boomende boligmarked og en
-            teknologisk revolution. Vi så et hul i markedet: mens globale værktøjer til ejendom
-            eksisterede, var ingen af dem skræddersyet til danske forhold — hverken sprogligt,
-            æstetisk eller prismæssigt.
+            Forma Estates er grundlagt af Frederik Fussing Nielsen, som også er virksomhedens CEO. Fra København bygger vi produkter til konkrete opgaver i ejendomsbranchen.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi startede med ét produkt: AI Boligvisualisering. Responsen var overvældende — ikke bare
-            fra mæglere, men fra udviklere, boligforeninger og udlejere. Behovet var tydeligt: hurtig,
-            professionel og prisvenlig visualisering uden den logistiske hovedpine ved fysisk møblering.
+            Produkterne spænder over boligvisualisering, 3D og video. Fælles for dem er, at de skal gøre boliger nemmere at se, forklare og arbejde videre med.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Siden da har vi udvidet med AI Design Agent til præcise justeringer, 3D plantegning,
-            før/efter-transformationsvideo og cinematiske showcase-videoer til sociale medier. Hvert
-            produkt er udviklet i tæt samarbejde med aktive brugere på tværs af ejendomsbranchen.
-          </p>
-          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            I dag arbejder vi mod at dække hele Danmark — fra Skagen til Sønderborg — og drømmer om
-            at gøre Forma Estates til synonymet med AI-drevet ejendomspræsentation i Norden.
+            Vi tror på, at de bedste værktøjer bliver til, når teknologi og praksis mødes. Derfor lytter vi til aktive brugere og bygger videre derfra.
           </p>
         </div>
         <div className="text-center mt-10">
           <Link href="/kontakt">
-            <button
+            <span
               className="inline-flex items-center justify-center gap-2 transition-colors"
-              style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600 }}
+              style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
               data-testid="omos-cta"
             >
               Kontakt os
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </span>
           </Link>
           <div className="mt-8" style={{ color: C.muted, fontSize: 13 }}>
             Forma Estates · CVR: 46551796 · København, Danmark

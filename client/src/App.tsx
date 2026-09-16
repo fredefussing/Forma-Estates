@@ -172,7 +172,8 @@ function Router() {
       <Route path="/boligpotentiale/branchevideo" component={BranchevideoPage} />
       <Route path="/boligpotentiale/ai-design-agent" component={AIDesignAgentSubpage} />
       <Route path="/boligpotentiale/bolig-showcase" component={BoligShowcasePage} />
-      <Route path="/boligpotentiale/om-os" component={OmOsPage} />
+      <Route path="/om-os" component={OmOsPage} />
+      <Route path="/boligpotentiale/om-os" component={() => { useEffect(() => { window.location.replace("/om-os"); }, []); return null; }} />
       <Route path="/kontakt" component={KontaktPage} />
       <Route path="/privatlivspolitik" component={PrivatlivspolitikPage} />
       <Route path="/handelsbetingelser" component={HandelsbetingelserPage} />
