@@ -414,7 +414,7 @@
     "title": "Konto erstellen",
     "subtitle": "Erstelle dein Konto und erhalte sofort 2 kostenlose KI-Visualisierungen",
     "name": "Dein Name",
-    "namePlaceholder": "Z.B. Max Mustermann",
+    "namePlaceholder": "John Doe",
     "passwordPlaceholder": "Mind. 6 Zeichen",
     "confirmPassword": "Passwort wiederholen",
     "confirmPasswordPlaceholder": "Passwort wiederholen",

@@ -401,7 +401,7 @@
     "title": "Créer un compte",
     "subtitle": "Créez votre compte et obtenez 2 visualisations IA gratuites immédiatement",
     "name": "Votre nom",
-    "namePlaceholder": "Ex. Jean Dupont",
+    "namePlaceholder": "John Doe",
     "passwordPlaceholder": "Min. 6 caractères",
     "confirmPassword": "Confirmer le mot de passe",
     "confirmPasswordPlaceholder": "Confirmer le mot de passe",

@@ -414,7 +414,7 @@
     "title": "Opret bruger",
     "subtitle": "Opret din konto og få 2 gratis AI-visualiseringer med det samme",
     "name": "Dit navn",
-    "namePlaceholder": "F.eks. John Doe",
+    "namePlaceholder": "John Doe",
     "passwordPlaceholder": "Min. 6 tegn",
     "confirmPassword": "Gentag password",
     "confirmPasswordPlaceholder": "Gentag password",

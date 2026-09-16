@@ -11,6 +11,9 @@ import { ArrowLeft, LogIn, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 
+const BRAND_GOLD = "#C9A96E";
+const BRAND_GOLD_TEXT = "#8A6A32";
+
 export default function LoginPage() {
   const { t } = useTranslation();
   usePageTitle("Log ind", "Log ind på din Forma Estates-konto og fortsæt arbejdet med dine boligvisualiseringer.");
@@ -87,7 +90,7 @@ export default function LoginPage() {
       <div className="min-h-screen bg-[#f5f5f0] flex items-center justify-center px-4">
         <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-lg w-full max-w-[420px]">
           <Link href="/">
-            <span className="text-xl font-bold text-center block mb-6 cursor-pointer text-[#1a1a1a]" data-testid="link-logo">
+            <span className="text-xl font-bold text-center block mb-6 cursor-pointer" style={{ color: BRAND_GOLD }} data-testid="link-logo">
               Forma Estates
             </span>
           </Link>
@@ -106,7 +109,8 @@ export default function LoginPage() {
               <p className="text-xs text-muted-foreground">{t("loginPage.reset.spamNote")}</p>
               <button
                 onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
-                className="text-sm text-[#1a1a1a] underline"
+                className="text-sm font-semibold underline"
+                style={{ color: BRAND_GOLD_TEXT }}
                 data-testid="link-back-to-login"
               >
                 {t("loginPage.reset.backToLogin")}
@@ -140,7 +144,8 @@ export default function LoginPage() {
           {!resetSent && (
             <button
               onClick={() => setResetMode(false)}
-              className="flex items-center justify-center gap-1.5 mt-6 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors w-full"
+              className="flex items-center justify-center gap-1.5 mt-6 text-sm font-medium cursor-pointer transition-opacity hover:opacity-75 w-full"
+              style={{ color: BRAND_GOLD_TEXT }}
               data-testid="link-back-to-login-bottom"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -156,7 +161,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#f5f5f0] flex items-center justify-center px-4">
       <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-lg w-full max-w-[420px]">
         <Link href="/">
-          <span className="text-xl font-bold text-center block mb-6 cursor-pointer text-[#1a1a1a]" data-testid="link-logo">
+          <span className="text-xl font-bold text-center block mb-6 cursor-pointer" style={{ color: BRAND_GOLD }} data-testid="link-logo">
             Forma Estates
           </span>
         </Link>
@@ -185,7 +190,8 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => { setResetMode(true); setResetEmail(email); }}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+                className="text-xs font-medium transition-opacity hover:opacity-75 underline"
+                style={{ color: BRAND_GOLD_TEXT }}
                 data-testid="link-forgot-password"
               >
                 {t("loginPage.forgotPassword")}
@@ -228,12 +234,12 @@ export default function LoginPage() {
         <p className="text-center mt-6 text-sm text-muted-foreground">
           {t("loginPage.noAccount")}{" "}
           <Link href="/opret">
-            <span className="text-[#1a1a1a] underline cursor-pointer font-medium" data-testid="link-signup">{t("loginPage.createAccount")}</span>
+            <span className="underline cursor-pointer font-semibold" style={{ color: BRAND_GOLD_TEXT }} data-testid="link-signup">{t("loginPage.createAccount")}</span>
           </Link>
         </p>
 
         <Link href="/">
-          <span className="flex items-center justify-center gap-1.5 mt-4 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors" data-testid="link-back">
+          <span className="flex items-center justify-center gap-1.5 mt-4 text-sm font-medium cursor-pointer transition-opacity hover:opacity-75" style={{ color: BRAND_GOLD_TEXT }} data-testid="link-back">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("loginPage.backToFront")}
           </span>

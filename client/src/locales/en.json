@@ -414,7 +414,7 @@
     "title": "Create account",
     "subtitle": "Create your account and get 2 free AI visualizations right away",
     "name": "Your name",
-    "namePlaceholder": "E.g. John Doe",
+    "namePlaceholder": "John Doe",
     "passwordPlaceholder": "Min. 6 characters",
     "confirmPassword": "Confirm password",
     "confirmPasswordPlaceholder": "Confirm password",

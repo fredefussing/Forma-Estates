@@ -55,3 +55,4 @@
 - [Showcase Video naming](showcase-video-naming.md) — customer-facing copy must consistently call the product “Showcase Video”; avoid alternate names such as sales, walkthrough or property video.
 - [About-page voice](about-page-voice.md) — keep the company story factual, human and customer-centered; use “Teknologi, der gør boliger lettere at forstå.” as the core motto.
 - [Contact-page hierarchy](contact-page-hierarchy.md) — contact form is primary, direct contact is one compact card, response time replaces CVR there; use the normal public header/footer and restrained palette.
+- [Auth-card branding](auth-card-branding.md) — signup, login and reset cards use the gold Forma wordmark and darker accessible gold links; name placeholders use plain “John Doe” without example prefixes.

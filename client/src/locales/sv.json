@@ -414,7 +414,7 @@
     "title": "Skapa konto",
     "subtitle": "Skapa ditt konto och få 2 gratis AI-visualiseringar direkt",
     "name": "Ditt namn",
-    "namePlaceholder": "T.ex. Johan Svensson",
+    "namePlaceholder": "John Doe",
     "passwordPlaceholder": "Min. 6 tecken",
     "confirmPassword": "Bekräfta lösenord",
     "confirmPasswordPlaceholder": "Bekräfta lösenord",
