@@ -52,3 +52,4 @@
 - [Selective frame interpolation](selective-frame-interpolation.md) — split at every hard cut; use repeated source frames rather than synthetic frames for fast pans that ghost.
 - [Large-monitor generator layouts](large-monitor-generator-layouts.md) — authenticated generation workspaces should use all available width from 1440px; keep modals and readable text capped.
 - [Landing-page timing claims](landing-timing-claims.md) — keep product times distinct: AI images about 15 seconds; property/promo videos 2–3 minutes; never collapse them into one claim.
+- [Showcase Video naming](showcase-video-naming.md) — customer-facing copy must consistently call the product “Showcase Video”; avoid alternate names such as sales, walkthrough or property video.

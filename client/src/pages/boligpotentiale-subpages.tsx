@@ -31,23 +31,25 @@ function SubpageLayout({
 }) {
   return (
     <div style={{ background: C.champagne, minHeight: "100vh", fontFamily: SANS, color: C.navy }}>
-      {/* Header — simple wordmark + back link */}
+      {/* Header — the same full navigation used on the main Forma Estates page */}
       <header style={{ background: C.champagne, borderBottom: `1px solid ${C.border}` }}>
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-6" style={{ height: 96 }}>
+        <div className="mx-auto max-w-7xl flex items-center justify-between gap-8 px-6" style={{ minHeight: 82 }}>
           <Link href="/boligpotentiale">
             <div className="flex items-center cursor-pointer select-none" data-testid="subpage-logo">
-              <img src={formaEstatesLogo} alt="Forma Estates" className="w-auto" style={{ height: 120 }} />
+              <img src={formaEstatesLogo} alt="Forma Estates" className="w-auto" style={{ height: 82 }} />
             </div>
           </Link>
-          <Link
-            href="/boligpotentiale"
-            className="flex items-center gap-2 transition-colors hover:text-[color:var(--h)]"
-            style={{ ['--h' as any]: C.gold, color: C.muted, fontSize: 13, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}
-            data-testid="subpage-back"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Tilbage til forsiden
-          </Link>
+          <nav className="hidden md:flex items-center gap-7" aria-label="Hovednavigation">
+            <Link href="/boligpotentiale" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Forside</Link>
+            <Link href="/boligpotentiale#pricing" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Priser</Link>
+            <Link href="/boligpotentiale/eksempler" style={{ color: C.gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Eksempler</Link>
+            <Link href="/boligpotentiale/om-os" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Om os</Link>
+            <Link href="/boligpotentiale#faq" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>FAQ</Link>
+          </nav>
+          <div className="flex items-center gap-4">
+            <Link href="/log-ind" className="hidden sm:block" style={{ color: C.navy, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>Log ind</Link>
+            <Link href="/opret" style={{ background: C.navy, color: C.white, padding: "11px 17px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Kom i gang</Link>
+          </div>
         </div>
       </header>
 
@@ -220,14 +222,14 @@ function BeforeAfterPair({
 
           {/* Image */}
           <div
-            className="relative w-full flex items-center justify-center px-14"
-            style={{ maxHeight: "80vh" }}
+            className="relative flex items-center justify-center"
+            style={{ width: "min(90vw, 114vh, 1080px)", height: "min(60vw, 76vh, 720px)", background: "#080d13", borderRadius: 10 }}
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={lightbox === "before" ? before : after}
               alt={title}
-              style={{ maxWidth: "90vw", maxHeight: "76vh", objectFit: "contain", borderRadius: 10, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", borderRadius: 10, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
             />
           </div>
 
@@ -375,118 +377,131 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
   );
 }
 
+function StyleComparison() {
+  const [active, setActive] = useState(0);
+  const styles = [
+    { label: "Japandi", src: "/bolig-images/examples-empty-room-japandi.jpg" },
+    { label: "Moderne", src: "/bolig-images/examples-empty-room-modern.jpg" },
+    { label: "Klassisk", src: "/bolig-images/examples-empty-room-classic.jpg" },
+  ];
+  const [lightbox, setLightbox] = useState<"original" | "style" | null>(null);
+  const current = styles[active];
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-px" style={{ background: C.border }}>
+        <button type="button" onClick={() => setLightbox("original")} className="relative cursor-zoom-in text-left" style={{ aspectRatio: "3 / 2", border: 0, padding: 0, background: C.warm }}>
+          <img src="/bolig-images/stue-scandi-before.png" alt="Originalt foto af samme stue" className="absolute inset-0 w-full h-full object-cover" />
+          <span className="absolute top-3 left-3 uppercase" style={{ background: "rgba(15,25,35,0.8)", color: C.white, padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>Original</span>
+        </button>
+        <button type="button" onClick={() => setLightbox("style")} className="relative cursor-zoom-in text-left" style={{ aspectRatio: "3 / 2", border: 0, padding: 0, background: C.warm }}>
+          <img src={current.src} alt={`${current.label} stil i samme stue`} className="absolute inset-0 w-full h-full object-cover" />
+          <span className="absolute top-3 left-3 uppercase" style={{ background: C.gold, color: C.white, padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>{current.label}</span>
+        </button>
+      </div>
+      <div style={{ padding: "22px 26px 25px" }}>
+        <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 22, fontWeight: 500, marginBottom: 6 }}>Samme stue — tre stilarter</div>
+        <p style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55, margin: "0 0 17px" }}>Vælg stil og se samme originale rum med ny indretning.</p>
+        <div className="flex flex-wrap gap-2">
+          {styles.map((style, i) => (
+            <button key={style.label} type="button" onClick={() => setActive(i)} style={{ border: `1px solid ${i === active ? C.navy : C.border}`, background: i === active ? C.navy : C.white, color: i === active ? C.white : C.navy, padding: "8px 14px", borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{style.label}</button>
+          ))}
+        </div>
+      </div>
+      {lightbox && createPortal(
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-5" style={{ background: "rgba(10,15,22,0.95)" }} onClick={() => setLightbox(null)}>
+          <button type="button" aria-label="Luk" onClick={() => setLightbox(null)} style={{ position: "absolute", top: 20, right: 20, width: 44, height: 44, borderRadius: "50%", border: 0, color: C.white, background: "rgba(255,255,255,0.12)", cursor: "pointer" }}><X className="w-5 h-5 mx-auto" /></button>
+          <div style={{ position: "relative", width: "min(90vw, 114vh, 1080px)", height: "min(60vw, 76vh, 720px)", background: "#080d13", borderRadius: 10 }} onClick={e => e.stopPropagation()}>
+            <img
+              src={lightbox === "original" ? "/bolig-images/stue-scandi-before.png" : current.src}
+              alt={lightbox === "original" ? "Originalt foto" : `${current.label} stil`}
+              style={{ position: "absolute", inset: 0, display: "block", width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+            />
+          </div>
+          <div className="flex items-center gap-3 mt-6" onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setLightbox("original")} style={{ padding: "8px 22px", borderRadius: 30, border: 0, background: lightbox === "original" ? C.white : "rgba(255,255,255,0.12)", color: lightbox === "original" ? C.navy : C.white, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>ORIGINAL</button>
+            <button type="button" onClick={() => setLightbox("style")} style={{ padding: "8px 22px", borderRadius: 30, border: 0, background: lightbox === "style" ? C.gold : "rgba(255,255,255,0.12)", color: C.white, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{current.label.toUpperCase()}</button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 export function EksemplerPage() {
   usePageTitle("Eksempler på AI-boligvisualisering", "Se før/efter-eksempler på AI-genereret boligstyling og iscenesættelse fra Forma Estates.");
 
   const NAV = [
-    { id: "staging",   label: "Før / efter" },
-    { id: "agent",     label: "AI Designagent" },
-    { id: "floorplan", label: "3D Plantegning" },
     { id: "video",     label: "Showcase Video" },
-  ];
-
-  const stagingPairs = [
-    { before: "/bolig-images/stue-riviera-before.png",    after: "/bolig-images/stue-riviera-after.png",   title: "Stue — Riviera Luxe",       desc: "Lyst rum forvandlet til luksusindretning med smaragdgrøn fløjlssofa, marmorbord og kunst i guld." },
-    { before: "/bolig-images/stue-scandi-before.png",     after: "/bolig-images/stue-scandi-after.png",    title: "Stue — Skandinavisk",        desc: "Lyse træfarver, naturlige tekstiler og dæmpet belysning giver rummet liv." },
-    { before: "/bolig-images/dining-before-new.png",      after: "/bolig-images/dining-after-new.jpg",     title: "Spisestue — moderne nordisk", desc: "Fra bart rum til indbydende spisemiljø med varme materialer og naturligt lys." },
-    { before: "/bolig-images/homeoffice-modern-before.png", after: "/bolig-images/homeoffice-modern-after.png", title: "Hjemmekontor — moderne", desc: "Fra personligt arbejdsrum til professionelt og lyst kontor med varme materialer." },
-  ];
-
-  const agentStylePairs = [
-    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png",  title: "Riviera Luxe", desc: "Luksus i smaragdgrønt og guld." },
-    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-japansk-after.png",  title: "Japansk Zen",  desc: "Ro, balance og naturlige materialer." },
-    { before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-scandi2-after.png",  title: "Nordisk",      desc: "Lyst, luftigt og tidløst design." },
-  ];
-
-  const agentPairs = [
-    { before: "/bolig-images/ai-agent-before.jpg",  after: "/bolig-images/ai-agent-after.jpg",    title: "Stue — AI Designagent",   desc: "AI Designagenten vælger møbler, materialer og stil ud fra ét originalt foto — og giver rummet et helt nyt udtryk." },
-    { before: "/bolig-images/bathroom-before.jpg",  after: "/bolig-images/bathroom-after.jpg",    title: "Badeværelse — spa-stil",   desc: "Klinisk badeværelse forvandlet til et minimalistisk spa-look med natursten, planter og varmt lys." },
+    { id: "rooms",     label: "Rum og stil" },
+    { id: "property",  label: "Hele ejendommen" },
+    { id: "floorplan", label: "3D Plantegning" },
   ];
 
   const videosPortrait = [
-    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/riviera-poster.jpg",  title: "Riviera Showcase",   desc: "Luksusindretning i Riviera-stil — cinematisk gennemgang af boligens vigtigste rum.", aspect: "9/16" },
-    { src: "/videos/bill-it.mp4",       poster: "/bolig-images/bill-it-poster.jpg",  title: "Showcase — Bill It", desc: "Moderne boligpræsentation med dynamisk klipning og professionel belysning.", aspect: "9/16" },
+    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/riviera-poster.jpg", title: "Showcase Video — Riviera", desc: "En færdig præsentation af boligens vigtigste rum.", aspect: "9/16" },
+    { src: "/videos/bill-it.mp4", poster: "/bolig-images/bill-it-poster.jpg", title: "Showcase Video — Bill It", desc: "Klar video til boligportal og sociale medier.", aspect: "9/16" },
   ];
-  const videoLandscape = { src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg", title: "Showcase — filmformat", desc: "Biografisk kvalitet til annoncen — hvert rum fremhævet med cinematisk belysning." };
 
   return (
     <SubpageLayout
       eyebrow="Eksempler"
-      title="Se hvad AI kan gøre for din bolig"
-      intro="Blade gennem eksempler på alle fire funktioner — fra AI-staging og designagent til 3D-plantegninger og showcase-videoer."
+      title="Se funktionerne i brug"
+      intro="Se præcis hvad du får: Showcase Video, rumvisualisering, ejendomsbilleder og 3D-plantegning."
     >
-      {/* ── Section nav ── */}
       <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingBottom: 24 }}>
         {NAV.map(s => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            style={{ padding: "9px 20px", borderRadius: 24, fontSize: 13, fontWeight: 500, background: C.white, border: `1px solid ${C.border}`, color: C.navy, textDecoration: "none", whiteSpace: "nowrap", transition: "all 0.18s" }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = C.navy; el.style.color = "#fff"; el.style.borderColor = C.navy; }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = C.white; el.style.color = C.navy; el.style.borderColor = C.border; }}
-          >
+          <a key={s.id} href={`#${s.id}`} style={{ padding: "9px 18px", borderRadius: 24, fontSize: 13, fontWeight: 600, background: C.white, border: `1px solid ${C.border}`, color: C.navy, textDecoration: "none", whiteSpace: "nowrap" }}>
             {s.label}
           </a>
         ))}
       </nav>
 
-      {/* ── 1. Før/efter — AI Staging ── */}
+      {/* Showcase Video is the first product function because it is the quickest way to understand the output. */}
       <SectionDivider
-        id="staging"
-        eyebrow="AI Staging"
-        title="Før/efter — AI boligiscenesættelse"
-        desc="Upload et foto af boligen — AI'en redesigner indretningen i den valgte stil på 2–3 minutter. Hvert eksempel nedenfor er genereret fra ét enkelt foto."
+        id="video"
+        eyebrow="Showcase Video"
+        title="En færdig boligvideo på 2–3 minutter"
+        desc="Upload boligens billeder. Du får en kort, færdig video med kamerabevægelser og musik til annoncer og sociale medier."
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-        {stagingPairs.map((p, i) => <BeforeAfterPair key={p.title} {...p} testId={`eksempel-staging-${i}`} />)}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-7">
+        <VideoCard src="/videos/bolig-showcase-tile.mp4" poster="/bolig-images/showcase-tile-poster.jpg" title="Showcase Video — filmformat" desc="Vis boligen samlet i et roligt, professionelt filmformat." />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-7">
+          {videosPortrait.map((v, i) => <VideoCard key={i} {...v} />)}
+        </div>
       </div>
 
-      {/* ── 2. AI Designagent ── */}
+      {/* Room work and style variants are one clear comparison, not separate repeated galleries. */}
       <SectionDivider
-        id="agent"
+        id="rooms"
+        eyebrow="AI-visualisering"
+        title="Indret et rum på ca. 15 sekunder"
+        desc="Upload ét foto. AI bevarer rummets geometri og viser det med ny indretning i den stil du vælger."
+      />
+      <div className="max-w-3xl">
+        <StyleComparison />
+      </div>
+
+      {/* Property-wide edits are deliberately separate from room styling. */}
+      <SectionDivider
+        id="property"
         eyebrow="AI Designagent"
-        title="Samme rum — op til 8 stilarter"
-        desc="AI Designagenten genererer hele stilkataloger fra ét boligfoto. Her ser du samme stue i tre vidt forskellige stilarter — alt fra ét originalt foto."
+        title="Hele ejendommen — facade og luftfoto"
+        desc="Giv facade og omgivelser et nyt udtryk med en kort instruktion. Samme ejendom, tydelig før/efter."
       />
-      {/* Same-room multi-style showcase */}
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: "28px 28px 20px", marginBottom: 28 }}>
-        <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 18 }}>
-          Samme originale foto — tre stilarter
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {agentStylePairs.map((p, i) => <BeforeAfterPair key={i} {...p} testId={`eksempel-agent-style-${i}`} />)}
-        </div>
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-        {agentPairs.map((p, i) => <BeforeAfterPair key={p.title} {...p} testId={`eksempel-agent-${i}`} />)}
+        <BeforeAfterPair before="/bolig-images/facade-before.jpg" after="/bolig-images/facade-after.jpg" title="Facade" desc="Se en opdateret facade med ændrede materialer og finish." testId="eksempel-property-facade" />
+        <BeforeAfterPair before="/bolig-images/ai-agent-aerial-before.png" after="/bolig-images/ai-agent-aerial-after.jpg" title="Luftfoto og omgivelser" desc="Visualisér ejendommens omgivelser og landskab fra oven." testId="eksempel-property-aerial" />
       </div>
 
-      {/* ── 3. 3D Plantegning ── */}
       <SectionDivider
         id="floorplan"
         eyebrow="3D Plantegning"
         title="Fra 2D-plantegning til 3D-visualisering"
-        desc="Upload en simpel 2D-plantegning — AI'en konverterer den til en professionel 3D-visualisering der giver køberne et komplet overblik over boligens rum og proportioner."
+        desc="Upload én 2D-plantegning. Få en 3D-visning med møbler, rum og proportioner, så layoutet er let at forstå."
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-        <BeforeAfterPair before="/bolig-images/floorplan-2d-new.jpg" after="/bolig-images/floorplan-3d-new.png" title="Plantegning — 2D til 3D" desc="Fra simpel sort/hvid-tegning til professionel 3D-visualisering med møbler og belysning." testId="eksempel-floorplan-0" />
-        <BeforeAfterPair before="/bolig-images/floorplan-2d.jpg" after="/bolig-images/floorplan-3d.jpg" title="Komplet boligplan" desc="Komplet boligplan visualiseret i 3D med realistisk indretning og korrekte proportioner." testId="eksempel-floorplan-1" />
-      </div>
-
-      {/* ── 4. Showcase Video ── */}
-      <SectionDivider
-        id="video"
-        eyebrow="Showcase Video"
-        title="AI-genererede præsentationsvideoer"
-        desc="Cinematiske videoer der viser boligen fra dens bedste side — automatisk genereret, klar til Boligsiden og sociale medier."
-      />
-      {/* Portrait pair side by side */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
-        {videosPortrait.map((v, i) => <VideoCard key={i} {...v} />)}
-      </div>
-      {/* Landscape video below */}
-      <div className="mt-7" style={{ paddingBottom: 24 }}>
-        <VideoCard {...videoLandscape} />
+      <div className="max-w-3xl">
+        <BeforeAfterPair before="/bolig-images/floorplan-2d.png" after="/bolig-images/floorplan-3d.png" title="2D til 3D" desc="Én matchet plantegning viser forskellen fra teknisk grundlag til rumlig præsentation." testId="eksempel-floorplan" />
       </div>
     </SubpageLayout>
   );
