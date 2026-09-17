@@ -1285,6 +1285,33 @@ function CaseDetailPanel({
   }, []);
 
   const tierLabel = (t: string) => i18n.t(t === "tier1" ? "dashboard.budgetTiers.tier1Short" : t === "tier3" ? "dashboard.budgetTiers.tier3Short" : "dashboard.budgetTiers.tier2Short");
+  const WizardProgress = () => (
+    <div className="flex items-center justify-end gap-2 flex-shrink-0" data-testid="bolig-wizard-progress">
+      {([
+        { n: 1, label: t("dashboard.wizard.step1") },
+        { n: 2, label: t("dashboard.wizard.step2") },
+        { n: 3, label: t("dashboard.wizard.step3") },
+      ] as const).map(({ n, label }, idx) => (
+        <div key={n} className="flex items-center gap-2">
+          {idx > 0 && (
+            <div className="w-6 sm:w-10 h-px" style={{ background: genStep > idx ? "#0F1D2F" : "#D9D5CF" }} />
+          )}
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all"
+              style={{
+                background: genStep >= n ? "#0F1D2F" : "#F0EDE7",
+                color: genStep >= n ? "#fff" : "#9B9690",
+              }}
+            >
+              {genStep > n ? <Check className="w-3 h-3" /> : n}
+            </div>
+            <span className="text-[10px] hidden sm:inline whitespace-nowrap" style={{ color: genStep >= n ? "#0F1D2F" : "#9B9690" }}>{label}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <motion.div key="case-detail" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
@@ -1360,6 +1387,7 @@ function CaseDetailPanel({
             </div>
             {caseData.notes && <p className="text-xs mt-1.5 max-w-xl" style={{ color: "#6B6B6B" }}>{caseData.notes}</p>}
           </div>
+          {genStep > 0 && <WizardProgress />}
           {/* Administrative case actions belong to the gallery, not the generation flow */}
           {genStep === 0 && (
           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
@@ -1755,33 +1783,6 @@ function CaseDetailPanel({
       {/* ══════════════════════════════════════════════════════════════ */}
       {genStep > 0 && (
         <div>
-          {/* Step indicator */}
-          <div className="flex items-center justify-center gap-2 mb-8">
-            {([
-              { n: 1, label: t("dashboard.wizard.step1") },
-              { n: 2, label: t("dashboard.wizard.step2") },
-              { n: 3, label: t("dashboard.wizard.step3") },
-            ] as const).map(({ n, label }, idx) => (
-              <div key={n} className="flex items-center gap-2">
-                {idx > 0 && (
-                  <div className="w-10 sm:w-16 h-px" style={{ background: genStep > idx ? "#0F1D2F" : "#D9D5CF" }} />
-                )}
-                <div className="flex flex-col items-center gap-1">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all"
-                    style={{
-                      background: genStep >= n ? "#0F1D2F" : "#F0EDE7",
-                      color: genStep >= n ? "#fff" : "#9B9690",
-                    }}
-                  >
-                    {genStep > n ? <Check className="w-3 h-3" /> : n}
-                  </div>
-                  <span className="text-xs hidden sm:inline" style={{ color: genStep >= n ? "#0F1D2F" : "#9B9690" }}>{label}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
           <AnimatePresence mode="wait">
 
             {/* STEP 1 — UPLOAD */}
@@ -1831,7 +1832,7 @@ function CaseDetailPanel({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
                   {/* LEFT col-span-5: image preview / DotGrid while generating */}
-                  <div className="lg:col-span-5">
+                  <div className="lg:col-span-5 lg:sticky lg:top-6 self-start">
                     <p className="text-xs font-medium tracking-widest uppercase mb-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.ditBillede")}</p>
                     {!isGenerating && (
                       <div className="flex items-center gap-2 mb-3">
@@ -1868,7 +1869,9 @@ function CaseDetailPanel({
                       </div>
                     ) : (
                       imagePreview && (
-                        <img src={imagePreview} alt="Preview" className="rounded-xl border border-[#E8E4DE] w-full object-contain" style={{ maxHeight: "420px" }} />
+                        <div className="max-w-full w-fit mx-auto rounded-xl border border-[#E8E4DE] overflow-hidden bg-white">
+                          <img src={imagePreview} alt="Preview" className="block max-w-full w-auto h-auto object-contain" style={{ maxHeight: "calc(100vh - 12rem)" }} />
+                        </div>
                       )
                     )}
                   </div>
@@ -1876,35 +1879,9 @@ function CaseDetailPanel({
                   {/* RIGHT col-span-7: settings */}
                   <div className="lg:col-span-7 space-y-6">
 
-                    {/* GENERATE BUTTON — altid i toppen */}
-                    {/* ⑥ GENERATE BUTTON */}
-                    <QuotaGate feature="ai">
-                    <button
-                      onClick={handleGenerate}
-                      disabled={isGenerating}
-                      className="w-full h-12 rounded-full font-medium text-white text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0"
-                      style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}
-                      data-testid="bolig-case-generate-btn"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
-                          {t("dashboard.wizard.generating")}
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="w-4 h-4" />
-                          {t("dashboard.generate.seePotenButton")}
-                        </>
-                      )}
-                    </button>
-                    </QuotaGate>
-
                     {error && (
                       <div className="text-sm text-red-600 p-3 rounded-xl bg-red-50" data-testid="bolig-case-error">{error}</div>
                     )}
-
-                    <div className="h-px" style={{ background: "#E8E4DE" }} />
 
                     {/* ① RUMTYPE */}
                     <div>
@@ -1940,9 +1917,9 @@ function CaseDetailPanel({
                             onClick={() => setStyle(s.value)}
                             className="px-3.5 py-3 rounded-lg border text-left transition-all flex flex-col"
                             style={{
-                              borderColor: style === s.value ? "#C8956C" : "#D9D5CF",
-                              background: style === s.value ? "rgba(200,149,108,0.08)" : "#fff",
-                              color: "#1A1A1A",
+                              borderColor: style === s.value ? "#0F1D2F" : "#D9D5CF",
+                              background: style === s.value ? "#0F1D2F" : "#fff",
+                              color: style === s.value ? "#fff" : "#1A1A1A",
                             }}
                             data-testid={`bolig-style-${s.value}`}
                           >
@@ -1977,16 +1954,28 @@ function CaseDetailPanel({
                       </div>
                     </div>
 
+                    <div className="h-px" style={{ background: "#E8E4DE" }} />
+
+                    {/* Generate only after all choices have been reviewed */}
+                    <QuotaGate feature="ai">
+                      <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        className="w-full h-12 rounded-full font-medium text-white text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:translate-y-0"
+                        style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.25)" }}
+                        data-testid="bolig-case-generate-btn"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
+                            {t("dashboard.wizard.generating")}
+                          </>
+                        ) : t("dashboard.generate.seePotenButton")}
+                      </button>
+                    </QuotaGate>
+
                   </div>
                 </div>
-
-                {!isGenerating && (
-                  <div className="flex justify-center mt-6">
-                    <button onClick={() => { setGenStep(1); setError(null); }} className="text-sm hover:opacity-70 transition-opacity" style={{ color: "#9B9690" }}>
-                      ← {i18n.t("dashboard.common.skiftBillede")}
-                    </button>
-                  </div>
-                )}
               </motion.div>
             )}
 
