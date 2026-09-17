@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 
+
 /* Trust marquee animation */
 @keyframes forma-marquee {
   from { transform: translateX(0) }

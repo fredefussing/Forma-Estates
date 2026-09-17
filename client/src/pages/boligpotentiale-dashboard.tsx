@@ -993,6 +993,9 @@ function CaseDetailPanel({
   const [lbPos, setLbPos] = useState(50);
   const lbRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewColumnRef = useRef<HTMLDivElement>(null);
+  const previewPinStartRef = useRef<number | null>(null);
+  const [pinnedPreview, setPinnedPreview] = useState<{ left: number; width: number } | null>(null);
   const [genStep, setGenStep] = useState<0|1|2|3>(0);
   const [editingMarketDate, setEditingMarketDate] = useState(false);
   const [marketDateDraft, setMarketDateDraft] = useState("");
@@ -1018,6 +1021,43 @@ function CaseDetailPanel({
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (genStep !== 2 || !imagePreview) {
+      previewPinStartRef.current = null;
+      setPinnedPreview(null);
+      return;
+    }
+
+    const updatePinnedPreview = (resetStart = false) => {
+      const column = previewColumnRef.current;
+      if (!column || window.innerWidth < 1024) {
+        previewPinStartRef.current = null;
+        setPinnedPreview(null);
+        return;
+      }
+
+      const rect = column.getBoundingClientRect();
+      if (resetStart || previewPinStartRef.current === null) {
+        previewPinStartRef.current = rect.top + window.scrollY;
+      }
+
+      const shouldPin = window.scrollY >= previewPinStartRef.current - 144;
+      setPinnedPreview(shouldPin ? { left: rect.left, width: rect.width } : null);
+    };
+
+    const onScroll = () => updatePinnedPreview();
+    const onResize = () => updatePinnedPreview(true);
+    const frame = window.requestAnimationFrame(() => updatePinnedPreview(true));
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [genStep, imagePreview]);
 
   const liveDays = liveDaysFromISO(caseData.marketDateISO, now);
 
@@ -1832,7 +1872,17 @@ function CaseDetailPanel({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
                   {/* LEFT col-span-5: image preview / DotGrid while generating */}
-                  <div className="lg:col-span-5 lg:sticky lg:top-6 self-start">
+                  <div ref={previewColumnRef} className="lg:col-span-5 self-start">
+                    <div
+                      style={pinnedPreview ? {
+                        position: "fixed",
+                        top: 144,
+                        left: pinnedPreview.left,
+                        width: pinnedPreview.width,
+                        zIndex: 10,
+                      } : undefined}
+                      data-testid="bolig-case-preview-panel"
+                    >
                     <p className="text-xs font-medium tracking-widest uppercase mb-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.caseView.ditBillede")}</p>
                     {!isGenerating && (
                       <div className="flex items-center gap-2 mb-3">
@@ -1870,10 +1920,11 @@ function CaseDetailPanel({
                     ) : (
                       imagePreview && (
                         <div className="max-w-full w-fit mx-auto rounded-xl border border-[#E8E4DE] overflow-hidden bg-white">
-                          <img src={imagePreview} alt="Preview" className="block max-w-full w-auto h-auto object-contain" style={{ maxHeight: "calc(100vh - 12rem)" }} />
+                          <img src={imagePreview} alt="Preview" className="block max-w-full w-auto h-auto object-contain" style={{ maxHeight: "calc(100vh - 14rem)" }} />
                         </div>
                       )
                     )}
+                    </div>
                   </div>
 
                   {/* RIGHT col-span-7: settings */}
@@ -10332,7 +10383,7 @@ export default function BoligpotentialeDashboard() {
         </AnimatePresence>
 
         {/* ── MAIN CONTENT ── */}
-        <main className="flex-1 md:ml-72 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)] min-w-0 max-w-full overflow-x-hidden" data-testid="bolig-main">
+        <main className="flex-1 md:ml-72 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)] min-w-0 max-w-full overflow-x-clip" data-testid="bolig-main">
 
           {/* Dashboard overview */}
           {section === "dashboard" && (
