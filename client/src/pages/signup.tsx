@@ -112,7 +112,7 @@ export default function SignupPage() {
               id="email"
               type="email"
               required
-              placeholder="din@email.dk"
+               placeholder="johndoe@gmail.com"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

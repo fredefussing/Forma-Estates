@@ -124,7 +124,7 @@ export default function LoginPage() {
                   id="reset-email"
                   type="email"
                   required
-                  placeholder={t("loginPage.emailPlaceholder")}
+                  placeholder="johndoe@gmail.com"
                   autoComplete="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
@@ -176,7 +176,7 @@ export default function LoginPage() {
               id="email"
               type="email"
               required
-              placeholder={t("loginPage.emailPlaceholder")}
+               placeholder="johndoe@gmail.com"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
