@@ -94,6 +94,8 @@ app.use((_req: express.Request, res: express.Response, next: express.NextFunctio
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
+    // Browser-side image/PDF libraries create same-origin blob workers.
+    "worker-src 'self' blob:",
     `connect-src ${connectSrc.join(" ")}`,
     // Stripe and future payment iframes
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",

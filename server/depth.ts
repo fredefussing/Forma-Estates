@@ -5,6 +5,8 @@ import path from "path";
 import os from "os";
 
 const execFileAsync = promisify(execFile);
+const uploadDir = path.join(process.cwd(), "uploads");
+const MAX_INPUT_BYTES = 50_000_000;
 
 let depthPipeline: any = null;
 
@@ -17,10 +19,28 @@ async function getDepthPipeline() {
   return depthPipeline;
 }
 
-async function fetchImageToTempFile(imageUrl: string): Promise<string> {
+async function fetchImageToTempFile(imageUrl: string): Promise<{ file: string; cleanup: boolean }> {
+  if (imageUrl.startsWith("/uploads/")) {
+    const base = path.basename(imageUrl);
+    const localPath = path.join(uploadDir, base);
+    if (fs.existsSync(localPath)) {
+      if (fs.statSync(localPath).size > MAX_INPUT_BYTES) throw new Error("Billedet er for stort");
+      return { file: localPath, cleanup: false };
+    }
+    const tmpPath = path.join(os.tmpdir(), `depth-input-${Date.now()}.jpg`);
+    await execFileAsync("curl", [
+      "-sS", "--fail", "--max-time", "30", "--max-filesize", String(MAX_INPUT_BYTES),
+      "-o", tmpPath, `http://localhost:5000/uploads/${base}`,
+    ]);
+    return { file: tmpPath, cleanup: true };
+  }
+
   const tmpPath = path.join(os.tmpdir(), `depth-input-${Date.now()}.jpg`);
-  await execFileAsync("curl", ["-sL", "--max-time", "30", "-o", tmpPath, imageUrl]);
-  return tmpPath;
+  await execFileAsync("curl", [
+    "-sS", "--fail", "--max-time", "30", "--max-filesize", String(MAX_INPUT_BYTES),
+    "--proto", "=https", "-o", tmpPath, imageUrl,
+  ]);
+  return { file: tmpPath, cleanup: true };
 }
 
 export async function generateDepthMap(imageUrl: string): Promise<{
@@ -29,7 +49,8 @@ export async function generateDepthMap(imageUrl: string): Promise<{
   width: number;
   height: number;
 }> {
-  const tmpInput = await fetchImageToTempFile(imageUrl);
+  const input = await fetchImageToTempFile(imageUrl);
+  const tmpInput = input.file;
 
   try {
     const estimator = await getDepthPipeline();
@@ -75,6 +96,6 @@ export async function generateDepthMap(imageUrl: string): Promise<{
       height: h,
     };
   } finally {
-    fs.unlink(tmpInput, () => {});
+    if (input.cleanup) fs.unlink(tmpInput, () => {});
   }
 }

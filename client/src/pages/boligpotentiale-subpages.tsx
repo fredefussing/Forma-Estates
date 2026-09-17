@@ -29,6 +29,19 @@ function SubpageLayout({
   intro: string;
   children: React.ReactNode;
 }) {
+  const currentPath = window.location.pathname;
+  const navStyle = (path: string): React.CSSProperties => {
+    const active = currentPath === path;
+    return {
+      color: active ? C.gold : C.navy,
+      fontSize: 12,
+      fontWeight: active ? 700 : 600,
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      textDecoration: "none",
+    };
+  };
+
   return (
     <div style={{ background: C.champagne, minHeight: "100vh", fontFamily: SANS, color: C.navy }}>
       {/* Header — the same full navigation used on the main Forma Estates page */}
@@ -40,11 +53,11 @@ function SubpageLayout({
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-7" aria-label="Hovednavigation">
-            <Link href="/boligpotentiale" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Forside</Link>
-            <Link href="/boligpotentiale#pricing" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Priser</Link>
-            <Link href="/boligpotentiale/eksempler" style={{ color: C.gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Eksempler</Link>
-            <Link href="/om-os" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Om os</Link>
-            <Link href="/boligpotentiale#faq" style={{ color: C.navy, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>FAQ</Link>
+            <Link href="/boligpotentiale" style={navStyle("/boligpotentiale")}>Forside</Link>
+            <Link href="/boligpotentiale#pricing" style={navStyle("")}>Priser</Link>
+            <Link href="/boligpotentiale/eksempler" style={navStyle("/boligpotentiale/eksempler")}>Eksempler</Link>
+            <Link href="/om-os" style={navStyle("/om-os")}>Om os</Link>
+            <Link href="/boligpotentiale#faq" style={navStyle("")}>FAQ</Link>
           </nav>
           <div className="flex items-center gap-4">
             <Link href="/log-ind" className="hidden sm:block" style={{ color: C.navy, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>Log ind</Link>

@@ -664,7 +664,9 @@ function isTrustedProxyImageUrl(value: string): boolean {
       h === "fal.media" ||
       h.endsWith(".fal.media") ||
       h.endsWith(".rendy.io") ||
-      h.endsWith(".collov.ai")
+      h.endsWith(".collov.ai") ||
+      h === "tripo3d.ai" ||
+      h.endsWith(".tripo3d.ai")
     );
   } catch {
     return false;
@@ -683,6 +685,8 @@ async function curlImageWithoutRedirect(url: string): Promise<{
       "-sS",
       "--max-time", "30",
       "--max-redirs", "0",
+      "--max-filesize", "52428800",
+      "--proto", "=https",
       "-D", "-",
       "-o", "-",
       url,
@@ -5023,6 +5027,9 @@ export async function registerRoutes(
       try { await verifyFirebaseToken(req.headers.authorization); } catch {
         return res.status(401).json({ success: false, message: "Ikke autoriseret" });
       }
+      if (!imageUrl.startsWith("/uploads/") && !isTrustedProxyImageUrl(imageUrl)) {
+        return res.status(400).json({ success: false, message: "Billedadressen er ikke tilladt" });
+      }
       const { generateDepthMap } = await import("./depth");
       const result = await generateDepthMap(imageUrl);
       return res.json({ success: true, ...result });
@@ -5045,6 +5052,9 @@ export async function registerRoutes(
       try { await verifyFirebaseToken(req.headers.authorization); } catch {
         return res.status(401).json({ success: false, message: "Ikke autoriseret" });
       }
+      if (!planUrl.startsWith("/uploads/")) {
+        return res.status(400).json({ success: false, message: "Plantegningsadressen er ikke tilladt" });
+      }
       const { extractFloorplanWalls } = await import("./floorplan-walls");
       const result = await extractFloorplanWalls(planUrl);
       return res.json({ success: true, ...result });
@@ -5064,14 +5074,15 @@ export async function registerRoutes(
       if (url.startsWith("/uploads/") || url.startsWith("/bolig-images/")) {
         return res.json({ localUrl: url });
       }
-      const ext = url.match(/\.(webp|jpg|jpeg|png|gif)/i)?.[1]?.toLowerCase() ?? "jpg";
+      if (!isTrustedProxyImageUrl(url)) {
+        return res.status(400).json({ message: "Billedadressen er ikke tilladt" });
+      }
+      const remotePath = new URL(url).pathname;
+      const ext = remotePath.match(/\.(webp|jpg|jpeg|png|gif)$/i)?.[1]?.toLowerCase() ?? "jpg";
       const filename = `tripo-preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const localFilePath = path.join(uploadDir, filename);
-      await new Promise<void>((resolve, reject) => {
-        const curl = spawn("curl", ["-sL", "--fail", "--max-time", "60", "--max-filesize", "52428800", "-o", localFilePath, url]);
-        curl.on("close", (code: number) => code === 0 ? resolve() : reject(new Error(`curl exit ${code}`)));
-        curl.on("error", reject);
-      });
+      const imageBuffer = await downloadTrustedProxyImage(url);
+      await fs.promises.writeFile(localFilePath, imageBuffer);
       const size = fs.statSync(localFilePath).size;
       if (size < 500) { fs.unlinkSync(localFilePath); return res.status(422).json({ message: "For lille fil" }); }
       await r2UploadFile(localFilePath);

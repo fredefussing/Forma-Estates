@@ -358,6 +358,19 @@
     "aiEdited": "Modifié par IA",
     "dragToCompare": "Glissez pour comparer"
   },
+  "heroSlider": {
+    "pairs": [
+      {
+        "label": "Salon · Scandinave"
+      },
+      {
+        "label": "Cuisine · Moderne"
+      },
+      {
+        "label": "Salon · Moderne"
+      }
+    ]
+  },
   "trustMarquee": [
     "Images IA en env. 15 secondes",
     "Vidéos immobilières et promotionnelles en 2–3 minutes",
