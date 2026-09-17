@@ -1360,7 +1360,8 @@ function CaseDetailPanel({
             </div>
             {caseData.notes && <p className="text-xs mt-1.5 max-w-xl" style={{ color: "#6B6B6B" }}>{caseData.notes}</p>}
           </div>
-          {/* Action buttons — wrap below title on mobile */}
+          {/* Administrative case actions belong to the gallery, not the generation flow */}
+          {genStep === 0 && (
           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           <button
             onClick={() => {
@@ -1450,6 +1451,7 @@ function CaseDetailPanel({
             <span className="hidden sm:inline">{t("dashboard.case.deleteCase")}</span>
           </button>
           </div>
+          )}
         </div>
         {editingCase && (
           <div className="mt-4 rounded-xl border border-[#E8E4DE] bg-white p-4" data-testid="bolig-case-edit-form">
@@ -1786,16 +1788,9 @@ function CaseDetailPanel({
             {genStep === 1 && (
               <motion.div key="gen-step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28, ease: "easeOut" }}>
                 <div className="max-w-xl mx-auto text-center pt-4 pb-10">
-                  <h2 className="text-3xl sm:text-4xl font-semibold mb-4" style={{ color: "#0F1D2F", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+                  <h2 className="text-3xl sm:text-4xl font-semibold mb-8" style={{ color: "#0F1D2F", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
                     {t("dashboard.wizard.uploadTitle")}
                   </h2>
-                  <p className="text-[15px] mb-2 max-w-sm mx-auto" style={{ color: "#6B6B6B", lineHeight: 1.7 }}>
-                    {t("dashboard.wizard.uploadSubtitle")}
-                  </p>
-                  <div className="flex items-center justify-center gap-4 text-[13px] mb-8">
-                    <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#0F1D2F" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> {t("dashboard.wizard.ready")}</span>
-                    <span className="flex items-center gap-1.5" style={{ color: "#6B6B6B" }}><Check className="w-3.5 h-3.5" style={{ color: "#2D6A4F" }} /> {t("dashboard.wizard.noExperience")}</span>
-                  </div>
 
                   {/* Upload box */}
                   <div
@@ -1821,40 +1816,6 @@ function CaseDetailPanel({
                   </div>
 
                   {error && <div className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded-xl">{error}</div>}
-
-                  {/* Step guide */}
-                  <div className="flex items-center justify-center gap-3 mt-8 text-xs" style={{ color: "#9B9690" }}>
-                    {[t("dashboard.wizard.breadcrumb1"), t("dashboard.wizard.breadcrumb2"), t("dashboard.wizard.breadcrumb3")].map((lbl, i) => (
-                      <div key={lbl} className="flex items-center gap-3">
-                        {i > 0 && <ArrowRight className="w-3 h-3 flex-shrink-0" />}
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-full border border-[#D9D5CF] flex items-center justify-center text-[10px] font-semibold">{i + 1}</span>
-                          <span className="hidden sm:inline">{lbl}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Example images */}
-                  <p className="text-xs mt-8 mb-3" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.orTryExample")}</p>
-                  <div className="flex gap-3 justify-center">
-                    {[
-                      { src: "/bolig-images/example-kitchen-scandi.jpg", label: i18n.t("dashboard.common.koekken") },
-                      { src: "/bolig-images/example-dining-modern.png", label: i18n.t("dashboard.common.spisestue") },
-                      { src: "/bolig-images/example-bathroom-japandi.png", label: i18n.t("dashboard.common.badevaerelse") },
-                    ].map((ex) => (
-                      <button key={ex.src}
-                        onClick={async () => { const r = await fetch(ex.src); const blob = await r.blob(); handleFile(new File([blob], `${ex.label}.jpg`, { type: "image/jpeg" })); setGenStep(2); }}
-                        className="relative rounded-xl overflow-hidden border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-all"
-                        data-testid={`bolig-example-${ex.label}`}
-                      >
-                        <img src={ex.src} alt={ex.label} className="w-24 h-16 object-cover" />
-                        <div className="absolute inset-0 bg-black/20 flex items-end p-1.5">
-                          <span className="text-[10px] text-white font-medium">{ex.label}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <div className="flex justify-center">
                   <button onClick={() => { setGenStep(0); setError(null); }} className="text-sm hover:opacity-70 transition-opacity" style={{ color: "#9B9690" }}>
