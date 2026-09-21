@@ -558,6 +558,7 @@ export const leads = pgTable("leads", {
   phone:            text("phone"),
   ownerPhone:       text("owner_phone"),
   officePhone:      text("office_phone"),
+  sourceUrl:        text("source_url"),
   dealAmount:       integer("deal_amount"),
   status:           text("status").notNull().default("new"), // new | contacted | responded | no | won
   notes:            text("notes"),

@@ -276,6 +276,12 @@ export async function ensureSchema(): Promise<void> {
         instagram_handle text,
         email text,
         phone text,
+        owner_phone text,
+        office_phone text,
+        source_url text,
+        deal_amount integer,
+        callback_at timestamp with time zone,
+        priority integer DEFAULT 5,
         status text NOT NULL DEFAULT 'new',
         notes text,
         first_contact_at timestamp,
@@ -301,6 +307,7 @@ export async function ensureSchema(): Promise<void> {
   try {
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS owner_phone text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS office_phone text`);
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_url text`);
     await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_amount integer`);
   } catch { /* columns already exist */ }
   // callback_at in its own block so it is never silently skipped

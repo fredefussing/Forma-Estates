@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Phone, Search, PhoneCall, X, Trophy, PhoneMissed, Calendar, Clock, FileText, Pencil } from "lucide-react";
+import { Phone, Search, PhoneCall, X, Trophy, PhoneMissed, Calendar, Clock, FileText, Pencil, Plus, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
 // ── Auth fetch ─────────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ type TLead = {
   email?: string;
   owner_phone?: string;
   office_phone?: string;
+  source_url?: string;
   status: string;
   notes?: string;
   deal_amount?: number | null;
@@ -41,6 +42,17 @@ const BORDER = "rgba(201,164,98,0.18)";
 const TEXT   = "#E2DAD0";
 const MUTED  = "#8AAABB";
 const AMBER  = "#C8956C";
+const addInputStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  background: "rgba(255,255,255,0.05)",
+  border: `1px solid ${BORDER}`,
+  borderRadius: 7,
+  padding: "8px 10px",
+  color: TEXT,
+  fontSize: 12,
+  outline: "none",
+};
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CAT: Record<string, { label: string; color: string; emoji: string }> = {
@@ -120,6 +132,16 @@ function todayStr(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T00:00`;
 }
 
+function safeExternalUrl(rawUrl: string | undefined): string | null {
+  if (!rawUrl) return null;
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Phone entry ───────────────────────────────────────────────────────────────
 function PhoneEntry({ label, value }: { label: string; value?: string }) {
   const clean = value?.trim();
@@ -169,6 +191,7 @@ function LeadCard({
   const isDone    = lead.status === "no" || lead.status === "won";
   const countdown = lead.callback_at ? callbackCountdown(lead.callback_at) : null;
   const cbFmt     = lead.callback_at ? formatCallbackDate(lead.callback_at) : null;
+  const sourceUrl = safeExternalUrl(lead.source_url);
 
   function submitWon() {
     const kr = parseInt(amount.replace(/\D/g, ""), 10);
@@ -293,6 +316,22 @@ function LeadCard({
           <Phone size={11} color={MUTED} />
           <span style={{ fontSize: 11, color: MUTED, fontStyle: "italic" }}>Ingen numre registreret endnu</span>
         </div>
+      )}
+
+      {sourceUrl && (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 10,
+            color: "#93C5FD", fontSize: 11, fontWeight: 700, textDecoration: "none",
+          }}
+        >
+          <ExternalLink size={11} />
+          Åbn boligsiden
+        </a>
       )}
 
       {/* ── Won / No status labels ── */}
@@ -563,6 +602,15 @@ function LeadCard({
 export function TelesalesView() {
   const [search,    setSearch]    = useState("");
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [isDraggingUrl, setIsDraggingUrl] = useState(false);
+  const [newLead, setNewLead] = useState({
+    name: "",
+    sourceUrl: "",
+    ownerPhone: "",
+    officePhone: "",
+    notes: "",
+  });
   const queryClient               = useQueryClient();
 
   const { data: leads = [], isLoading, isError } = useQuery<TLead[]>({
@@ -581,6 +629,53 @@ export function TelesalesView() {
     },
     onError: (err: any) => setSaveError(err?.message ?? "Kunne ikke gemme – prøv igen"),
   });
+
+  const addMutation = useMutation({
+    mutationFn: () => cf("/api/telesales", {
+      method: "POST",
+      body: JSON.stringify(newLead),
+    }),
+    onSuccess: () => {
+      setSaveError(null);
+      setNewLead({ name: "", sourceUrl: "", ownerPhone: "", officePhone: "", notes: "" });
+      setShowAdd(false);
+      queryClient.invalidateQueries({ queryKey: ["telesales"] });
+    },
+    onError: (err: any) => setSaveError(err?.message ?? "Kunne ikke tilføje leadet"),
+  });
+
+  function normalizeDroppedUrl(raw: string): string {
+    const first = raw.split(/\r?\n/).find(line => line.trim() && !line.trim().startsWith("#"))?.trim() ?? "";
+    if (!first) return "";
+    try {
+      const url = new URL(first);
+      return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function suggestNameFromUrl(rawUrl: string): string {
+    try {
+      return new URL(rawUrl).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  }
+
+  function setLeadUrl(raw: string) {
+    const sourceUrl = normalizeDroppedUrl(raw);
+    if (!sourceUrl) {
+      setSaveError("Slip eller indsæt et gyldigt link til boligsiden");
+      return;
+    }
+    setSaveError(null);
+    setNewLead(current => ({
+      ...current,
+      sourceUrl,
+      name: current.name || suggestNameFromUrl(sourceUrl),
+    }));
+  }
 
   function handleAction(id: number, action: "no" | "missed" | "won", amount?: number) {
     const lead = leads.find(l => l.id === id);
@@ -623,7 +718,7 @@ export function TelesalesView() {
     return SECTIONS.reduce<Record<string, TLead[]>>((acc, sec) => {
       let list = leads.filter(l => sec.statuses.includes(l.status));
       if (q) list = list.filter(l =>
-        [l.name, l.owner_phone ?? "", l.office_phone ?? "", l.email ?? ""]
+        [l.name, l.owner_phone ?? "", l.office_phone ?? "", l.email ?? "", l.source_url ?? ""]
           .join(" ").toLowerCase().includes(q)
       );
       acc[sec.key] = sortLeads(list);
@@ -679,8 +774,20 @@ export function TelesalesView() {
             </div>
           </div>
 
-          {/* Category filter tabs */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => { setShowAdd(value => !value); setSaveError(null); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 5, padding: "6px 11px",
+                borderRadius: 7, border: `1px solid ${AMBER}66`, background: `${AMBER}1f`,
+                color: AMBER, fontSize: 11, fontWeight: 800, cursor: "pointer",
+              }}
+            >
+              {showAdd ? <X size={12} /> : <Plus size={12} />}
+              {showAdd ? "Luk" : "Tilføj lead"}
+            </button>
+
+            {/* Category filter tabs */}
             {SECTIONS.map(sec => {
               const count   = bySection[sec.key]?.length ?? 0;
               const active  = activeKey === sec.key;
@@ -709,6 +816,102 @@ export function TelesalesView() {
             })}
           </div>
         </div>
+
+        {showAdd && (
+          <div style={{
+            marginBottom: 12, padding: 12, borderRadius: 9,
+            border: `1px solid ${AMBER}44`, background: "rgba(255,255,255,0.035)",
+          }}>
+            <div
+              onDragEnter={e => { e.preventDefault(); setIsDraggingUrl(true); }}
+              onDragOver={e => { e.preventDefault(); setIsDraggingUrl(true); }}
+              onDragLeave={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDraggingUrl(false);
+              }}
+              onDrop={e => {
+                e.preventDefault();
+                setIsDraggingUrl(false);
+                setLeadUrl(e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain"));
+              }}
+              style={{
+                border: `1px dashed ${isDraggingUrl ? AMBER : "rgba(138,170,187,0.45)"}`,
+                background: isDraggingUrl ? `${AMBER}18` : "rgba(255,255,255,0.025)",
+                borderRadius: 8, padding: "10px 12px", marginBottom: 10,
+                display: "flex", alignItems: "center", gap: 8, color: isDraggingUrl ? AMBER : MUTED,
+                transition: "all 0.15s",
+              }}
+            >
+              <LinkIcon size={15} />
+              <span style={{ fontSize: 12, fontWeight: 600 }}>
+                Træk boligsiden hertil, eller indsæt linket nedenfor
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+              <input
+                value={newLead.name}
+                onChange={e => setNewLead(current => ({ ...current, name: e.target.value }))}
+                placeholder="Navn på mægler eller bolig"
+                aria-label="Navn på lead"
+                style={addInputStyle}
+              />
+              <input
+                type="url"
+                value={newLead.sourceUrl}
+                onChange={e => setNewLead(current => ({ ...current, sourceUrl: e.target.value }))}
+                onPaste={e => {
+                  const pasted = e.clipboardData.getData("text");
+                  if (normalizeDroppedUrl(pasted)) {
+                    e.preventDefault();
+                    setLeadUrl(pasted);
+                  }
+                }}
+                placeholder="https://…"
+                aria-label="Link til boligsiden"
+                style={addInputStyle}
+              />
+              <input
+                value={newLead.ownerPhone}
+                onChange={e => setNewLead(current => ({ ...current, ownerPhone: e.target.value }))}
+                placeholder="Indehavers telefon (valgfri)"
+                aria-label="Indehavers telefon"
+                style={addInputStyle}
+              />
+              <input
+                value={newLead.officePhone}
+                onChange={e => setNewLead(current => ({ ...current, officePhone: e.target.value }))}
+                placeholder="Kontorets telefon (valgfri)"
+                aria-label="Kontorets telefon"
+                style={addInputStyle}
+              />
+            </div>
+            <textarea
+              value={newLead.notes}
+              onChange={e => setNewLead(current => ({ ...current, notes: e.target.value }))}
+              placeholder="Note (valgfri)"
+              aria-label="Note"
+              rows={2}
+              style={{ ...addInputStyle, width: "100%", resize: "vertical", marginTop: 8, fontFamily: "inherit" }}
+            />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 }}>
+              <span style={{ fontSize: 11, color: saveError ? "#FCA5A5" : MUTED }}>
+                {saveError ?? "Leadet placeres automatisk under Kolde leads."}
+              </span>
+              <button
+                onClick={() => addMutation.mutate()}
+                disabled={addMutation.isPending || !newLead.name.trim() || !newLead.sourceUrl.trim()}
+                style={{
+                  padding: "7px 16px", borderRadius: 7, border: 0,
+                  background: AMBER, color: NAVY, fontSize: 11, fontWeight: 800,
+                  cursor: addMutation.isPending ? "wait" : "pointer",
+                  opacity: !newLead.name.trim() || !newLead.sourceUrl.trim() ? 0.45 : 1,
+                }}
+              >
+                {addMutation.isPending ? "Gemmer…" : "Gem lead"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <div style={{ position: "relative" }}>

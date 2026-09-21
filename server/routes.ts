@@ -7633,6 +7633,52 @@ export async function registerRoutes(
     } catch (err: any) { return res.status(500).json({ error: err.message }); }
   });
 
+  app.post("/api/telesales", async (req, res) => {
+    try {
+      const user = await requireTelesales(req, res);
+      if (!user) return;
+
+      const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+      const ownerPhone = typeof req.body.ownerPhone === "string" ? req.body.ownerPhone.trim() : "";
+      const officePhone = typeof req.body.officePhone === "string" ? req.body.officePhone.trim() : "";
+      const notes = typeof req.body.notes === "string" ? req.body.notes.trim() : "";
+      const rawUrl = typeof req.body.sourceUrl === "string" ? req.body.sourceUrl.trim() : "";
+
+      if (!name) return res.status(400).json({ error: "Navn er påkrævet" });
+      if (!rawUrl) return res.status(400).json({ error: "Boliglink er påkrævet" });
+
+      let sourceUrl: string;
+      try {
+        const parsed = new URL(rawUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("invalid protocol");
+        parsed.hash = "";
+        sourceUrl = parsed.toString();
+      } catch {
+        return res.status(400).json({ error: "Indtast et gyldigt link til boligsiden" });
+      }
+
+      const duplicate = await pool.query(
+        "SELECT id FROM leads WHERE owner_email = $1 AND source_url = $2 LIMIT 1",
+        [LEADS_OWNER_EMAIL, sourceUrl],
+      );
+      if (duplicate.rows[0]) {
+        return res.status(409).json({ error: "Boligsiden er allerede tilføjet i Tele-salg" });
+      }
+
+      const result = await pool.query(
+        `INSERT INTO leads
+          (owner_email, name, category, owner_phone, office_phone, source_url, status, notes)
+         VALUES ($1, $2, 'ejendomsmaegler', $3, $4, $5, 'new', $6)
+         RETURNING id, name, category, email, owner_phone, office_phone, source_url,
+                   deal_amount, callback_at, status, notes, created_at`,
+        [LEADS_OWNER_EMAIL, name, ownerPhone || null, officePhone || null, sourceUrl, notes || null],
+      );
+      return res.status(201).json(result.rows[0]);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Tele-salg (read-only view — owner + Mahad) ───────────────────────────────
   app.get("/api/telesales", async (req, res) => {
     try {
@@ -7640,7 +7686,7 @@ export async function registerRoutes(
       if (!user) return;
       // Always returns fredefussing's leads (telesales is a view of the owner's pipeline)
       const result = await pool.query(`
-        SELECT id, name, category, email, phone, owner_phone, office_phone, deal_amount, callback_at, status, notes, created_at
+        SELECT id, name, category, email, phone, owner_phone, office_phone, source_url, deal_amount, callback_at, status, notes, created_at
         FROM leads
         WHERE owner_email = 'fredefussing@gmail.com'
           AND owner_phone IS NOT NULL
