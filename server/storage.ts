@@ -1651,16 +1651,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Bolig refinement counting ────────────────────────────────────────────────
-  // Counts how many generated images already exist where originalImageUrl equals
-  // the given source image URL — i.e. direct refinements of a given result image.
-  async countGeneratedImageRefinements(userId: number, sourceImageId: number): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)::int` })
-      .from(generatedImages)
-      .where(and(
-        eq(generatedImages.userId, userId),
-        eq(generatedImages.sourceImageId, sourceImageId),
-      ));
-    return result[0]?.count ?? 0;
+  // Returns the number of refinements in the ancestry of the current image.
+  // This survives reloads and follows the latest result back to its original.
+  async countGeneratedImageRefinements(userId: number, imageId: number): Promise<number> {
+    const result = await pool.query(
+      `WITH RECURSIVE refinement_chain AS (
+         SELECT id, source_image_id, is_refinement, ARRAY[id] AS visited
+           FROM generated_images
+          WHERE id = $1 AND user_id = $2
+         UNION ALL
+         SELECT parent.id, parent.source_image_id, parent.is_refinement, child.visited || parent.id
+           FROM generated_images parent
+           JOIN refinement_chain child ON parent.id = child.source_image_id
+          WHERE parent.user_id = $2
+            AND NOT parent.id = ANY(child.visited)
+       )
+       SELECT COUNT(*) FILTER (WHERE is_refinement = true)::int AS count
+         FROM refinement_chain`,
+      [imageId, userId],
+    );
+    return result.rows[0]?.count ?? 0;
   }
 
   // ── Video job registry ───────────────────────────────────────────────────────

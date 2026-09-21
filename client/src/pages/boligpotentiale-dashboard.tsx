@@ -111,6 +111,7 @@ interface ApiCaseImage {
   promptUsed: string | null;
   src: string;
   beforeSrc: string | null;
+  refinementCount: number;
   daysAfterMarket: number;
   createdAt: string;
 }
@@ -1318,6 +1319,25 @@ function CaseDetailPanel({
     }
   };
 
+  const reopenSavedImageForRefinement = (img: ApiCaseImage) => {
+    setResultUrl(img.src);
+    setImagePreview(img.beforeSrc);
+    setPromptUsed(img.promptUsed);
+    setRoomType(img.room || "other");
+    setStyle(img.style || "custom");
+    setTier(img.tier || "tier2");
+    setCaseSavedImageId(img.id);
+    setCaseRefinedUrl(null);
+    setCaseRefinementCount(img.refinementCount ?? 0);
+    setCaseRefinementPrompt("");
+    setCaseRefinementError(null);
+    setGenStep(3);
+    setLightboxImg(null);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  };
+
   const updateLbPos = useCallback((clientX: number) => {
     if (!lbRef.current) return;
     const rect = lbRef.current.getBoundingClientRect();
@@ -1678,6 +1698,11 @@ function CaseDetailPanel({
                         <div className="flex gap-1.5 flex-wrap">
                           <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{img.style}</span>
                           {img.tier && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(img.tier)}</span>}
+                          {img.refinementCount > 0 && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(200,149,108,0.13)", color: "#9A643A" }}>
+                              {i18n.t("dashboard.caseView.justeringerCount", { count: img.refinementCount, max: CASE_MAX_REFINEMENTS })}
+                            </span>
+                          )}
                           <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>{i18n.t("dashboard.caseView.dagEfterSalgsstart", { day: img.daysAfterMarket })}</span>
                         </div>
                         {allCases.some((c) => c.id !== caseData.id) && (
@@ -2290,6 +2315,17 @@ function CaseDetailPanel({
                     </button>
                   ) : (
                     <>
+                    <button
+                      type="button"
+                      onClick={() => reopenSavedImageForRefinement(lightboxImg)}
+                      disabled={lightboxImg.refinementCount >= CASE_MAX_REFINEMENTS}
+                      className="h-8 px-3 rounded-full font-semibold text-xs text-white flex items-center gap-1.5 hover:opacity-80 transition-opacity disabled:opacity-45 disabled:cursor-not-allowed"
+                      style={{ background: "#C8956C" }}
+                      data-testid="bolig-lightbox-refine-again"
+                      title={i18n.t("dashboard.caseView.justeringerCount", { count: lightboxImg.refinementCount, max: CASE_MAX_REFINEMENTS })}
+                    >
+                      <Sparkles className="w-3 h-3" /> {i18n.t("image.result.adjust")}
+                    </button>
                     <ShareButton caseImageId={lightboxImg.id} variant="pill-light" testId="bolig-lightbox-share" stopPropagation />
                     <DownloadMenu
                       url={lightboxImg.src}
@@ -8029,22 +8065,31 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                             setSaveCaseId(c.id);
                             try {
                               const token = await user?.getIdToken();
-                              const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                },
-                                body: JSON.stringify({
-                                  imageUrl: resultUrl,
-                                  originalImageUrl: originalUrl,
-                                  roomType: "other",
-                                  style: "ai-agent",
-                                  budgetTier: "tier2",
-                                  promptText,
-                                  isDesignAgent: true,
-                                }),
-                              });
+                              const r = savedDesignId
+                                ? await fetch(`/api/bolig/generated-images/${savedDesignId}/case`, {
+                                    method: "PATCH",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                    },
+                                    body: JSON.stringify({ caseId: c.id }),
+                                  })
+                                : await fetch(`/api/bolig/cases/${c.id}/images`, {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                    },
+                                    body: JSON.stringify({
+                                      imageUrl: resultUrl,
+                                      originalImageUrl: originalUrl,
+                                      roomType: "other",
+                                      style: "ai-agent",
+                                      budgetTier: "tier2",
+                                      promptText,
+                                      isDesignAgent: true,
+                                    }),
+                                  });
                               if (!r.ok) {
                                 setSaveCaseId(null);
                                 const msg = await r.text().catch(() => "");
@@ -8059,7 +8104,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                               resetTimerRef.current = setTimeout(() => {
                                 resetTimerRef.current = null;
                                 setImageFile(null); setImagePreview(null); setPromptText("");
-                                setStage("idle"); setResultUrl(null); setOriginalUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null);
+                                setStage("idle"); setResultUrl(null); setOriginalUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null); setRefinementCount(0);
                               }, 1500);
                             } catch {
                               setSaveCaseId(null);

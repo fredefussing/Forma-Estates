@@ -3626,7 +3626,7 @@ export async function registerRoutes(
       if (!existing || existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
       const marketMs = new Date(existing.marketDateISO).getTime();
       const imgs = await storage.getGeneratedImagesByCaseId(caseId, user.id);
-      return res.json(imgs.map((img) => ({
+      return res.json(await Promise.all(imgs.map(async (img) => ({
         id: img.id,
         caseId: img.caseId,
         src: img.imageUrl,
@@ -3635,9 +3635,10 @@ export async function registerRoutes(
         style: img.style,
         tier: img.budgetTier,
         promptUsed: img.promptText ?? null,
+        refinementCount: await storage.countGeneratedImageRefinements(user.id, img.id),
         daysAfterMarket: Math.max(0, Math.floor((new Date(img.createdAt).getTime() - marketMs) / 86_400_000)),
         createdAt: img.createdAt,
-      })));
+      }))));
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -4602,8 +4603,8 @@ export async function registerRoutes(
         }
 
         // Server-side enforcement of the 5-free-refinements limit.
-        // Count how many generated images already use srcImg.imageUrl as their
-        // originalImageUrl (i.e. direct refinements of this result image).
+        // Count the persisted refinement ancestry of the current result so the
+        // limit remains correct across reloads and successive adjustments.
         if (isRefinement && !season) {
           const authedUser = await storage.getUserById(authedUserId);
           if (authedUser && !authedUser.isAdmin) {
