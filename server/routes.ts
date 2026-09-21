@@ -37,7 +37,12 @@ import {
 
 const LEADS_OWNER_EMAIL = "fredefussing@gmail.com";
 const LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "henrilasse@icloud.com", "emilvoigt@gmail.com"]);
-const TELESALES_EMAILS = new Set([LEADS_OWNER_EMAIL, "mahad23_@hotmail.com", "emilvoigt@gmail.com"]);
+const TELESALES_EMAILS = new Set([
+  LEADS_OWNER_EMAIL,
+  "mahad23_@hotmail.com",
+  "emilvoigt@gmail.com",
+  "emilgvoigt@gmail.com",
+]);
 const SHARED_LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "emilvoigt@gmail.com"]);
 
 function normalizedUserEmail(email: string | null | undefined): string {
