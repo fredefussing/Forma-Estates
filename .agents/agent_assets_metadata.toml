@@ -423,3 +423,17 @@ mtime_ms = 1790357353288
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/c6107bdc-42b0-4ef9-8c6e-8e1b6d5337c6/449efebe-fbe4-4d38-bde8-4031767cd959"
 storage_version_token = "1790357377919883"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "7dHxi-JaPwK4bBgiBSgSn"
+uri = "file://attached_assets/generated_videos/koncertvideo-kling-gangnam-dans-18s.mp4"
+type = "video"
+title = "Kling-koncertvideo – 18 sekunder"
+description = "Lodret koncertvideo med ridetrin og fokus på personen fra referencebilledet. Lydløs indtil en brugbar sangfil leveres."
+logical_id = "6a956437-446e-4050-aead-3499a5b7dc73"
+content_hash = "sha256:474b8635321fbc0bd9a7ad721872b82218e39d2abf73a38203d8a364818d62f7"
+size = 53518897
+mtime_ms = 1790358110368
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/6a956437-446e-4050-aead-3499a5b7dc73/4fd68009-154a-42ce-8c82-689d03fd422e"
+storage_version_token = "1790358119453074"
+content_type = "video/mp4"
