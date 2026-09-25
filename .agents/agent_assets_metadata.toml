@@ -409,3 +409,17 @@ mtime_ms = 1789489584567
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/112da02f-b2d8-4561-add3-1a49e20a3cb2/68eec851-c96d-4b84-97bd-a28b08e7e287"
 storage_version_token = "1789489627608390"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "XSqWh49udR8Nl9SAmJ7s0"
+uri = "file://attached_assets/generated_videos/koncertvideo-reference-9x16.mp4"
+type = "video"
+title = "Koncertvideo (9:16)"
+description = "8 sekunder, 720p med koncertlyd. Genereret separat via fal.ai ud fra referencebilledet."
+logical_id = "c6107bdc-42b0-4ef9-8c6e-8e1b6d5337c6"
+content_hash = "sha256:6fea48ea15be102d2706b1600205e9a78f8be08dbc8056c321a4adea72db0d59"
+size = 8756384
+mtime_ms = 1790357353288
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/c6107bdc-42b0-4ef9-8c6e-8e1b6d5337c6/449efebe-fbe4-4d38-bde8-4031767cd959"
+storage_version_token = "1790357377919883"
+content_type = "video/mp4"

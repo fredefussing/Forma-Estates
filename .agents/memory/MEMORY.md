@@ -4,7 +4,7 @@
 - [Showcase paid-AI slot gating](showcase-paid-ai-gating.md) — gate paid fal.ai clip generation behind the render queue slot (acquire at top of render), bound per-job fan-out, clean partial temp clips.
 - [FFmpeg looped audio bed](ffmpeg-looped-audio.md) — never `-shortest` with `-stream_loop -1` audio (it deadlocks/fails); cap with `-t videoTotal`. Also: `tsx` dev server needs a workflow restart for server edits.
 - [Replit dev: Node.js HTTP intercepted](replit-nodejs-http-proxy.md) — Node.js fetch() and https.get() are intercepted by Replit's network layer; use spawn("curl") instead for server-side external fetches.
-- [fal.storage URLs blocked by nano-banana-2/edit](fal-storage-forbidden.md) — fal.storage.upload() via Replit proxy produces v3b.fal.media URLs that return 403 to model workers; fix: preprocess to disk, pass ${protocol}://${host}/uploads/... instead.
+- [fal.storage URLs and model workers](fal-storage-forbidden.md) — a fal CDN URL may return 200 to curl but fail model-side fetch; use a verified public upload URL for reference media.
 - [Seedance 2.0 transform video](fal-seedance-transform-video.md) — morph mode needs aspect_ratio "auto" or landscape inputs crop-zoom to 9:16; endpoint id has no fal-ai/ prefix; free schema probe via fal openapi URL.
 - [Floorplan wall detection](floorplan-wall-detection.md) — paper-white-relative threshold + dilate + keep-large-components beats Otsu+absolute-minArea for thin grey walls.
 - [Collov refinement fidelity](collov-refinement-fidelity.md) — raw Collov bytes are the preview/refinement master; branding, AI badge and compliance processing happen only on final export.
