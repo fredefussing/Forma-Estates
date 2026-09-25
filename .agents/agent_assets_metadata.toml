@@ -437,3 +437,17 @@ mtime_ms = 1790358110368
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/6a956437-446e-4050-aead-3499a5b7dc73/4fd68009-154a-42ce-8c82-689d03fd422e"
 storage_version_token = "1790358119453074"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "jpQO8ciaNzejs-R_uWrxy"
+uri = "file://attached_assets/generated_videos/gangnam-style-kling-med-lyd-20s.mp4"
+type = "video"
+title = "Kling-koncertvideo med Gangnam Style-lyd"
+description = "20 sekunder, lodret 1080×1920, med et udsnit af den vedhæftede MP3. Ansigt og påklædning er ikke helt 1:1 gennem hele videoen."
+logical_id = "273a4396-1823-4964-9385-3a5756865665"
+content_hash = "sha256:5cf917e34340e8e1bb377db0a18a4fba5731a1747f764463417c7b035e4be058"
+size = 56313892
+mtime_ms = 1790358731972
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:853089b9-9570-487c-8bed-2f47e9a78471/273a4396-1823-4964-9385-3a5756865665/88c9f8e8-7009-4839-9dce-c593d35759b0"
+storage_version_token = "1790358755064634"
+content_type = "video/mp4"
