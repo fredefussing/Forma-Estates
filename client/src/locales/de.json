@@ -581,10 +581,11 @@
   "dashboard": {
     "nav": {
       "dashboard": "Überblick",
-      "quota": "Kontingent",
+      "quota": "Nutzung",
       "allCases": "Alle Fälle",
       "soldCases": "Verkaufte Fälle",
       "aiDesignAgent": "KI-Bildbearbeitung",
+      "aiVisualization": "KI-Visualisierung",
       "floorPlan3d": "3D-Grundriss",
       "transformVideo": "Verwandlungsvideo",
       "aiShowcase": "KI Immobilienpräsentation",
@@ -957,15 +958,15 @@
     },
     "budgetTiers": {
       "iGaar": "gestern",
-      "tier1Label": "Tier 1 — Budget",
-      "tier1Sub": "IKEA / JYSK Niveau",
-      "tier1Short": "Budget",
-      "tier2Label": "Tier 2 — Standard",
-      "tier2Sub": "Mittelklasse",
-      "tier2Short": "Standard",
-      "tier3Label": "Tier 3 — Premium",
-      "tier3Sub": "Designermöbel",
-      "tier3Short": "Premium"
+      "tier1Label": "Erschwinglicher Stil",
+      "tier1Sub": "Einfacher Stil und schlichte Einrichtung",
+      "tier1Short": "Einfach",
+      "tier2Label": "Ausgewogener Stil",
+      "tier2Sub": "Ausgewogener Standardstil und Einrichtung",
+      "tier2Short": "Ausgewogen",
+      "tier3Label": "Exklusiver Stil",
+      "tier3Sub": "Hochwertiger Look mit gehobener Einrichtung",
+      "tier3Short": "Exklusiv"
     },
     "caseView": {
       "kunneIkkeSletteSagen": "Der Fall konnte nicht gelöscht werden",
@@ -1729,7 +1730,8 @@
       "ingenAktivitetEndnu": "Noch keine Aktivität.",
       "designAgent": "KI-Bildbearbeitung",
       "sagOprettetActivity": "Fall „{{address}}“ erstellt",
-      "dineStandardvalg": "Ihre Standardauswahl",
+      "dineStandardvalg": "Ihre meistgewählten Optionen",
+      "mostUsedDescription": "Sehen Sie, welche Räume, Stile und Budgetstufen Sie am häufigsten auswählen. Das kann Ihnen bei der Planung Ihrer nächsten Visualisierung helfen.",
       "sagIAltCount_one": "{{count}} Fall insgesamt",
       "sagIAltCount_other": "{{count}} Fälle insgesamt",
       "solgtCount_one": "{{count}} verkauft",

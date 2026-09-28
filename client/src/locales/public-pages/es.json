@@ -1,0 +1,105 @@
+{
+  "common": {
+    "mainNavigation": "Navegación principal",
+    "mobileNavigation": "Navegación móvil",
+    "language": "Elegir idioma",
+    "close": "Cerrar",
+    "enlarge": "Ampliar",
+    "swipeHint": "Desliza o usa las teclas de flecha",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "mute": "Silenciar",
+    "unmute": "Activar sonido",
+    "chooseRoom": "Elegir tipo de habitación",
+    "comingSoon": "Próximamente"
+  },
+  "examples": {
+    "metaTitle": "Ejemplos de visualización de viviendas con IA",
+    "metaDescription": "Descubre ejemplos del antes y el después de la decoración y puesta en escena de viviendas generadas con IA por Forma Estates.",
+    "eyebrow": "Ejemplos",
+    "title": "Descubre todo lo que puedes crear",
+    "intro": "Explora ejemplos terminados de Showcase Video, diseño de interiores con IA, renovación de fachadas y vistas aéreas, y planos en 3D.",
+    "nav": {
+      "video": "Showcase Video",
+      "rooms": "Diseño de interiores",
+      "property": "Fachada y vista aérea",
+      "floorplan": "Plano en 3D"
+    },
+    "video": {
+      "eyebrow": "Showcase Video",
+      "title": "Un vídeo de la vivienda listo en 2–3 minutos",
+      "description": "Sube las fotos de la vivienda. Obtendrás un vídeo breve y listo para publicar, con movimientos de cámara y música, para anuncios y redes sociales.",
+      "wideTitle": "Showcase Video — formato cinematográfico",
+      "wideDescription": "Presenta la vivienda en su conjunto con un vídeo sereno y profesional.",
+      "rivieraDescription": "Una presentación lista de las estancias más importantes de la vivienda.",
+      "billItDescription": "Un vídeo listo para portales inmobiliarios y redes sociales."
+    },
+    "rooms": {
+      "eyebrow": "Diseño de interiores con IA",
+      "title": "Rediseña una habitación en unos 15 segundos",
+      "description": "Elige el tipo de habitación y compara la foto original con la visualización de esa misma estancia.",
+      "bathroom": {
+        "label": "Baño",
+        "description": "El mismo baño, con nuevos acabados y materiales más claros."
+      },
+      "utility": {
+        "label": "Lavadero",
+        "description": "Un espacio sin terminar, transformado en un lavadero luminoso y práctico."
+      },
+      "office": {
+        "label": "Despacho en casa",
+        "description": "El mismo espacio de trabajo, con una nueva distribución."
+      }
+    },
+    "property": {
+      "eyebrow": "AI Design Agent",
+      "title": "Toda la propiedad: fachada y vista aérea",
+      "description": "Dale un nuevo aspecto a la fachada y su entorno con una instrucción breve. La misma propiedad, con un antes y un después muy claros.",
+      "facadeTitle": "Fachada",
+      "facadeDescription": "Descubre una fachada renovada con otros materiales y acabados.",
+      "aerialTitle": "Vista aérea y entorno",
+      "aerialDescription": "Visualiza desde arriba el entorno y el paisaje que rodean la propiedad."
+    },
+    "floorplan": {
+      "eyebrow": "Plano en 3D",
+      "title": "De un plano en 2D a una visualización en 3D",
+      "description": "Sube un plano en 2D y obtén una vista en 3D con muebles, habitaciones y proporciones para entender fácilmente la distribución.",
+      "pairTitle": "De 2D a 3D",
+      "pairDescription": "Haz clic en un plano para ver los detalles ampliados."
+    }
+  },
+  "about": {
+    "metaTitle": "Sobre nosotros",
+    "metaDescription": "Conoce Forma Estates y descubre por qué usamos la IA para que sea más fácil imaginar todo lo que puede ofrecer una vivienda.",
+    "eyebrow": "Sobre nosotros",
+    "title": "Una vivienda es mucho más de lo que muestra una foto",
+    "intro": "Somos Forma Estates. Usamos la IA para mostrar más fácilmente lo que una vivienda es y todo lo que podría llegar a ser.",
+    "motto": "Tecnología para entender mejor las viviendas.",
+    "story1": "A veces cuesta imaginar un hogar en una habitación vacía. Y en un plano, puede ser difícil hacerse una idea del tamaño de cada estancia. Pero cuando empiezas a ver las posibilidades, la conversación cambia.",
+    "story2": "Eso es lo que tanto nos entusiasma de la IA. Una idea se convierte en una imagen, un plano en una vista 3D y las fotos de una vivienda en un Showcase Video. Tú sigues siendo quien mejor conoce la vivienda. Nosotros te ayudamos a compartir tus ideas con los demás.",
+    "founderEyebrow": "Quién está detrás de Forma Estates",
+    "founderText1": "Frederik Fussing Nielsen fundó Forma Estates en Copenhague en 2025 y hoy dirige la empresa. Desarrollamos herramientas para agentes inmobiliarios, promotores, asociaciones de vivienda y arrendadores profesionales.",
+    "founderText2": "Al otro lado de cada presentación de una vivienda hay una persona. Por eso nos importa más que alguien entienda la vivienda que lo impresionante que parezca el resultado desde el punto de vista técnico.",
+    "visionLabel": "Visión",
+    "visionText": "Queremos que más personas puedan descubrir las posibilidades de una vivienda, incluso cuando todavía solo existen en un plano o en una habitación vacía.",
+    "missionLabel": "Misión",
+    "missionText": "Creamos herramientas de IA para imágenes, 3D y vídeo que dan forma a tus ideas y hacen que sea más fácil compartirlas.",
+    "valuesEyebrow": "Así trabajamos",
+    "values": {
+      "clarity": {
+        "title": "Que se entienda",
+        "description": "Una imagen solo es buena si ayuda a otra persona a entender la vivienda, no si simplemente queda bonita."
+      },
+      "useful": {
+        "title": "Que sea útil",
+        "description": "Tienes que poder usar el resultado en tu próxima conversación, visita o anuncio. Si no, aún no hemos terminado."
+      },
+      "expertise": {
+        "title": "Tú tienes la experiencia",
+        "description": "La IA puede mostrar posibilidades, pero tú conoces la vivienda y sabes qué necesita ver el cliente."
+      }
+    },
+    "ctaPrompt": "¿Tienes una vivienda difícil de mostrar?",
+    "ctaButton": "Contacta con nosotros"
+  }
+}

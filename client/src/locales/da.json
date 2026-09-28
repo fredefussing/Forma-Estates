@@ -556,10 +556,11 @@
   "dashboard": {
     "nav": {
       "dashboard": "Overblik",
-      "quota": "Kvota",
+      "quota": "Forbrug",
       "allCases": "Alle sager",
       "soldCases": "Solgte sager",
       "aiDesignAgent": "AI-billedredigering",
+      "aiVisualization": "AI-visualisering",
       "floorPlan3d": "3D plantegning",
       "transformVideo": "Forvandlingsvideo",
       "aiShowcase": "AI boligfremvisning",
@@ -932,15 +933,15 @@
     },
     "budgetTiers": {
       "iGaar": "i går",
-      "tier1Label": "Tier 1 — Budget",
-      "tier1Sub": "IKEA / JYSK niveau",
-      "tier1Short": "Budget",
-      "tier2Label": "Tier 2 — Standard",
-      "tier2Sub": "Mellemklasse",
-      "tier2Short": "Standard",
-      "tier3Label": "Tier 3 — Premium",
-      "tier3Sub": "Designermøbler",
-      "tier3Short": "Premium"
+      "tier1Label": "Enkel og prisvenlig stil",
+      "tier1Sub": "Enkel stil med enkle møbler",
+      "tier1Short": "Enkel",
+      "tier2Label": "Afbalanceret stil",
+      "tier2Sub": "Standard stil og møblering",
+      "tier2Short": "Afbalanceret",
+      "tier3Label": "Eksklusivt udtryk",
+      "tier3Sub": "Eksklusivt udtryk med kvalitetsmøbler",
+      "tier3Short": "Eksklusiv"
     },
     "caseView": {
       "kunneIkkeSletteSagen": "Kunne ikke slette sagen",
@@ -1704,7 +1705,8 @@
       "ingenAktivitetEndnu": "Ingen aktivitet endnu.",
       "designAgent": "AI-billedredigering",
       "sagOprettetActivity": "Sag \"{{address}}\" oprettet",
-      "dineStandardvalg": "Dine standardvalg",
+      "dineStandardvalg": "Dine mest brugte valg",
+      "mostUsedDescription": "Se hvilke rum, stilarter og budgetniveauer du oftest vælger. Det kan hjælpe dig med at planlægge din næste visualisering.",
       "sagIAltCount_one": "{{count}} sag i alt",
       "sagIAltCount_other": "{{count}} sager i alt",
       "solgtCount_one": "{{count}} solgt",

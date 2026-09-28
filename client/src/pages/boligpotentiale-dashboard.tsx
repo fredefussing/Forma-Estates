@@ -10079,6 +10079,7 @@ export default function BoligpotentialeDashboard() {
     { id: "solgte" as Section, label: t("dashboard.nav.soldCases"), icon: <span className="relative inline-flex w-[18px] h-[18px]"><FolderOpen className="w-[18px] h-[18px]" /><Check className="absolute -right-1 -bottom-1 w-2.5 h-2.5 rounded-full" style={{ background: "#0F1D2F" }} /></span>, badge: soldCount > 0 ? soldCount : null },
     { id: "dashboard" as Section, label: t("dashboard.nav.dashboard"), icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
     { id: "kvota" as Section, label: t("dashboard.nav.quota"), icon: <BarChart3 className="w-[18px] h-[18px]" /> },
+    { id: "upload" as Section, label: t("dashboard.nav.aiVisualization"), icon: <ImageIcon className="w-[18px] h-[18px]" /> },
     { id: "ai-design-agent" as Section, label: t("dashboard.nav.aiDesignAgent"), icon: <PenTool className="w-[18px] h-[18px]" /> },
     { id: "3d-plantegning" as Section, label: t("dashboard.nav.floorPlan3d"), icon: <Box className="w-[18px] h-[18px]" />, locked: lockedFP },
     { id: "transformering-video" as Section, label: t("dashboard.nav.transformVideo"), icon: <Video className="w-[18px] h-[18px]" />, locked: lockedTV },
@@ -10141,7 +10142,7 @@ export default function BoligpotentialeDashboard() {
             >
               <span className="w-5 flex items-center justify-center">{item.icon}</span>
               <span className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="min-w-[120px] flex-1 text-left whitespace-normal leading-snug">{item.label}</span>
+                <span className="min-w-0 flex-1 text-left whitespace-normal break-words leading-snug">{item.label}</span>
                 {item.id === "ai-design-agent" && showOnboarding && !isActive && (
                   <span
                     className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce-x flex-shrink-0"
@@ -10235,25 +10236,27 @@ export default function BoligpotentialeDashboard() {
     <div className="min-h-screen flex flex-col font-sans" style={{ background: "#F5F3EF", color: "#1A1A1A" }}>
 
       {/* ── TOPBAR ── */}
-      <header className="fixed top-0 left-0 right-0 z-40 h-20 md:h-32 flex items-center px-4 md:px-6 gap-3 md:gap-5 border-b" style={{ background: "#0F1D2F", borderColor: "rgba(245,243,239,0.1)" }}>
+      <header className="fixed top-0 left-0 right-0 z-40 h-20 md:h-32 flex items-center px-4 md:px-6 gap-3 md:gap-0 border-b" style={{ background: "#0F1D2F", borderColor: "rgba(245,243,239,0.1)" }}>
         <button className="md:hidden flex flex-col gap-[5px] mr-1" onClick={() => setSidebarOpen((o) => !o)} data-testid="bolig-topbar-hamburger">
           <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
           <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
           <span className="w-5 h-[2px] rounded bg-[#F5F3EF]" />
         </button>
 
-        <Link href="/">
-          <img
-            src={formaEstatesLogo}
-            alt={i18n.t("dashboard.homeX.formaEstatesTilbageTilForsiden")}
-            title={i18n.t("dashboard.homeX.tilbageTilForsiden")}
-            className="h-14 md:h-24 w-auto max-w-[190px] md:max-w-[300px] object-contain select-none cursor-pointer"
-            style={{ filter: "brightness(0) invert(1)" }}
-            data-testid="bolig-topbar-logo"
-          />
-        </Link>
+        <div className="md:w-[264px] md:h-32 md:flex md:items-center md:overflow-hidden md:flex-shrink-0">
+          <Link href="/">
+            <img
+              src={formaEstatesLogo}
+              alt={i18n.t("dashboard.homeX.formaEstatesTilbageTilForsiden")}
+              title={i18n.t("dashboard.homeX.tilbageTilForsiden")}
+              className="h-14 md:h-40 md:translate-y-[18px] w-auto object-contain select-none cursor-pointer"
+              style={{ filter: "brightness(0) invert(1)" }}
+              data-testid="bolig-topbar-logo"
+            />
+          </Link>
+        </div>
 
-        <div className="flex-1 max-w-md hidden sm:block">
+        <div className="flex-1 min-w-0 max-w-md hidden sm:block md:mr-5">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 z-10" style={{ color: "rgba(245,243,239,0.45)" }} />
             <input
@@ -10330,10 +10333,10 @@ export default function BoligpotentialeDashboard() {
         <div className="ml-auto flex items-center gap-3 relative">
           {isOwner && (
             <>
-              <span className="hidden sm:inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>{t("dashboard.header.roleOwner")}</span>
+              <span className="hidden xl:inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.25)", color: "#C8956C" }}>{t("dashboard.header.roleOwner")}</span>
               <button
                 onClick={() => setSection("crm")}
-                className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+                className="hidden xl:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
                 style={{ background: section === "crm" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "crm" ? "#fff" : "#C8956C" }}
                 data-testid="bolig-topbar-crm"
               >
@@ -10344,7 +10347,7 @@ export default function BoligpotentialeDashboard() {
           {isLeadsUser && (
             <button
               onClick={() => setSection("leads")}
-              className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+              className="hidden xl:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
               style={{ background: section === "leads" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "leads" ? "#fff" : "#C8956C" }}
               data-testid="bolig-topbar-leads"
             >
@@ -10354,7 +10357,7 @@ export default function BoligpotentialeDashboard() {
           {isTelesalesUser && (
             <button
               onClick={() => setSection("telesales")}
-              className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
+              className="hidden xl:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90"
               style={{ background: section === "telesales" ? "#C8956C" : "rgba(200,149,108,0.18)", color: section === "telesales" ? "#fff" : "#C8956C" }}
               data-testid="bolig-topbar-telesales"
             >
@@ -10542,33 +10545,8 @@ export default function BoligpotentialeDashboard() {
                 </div>
               )}
 
-              {/* Statistik — 6 kort */}
-              <div className="mb-6 order-1" data-testid="bolig-stats">
-                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.overblik")}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    { value: stats ? String(stats.todayImages) : "—", label: i18n.t("dashboard.homeX.iDag") },
-                    { value: stats ? String(stats.totalImages) : "—", label: i18n.t("dashboard.homeX.visualsIAlt") },
-                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: i18n.t("dashboard.homeX.aktiveSager") },
-                    { value: stats ? String(stats.soldCases) : String(soldCount), label: i18n.t("dashboard.homeX.solgteSager") },
-                    { value: stats ? String(stats.totalCases) : String(cases.length), label: i18n.t("dashboard.homeX.sagerIAlt") },
-                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: i18n.t("dashboard.homeX.dagePaaMarked") },
-                  ].map((s, i) => (
-                    <div key={i} className="rounded-xl p-4 border border-[#E8E4DE] hover:shadow-sm transition-shadow overflow-hidden" style={{ background: "#fff" }} data-testid={`bolig-stat-${i}`}>
-                      <div className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.value}</div>
-                      <div className="text-xs leading-tight" style={{ color: "#9B9690" }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Månedlig kvota */}
-              <div className="mb-6 order-3">
-                <QuotaWidget />
-              </div>
-
               {/* Aktive Sager */}
-              <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE] order-4" data-testid="bolig-active-cases">
+              <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-active-cases">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>{t("dashboard.nav.allCases")}</h2>
                   <button onClick={() => setSection("sager")} className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "#C8956C" }} data-testid="bolig-see-all-cases">
@@ -10614,7 +10592,7 @@ export default function BoligpotentialeDashboard() {
 
               {/* Solgte Sager — mini preview */}
               {soldCount > 0 && (
-                <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE] order-5" data-testid="bolig-sold-cases-preview">
+                <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[#E8E4DE]" data-testid="bolig-sold-cases-preview">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-semibold" style={{ color: "#1A1A1A" }}>{t("dashboard.nav.soldCases")}</h2>
@@ -10642,7 +10620,7 @@ export default function BoligpotentialeDashboard() {
               )}
 
               {/* Hurtig-handlinger + Seneste aktivitet — nederst på oversigten */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 mb-4 items-stretch order-7" data-testid="bolig-bottom-row">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 items-stretch" data-testid="bolig-bottom-row">
 
                 {/* Venstre: Hurtig-handlinger + Genbrug seneste */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E8E4DE] h-full" data-testid="bolig-quick-actions">
@@ -10759,9 +10737,35 @@ export default function BoligpotentialeDashboard() {
                 </div>
               </div>
 
-              {/* Dine mest brugte valg — fuld bredde før de nederste genveje */}
-              <div className="rounded-2xl p-6 border border-[#E8E4DE] order-6" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
-                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.dineStandardvalg")}</h2>
+              {/* Statistik — 6 genveje til historik og sager */}
+              <div className="mb-6" data-testid="bolig-stats">
+                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.overblik")}</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { value: stats ? String(stats.todayImages) : "—", label: i18n.t("dashboard.homeX.iDag"), target: "historik" as Section },
+                    { value: stats ? String(stats.totalImages) : "—", label: i18n.t("dashboard.homeX.visualsIAlt"), target: "historik" as Section },
+                    { value: stats ? String(stats.activeCases) : String(cases.filter((c) => c.status === "active").length), label: i18n.t("dashboard.homeX.aktiveSager"), target: "sager" as Section },
+                    { value: stats ? String(stats.soldCases) : String(soldCount), label: i18n.t("dashboard.homeX.solgteSager"), target: "solgte" as Section },
+                    { value: stats ? String(stats.totalCases) : String(cases.length), label: i18n.t("dashboard.homeX.sagerIAlt"), target: "sager" as Section },
+                    { value: stats ? (stats.avgDaysOnMarket > 0 ? `${stats.avgDaysOnMarket}d` : "—") : "—", label: i18n.t("dashboard.homeX.dagePaaMarked"), target: "sager" as Section },
+                  ].map((s, i) => (
+                    <button key={i} type="button" onClick={() => setSection(s.target)} className="rounded-xl p-4 border border-[#E8E4DE] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C8956C] transition-shadow overflow-hidden text-left w-full" style={{ background: "#fff" }} data-testid={`bolig-stat-${i}`}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.value}</div>
+                      <div className="text-xs leading-tight" style={{ color: "#9B9690" }}>{s.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Forbrug — fjerde sektion */}
+              <div className="mb-6">
+                <QuotaWidget />
+              </div>
+
+              {/* Dine mest brugte valg — sidst på oversigten */}
+              <div className="rounded-2xl p-6 border border-[#E8E4DE]" style={{ background: "#F5F3EF" }} data-testid="bolig-most-used">
+                <h2 className="text-xs font-bold tracking-[0.1em] uppercase mb-1" style={{ color: "#9B9690" }}>{i18n.t("dashboard.homeX.dineStandardvalg")}</h2>
+                <p className="text-xs leading-relaxed mb-5" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.homeX.mostUsedDescription")}</p>
                 {!mostUsed ? (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[0, 1, 2].map((i) => (

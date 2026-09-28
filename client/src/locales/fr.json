@@ -581,10 +581,11 @@
   "dashboard": {
     "nav": {
       "dashboard": "Vue d’ensemble",
-      "quota": "Quota",
+      "quota": "Utilisation",
       "allCases": "Tous les dossiers",
       "soldCases": "Dossiers vendus",
       "aiDesignAgent": "Retouche d’images IA",
+      "aiVisualization": "Visualisation IA",
       "floorPlan3d": "Plan 3D",
       "transformVideo": "Vidéo de transformation",
       "aiShowcase": "Présentation IA du bien",
@@ -957,15 +958,15 @@
     },
     "budgetTiers": {
       "iGaar": "hier",
-      "tier1Label": "Niveau 1 — Budget",
-      "tier1Sub": "Niveau IKEA / JYSK",
-      "tier1Short": "Budget",
-      "tier2Label": "Niveau 2 — Standard",
-      "tier2Sub": "Milieu de gamme",
-      "tier2Short": "Standard",
-      "tier3Label": "Niveau 3 — Premium",
-      "tier3Sub": "Mobilier design",
-      "tier3Short": "Premium"
+      "tier1Label": "Style abordable",
+      "tier1Sub": "Style simple et mobilier sobre",
+      "tier1Short": "Simple",
+      "tier2Label": "Style équilibré",
+      "tier2Sub": "Style et mobilier standards équilibrés",
+      "tier2Short": "Équilibré",
+      "tier3Label": "Style exclusif",
+      "tier3Sub": "Aspect haut de gamme avec mobilier raffiné",
+      "tier3Short": "Exclusif"
     },
     "caseView": {
       "kunneIkkeSletteSagen": "Impossible de supprimer le dossier",
@@ -1729,7 +1730,8 @@
       "ingenAktivitetEndnu": "Aucune activité pour le moment.",
       "designAgent": "Retouche d’images IA",
       "sagOprettetActivity": "Dossier « {{address}} » créé",
-      "dineStandardvalg": "Vos choix par défaut",
+      "dineStandardvalg": "Vos choix les plus fréquents",
+      "mostUsedDescription": "Découvrez les pièces, les styles et les niveaux de budget que vous choisissez le plus souvent. Cela peut vous aider à planifier votre prochaine visualisation.",
       "sagIAltCount_one": "{{count}} dossier au total",
       "sagIAltCount_other": "{{count}} dossiers au total",
       "solgtCount_one": "{{count}} vendu",

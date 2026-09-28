@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
+import { setExplicitLang } from "@/i18n";
 import { ArrowLeft, Check, ArrowRight, X, ChevronLeft, ChevronRight, Volume2, VolumeX, MessageSquare, Facebook, Instagram, Linkedin } from "lucide-react";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
@@ -24,12 +26,17 @@ function SubpageLayout({
   title,
   intro,
   children,
+  localized = false,
 }: {
   eyebrow: string;
   title: string;
   intro: string;
   children: React.ReactNode;
+  localized?: boolean;
 }) {
+  const { t, i18n } = useTranslation();
+  const label = (key: string, danish: string) => localized ? t(key) : danish;
+  const currentLanguage = i18n.resolvedLanguage?.split("-")[0] ?? "da";
   const currentPath = window.location.pathname;
   const navStyle = (path: string): React.CSSProperties => {
     const active = currentPath === path;
@@ -55,24 +62,37 @@ function SubpageLayout({
               <img src={formaEstatesLogo} alt="Forma Estates" className="w-auto" style={{ height: "clamp(52px, 14vw, 150px)" }} />
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-7" aria-label="Hovednavigation">
-            <Link href="/boligpotentiale" style={navStyle("/boligpotentiale")}>Forside</Link>
-            <Link href="/boligpotentiale#pricing" style={navStyle("")}>Priser</Link>
-            <Link href="/boligpotentiale/eksempler" style={navStyle("/boligpotentiale/eksempler")}>Eksempler</Link>
-            <Link href="/om-os" style={navStyle("/om-os")}>Om os</Link>
+          <nav className="hidden lg:flex items-center gap-7" aria-label={label("publicPages.common.mainNavigation", "Hovednavigation")}>
+            <Link href="/boligpotentiale" style={navStyle("/boligpotentiale")}>{label("nav.home", "Forside")}</Link>
+            <Link href="/boligpotentiale#pricing" style={navStyle("")}>{label("nav.prices", "Priser")}</Link>
+            <Link href="/boligpotentiale/eksempler" style={navStyle("/boligpotentiale/eksempler")}>{label("nav.examples", "Eksempler")}</Link>
+            <Link href="/om-os" style={navStyle("/om-os")}>{label("nav.about", "Om os")}</Link>
             <Link href="/boligpotentiale#faq" style={navStyle("")}>FAQ</Link>
           </nav>
           <div className="flex items-center gap-3">
-            <Link href="/kontakt" className="hidden lg:block" style={{ color: C.navy, border: `1px solid ${C.navy}`, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap" }}>Kontakt os</Link>
-            <Link href="/login?redirect=/boligpotentiale/dashboard" className="hidden sm:block" style={{ color: C.navy, border: `1px solid ${C.navy}`, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap" }}>Log ind</Link>
-            <Link href="/opret" style={{ background: C.gold, color: C.navy, padding: "11px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Kom i gang</Link>
+            {localized && (
+              <select
+                value={currentLanguage}
+                onChange={(e) => setExplicitLang(e.target.value)}
+                aria-label={t("publicPages.common.language")}
+                style={{ width: 100, padding: "9px 5px", borderRadius: 7, border: `1px solid ${C.border}`, background: "transparent", color: C.navy, fontSize: 12, cursor: "pointer" }}
+                data-testid="subpage-language-switcher"
+              >
+                {[["da", "Dansk"], ["en", "English"], ["sv", "Svenska"], ["de", "Deutsch"], ["nb", "Norsk"], ["es", "Español"], ["fr", "Français"]].map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </select>
+            )}
+            <Link href="/kontakt" className="hidden xl:block" style={{ color: C.navy, border: `1px solid ${C.navy}`, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap" }}>{label("nav.contact", "Kontakt os")}</Link>
+            <Link href="/login?redirect=/boligpotentiale/dashboard" className="hidden sm:block" style={{ color: C.navy, border: `1px solid ${C.navy}`, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap" }}>{label("nav.login", "Log ind")}</Link>
+            <Link href="/opret" style={{ background: C.gold, color: C.navy, padding: "11px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>{label("nav.getStarted", "Kom i gang")}</Link>
           </div>
         </div>
-        <nav className="md:hidden flex gap-6 overflow-x-auto whitespace-nowrap px-6 py-3" style={{ borderTop: `1px solid ${C.border}` }} aria-label="Mobilnavigation">
-          <Link href="/boligpotentiale" style={navStyle("/boligpotentiale")}>Forside</Link>
-          <Link href="/boligpotentiale/eksempler" style={navStyle("/boligpotentiale/eksempler")}>Eksempler</Link>
-          <Link href="/om-os" style={navStyle("/om-os")}>Om os</Link>
-          <Link href="/boligpotentiale#pricing" style={navStyle("")}>Priser</Link>
+        <nav className="lg:hidden flex gap-6 overflow-x-auto whitespace-nowrap px-6 py-3" style={{ borderTop: `1px solid ${C.border}` }} aria-label={label("publicPages.common.mobileNavigation", "Mobilnavigation")}>
+          <Link href="/boligpotentiale" style={navStyle("/boligpotentiale")}>{label("nav.home", "Forside")}</Link>
+          <Link href="/boligpotentiale/eksempler" style={navStyle("/boligpotentiale/eksempler")}>{label("nav.examples", "Eksempler")}</Link>
+          <Link href="/om-os" style={navStyle("/om-os")}>{label("nav.about", "Om os")}</Link>
+          <Link href="/boligpotentiale#pricing" style={navStyle("")}>{label("nav.prices", "Priser")}</Link>
         </nav>
       </header>
 
@@ -116,24 +136,24 @@ function SubpageLayout({
         <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-12">
             <div>
-              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Produkt</div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{label("footer.product", "Produkt")}</div>
               <ul className="space-y-3">
-                {[["Sådan virker det", "/boligpotentiale#how-it-works"], ["Eksempler", "/boligpotentiale/eksempler"], ["Priser", "/boligpotentiale#pricing"]].map(([label, href]) => (
-                  <li key={href}><a href={href} style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, textDecoration: "none" }}>{label}</a></li>
+                {[[label("footer.howItWorks", "Sådan virker det"), "/boligpotentiale#how-it-works"], [label("footer.examples", "Eksempler"), "/boligpotentiale/eksempler"], [label("footer.prices", "Priser"), "/boligpotentiale#pricing"]].map(([text, href]) => (
+                  <li key={href}><a href={href} style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, textDecoration: "none" }}>{text}</a></li>
                 ))}
               </ul>
             </div>
             <div>
-              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Hjælp</div>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{label("footer.support", "Hjælp")}</div>
               <ul className="space-y-3">
-                {[["FAQ", "/boligpotentiale#faq"], ["Kontakt", "mailto:kontakt@formaestates.com"], ["Privatlivspolitik", "/privatlivspolitik"], ["Handelsbetingelser", "/handelsbetingelser"]].map(([label, href]) => (
-                  <li key={href}><a href={href} style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, textDecoration: "none" }}>{label}</a></li>
+                {[["FAQ", "/boligpotentiale#faq"], [label("footer.contact", "Kontakt"), "mailto:kontakt@formaestates.com"], [label("footer.privacy", "Privatlivspolitik"), "/privatlivspolitik"], [label("footer.terms", "Handelsbetingelser"), "/handelsbetingelser"]].map(([text, href]) => (
+                  <li key={href}><a href={href} style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, textDecoration: "none" }}>{text}</a></li>
                 ))}
               </ul>
             </div>
             <div>
-              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>Kom i gang</div>
-              <Link href="/opret" style={{ display: "block", width: "100%", background: C.gold, color: C.navy, padding: "12px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: "center", textDecoration: "none" }} data-testid="subpage-footer-cta">Opret konto</Link>
+              <div className="uppercase mb-4" style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{label("footer.getStarted", "Kom i gang")}</div>
+              <Link href="/opret" style={{ display: "block", width: "100%", background: C.gold, color: C.navy, padding: "12px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: "center", textDecoration: "none" }} data-testid="subpage-footer-cta">{label("footer.createAccount", "Opret konto")}</Link>
             </div>
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, marginTop: 24 }} className="flex flex-col sm:flex-row items-center justify-between gap-5">
@@ -186,6 +206,7 @@ function BeforeAfterPair({
   desc,
   testId,
   contain = false,
+  localized = false,
 }: {
   before: string;
   after: string;
@@ -193,7 +214,10 @@ function BeforeAfterPair({
   desc: string;
   testId: string;
   contain?: boolean;
+  localized?: boolean;
 }) {
+  const { t } = useTranslation();
+  const label = (key: string, danish: string) => localized ? t(key) : danish;
   const [lightbox, setLightbox] = useState<"before" | "after" | null>(null);
   const touchStartX = useRef<number | null>(null);
 
@@ -232,17 +256,17 @@ function BeforeAfterPair({
             >
               <img
                 src={side === "before" ? before : after}
-                alt={`${title} — ${side === "before" ? "før" : "efter"}`}
+                alt={`${title} — ${side === "before" ? label("slider.before", "før") : label("slider.after", "efter")}`}
                 className={`absolute inset-0 w-full h-full ${contain ? "object-contain bg-white" : "object-cover"} transition-transform duration-500 group-hover:scale-[1.03]`}
               />
               <div
                 className="absolute top-3 left-3 uppercase"
                 style={{ background: side === "before" ? "rgba(15,25,35,0.78)" : C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}
               >
-                {side === "before" ? "Før" : "Efter"}
+                {side === "before" ? label("slider.before", "Før") : label("slider.after", "Efter")}
               </div>
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "rgba(15,25,35,0.18)" }}>
-                <span style={{ background: "rgba(255,255,255,0.92)", color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", padding: "6px 14px", borderRadius: 20, textTransform: "uppercase" }}>Forstør</span>
+                <span style={{ background: "rgba(255,255,255,0.92)", color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", padding: "6px 14px", borderRadius: 20, textTransform: "uppercase" }}>{label("publicPages.common.enlarge", "Forstør")}</span>
               </div>
             </div>
           ))}
@@ -265,6 +289,7 @@ function BeforeAfterPair({
           {/* Close */}
           <button
             className="absolute top-5 right-5 flex items-center justify-center rounded-full transition-colors"
+            aria-label={label("publicPages.common.close", "Luk")}
             style={{ background: "rgba(255,255,255,0.12)", width: 44, height: 44, color: "#fff", border: "none", cursor: "pointer" }}
             onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
           >
@@ -293,19 +318,20 @@ function BeforeAfterPair({
               onClick={() => setLightbox("before")}
               style={{ padding: "8px 22px", borderRadius: 30, fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", cursor: "pointer", border: "none", transition: "all 0.2s", background: lightbox === "before" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.12)", color: lightbox === "before" ? C.navy : "rgba(255,255,255,0.7)" }}
             >
-              FØR
+              {label("slider.before", "FØR")}
             </button>
             <button
               onClick={() => setLightbox("after")}
               style={{ padding: "8px 22px", borderRadius: 30, fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", cursor: "pointer", border: "none", transition: "all 0.2s", background: lightbox === "after" ? C.gold : "rgba(255,255,255,0.12)", color: lightbox === "after" ? "#fff" : "rgba(255,255,255,0.7)" }}
             >
-              EFTER
+              {label("slider.after", "EFTER")}
             </button>
           </div>
 
           {/* Prev/Next arrows */}
           <button
             className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-colors"
+            aria-label={label("slider.before", "Før")}
             style={{ background: "rgba(255,255,255,0.12)", width: 44, height: 44, color: "#fff", border: "none", cursor: "pointer" }}
             onClick={(e) => { e.stopPropagation(); setLightbox("before"); }}
           >
@@ -313,13 +339,14 @@ function BeforeAfterPair({
           </button>
           <button
             className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-colors"
+            aria-label={label("slider.after", "Efter")}
             style={{ background: "rgba(255,255,255,0.12)", width: 44, height: 44, color: "#fff", border: "none", cursor: "pointer" }}
             onClick={(e) => { e.stopPropagation(); setLightbox("after"); }}
           >
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 16 }}>Swipe eller brug piletasterne</p>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 16 }}>{label("publicPages.common.swipeHint", "Swipe eller brug piletasterne")}</p>
         </div>,
         document.body
       )}
@@ -359,6 +386,7 @@ function SectionDivider({ id, eyebrow, title, desc, compact = false }: { id: str
 
 /* ── Video card with click-to-play ── */
 function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string; poster: string; title: string; desc: string; aspect?: string }) {
+  const { t } = useTranslation();
   const vRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -384,7 +412,7 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
         <button
           type="button"
           onClick={toggle}
-          aria-label={`${playing ? "Sæt på pause" : "Afspil"}: ${title}`}
+          aria-label={`${t(playing ? "publicPages.common.pause" : "publicPages.common.play")}: ${title}`}
           aria-pressed={playing}
           className="absolute inset-0 w-full h-full cursor-pointer"
           style={{ border: 0, background: "transparent" }}
@@ -401,7 +429,8 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
         {playing && (
           <button
             onClick={toggleMute}
-            title={muted ? "Slå lyd til" : "Slå lyd fra"}
+            title={t(muted ? "publicPages.common.unmute" : "publicPages.common.mute")}
+            aria-label={t(muted ? "publicPages.common.unmute" : "publicPages.common.mute")}
             style={{
               position: "absolute", bottom: 12, right: 12,
               width: 36, height: 36, borderRadius: "50%",
@@ -437,37 +466,41 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
 }
 
 function RoomComparison() {
+  const { t } = useTranslation();
   const [active, setActive] = useState(0);
   const rooms = [
     {
-      label: "Badeværelse",
+      key: "bathroom",
+      label: t("publicPages.examples.rooms.bathroom.label"),
       before: "/bolig-images/demo-bathroom-before.jpg",
       after: "/bolig-images/demo-bathroom-after-clean.png",
-      desc: "Samme badeværelse med nye overflader og lysere materialer.",
+      desc: t("publicPages.examples.rooms.bathroom.description"),
       contain: false,
     },
     {
-      label: "Bryggers",
+      key: "utility",
+      label: t("publicPages.examples.rooms.utility.label"),
       before: "/bolig-images/demo-room-before.jpg",
       after: "/bolig-images/demo-room-after.jpg",
-      desc: "Det ufærdige rum visualiseret som et lyst og brugbart bryggers.",
+      desc: t("publicPages.examples.rooms.utility.description"),
       contain: false,
     },
     {
-      label: "Hjemmekontor",
+      key: "office",
+      label: t("publicPages.examples.rooms.office.label"),
       before: "/bolig-images/homeoffice-modern-before.png",
       after: "/bolig-images/homeoffice-modern-after.png",
-      desc: "Den samme arbejdsplads med en ny indretning.",
+      desc: t("publicPages.examples.rooms.office.description"),
       contain: true,
     },
   ];
   const current = rooms[active];
   return (
     <div>
-      <div className="flex flex-wrap gap-2 mb-5" aria-label="Vælg rumtype">
+      <div className="flex flex-wrap gap-2 mb-5" aria-label={t("publicPages.common.chooseRoom")}>
         {rooms.map((room, i) => (
           <button
-            key={room.label}
+            key={room.key}
             type="button"
             aria-pressed={i === active}
             onClick={() => setActive(i)}
@@ -478,12 +511,13 @@ function RoomComparison() {
         ))}
       </div>
       <BeforeAfterPair
-        key={current.label}
+        key={current.key}
         before={current.before}
         after={current.after}
         title={current.label}
         desc={current.desc}
         contain={current.contain}
+        localized
         testId={`eksempel-rum-${active}`}
       />
     </div>
@@ -491,25 +525,27 @@ function RoomComparison() {
 }
 
 export function EksemplerPage() {
-  usePageTitle("Eksempler på AI-boligvisualisering", "Se før/efter-eksempler på AI-genereret boligstyling og iscenesættelse fra Forma Estates.");
+  const { t } = useTranslation();
+  usePageTitle(t("publicPages.examples.metaTitle"), t("publicPages.examples.metaDescription"));
 
   const NAV = [
-    { id: "video",     label: "Showcase Video" },
-    { id: "rooms",     label: "Rumindretning" },
-    { id: "property",  label: "Facade og luftfoto" },
-    { id: "floorplan", label: "3D-plantegning" },
+    { id: "video",     label: t("publicPages.examples.nav.video") },
+    { id: "rooms",     label: t("publicPages.examples.nav.rooms") },
+    { id: "property",  label: t("publicPages.examples.nav.property") },
+    { id: "floorplan", label: t("publicPages.examples.nav.floorplan") },
   ];
 
   const videosPortrait = [
-    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/riviera-poster.jpg", title: "Showcase Video — Riviera", desc: "En færdig præsentation af boligens vigtigste rum.", aspect: "9/16" },
-    { src: "/videos/bill-it.mp4", poster: "/bolig-images/bill-it-poster.jpg", title: "Showcase Video — Bill It", desc: "Klar video til boligportal og sociale medier.", aspect: "9/16" },
+    { src: "/videos/riviera-final.mp4", poster: "/bolig-images/riviera-poster.jpg", title: "Showcase Video — Riviera", desc: t("publicPages.examples.video.rivieraDescription"), aspect: "9/16" },
+    { src: "/videos/bill-it.mp4", poster: "/bolig-images/bill-it-poster.jpg", title: "Showcase Video — Bill It", desc: t("publicPages.examples.video.billItDescription"), aspect: "9/16" },
   ];
 
   return (
     <SubpageLayout
-      eyebrow="Eksempler"
-      title="Se hvad du kan skabe"
-      intro="Se færdige eksempler på Showcase Video, AI-indretning, redigering af facade og luftfoto samt 3D-plantegninger."
+      localized
+      eyebrow={t("publicPages.examples.eyebrow")}
+      title={t("publicPages.examples.title")}
+      intro={t("publicPages.examples.intro")}
     >
       <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingBottom: 24 }}>
         {NAV.map(s => (
@@ -523,13 +559,13 @@ export function EksemplerPage() {
       <SectionDivider
         id="video"
         compact
-        eyebrow="Showcase Video"
-        title="En færdig boligvideo på 2–3 minutter"
-        desc="Upload boligens billeder. Du får en kort, færdig video med kamerabevægelser og musik til annoncer og sociale medier."
+        eyebrow={t("publicPages.examples.video.eyebrow")}
+        title={t("publicPages.examples.video.title")}
+        desc={t("publicPages.examples.video.description")}
       />
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-7">
         <div className="self-start">
-          <VideoCard src="/videos/bolig-showcase-tile.mp4" poster="/bolig-images/showcase-tile-poster.jpg" title="Showcase Video — filmformat" desc="Vis boligen samlet i et roligt, professionelt filmformat." />
+          <VideoCard src="/videos/bolig-showcase-tile.mp4" poster="/bolig-images/showcase-tile-poster.jpg" title={t("publicPages.examples.video.wideTitle")} desc={t("publicPages.examples.video.wideDescription")} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
           {videosPortrait.map((v, i) => <VideoCard key={i} {...v} />)}
@@ -539,9 +575,9 @@ export function EksemplerPage() {
       {/* Room work and style variants are one clear comparison, not separate repeated galleries. */}
       <SectionDivider
         id="rooms"
-        eyebrow="AI-indretning"
-        title="Indret et rum på ca. 15 sekunder"
-        desc="Vælg rumtype og se et originalt foto ved siden af visualiseringen af det samme rum."
+        eyebrow={t("publicPages.examples.rooms.eyebrow")}
+        title={t("publicPages.examples.rooms.title")}
+        desc={t("publicPages.examples.rooms.description")}
       />
       <div className="max-w-4xl">
         <RoomComparison />
@@ -550,23 +586,23 @@ export function EksemplerPage() {
       {/* Property-wide edits are deliberately separate from room styling. */}
       <SectionDivider
         id="property"
-        eyebrow="AI Design Agent"
-        title="Hele ejendommen — facade og luftfoto"
-        desc="Giv facade og omgivelser et nyt udtryk med en kort instruktion. Samme ejendom, tydelig før/efter."
+        eyebrow={t("publicPages.examples.property.eyebrow")}
+        title={t("publicPages.examples.property.title")}
+        desc={t("publicPages.examples.property.description")}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-        <BeforeAfterPair before="/bolig-images/ai-agent-house-before.png" after="/bolig-images/ai-agent-house-after.png" title="Facade" desc="Se en opdateret facade med ændrede materialer og finish." testId="eksempel-property-facade" />
-        <BeforeAfterPair before="/bolig-images/ai-agent-aerial-before.png" after="/bolig-images/ai-agent-aerial-after.jpg" title="Luftfoto og omgivelser" desc="Visualisér ejendommens omgivelser og landskab fra oven." testId="eksempel-property-aerial" contain />
+        <BeforeAfterPair before="/bolig-images/ai-agent-house-before.png" after="/bolig-images/ai-agent-house-after.png" title={t("publicPages.examples.property.facadeTitle")} desc={t("publicPages.examples.property.facadeDescription")} testId="eksempel-property-facade" localized />
+        <BeforeAfterPair before="/bolig-images/ai-agent-aerial-before.png" after="/bolig-images/ai-agent-aerial-after.jpg" title={t("publicPages.examples.property.aerialTitle")} desc={t("publicPages.examples.property.aerialDescription")} testId="eksempel-property-aerial" contain localized />
       </div>
 
       <SectionDivider
         id="floorplan"
-        eyebrow="3D Plantegning"
-        title="Fra 2D-plantegning til 3D-visualisering"
-        desc="Upload én 2D-plantegning. Få en 3D-visning med møbler, rum og proportioner, så layoutet er let at forstå."
+        eyebrow={t("publicPages.examples.floorplan.eyebrow")}
+        title={t("publicPages.examples.floorplan.title")}
+        desc={t("publicPages.examples.floorplan.description")}
       />
       <div className="max-w-5xl">
-        <BeforeAfterPair before="/bolig-images/eksempler-floorplan-2d.jpg" after="/bolig-images/eksempler-floorplan-3d.jpg" title="2D til 3D" desc="Klik på en plantegning for at se detaljerne i større format." testId="eksempel-floorplan" contain />
+        <BeforeAfterPair before="/bolig-images/eksempler-floorplan-2d.jpg" after="/bolig-images/eksempler-floorplan-3d.jpg" title={t("publicPages.examples.floorplan.pairTitle")} desc={t("publicPages.examples.floorplan.pairDescription")} testId="eksempel-floorplan" contain localized />
       </div>
     </SubpageLayout>
   );
@@ -1004,40 +1040,33 @@ export function BranchevideoPage() {
 }
 
 export function OmOsPage() {
-  usePageTitle("Om os", "Mød Forma Estates, og se hvorfor vi bruger AI til at gøre boligers muligheder lettere at forstå.");
-  const values = [
-    {
-      title: "Det skal give mening",
-      desc: "Et billede er først godt, når det hjælper en anden med at forstå boligen — ikke bare ser flot ud.",
-    },
-    {
-      title: "Det skal kunne bruges",
-      desc: "Du skal kunne tage resultatet med til din næste samtale, fremvisning eller annonce. Ellers er vi ikke færdige.",
-    },
-    {
-      title: "Fagligheden er din",
-      desc: "AI kan vise mulighederne, men det er dig, der kender boligen og ved, hvad kunden har brug for at se.",
-    },
-  ];
+  const { t } = useTranslation();
+  usePageTitle(t("publicPages.about.metaTitle"), t("publicPages.about.metaDescription"));
+  const values = (["clarity", "useful", "expertise"] as const).map(key => ({
+    key,
+    title: t(`publicPages.about.values.${key}.title`),
+    desc: t(`publicPages.about.values.${key}.description`),
+  }));
 
   return (
     <SubpageLayout
-      eyebrow="Om os"
-      title="Der er mere i en bolig, end et foto kan vise"
-      intro="Vi er Forma Estates. Vi bruger AI til at gøre det lettere at vise, hvad en bolig er — og hvad den kan blive til."
+      localized
+      eyebrow={t("publicPages.about.eyebrow")}
+      title={t("publicPages.about.title")}
+      intro={t("publicPages.about.intro")}
     >
       <div className="mx-auto" style={{ maxWidth: 760 }} data-testid="omos-intro">
         <div style={{ borderLeft: `3px solid ${C.gold}`, paddingLeft: 24 }}>
           <p style={{ color: C.navy, fontFamily: SERIF, fontSize: "clamp(24px, 3vw, 34px)", lineHeight: 1.25, margin: 0 }}>
-            Teknologi, der gør boliger lettere at forstå.
+            {t("publicPages.about.motto")}
           </p>
         </div>
         <div className="space-y-5 mt-8">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Et tomt rum kan være svært at forestille sig som et hjem. På en plantegning kan det være svært at fornemme rummenes størrelse. Men når man først ser mulighederne, ændrer samtalen sig.
+            {t("publicPages.about.story1")}
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Det er det, der begejstrer os ved AI. En idé kan blive til et billede, en plantegning til en 3D-visning og boligens fotos til en Showcase Video. Du er stadig den, der kender boligen. Vi hjælper dig med at vise dine idéer til andre.
+            {t("publicPages.about.story2")}
           </p>
         </div>
       </div>
@@ -1045,17 +1074,17 @@ export function OmOsPage() {
       {/* Founder context, without inventing personal motivations or a growth story. */}
       <div className="mx-auto mt-16" style={{ maxWidth: 760 }} data-testid="omos-journey">
         <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
-          Bag Forma Estates
+          {t("publicPages.about.founderEyebrow")}
         </div>
         <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 20 }}>
           Frederik Fussing Nielsen
         </h2>
         <div className="space-y-5">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Frederik grundlagde Forma Estates i København i 2025 og leder virksomheden i dag. Vi udvikler værktøjer til ejendomsmæglere, udviklere, boligforeninger og professionelle udlejere.
+            {t("publicPages.about.founderText1")}
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Der sidder altid et menneske på den anden side af en boligpræsentation. Derfor går vi mere op i, om nogen forstår boligen, end i hvor teknisk imponerende resultatet ser ud.
+            {t("publicPages.about.founderText2")}
           </p>
         </div>
       </div>
@@ -1063,11 +1092,11 @@ export function OmOsPage() {
       {/* Vision and mission are intentionally equal in shape and visual weight. */}
       <div className="grid md:grid-cols-2 gap-6 mt-16" data-testid="omos-vision-mission">
         {[
-          { label: "Vision", text: "Vi vil gøre det lettere for flere at se en boligs muligheder — også når de endnu kun findes på en plantegning eller i et tomt rum." },
-          { label: "Mission", text: "Vi bygger AI-værktøjer til billeder, 3D og video, der gør dine idéer konkrete og nemmere at dele med andre." },
-        ].map(({ label, text }) => (
-          <div key={label} style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.gold}`, borderRadius: 16, padding: "28px 30px" }}>
-          <div className="uppercase mb-3" style={{ color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em" }}>
+          { key: "vision", label: t("publicPages.about.visionLabel"), text: t("publicPages.about.visionText") },
+          { key: "mission", label: t("publicPages.about.missionLabel"), text: t("publicPages.about.missionText") },
+        ].map(({ key, label, text }) => (
+          <div key={key} style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.gold}`, borderRadius: 16, padding: "28px 30px" }}>
+            <div className="uppercase mb-3" style={{ color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em" }}>
               {label}
             </div>
             <p style={{ color: C.navy, fontSize: 16, lineHeight: 1.7, margin: 0 }}>
@@ -1080,15 +1109,15 @@ export function OmOsPage() {
       {/* Values */}
       <div className="text-center mt-20 mb-2">
         <div className="uppercase" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
-          Sådan arbejder vi
+          {t("publicPages.about.valuesEyebrow")}
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-8" data-testid="omos-values">
         {values.map((v) => (
           <div
-            key={v.title}
+            key={v.key}
             style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "26px 24px", display: "flex", flexDirection: "column" }}
-            data-testid={`omos-value-${v.title}`}
+            data-testid={`omos-value-${v.key}`}
           >
             <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{v.title}</div>
             <div style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.6 }}>{v.desc}</div>
@@ -1097,14 +1126,14 @@ export function OmOsPage() {
       </div>
 
       <div className="text-center mt-12">
-        <p style={{ color: C.navy, fontFamily: SERIF, fontSize: 22, marginBottom: 18 }}>Har du en bolig, der er svær at vise?</p>
+        <p style={{ color: C.navy, fontFamily: SERIF, fontSize: 22, marginBottom: 18 }}>{t("publicPages.about.ctaPrompt")}</p>
         <Link href="/kontakt">
           <span
             className="inline-flex items-center justify-center gap-2 transition-colors"
             style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
             data-testid="omos-cta"
           >
-            Kontakt os
+            {t("publicPages.about.ctaButton")}
             <ArrowRight className="w-4 h-4" />
           </span>
         </Link>

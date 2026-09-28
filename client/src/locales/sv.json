@@ -581,10 +581,11 @@
   "dashboard": {
     "nav": {
       "dashboard": "Översikt",
-      "quota": "Kvot",
+      "quota": "Användning",
       "allCases": "Alla ärenden",
       "soldCases": "Sålda ärenden",
       "aiDesignAgent": "AI-bildredigering",
+      "aiVisualization": "AI-visualisering",
       "floorPlan3d": "3D-planritning",
       "transformVideo": "Förvandlingsvideo",
       "aiShowcase": "AI bostadsvisning",
@@ -957,15 +958,15 @@
     },
     "budgetTiers": {
       "iGaar": "i går",
-      "tier1Label": "Tier 1 — Budget",
-      "tier1Sub": "IKEA / JYSK-nivå",
-      "tier1Short": "Budget",
-      "tier2Label": "Tier 2 — Standard",
-      "tier2Sub": "Mellanklass",
-      "tier2Short": "Standard",
-      "tier3Label": "Tier 3 — Premium",
-      "tier3Sub": "Designermöbler",
-      "tier3Short": "Premium"
+      "tier1Label": "Enkel och prisvärd stil",
+      "tier1Sub": "Enkel stil och enkel inredning",
+      "tier1Short": "Enkel",
+      "tier2Label": "Balanserad stil",
+      "tier2Sub": "Balanserad standardstil och inredning",
+      "tier2Short": "Balanserad",
+      "tier3Label": "Exklusiv stil",
+      "tier3Sub": "Exklusivt uttryck med exklusiv inredning",
+      "tier3Short": "Exklusiv"
     },
     "caseView": {
       "kunneIkkeSletteSagen": "Kunde inte radera ärendet",
@@ -1729,7 +1730,8 @@
       "ingenAktivitetEndnu": "Ingen aktivitet ännu.",
       "designAgent": "AI-bildredigering",
       "sagOprettetActivity": "Ärendet \"{{address}}\" skapat",
-      "dineStandardvalg": "Dina standardval",
+      "dineStandardvalg": "Dina vanligaste val",
+      "mostUsedDescription": "Se vilka rum, stilar och budgetnivåer du oftast väljer. Det kan hjälpa dig att planera din nästa visualisering.",
       "sagIAltCount_one": "{{count}} ärende totalt",
       "sagIAltCount_other": "{{count}} ärenden totalt",
       "solgtCount_one": "{{count}} sålt",

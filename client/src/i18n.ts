@@ -9,6 +9,13 @@ import nb from "./locales/nb.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
+import publicDa from "./locales/public-pages/da.json";
+import publicSv from "./locales/public-pages/sv.json";
+import publicDe from "./locales/public-pages/de.json";
+import publicNb from "./locales/public-pages/nb.json";
+import publicEn from "./locales/public-pages/en.json";
+import publicEs from "./locales/public-pages/es.json";
+import publicFr from "./locales/public-pages/fr.json";
 
 // ─── One-time migration ────────────────────────────────────────────────────────
 // Previous versions used `caches: ["localStorage"]`, which silently wrote the
@@ -56,13 +63,13 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      da: { translation: da },
-      sv: { translation: sv },
-      de: { translation: de },
-      nb: { translation: nb },
-      en: { translation: en },
-      es: { translation: es },
-      fr: { translation: fr },
+      da: { translation: { ...da, publicPages: publicDa } },
+      sv: { translation: { ...sv, publicPages: publicSv } },
+      de: { translation: { ...de, publicPages: publicDe } },
+      nb: { translation: { ...nb, publicPages: publicNb } },
+      en: { translation: { ...en, publicPages: publicEn } },
+      es: { translation: { ...es, publicPages: publicEs } },
+      fr: { translation: { ...fr, publicPages: publicFr } },
     },
     fallbackLng: "da",
     load: "languageOnly",          // "da-DK" → "da", "nb-NO" → "nb"

@@ -1,0 +1,105 @@
+{
+  "common": {
+    "mainNavigation": "Hauptnavigation",
+    "mobileNavigation": "Mobilnavigation",
+    "language": "Sprache auswählen",
+    "close": "Schließen",
+    "enlarge": "Vergrößern",
+    "swipeHint": "Wischen oder die Pfeiltasten verwenden",
+    "play": "Abspielen",
+    "pause": "Pausieren",
+    "mute": "Stummschalten",
+    "unmute": "Ton einschalten",
+    "chooseRoom": "Raumtyp auswählen",
+    "comingSoon": "Demnächst verfügbar"
+  },
+  "examples": {
+    "metaTitle": "Beispiele für KI-Visualisierungen von Immobilien",
+    "metaDescription": "Entdecke Vorher-Nachher-Beispiele für KI-generiertes Home Staging und Immobilienvisualisierungen von Forma Estates.",
+    "eyebrow": "Beispiele",
+    "title": "Sieh, was du gestalten kannst",
+    "intro": "Entdecke fertige Beispiele für Showcase Video, KI-Raumgestaltung, die Bearbeitung von Fassaden und Luftaufnahmen sowie 3D-Grundrisse.",
+    "nav": {
+      "video": "Showcase Video",
+      "rooms": "Raumgestaltung",
+      "property": "Fassade und Luftaufnahmen",
+      "floorplan": "3D-Grundriss"
+    },
+    "video": {
+      "eyebrow": "Showcase Video",
+      "title": "Ein fertiges Immobilienvideo in 2–3 Minuten",
+      "description": "Lade Fotos der Immobilie hoch. Du erhältst ein kurzes, fertiges Video mit Kamerabewegungen und Musik – bereit für Anzeigen und soziale Medien.",
+      "wideTitle": "Showcase Video — Kinoformat",
+      "wideDescription": "Präsentiere die gesamte Immobilie in einem ruhigen, professionellen Kinoformat.",
+      "rivieraDescription": "Eine fertige Präsentation der wichtigsten Räume der Immobilie.",
+      "billItDescription": "Ein fertiges Video für Immobilienportale und soziale Medien."
+    },
+    "rooms": {
+      "eyebrow": "KI-Raumgestaltung",
+      "title": "Gestalte einen Raum in etwa 15 Sekunden neu",
+      "description": "Wähle einen Raumtyp aus und vergleiche ein Originalfoto mit der Visualisierung desselben Raums.",
+      "bathroom": {
+        "label": "Badezimmer",
+        "description": "Dasselbe Badezimmer mit neuen Oberflächen und helleren Materialien."
+      },
+      "utility": {
+        "label": "Hauswirtschaftsraum",
+        "description": "Ein unfertiger Raum, neu visualisiert als heller und praktischer Hauswirtschaftsraum."
+      },
+      "office": {
+        "label": "Homeoffice",
+        "description": "Derselbe Arbeitsplatz mit einer neuen Einrichtung."
+      }
+    },
+    "property": {
+      "eyebrow": "AI Design Agent",
+      "title": "Die gesamte Immobilie — Fassade und Luftaufnahmen",
+      "description": "Verleihe der Fassade und ihrer Umgebung mit einer kurzen Anweisung einen neuen Look. Dieselbe Immobilie, ein klarer Vorher-Nachher-Vergleich.",
+      "facadeTitle": "Fassade",
+      "facadeDescription": "Entdecke eine modernisierte Fassade mit neuen Materialien und Oberflächen.",
+      "aerialTitle": "Luftaufnahmen und Umgebung",
+      "aerialDescription": "Visualisiere die Umgebung und Landschaft der Immobilie aus der Vogelperspektive."
+    },
+    "floorplan": {
+      "eyebrow": "3D-Grundriss",
+      "title": "Vom 2D-Grundriss zur 3D-Visualisierung",
+      "description": "Lade einen einzelnen 2D-Grundriss hoch. Du erhältst eine 3D-Ansicht mit Möbeln, Räumen und Proportionen, die den Grundriss leicht verständlich macht.",
+      "pairTitle": "Von 2D zu 3D",
+      "pairDescription": "Klicke auf einen Grundriss, um die Details in einer größeren Ansicht zu sehen."
+    }
+  },
+  "about": {
+    "metaTitle": "Über uns",
+    "metaDescription": "Lerne Forma Estates kennen und erfahre, warum wir KI nutzen, um die Möglichkeiten einer Immobilie besser sichtbar zu machen.",
+    "eyebrow": "Über uns",
+    "title": "Eine Immobilie hat mehr zu bieten, als ein Foto zeigen kann",
+    "intro": "Wir sind Forma Estates. Wir nutzen KI, damit sich leichter zeigen lässt, was eine Immobilie ist – und was aus ihr werden kann.",
+    "motto": "Technologie, die Immobilien verständlicher macht.",
+    "story1": "Es ist nicht leicht, sich ein leeres Zimmer als Zuhause vorzustellen. Und auf einem Grundriss kann man die Größe der Räume oft nur schwer einschätzen. Doch sobald die Möglichkeiten sichtbar werden, verändert sich das Gespräch.",
+    "story2": "Genau das begeistert uns an KI. Aus einer Idee kann ein Bild werden, aus einem Grundriss eine 3D-Ansicht und aus den Fotos einer Immobilie ein Showcase Video. Du kennst die Immobilie am besten. Wir helfen dir, deine Ideen sichtbar zu machen und mit anderen zu teilen.",
+    "founderEyebrow": "Hinter Forma Estates",
+    "founderText1": "Frederik Fussing Nielsen gründete Forma Estates 2025 in Kopenhagen und leitet das Unternehmen bis heute. Wir entwickeln Werkzeuge für Immobilienmakler, Projektentwickler, Wohnungsbaugesellschaften und professionelle Vermieter.",
+    "founderText2": "Auf der anderen Seite einer Immobilienpräsentation sitzt immer ein Mensch. Deshalb ist uns wichtiger, dass jemand die Immobilie versteht, als dass das Ergebnis technisch beeindruckend aussieht.",
+    "visionLabel": "Vision",
+    "visionText": "Wir möchten es mehr Menschen erleichtern, das Potenzial einer Immobilie zu erkennen – auch wenn es bisher nur auf einem Grundriss oder in einem leeren Raum sichtbar ist.",
+    "missionLabel": "Mission",
+    "missionText": "Wir entwickeln KI-Werkzeuge für Bilder, 3D und Video, die deine Ideen greifbar und leichter mit anderen teilbar machen.",
+    "valuesEyebrow": "So arbeiten wir",
+    "values": {
+      "clarity": {
+        "title": "Es muss verständlich sein",
+        "description": "Ein Bild ist erst dann gut, wenn es anderen hilft, die Immobilie zu verstehen – nicht nur, wenn es schön aussieht."
+      },
+      "useful": {
+        "title": "Es muss nützlich sein",
+        "description": "Du solltest das Ergebnis in dein nächstes Gespräch, zur Besichtigung oder in eine Anzeige mitnehmen können. Sonst sind wir noch nicht fertig."
+      },
+      "expertise": {
+        "title": "Das Fachwissen kommt von dir",
+        "description": "KI kann Möglichkeiten zeigen, aber du kennst die Immobilie und weißt, was der Kunde sehen muss."
+      }
+    },
+    "ctaPrompt": "Hast du eine Immobilie, die sich nur schwer zeigen lässt?",
+    "ctaButton": "Kontaktiere uns"
+  }
+}

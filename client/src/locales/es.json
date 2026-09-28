@@ -581,10 +581,11 @@
   "dashboard": {
     "nav": {
       "dashboard": "Resumen",
-      "quota": "Cuota",
+      "quota": "Uso",
       "allCases": "Todos los casos",
       "soldCases": "Casos vendidos",
       "aiDesignAgent": "Edición de imágenes con IA",
+      "aiVisualization": "Visualización con IA",
       "floorPlan3d": "Plano 3D",
       "transformVideo": "Vídeo de transformación",
       "aiShowcase": "Presentación IA de propiedad",
@@ -957,15 +958,15 @@
     },
     "budgetTiers": {
       "iGaar": "ayer",
-      "tier1Label": "Nivel 1 — Económico",
-      "tier1Sub": "Nivel IKEA / JYSK",
-      "tier1Short": "Económico",
-      "tier2Label": "Nivel 2 — Estándar",
-      "tier2Sub": "Gama media",
-      "tier2Short": "Estándar",
-      "tier3Label": "Nivel 3 — Premium",
-      "tier3Sub": "Muebles de diseño",
-      "tier3Short": "Premium"
+      "tier1Label": "Estilo asequible",
+      "tier1Sub": "Estilo sencillo y mobiliario simple",
+      "tier1Short": "Sencillo",
+      "tier2Label": "Estilo equilibrado",
+      "tier2Sub": "Estilo y mobiliario estándar equilibrados",
+      "tier2Short": "Equilibrado",
+      "tier3Label": "Estilo exclusivo",
+      "tier3Sub": "Aspecto prémium con mobiliario de alta gama",
+      "tier3Short": "Exclusivo"
     },
     "caseView": {
       "kunneIkkeSletteSagen": "No se pudo eliminar el caso",
@@ -1729,7 +1730,8 @@
       "ingenAktivitetEndnu": "Aún no hay actividad.",
       "designAgent": "Edición de imágenes con IA",
       "sagOprettetActivity": "Caso \"{{address}}\" creado",
-      "dineStandardvalg": "Tus opciones predeterminadas",
+      "dineStandardvalg": "Tus opciones más utilizadas",
+      "mostUsedDescription": "Descubre qué habitaciones, estilos y niveles de presupuesto eliges con más frecuencia. Esto puede ayudarte a planificar tu próxima visualización.",
       "sagIAltCount_one": "{{count}} caso en total",
       "sagIAltCount_other": "{{count}} casos en total",
       "solgtCount_one": "{{count}} vendido",

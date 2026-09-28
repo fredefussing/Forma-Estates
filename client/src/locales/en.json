@@ -581,10 +581,11 @@
   "dashboard": {
     "nav": {
       "dashboard": "Overview",
-      "quota": "Quota",
+      "quota": "Usage",
       "allCases": "All cases",
       "soldCases": "Sold cases",
       "aiDesignAgent": "AI image editing",
+      "aiVisualization": "AI visualization",
       "floorPlan3d": "3D floor plan",
       "transformVideo": "Transformation video",
       "aiShowcase": "AI property showcase",
@@ -957,15 +958,15 @@
     },
     "budgetTiers": {
       "iGaar": "yesterday",
-      "tier1Label": "Tier 1 — Budget",
-      "tier1Sub": "IKEA / JYSK level",
-      "tier1Short": "Budget",
-      "tier2Label": "Tier 2 — Standard",
-      "tier2Sub": "Mid-range",
-      "tier2Short": "Standard",
-      "tier3Label": "Tier 3 — Premium",
-      "tier3Sub": "Designer furniture",
-      "tier3Short": "Premium"
+      "tier1Label": "Affordable style",
+      "tier1Sub": "Simple style and furnishings",
+      "tier1Short": "Simple",
+      "tier2Label": "Balanced style",
+      "tier2Sub": "A balanced, standard look",
+      "tier2Short": "Balanced",
+      "tier3Label": "Exclusive style",
+      "tier3Sub": "A premium look with high-end furnishings",
+      "tier3Short": "Exclusive"
     },
     "caseView": {
       "kunneIkkeSletteSagen": "Could not delete the case",
@@ -1729,7 +1730,8 @@
       "ingenAktivitetEndnu": "No activity yet.",
       "designAgent": "AI image editing",
       "sagOprettetActivity": "Case \"{{address}}\" created",
-      "dineStandardvalg": "Your default choices",
+      "dineStandardvalg": "Your most-used choices",
+      "mostUsedDescription": "See which rooms, styles, and budget levels you choose most often. This can help you plan your next visualization.",
       "sagIAltCount_one": "{{count}} case in total",
       "sagIAltCount_other": "{{count}} cases in total",
       "solgtCount_one": "{{count}} sold",

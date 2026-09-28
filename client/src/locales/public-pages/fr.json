@@ -1,0 +1,105 @@
+{
+  "common": {
+    "mainNavigation": "Navigation principale",
+    "mobileNavigation": "Navigation mobile",
+    "language": "Choisir la langue",
+    "close": "Fermer",
+    "enlarge": "Agrandir",
+    "swipeHint": "Balayez l’écran ou utilisez les touches fléchées",
+    "play": "Lire",
+    "pause": "Mettre en pause",
+    "mute": "Couper le son",
+    "unmute": "Activer le son",
+    "chooseRoom": "Choisir un type de pièce",
+    "comingSoon": "Bientôt disponible"
+  },
+  "examples": {
+    "metaTitle": "Exemples de visualisation immobilière par IA",
+    "metaDescription": "Découvrez des exemples avant/après de décoration et de mise en scène immobilières générées par IA avec Forma Estates.",
+    "eyebrow": "Exemples",
+    "title": "Découvrez tout ce que vous pouvez créer",
+    "intro": "Parcourez des exemples finalisés de Showcase Video, de décoration intérieure par IA, de retouche de façades et de vues aériennes, ainsi que de plans 3D.",
+    "nav": {
+      "video": "Showcase Video",
+      "rooms": "Décoration intérieure",
+      "property": "Façade et vue aérienne",
+      "floorplan": "Plan 3D"
+    },
+    "video": {
+      "eyebrow": "Showcase Video",
+      "title": "Une vidéo immobilière prête en 2–3 minutes",
+      "description": "Importez les photos du bien. Vous obtiendrez une courte vidéo prête à l’emploi, avec des mouvements de caméra et de la musique, pour vos annonces et les réseaux sociaux.",
+      "wideTitle": "Showcase Video — format cinéma",
+      "wideDescription": "Présentez le bien dans son ensemble avec une vidéo au rythme posé et au rendu professionnel.",
+      "rivieraDescription": "Une présentation soignée des pièces les plus importantes du bien.",
+      "billItDescription": "Une vidéo prête à publier sur les portails immobiliers et les réseaux sociaux."
+    },
+    "rooms": {
+      "eyebrow": "Décoration intérieure par IA",
+      "title": "Réaménagez une pièce en environ 15 secondes",
+      "description": "Choisissez le type de pièce et comparez la photo d’origine avec la visualisation de cette même pièce.",
+      "bathroom": {
+        "label": "Salle de bains",
+        "description": "La même salle de bains, avec de nouvelles finitions et des matériaux plus clairs."
+      },
+      "utility": {
+        "label": "Buanderie",
+        "description": "Une pièce inachevée transformée en buanderie lumineuse et fonctionnelle."
+      },
+      "office": {
+        "label": "Bureau à domicile",
+        "description": "Le même espace de travail, avec un nouvel aménagement."
+      }
+    },
+    "property": {
+      "eyebrow": "AI Design Agent",
+      "title": "Tout le bien : façade et vue aérienne",
+      "description": "Donnez un nouveau style à la façade et à ses abords grâce à une courte consigne. Le même bien, avec un avant/après évident.",
+      "facadeTitle": "Façade",
+      "facadeDescription": "Découvrez une façade repensée avec de nouveaux matériaux et des finitions différentes.",
+      "aerialTitle": "Vue aérienne et environs",
+      "aerialDescription": "Visualisez depuis les airs les environs et le paysage autour du bien."
+    },
+    "floorplan": {
+      "eyebrow": "Plan 3D",
+      "title": "D’un plan 2D à une visualisation 3D",
+      "description": "Importez un plan 2D et obtenez une vue 3D avec des meubles, des pièces et des proportions pour comprendre facilement l’agencement.",
+      "pairTitle": "De la 2D à la 3D",
+      "pairDescription": "Cliquez sur un plan pour en voir les détails en plus grand."
+    }
+  },
+  "about": {
+    "metaTitle": "À propos de nous",
+    "metaDescription": "Découvrez Forma Estates et pourquoi nous utilisons l’IA pour mieux faire comprendre tout le potentiel d’un bien immobilier.",
+    "eyebrow": "À propos de nous",
+    "title": "Un bien immobilier, c’est bien plus qu’une photo",
+    "intro": "Nous sommes Forma Estates. Nous utilisons l’IA pour montrer plus facilement ce qu’est un bien immobilier — et tout ce qu’il pourrait devenir.",
+    "motto": "La technologie pour mieux comprendre les biens immobiliers.",
+    "story1": "Il peut être difficile d’imaginer un chez-soi dans une pièce vide. Et sur un plan, on a parfois du mal à se représenter la taille des pièces. Mais dès qu’on en voit le potentiel, la conversation change.",
+    "story2": "C’est ce qui nous enthousiasme tant dans l’IA. Une idée devient une image, un plan devient une vue 3D, et les photos d’un bien deviennent un Showcase Video. C’est toujours vous qui connaissez le mieux le bien. Nous vous aidons à faire découvrir vos idées aux autres.",
+    "founderEyebrow": "Derrière Forma Estates",
+    "founderText1": "Frederik Fussing Nielsen a fondé Forma Estates à Copenhague en 2025 et dirige aujourd’hui l’entreprise. Nous développons des outils pour les agents immobiliers, les promoteurs, les associations de logement et les bailleurs professionnels.",
+    "founderText2": "Derrière chaque présentation immobilière, il y a toujours une personne. C’est pourquoi nous préférons aider quelqu’un à comprendre le bien plutôt que de chercher à impressionner par la prouesse technique du résultat.",
+    "visionLabel": "Vision",
+    "visionText": "Nous voulons permettre à davantage de personnes de découvrir le potentiel d’un bien, même lorsqu’il n’existe encore que sur un plan ou dans une pièce vide.",
+    "missionLabel": "Mission",
+    "missionText": "Nous créons des outils d’IA pour l’image, la 3D et la vidéo qui donnent vie à vos idées et vous permettent de les partager plus facilement.",
+    "valuesEyebrow": "Notre façon de travailler",
+    "values": {
+      "clarity": {
+        "title": "Il faut que ce soit clair",
+        "description": "Une image n’est réussie que si elle aide quelqu’un à comprendre le bien — pas seulement si elle est jolie."
+      },
+      "useful": {
+        "title": "Il faut que ce soit utile",
+        "description": "Vous devez pouvoir utiliser le résultat lors de votre prochain échange, visite ou annonce. Sinon, notre travail n’est pas terminé."
+      },
+      "expertise": {
+        "title": "L’expertise, c’est la vôtre",
+        "description": "L’IA peut montrer les possibilités, mais c’est vous qui connaissez le bien et savez ce que le client a besoin de voir."
+      }
+    },
+    "ctaPrompt": "Vous avez un bien difficile à présenter ?",
+    "ctaButton": "Contactez-nous"
+  }
+}

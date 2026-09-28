@@ -35,6 +35,7 @@
 - [Video jobs DB registry](video-jobs-db.md) — video_jobs table (requestId, userId, feature, refundCount, status) persists in-flight jobs; boot reset in index.ts refunds stuck pending rows; all 5 job types write on start + mark complete/failed.
 - [Token-scoped worker heartbeats](token-scoped-worker-heartbeats.md) — lease cleanup must only stop the heartbeat with the same lease token, or a stale worker can strand a recovered job.
 - [Dashboard i18n externalization](i18n-dashboard-externalization.md) — scripted replacements corrupt comments/types; parallel same-file subagents lose edits; consts store keys, logic values stay Danish; always end with a segment-level no-æøå sweep.
+- [Public page language continuity](public-page-language-continuity.md) — only show localized navigation and language controls when the whole subpage body, media controls and metadata are translated.
 - [Cookie banner is global](cookie-banner-global.md) — CookieBanner lives in client/src/components/cookie-banner.tsx and is mounted once in App.tsx; localStorage key "forma-cookie-consent"; all 7 locale files have cookie.* keys.
 - [Clean Rendy master videos](showcase-overlays.md) — store provider MP4s without visible AI/address/headline overlays; optional text belongs in a separate post-generation editor.
 - [Video transparency without obstructing Rendy](video-transparency-on-save.md) — Rendy previews and saved videos stay visually clean; provenance remains non-visual.

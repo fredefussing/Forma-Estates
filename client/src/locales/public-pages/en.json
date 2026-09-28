@@ -1,0 +1,105 @@
+{
+  "common": {
+    "mainNavigation": "Main navigation",
+    "mobileNavigation": "Mobile navigation",
+    "language": "Choose language",
+    "close": "Close",
+    "enlarge": "Enlarge",
+    "swipeHint": "Swipe or use the arrow keys",
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "chooseRoom": "Choose room type",
+    "comingSoon": "Coming soon"
+  },
+  "examples": {
+    "metaTitle": "AI property visualisation examples",
+    "metaDescription": "Explore before-and-after examples of AI-generated home staging and visualisation from Forma Estates.",
+    "eyebrow": "Examples",
+    "title": "See what you can create",
+    "intro": "Explore finished examples of Showcase Video, AI room design, façade and aerial photo editing, and 3D floor plans.",
+    "nav": {
+      "video": "Showcase Video",
+      "rooms": "Room design",
+      "property": "Façade and aerial views",
+      "floorplan": "3D floor plan"
+    },
+    "video": {
+      "eyebrow": "Showcase Video",
+      "title": "A finished property video in 2–3 minutes",
+      "description": "Upload photos of the property. You’ll get a short, finished video with camera movement and music, ready for listings and social media.",
+      "wideTitle": "Showcase Video — cinematic format",
+      "wideDescription": "Present the whole property in a calm, professional cinematic format.",
+      "rivieraDescription": "A polished presentation of the property’s most important rooms.",
+      "billItDescription": "A ready-to-share video for property portals and social media."
+    },
+    "rooms": {
+      "eyebrow": "AI room design",
+      "title": "Redesign a room in about 15 seconds",
+      "description": "Choose a room type and see an original photo alongside a visualisation of the very same room.",
+      "bathroom": {
+        "label": "Bathroom",
+        "description": "The same bathroom, with new surfaces and lighter materials."
+      },
+      "utility": {
+        "label": "Utility room",
+        "description": "An unfinished room reimagined as a bright, practical utility room."
+      },
+      "office": {
+        "label": "Home office",
+        "description": "The same workspace with a fresh new layout."
+      }
+    },
+    "property": {
+      "eyebrow": "AI Design Agent",
+      "title": "The whole property — façade and aerial views",
+      "description": "Give the façade and surroundings a fresh look with a short instruction. The same property, with a clear before and after.",
+      "facadeTitle": "Façade",
+      "facadeDescription": "See an updated façade with new materials and finishes.",
+      "aerialTitle": "Aerial views and surroundings",
+      "aerialDescription": "Visualise the property’s surroundings and landscape from above."
+    },
+    "floorplan": {
+      "eyebrow": "3D floor plan",
+      "title": "From 2D floor plan to 3D visualisation",
+      "description": "Upload a single 2D floor plan. Get a 3D view with furniture, rooms and proportions that makes the layout easy to understand.",
+      "pairTitle": "2D to 3D",
+      "pairDescription": "Click a floor plan to see the details in a larger view."
+    }
+  },
+  "about": {
+    "metaTitle": "About us",
+    "metaDescription": "Meet Forma Estates and discover why we use AI to make it easier to see what a home could become.",
+    "eyebrow": "About us",
+    "title": "There’s more to a home than a photo can show",
+    "intro": "We’re Forma Estates. We use AI to make it easier to show what a home is—and what it could become.",
+    "motto": "Technology that makes homes easier to understand.",
+    "story1": "It can be hard to imagine an empty room as a home. And it’s not always easy to get a feel for room sizes from a floor plan. But once you can see the possibilities, the conversation changes.",
+    "story2": "That’s what excites us about AI. An idea can become an image, a floor plan can become a 3D view, and a home’s photos can become a Showcase Video. You’re still the one who knows the property. We help you bring your ideas to life so you can share them with others.",
+    "founderEyebrow": "Behind Forma Estates",
+    "founderText1": "Frederik Fussing Nielsen founded Forma Estates in Copenhagen in 2025 and leads the company today. We’re building tools for estate agents, developers, housing associations and professional landlords.",
+    "founderText2": "There’s always a person on the other side of a property presentation. That’s why we care more about whether someone understands the home than about how technically impressive the result looks.",
+    "visionLabel": "Vision",
+    "visionText": "We want to make it easier for more people to see a home’s potential—even when it still exists only on a floor plan or in an empty room.",
+    "missionLabel": "Mission",
+    "missionText": "We build AI tools for images, 3D and video that bring your ideas to life and make them easier to share.",
+    "valuesEyebrow": "How we work",
+    "values": {
+      "clarity": {
+        "title": "It has to make sense",
+        "description": "An image is only good if it helps someone understand the property—not just if it looks beautiful."
+      },
+      "useful": {
+        "title": "It has to be useful",
+        "description": "You should be able to use the result in your next conversation, viewing or listing. Otherwise, we’re not done."
+      },
+      "expertise": {
+        "title": "You bring the expertise",
+        "description": "AI can show what’s possible, but you’re the one who knows the property and what the client needs to see."
+      }
+    },
+    "ctaPrompt": "Have a property that’s hard to show?",
+    "ctaButton": "Contact us"
+  }
+}

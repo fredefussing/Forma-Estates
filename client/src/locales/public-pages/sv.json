@@ -1,0 +1,105 @@
+{
+  "common": {
+    "mainNavigation": "Huvudnavigation",
+    "mobileNavigation": "Mobilnavigation",
+    "language": "Välj språk",
+    "close": "Stäng",
+    "enlarge": "Förstora",
+    "swipeHint": "Svep eller använd piltangenterna",
+    "play": "Spela upp",
+    "pause": "Pausa",
+    "mute": "Stäng av ljudet",
+    "unmute": "Slå på ljudet",
+    "chooseRoom": "Välj rumstyp",
+    "comingSoon": "Innehåll på väg"
+  },
+  "examples": {
+    "metaTitle": "Exempel på AI-visualisering av bostäder",
+    "metaDescription": "Se före- och efterexempel på AI-genererad homestyling och iscensättning från Forma Estates.",
+    "eyebrow": "Exempel",
+    "title": "Se vad du kan skapa",
+    "intro": "Se färdiga exempel på Showcase Video, AI-inredning, fasad- och flygbildsredigering samt 3D-planritningar.",
+    "nav": {
+      "video": "Showcase Video",
+      "rooms": "Rumsinredning",
+      "property": "Fasad och flygbilder",
+      "floorplan": "3D-planritning"
+    },
+    "video": {
+      "eyebrow": "Showcase Video",
+      "title": "En färdig bostadsfilm på 2–3 minuter",
+      "description": "Ladda upp bostadens bilder. Du får en kort, färdig video med kamerarörelser och musik för annonser och sociala medier.",
+      "wideTitle": "Showcase Video — filmformat",
+      "wideDescription": "Visa hela bostaden i ett lugnt, professionellt filmformat.",
+      "rivieraDescription": "En färdig presentation av bostadens viktigaste rum.",
+      "billItDescription": "En färdig video för bostadsportaler och sociala medier."
+    },
+    "rooms": {
+      "eyebrow": "AI-inredning",
+      "title": "Inred ett rum på cirka 15 sekunder",
+      "description": "Välj rumstyp och se ett originalfoto bredvid visualiseringen av samma rum.",
+      "bathroom": {
+        "label": "Badrum",
+        "description": "Samma badrum med nya ytskikt och ljusare material."
+      },
+      "utility": {
+        "label": "Tvättstuga",
+        "description": "Det ofärdiga rummet visualiserat som en ljus och praktisk tvättstuga."
+      },
+      "office": {
+        "label": "Hemmakontor",
+        "description": "Samma arbetsplats med en ny inredning."
+      }
+    },
+    "property": {
+      "eyebrow": "AI Design Agent",
+      "title": "Hela fastigheten — fasad och flygbilder",
+      "description": "Ge fasaden och omgivningen ett nytt uttryck med en kort instruktion. Samma fastighet, tydlig före- och efterbild.",
+      "facadeTitle": "Fasad",
+      "facadeDescription": "Se en uppdaterad fasad med förändrade material och finish.",
+      "aerialTitle": "Flygbilder och omgivning",
+      "aerialDescription": "Visualisera fastighetens omgivning och landskap från ovan."
+    },
+    "floorplan": {
+      "eyebrow": "3D-planritning",
+      "title": "Från 2D-planritning till 3D-visualisering",
+      "description": "Ladda upp en 2D-planritning. Få en 3D-vy med möbler, rum och proportioner så att planlösningen blir lätt att förstå.",
+      "pairTitle": "2D till 3D",
+      "pairDescription": "Klicka på en planritning för att se detaljerna i större format."
+    }
+  },
+  "about": {
+    "metaTitle": "Om oss",
+    "metaDescription": "Möt Forma Estates och upptäck varför vi använder AI för att göra bostäders möjligheter enklare att förstå.",
+    "eyebrow": "Om oss",
+    "title": "En bostad rymmer mer än vad ett foto kan visa",
+    "intro": "Vi är Forma Estates. Vi använder AI för att göra det enklare att visa vad en bostad är — och vad den kan bli.",
+    "motto": "Teknik som gör bostäder enklare att förstå.",
+    "story1": "Det kan vara svårt att föreställa sig ett tomt rum som ett hem. På en planritning kan det vara svårt att få en känsla för rummens storlek. Men när man väl ser möjligheterna förändras samtalet.",
+    "story2": "Det är just det som får oss att bli så entusiastiska över AI. En idé kan bli en bild, en planritning kan bli en 3D-vy och bostadens foton kan bli en Showcase Video. Det är fortfarande du som känner bostaden bäst. Vi hjälper dig att visa dina idéer för andra.",
+    "founderEyebrow": "Bakom Forma Estates",
+    "founderText1": "Frederik Fussing Nielsen grundade Forma Estates i Köpenhamn 2025 och leder företaget i dag. Vi utvecklar verktyg för fastighetsmäklare, utvecklare, bostadsrättsföreningar och professionella uthyrare.",
+    "founderText2": "På andra sidan av varje bostadspresentation finns en människa. Därför bryr vi oss mer om huruvida någon förstår bostaden än om hur tekniskt imponerande resultatet ser ut.",
+    "visionLabel": "Vision",
+    "visionText": "Vi vill göra det enklare för fler att se en bostads möjligheter — även när de än så länge bara finns på en planritning eller i ett tomt rum.",
+    "missionLabel": "Uppdrag",
+    "missionText": "Vi bygger AI-verktyg för bilder, 3D och video som gör dina idéer konkreta och enklare att dela med andra.",
+    "valuesEyebrow": "Så arbetar vi",
+    "values": {
+      "clarity": {
+        "title": "Det ska vara begripligt",
+        "description": "En bild är bra först när den hjälper någon annan att förstå bostaden — inte bara ser snygg ut."
+      },
+      "useful": {
+        "title": "Det ska gå att använda",
+        "description": "Du ska kunna ta med dig resultatet till nästa samtal, visning eller annons. Annars är vi inte klara."
+      },
+      "expertise": {
+        "title": "Du står för expertisen",
+        "description": "AI kan visa möjligheterna, men det är du som känner bostaden och vet vad kunden behöver se."
+      }
+    },
+    "ctaPrompt": "Har du en bostad som är svår att visa?",
+    "ctaButton": "Kontakta oss"
+  }
+}
