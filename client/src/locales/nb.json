@@ -10,8 +10,8 @@
     "getStarted": "Kom i gang"
   },
   "hero": {
-    "headline": "AI-bilder: 15 sek. · boligvideoer: 2–3 min.",
-    "subline": "Lag også 3D-plantegninger — for bolig- og næringsmeglere, utleiere og utviklere.",
+    "headline": "Vis eiendommens potensial",
+    "subline": "For bolig- og næringsmeglere, utleiere og utviklere: AI-bilder, 3D og Showcase Video.",
     "cta": "Lag 2 gratis AI-bilder",
     "ctaSecondary": "Se eksempler",
     "trial": "Prøv med 2 gratis bilder",
@@ -20,25 +20,25 @@
   },
   "slides": [
     {
-      "title": "Cinematisk video",
-      "caption": "Et stillbilde blir til 5 sekunders levende video — klar til annonsen.",
+      "title": "Showcase Video",
+      "caption": "Eiendomsbilder blir til en video klar for boligannonser.",
       "meta": ""
     },
     {
       "title": "Magisk forvandling",
-      "caption": "Se et tomt rom forvandles til et fullt møblert hjem på bare 8 sekunder.",
+      "caption": "Se AI skape et nytt kjøkkeninteriør.",
       "meta": "Stue · AI Staging"
     },
     {
       "title": "Før & etter",
-      "caption": "Samme rom — tre stiler. AI skaper et nytt interiør på ca. 15 sekunder.",
-      "meta": "Stue · Riviera Luxe",
+      "caption": "Samme rom — tre stiler. AI skaper et nytt interiør.",
+      "meta": "Stue · Moderne",
       "beforeLabel": "Før",
       "afterLabel": "Etter"
     },
     {
       "title": "Før & etter",
-      "caption": "Last opp et romfoto — AI skaper et nytt interiør på ca. 15 sekunder.",
+      "caption": "Last opp et romfoto — AI skaper et nytt interiør.",
       "meta": "Spisestue · Skandinavisk",
       "beforeLabel": "Før",
       "afterLabel": "Etter"
@@ -93,8 +93,8 @@
         "desc": "Rediger interiør, fasade, hage og satellittbilder med egne instruksjoner."
       },
       {
-        "eyebrow": "Bolig Showcase",
-        "title": "Bolig Showcase",
+        "eyebrow": "Showcase Video",
+        "title": "Showcase Video",
         "desc": "Samle eiendomsbildene i en profesjonell presentasjonsvideo."
       }
     ]
@@ -124,7 +124,7 @@
     "subline": "Boliger med profesjonell visualisering selges raskere, til høyere priser og tiltrekker flere visninger online.",
     "attribution": "Forma Estates gjør tallene anvendelige i praksis — fra første opplasting til ferdig salgsmateriell.",
     "sources": "Kilder: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
-    "savingsLink": "Se sammenligningen med 18 000 DKK i besparelse",
+    "savingsLink": "Se eksempelet: over 18 000 kr spart",
     "items": [
       {
         "stat": "73%",
@@ -198,32 +198,36 @@
   },
   "savings": {
     "overline": "Hva sparer du?",
-    "headline": "Opptil 18 000 kr+ spart på etterproduksjon — per bolig",
-    "subline": "Vi erstatter ikke fotografen. Vi erstatter den dyre delen etterpå: staging, video og 3D.",
+    "headline": "Eksempel: Spar 19 200 kr per bolig",
+    "subline": "Engangseksempel: 4 AI-bilder, 1 3D-plantegning, 2 transformasjonsvideoer og 1 Showcase Video, før mengderabatt.",
     "colService": "Etterproduksjon",
     "colTraditional": "Tradisjonelt (ca.)",
-    "colForma": "Med Forma Estates",
+    "colForma": "Forma-engangspakke",
     "included": "Inkludert",
     "totalLabel": "Etterproduksjon totalt",
     "totalTraditional": "21 000 kr",
-    "totalForma": "Fra 2 999 kr/md",
-    "disclaimer": "* Priser er veiledende og kan variere avhengig av leverandør, kompleksitet og geografi.",
+    "totalForma": "1 800 kr én gang",
+    "disclaimer": "* Eksempel: tradisjonelt estimat på 21 000 kr sammenlignet med engangskjøp til 1 800 kr før eventuelle mengderabatter per tjeneste.",
     "rows": [
       {
         "label": "4 AI-visualiseringer",
-        "traditional": "2 500 kr"
+        "traditional": "2 500 kr",
+        "forma": "400 kr"
       },
       {
         "label": "1 3D-plantegning",
-        "traditional": "2 500 kr"
+        "traditional": "2 500 kr",
+        "forma": "300 kr"
       },
       {
         "label": "2 transformasjonsvideoer",
-        "traditional": "10 000 kr"
+        "traditional": "10 000 kr",
+        "forma": "600 kr"
       },
       {
         "label": "1 showcase-video",
-        "traditional": "6 000 kr"
+        "traditional": "6 000 kr",
+        "forma": "500 kr"
       }
     ]
   },
@@ -293,7 +297,7 @@
     "items": [
       {
         "q": "Hva er Forma Estates?",
-        "a": "Forma Estates er en AI-plattform for profesjonell eiendomsvisualisering. Du laster opp bilder av en eiendom og får på noen sekunder: stilfulle AI-visualiseringer av rommene i opptil 8 designstiler, en cinematisk eiendomsvideo med AI-kamerabevegelser og beat-synkronisert musikk, en transformasjonsvideo som animerer overgangen fra før til etter, en 3D-plantegning fra din 2D-grunnplan, og profesjonelle PDF-presentasjoner med før/etter-sammenligning."
+        "a": "Forma Estates hjelper eiendomsbransjen med AI-bilder, 3D-plantegninger, transformasjonsvideoer, Showcase Video og PDF-presentasjoner."
       },
       {
         "q": "Hvem bruker Forma Estates?",
@@ -301,15 +305,15 @@
       },
       {
         "q": "Hva er AI-visualiseringer og transformasjonsvideoer?",
-        "a": "AI-visualiseringer er stillbilder der AI-en redesigner rommet i en valgt stil — vegger, gulv og vinduer forblir uendret, mens møbler, belysning og overflater byttes ut. Transformasjonsvideoer er 5-sekunders videoklipp som animerer selve overgangen fra det originale rommet til det redesignede."
+        "a": "AI skaper nye interiører i bildene dine og bevarer rommets vegger, gulv og vinduer. Transformasjonsvideoer viser endringen fra før til etter."
       },
       {
-        "q": "Hva er eiendomsvideoene (Showcase)?",
-        "a": "Showcase-videoen samler eiendomsbildene dine til en vertikal 9:16-video med AI-genererte kamerabevegelser og beat-synkronisert bakgrunnsmusikk. Resultatet er en profesjonell reel klar til Instagram, Facebook og boligportaler — uten filmteam eller videoredigering."
+        "q": "Hva er Showcase Video?",
+        "a": "Showcase Video samler eiendomsbilder i en vertikal video med AI-kamerabevegelser og musikk — klar for sosiale medier og boligportaler."
       },
       {
         "q": "Hva koster det?",
-        "a": "Abonnementer starter fra 2 999 kr./md. og gir tilgang til alle funksjoner: AI-visualiseringer, transformasjonsvideoer, eiendomsvideoer, 3D-plantegninger og PDF-presentasjoner. Kontakt oss for et tilbud tilpasset din virksomhet eller ditt team."
+        "a": "Sett sammen en tilpasset engangspakke ved å velge antall av hver tjeneste. Prisen varierer med mengden; flere av samme tjeneste gir en lavere stykkpris."
       },
       {
         "q": "Hvilke filformater kan jeg laste opp?",
@@ -321,7 +325,7 @@
       },
       {
         "q": "Bevarer AI-en rommets struktur?",
-        "a": "Ja. Vegger, vinduer, gulv og rommets proporsjoner forblir uendret. Bare møbler, belysning og overflater redesignes, slik at resultatet ser realistisk og troverdig ut for potensielle kjøpere, leietakere og investorer."
+        "a": "Ja. Vegger, vinduer, gulv og rommets proporsjoner bevares. AI skaper et nytt interiør ved å endre møbler, belysning og overflater."
       },
       {
         "q": "Er bildene mine konfidensielle?",
@@ -374,11 +378,7 @@
   "trustMarquee": [
     "AI-bilder på ca. 15 sekunder",
     "Bolig- og promovideoer på 2–3 minutter",
-    "3D-plantegninger",
-    "Bygget for eiendomsbransjen",
-    "For bolig- og næringsmeglere",
-    "I samsvar med EUs AI-forordning · Artikkel 50",
-    "Profesjonelt salgsmateriell"
+    "3D-plantegninger · Showcase Video"
   ],
   "loginPage": {
     "title": "Logg inn",
@@ -567,7 +567,7 @@
     "noSubscription": "Engangsbetaling · intet abonnement",
     "checkoutFailed": "Checkout mislyktes: {{error}}",
     "youSave": "Du sparer {{amount}} kr. ({{pct}}% total rabatt)",
-    "addMoreDiscount": "Flere tilvalg gir en lavere stykkpris.",
+    "addMoreDiscount": "Flere av samme tjeneste gir en lavere stykkpris.",
     "dragSliders": "Bruk glidebryterne ovenfor for å beregne prisen din",
     "totalDiscountLabel": "Total rabatt",
     "unknownError": "Ukjent feil",
@@ -1793,9 +1793,9 @@
   "videoSection": {
     "overline": "Se det i praksis",
     "headline": "Fra foto til bolig- eller promovideo — klar på 2–3 minutter",
-    "subline": "Last opp et boligfoto. AI skaper et nytt interiør og leverer en ferdig video til annonsen.",
+    "subline": "Last opp eiendomsbilder, så lager AI en Showcase Video klar til deling.",
     "cta": "Se alle eksempler",
-    "badge": "AI-staging · ca. 2–3 min"
+    "badge": "Showcase Video · ca. 2–3 min"
   },
   "chat": {
     "landingQ1": "Hvem passer Forma Estates for?",

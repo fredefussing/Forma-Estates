@@ -10,8 +10,8 @@
     "getStarted": "Loslegen"
   },
   "hero": {
-    "headline": "KI-Bilder: 15 Sek. · Immobilienvideos: 2–3 Min.",
-    "subline": "Erstellen Sie auch 3D-Grundrisse — für Wohn- und Gewerbemakler, Vermieter und Projektentwickler.",
+    "headline": "Zeigen Sie das Potenzial Ihrer Immobilie",
+    "subline": "Für Wohn- und Gewerbemakler, Vermieter und Projektentwickler: KI-Bilder, 3D und Showcase Video.",
     "cta": "2 KI-Bilder kostenlos erstellen",
     "ctaSecondary": "Beispiele ansehen",
     "trial": "Mit 2 kostenlosen Bildern testen",
@@ -20,25 +20,25 @@
   },
   "slides": [
     {
-      "title": "Cinematisches Video",
-      "caption": "Ein Standbild wird zu einem 5-sekündigen lebendigen Video — bereit für die Anzeige.",
+      "title": "Showcase Video",
+      "caption": "Immobilienfotos werden zu einem Video für Immobilienanzeigen.",
       "meta": ""
     },
     {
       "title": "Magische Verwandlung",
-      "caption": "Beobachten Sie, wie ein leeres Zimmer in nur 8 Sekunden zu einem voll eingerichteten Zuhause wird.",
+      "caption": "Sehen Sie, wie KI ein neues Kücheninterieur schafft.",
       "meta": "Wohnzimmer · AI Staging"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Dasselbe Zimmer — drei Stile. Die KI schafft ein neues Interieur in ca. 15 Sekunden.",
-      "meta": "Wohnzimmer · Riviera Luxe",
+      "caption": "Dasselbe Zimmer — drei Stile. Die KI schafft ein neues Interieur.",
+      "meta": "Wohnzimmer · Modern",
       "beforeLabel": "Vorher",
       "afterLabel": "Nachher"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Laden Sie ein Raumfoto hoch — die KI schafft ein neues Interieur in ca. 15 Sekunden.",
+      "caption": "Laden Sie ein Raumfoto hoch — die KI schafft ein neues Interieur.",
       "meta": "Esszimmer · Skandinavisch",
       "beforeLabel": "Vorher",
       "afterLabel": "Nachher"
@@ -93,8 +93,8 @@
         "desc": "Bearbeiten Sie Innenräume, Fassaden, Gärten und Satellitenbilder nach eigenen Vorgaben."
       },
       {
-        "eyebrow": "Immobilien Showcase",
-        "title": "Immobilien-Showcase",
+        "eyebrow": "Showcase Video",
+        "title": "Showcase Video",
         "desc": "Kombinieren Sie Immobilienbilder zu einem professionellen Präsentationsvideo."
       }
     ]
@@ -124,7 +124,7 @@
     "subline": "Immobilien mit professioneller Visualisierung werden schneller, zu höheren Preisen und mit mehr Online-Besichtigungen verkauft.",
     "attribution": "Forma Estates macht diese Zahlen praktisch nutzbar — vom ersten Upload bis zum fertigen Verkaufsmaterial.",
     "sources": "Quellen: NAR Profile of Home Staging 2023 · RESA · Boligsiden Marktdaten · ROOMAGEN · Capitalize Home",
-    "savingsLink": "Sehen Sie den Vergleich mit 18.000 DKK Ersparnis",
+    "savingsLink": "Beispiel ansehen: über 18.000 kr Ersparnis",
     "items": [
       {
         "stat": "73%",
@@ -198,32 +198,36 @@
   },
   "savings": {
     "overline": "Was sparen Sie?",
-    "headline": "Bis zu 18.000 kr+ gespart bei der Nachproduktion — pro Immobilie",
-    "subline": "Wir ersetzen nicht den Fotografen. Wir ersetzen den teuren Teil danach: Staging, Video und 3D.",
+    "headline": "Beispiel: 19.200 kr pro Immobilie sparen",
+    "subline": "Einmaliges Beispiel: 4 KI-Bilder, 1 3D-Grundriss, 2 Transformationsvideos und 1 Showcase Video, vor Mengenrabatten.",
     "colService": "Nachproduktion",
     "colTraditional": "Traditionell (ca.)",
-    "colForma": "Mit Forma Estates",
+    "colForma": "Einmalpaket von Forma",
     "included": "Inklusive",
     "totalLabel": "Nachproduktion gesamt",
     "totalTraditional": "21.000 kr",
-    "totalForma": "Ab 2.999 kr/Monat",
-    "disclaimer": "* Preise sind Richtwerte und können je nach Anbieter, Komplexität und Geografie variieren.",
+    "totalForma": "1.800 kr einmalig",
+    "disclaimer": "* Beispiel: geschätzte traditionelle Kosten von 21.000 kr gegenüber 1.800 kr einmalig vor möglichen Mengenrabatten je Leistung.",
     "rows": [
       {
         "label": "4 KI-Visualisierungen",
-        "traditional": "2.500 kr"
+        "traditional": "2.500 kr",
+        "forma": "400 kr"
       },
       {
         "label": "1 3D-Grundriss",
-        "traditional": "2.500 kr"
+        "traditional": "2.500 kr",
+        "forma": "300 kr"
       },
       {
         "label": "2 Transformationsvideos",
-        "traditional": "10.000 kr"
+        "traditional": "10.000 kr",
+        "forma": "600 kr"
       },
       {
         "label": "1 Showcase-Video",
-        "traditional": "6.000 kr"
+        "traditional": "6.000 kr",
+        "forma": "500 kr"
       }
     ]
   },
@@ -293,7 +297,7 @@
     "items": [
       {
         "q": "Was ist Forma Estates?",
-        "a": "Forma Estates ist eine KI-Plattform für professionelle Immobilienvisualisierung. Sie laden Bilder einer Immobilie hoch und erhalten in wenigen Sekunden: stilvolle KI-Visualisierungen der Räume in bis zu 8 Designstilen, ein cinematisches Immobilienvideo mit KI-Kamerabewegungen und beat-synchronisierter Musik, ein Transformationsvideo das den Übergang von vorher zu nachher animiert, einen 3D-Grundriss aus Ihrem 2D-Grundriss, und professionelle PDF-Präsentationen mit Vorher/Nachher-Vergleich."
+        "a": "Forma Estates unterstützt Immobilienprofis mit KI-Bildern, 3D-Grundrissen, Transformationsvideos, Showcase Video und PDF-Präsentationen."
       },
       {
         "q": "Wer nutzt Forma Estates?",
@@ -301,15 +305,15 @@
       },
       {
         "q": "Was sind KI-Visualisierungen und Transformationsvideos?",
-        "a": "KI-Visualisierungen sind Standbilder, bei denen die KI den Raum in einem gewählten Stil neu gestaltet — Wände, Boden und Fenster bleiben unverändert, während Möbel, Beleuchtung und Oberflächen ausgetauscht werden. Transformationsvideos sind 5-Sekunden-Videoclips, die den Übergang vom ursprünglichen zum neu gestalteten Raum animieren."
+        "a": "Die KI schafft neue Interieurs in Ihren Bildern und erhält Wände, Boden und Fenster des Raums. Transformationsvideos zeigen den Wechsel von vorher zu nachher."
       },
       {
-        "q": "Was sind die Immobilienvideos (Showcase)?",
-        "a": "Das Showcase-Video fasst Ihre Immobilienbilder zu einem vertikalen 9:16-Video mit KI-generierten Kamerabewegungen und beat-synchronisierter Hintergrundmusik zusammen. Das Ergebnis ist ein professioneller Reel für Instagram, Facebook und Immobilienportale — ohne Filmteam oder Videobearbeitung."
+        "q": "Was ist Showcase Video?",
+        "a": "Showcase Video kombiniert Immobilienbilder in einem vertikalen Video mit KI-Kamerabewegungen und Musik — bereit für soziale Medien und Immobilienportale."
       },
       {
         "q": "Was kostet es?",
-        "a": "Abonnements beginnen ab 2.999 kr./Monat und geben Zugang zu allen Funktionen: KI-Visualisierungen, Transformationsvideos, Immobilienvideos, 3D-Grundrisse und PDF-Präsentationen. Kontaktieren Sie uns für ein auf Ihr Unternehmen oder Team zugeschnittenes Angebot."
+        "a": "Stellen Sie ein individuelles Einmalpaket zusammen, indem Sie die Menge jeder Leistung wählen. Der Preis richtet sich nach den Mengen; mehr von derselben Leistung senkt den Stückpreis."
       },
       {
         "q": "Welche Dateiformate kann ich hochladen?",
@@ -321,7 +325,7 @@
       },
       {
         "q": "Bewahrt die KI die Raumstruktur?",
-        "a": "Ja. Wände, Fenster, Boden und die Proportionen des Raums bleiben unverändert. Nur Möbel, Beleuchtung und Oberflächen werden neu gestaltet, damit das Ergebnis für potenzielle Käufer, Mieter und Investoren realistisch und glaubwürdig aussieht."
+        "a": "Ja. Wände, Fenster, Boden und Raumproportionen bleiben erhalten. Die KI schafft ein neues Interieur, indem sie Möbel, Beleuchtung und Oberflächen verändert."
       },
       {
         "q": "Sind meine Bilder vertraulich?",
@@ -374,11 +378,7 @@
   "trustMarquee": [
     "KI-Bilder in ca. 15 Sekunden",
     "Immobilien- und Promo-Videos in 2–3 Minuten",
-    "3D-Grundrisse",
-    "Für Immobilienprofis entwickelt",
-    "Für Wohn- und Gewerbemakler",
-    "EU-KI-Verordnung konform · Art. 50",
-    "Professionelles Verkaufsmaterial"
+    "3D-Grundrisse · Showcase Video"
   ],
   "loginPage": {
     "title": "Anmelden",
@@ -567,7 +567,7 @@
     "noSubscription": "Einmalzahlung · kein Abonnement",
     "checkoutFailed": "Checkout fehlgeschlagen: {{error}}",
     "youSave": "Sie sparen {{amount}} DKK ({{pct}}% Gesamtrabatt)",
-    "addMoreDiscount": "Mehr Zusatzleistungen senken den Stückpreis.",
+    "addMoreDiscount": "Mehr von derselben Leistung senkt den Stückpreis.",
     "dragSliders": "Nutzen Sie die Schieberegler oben, um Ihren Preis zu berechnen",
     "totalDiscountLabel": "Gesamtrabatt",
     "unknownError": "Unbekannter Fehler",
@@ -1793,9 +1793,9 @@
   "videoSection": {
     "overline": "Se det i aktion",
     "headline": "Vom Foto zum Immobilien- oder Promo-Video — fertig in 2–3 Minuten",
-    "subline": "Laden Sie ein Immobilienfoto hoch. Die KI schafft ein neues Interieur und liefert ein fertiges Video für die Anzeige.",
+    "subline": "Laden Sie Immobilienbilder hoch; die KI erstellt ein teilbares Showcase Video.",
     "cta": "Se alle eksempler",
-    "badge": "KI-Staging · ca. 2–3 Min."
+    "badge": "Showcase Video · ca. 2–3 Min."
   },
   "chat": {
     "landingQ1": "Für wen ist Forma Estates?",

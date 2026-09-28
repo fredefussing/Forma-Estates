@@ -10,8 +10,8 @@
     "getStarted": "Empezar"
   },
   "hero": {
-    "headline": "Imágenes IA: 15 s · vídeos inmobiliarios: 2–3 min",
-    "subline": "Crea también planos 3D — para agentes residenciales y comerciales, propietarios y promotores.",
+    "headline": "Muestra el potencial de tu inmueble",
+    "subline": "Para agentes residenciales y comerciales, propietarios y promotores: imágenes IA, 3D y Showcase Video.",
     "cta": "Crear 2 imágenes IA gratis",
     "ctaSecondary": "Ver ejemplos",
     "trial": "Pruébalo con 2 imágenes gratis",
@@ -20,25 +20,25 @@
   },
   "slides": [
     {
-      "title": "Vídeo cinematográfico",
-      "caption": "Una sola imagen se convierte en un vídeo vivo de 5 segundos — listo para tu anuncio.",
+      "title": "Showcase Video",
+      "caption": "Las fotos del inmueble se convierten en un vídeo listo para anuncios.",
       "meta": ""
     },
     {
       "title": "Transformación mágica",
-      "caption": "Mira cómo una habitación vacía se convierte en un hogar completamente amueblado en solo 8 segundos.",
+      "caption": "Mira cómo la IA crea un interior nuevo en una cocina.",
       "meta": "Salón · AI Staging"
     },
     {
       "title": "Antes & después",
-      "caption": "La misma habitación — tres estilos. La IA crea un interior nuevo en aprox. 15 segundos.",
-      "meta": "Salón · Riviera Luxe",
+      "caption": "La misma habitación — tres estilos. La IA crea un interior nuevo.",
+      "meta": "Salón · Moderno",
       "beforeLabel": "Antes",
       "afterLabel": "Después"
     },
     {
       "title": "Antes y después",
-      "caption": "Sube una foto de la habitación — la IA crea un interior nuevo en aprox. 15 segundos.",
+      "caption": "Sube una foto de la habitación — la IA crea un interior nuevo.",
       "meta": "Comedor · Escandinavo",
       "beforeLabel": "Antes",
       "afterLabel": "Después"
@@ -93,8 +93,8 @@
         "desc": "Edita interiores, fachadas, jardines e imágenes de satélite con tus instrucciones."
       },
       {
-        "eyebrow": "Property Showcase",
-        "title": "Property Showcase",
+        "eyebrow": "Showcase Video",
+        "title": "Showcase Video",
         "desc": "Combina las imágenes del inmueble en un vídeo de presentación profesional."
       }
     ]
@@ -124,7 +124,7 @@
     "subline": "Las propiedades con visualización profesional se venden más rápido, a mejor precio y atraen más visitas online.",
     "attribution": "Forma Estates convierte estos datos en resultados prácticos — desde la primera carga hasta el material de venta terminado.",
     "sources": "Fuentes: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
-    "savingsLink": "Consulta la comparación con un ahorro de 18.000 DKK",
+    "savingsLink": "Ver ejemplo: más de 18.000 DKK de ahorro",
     "items": [
       {
         "stat": "73%",
@@ -198,32 +198,36 @@
   },
   "savings": {
     "overline": "¿Cuánto ahorras?",
-    "headline": "Hasta 18.000 DKK+ ahorrados en postproducción — por propiedad",
-    "subline": "No reemplazamos al fotógrafo. Reemplazamos la parte cara que viene después: staging, vídeo y 3D.",
+    "headline": "Ejemplo: ahorra 19.200 DKK por inmueble",
+    "subline": "Ejemplo de pago único: 4 imágenes IA, 1 plano 3D, 2 vídeos de transformación y 1 Showcase Video, antes de los descuentos por cantidad.",
     "colService": "Postproducción",
     "colTraditional": "Tradicional (aprox.)",
-    "colForma": "Con Forma Estates",
+    "colForma": "Paquete único Forma",
     "included": "Incluido",
     "totalLabel": "Total postproducción",
     "totalTraditional": "21.000 DKK",
-    "totalForma": "Desde 2.999 DKK/mes",
-    "disclaimer": "* Los precios son orientativos y pueden variar según el proveedor, la complejidad y la ubicación.",
+    "totalForma": "1.800 DKK pago único",
+    "disclaimer": "* Ejemplo: estimación tradicional de 21.000 DKK frente a un pago único de 1.800 DKK antes de los descuentos aplicables por cantidad de cada servicio.",
     "rows": [
       {
         "label": "4 visualizaciones IA",
-        "traditional": "2.500 DKK"
+        "traditional": "2.500 DKK",
+        "forma": "400 DKK"
       },
       {
         "label": "1 plano 3D",
-        "traditional": "2.500 DKK"
+        "traditional": "2.500 DKK",
+        "forma": "300 DKK"
       },
       {
         "label": "2 vídeos de transformación",
-        "traditional": "10.000 DKK"
+        "traditional": "10.000 DKK",
+        "forma": "600 DKK"
       },
       {
         "label": "1 vídeo showcase",
-        "traditional": "6.000 DKK"
+        "traditional": "6.000 DKK",
+        "forma": "500 DKK"
       }
     ]
   },
@@ -293,7 +297,7 @@
     "items": [
       {
         "q": "¿Qué es Forma Estates?",
-        "a": "Forma Estates es una plataforma de IA para la visualización profesional de propiedades. Subes imágenes de una propiedad y obtienes en segundos: visualizaciones IA de las habitaciones en hasta 8 estilos de diseño, un vídeo cinematográfico con movimientos de cámara IA y música sincronizada, un vídeo de transformación con la transición del antes al después, un plano 3D a partir de tu plano 2D y presentaciones PDF profesionales con comparación antes/después — todo listo para anuncios, redes sociales, materiales de proyecto y presentaciones a clientes."
+        "a": "Forma Estates ayuda a los profesionales inmobiliarios con imágenes IA, planos 3D, vídeos de transformación, Showcase Video y presentaciones PDF."
       },
       {
         "q": "¿Quién usa Forma Estates?",
@@ -301,15 +305,15 @@
       },
       {
         "q": "¿Qué son las visualizaciones IA y los vídeos de transformación?",
-        "a": "Las visualizaciones IA son imágenes fijas en las que la IA rediseña la habitación en el estilo elegido — las paredes, el suelo y las ventanas permanecen iguales mientras se reemplazan los muebles, la iluminación y los acabados. Los vídeos de transformación son clips de 5 segundos que animan la transición del espacio original al rediseñado — ideales para mostrar el potencial de la propiedad en Instagram, en presentaciones de proyectos y en anuncios."
+        "a": "La IA crea interiores nuevos en tus imágenes y conserva las paredes, el suelo y las ventanas. Los vídeos de transformación muestran el cambio del antes al después."
       },
       {
-        "q": "¿Qué son los vídeos de propiedad (Showcase)?",
-        "a": "El vídeo Showcase combina tus imágenes de la propiedad en un vídeo vertical 9:16 con movimientos de cámara generados por IA (dolly, órbita, paneo) y música de fondo sincronizada con el ritmo. El resultado es un reel profesional listo para Instagram, Facebook, portales inmobiliarios y webs de proyectos — sin equipo de cámara ni edición de vídeo."
+        "q": "¿Qué es Showcase Video?",
+        "a": "Showcase Video reúne las imágenes del inmueble en un vídeo vertical con movimientos de cámara IA y música, listo para redes sociales y portales inmobiliarios."
       },
       {
         "q": "¿Cuánto cuesta?",
-        "a": "Las suscripciones empiezan desde 2.999 DKK/mes y dan acceso a todas las funcionalidades: visualizaciones IA, vídeos de transformación, vídeos de propiedad, planos 3D y presentaciones PDF. Contáctanos para un presupuesto adaptado a tu empresa o equipo."
+        "a": "Crea un paquete único personalizado eligiendo las cantidades de cada servicio. El precio varía según la cantidad; añadir más unidades del mismo servicio reduce el precio unitario."
       },
       {
         "q": "¿Qué formatos de archivo puedo subir?",
@@ -321,7 +325,7 @@
       },
       {
         "q": "¿La IA conserva la estructura de la habitación?",
-        "a": "Sí. Las paredes, ventanas, suelo y proporciones de la habitación se mantienen intactas. Solo se rediseñan los muebles, la iluminación y los acabados, por lo que el resultado tiene un aspecto realista y creíble para posibles compradores, inquilinos e inversores."
+        "a": "Sí. Se conservan las paredes, ventanas, suelo y proporciones. La IA crea un interior nuevo al cambiar los muebles, la iluminación y los acabados."
       },
       {
         "q": "¿Son confidenciales mis imágenes?",
@@ -374,11 +378,7 @@
   "trustMarquee": [
     "Imágenes con IA en aprox. 15 segundos",
     "Vídeos inmobiliarios y promocionales en 2–3 minutos",
-    "Planos 3D",
-    "Creado para profesionales inmobiliarios",
-    "Para agentes residenciales y comerciales",
-    "Cumple la Ley de IA de la UE · Art. 50",
-    "Material comercial profesional"
+    "Planos 3D · Showcase Video"
   ],
   "loginPage": {
     "title": "Iniciar sesión",
@@ -567,7 +567,7 @@
     "noSubscription": "Pago único · sin suscripción",
     "checkoutFailed": "Error en el pago: {{error}}",
     "youSave": "Ahorras {{amount}} DKK ({{pct}}% descuento total)",
-    "addMoreDiscount": "Más servicios adicionales significan un precio unitario menor.",
+    "addMoreDiscount": "Más unidades del mismo servicio reducen el precio unitario.",
     "dragSliders": "Usa los controles deslizantes para calcular tu precio",
     "totalDiscountLabel": "Descuento total",
     "unknownError": "Error desconocido",
@@ -1793,9 +1793,9 @@
   "videoSection": {
     "overline": "Míralo en acción",
     "headline": "De una foto a un vídeo inmobiliario o promocional — listo en 2–3 minutos",
-    "subline": "Sube una foto de la propiedad. La IA crea un interior nuevo y entrega un vídeo listo para el anuncio.",
+    "subline": "Sube imágenes del inmueble y la IA crea un Showcase Video listo para compartir.",
     "cta": "Se alle eksempler",
-    "badge": "AI staging · aprox. 2–3 min"
+    "badge": "Showcase Video · aprox. 2–3 min"
   },
   "chat": {
     "landingQ1": "¿Para quién es Forma Estates?",

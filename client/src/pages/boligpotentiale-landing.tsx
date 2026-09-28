@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
-import { TrustMarquee } from "@/components/TrustMarquee";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,14 +15,6 @@ import {
   Camera,
   SlidersHorizontal,
   Download,
-  Home,
-  Palette,
-  Zap,
-  Monitor,
-  MessageCircle,
-  Box,
-  Video,
-  Wand2,
   Facebook,
   Instagram,
   Linkedin,
@@ -84,36 +75,6 @@ const HOW_IT_WORKS_BASE = [
   { step: "01", Icon: Camera },
   { step: "02", Icon: SlidersHorizontal },
   { step: "03", Icon: Download },
-];
-
-const FEATURES_BASE = [
-  { Icon: Home },
-  { Icon: Palette },
-  { Icon: Box },
-  { Icon: Video },
-  { Icon: Wand2 },
-  { Icon: Zap },
-  { Icon: Monitor },
-  { Icon: Download },
-  { Icon: MessageCircle },
-];
-
-// Indices that have a "more" expandable section
-const FEATURES_WITH_MORE = new Set([0, 2, 3, 4]);
-
-type Plan = {
-  name: string;
-  monthly: number | null;
-  features: string[];
-  cta: string;
-  highlight?: boolean;
-  href: string;
-};
-
-const PRICING_BASE = [
-  { name: "Start",    monthly: 2999,  highlight: false, href: "/opret" },
-  { name: "Pro",      monthly: 5999,  highlight: true,  href: "/opret" },
-  { name: "Business", monthly: 11999, highlight: false, href: "/opret" },
 ];
 
 // ── Language switcher (desktop nav dropdown) ──────────────────────────────────
@@ -257,11 +218,11 @@ type StageSlide =
 
 // Media-only base (text injected inside HeroStage via useTranslation)
 const STAGE_SLIDES_BASE = [
-  { kind: "video" as const, src: "/cinematisk-video.mp4",              poster: "/bolig-images/video-poster.jpg" },
-  { kind: "video" as const, src: "/videos/magisk-transformation.mp4", poster: "/bolig-images/magisk-transformation-poster.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png" },
-  { kind: "swipe" as const, before: "/bolig-images/dining-before-new.png",   after: "/bolig-images/dining-after-new.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/floorplan-2d-new.jpg",    after: "/bolig-images/floorplan-3d-new.png", contain: true, bg: "#FFFFFF" },
+  { kind: "video" as const, src: "/videos/landing-showcase-wide.mp4", poster: "/bolig-images/landing-showcase-wide.jpg" },
+  { kind: "video" as const, src: "/videos/landing-transformation.mp4", poster: "/bolig-images/landing-transformation.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/dining-before.jpg", after: "/bolig-images/dining-after.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/floorplan-2d.png", after: "/bolig-images/floorplan-3d.png", contain: true, bg: "#FFFFFF" },
 ];
 
 // Pre-computed: which slide indices are video slides, in order.
@@ -525,6 +486,7 @@ function HeroStage() {
                       }
                     }}
                     src={s.src}
+                    poster={s.poster}
                     autoPlay
                     muted
                     loop
@@ -560,35 +522,33 @@ function HeroStage() {
             className="hidden md:flex absolute left-0 right-0 bottom-0 flex-col justify-end"
             style={{ padding: "clamp(18px, 2.5vw, 36px) clamp(20px, 3.5vw, 48px)", zIndex: 7 }}
           >
-            <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(20px, 2.4vw, 36px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 8px rgba(0,0,0,0.25)" }}>
+            <h1 style={{ fontFamily: SERIF, color: "#fff", fontSize: "clamp(24px, 2.8vw, 42px)", fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 8, textShadow: "0 1px 8px rgba(0,0,0,0.25)" }}>
               {t("hero.headline")}
             </h1>
-            <p style={{ color: "rgba(255,255,255,0.80)", fontSize: "clamp(12px, 1vw, 14px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, maxWidth: 500 }}>
+            <p style={{ color: "rgba(255,255,255,0.80)", fontSize: "clamp(11px, 1vw, 14px)", lineHeight: 1.5, marginBottom: 14, fontFamily: SANS, maxWidth: 700 }}>
               {t("hero.subline")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href="/opret"
                 className="inline-flex items-center gap-2 transition-all"
-                style={{ background: C.gold, color: C.navy, padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)", textDecoration: "none" }}
+                style={{ background: C.gold, color: C.navy, padding: "13px 24px", borderRadius: 7, fontSize: 14, fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)", textDecoration: "none" }}
                 onMouseEnter={(e: any) => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
                 onMouseLeave={(e: any) => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                 data-testid="bolig-hero-cta"
               >
-                {t("hero.cta")} <ArrowRight className="w-3.5 h-3.5" />
+                {t("hero.cta")} <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/boligpotentiale/eksempler"
                 className="inline-flex items-center gap-2 transition-all"
-                style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "9px 18px", borderRadius: 7, fontSize: 12, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)", textDecoration: "none" }}
+                style={{ background: "rgba(255,255,255,0.10)", color: "#fff", padding: "13px 24px", borderRadius: 7, fontSize: 14, fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.30)", backdropFilter: "blur(6px)", textDecoration: "none" }}
                 onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
                 onMouseLeave={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; }}
                 data-testid="bolig-hero-cta-secondary"
               >
                 {t("hero.ctaSecondary")}
               </Link>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", fontFamily: SANS }}>
-              </span>
             </div>
           </div>
 
@@ -685,18 +645,18 @@ function HeroStage() {
               <Link href="/opret">
                 <button
                   className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: C.gold, color: C.navy, padding: "12px 24px", borderRadius: 7, fontSize: "clamp(13px, 1vw, 14px)", fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
+                  style={{ background: C.gold, color: C.navy, padding: "15px 28px", borderRadius: 7, fontSize: "clamp(14px, 1.1vw, 16px)", fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
                   onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
                   data-testid="bolig-hero-cta-mobile"
                 >
-                  {t("hero.cta")} <ArrowRight className="w-4 h-4" />
+                  {t("hero.cta")} <ArrowRight className="w-5 h-5" />
                 </button>
               </Link>
               <Link href="/boligpotentiale/eksempler">
                 <button
                   className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: "transparent", color: "#fff", padding: "12px 24px", borderRadius: 7, fontSize: "clamp(13px, 1vw, 14px)", fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
+                  style={{ background: "transparent", color: "#fff", padding: "15px 28px", borderRadius: 7, fontSize: "clamp(14px, 1.1vw, 16px)", fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
                   data-testid="bolig-hero-cta-secondary-mobile"
@@ -1197,8 +1157,8 @@ function PhoneVideo() {
         <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
           <video
             ref={videoRef}
-            src="/videos/forvandling-instagram.mp4"
-            poster="/videos/forvandling-instagram-poster.jpg"
+            src="/videos/landing-showcase-portrait.mp4"
+            poster="/bolig-images/landing-showcase-portrait.jpg"
             muted
             loop
             playsInline
@@ -1243,12 +1203,9 @@ function TileCarousel({ images }: { images: string[] }) {
 export default function BoligpotentialeLanding() {
   const { t, i18n: i18nCtx } = useTranslation();
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState<string>("home");
-  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   // Build translated data arrays (re-computed on language change)
   const NAV_LINKS = NAV_LINKS_BASE.map(l => ({ ...l, label: t(`nav.${l.navKey}`) }));
@@ -1257,46 +1214,10 @@ export default function BoligpotentialeLanding() {
     title: t(`howItWorks.steps.${i}.title`),
     desc: t(`howItWorks.steps.${i}.desc`),
   }));
-  const FEATURES = FEATURES_BASE.map((f, i) => ({
-    ...f,
-    title: t(`features.items.${i}.title`),
-    desc: t(`features.items.${i}.desc`),
-    more: FEATURES_WITH_MORE.has(i) ? t(`features.items.${i}.more`) : undefined,
-  }));
-  const PRICING: Plan[] = PRICING_BASE.map(p => ({
-    ...p,
-    cta: t(`pricing.plans.${p.name}.cta`),
-    features: t(`pricing.plans.${p.name}.features`, { returnObjects: true }) as string[],
-  }));
   const FAQS = t("faq.items", { returnObjects: true }) as Array<{ q: string; a: string }>;
 
-  const startCheckout = async (planName: string) => {
-    if (!user) {
-      // Not logged in — save intent and send to login first
-      sessionStorage.setItem("forma_checkout_intent", JSON.stringify({ type: "subscription", planName, billing }));
-      setLocation(`/login?redirect=${encodeURIComponent("/boligpotentiale")}`);
-      return;
-    }
-    const priceId = PLAN_PRICE_IDS[planName]?.[billing];
-    if (!priceId) return;
-    setCheckoutLoading(planName);
-    try {
-      const res = await fetch("/api/create-subscription-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId, customerEmail: user.email ?? "" }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else alert(t("pricing.checkoutFailed"));
-    } catch {
-      alert(t("pricing.checkoutFailed"));
-    } finally {
-      setCheckoutLoading(null);
-    }
-  };
-
-  // After login redirect back: auto-trigger subscription checkout if intent is stored
+  // Honor subscription checkout intents that were saved before this landing
+  // page stopped offering fixed plans.
   useEffect(() => {
     if (!user) return;
     const raw = sessionStorage.getItem("forma_checkout_intent");
@@ -1307,7 +1228,6 @@ export default function BoligpotentialeLanding() {
       sessionStorage.removeItem("forma_checkout_intent");
       const priceId = PLAN_PRICE_IDS[intent.planName]?.[intent.billing as "monthly" | "yearly"];
       if (!priceId) return;
-      setCheckoutLoading(intent.planName);
       fetch("/api/create-subscription-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1315,8 +1235,7 @@ export default function BoligpotentialeLanding() {
       })
         .then(r => r.json())
         .then(data => { if (data.url) window.location.href = data.url; })
-        .catch(() => {})
-        .finally(() => setCheckoutLoading(null));
+        .catch(() => {});
     } catch { /* ignore malformed intent */ }
   }, [user]);
 
@@ -1349,13 +1268,6 @@ export default function BoligpotentialeLanding() {
     window.addEventListener("hashchange", scrollToHash);
     return () => { cancelled = true; window.removeEventListener("hashchange", scrollToHash); };
   }, []);
-
-  const formatPrice = (monthly: number | null) => {
-    if (monthly === null) return null;
-    if (billing === "monthly") return monthly.toLocaleString("da-DK");
-    const yearly = Math.round(monthly * 0.8);
-    return yearly.toLocaleString("da-DK");
-  };
 
   return (
     <div className="min-h-screen" style={{ background: C.champagne, color: C.text, fontFamily: SANS }}>
@@ -1557,7 +1469,36 @@ export default function BoligpotentialeLanding() {
 
       </div>
 
-      <TrustMarquee />
+      <section
+        aria-label={t("why.overline")}
+        style={{
+          background: "#0F1D2F",
+          borderTop: "1px solid rgba(200,149,108,0.15)",
+          borderBottom: "1px solid rgba(200,149,108,0.15)",
+          padding: "20px 24px",
+        }}
+        data-testid="bolig-trust-points"
+      >
+        <div className="mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6" style={{ maxWidth: 1280 }}>
+          {(t("trustMarquee", { returnObjects: true }) as string[]).slice(0, 3).map((item, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-center text-center"
+              style={{
+                minHeight: 42,
+                padding: "8px 12px",
+                color: "rgba(245,243,239,0.9)",
+                fontSize: "clamp(14px, 1.2vw, 17px)",
+                fontWeight: 500,
+                lineHeight: 1.45,
+              }}
+              data-testid={`bolig-trust-point-${i}`}
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
@@ -1690,7 +1631,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: whyTilesTr[2]?.eyebrow ?? "",
                 title: whyTilesTr[2]?.title ?? "",
                 desc: whyTilesTr[2]?.desc ?? "",
-                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
+                media: { kind: "video" as const, src: "/videos/landing-transformation.mp4", poster: "/bolig-images/landing-transformation.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },
               {
@@ -1704,7 +1645,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: whyTilesTr[4]?.eyebrow ?? "",
                 title: whyTilesTr[4]?.title ?? "",
                 desc: whyTilesTr[4]?.desc ?? "",
-                media: { kind: "video" as const, src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg" },
+                media: { kind: "video" as const, src: "/videos/landing-showcase-portrait.mp4", poster: "/bolig-images/landing-showcase-portrait.jpg" },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];
@@ -1893,50 +1834,6 @@ export default function BoligpotentialeLanding() {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section className="px-6" style={{ background: C.warm, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-features">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-14">
-            <Overline>{t("features.overline")}</Overline>
-            <H2>{t("features.headline")}</H2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {FEATURES.map((f, i) => {
-              const Icon = f.Icon;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.5, delay: (i % 3) * 0.1, ease: "easeOut" }}
-                  className="transition-all duration-300 hover:-translate-y-1 flex flex-col"
-                  style={{
-                    background: C.white,
-                    borderRadius: 8,
-                    padding: "clamp(20px, 4vw, 36px) clamp(16px, 3vw, 32px)",
-                    boxShadow: C.shadowCard,
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = C.shadowCardHover)}
-                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = C.shadowCard)}
-                  data-testid={`bolig-feature-${i}`}
-                >
-                  <div
-                    className="flex items-center justify-center mb-5"
-                    style={{ width: 48, height: 48, borderRadius: "50%", border: `1px solid ${C.goldBorder}` }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: C.gold }} />
-                  </div>
-                  <h3 style={{ color: C.navy, fontSize: 16, fontWeight: 600 }}>{f.title}</h3>
-                  <p className="mt-2" style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>{f.desc}</p>
-
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* ── BESPARELSE SAMMENLIGNING ── */}
       <section id="sammenligning" className="px-6" style={{ background: "#0A1624", paddingTop: "clamp(52px, 8vw, 96px)", paddingBottom: "clamp(40px, 6vw, 72px)" }}>
         <div className="mx-auto max-w-4xl">
@@ -1960,12 +1857,12 @@ export default function BoligpotentialeLanding() {
             </div>
 
             {/* Rows */}
-            {(t("savings.rows", { returnObjects: true }) as Array<{ label: string; traditional: string }>).map((row, i) => (
+            {(t("savings.rows", { returnObjects: true }) as Array<{ label: string; traditional: string; forma: string }>).map((row, i) => (
               <div key={i} className="grid grid-cols-3 items-center px-3 sm:px-6 py-3 sm:py-4"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
                 <p className="text-xs sm:text-sm font-medium min-w-0 pr-1" style={{ color: "#F5F3EF" }}>{row.label}</p>
                 <p className="text-center text-xs sm:text-sm font-medium min-w-0 px-1" style={{ color: "rgba(245,243,239,0.65)" }}>{row.traditional}</p>
-                <p className="text-right text-xs sm:text-sm font-semibold min-w-0 pl-1" style={{ color: "#C8956C" }}>{t("savings.included")}</p>
+                <p className="text-right text-xs sm:text-sm font-semibold min-w-0 pl-1" style={{ color: "#C8956C" }}>{row.forma}</p>
               </div>
             ))}
 
@@ -1986,192 +1883,8 @@ export default function BoligpotentialeLanding() {
 
       {/* ── PRICING ── */}
       <section id="pricing" className="px-6" style={{ background: C.navy, paddingTop: "clamp(52px, 8vw, 100px)", paddingBottom: "clamp(52px, 8vw, 100px)" }} data-testid="bolig-pricing">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center mb-10">
-            <Overline light>{t("pricing.overline")}</Overline>
-            <H2 light>{t("pricing.headline")}</H2>
-            <p className="mt-4 max-w-2xl mx-auto" style={{ color: "rgba(255,255,255,0.65)", fontSize: 16, lineHeight: 1.6 }}>
-              {t("pricing.subline")}
-            </p>
-
-            {/* Billing toggle */}
-            <div className="inline-flex items-center mt-8 p-1" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
-              <button
-                onClick={() => setBilling("monthly")}
-                className="transition-all"
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 6,
-                  background: billing === "monthly" ? C.gold : "transparent",
-                  color: billing === "monthly" ? C.navy : "rgba(255,255,255,0.7)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
-                data-testid="bolig-billing-monthly"
-              >
-                {t("pricing.monthly")}
-              </button>
-              <button
-                onClick={() => setBilling("yearly")}
-                className="transition-all flex items-center gap-2"
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 6,
-                  background: billing === "yearly" ? C.gold : "transparent",
-                  color: billing === "yearly" ? C.navy : "rgba(255,255,255,0.7)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
-                data-testid="bolig-billing-yearly"
-              >
-                {t("pricing.yearly")}
-                <span
-                  className="uppercase"
-                  style={{
-                    background: billing === "yearly" ? "rgba(15,25,35,0.18)" : C.goldTint,
-                    color: billing === "yearly" ? C.navy : C.gold,
-                    fontSize: 10,
-                    padding: "2px 6px",
-                    borderRadius: 3,
-                    letterSpacing: "0.1em",
-                    fontWeight: 600,
-                  }}
-                >
-                  {t("pricing.save20")}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 mt-12">
-            {PRICING.map((plan, i) => {
-              const isPro = plan.highlight;
-              const price = formatPrice(plan.monthly);
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.5, delay: i * 0.08, ease: "easeOut" }}
-                  className="flex flex-col relative"
-                  style={{
-                    background: isPro ? C.goldTint : "rgba(255,255,255,0.03)",
-                    borderRadius: 8,
-                    border: `1px solid ${isPro ? C.gold : "rgba(255,255,255,0.08)"}`,
-                    padding: "40px 32px",
-                    transform: isPro ? "scale(1.02)" : "none",
-                  }}
-                  data-testid={`bolig-pricing-${plan.name.toLowerCase()}`}
-                >
-                  {isPro && (
-                    <div
-                      className="absolute uppercase"
-                      style={{
-                        top: -12,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        background: C.gold,
-                        color: C.navy,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: "6px 16px",
-                        borderRadius: 4,
-                        letterSpacing: "0.12em",
-                      }}
-                    >
-                      {t("pricing.mostPopular")}
-                    </div>
-                  )}
-                  <div className="uppercase" style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em" }}>{plan.name}</div>
-                  <div style={{ color: C.gold, fontSize: 12, marginTop: 6, fontWeight: 500, fontFamily: SANS }}>
-                    {t(`pricing.plans.${plan.name}.fit`)}
-                  </div>
-                  <div className="mt-4 mb-2">
-                    {price ? (
-                      <>
-                        {billing === "yearly" && plan.monthly !== null && (
-                          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, textDecoration: "line-through", marginBottom: 2 }}>
-                            {plan.monthly.toLocaleString("da-DK")} {t("pricing.perMonth")}
-                          </div>
-                        )}
-                        <div className="flex items-end gap-2">
-                          <span style={{ fontFamily: SERIF, fontWeight: 500, color: C.white, fontSize: 40, lineHeight: 1 }}>{price}</span>
-                          <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 4 }}>
-                            {billing === "monthly" ? t("pricing.perMonth") : t("pricing.perMonthYearly")}
-                          </span>
-                        </div>
-                        {billing === "yearly" && plan.monthly !== null && (
-                          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 4 }}>
-                            {t("pricing.billedYearly", { amount: (Math.round(plan.monthly * 0.8) * 12).toLocaleString("da-DK") })}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <span style={{ fontFamily: SERIF, fontWeight: 500, color: C.white, fontSize: 40, lineHeight: 1 }}>{t("pricing.custom")}</span>
-                    )}
-                  </div>
-                  <ul className="space-y-3 mt-8 mb-10 flex-1">
-                    {plan.features.map((f, j) => (
-                      <li key={j} className="flex items-start gap-3" style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>
-                        <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: C.gold }} />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={() => {
-                      if (plan.monthly !== null) {
-                        startCheckout(plan.name);
-                      } else {
-                        const el = document.getElementById("enterprise-calculator");
-                        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }
-                    }}
-                    disabled={checkoutLoading === plan.name}
-                    className="w-full transition-colors"
-                    style={{
-                      padding: "12px 24px",
-                      borderRadius: 8,
-                      background: isPro ? C.gold : "transparent",
-                      color: isPro ? C.navy : C.gold,
-                      border: `1px solid ${C.gold}`,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      fontFamily: SANS,
-                      opacity: checkoutLoading === plan.name ? 0.6 : 1,
-                      cursor: checkoutLoading === plan.name ? "wait" : "pointer",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (checkoutLoading) return;
-                      e.currentTarget.style.background = isPro ? C.goldHover : C.gold;
-                      e.currentTarget.style.color = C.navy;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = isPro ? C.gold : "transparent";
-                      e.currentTarget.style.color = isPro ? C.navy : C.gold;
-                    }}
-                    data-testid={`bolig-pricing-cta-${plan.name.toLowerCase()}`}
-                  >
-                    {checkoutLoading === plan.name ? t("pricing.openingStripe") : plan.cta}
-                  </button>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Bridge → Enterprise */}
-          <div className="relative mt-16 mb-10 flex items-center gap-4">
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest whitespace-nowrap"
-              style={{ border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>
-              {t("pricing.enterprise")}
-            </div>
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.12)" }} />
-          </div>
-          <div id="enterprise-calculator">
-            <EnterpriseCalculator dark />
-          </div>
+        <div id="enterprise-calculator" className="mx-auto max-w-5xl scroll-mt-24">
+          <EnterpriseCalculator dark />
         </div>
       </section>
       {/* ── FAQ ── */}

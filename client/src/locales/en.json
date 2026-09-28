@@ -10,8 +10,8 @@
     "getStarted": "Get started"
   },
   "hero": {
-    "headline": "AI images: 15 sec. · property videos: 2–3 min.",
-    "subline": "Also create 3D floor plans — for residential and commercial agents, landlords and developers.",
+    "headline": "Show your property's potential",
+    "subline": "For residential and commercial agents, landlords and developers: AI images, 3D and Showcase Video.",
     "cta": "Create 2 free AI images",
     "ctaSecondary": "See examples",
     "trial": "Try it with 2 free images",
@@ -20,25 +20,25 @@
   },
   "slides": [
     {
-      "title": "Cinematic video",
-      "caption": "A single still image becomes a 5-second living video — ready for your listing.",
+      "title": "Showcase Video",
+      "caption": "Property photos become a video ready for listings.",
       "meta": ""
     },
     {
       "title": "Magical transformation",
-      "caption": "Watch an empty room become a fully furnished home in just 8 seconds.",
+      "caption": "See AI create a new interior in a kitchen.",
       "meta": "Living room · AI Staging"
     },
     {
       "title": "Before & after",
-      "caption": "Same room — three styles. AI creates a new interior in approx. 15 seconds.",
-      "meta": "Living room · Riviera Luxe",
+      "caption": "Same room — three styles. AI creates a new interior.",
+      "meta": "Living room · Modern",
       "beforeLabel": "Before",
       "afterLabel": "After"
     },
     {
       "title": "Before & after",
-      "caption": "Upload a room photo — AI creates a new interior in approx. 15 seconds.",
+      "caption": "Upload a room photo — AI creates a new interior.",
       "meta": "Dining room · Scandinavian",
       "beforeLabel": "Before",
       "afterLabel": "After"
@@ -93,8 +93,8 @@
         "desc": "Edit interiors, façades, gardens and satellite images with your own instructions."
       },
       {
-        "eyebrow": "Property Showcase",
-        "title": "Property Showcase",
+        "eyebrow": "Showcase Video",
+        "title": "Showcase Video",
         "desc": "Combine property images into a professional presentation video."
       }
     ]
@@ -124,7 +124,7 @@
     "subline": "Properties with professional visualization sell faster, at higher prices and attract more online views.",
     "attribution": "Forma Estates turns the numbers into practical marketing material — from upload to finished asset.",
     "sources": "Sources: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
-    "savingsLink": "See the 18,000 DKK comparison",
+    "savingsLink": "See the example: over 18,000 DKK saved",
     "items": [
       {
         "stat": "73%",
@@ -198,32 +198,36 @@
   },
   "savings": {
     "overline": "What do you save?",
-    "headline": "Up to 18,000 DKK+ saved on post-production — per property",
-    "subline": "We don't replace the photographer. We replace the expensive part that follows: staging, video and 3D.",
+    "headline": "Example: save 19,200 DKK per property",
+    "subline": "One-time example: 4 AI images, 1 3D floor plan, 2 transformation videos and 1 Showcase Video, before quantity discounts.",
     "colService": "Post-production",
     "colTraditional": "Traditional (approx.)",
-    "colForma": "With Forma Estates",
+    "colForma": "Forma one-time package",
     "included": "Included",
     "totalLabel": "Post-production total",
     "totalTraditional": "21,000 DKK",
-    "totalForma": "From 2,999 DKK/mo",
-    "disclaimer": "* Prices are indicative and may vary depending on provider, complexity and geography.",
+    "totalForma": "1,800 DKK one-time",
+    "disclaimer": "* Example: 21,000 DKK traditional estimate versus 1,800 DKK one-time before applicable product quantity discounts.",
     "rows": [
       {
         "label": "4 AI visualizations",
-        "traditional": "2,500 DKK"
+        "traditional": "2,500 DKK",
+        "forma": "400 DKK"
       },
       {
         "label": "1 3D floor plan",
-        "traditional": "2,500 DKK"
+        "traditional": "2,500 DKK",
+        "forma": "300 DKK"
       },
       {
         "label": "2 transformation videos",
-        "traditional": "10,000 DKK"
+        "traditional": "10,000 DKK",
+        "forma": "600 DKK"
       },
       {
         "label": "1 showcase video",
-        "traditional": "6,000 DKK"
+        "traditional": "6,000 DKK",
+        "forma": "500 DKK"
       }
     ]
   },
@@ -293,7 +297,7 @@
     "items": [
       {
         "q": "What is Forma Estates?",
-        "a": "Forma Estates is an AI platform for professional property visualization. You upload images of a property and get within seconds: stylish AI visualizations of the rooms in up to 8 design styles, a cinematic property video with AI camera movements and beat-synchronized music, a transformation video animating the transition from before to after, a 3D floor plan from your 2D floor plan, and professional PDF presentations with before/after comparison — all ready for listings, social media, project materials and client presentations."
+        "a": "Forma Estates helps property professionals create AI images, 3D floor plans, transformation videos, Showcase Video and PDF presentations."
       },
       {
         "q": "Who uses Forma Estates?",
@@ -301,15 +305,15 @@
       },
       {
         "q": "What are AI visualizations and transformation videos?",
-        "a": "AI visualizations are still images where the AI redesigns the room in a chosen style — walls, floor and windows remain unchanged while furniture, lighting and surfaces are replaced. Transformation videos are 5-second video clips animating the transition from the original room to the redesigned one — ideal for showing the property's potential on Instagram, in project presentations and in listings."
+        "a": "AI creates new interiors in your images while preserving the room's walls, floor and windows. Transformation videos show the change from before to after."
       },
       {
-        "q": "What are the property videos (Showcase)?",
-        "a": "The Showcase video combines your property images into a vertical 9:16 video with AI-generated camera movements (dolly, orbit, panning) and beat-synchronized background music. The result is a professional reel ready for Instagram, Facebook, property portals and project websites — without a camera crew or video editing."
+        "q": "What is Showcase Video?",
+        "a": "Showcase Video combines property images in a vertical video with AI camera movements and music, ready for social media and property portals."
       },
       {
         "q": "What does it cost?",
-        "a": "Subscriptions start from 2,999 DKK/month and give access to all features: AI visualizations, transformation videos, property videos, 3D floor plans and PDF presentations. Contact us for a quote tailored to your company or team."
+        "a": "Build a custom one-time package by choosing the quantities of each service. The price varies by quantity, with a lower unit price when you add more of the same service."
       },
       {
         "q": "What file formats can I upload?",
@@ -321,7 +325,7 @@
       },
       {
         "q": "Does the AI preserve the room's structure?",
-        "a": "Yes. Walls, windows, floor and the room's proportions remain unchanged. Only furniture, lighting and surfaces are redesigned, so the result looks realistic and credible to potential buyers, tenants and investors."
+        "a": "Yes. Walls, windows, floor and the room's proportions are preserved. AI creates a new interior by changing the furniture, lighting and surfaces."
       },
       {
         "q": "Are my images confidential?",
@@ -374,11 +378,7 @@
   "trustMarquee": [
     "AI images in approx. 15 seconds",
     "Property and promo videos in 2–3 minutes",
-    "3D floor plans",
-    "Built for property professionals",
-    "For residential and commercial agents",
-    "EU AI Act compliant · Article 50",
-    "Professional sales assets"
+    "3D floor plans · Showcase Video"
   ],
   "loginPage": {
     "title": "Log in",
@@ -567,7 +567,7 @@
     "noSubscription": "One-time payment · no subscription",
     "checkoutFailed": "Checkout failed: {{error}}",
     "youSave": "You save {{amount}} DKK ({{pct}}% total discount)",
-    "addMoreDiscount": "More add-ons mean a lower unit price.",
+    "addMoreDiscount": "More of the same service gives a lower unit price.",
     "dragSliders": "Use the sliders above to calculate your price",
     "totalDiscountLabel": "Total discount",
     "unknownError": "Unknown error",
@@ -1793,9 +1793,9 @@
   "videoSection": {
     "overline": "See it in action",
     "headline": "From photo to property or promo video — ready in 2–3 minutes",
-    "subline": "Upload a property photo. AI creates a new interior and delivers a polished video for the listing.",
+    "subline": "Upload property images and AI creates a ready-to-share Showcase Video.",
     "cta": "See all examples",
-    "badge": "AI staging · approx. 2–3 min"
+    "badge": "Showcase Video · 2–3 min"
   },
   "chat": {
     "landingQ1": "Who is Forma Estates for?",
