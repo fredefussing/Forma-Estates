@@ -61,3 +61,4 @@
 - [Boligpotentiale report purpose](boligpotentiale-report.md) — call it a property-potential report, not a seller report; keep the PDF compact, visual and free of generic advice pages.
 - [Dashboard preview pinning](dashboard-preview-pinning.md) — native sticky can compute correctly yet scroll statically in the dashboard; use measured desktop pinning for always-visible previews.
 - [NPM direct dependency overrides](npm-direct-dependency-overrides.md) — when overriding a direct dependency transitively, reference its declared spec with `$package` or npm rejects the install.
+- [Acrobat review links](acrobat-review-links.md) — public Acrobat review PDFs may omit comments; load the browser comment panel to read review notes.
