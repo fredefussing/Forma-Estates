@@ -7,6 +7,7 @@ import formaEstatesLogo from "@assets/forma-estates-logo.png";
 
 const C = {
   navy: "#0F1923",
+  navyDeep: "#0A1219",
   gold: "#C9A96E",
   warm: "#F8F6F3",
   champagne: "#E8DFD0",
@@ -102,7 +103,7 @@ function SubpageLayout({
       </main>
 
       {/* Footer — useful navigation, kept intentionally free of extra brand lockups */}
-      <footer className="px-6" style={{ background: C.navy, color: C.white, paddingTop: 64, paddingBottom: 32 }} data-testid="subpage-footer">
+      <footer className="px-6" style={{ background: C.navyDeep, color: C.white, paddingTop: 64, paddingBottom: 32 }} data-testid="subpage-footer">
         <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-12">
             <div>
@@ -509,8 +510,10 @@ export function EksemplerPage() {
         desc="Upload boligens billeder. Du får en kort, færdig video med kamerabevægelser og musik til annoncer og sociale medier."
       />
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-7">
-        <VideoCard src="/videos/bolig-showcase-tile.mp4" poster="/bolig-images/showcase-tile-poster.jpg" title="Showcase Video — filmformat" desc="Vis boligen samlet i et roligt, professionelt filmformat." />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-7">
+        <div className="self-start">
+          <VideoCard src="/videos/bolig-showcase-tile.mp4" poster="/bolig-images/showcase-tile-poster.jpg" title="Showcase Video — filmformat" desc="Vis boligen samlet i et roligt, professionelt filmformat." />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
           {videosPortrait.map((v, i) => <VideoCard key={i} {...v} />)}
         </div>
       </div>
@@ -983,31 +986,27 @@ export function BranchevideoPage() {
 }
 
 export function OmOsPage() {
-  usePageTitle("Om os", "Forma Estates bygger praktiske visualiseringsværktøjer til ejendomsbranchen.");
+  usePageTitle("Om os", "Mød Forma Estates, og læs hvorfor vi gør det lettere at vise og forstå en boligs muligheder.");
   const values = [
     {
-      title: "Praktisk først",
-      desc: "Vi bygger værktøjer, der skal kunne bruges i en almindelig arbejdsdag — ikke bare se imponerende ud i en præsentation.",
+      title: "Forståelse først",
+      desc: "Hvis et billede eller en model ikke gør boligen klarere for den, der ser den, har teknologien ikke gjort sit arbejde.",
     },
     {
-      title: "Tæt på arbejdet",
-      desc: "Vi udvikler til ejendomsmæglere, udviklere, boligforeninger og professionelle udlejere. Deres arbejdsgange er udgangspunktet.",
+      title: "Brugbart i hverdagen",
+      desc: "Det skal være enkelt at gå fra boligmateriale til noget, du faktisk kan bruge i samtalen med en kunde.",
     },
     {
-      title: "Let at forstå",
-      desc: "Et godt resultat er ikke nok. Det skal også være tydeligt, hvad man kan gøre, og hvad man får ud af det.",
-    },
-    {
-      title: "Mennesket beholder overblikket",
-      desc: "Teknologien skal hjælpe den professionelle med at vise, forklare og beslutte. Den skal ikke stå i vejen for fagligheden.",
+      title: "Plads til fagligheden",
+      desc: "Du kender boligen. Værktøjerne skal støtte dine valg og gøre dem lettere at vise — ikke træffe dem for dig.",
     },
   ];
 
   return (
     <SubpageLayout
       eyebrow="Om os"
-      title="Vi bygger værktøjer til virkelige ejendomsopgaver"
-      intro="Forma Estates blev grundlagt i København i 2025 af Frederik Fussing Nielsen. Vi laver praktiske værktøjer til visualisering, 3D og video for mennesker, der arbejder professionelt med boliger."
+      title="Vi gør boligens muligheder synlige"
+      intro="Vi udvikler værktøjer til ejendomsfolk, der vil vise en boligs muligheder med billeder, 3D og video. Ikke for at erstatte din faglighed, men for at gøre den lettere at dele."
     >
       <div className="mx-auto" style={{ maxWidth: 760 }} data-testid="omos-intro">
         <div style={{ borderLeft: `3px solid ${C.gold}`, paddingLeft: 24 }}>
@@ -1017,32 +1016,47 @@ export function OmOsPage() {
         </div>
         <div className="space-y-5 mt-8">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi kombinerer ny teknologi med de workflows, der allerede findes i ejendomsmarkedet. Det betyder, at vores værktøjer er lavet til den måde, boliger faktisk bliver præsenteret, vurderet og arbejdet med.
+            En tom bolig kan være svær at forestille sig indrettet. En plantegning kan være svær at forstå, hvis man ikke arbejder med dem hver dag. Og ét foto viser sjældent hele boligen.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            I dag bygger vi løsninger til ejendomsmæglere, ejendomsudviklere, boligforeninger og professionelle udlejere — og vi udvikler med aktive brugere tæt på produktet.
+            Vi hjælper dig med at vise det, du ser i boligen, så andre også kan forstå det. Med billeder, 3D og video bliver det lettere at tale om, hvad boligen er — og hvad den kan blive til.
           </p>
         </div>
       </div>
 
-      {/* Vision & mission: intentionally equal in shape and weight. */}
+      {/* Founder context, without inventing personal motivations or a growth story. */}
+      <div className="mx-auto mt-16" style={{ maxWidth: 760 }} data-testid="omos-journey">
+        <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
+          Bag Forma Estates
+        </div>
+        <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 20 }}>
+          Frederik Fussing Nielsen
+        </h2>
+        <div className="space-y-5">
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Frederik grundlagde Forma Estates i København i 2025 og leder virksomheden i dag. Vi udvikler værktøjer til ejendomsmæglere, udviklere, boligforeninger og professionelle udlejere.
+          </p>
+          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
+            Hvad er svært at vise eller forklare i dit arbejde? Det vil vi gerne høre om. Det hjælper os med at bygge værktøjer, der faktisk bliver brugt.
+          </p>
+        </div>
+      </div>
+
+      {/* Vision and mission are intentionally equal in shape and visual weight. */}
       <div className="grid md:grid-cols-2 gap-6 mt-16" data-testid="omos-vision-mission">
-        <div style={{ background: C.navy, borderRadius: 16, padding: "34px 32px", color: C.white, minHeight: 230, display: "flex", flexDirection: "column" }}>
-          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
-            Vision
+        {[
+          { label: "Vision", text: "At flere kan se og forstå mulighederne i en bolig — også når de endnu ikke er synlige i et foto eller på en plantegning." },
+          { label: "Mission", text: "At udvikle enkle værktøjer til billeder, 3D og video, så ejendomsfolk kan vise boligens muligheder på en måde, andre forstår." },
+        ].map(({ label, text }) => (
+          <div key={label} style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.gold}`, borderRadius: 16, padding: "34px 32px", minHeight: 218 }}>
+            <div className="uppercase mb-3" style={{ color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em" }}>
+              {label}
+            </div>
+            <p style={{ color: C.navy, fontSize: 16, lineHeight: 1.7, margin: 0 }}>
+              {text}
+            </p>
           </div>
-          <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 15.5, lineHeight: 1.7, margin: 0 }}>
-            At gøre det lettere for professionelle at vise og forstå boliger — med værktøjer, der passer ind i deres arbejde.
-          </p>
-        </div>
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: "34px 32px", minHeight: 230, display: "flex", flexDirection: "column" }}>
-          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: "0.22em" }}>
-            Mission
-          </div>
-          <p style={{ color: C.muted, fontSize: 15.5, lineHeight: 1.7, margin: 0 }}>
-            At bygge brugbare produkter til visualisering, 3D og video sammen med de mennesker, der bruger dem i ejendomsmarkedet.
-          </p>
-        </div>
+        ))}
       </div>
 
       {/* Values */}
@@ -1051,11 +1065,11 @@ export function OmOsPage() {
           Sådan arbejder vi
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-8" data-testid="omos-values">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-8" data-testid="omos-values">
         {values.map((v) => (
           <div
             key={v.title}
-            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "26px 24px", minHeight: 214, display: "flex", flexDirection: "column" }}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "26px 24px", display: "flex", flexDirection: "column" }}
             data-testid={`omos-value-${v.title}`}
           >
             <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{v.title}</div>
@@ -1064,42 +1078,17 @@ export function OmOsPage() {
         ))}
       </div>
 
-      {/* Founder and product context, without inventing a growth story. */}
-      <div className="mx-auto mt-20" style={{ maxWidth: 760 }} data-testid="omos-journey">
-        <div className="text-center mb-8">
-          <div className="uppercase mb-3" style={{ color: C.gold, fontSize: 12, fontWeight: 600, letterSpacing: "0.32em" }}>
-            Hvor vi kommer fra
-          </div>
-          <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 500, lineHeight: 1.15 }}>
-            Grundlagt i København i 2025.
-          </h2>
-        </div>
-        <div className="space-y-5">
-          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Forma Estates er grundlagt af Frederik Fussing Nielsen, som også er virksomhedens CEO. Fra København bygger vi produkter til konkrete opgaver i ejendomsbranchen.
-          </p>
-          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Produkterne spænder over boligvisualisering, 3D og video. Fælles for dem er, at de skal gøre boliger nemmere at se, forklare og arbejde videre med.
-          </p>
-          <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi tror på, at de bedste værktøjer bliver til, når teknologi og praksis mødes. Derfor lytter vi til aktive brugere og bygger videre derfra.
-          </p>
-        </div>
-        <div className="text-center mt-10">
-          <Link href="/kontakt">
-            <span
-              className="inline-flex items-center justify-center gap-2 transition-colors"
-              style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-              data-testid="omos-cta"
-            >
-              Kontakt os
-              <ArrowRight className="w-4 h-4" />
-            </span>
-          </Link>
-          <div className="mt-8" style={{ color: C.muted, fontSize: 13 }}>
-            Forma Estates · CVR: 46551796 · København, Danmark
-          </div>
-        </div>
+      <div className="text-center mt-12">
+        <Link href="/kontakt">
+          <span
+            className="inline-flex items-center justify-center gap-2 transition-colors"
+            style={{ background: C.gold, color: C.navy, padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            data-testid="omos-cta"
+          >
+            Kontakt os
+            <ArrowRight className="w-4 h-4" />
+          </span>
+        </Link>
       </div>
     </SubpageLayout>
   );
