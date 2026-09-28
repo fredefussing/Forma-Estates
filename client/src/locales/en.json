@@ -20,19 +20,19 @@
   },
   "slides": [
     {
-      "title": "Showcase Video",
-      "caption": "Property photos become a video ready for listings.",
+      "title": "Cinematic video",
+      "caption": "A cinematic video of the property.",
       "meta": ""
     },
     {
       "title": "Magical transformation",
-      "caption": "See AI create a new interior in a kitchen.",
+      "caption": "See a room transformed with AI.",
       "meta": "Living room · AI Staging"
     },
     {
       "title": "Before & after",
-      "caption": "Same room — three styles. AI creates a new interior.",
-      "meta": "Living room · Modern",
+      "caption": "The same living room, transformed in Riviera Luxe style.",
+      "meta": "Living room · Riviera Luxe",
       "beforeLabel": "Before",
       "afterLabel": "After"
     },
@@ -1792,10 +1792,10 @@
   },
   "videoSection": {
     "overline": "See it in action",
-    "headline": "From photo to property or promo video — ready in 2–3 minutes",
-    "subline": "Upload property images and AI creates a ready-to-share Showcase Video.",
+    "headline": "From a room photo to a transformation video — ready in 2–3 minutes",
+    "subline": "Upload a room photo and watch AI transform it into a video.",
     "cta": "See all examples",
-    "badge": "Showcase Video · 2–3 min"
+    "badge": "AI staging · 2–3 min"
   },
   "chat": {
     "landingQ1": "Who is Forma Estates for?",

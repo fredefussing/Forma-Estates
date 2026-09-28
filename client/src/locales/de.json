@@ -20,19 +20,19 @@
   },
   "slides": [
     {
-      "title": "Showcase Video",
-      "caption": "Immobilienfotos werden zu einem Video für Immobilienanzeigen.",
+      "title": "Filmisches Video",
+      "caption": "Ein filmisches Video der Immobilie.",
       "meta": ""
     },
     {
       "title": "Magische Verwandlung",
-      "caption": "Sehen Sie, wie KI ein neues Kücheninterieur schafft.",
+      "caption": "Sehen Sie, wie ein Raum mit KI verwandelt wird.",
       "meta": "Wohnzimmer · AI Staging"
     },
     {
       "title": "Vorher & Nachher",
-      "caption": "Dasselbe Zimmer — drei Stile. Die KI schafft ein neues Interieur.",
-      "meta": "Wohnzimmer · Modern",
+      "caption": "Dasselbe Wohnzimmer, verwandelt im Riviera-Luxe-Stil.",
+      "meta": "Wohnzimmer · Riviera Luxe",
       "beforeLabel": "Vorher",
       "afterLabel": "Nachher"
     },
@@ -1792,10 +1792,10 @@
   },
   "videoSection": {
     "overline": "Se det i aktion",
-    "headline": "Vom Foto zum Immobilien- oder Promo-Video — fertig in 2–3 Minuten",
-    "subline": "Laden Sie Immobilienbilder hoch; die KI erstellt ein teilbares Showcase Video.",
+    "headline": "Vom Raumfoto zum Verwandlungsvideo — fertig in 2–3 Minuten",
+    "subline": "Laden Sie ein Raumfoto hoch und sehen Sie, wie die KI es in ein Video verwandelt.",
     "cta": "Se alle eksempler",
-    "badge": "Showcase Video · ca. 2–3 Min."
+    "badge": "KI-Staging · ca. 2–3 Min."
   },
   "chat": {
     "landingQ1": "Für wen ist Forma Estates?",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
+import { TrustMarquee } from "@/components/TrustMarquee";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -218,11 +219,11 @@ type StageSlide =
 
 // Media-only base (text injected inside HeroStage via useTranslation)
 const STAGE_SLIDES_BASE = [
-  { kind: "video" as const, src: "/videos/landing-showcase-wide.mp4", poster: "/bolig-images/landing-showcase-wide.jpg" },
-  { kind: "video" as const, src: "/videos/landing-transformation.mp4", poster: "/bolig-images/landing-transformation.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/living-modern-before.jpg", after: "/bolig-images/living-modern-after.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/dining-before.jpg", after: "/bolig-images/dining-after.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/floorplan-2d.png", after: "/bolig-images/floorplan-3d.png", contain: true, bg: "#FFFFFF" },
+  { kind: "video" as const, src: "/cinematisk-video.mp4", poster: "/bolig-images/video-poster.jpg" },
+  { kind: "video" as const, src: "/videos/magisk-transformation.mp4", poster: "/bolig-images/magisk-transformation-poster.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png" },
+  { kind: "swipe" as const, before: "/bolig-images/dining-before-new.png", after: "/bolig-images/dining-after-new.jpg" },
+  { kind: "swipe" as const, before: "/bolig-images/floorplan-2d.jpg", after: "/bolig-images/floorplan-3d.jpg", contain: true, bg: "#FFFFFF" },
 ];
 
 // Pre-computed: which slide indices are video slides, in order.
@@ -1157,8 +1158,8 @@ function PhoneVideo() {
         <div style={{ borderRadius: 28, overflow: "hidden", aspectRatio: "9 / 16", boxShadow: "0 32px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.08)", position: "relative", background: "#000" }}>
           <video
             ref={videoRef}
-            src="/videos/landing-showcase-portrait.mp4"
-            poster="/bolig-images/landing-showcase-portrait.jpg"
+            src="/videos/forvandling-instagram.mp4"
+            poster="/videos/forvandling-instagram-poster.jpg"
             muted
             loop
             playsInline
@@ -1469,36 +1470,7 @@ export default function BoligpotentialeLanding() {
 
       </div>
 
-      <section
-        aria-label={t("why.overline")}
-        style={{
-          background: "#0F1D2F",
-          borderTop: "1px solid rgba(200,149,108,0.15)",
-          borderBottom: "1px solid rgba(200,149,108,0.15)",
-          padding: "20px 24px",
-        }}
-        data-testid="bolig-trust-points"
-      >
-        <div className="mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6" style={{ maxWidth: 1280 }}>
-          {(t("trustMarquee", { returnObjects: true }) as string[]).slice(0, 3).map((item, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-center text-center"
-              style={{
-                minHeight: 42,
-                padding: "8px 12px",
-                color: "rgba(245,243,239,0.9)",
-                fontSize: "clamp(14px, 1.2vw, 17px)",
-                fontWeight: 500,
-                lineHeight: 1.45,
-              }}
-              data-testid={`bolig-trust-point-${i}`}
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-      </section>
+      <TrustMarquee />
 
       {/* ── CATEGORY TABS — navy background with gold text ── */}
       <section style={{ background: C.navy, paddingTop: 10, paddingBottom: 12 }} className="px-4 sm:px-6" data-testid="bolig-category-pills">
@@ -1631,7 +1603,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: whyTilesTr[2]?.eyebrow ?? "",
                 title: whyTilesTr[2]?.title ?? "",
                 desc: whyTilesTr[2]?.desc ?? "",
-                media: { kind: "video" as const, src: "/videos/landing-transformation.mp4", poster: "/bolig-images/landing-transformation.jpg" },
+                media: { kind: "video" as const, src: "/videos/transformation-kling-v16-pro.mp4", poster: "/bolig-images/video-poster.jpg" },
                 href: "/boligpotentiale/branchevideo",
               },
               {
@@ -1645,7 +1617,7 @@ export default function BoligpotentialeLanding() {
                 eyebrow: whyTilesTr[4]?.eyebrow ?? "",
                 title: whyTilesTr[4]?.title ?? "",
                 desc: whyTilesTr[4]?.desc ?? "",
-                media: { kind: "video" as const, src: "/videos/landing-showcase-portrait.mp4", poster: "/bolig-images/landing-showcase-portrait.jpg" },
+                media: { kind: "video" as const, src: "/videos/bolig-showcase-tile.mp4", poster: "/bolig-images/showcase-tile-poster.jpg" },
                 href: "/boligpotentiale/bolig-showcase",
               },
             ];

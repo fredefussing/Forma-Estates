@@ -20,19 +20,19 @@
   },
   "slides": [
     {
-      "title": "Showcase Video",
-      "caption": "Les photos du bien deviennent une vidéo prête pour les annonces.",
+      "title": "Vidéo cinématique",
+      "caption": "Une vidéo cinématique du bien immobilier.",
       "meta": ""
     },
     {
       "title": "Transformation magique",
-      "caption": "Découvrez comment l'IA crée un nouvel intérieur dans une cuisine.",
+      "caption": "Découvrez comment l'IA transforme une pièce.",
       "meta": "Salon · AI Staging"
     },
     {
       "title": "Avant & après",
-      "caption": "La même pièce — trois styles. L'IA crée un nouvel intérieur.",
-      "meta": "Salon · Moderne",
+      "caption": "Le même salon, transformé dans le style Riviera Luxe.",
+      "meta": "Salon · Riviera Luxe",
       "beforeLabel": "Avant",
       "afterLabel": "Après"
     },
@@ -1792,10 +1792,10 @@
   },
   "videoSection": {
     "overline": "Voyez-le en action",
-    "headline": "De la photo à la vidéo immobilière ou promotionnelle — prête en 2–3 minutes",
-    "subline": "Importez les photos du bien ; l'IA crée un Showcase Video prêt à être partagé.",
+    "headline": "D'une photo de pièce à une vidéo de transformation — prête en 2–3 minutes",
+    "subline": "Importez une photo d'une pièce et découvrez comment l'IA la transforme en vidéo.",
     "cta": "Se alle eksempler",
-    "badge": "Showcase Video · env. 2–3 min"
+    "badge": "Home staging IA · env. 2–3 min"
   },
   "chat": {
     "landingQ1": "Pour qui est Forma Estates ?",

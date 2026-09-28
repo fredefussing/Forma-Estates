@@ -20,19 +20,19 @@
   },
   "slides": [
     {
-      "title": "Showcase Video",
-      "caption": "Fastighetsbilder blir en video redo för bostadsannonser.",
+      "title": "Filmisk video",
+      "caption": "En filmisk video av bostaden.",
       "meta": ""
     },
     {
       "title": "Magisk förvandling",
-      "caption": "Se AI skapa en ny köksinredning.",
+      "caption": "Se ett rum förvandlas med AI.",
       "meta": "Vardagsrum · AI Staging"
     },
     {
       "title": "Före & efter",
-      "caption": "Samma rum — tre stilar. AI skapar en ny interiör.",
-      "meta": "Vardagsrum · Modern",
+      "caption": "Samma vardagsrum, förvandlat i Riviera Luxe-stil.",
+      "meta": "Vardagsrum · Riviera Luxe",
       "beforeLabel": "Före",
       "afterLabel": "Efter"
     },
@@ -1792,10 +1792,10 @@
   },
   "videoSection": {
     "overline": "Se det i praktiken",
-    "headline": "Från foto till fastighets- eller reklamvideo — klar på 2–3 minuter",
-    "subline": "Ladda upp fastighetsbilder så skapar AI en Showcase Video som är redo att delas.",
+    "headline": "Från rumsfoto till förvandlingsvideo — klar på 2–3 minuter",
+    "subline": "Ladda upp ett foto av ett rum och se AI förvandla det till en video.",
     "cta": "Se alle eksempler",
-    "badge": "Showcase Video · ca. 2–3 min"
+    "badge": "AI-styling · ca. 2–3 min"
   },
   "chat": {
     "landingQ1": "Vem passar Forma Estates för?",

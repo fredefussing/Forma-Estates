@@ -4,8 +4,10 @@ export function TrustMarquee() {
   const { t } = useTranslation();
   const items = t("trustMarquee", { returnObjects: true }) as string[];
 
-  // Duplicate items for seamless infinite loop
-  const looped = [...items, ...items];
+  // Two sets per half keep even the short, three-item translation wider than
+  // the viewport. The second half is identical for a seamless CSS loop.
+  const sequence = [...items, ...items];
+  const looped = [...sequence, ...sequence];
 
   return (
     <div
