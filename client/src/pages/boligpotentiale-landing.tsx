@@ -223,7 +223,7 @@ const STAGE_SLIDES_BASE = [
   { kind: "video" as const, src: "/videos/magisk-transformation.mp4", poster: "/bolig-images/magisk-transformation-poster.jpg" },
   { kind: "swipe" as const, before: "/bolig-images/stue-riviera-before.png", after: "/bolig-images/stue-riviera-after.png" },
   { kind: "swipe" as const, before: "/bolig-images/dining-before-new.png", after: "/bolig-images/dining-after-new.jpg" },
-  { kind: "swipe" as const, before: "/bolig-images/floorplan-2d.jpg", after: "/bolig-images/floorplan-3d.jpg", contain: true, bg: "#FFFFFF" },
+  { kind: "swipe" as const, before: "/bolig-images/eksempler-floorplan-2d.jpg", after: "/bolig-images/eksempler-floorplan-3d.jpg", contain: true, bg: "#FFFFFF" },
 ];
 
 // Pre-computed: which slide indices are video slides, in order.

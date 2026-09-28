@@ -212,7 +212,7 @@ function BeforeAfterPair({
         style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}
         data-testid={testId}
       >
-        <div className="grid grid-cols-2 gap-px" style={{ background: C.border }}>
+        <div className={`grid ${contain ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2"} gap-px`} style={{ background: C.border }}>
           {(["before", "after"] as const).map((side) => (
             <div
               key={side}
@@ -270,7 +270,7 @@ function BeforeAfterPair({
             <img
               src={lightbox === "before" ? before : after}
               alt={title}
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", borderRadius: 10, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: contain ? "contain" : "cover", borderRadius: 10, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
             />
           </div>
 
@@ -418,53 +418,56 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
   );
 }
 
-function StyleComparison() {
+function RoomComparison() {
   const [active, setActive] = useState(0);
-  const styles = [
-    { label: "Japandi", src: "/bolig-images/examples-empty-room-japandi.jpg" },
-    { label: "Moderne", src: "/bolig-images/examples-empty-room-modern.jpg" },
-    { label: "Klassisk", src: "/bolig-images/examples-empty-room-classic.jpg" },
+  const rooms = [
+    {
+      label: "Badeværelse",
+      before: "/bolig-images/demo-bathroom-before.jpg",
+      after: "/bolig-images/demo-bathroom-after-clean.png",
+      desc: "Samme badeværelse med nye overflader og lysere materialer.",
+      contain: false,
+    },
+    {
+      label: "Bryggers",
+      before: "/bolig-images/demo-room-before.jpg",
+      after: "/bolig-images/demo-room-after.jpg",
+      desc: "Det ufærdige rum visualiseret som et lyst og brugbart bryggers.",
+      contain: false,
+    },
+    {
+      label: "Hjemmekontor",
+      before: "/bolig-images/homeoffice-modern-before.png",
+      after: "/bolig-images/homeoffice-modern-after.png",
+      desc: "Den samme arbejdsplads med en ny indretning.",
+      contain: true,
+    },
   ];
-  const [lightbox, setLightbox] = useState<"original" | "style" | null>(null);
-  const current = styles[active];
+  const current = rooms[active];
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-px" style={{ background: C.border }}>
-        <button type="button" onClick={() => setLightbox("original")} className="relative cursor-zoom-in text-left" style={{ aspectRatio: "3 / 2", border: 0, padding: 0, background: C.warm }}>
-          <img src="/bolig-images/stue-scandi-before.png" alt="Originalt foto af samme stue" className="absolute inset-0 w-full h-full object-cover" />
-          <span className="absolute top-3 left-3 uppercase" style={{ background: "rgba(15,25,35,0.8)", color: C.white, padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>Original</span>
-        </button>
-        <button type="button" onClick={() => setLightbox("style")} className="relative cursor-zoom-in text-left" style={{ aspectRatio: "3 / 2", border: 0, padding: 0, background: C.warm }}>
-          <img src={current.src} alt={`${current.label} stil i samme stue`} className="absolute inset-0 w-full h-full object-cover" />
-          <span className="absolute top-3 left-3 uppercase" style={{ background: C.gold, color: C.white, padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>{current.label}</span>
-        </button>
+    <div>
+      <div className="flex flex-wrap gap-2 mb-5" aria-label="Vælg rumtype">
+        {rooms.map((room, i) => (
+          <button
+            key={room.label}
+            type="button"
+            aria-pressed={i === active}
+            onClick={() => setActive(i)}
+            style={{ border: `1px solid ${i === active ? C.navy : C.border}`, background: i === active ? C.navy : C.white, color: i === active ? C.white : C.navy, padding: "9px 16px", borderRadius: 24, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            {room.label}
+          </button>
+        ))}
       </div>
-      <div style={{ padding: "22px 26px 25px" }}>
-        <div style={{ fontFamily: SERIF, color: C.navy, fontSize: 22, fontWeight: 500, marginBottom: 6 }}>Samme stue — tre stilarter</div>
-        <p style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.55, margin: "0 0 17px" }}>Vælg stil og se samme originale rum med ny indretning.</p>
-        <div className="flex flex-wrap gap-2">
-          {styles.map((style, i) => (
-            <button key={style.label} type="button" onClick={() => setActive(i)} style={{ border: `1px solid ${i === active ? C.navy : C.border}`, background: i === active ? C.navy : C.white, color: i === active ? C.white : C.navy, padding: "8px 14px", borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{style.label}</button>
-          ))}
-        </div>
-      </div>
-      {lightbox && createPortal(
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-5" style={{ background: "rgba(10,15,22,0.95)" }} onClick={() => setLightbox(null)}>
-          <button type="button" aria-label="Luk" onClick={() => setLightbox(null)} style={{ position: "absolute", top: 20, right: 20, width: 44, height: 44, borderRadius: "50%", border: 0, color: C.white, background: "rgba(255,255,255,0.12)", cursor: "pointer" }}><X className="w-5 h-5 mx-auto" /></button>
-          <div style={{ position: "relative", width: "min(90vw, 114vh, 1080px)", height: "min(60vw, 76vh, 720px)", background: "#080d13", borderRadius: 10 }} onClick={e => e.stopPropagation()}>
-            <img
-              src={lightbox === "original" ? "/bolig-images/stue-scandi-before.png" : current.src}
-              alt={lightbox === "original" ? "Originalt foto" : `${current.label} stil`}
-              style={{ position: "absolute", inset: 0, display: "block", width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
-            />
-          </div>
-          <div className="flex items-center gap-3 mt-6" onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setLightbox("original")} style={{ padding: "8px 22px", borderRadius: 30, border: 0, background: lightbox === "original" ? C.white : "rgba(255,255,255,0.12)", color: lightbox === "original" ? C.navy : C.white, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>ORIGINAL</button>
-            <button type="button" onClick={() => setLightbox("style")} style={{ padding: "8px 22px", borderRadius: 30, border: 0, background: lightbox === "style" ? C.gold : "rgba(255,255,255,0.12)", color: C.white, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{current.label.toUpperCase()}</button>
-          </div>
-        </div>,
-        document.body
-      )}
+      <BeforeAfterPair
+        key={current.label}
+        before={current.before}
+        after={current.after}
+        title={current.label}
+        desc={current.desc}
+        contain={current.contain}
+        testId={`eksempel-rum-${active}`}
+      />
     </div>
   );
 }
@@ -517,10 +520,10 @@ export function EksemplerPage() {
         id="rooms"
         eyebrow="AI-visualisering"
         title="Indret et rum på ca. 15 sekunder"
-        desc="Upload ét foto. AI bevarer rummets geometri og viser det med ny indretning i den stil du vælger."
+        desc="Vælg rumtype og se et originalt foto ved siden af visualiseringen af det samme rum."
       />
-      <div className="max-w-3xl">
-        <StyleComparison />
+      <div className="max-w-4xl">
+        <RoomComparison />
       </div>
 
       {/* Property-wide edits are deliberately separate from room styling. */}
@@ -531,8 +534,8 @@ export function EksemplerPage() {
         desc="Giv facade og omgivelser et nyt udtryk med en kort instruktion. Samme ejendom, tydelig før/efter."
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-        <BeforeAfterPair before="/bolig-images/facade-before.jpg" after="/bolig-images/facade-after.jpg" title="Facade" desc="Se en opdateret facade med ændrede materialer og finish." testId="eksempel-property-facade" />
-        <BeforeAfterPair before="/bolig-images/ai-agent-aerial-before.png" after="/bolig-images/ai-agent-aerial-after.jpg" title="Luftfoto og omgivelser" desc="Visualisér ejendommens omgivelser og landskab fra oven." testId="eksempel-property-aerial" />
+        <BeforeAfterPair before="/bolig-images/ai-agent-house-before.png" after="/bolig-images/ai-agent-house-after.png" title="Facade" desc="Se en opdateret facade med ændrede materialer og finish." testId="eksempel-property-facade" />
+        <BeforeAfterPair before="/bolig-images/ai-agent-aerial-before.png" after="/bolig-images/ai-agent-aerial-after.jpg" title="Luftfoto og omgivelser" desc="Visualisér ejendommens omgivelser og landskab fra oven." testId="eksempel-property-aerial" contain />
       </div>
 
       <SectionDivider
@@ -541,8 +544,8 @@ export function EksemplerPage() {
         title="Fra 2D-plantegning til 3D-visualisering"
         desc="Upload én 2D-plantegning. Få en 3D-visning med møbler, rum og proportioner, så layoutet er let at forstå."
       />
-      <div className="max-w-3xl">
-        <BeforeAfterPair before="/bolig-images/floorplan-2d.jpg" after="/bolig-images/floorplan-3d.jpg" title="2D til 3D" desc="Én matchet plantegning viser forskellen fra teknisk grundlag til rumlig præsentation." testId="eksempel-floorplan" contain />
+      <div className="max-w-5xl">
+        <BeforeAfterPair before="/bolig-images/eksempler-floorplan-2d.jpg" after="/bolig-images/eksempler-floorplan-3d.jpg" title="2D til 3D" desc="Klik på en plantegning for at se detaljerne i større format." testId="eksempel-floorplan" contain />
       </div>
     </SubpageLayout>
   );
@@ -733,7 +736,7 @@ export function PlantegningPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }} data-testid="plantegning-2d">
           <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-            <img src="/bolig-images/floorplan-2d.jpg" alt="2D plantegning" className="absolute inset-0 w-full h-full object-contain bg-white" />
+            <img src="/bolig-images/eksempler-floorplan-2d.jpg" alt="2D plantegning" className="absolute inset-0 w-full h-full object-contain bg-white" />
             <div className="absolute top-3 left-3 uppercase" style={{ background: "rgba(15,25,35,0.78)", color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>2D</div>
           </div>
           <div style={{ padding: "22px 26px" }}>
@@ -743,7 +746,7 @@ export function PlantegningPage() {
         </div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }} data-testid="plantegning-3d">
           <div className="relative" style={{ aspectRatio: "4 / 3" }}>
-            <img src="/bolig-images/floorplan-3d.jpg" alt="3D plantegning" className="absolute inset-0 w-full h-full object-contain bg-white" />
+            <img src="/bolig-images/eksempler-floorplan-3d.jpg" alt="3D plantegning" className="absolute inset-0 w-full h-full object-contain bg-white" />
             <div className="absolute top-3 left-3 uppercase" style={{ background: C.gold, color: "#fff", padding: "5px 11px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em" }}>3D</div>
           </div>
           <div style={{ padding: "22px 26px" }}>

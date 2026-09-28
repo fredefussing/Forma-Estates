@@ -62,3 +62,5 @@
 - [Dashboard preview pinning](dashboard-preview-pinning.md) — native sticky can compute correctly yet scroll statically in the dashboard; use measured desktop pinning for always-visible previews.
 - [NPM direct dependency overrides](npm-direct-dependency-overrides.md) — when overriding a direct dependency transitively, reference its declared spec with `$package` or npm rejects the install.
 - [Acrobat review links](acrobat-review-links.md) — public Acrobat review PDFs may omit comments; load the browser comment panel to read review notes.
+- [Public media precedence](public-media-precedence.md) — root public assets shadow client public assets with identical URLs; inspect served bytes before declaring before/after images matched.
+- [Examples room fidelity](examples-room-fidelity.md) — show varied, genuinely matched rooms; avoid reusing the white living-room styling set throughout the Examples page.
