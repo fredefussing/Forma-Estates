@@ -34,23 +34,25 @@ function SubpageLayout({
   const navStyle = (path: string): React.CSSProperties => {
     const active = currentPath === path;
     return {
-      color: active ? C.gold : C.navy,
-      fontSize: 12,
-      fontWeight: active ? 700 : 600,
-      letterSpacing: "0.08em",
+      color: active ? C.navy : C.muted,
+      fontSize: 13,
+      fontWeight: active ? 700 : 500,
+      letterSpacing: "0.1em",
       textTransform: "uppercase",
       textDecoration: "none",
+      borderBottom: `2px solid ${active ? C.navy : "transparent"}`,
+      paddingBottom: 4,
     };
   };
 
   return (
     <div style={{ background: C.champagne, minHeight: "100vh", fontFamily: SANS, color: C.navy }}>
       {/* Header — the same full navigation used on the main Forma Estates page */}
-      <header style={{ background: C.champagne, borderBottom: `1px solid ${C.border}` }}>
-        <div className="mx-auto max-w-7xl flex items-center justify-between gap-8 px-6" style={{ minHeight: 82 }}>
+      <header className="relative z-10" style={{ background: C.champagne, borderBottom: `1px solid ${C.border}` }}>
+        <div className="mx-auto max-w-7xl flex items-center justify-between gap-6 px-6" style={{ height: 72 }}>
           <Link href="/boligpotentiale">
             <div className="flex items-center cursor-pointer select-none" data-testid="subpage-logo">
-              <img src={formaEstatesLogo} alt="Forma Estates" className="w-auto" style={{ height: 82 }} />
+              <img src={formaEstatesLogo} alt="Forma Estates" className="w-auto" style={{ height: "clamp(52px, 14vw, 150px)" }} />
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-7" aria-label="Hovednavigation">
@@ -60,15 +62,22 @@ function SubpageLayout({
             <Link href="/om-os" style={navStyle("/om-os")}>Om os</Link>
             <Link href="/boligpotentiale#faq" style={navStyle("")}>FAQ</Link>
           </nav>
-          <div className="flex items-center gap-4">
-            <Link href="/log-ind" className="hidden sm:block" style={{ color: C.navy, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>Log ind</Link>
-            <Link href="/opret" style={{ background: C.navy, color: C.white, padding: "11px 17px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>Kom i gang</Link>
+          <div className="flex items-center gap-3">
+            <Link href="/kontakt" className="hidden lg:block" style={{ color: C.navy, border: `1px solid ${C.navy}`, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap" }}>Kontakt os</Link>
+            <Link href="/login?redirect=/boligpotentiale/dashboard" className="hidden sm:block" style={{ color: C.navy, border: `1px solid ${C.navy}`, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: "none", whiteSpace: "nowrap" }}>Log ind</Link>
+            <Link href="/opret" style={{ background: C.gold, color: C.navy, padding: "11px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Kom i gang</Link>
           </div>
         </div>
+        <nav className="md:hidden flex gap-6 overflow-x-auto whitespace-nowrap px-6 py-3" style={{ borderTop: `1px solid ${C.border}` }} aria-label="Mobilnavigation">
+          <Link href="/boligpotentiale" style={navStyle("/boligpotentiale")}>Forside</Link>
+          <Link href="/boligpotentiale/eksempler" style={navStyle("/boligpotentiale/eksempler")}>Eksempler</Link>
+          <Link href="/om-os" style={navStyle("/om-os")}>Om os</Link>
+          <Link href="/boligpotentiale#pricing" style={navStyle("")}>Priser</Link>
+        </nav>
       </header>
 
       {/* Page hero — eyebrow + serif title + intro */}
-      <section className="px-6 text-center" style={{ paddingTop: 96, paddingBottom: 64 }}>
+      <section className="px-6 text-center" style={{ paddingTop: 64, paddingBottom: 40 }}>
         <div className="mx-auto" style={{ maxWidth: 760 }}>
           <div
             className="uppercase mb-4"
@@ -336,9 +345,9 @@ function BenefitRow({ items }: { items: { title: string; desc: string }[] }) {
 }
 
 /* ── Section divider with eyebrow + title + desc ── */
-function SectionDivider({ id, eyebrow, title, desc }: { id: string; eyebrow: string; title: string; desc: string }) {
+function SectionDivider({ id, eyebrow, title, desc, compact = false }: { id: string; eyebrow: string; title: string; desc: string; compact?: boolean }) {
   return (
-    <div id={id} style={{ paddingTop: 72, paddingBottom: 32 }}>
+    <div id={id} style={{ paddingTop: compact ? 12 : 72, paddingBottom: 32 }}>
       <div style={{ borderTop: `2px solid ${C.gold}`, paddingTop: 28 }}>
         <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase", marginBottom: 10 }}>{eyebrow}</div>
         <h2 style={{ fontFamily: SERIF, color: C.navy, fontSize: "clamp(24px,3.2vw,34px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 12, letterSpacing: "-0.01em" }}>{title}</h2>
@@ -357,7 +366,7 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
   const toggle = () => {
     if (!vRef.current) return;
     if (playing) { vRef.current.pause(); setPlaying(false); }
-    else { vRef.current.play().catch(() => {}); setPlaying(true); }
+    else { vRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false)); }
   };
 
   const toggleMute = (e: React.MouseEvent) => {
@@ -370,8 +379,16 @@ function VideoCard({ src, poster, title, desc, aspect = "16/9" }: { src: string;
 
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(15,25,35,0.05)" }}>
-      <div style={{ position: "relative", aspectRatio: aspect, cursor: "pointer", background: "#000" }} onClick={toggle}>
+      <div style={{ position: "relative", aspectRatio: aspect, background: "#000" }}>
         <video ref={vRef} src={src} poster={poster} loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={`${playing ? "Sæt på pause" : "Afspil"}: ${title}`}
+          aria-pressed={playing}
+          className="absolute inset-0 w-full h-full cursor-pointer"
+          style={{ border: 0, background: "transparent" }}
+        />
 
         {/* Play overlay — hides when playing */}
         <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300" style={{ opacity: playing ? 0 : 1, background: "rgba(15,25,35,0.22)", pointerEvents: "none" }}>
@@ -478,9 +495,9 @@ export function EksemplerPage() {
 
   const NAV = [
     { id: "video",     label: "Showcase Video" },
-    { id: "rooms",     label: "Rum og stil" },
-    { id: "property",  label: "Hele ejendommen" },
-    { id: "floorplan", label: "3D Plantegning" },
+    { id: "rooms",     label: "Rumindretning" },
+    { id: "property",  label: "Facade og luftfoto" },
+    { id: "floorplan", label: "3D-plantegning" },
   ];
 
   const videosPortrait = [
@@ -491,8 +508,8 @@ export function EksemplerPage() {
   return (
     <SubpageLayout
       eyebrow="Eksempler"
-      title="Se funktionerne i brug"
-      intro="Se præcis hvad du får: Showcase Video, rumvisualisering, ejendomsbilleder og 3D-plantegning."
+      title="Se hvad du kan skabe"
+      intro="Se færdige eksempler på Showcase Video, AI-indretning, redigering af facade og luftfoto samt 3D-plantegninger."
     >
       <nav style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingBottom: 24 }}>
         {NAV.map(s => (
@@ -505,6 +522,7 @@ export function EksemplerPage() {
       {/* Showcase Video is the first product function because it is the quickest way to understand the output. */}
       <SectionDivider
         id="video"
+        compact
         eyebrow="Showcase Video"
         title="En færdig boligvideo på 2–3 minutter"
         desc="Upload boligens billeder. Du får en kort, færdig video med kamerabevægelser og musik til annoncer og sociale medier."
@@ -521,7 +539,7 @@ export function EksemplerPage() {
       {/* Room work and style variants are one clear comparison, not separate repeated galleries. */}
       <SectionDivider
         id="rooms"
-        eyebrow="AI-visualisering"
+        eyebrow="AI-indretning"
         title="Indret et rum på ca. 15 sekunder"
         desc="Vælg rumtype og se et originalt foto ved siden af visualiseringen af det samme rum."
       />
@@ -532,7 +550,7 @@ export function EksemplerPage() {
       {/* Property-wide edits are deliberately separate from room styling. */}
       <SectionDivider
         id="property"
-        eyebrow="AI Designagent"
+        eyebrow="AI Design Agent"
         title="Hele ejendommen — facade og luftfoto"
         desc="Giv facade og omgivelser et nyt udtryk med en kort instruktion. Samme ejendom, tydelig før/efter."
       />
@@ -986,27 +1004,27 @@ export function BranchevideoPage() {
 }
 
 export function OmOsPage() {
-  usePageTitle("Om os", "Mød Forma Estates, og læs hvorfor vi gør det lettere at vise og forstå en boligs muligheder.");
+  usePageTitle("Om os", "Mød Forma Estates, og se hvorfor vi bruger AI til at gøre boligers muligheder lettere at forstå.");
   const values = [
     {
-      title: "Forståelse først",
-      desc: "Hvis et billede eller en model ikke gør boligen klarere for den, der ser den, har teknologien ikke gjort sit arbejde.",
+      title: "Det skal give mening",
+      desc: "Et billede er først godt, når det hjælper en anden med at forstå boligen — ikke bare ser flot ud.",
     },
     {
-      title: "Brugbart i hverdagen",
-      desc: "Det skal være enkelt at gå fra boligmateriale til noget, du faktisk kan bruge i samtalen med en kunde.",
+      title: "Det skal kunne bruges",
+      desc: "Du skal kunne tage resultatet med til din næste samtale, fremvisning eller annonce. Ellers er vi ikke færdige.",
     },
     {
-      title: "Plads til fagligheden",
-      desc: "Du kender boligen. Værktøjerne skal støtte dine valg og gøre dem lettere at vise — ikke træffe dem for dig.",
+      title: "Fagligheden er din",
+      desc: "AI kan vise mulighederne, men det er dig, der kender boligen og ved, hvad kunden har brug for at se.",
     },
   ];
 
   return (
     <SubpageLayout
       eyebrow="Om os"
-      title="Vi gør boligens muligheder synlige"
-      intro="Vi udvikler værktøjer til ejendomsfolk, der vil vise en boligs muligheder med billeder, 3D og video. Ikke for at erstatte din faglighed, men for at gøre den lettere at dele."
+      title="Der er mere i en bolig, end et foto kan vise"
+      intro="Vi er Forma Estates. Vi bruger AI til at gøre det lettere at vise, hvad en bolig er — og hvad den kan blive til."
     >
       <div className="mx-auto" style={{ maxWidth: 760 }} data-testid="omos-intro">
         <div style={{ borderLeft: `3px solid ${C.gold}`, paddingLeft: 24 }}>
@@ -1016,10 +1034,10 @@ export function OmOsPage() {
         </div>
         <div className="space-y-5 mt-8">
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            En tom bolig kan være svær at forestille sig indrettet. En plantegning kan være svær at forstå, hvis man ikke arbejder med dem hver dag. Og ét foto viser sjældent hele boligen.
+            Et tomt rum kan være svært at forestille sig som et hjem. På en plantegning kan det være svært at fornemme rummenes størrelse. Men når man først ser mulighederne, ændrer samtalen sig.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Vi hjælper dig med at vise det, du ser i boligen, så andre også kan forstå det. Med billeder, 3D og video bliver det lettere at tale om, hvad boligen er — og hvad den kan blive til.
+            Det er det, der begejstrer os ved AI. En idé kan blive til et billede, en plantegning til en 3D-visning og boligens fotos til en Showcase Video. Du er stadig den, der kender boligen. Vi hjælper dig med at vise dine idéer til andre.
           </p>
         </div>
       </div>
@@ -1037,7 +1055,7 @@ export function OmOsPage() {
             Frederik grundlagde Forma Estates i København i 2025 og leder virksomheden i dag. Vi udvikler værktøjer til ejendomsmæglere, udviklere, boligforeninger og professionelle udlejere.
           </p>
           <p style={{ color: C.muted, fontSize: 16.5, lineHeight: 1.75 }}>
-            Hvad er svært at vise eller forklare i dit arbejde? Det vil vi gerne høre om. Det hjælper os med at bygge værktøjer, der faktisk bliver brugt.
+            Der sidder altid et menneske på den anden side af en boligpræsentation. Derfor går vi mere op i, om nogen forstår boligen, end i hvor teknisk imponerende resultatet ser ud.
           </p>
         </div>
       </div>
@@ -1045,11 +1063,11 @@ export function OmOsPage() {
       {/* Vision and mission are intentionally equal in shape and visual weight. */}
       <div className="grid md:grid-cols-2 gap-6 mt-16" data-testid="omos-vision-mission">
         {[
-          { label: "Vision", text: "At flere kan se og forstå mulighederne i en bolig — også når de endnu ikke er synlige i et foto eller på en plantegning." },
-          { label: "Mission", text: "At udvikle enkle værktøjer til billeder, 3D og video, så ejendomsfolk kan vise boligens muligheder på en måde, andre forstår." },
+          { label: "Vision", text: "Vi vil gøre det lettere for flere at se en boligs muligheder — også når de endnu kun findes på en plantegning eller i et tomt rum." },
+          { label: "Mission", text: "Vi bygger AI-værktøjer til billeder, 3D og video, der gør dine idéer konkrete og nemmere at dele med andre." },
         ].map(({ label, text }) => (
-          <div key={label} style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.gold}`, borderRadius: 16, padding: "34px 32px", minHeight: 218 }}>
-            <div className="uppercase mb-3" style={{ color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em" }}>
+          <div key={label} style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.gold}`, borderRadius: 16, padding: "28px 30px" }}>
+          <div className="uppercase mb-3" style={{ color: C.navy, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em" }}>
               {label}
             </div>
             <p style={{ color: C.navy, fontSize: 16, lineHeight: 1.7, margin: 0 }}>
@@ -1079,6 +1097,7 @@ export function OmOsPage() {
       </div>
 
       <div className="text-center mt-12">
+        <p style={{ color: C.navy, fontFamily: SERIF, fontSize: 22, marginBottom: 18 }}>Har du en bolig, der er svær at vise?</p>
         <Link href="/kontakt">
           <span
             className="inline-flex items-center justify-center gap-2 transition-colors"

@@ -14,13 +14,13 @@
     "subline": "Para agentes residenciales y comerciales, propietarios y promotores: imágenes IA, 3D y Showcase Video.",
     "cta": "Crear 2 imágenes IA gratis",
     "ctaSecondary": "Ver ejemplos",
-    "trial": "Pruébalo con 2 imágenes gratis",
+    "trial": "Cuenta gratuita · sin tarjeta de pago",
     "prev": "Anterior",
     "next": "Siguiente"
   },
   "slides": [
     {
-      "title": "Vídeo cinematográfico",
+      "title": "Showcase Video",
       "caption": "Un vídeo cinematográfico del inmueble.",
       "meta": ""
     },
@@ -52,13 +52,13 @@
     }
   ],
   "euCompliance": {
-    "title": "100% conforme con la Ley IA de la UE",
-    "body": "Nuestro sistema cumple todos los requisitos del Reglamento de IA de la UE (Artículo 50). Todas las imágenes y vídeos incluyen automáticamente indicadores visuales obligatorios y metadatos criptográficos C2PA invisibles.",
-    "badge1": "Ley IA (Artículo 50)",
-    "badge2": "C2PA Content Credentials"
+    "title": "Transparencia sobre el contenido de IA",
+    "body": "El contenido generado con IA debe utilizarse de forma responsable. Trabajamos para informar claramente sobre el uso de IA y su procedencia técnica cuando el formato lo permite.",
+    "badge1": "Uso responsable de IA",
+    "badge2": "Metadatos cuando sea posible"
   },
   "savingsNudge": {
-    "text": "Ahorra hasta 18.000 DKK+ en postproducción por propiedad —",
+    "text": "Consulta un ejemplo de posible ahorro —",
     "link": "ver el cálculo"
   },
   "categoryTabs": {
@@ -124,7 +124,7 @@
     "subline": "Las propiedades con visualización profesional se venden más rápido, a mejor precio y atraen más visitas online.",
     "attribution": "Forma Estates convierte estos datos en resultados prácticos — desde la primera carga hasta el material de venta terminado.",
     "sources": "Fuentes: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
-    "savingsLink": "Ver ejemplo: más de 18.000 DKK de ahorro",
+    "savingsLink": "Ver el ejemplo: 19.200 DKK de diferencia",
     "items": [
       {
         "stat": "73%",
@@ -198,7 +198,7 @@
   },
   "savings": {
     "overline": "¿Cuánto ahorras?",
-    "headline": "Ejemplo: ahorra 19.200 DKK por inmueble",
+    "headline": "Ejemplo de cálculo: 19.200 DKK de diferencia",
     "subline": "Ejemplo de pago único: 4 imágenes IA, 1 plano 3D, 2 vídeos de transformación y 1 Showcase Video, antes de los descuentos por cantidad.",
     "colService": "Postproducción",
     "colTraditional": "Tradicional (aprox.)",
@@ -253,7 +253,7 @@
           "10 visualizaciones IA / mes",
           "2 planos 3D / mes",
           "2 vídeos de transformación / mes",
-          "1 Property Showcase / mes",
+          "1 Showcase Video / mes",
           "HD 1080p · JPG + PNG",
           "Marca con logo (activar/desactivar)",
           "Soporte estándar"
@@ -266,7 +266,7 @@
           "25 visualizaciones IA / mes",
           "5 planos 3D / mes",
           "5 vídeos de transformación / mes",
-          "3 Property Showcase / mes",
+          "3 Showcase Video / mes",
           "4K · JPG + PNG + PDF",
           "Control total de marca",
           "Soporte prioritario"
@@ -279,7 +279,7 @@
           "60 visualizaciones IA / mes",
           "12 planos 3D / mes",
           "12 vídeos de transformación / mes",
-          "8 Property Showcase / mes",
+          "8 Showcase Video / mes",
           "4K · JPG + PNG + PDF",
           "Control total de marca",
           "Soporte dedicado"
@@ -301,7 +301,7 @@
       },
       {
         "q": "¿Quién usa Forma Estates?",
-        "a": "La plataforma la usan agentes inmobiliarios, promotores, constructoras, comunidades de propietarios, empresas de alquiler y otros profesionales del sector inmobiliario. Tanto si vendes, alquilas, reformas o presentas un proyecto, Forma Estates te ofrece visualizaciones profesionales en segundos."
+        "a": "La plataforma está dirigida a agentes inmobiliarios, promotores, asociaciones de vivienda, arrendadores profesionales y otros profesionales del sector. Las imágenes IA suelen tardar unos 15 segundos; los vídeos, entre 2 y 3 minutos."
       },
       {
         "q": "¿Qué son las visualizaciones IA y los vídeos de transformación?",
@@ -309,7 +309,7 @@
       },
       {
         "q": "¿Qué es Showcase Video?",
-        "a": "Showcase Video reúne las imágenes del inmueble en un vídeo vertical con movimientos de cámara IA y música, listo para redes sociales y portales inmobiliarios."
+        "a": "Showcase Video reúne imágenes del inmueble en un vídeo con movimientos de cámara y música. En la página de ejemplos puedes ver formatos horizontales y verticales."
       },
       {
         "q": "¿Cuánto cuesta?",

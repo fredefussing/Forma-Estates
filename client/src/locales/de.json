@@ -14,13 +14,13 @@
     "subline": "Für Wohn- und Gewerbemakler, Vermieter und Projektentwickler: KI-Bilder, 3D und Showcase Video.",
     "cta": "2 KI-Bilder kostenlos erstellen",
     "ctaSecondary": "Beispiele ansehen",
-    "trial": "Mit 2 kostenlosen Bildern testen",
+    "trial": "Kostenloses Konto · keine Kreditkarte nötig",
     "prev": "Zurück",
     "next": "Weiter"
   },
   "slides": [
     {
-      "title": "Filmisches Video",
+      "title": "Showcase Video",
       "caption": "Ein filmisches Video der Immobilie.",
       "meta": ""
     },
@@ -52,13 +52,13 @@
     }
   ],
   "euCompliance": {
-    "title": "100% EU-KI-Verordnung konform",
-    "body": "Unser System erfüllt alle Anforderungen der EU-KI-Verordnung (Artikel 50). Alle Bilder und Videos werden automatisch mit Pflichtindikatoren und unsichtbaren kryptografischen C2PA-Metadaten versehen.",
-    "badge1": "KI-Verordnung Art. 50",
-    "badge2": "C2PA Content Credentials"
+    "title": "Transparenz bei KI-Inhalten",
+    "body": "KI-generierte Inhalte sollten verantwortungsvoll verwendet werden. Wir arbeiten an klaren Informationen zur KI-Nutzung und technischer Herkunft, soweit das Format dies unterstützt.",
+    "badge1": "Verantwortungsvoller KI-Einsatz",
+    "badge2": "Metadaten, wo unterstützt"
   },
   "savingsNudge": {
-    "text": "Sparen Sie bis zu 18.000 kr+ an Nachproduktion pro Immobilie —",
+    "text": "Sehen Sie ein Rechenbeispiel für mögliche Einsparungen —",
     "link": "Berechnung ansehen"
   },
   "categoryTabs": {
@@ -124,7 +124,7 @@
     "subline": "Immobilien mit professioneller Visualisierung werden schneller, zu höheren Preisen und mit mehr Online-Besichtigungen verkauft.",
     "attribution": "Forma Estates macht diese Zahlen praktisch nutzbar — vom ersten Upload bis zum fertigen Verkaufsmaterial.",
     "sources": "Quellen: NAR Profile of Home Staging 2023 · RESA · Boligsiden Marktdaten · ROOMAGEN · Capitalize Home",
-    "savingsLink": "Beispiel ansehen: über 18.000 kr Ersparnis",
+    "savingsLink": "Rechenbeispiel ansehen: 19.200 kr Unterschied",
     "items": [
       {
         "stat": "73%",
@@ -198,7 +198,7 @@
   },
   "savings": {
     "overline": "Was sparen Sie?",
-    "headline": "Beispiel: 19.200 kr pro Immobilie sparen",
+    "headline": "Rechenbeispiel: 19.200 kr Unterschied",
     "subline": "Einmaliges Beispiel: 4 KI-Bilder, 1 3D-Grundriss, 2 Transformationsvideos und 1 Showcase Video, vor Mengenrabatten.",
     "colService": "Nachproduktion",
     "colTraditional": "Traditionell (ca.)",
@@ -253,7 +253,7 @@
           "10 KI-Visualisierungen / Monat",
           "2 3D-Grundrisse / Monat",
           "2 Transformationsvideos / Monat",
-          "1 Immobilien Showcase / Monat",
+          "1 Showcase Video / Monat",
           "HD 1080p · JPG + PNG",
           "Logo-Branding (ein/aus)",
           "Standard-Support"
@@ -266,7 +266,7 @@
           "25 KI-Visualisierungen / Monat",
           "5 3D-Grundrisse / Monat",
           "5 Transformationsvideos / Monat",
-          "3 Immobilien Showcase / Monat",
+          "3 Showcase Video / Monat",
           "4K · JPG + PNG + PDF",
           "Volle Branding-Kontrolle",
           "Priorisierter Support"
@@ -279,7 +279,7 @@
           "60 KI-Visualisierungen / Monat",
           "12 3D-Grundrisse / Monat",
           "12 Transformationsvideos / Monat",
-          "8 Immobilien Showcase / Monat",
+          "8 Showcase Video / Monat",
           "4K · JPG + PNG + PDF",
           "Volle Branding-Kontrolle",
           "Dedizierter Support"
@@ -301,7 +301,7 @@
       },
       {
         "q": "Wer nutzt Forma Estates?",
-        "a": "Die Plattform wird von Immobilienmaklern, Immobilienentwicklern, Bauunternehmen, Wohnungseigentümergemeinschaften und anderen Fachleuten der Immobilienbranche genutzt. Egal ob Sie verkaufen, vermieten, renovieren oder ein Projekt präsentieren — Forma Estates gibt Ihnen professionelle Visualisierungen in Sekunden."
+        "a": "Die Plattform richtet sich an Immobilienmakler, Entwickler, Wohnungsunternehmen, professionelle Vermieter und andere Fachleute. KI-Bilder dauern in der Regel etwa 15 Sekunden; Videos etwa 2–3 Minuten."
       },
       {
         "q": "Was sind KI-Visualisierungen und Transformationsvideos?",
@@ -309,7 +309,7 @@
       },
       {
         "q": "Was ist Showcase Video?",
-        "a": "Showcase Video kombiniert Immobilienbilder in einem vertikalen Video mit KI-Kamerabewegungen und Musik — bereit für soziale Medien und Immobilienportale."
+        "a": "Showcase Video verbindet Immobilienbilder zu einem Video mit Kamerabewegungen und Musik. Auf der Beispiele-Seite sehen Sie Quer- und Hochformat."
       },
       {
         "q": "Was kostet es?",

@@ -551,6 +551,9 @@ function HeroStage() {
                 {t("hero.ctaSecondary")}
               </Link>
             </div>
+            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 10, fontFamily: SANS }}>
+              {t("hero.trial")}
+            </p>
           </div>
 
             {/* Mobile-only side arrows (peek panels hidden < md) */}
@@ -643,29 +646,30 @@ function HeroStage() {
               {t("hero.subline")}
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <Link href="/opret">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: C.gold, color: C.navy, padding: "15px 28px", borderRadius: 7, fontSize: "clamp(14px, 1.1vw, 16px)", fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
-                  data-testid="bolig-hero-cta-mobile"
-                >
-                  {t("hero.cta")} <ArrowRight className="w-5 h-5" />
-                </button>
+              <Link
+                href="/opret"
+                className="inline-flex items-center gap-2 transition-all"
+                style={{ background: C.gold, color: C.navy, padding: "15px 28px", borderRadius: 7, fontSize: "clamp(14px, 1.1vw, 16px)", fontWeight: 600, fontFamily: SANS, boxShadow: "0 4px 16px rgba(201,169,110,0.35)", textDecoration: "none" }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.goldHover; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.transform = "translateY(0)"; }}
+                data-testid="bolig-hero-cta-mobile"
+              >
+                {t("hero.cta")} <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link href="/boligpotentiale/eksempler">
-                <button
-                  className="inline-flex items-center gap-2 transition-all"
-                  style={{ background: "transparent", color: "#fff", padding: "15px 28px", borderRadius: 7, fontSize: "clamp(14px, 1.1vw, 16px)", fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                  data-testid="bolig-hero-cta-secondary-mobile"
-                >
-                  {t("hero.ctaSecondary")}
-                </button>
+              <Link
+                href="/boligpotentiale/eksempler"
+                className="inline-flex items-center gap-2 transition-all"
+                style={{ background: "transparent", color: "#fff", padding: "15px 28px", borderRadius: 7, fontSize: "clamp(14px, 1.1vw, 16px)", fontWeight: 500, fontFamily: SANS, border: "1px solid rgba(255,255,255,0.35)", textDecoration: "none" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                data-testid="bolig-hero-cta-secondary-mobile"
+              >
+                {t("hero.ctaSecondary")}
               </Link>
             </div>
+            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 12, fontFamily: SANS }}>
+              {t("hero.trial")}
+            </p>
           </div>
         </div>
 

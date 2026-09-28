@@ -14,13 +14,13 @@
     "subline": "For residential and commercial agents, landlords and developers: AI images, 3D and Showcase Video.",
     "cta": "Create 2 free AI images",
     "ctaSecondary": "See examples",
-    "trial": "Try it with 2 free images",
+    "trial": "Free account · no payment card needed",
     "prev": "Previous",
     "next": "Next"
   },
   "slides": [
     {
-      "title": "Cinematic video",
+      "title": "Showcase Video",
       "caption": "A cinematic video of the property.",
       "meta": ""
     },
@@ -52,13 +52,13 @@
     }
   ],
   "euCompliance": {
-    "title": "100% EU AI Act Compliant",
-    "body": "Our system meets all requirements of the EU AI Act (Article 50). All images and videos are automatically equipped with mandatory visual indicators and invisible cryptographic C2PA metadata, ensuring full transparency.",
-    "badge1": "AI Act (Article 50)",
-    "badge2": "C2PA Content Credentials"
+    "title": "Transparency about AI content",
+    "body": "AI-generated content should be handled responsibly. We work to provide clear information about AI use and technical provenance where the format supports it.",
+    "badge1": "Responsible AI use",
+    "badge2": "Metadata where supported"
   },
   "savingsNudge": {
-    "text": "Save up to 18,000 DKK+ on post-production per property —",
+    "text": "See an example of potential savings —",
     "link": "see the calculation"
   },
   "categoryTabs": {
@@ -124,7 +124,7 @@
     "subline": "Properties with professional visualization sell faster, at higher prices and attract more online views.",
     "attribution": "Forma Estates turns the numbers into practical marketing material — from upload to finished asset.",
     "sources": "Sources: NAR Profile of Home Staging 2023 · RESA · Boligsiden market data · ROOMAGEN · Capitalize Home",
-    "savingsLink": "See the example: over 18,000 DKK saved",
+    "savingsLink": "See the example: 19,200 DKK difference",
     "items": [
       {
         "stat": "73%",
@@ -198,7 +198,7 @@
   },
   "savings": {
     "overline": "What do you save?",
-    "headline": "Example: save 19,200 DKK per property",
+    "headline": "Example calculation: 19,200 DKK difference",
     "subline": "One-time example: 4 AI images, 1 3D floor plan, 2 transformation videos and 1 Showcase Video, before quantity discounts.",
     "colService": "Post-production",
     "colTraditional": "Traditional (approx.)",
@@ -253,7 +253,7 @@
           "10 AI visualizations / mo.",
           "2 3D floor plans / mo.",
           "2 transformation videos / mo.",
-          "1 Property Showcase / mo.",
+          "1 Showcase Video / mo.",
           "HD 1080p · JPG + PNG",
           "Logo branding (on/off)",
           "Standard support"
@@ -266,7 +266,7 @@
           "25 AI visualizations / mo.",
           "5 3D floor plans / mo.",
           "5 transformation videos / mo.",
-          "3 Property Showcase / mo.",
+          "3 Showcase Video / mo.",
           "4K · JPG + PNG + PDF",
           "Full branding control",
           "Priority support"
@@ -279,7 +279,7 @@
           "60 AI visualizations / mo.",
           "12 3D floor plans / mo.",
           "12 transformation videos / mo.",
-          "8 Property Showcase / mo.",
+          "8 Showcase Video / mo.",
           "4K · JPG + PNG + PDF",
           "Full branding control",
           "Dedicated support"
@@ -301,7 +301,7 @@
       },
       {
         "q": "Who uses Forma Estates?",
-        "a": "The platform is used by real estate agents, property developers, construction companies, homeowner associations, rental companies and other property industry professionals. Whether you're selling, renting, renovating or presenting a project, Forma Estates gives you professional visualizations in seconds."
+        "a": "The platform is for real estate agents, developers, housing associations, professional landlords and others in property. AI images typically take around 15 seconds; videos typically take 2–3 minutes."
       },
       {
         "q": "What are AI visualizations and transformation videos?",
@@ -309,7 +309,7 @@
       },
       {
         "q": "What is Showcase Video?",
-        "a": "Showcase Video combines property images in a vertical video with AI camera movements and music, ready for social media and property portals."
+        "a": "Showcase Video combines property images into a video with camera movements and music. See both wide and vertical examples on the Examples page."
       },
       {
         "q": "What does it cost?",

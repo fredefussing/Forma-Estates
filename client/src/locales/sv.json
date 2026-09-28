@@ -14,13 +14,13 @@
     "subline": "För bostads- och kommersiella mäklare, hyresvärdar och utvecklare: AI-bilder, 3D och Showcase Video.",
     "cta": "Skapa 2 gratis AI-bilder",
     "ctaSecondary": "Se exempel",
-    "trial": "Prova med 2 gratis bilder",
+    "trial": "Gratis konto · inget betalkort behövs",
     "prev": "Föregående",
     "next": "Nästa"
   },
   "slides": [
     {
-      "title": "Filmisk video",
+      "title": "Showcase Video",
       "caption": "En filmisk video av bostaden.",
       "meta": ""
     },
@@ -52,13 +52,13 @@
     }
   ],
   "euCompliance": {
-    "title": "100% EU AI Act Compliant",
-    "body": "Vårt system uppfyller alla krav i EU:s AI-förordning (Artikel 50). Alla bilder och videor förses automatiskt med lagstadgade visuella indikatorer och osynliga kryptografiska C2PA-metadata för full transparens.",
-    "badge1": "AI Act (Artikel 50)",
-    "badge2": "C2PA Content Credentials"
+    "title": "Öppenhet om AI-innehåll",
+    "body": "AI-genererat innehåll bör hanteras ansvarsfullt. Vi arbetar med tydlig information om AI-användning och teknisk proveniens där formatet stöder det.",
+    "badge1": "Ansvarsfull AI-användning",
+    "badge2": "Metadata där det stöds"
   },
   "savingsNudge": {
-    "text": "Spara upp till 18 000 kr+ på efterproduktion per bostad —",
+    "text": "Se ett räkneexempel på möjliga besparingar —",
     "link": "se beräkningen här"
   },
   "categoryTabs": {
@@ -124,7 +124,7 @@
     "subline": "Bostäder med professionell visualisering säljs snabbare, till högre priser och lockar fler visningar online.",
     "attribution": "Forma Estates gör siffrorna användbara i praktiken — från första uppladdning till färdigt försäljningsmaterial.",
     "sources": "Källor: NAR Profile of Home Staging 2023 · RESA · Boligsiden markedsdata · ROOMAGEN · Capitalize Home",
-    "savingsLink": "Se exemplet: över 18 000 kr sparat",
+    "savingsLink": "Se räkneexemplet: 19 200 kr i skillnad",
     "items": [
       {
         "stat": "73%",
@@ -198,7 +198,7 @@
   },
   "savings": {
     "overline": "Vad sparar du?",
-    "headline": "Exempel: spara 19 200 kr per bostad",
+    "headline": "Räkneexempel: 19 200 kr i skillnad",
     "subline": "Engångsexempel: 4 AI-bilder, 1 3D-planritning, 2 transformationsvideor och 1 Showcase Video, före mängdrabatter.",
     "colService": "Efterproduktion",
     "colTraditional": "Traditionellt (ca.)",
@@ -253,7 +253,7 @@
           "10 AI-visualiseringar / mån.",
           "2 3D-planritningar / mån.",
           "2 transformationsvideor / mån.",
-          "1 Bostad Showcase / mån.",
+          "1 Showcase Video / mån.",
           "HD 1080p · JPG + PNG",
           "Logotyp-branding (på/av)",
           "Standard support"
@@ -266,7 +266,7 @@
           "25 AI-visualiseringar / mån.",
           "5 3D-planritningar / mån.",
           "5 transformationsvideor / mån.",
-          "3 Bostad Showcase / mån.",
+          "3 Showcase Video / mån.",
           "4K · JPG + PNG + PDF",
           "Full brandingkontroll",
           "Prioriterad support"
@@ -279,7 +279,7 @@
           "60 AI-visualiseringar / mån.",
           "12 3D-planritningar / mån.",
           "12 transformationsvideor / mån.",
-          "8 Bostad Showcase / mån.",
+          "8 Showcase Video / mån.",
           "4K · JPG + PNG + PDF",
           "Full brandingkontroll",
           "Dedikerad support"
@@ -301,7 +301,7 @@
       },
       {
         "q": "Vem använder Forma Estates?",
-        "a": "Plattformen används av fastighetsmäklare, fastighetsutvecklare, byggföretag, bostadsrättsföreningar och andra professionella inom fastighetsbranschen. Oavsett om du säljer, hyr ut, renoverar eller presenterar ett projekt ger Forma Estates dig professionella visualiseringar på sekunder."
+        "a": "Plattformen är till för fastighetsmäklare, utvecklare, bostadsföreningar, professionella uthyrare och andra i branschen. AI-bilder tar vanligtvis cirka 15 sekunder; videor tar vanligtvis 2–3 minuter."
       },
       {
         "q": "Vad är AI-visualiseringar och transformationsvideor?",
@@ -309,7 +309,7 @@
       },
       {
         "q": "Vad är Showcase Video?",
-        "a": "Showcase Video samlar fastighetsbilder i en vertikal video med AI-kamerarörelser och musik, redo för sociala medier och bostadsportaler."
+        "a": "Showcase Video samlar bilder av bostaden till en video med kamerarörelser och musik. Se både breda och stående exempel på sidan Exempel."
       },
       {
         "q": "Vad kostar det?",

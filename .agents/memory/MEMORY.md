@@ -55,6 +55,7 @@
 - [Landing-page timing claims](landing-timing-claims.md) — keep product times distinct: AI images about 15 seconds; property/promo videos 2–3 minutes; never collapse them into one claim.
 - [Showcase Video naming](showcase-video-naming.md) — customer-facing copy must consistently call the product “Showcase Video”; avoid alternate names such as sales, walkthrough or property video.
 - [About-page voice](about-page-voice.md) — keep the company story factual, human and customer-centered; use “Teknologi, der gør boliger lettere at forstå.” as the core motto.
+- [AI marketing claims](ai-marketing-claims.md) — avoid blanket compliance/provenance promises and unsupported numerical guarantees; qualify examples and verify each format.
 - [Contact-page hierarchy](contact-page-hierarchy.md) — contact form is primary, direct contact is one compact card, response time replaces CVR there; use the normal public header/footer and restrained palette.
 - [Auth-card branding](auth-card-branding.md) — signup, login and reset cards use the gold Forma wordmark and darker accessible gold links; name placeholders use plain “John Doe” without example prefixes.
 - [Dashboard E2E authentication](dashboard-e2e-auth.md) — ADMIN_PASSWORD is not the dev Firebase admin login; use a temporary verified test account and delete it after read-only UI checks.
