@@ -3719,7 +3719,7 @@ interface FilmCandidate { id: number; before: string; after: string; roomType: s
 const MOOD_LABELS_WT: Record<string, string> = { calm: "dashboard.film.rolig", uplifting: "dashboard.film.oploeftende", modern: "dashboard.film.moderne", tension: "dashboard.film.spaendt" };
 const ALL_MOODS_WT = ["calm", "uplifting", "modern", "tension"] as const;
 
-function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
+function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCases: () => void }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [videoMode, setVideoMode] = useState<"cinematic" | "morph" | "magic">("cinematic");
@@ -3771,7 +3771,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [magicShowCaseDropdown, setMagicShowCaseDropdown] = useState(false);
   const [magicDownloading, setMagicDownloading] = useState(false);
   const magicDropdownRef = useRef<HTMLDivElement>(null);
-  const magicResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeCases = cases.filter((c) => c.status !== "sold");
 
@@ -3817,9 +3816,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [videoMode, tfCandidates]);
 
   // ── Morph handlers ──────────────────────────────────────────────────────────
-  const morphResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wtResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (morphResetTimerRef.current) clearTimeout(morphResetTimerRef.current); if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current); if (magicResetTimerRef.current) clearTimeout(magicResetTimerRef.current); }, []);
 
   useEffect(() => {
     if (!magicShowCaseDropdown) return;
@@ -3831,7 +3827,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   }, [magicShowCaseDropdown]);
   const handleFile = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMorphError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
-    if (morphResetTimerRef.current) { clearTimeout(morphResetTimerRef.current); morphResetTimerRef.current = null; }
     setMorphError(null);
     setMorphVideoUrl(null);
     setMorphSaveCaseId(null);
@@ -3848,7 +3843,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   // ── Morph: generate ─────────────────────────────────────────────────────────
   const handleMorphGenerate = async () => {
     if (!beforeFile || !afterFile) return;
-    if (morphResetTimerRef.current) { clearTimeout(morphResetTimerRef.current); morphResetTimerRef.current = null; }
     setMorphGenerating(true);
     setMorphProgressStep(1);
     setMorphError(null);
@@ -3920,13 +3914,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-      if (morphResetTimerRef.current) clearTimeout(morphResetTimerRef.current);
-      morphResetTimerRef.current = setTimeout(() => {
-        morphResetTimerRef.current = null;
-        setBeforeFile(null); setBeforePreview(null);
-        setAfterFile(null); setAfterPreview(null);
-        setMorphVideoUrl(null); setMorphSaveCaseId(null); setMorphError(null);
-      }, 1500);
     } catch { setMorphSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
@@ -3940,7 +3927,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   // ── Magisk transformation handlers ──────────────────────────────────────────
   const handleMagicUpload = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMagicError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
-    if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
     setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
     if (side === "before") { setMagicBeforeFile(file); setMagicBeforePreview(URL.createObjectURL(file)); }
     else { setMagicAfterFile(file); setMagicAfterPreview(URL.createObjectURL(file)); }
@@ -3955,7 +3941,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleMagicGenerate = async () => {
     if (!magicBeforeFile || !magicAfterFile) return;
-    if (magicResetTimerRef.current) { clearTimeout(magicResetTimerRef.current); magicResetTimerRef.current = null; }
     setMagicGenerating(true); setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -4009,13 +3994,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-      if (magicResetTimerRef.current) clearTimeout(magicResetTimerRef.current);
-      magicResetTimerRef.current = setTimeout(() => {
-        magicResetTimerRef.current = null;
-        setMagicBeforeFile(null); setMagicBeforePreview(null);
-        setMagicAfterFile(null); setMagicAfterPreview(null);
-        setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
-      }, 1500);
     } catch { setMagicSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
@@ -4029,14 +4007,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   // ── Forvandlingsfilm handlers ───────────────────────────────────────────────
   const tfToggle = (id: number) => {
     if (wtGenerating) return;
-    if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
     setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null);
     setTfSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : (prev.length >= 8 ? prev : [...prev, id]));
   };
 
   const handleWtGenerate = async () => {
     if (tfSelected.length < 2) { setWtError(i18n.t("dashboard.film.vaelgMindst2DesignsFra")); return; }
-    if (wtResetTimerRef.current) { clearTimeout(wtResetTimerRef.current); wtResetTimerRef.current = null; }
     setWtGenerating(true); setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtProgressMsg(i18n.t("dashboard.film.forbereder"));
     if (wtEsRef.current) { wtEsRef.current.close(); wtEsRef.current = null; }
     try {
@@ -4110,12 +4086,6 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-      if (wtResetTimerRef.current) clearTimeout(wtResetTimerRef.current);
-      wtResetTimerRef.current = setTimeout(() => {
-        wtResetTimerRef.current = null;
-        setTfSelected([]); setWtAddress(""); setWtVideoUrls(null); setWtCleanVideoUrls(null);
-        setWtSaveCaseId(null); setWtError(null);
-      }, 1500);
     } catch { setWtSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
@@ -4154,7 +4124,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
   );
 
   return (
-    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
+    <div className="w-full min-w-0">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.film.transformeringVideo")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
@@ -4183,7 +4153,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
 
       {/* ── Forvandlingsfilm UI ── */}
       {videoMode === "cinematic" && (
-        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-8 shadow-sm">
+        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)] gap-6 shadow-sm">
+          <div className="min-w-0">
           {/* Galleri-vælger: designs med både før- og efter-billede */}
           <div>
             <label className="text-[11px] font-bold tracking-wider uppercase mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.vaelgRumFraGalleri", { count: tfSelected.length })}</label>
@@ -4203,7 +4174,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               const hiddenCount = tfCandidates.length - visible.length;
               return (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-4 gap-3">
                     {visible.map((cand) => {
                       const order = tfSelected.indexOf(cand.id);
                       const selected = order >= 0;
@@ -4234,7 +4205,9 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               );
             })()}
           </div>
+          </div>
 
+          <div className="min-w-0 space-y-5">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider mb-3 block" style={{ color: "#9B9690" }}>{i18n.t("dashboard.film.adresseValgfri")}</label>
             <input type="text" value={wtAddress} onChange={(e) => setWtAddress(e.target.value)} placeholder={i18n.t("dashboard.film.fxStrandvejenAdresse")} className="w-full h-12 px-4 rounded-xl border bg-[#F8F6F3] text-sm outline-none transition-all focus:border-[#C8956C] focus:bg-white" style={{ borderColor: "transparent", color: "#0F1D2F" }} data-testid="input-film-address" maxLength={80} />
@@ -4257,9 +4230,10 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
           )}
 
           {wtError && <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-film-error">{wtError}</div>}
+          </div>
 
           {wtVideoUrls && (
-            <>
+            <div className="xl:col-span-2 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ALL_MOODS_WT.filter((m) => wtVideoUrls[m]).map((mood) => (
                   <div key={mood} className="rounded-xl overflow-hidden border border-[#E8E4DE]">
@@ -4277,7 +4251,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 {activeCases.length > 0 && (
                   <div className="relative" ref={wtDropdownRef}>
                     <button onClick={() => setWtShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-walkthrough-save-case">
-                      <Video className="w-4 h-4" />{wtSaveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}<ChevronDown className="w-3.5 h-3.5" />
+                      <Video className="w-4 h-4" />{wtSaveCaseId ? i18n.t("dashboard.agentX.gemtTilSag") : i18n.t("dashboard.agentX.gemTilSag")}<ChevronDown className="w-3.5 h-3.5" />
                     </button>
                     {wtShowCaseDropdown && (
                       <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
@@ -4290,11 +4264,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                     )}
                   </div>
                 )}
+                <button type="button" onClick={onOpenCases} className="h-11 px-5 rounded-full border border-[#D9D5CF] bg-white text-sm font-semibold text-[#0F1D2F] hover:border-[#C8956C]">{i18n.t("dashboard.nav.allCases")}</button>
                 <button onClick={handleWtReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-walkthrough-reset">
                   <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
                 </button>
               </div>
-            </>
+            </div>
           )}
         </div>
       )}
@@ -4302,8 +4277,8 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
       {/* ── Morph (Forvandling) UI ── */}
       {videoMode === "morph" && (
         <>
-          <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 xl:col-span-2">
               {renderMorphDrop("before", beforePreview, i18n.t("dashboard.film.foerBillede"))}
               {renderMorphDrop("after", afterPreview, i18n.t("dashboard.film.efterBillede"))}
             </div>
@@ -4336,14 +4311,16 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             </div>
 
+            <div className="xl:col-span-2">
             <QuotaGate feature="transformVideo">
               <button onClick={handleMorphGenerate} disabled={!beforeFile || !afterFile || morphGenerating} className="w-full h-12 rounded-full font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50" style={{ background: "#C8956C" }} data-testid="button-generate-video">
                 {morphGenerating ? (<><RotateCcw className="w-4 h-4 animate-spin" />{morphProgressStep === 1 ? i18n.t("dashboard.film.senderBilleder") : morphProgressStep === 3 ? i18n.t("dashboard.film.faerdiggoerVideo") : i18n.t("dashboard.film.byggerVideoEllipsis")}</>) : (<><Video className="w-4 h-4" />{i18n.t("dashboard.film.genererForvandlingsvideo")}</>)}
               </button>
             </QuotaGate>
+            </div>
 
             {morphGenerating && (
-              <div className="rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4">
+              <div className="xl:col-span-2 rounded-xl border border-[#E8E4DE] bg-[#F8F6F3] p-4">
                 <div className="flex items-center justify-between mb-3">
                   {[{ step: 1, label: i18n.t("dashboard.film.analysererBilleder") }, { step: 2, label: i18n.t("dashboard.film.byggerVideo") }, { step: 3, label: i18n.t("dashboard.film.faerdiggoer") }].map(({ step, label }, i) => (
                     <div key={step} className="flex items-center gap-2">
@@ -4359,10 +4336,10 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
               </div>
             )}
 
-            {morphError && <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-video-error">{morphError}</div>}
+            {morphError && <div className="xl:col-span-2 p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-video-error">{morphError}</div>}
 
             {morphVideoUrl && (
-              <>
+              <div className="xl:col-span-2 space-y-4">
                 <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
                   <video src={morphVideoUrl} controls autoPlay loop className="w-full block bg-black" style={{ maxHeight: "70vh", objectFit: "contain" }} data-testid="video-result" />
                   <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}><Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />{i18n.t("dashboard.film.aiGenereretForvandlingsvideo")}</div>
@@ -4374,7 +4351,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                   {activeCases.length > 0 && (
                     <div className="relative" ref={morphDropdownRef}>
                       <button onClick={() => setMorphShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-video-save-case">
-                        <Video className="w-4 h-4" />{morphSaveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}<ChevronDown className="w-3.5 h-3.5" />
+                         <Video className="w-4 h-4" />{morphSaveCaseId ? i18n.t("dashboard.agentX.gemtTilSag") : i18n.t("dashboard.agentX.gemTilSag")}<ChevronDown className="w-3.5 h-3.5" />
                       </button>
                       {morphShowCaseDropdown && (
                         <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
@@ -4388,11 +4365,12 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                       )}
                     </div>
                   )}
+                   <button type="button" onClick={onOpenCases} className="h-11 px-5 rounded-full border border-[#D9D5CF] bg-white text-sm font-semibold text-[#0F1D2F] hover:border-[#C8956C]">{i18n.t("dashboard.nav.allCases")}</button>
                   <button onClick={handleMorphReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-video-reset">
                     <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </>
@@ -4523,7 +4501,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                 {activeCases.length > 0 && (
                   <div className="relative" ref={magicDropdownRef}>
                     <button onClick={() => setMagicShowCaseDropdown((v) => !v)} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-magic-save-case">
-                      <Video className="w-4 h-4" />{magicSaveCaseId ? i18n.t("dashboard.common.gemtTilMappeCheck") : i18n.t("dashboard.common.gemTilMappe")}<ChevronDown className="w-3.5 h-3.5" />
+                       <Video className="w-4 h-4" />{magicSaveCaseId ? i18n.t("dashboard.agentX.gemtTilSag") : i18n.t("dashboard.agentX.gemTilSag")}<ChevronDown className="w-3.5 h-3.5" />
                     </button>
                     {magicShowCaseDropdown && (
                       <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
@@ -4537,6 +4515,7 @@ function TransformVideoFlow({ cases }: { cases: ApiCase[] }) {
                     )}
                   </div>
                 )}
+                <button type="button" onClick={onOpenCases} className="h-11 px-5 rounded-full border border-[#D9D5CF] bg-white text-sm font-semibold text-[#0F1D2F] hover:border-[#C8956C]">{i18n.t("dashboard.nav.allCases")}</button>
                 <button onClick={handleMagicReset} className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80" style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }} data-testid="button-magic-reset">
                   <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
                 </button>
@@ -4733,7 +4712,7 @@ interface RendyVideo {
   edited?: boolean;
 }
 
-function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
+function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCases: () => void }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
@@ -4767,9 +4746,8 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const [showcaseSaveCaseId, setShowcaseSaveCaseId] = useState<number | null>(null);
   const [showcaseShowCaseDropdown, setShowcaseShowCaseDropdown] = useState(false);
   const showcaseDropdownRef = useRef<HTMLDivElement>(null);
-  const showcaseResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeCases = cases.filter((c) => c.status !== "sold");
   const showcaseResultStorageKey = user?.uid ? `forma-showcase-result:${user.uid}` : null;
-  useEffect(() => () => { if (showcaseResetTimerRef.current) clearTimeout(showcaseResetTimerRef.current); }, []);
   useEffect(() => {
     setResultVideos([]);
     setListingId(null);
@@ -4850,14 +4828,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-      if (showcaseResetTimerRef.current) clearTimeout(showcaseResetTimerRef.current);
-      showcaseResetTimerRef.current = setTimeout(() => {
-        showcaseResetTimerRef.current = null;
-        setImages([]); setResultVideos([]); setListingId(null); setExportUrl(null);
-         if (showcaseResultStorageKey) localStorage.removeItem(showcaseResultStorageKey);
-        setExportJobId(null); setError(null); setProgressPct(0); setProgressMsg("");
-        setShowcaseSaveCaseId(null); setShowcaseShowCaseDropdown(false);
-      }, 1500);
     } catch { setShowcaseSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
@@ -4874,7 +4844,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter(isImageFile);
     if (arr.length === 0) { setError(i18n.t("dashboard.film.vaelgVenligstBilledfiler")); return; }
-    if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setError(null);
     setResultVideos([]);
     setListingId(null);
@@ -5084,7 +5053,6 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleGenerate = async () => {
     if (images.length < 1) { setError(i18n.t("dashboard.showcase.uploadMindst1Billede")); return; }
-    if (showcaseResetTimerRef.current) { clearTimeout(showcaseResetTimerRef.current); showcaseResetTimerRef.current = null; }
     setIsGenerating(true);
     setOpenPanelId(null);
     setError(null);
@@ -5239,7 +5207,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
   const panelImg = images.find((i) => i.id === openPanelId) ?? null;
 
   return (
-    <div className="flex flex-col" style={{ paddingLeft: "3.5%" }}>
+    <div className="flex w-full min-w-0 flex-col">
       {/* ── Crop Modal ── */}
       {cropModalImg && (
         <div
@@ -5338,10 +5306,11 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.showcase.introText")}</p>
       </div>
 
+      <div className={`grid grid-cols-1 gap-6 items-start min-w-0 ${images.length === 0 ? "xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.35fr)]" : ""}`}>
       {/* Eksempel — 2 showcase-videoer side by side */}
-      <div className="mb-8" style={{ order: 2 }}>
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-4" style={{ color: "#C8956C" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
-        <div className="flex gap-3">
+      <div className="order-2 min-w-0 rounded-2xl border border-[#E8E4DE] bg-white p-5">
+        <p className="text-xs font-bold tracking-[0.08em] uppercase mb-4" style={{ color: "#9C6338" }}>{i18n.t("dashboard.showcase.seEksempel")}</p>
+        <div className="grid grid-cols-2 gap-3">
           {(
             [
               {
@@ -5360,7 +5329,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               },
             ] as const
           ).map((ex, i) => (
-            <div key={i} className="rounded-xl overflow-hidden bg-white border border-[#E8E4DE] shadow-sm group cursor-pointer" style={{ width: 140 }}>
+            <div key={i} className="min-w-0 rounded-xl overflow-hidden bg-white border border-[#E8E4DE] shadow-sm group cursor-pointer">
               <div className="relative overflow-hidden" style={{ height: 200 }}>
                 <video
                   ref={ex.isFirst ? exampleVideoRef : undefined}
@@ -5393,7 +5362,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden" style={{ order: 1 }}>
+      <div className="order-1 min-w-0 rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden">
 
         {/* ── Top bar: output format ── */}
         <div className="px-5 pt-5 pb-4 border-b border-[#F0EDE9] flex items-center">
@@ -5897,6 +5866,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
           <div className="px-5 pb-5" />
         )}
       </div>
+      </div>
 
       {/* ── Results ── */}
       {resultVideos.length > 0 && (
@@ -5907,7 +5877,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
               <span className="text-sm font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.showcase.videoerGenereret", { count: resultVideos.length })}</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {cases.length > 0 && (
+              {activeCases.length > 0 && (
                 <div className="relative" ref={showcaseDropdownRef}>
                   <button
                     onClick={() => setShowcaseShowCaseDropdown((v) => !v)}
@@ -5916,12 +5886,12 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                     data-testid="button-showcase-save-case"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    {showcaseSaveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}
+                    {showcaseSaveCaseId ? i18n.t("dashboard.agentX.gemtTilSag") : i18n.t("dashboard.agentX.gemTilSag")}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   {showcaseShowCaseDropdown && (
                     <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
-                      {cases.map((c) => (
+                      {activeCases.map((c) => (
                         <button key={c.id} onClick={() => showcaseSaveToCase(c)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left" style={{ color: "#1A1A1A" }} data-testid={`button-showcase-save-case-${c.id}`}>
                           <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} /><span className="truncate">{c.address}</span>
                         </button>
@@ -5930,6 +5900,7 @@ function ShowcaseVideoFlow({ cases }: { cases: ApiCase[] }) {
                   )}
                 </div>
               )}
+              <button type="button" onClick={onOpenCases} className="h-9 px-4 rounded-full border border-[#D9D5CF] bg-white text-sm font-semibold text-[#0F1D2F] hover:border-[#C8956C]">{i18n.t("dashboard.nav.allCases")}</button>
               {listingId && (
                 <button
                   onClick={() => handleExport()}
@@ -10843,7 +10814,7 @@ export default function BoligpotentialeDashboard() {
 
           <div className={section === "transformering-video" ? "" : "hidden"} aria-hidden={section !== "transformering-video"}>
             <PaywallPage>
-              <TransformVideoFlow cases={cases} />
+              <TransformVideoFlow cases={cases} onOpenCases={() => setSection("sager")} />
             </PaywallPage>
           </div>
 
@@ -10860,9 +10831,9 @@ export default function BoligpotentialeDashboard() {
             <UploadFlow onBack={() => setSection("dashboard")} />
           </div>
 
-          <div className={`-mx-6 md:-mx-8 ${section === "showcase-video" ? "" : "hidden"}`} aria-hidden={section !== "showcase-video"}>
+          <div className={section === "showcase-video" ? "min-w-0" : "hidden"} aria-hidden={section !== "showcase-video"}>
             <PaywallPage>
-              <ShowcaseVideoFlow cases={cases} />
+              <ShowcaseVideoFlow cases={cases} onOpenCases={() => setSection("sager")} />
             </PaywallPage>
           </div>
 
