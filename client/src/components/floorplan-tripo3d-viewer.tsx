@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { TripoOrbitViewer, type TripoOrbitViewerHandle } from "./tripo-orbit-viewer";
 import DotGrid from "@/components/dot-grid";
+import { CaseOutputAutosaveNotices, useCaseOutputAutosave, type LaunchCase } from "@/hooks/use-case-output-autosave";
+import { isCurrentSaveAttempt, makeSaveAttempt, type SaveAttemptIdentity } from "@/lib/case-output-save-state";
 
 type Status = "idle" | "submitting" | "polling" | "ready" | "error";
 
@@ -132,14 +134,17 @@ function ControlRail({ children }: { children: React.ReactNode }) {
 export function FloorplanTripo3DViewer({
   resultUrl,
   cases = [],
+  launchCase,
   onRenderedImage,
 }: {
   resultUrl: string;
   cases?: SavableCase[];
+  launchCase?: LaunchCase | null;
   onRenderedImage?: (url: string) => void;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const autoSave = useCaseOutputAutosave();
   const [status, setStatus] = useState<Status>("idle");
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -160,14 +165,25 @@ export function FloorplanTripo3DViewer({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const taskIdRef = useRef<string | null>(null);
   const inFlightRef = useRef(false); // prevent double-click double-submit
+  const saveAttemptVersionRef = useRef(0);
+  const currentSaveAttemptRef = useRef<SaveAttemptIdentity | null>(null);
   const pollErrorsRef = useRef(0);   // transient poll errors — retry up to 5 before failing
   const saveDdRef = useRef<HTMLDivElement>(null);
 
   const activeCases = cases.filter(c => c.status !== "sold");
 
   useEffect(() => {
-    return () => { stopPolling(); };
+    return () => {
+      stopPolling();
+      currentSaveAttemptRef.current = makeSaveAttempt(++saveAttemptVersionRef.current, "unmounted");
+    };
   }, []);
+
+  useEffect(() => {
+    const version = ++saveAttemptVersionRef.current;
+    currentSaveAttemptRef.current = makeSaveAttempt(version, `input:${resultUrl}`);
+    setTripoSaveCaseId(null);
+  }, [resultUrl]);
 
   useEffect(() => {
     if (!showSaveDrop) return;
@@ -205,6 +221,8 @@ export function FloorplanTripo3DViewer({
   async function generate() {
     if (inFlightRef.current) return; // guard against double-click
     inFlightRef.current = true;
+    const resultVersion = ++saveAttemptVersionRef.current;
+    currentSaveAttemptRef.current = makeSaveAttempt(resultVersion, `pending:${resultVersion}`);
     pollErrorsRef.current = 0;
     setStatus("submitting");
     setErrorMsg(null);
@@ -215,6 +233,7 @@ export function FloorplanTripo3DViewer({
     setSwatchIdx(0);
     setMaterialsReady(false);
     setFsMaterialsReady(false);
+    const capturedLaunchCase = launchCase ? Object.freeze({ ...launchCase }) : null;
     try {
       const token = await user?.getIdToken();
       const res = await fetch("/api/bolig/tripo3d", {
@@ -271,6 +290,23 @@ export function FloorplanTripo3DViewer({
             const ri = d.renderedImageUrl ?? null;
             setRenderedImageUrl(ri);
             if (ri) onRenderedImage?.(ri);
+            const saveAttempt = makeSaveAttempt(resultVersion, `tripo:${taskId}:${ri || resultUrl}`);
+            currentSaveAttemptRef.current = saveAttempt;
+            void autoSave.save(capturedLaunchCase, {
+              imageUrl: ri || resultUrl,
+              originalImageUrl: d.modelUrl,
+              roomType: "floorplan",
+              style: "3d-interactive",
+              budgetTier: "tier2",
+              promptText: "Interaktiv 3D model",
+              isDesignAgent: true,
+              onSaved: () => {
+                if (
+                  capturedLaunchCase &&
+                  isCurrentSaveAttempt(currentSaveAttemptRef.current, saveAttempt)
+                ) setTripoSaveCaseId(capturedLaunchCase.id);
+              },
+            });
             setStatus("ready");
           } else if (d.status === "failed" || d.status === "cancelled" || d.status === "expired") {
             stopPolling();
@@ -481,6 +517,7 @@ export function FloorplanTripo3DViewer({
   if (status === "idle") {
     return (
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE", background: "#FAF7F2" }}>
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
         <div className="px-5 pt-5 pb-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: "#F0EDE7" }}>
@@ -629,6 +666,7 @@ export function FloorplanTripo3DViewer({
   return (
     <>
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "#E8E4DE" }}>
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
         <div className="relative" style={{ height: 480 }}>
           <div data-testid="model-viewer-tripo3d" style={{ width: "100%", height: "100%" }}>
             <TripoOrbitViewer

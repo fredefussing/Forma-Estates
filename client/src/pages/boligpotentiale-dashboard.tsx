@@ -18,6 +18,24 @@ import { LeadsView } from "@/components/leads-view";
 import { TelesalesView } from "@/components/telesales-view";
 import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { SaveToCaseButton } from "@/components/save-to-case-button";
+import { CaseGenerationPicker, type CaseGenerationFeature } from "@/components/case-generation-picker";
+import { CaseOutputAutosaveNotices, useCaseOutputAutosave, type LaunchCase } from "@/hooks/use-case-output-autosave";
+import {
+  bindTourProjectTarget,
+  reservePendingTourPlan,
+  resolveTourProjectTarget,
+  snapshotTourTarget,
+} from "@/lib/ai-tour-state";
+import {
+  acknowledgeOutputDelivery,
+  acknowledgedDeliveryCaseId,
+  beginOutputDelivery,
+  isCurrentSaveAttempt,
+  makeSaveAttempt,
+  type OutputDeliveryTracker,
+  type SaveAttemptIdentity,
+} from "@/lib/case-output-save-state";
 import DotGrid from "@/components/dot-grid";
 import { BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import formaEstatesLogo from "@assets/forma-estates-logo.png";
@@ -52,6 +70,23 @@ import {
 type Section = "dashboard" | "upload" | "showcase-video" | "historik" | "sager" | "solgte" | "sag-detail" | "ai-design-agent" | "3d-plantegning" | "transformering-video" | "ai-boligfremvisning" | "team" | "indstillinger" | "pris" | "fakturering" | "kvota" | "crm" | "leads" | "telesales";
 type Modal = "newSag" | null;
 type Stage = "upload" | "config" | "loading" | "result";
+const snapshotLaunchCase = (target: LaunchCase | null | undefined): LaunchCase | null =>
+  snapshotTourTarget(target);
+type CaseAutosaver = ReturnType<typeof useCaseOutputAutosave>;
+type CaseAutosaveOutput = Parameters<CaseAutosaver["save"]>[1];
+const acknowledgeSavedOutput = (
+  trackers: Map<number, OutputDeliveryTracker>,
+  current: SaveAttemptIdentity | null,
+  expected: SaveAttemptIdentity,
+  caseId: number,
+  outputKey: string,
+): number | null => {
+  const tracker = trackers.get(caseId);
+  if (!tracker || !isCurrentSaveAttempt(current, expected)) return null;
+  const next = acknowledgeOutputDelivery(tracker, current, expected, outputKey);
+  trackers.set(caseId, next);
+  return acknowledgedDeliveryCaseId(next, current, expected);
+};
 
 interface BillingInvoice {
   invoiceNumber: string;
@@ -964,18 +999,23 @@ function liveDaysFromISO(iso: string, now: number): number {
 function CaseDetailPanel({
   caseData,
   allCases,
+  onLaunchTool,
+  onUpgrade,
   onBack,
   onDeleted,
   onStatusChanged,
 }: {
   caseData: ApiCase;
   allCases: ApiCase[];
+  onLaunchTool: (feature: CaseGenerationFeature) => void;
+  onUpgrade: () => void;
   onBack: () => void;
   onDeleted: () => void;
   onStatusChanged: (newStatus: string) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const caseAutoSave = useCaseOutputAutosave();
   const [now, setNow] = useState(Date.now());
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -998,6 +1038,7 @@ function CaseDetailPanel({
   const previewPinStartRef = useRef<number | null>(null);
   const [pinnedPreview, setPinnedPreview] = useState<{ left: number; width: number } | null>(null);
   const [genStep, setGenStep] = useState<0|1|2|3>(0);
+  const [showGenerationPicker, setShowGenerationPicker] = useState(false);
   const [editingMarketDate, setEditingMarketDate] = useState(false);
   const [marketDateDraft, setMarketDateDraft] = useState("");
   const [sellerPdfBusy, setSellerPdfBusy] = useState(false);
@@ -1241,6 +1282,7 @@ function CaseDetailPanel({
 
   const handleGenerate = async () => {
     if (!imageFile) return;
+    const capturedCase = snapshotLaunchCase({ id: caseData.id, address: caseData.address })!;
     setIsGenerating(true);
     setError(null);
     const startTime = Date.now();
@@ -1262,18 +1304,39 @@ function CaseDetailPanel({
       setResultUrl(data.image_url);
       setPromptUsed(data.prompt_used ?? null);
       setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
-      setCaseSavedImageId(data.generation_id ?? null);
+      const generationId = data.generation_id != null && Number.isFinite(Number(data.generation_id))
+        ? Number(data.generation_id)
+        : null;
+      let persisted = generationId != null;
+      if (!persisted) {
+        const saveResult = await caseAutoSave.save(capturedCase, {
+          imageUrl: data.image_url,
+          originalImageUrl: null,
+          roomType,
+          style,
+          budgetTier: tier,
+          promptText: data.prompt_used ?? null,
+          isDesignAgent: true,
+          onSaved: (result) => setCaseSavedImageId(result.generatedImageId),
+        });
+        persisted = saveResult.saved;
+        setCaseSavedImageId(saveResult.saved ? saveResult.generatedImageId : null);
+      } else {
+        setCaseSavedImageId(generationId);
+      }
       setCaseRefinedUrl(null);
       setCaseRefinementCount(0);
       setCaseRefinementError(null);
       // Auto-saved — immediately refresh gallery and all live-tracking sections
-      await refetchImages();
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
-      window.dispatchEvent(new Event("quota:refresh"));
+      if (persisted) {
+        await refetchImages();
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+        window.dispatchEvent(new Event("quota:refresh"));
+      }
       setGenStep(3);
     } catch (err: any) {
       setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
@@ -1284,12 +1347,14 @@ function CaseDetailPanel({
 
   const handleCaseRefinement = async () => {
     if (!caseSavedImageId || !caseRefinementPrompt.trim() || isCaseRefining || caseRefinementCount >= CASE_MAX_REFINEMENTS) return;
+    const capturedCase = snapshotLaunchCase({ id: caseData.id, address: caseData.address })!;
+    const sourceImageId = caseSavedImageId;
     setIsCaseRefining(true);
     setCaseRefinementError(null);
     try {
       const token = await auth.currentUser?.getIdToken();
       const fd = new FormData();
-      fd.append("sourceCaseImageId", String(caseSavedImageId));
+      fd.append("sourceCaseImageId", String(sourceImageId));
       fd.append("caseId", String(caseData.id));
       fd.append("isDesignAgent", "true");
       fd.append("isRefinement", "true");
@@ -1303,15 +1368,36 @@ function CaseDetailPanel({
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.justeringMislykkedesProevIgen"));
       setCaseRefinedUrl(data.image_url);
       setResultUrl(data.image_url);
-      if (data.generation_id) setCaseSavedImageId(data.generation_id);
+      const generationId = data.generation_id != null && Number.isFinite(Number(data.generation_id))
+        ? Number(data.generation_id)
+        : null;
+      let persisted = generationId != null;
+      if (!persisted) {
+        const saveResult = await caseAutoSave.save(capturedCase, {
+          imageUrl: data.image_url,
+          originalImageUrl: null,
+          roomType,
+          style,
+          budgetTier: tier,
+          promptText: caseRefinementPrompt.trim(),
+          isDesignAgent: true,
+          onSaved: (result) => setCaseSavedImageId(result.generatedImageId),
+        });
+        persisted = saveResult.saved;
+        setCaseSavedImageId(saveResult.saved ? saveResult.generatedImageId : null);
+      } else {
+        setCaseSavedImageId(generationId);
+      }
       setCaseRefinementCount(c => c + 1);
       setCaseRefinementPrompt("");
       // Refresh gallery so the refined image (not the original) appears in the folder
-      await refetchImages();
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      if (persisted) {
+        await refetchImages();
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/activity"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+      }
     } catch (err: any) {
       setCaseRefinementError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
     } finally {
@@ -1375,7 +1461,7 @@ function CaseDetailPanel({
 
   return (
     <motion.div key="case-detail" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-
+      <CaseOutputAutosaveNotices notices={caseAutoSave.notices} retry={caseAutoSave.retry} />
       {/* ── Header ── */}
       <div className="mb-6">
         {/* Back */}
@@ -1582,7 +1668,7 @@ function CaseDetailPanel({
                 <p className="font-semibold mb-2" style={{ color: "#0F1D2F" }}>{t("dashboard.case.noImagesYet")}</p>
                 <p className="text-sm max-w-xs mb-6" style={{ color: "#6B6B6B" }}>{t("dashboard.generate.emptySubtitle")}</p>
                 <button
-                  onClick={() => setGenStep(1)}
+                  onClick={() => setShowGenerationPicker(true)}
                   className="h-10 px-6 rounded-full font-semibold text-white text-sm flex items-center gap-2 transition-all hover:-translate-y-0.5"
                   style={{ background: "#0F1D2F" }}
                   data-testid="bolig-gallery-empty-generate"
@@ -1703,7 +1789,6 @@ function CaseDetailPanel({
                               {i18n.t("dashboard.caseView.justeringerCount", { count: img.refinementCount, max: CASE_MAX_REFINEMENTS })}
                             </span>
                           )}
-                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F0EDE7", color: "#9B9690" }}>{i18n.t("dashboard.caseView.dagEfterSalgsstart", { day: img.daysAfterMarket })}</span>
                         </div>
                         {allCases.some((c) => c.id !== caseData.id) && (
                           <div className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -1827,7 +1912,7 @@ function CaseDetailPanel({
               ))}
             </div>
             <button
-              onClick={() => setGenStep(1)}
+              onClick={() => setShowGenerationPicker(true)}
               className="w-full h-12 rounded-full font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
               style={{ background: "#0F1D2F", boxShadow: "0 4px 20px rgba(15,29,47,0.2)" }}
               data-testid="bolig-case-start-generate"
@@ -1841,6 +1926,35 @@ function CaseDetailPanel({
 
           </div>
         </div>
+      )}
+      {genStep === 0 && (
+        <div className="mt-6">
+          <CaseGenerationPicker
+            caseId={caseData.id}
+            caseAddress={caseData.address}
+            layout="panel"
+            onUpgrade={onUpgrade}
+            onSelect={(feature) => {
+              setShowGenerationPicker(false);
+              if (feature === "image") setGenStep(1);
+              else onLaunchTool(feature);
+            }}
+          />
+        </div>
+      )}
+      {showGenerationPicker && (
+        <CaseGenerationPicker
+          caseId={caseData.id}
+          caseAddress={caseData.address}
+          layout="dialog"
+          onClose={() => setShowGenerationPicker(false)}
+          onUpgrade={onUpgrade}
+          onSelect={(feature) => {
+            setShowGenerationPicker(false);
+            if (feature === "image") setGenStep(1);
+            else onLaunchTool(feature);
+          }}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════ */}
@@ -2834,6 +2948,18 @@ function HistoryView({
                       variant="pill-outline"
                       testIdPrefix="bolig-history-regen-result-download"
                     />
+                    {!regenSaveCaseId && (
+                      <SaveToCaseButton
+                        cases={cases}
+                        mediaUrl={regenResult.url}
+                        generatedImageId={regenResult.id}
+                        roomType={regen.room}
+                        style={regenStyle}
+                        budgetTier={regenTier}
+                        isDesignAgent={false}
+                        testIdPrefix="bolig-history-regen-save-case"
+                      />
+                    )}
                     <button
                       onClick={closeRegen}
                       className="h-11 px-5 rounded-full font-semibold text-sm text-white hover:opacity-90"
@@ -2980,9 +3106,10 @@ function HistoryView({
   );
 }
 
-function UploadFlow({ onBack }: { onBack: () => void }) {
+function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: ApiCase[]; launchCase: LaunchCase | null }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const autoSave = useCaseOutputAutosave();
   const [stage, setStage] = useState<Stage>("upload");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -2994,6 +3121,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState<number | null>(null);
   const [savedImageId, setSavedImageId] = useState<number | null>(null);
+  const [resultAssignedCaseId, setResultAssignedCaseId] = useState<number | null>(null);
+  const [resultLaunchCase, setResultLaunchCase] = useState<LaunchCase | null>(null);
   const [refinedUrl, setRefinedUrl] = useState<string | null>(null);
   const [refinementCount, setRefinementCount] = useState(0);
   const [refinementPrompt, setRefinementPrompt] = useState("");
@@ -3014,6 +3143,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 
   const handleGenerate = async () => {
     if (!imageFile) return;
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    setResultAssignedCaseId(null);
     setStage("loading"); setError(null);
     const startTime = Date.now();
     try {
@@ -3024,6 +3155,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       fd.append("room", roomType);
       fd.append("tier", tier);
       fd.append("isQuick", "true");
+      if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
       const res = await fetch("/api/bolig/generate", {
         method: "POST",
         body: fd,
@@ -3032,7 +3164,24 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
       setResultUrl(data.image_url);
-      setSavedImageId(data.generation_id ?? null);
+      setResultLaunchCase(capturedLaunchCase);
+      const generatedImageId = data.generation_id != null ? Number(data.generation_id) : null;
+      setSavedImageId(generatedImageId);
+      if (generatedImageId != null && capturedLaunchCase) setResultAssignedCaseId(capturedLaunchCase.id);
+      const saveResult = await autoSave.save(capturedLaunchCase, {
+        imageUrl: data.image_url,
+        originalImageUrl: imagePreview,
+        roomType,
+        style,
+        budgetTier: tier,
+        isDesignAgent: false,
+        generatedImageId,
+        onSaved: (result) => {
+          if (result.generatedImageId != null) setSavedImageId(result.generatedImageId);
+          if (capturedLaunchCase) setResultAssignedCaseId(capturedLaunchCase.id);
+        },
+      });
+      if (saveResult.generatedImageId != null) setSavedImageId(saveResult.generatedImageId);
       setRefinedUrl(null);
       setRefinementCount(0);
       setRefinementError(null);
@@ -3054,6 +3203,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 
   const handleRefinement = async () => {
     if (!savedImageId || !refinementPrompt.trim() || isRefining || refinementCount >= MAX_REFINEMENTS) return;
+    const capturedLaunchCase = snapshotLaunchCase(resultLaunchCase);
     setIsRefining(true);
     setRefinementError(null);
     try {
@@ -3063,6 +3213,7 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       fd.append("isDesignAgent", "true");
       fd.append("isRefinement", "true");
       fd.append("promptText", refinementPrompt.trim());
+      if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
       const res = await fetch("/api/bolig/generate", {
         method: "POST",
         body: fd,
@@ -3072,7 +3223,23 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.justeringMislykkedesProevIgen"));
       setRefinedUrl(data.image_url);
       setResultUrl(data.image_url);
-      if (data.generation_id) setSavedImageId(data.generation_id);
+      const generatedImageId = data.generation_id != null ? Number(data.generation_id) : null;
+      if (generatedImageId != null) setSavedImageId(generatedImageId);
+      const saveResult = await autoSave.save(capturedLaunchCase, {
+        imageUrl: data.image_url,
+        originalImageUrl: imagePreview,
+        roomType,
+        style,
+        budgetTier: tier,
+        promptText: refinementPrompt.trim(),
+        isDesignAgent: true,
+        generatedImageId,
+        onSaved: (result) => {
+          if (result.generatedImageId != null) setSavedImageId(result.generatedImageId);
+          if (capturedLaunchCase) setResultAssignedCaseId(capturedLaunchCase.id);
+        },
+      });
+      if (saveResult.generatedImageId != null) setSavedImageId(saveResult.generatedImageId);
       setRefinementCount(c => c + 1);
       setRefinementPrompt("");
       // Refresh gallery so the refined image (not the original) is what appears
@@ -3091,6 +3258,8 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
   const reset = () => {
     setStage("upload"); setImageFile(null); setImagePreview(null); setResultUrl(null);
     setError(null); setProcessingTime(null); setSavedImageId(null);
+    setResultAssignedCaseId(null);
+    setResultLaunchCase(null);
     setRefinedUrl(null); setRefinementCount(0); setRefinementPrompt(""); setRefinementError(null);
   };
 
@@ -3331,6 +3500,18 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
                   variant="primary"
                   testIdPrefix="bolig-upload-result-download"
                 />
+                <SaveToCaseButton
+                  cases={cases}
+                  mediaUrl={refinedUrl ?? resultUrl}
+                  generatedImageId={savedImageId}
+                  assignedCaseId={resultAssignedCaseId}
+                  roomType={roomType}
+                  style={style}
+                  budgetTier={tier}
+                  isDesignAgent={false}
+                  testIdPrefix="bolig-upload-save-case"
+                />
+                <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
                 <button onClick={() => { setStage("config"); setResultUrl(null); setRefinedUrl(null); }} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.upload.proevAndenStil")}</button>
                 <button onClick={reset} className="h-11 px-6 rounded-full font-semibold border-2 border-[#D9D5CF] hover:border-[#C8956C] transition-colors" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.upload.nytBillede")}</button>
               </div>
@@ -3343,11 +3524,10 @@ function UploadFlow({ onBack }: { onBack: () => void }) {
 }
 
 // ── 3D Plantegning Flow (fal.ai nano-banana-2/edit — 2D plan → 3D dollhouse) ─
-function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
+function Floorplan3DFlow({ cases, launchCase }: { cases: ApiCase[]; launchCase: LaunchCase | null }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const isOwner = user?.email === "fredefussing@gmail.com";
+  const autoSave = useCaseOutputAutosave();
+  const [flowStep, setFlowStep] = useState<1 | 2 | 3>(1);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
@@ -3357,8 +3537,12 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
-  const [showCaseDropdown, setShowCaseDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [resultAssignedCaseId, setResultAssignedCaseId] = useState<number | null>(null);
+  const [savedImageId, setSavedImageId] = useState<number | null>(null);
+  const [resultLaunchCase, setResultLaunchCase] = useState<LaunchCase | null>(null);
+  const saveAttemptVersionRef = useRef(0);
+  const currentSaveAttemptRef = useRef<SaveAttemptIdentity | null>(null);
+  const deliveryTrackerRef = useRef<OutputDeliveryTracker | null>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
   const hasUnsaved = !!resultUrl && saveCaseId === null;
   // Vis Tripo's professionelle rendered_image når den er klar, ellers fal.ai billedet
@@ -3367,34 +3551,43 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
   const displayUrl = resultUrl;
   useUnsavedExitGuard(hasUnsaved);
 
-  useEffect(() => {
-    if (!showCaseDropdown) return;
-    const onDown = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowCaseDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [showCaseDropdown]);
-
   const confirmDiscardOr = (action: () => void) => {
     if (hasUnsaved && !window.confirm(i18n.t("dashboard.plan3d.erDuSikkerPaaDu"))) return;
     action();
   };
 
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
+  const reset = () => confirmDiscardOr(() => {
+    setFlowStep(1);
+    setImageFile(null);
+    setImagePreview(null);
+    setOriginalUrl(null);
+    setResultUrl(null);
+    setTripoRenderedUrl(null);
+    setSaveCaseId(null);
+    setResultAssignedCaseId(null);
+    setSavedImageId(null);
+    setResultLaunchCase(null);
+    currentSaveAttemptRef.current = makeSaveAttempt(++saveAttemptVersionRef.current, "reset");
+    deliveryTrackerRef.current = null;
+    setError(null);
+  });
+
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
       setError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil"));
       return;
     }
-    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setImageFile(file);
+    setFlowStep(2);
     setResultUrl(null);
     setTripoRenderedUrl(null);
     setOriginalUrl(null);
+    setSaveCaseId(null);
+    setResultAssignedCaseId(null);
+    setSavedImageId(null);
+    setResultLaunchCase(null);
+    currentSaveAttemptRef.current = makeSaveAttempt(++saveAttemptVersionRef.current, "new-input");
+    deliveryTrackerRef.current = null;
     setError(null);
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target?.result as string);
@@ -3403,8 +3596,17 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
 
   const handleGenerate = async () => {
     if (!imageFile) return;
-    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    const version = ++saveAttemptVersionRef.current;
+    const pendingAttempt = makeSaveAttempt(version, `pending-floorplan-${version}`);
+    currentSaveAttemptRef.current = pendingAttempt;
+    deliveryTrackerRef.current = null;
+    setResultLaunchCase(capturedLaunchCase);
+    setResultAssignedCaseId(null);
+    setSavedImageId(null);
+    setSaveCaseId(null);
     setIsGenerating(true);
+    setFlowStep(3);
     setError(null);
     setResultUrl(null);
     setTripoRenderedUrl(null);
@@ -3424,24 +3626,77 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes2"));
+      if (!isCurrentSaveAttempt(currentSaveAttemptRef.current, pendingAttempt)) return;
       setResultUrl(data.image_url);
       setOriginalUrl(data.source_url ?? null);
+      const generatedImageId = data.generation_id != null && Number.isFinite(Number(data.generation_id))
+        ? Number(data.generation_id)
+        : null;
+      const attempt = makeSaveAttempt(version, `floorplan:${data.image_url}`);
+      currentSaveAttemptRef.current = attempt;
+      deliveryTrackerRef.current = capturedLaunchCase
+        ? beginOutputDelivery(attempt, capturedLaunchCase.id, [attempt.identity])
+        : null;
+      const saveResult = await autoSave.save(capturedLaunchCase, {
+        imageUrl: data.image_url,
+        originalImageUrl: data.source_url ?? null,
+        roomType: "floorplan",
+        style: "3d-floorplan",
+        budgetTier: "tier2",
+        promptText: "3D plantegning genereret af AI",
+        isDesignAgent: true,
+        generatedImageId,
+        onSaved: (result) => {
+          if (!capturedLaunchCase || !isCurrentSaveAttempt(currentSaveAttemptRef.current, attempt)) return;
+          const tracker = deliveryTrackerRef.current;
+          if (!tracker) return;
+          const next = acknowledgeOutputDelivery(tracker, currentSaveAttemptRef.current, attempt, attempt.identity);
+          deliveryTrackerRef.current = next;
+          const acknowledgedCaseId = acknowledgedDeliveryCaseId(next, currentSaveAttemptRef.current, attempt);
+          if (acknowledgedCaseId != null) {
+            setResultAssignedCaseId(acknowledgedCaseId);
+            setSaveCaseId(acknowledgedCaseId);
+            setSavedImageId(result.generatedImageId);
+          }
+        },
+      });
+      if (saveResult.saved && saveResult.generatedImageId != null &&
+        isCurrentSaveAttempt(currentSaveAttemptRef.current, attempt)) {
+        setSavedImageId(saveResult.generatedImageId);
+      }
     } catch (err: any) {
       setError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
+      setFlowStep(2);
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <div className="w-full max-w-5xl min-[1440px]:max-w-none">
+    <div className="w-full min-w-0">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.plan3d.treDPlantegningTitel")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.plan3d.uploadEn2dPlantegningAi")}</p>
       </div>
 
-      <div className="flex flex-col">
-      <div style={{ order: 2 }}>
+      <div className="flex items-center gap-2 sm:gap-3 mb-8 max-w-3xl" aria-label="Generation progress">
+        {[
+          i18n.t("dashboard.plan3d.plantegningTwoD"),
+          i18n.t("dashboard.plan3d.generer3dPlantegning"),
+          t("dashboard.wizard.resultLabel"),
+        ].map((label, index) => (
+          <div key={index} className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {index > 0 && <span className="h-px flex-1 bg-[#D9D5CF]" aria-hidden="true" />}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold" style={{ background: flowStep >= index + 1 ? "#0F1D2F" : "#F0EDE7", color: flowStep >= index + 1 ? "#fff" : "#9B9690" }}>{index + 1}</span>
+              <span className="hidden sm:inline text-xs font-medium" style={{ color: flowStep >= index + 1 ? "#0F1D2F" : "#9B9690" }}>{label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {flowStep < 3 && <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.85fr)] gap-6 items-start min-w-0">
+      <div className="min-w-0" style={{ order: 2 }}>
       {/* ── Forstå flowet / Få din 3D model nu ─────────────────────────── */}
       <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "#0F1D2F" }}>
         <div className="relative">
@@ -3449,51 +3704,37 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
             src="/bolig-images/3d-model-showcase.png"
             alt={i18n.t("dashboard.plan3d.eksempelPaaInteraktiv3dModel")}
             className="w-full object-cover"
-            style={{ maxHeight: 320, objectPosition: "center top" }}
+            style={{ height: 220, objectPosition: "center top" }}
           />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 45%, #0F1D2F 100%)" }} />
         </div>
-        <div className="px-6 pb-6 -mt-2">
-          <p className="text-[11px] font-bold tracking-[0.14em] uppercase mb-2" style={{ color: "#C8956C" }}>{i18n.t("dashboard.plan3d.muligtMedFormaEstates")}</p>
+        <div className="px-6 pt-5 pb-6">
+          <p className="text-xs font-bold tracking-[0.08em] uppercase mb-2" style={{ color: "#E9BE97" }}>{i18n.t("dashboard.plan3d.muligtMedFormaEstates")}</p>
           <h2 className="text-xl font-bold mb-2 leading-snug" style={{ color: "#FFFFFF", letterSpacing: "-0.02em" }}>
             {i18n.t("dashboard.common.fra2dTegningTilInteraktiv")}
           </h2>
-          <p className="text-sm mb-5 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+          <p className="text-sm mb-5 leading-relaxed" style={{ color: "rgba(255,255,255,0.85)" }}>
             {i18n.t("dashboard.plan3d.uploadDinPlantegningAiOmdanner")}
           </p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 2xl:grid-cols-3 gap-3">
             {([
               { step: "01", label: i18n.t("dashboard.plan3d.tredjeDStep1Label"), desc: i18n.t("dashboard.plan3d.uploadEnSimpelPlantegningTegnet") },
               { step: "02", label: i18n.t("dashboard.plan3d.aiGenererer3dBillede"), desc: i18n.t("dashboard.plan3d.artificialIntelligenceMoeblererOgBygger") },
               { step: "03", label: i18n.t("dashboard.plan3d.interaktiv3dModel"), desc: i18n.t("dashboard.plan3d.koeberRotererOgUdforskerAlle") },
             ] as const).map(({ step, label, desc }) => (
               <div key={step} className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <p className="text-[10px] font-bold tracking-[0.14em] uppercase mb-1.5" style={{ color: "#C8956C" }}>{i18n.t("dashboard.plan3d.trin")} {step}</p>
-                <p className="text-[13px] font-semibold mb-1 leading-tight" style={{ color: "#FFFFFF" }}>{label}</p>
-                <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>{desc}</p>
+                <p className="text-xs font-bold tracking-[0.08em] uppercase mb-1.5" style={{ color: "#E9BE97" }}>{i18n.t("dashboard.plan3d.trin")} {step}</p>
+                <p className="text-sm font-semibold mb-1 leading-tight" style={{ color: "#FFFFFF" }}>{label}</p>
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>{desc}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Eksempel */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6">
-        <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{i18n.t("dashboard.plan3d.seEksempel")}</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.plan3d.inputTwoDPlantegning")}</p>
-            <img src="/bolig-images/floorplan-2d.jpg" alt={i18n.t("dashboard.plan3d.twoDPlantegningEksempel")} className="w-full rounded-xl object-contain bg-[#F8F6F3]" style={{ aspectRatio: "5/4" }} />
-          </div>
-          <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.plan3d.outputThreeDDukkehus")}</p>
-            <img src="/bolig-images/floorplan-3d.jpg" alt={i18n.t("dashboard.plan3d.threeDPlantegningEksempel")} className="w-full rounded-xl object-contain bg-[#F8F6F3]" style={{ aspectRatio: "5/4" }} />
-          </div>
-        </div>
-      </div>
       </div>
 
-        <div className="rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm" style={{ order: 1 }}>
+        <div className="min-w-0 rounded-2xl border border-[#E8E4DE] bg-white p-6 md:p-8 space-y-6 shadow-sm" style={{ order: 1 }}>
           <div>
             <label className="text-xs font-semibold tracking-wider uppercase mb-3 block" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.plan3d.plantegningTwoD")}</label>
             {!imagePreview ? (
@@ -3506,7 +3747,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
                   const f = e.dataTransfer.files?.[0];
                   if (f) handleFile(f);
                 }}
-                className="block cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-300 group hover:bg-[#C8956C]/[0.02]"
+                 className="flex flex-col items-center justify-center lg:min-h-[290px] cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-300 group hover:bg-[#C8956C]/[0.02]"
                 style={{ borderColor: isDragging ? "#C8956C" : "#D9D5CF", background: isDragging ? "rgba(200,149,108,0.04)" : "#F8F6F3" }}
                 data-testid="dropzone-floorplan-image"
               >
@@ -3527,7 +3768,8 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DE] shadow-sm">
                 <img src={imagePreview} alt={i18n.t("dashboard.plan3d.plantegningAlt")} className="w-full max-h-[400px] object-contain bg-[#F8F6F3]" data-testid="img-floorplan-preview" />
                 <button
-                  onClick={() => confirmDiscardOr(() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setSaveCaseId(null); })}
+                  onClick={reset}
+                  aria-label={i18n.t("dashboard.upload.fjernBillede")}
                   className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 flex items-center justify-center shadow-md hover:bg-white transition-transform hover:scale-105"
                   data-testid="button-clear-floorplan-image"
                 >
@@ -3537,7 +3779,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
             )}
           </div>
 
-        <QuotaGate feature="floorPlan">
+        {flowStep === 2 && <QuotaGate feature="floorPlan">
           <button
             onClick={handleGenerate}
             disabled={!imageFile || isGenerating}
@@ -3557,7 +3799,7 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
               </>
             )}
           </button>
-        </QuotaGate>
+        </QuotaGate>}
 
         {error && (
           <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.08)", color: "#B91C1C" }} data-testid="text-floorplan-error">
@@ -3565,114 +3807,91 @@ function Floorplan3DFlow({ cases }: { cases: ApiCase[] }) {
           </div>
         )}
 
-        {resultUrl && (
-          <>
-            <div className="rounded-xl overflow-hidden border border-[#E8E4DE]">
-              {imagePreview ? (
-                <div data-testid="slider-floorplan-compare">
-                  <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={displayUrl!} />
+      </div>
+      {/* Eksempel: samme bredde som resten af flowet, uden at presse formularen sammen. */}
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 lg:col-span-2" style={{ order: 3 }}>
+        <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9C6338" }}>{i18n.t("dashboard.plan3d.seEksempel")}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="min-w-0">
+            <p className="text-sm font-medium mb-2" style={{ color: "#4A4A4A" }}>{i18n.t("dashboard.plan3d.inputTwoDPlantegning")}</p>
+            <img src="/bolig-images/floorplan-2d.jpg" alt={i18n.t("dashboard.plan3d.twoDPlantegningEksempel")} className="w-full h-[280px] xl:h-[350px] rounded-xl object-contain bg-[#F8F6F3]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium mb-2" style={{ color: "#4A4A4A" }}>{i18n.t("dashboard.plan3d.outputThreeDDukkehus")}</p>
+            <img src="/bolig-images/floorplan-3d.jpg" alt={i18n.t("dashboard.plan3d.threeDPlantegningEksempel")} className="w-full h-[280px] xl:h-[350px] rounded-xl object-contain bg-[#F8F6F3]" />
+          </div>
+        </div>
+      </div>
+      </div>
+      }
+
+      {flowStep === 3 && (
+        <div className="min-w-0">
+          {isGenerating ? (
+            <div className="rounded-2xl border border-[#E8E4DE] bg-white min-h-[360px] flex flex-col items-center justify-center gap-4 p-8 text-center" aria-live="polite">
+              <RotateCcw className="w-9 h-9 animate-spin" style={{ color: "#C8956C" }} />
+              <h2 className="text-xl font-semibold" style={{ color: "#0F1D2F" }}>{i18n.t("dashboard.plan3d.genererer3dPlantegning")}</h2>
+            </div>
+          ) : resultUrl ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.resultLabel")}</h2>
+                  <p className="text-sm mt-1" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.plan3d.traekSliderenForAtSammenligne")}</p>
                 </div>
-              ) : (
-                <img src={displayUrl!} alt={i18n.t("dashboard.plan3d.tredjeDPlantegningAlt")} className="w-full block" data-testid="img-floorplan-result" />
-              )}
-              <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-xs" style={{ color: "#6B6B6B" }}>
-                <Sparkles className="w-3 h-3" style={{ color: "#C8956C" }} />
-                {tripoRenderedUrl
-                  ? i18n.t("dashboard.plan3d.aiRenderKlarTil360")
-                  : imagePreview ? i18n.t("dashboard.plan3d.traekSliderenForAtSammenligne") : i18n.t("dashboard.plan3d.aiGenereret3dRender")}
+                <button type="button" onClick={reset} className="h-10 px-5 rounded-full border border-[#D9D5CF] bg-white text-sm font-semibold hover:border-[#C8956C]" style={{ color: "#0F1D2F" }}>
+                  {i18n.t("dashboard.upload.nytBillede")}
+                </button>
               </div>
-            </div>
-
-            <FloorplanTripo3DViewer
-              resultUrl={resultUrl}
-              cases={activeCases}
-              onRenderedImage={(url) => setTripoRenderedUrl(url)}
-            />
-
-            <div className="flex flex-wrap gap-3">
-              <DownloadMenu
-                url={displayUrl!}
-                style="3d-floorplan"
-                variant="primary"
-                testIdPrefix="floorplan-download"
-              />
-
-              {activeCases.length > 0 && (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setShowCaseDropdown((v) => !v)}
-                    className="h-11 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
-                    style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
-                    data-testid="button-floorplan-save-case"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    {saveCaseId ? i18n.t("dashboard.common.gemtTilMappe") : i18n.t("dashboard.common.gemTilMappe")}
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                  {showCaseDropdown && (
-                    <div className="absolute left-0 top-full mt-1 w-56 rounded-xl shadow-xl border border-[#E8E4DE] bg-white z-20 py-1">
-                      {activeCases.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={async () => {
-                            setShowCaseDropdown(false);
-                            setSaveCaseId(c.id);
-                            try {
-                              const token = await user?.getIdToken();
-                              const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                },
-                                body: JSON.stringify({
-                                  imageUrl: displayUrl,
-                                  originalImageUrl: originalUrl,
-                                  roomType: "floorplan",
-                                  style: "3d-floorplan",
-                                  budgetTier: "tier2",
-                                  promptText: "3D plantegning genereret af AI",
-                                  isDesignAgent: true,
-                                }),
-                              });
-                              if (!r.ok) {
-                                setSaveCaseId(null);
-                                const msg = await r.text().catch(() => "");
-                                alert(`${i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")} ${msg}`);
-                                return;
-                              }
-                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
-                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
-                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
-                              queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-                              if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-                              resetTimerRef.current = setTimeout(() => {
-                                resetTimerRef.current = null;
-                                setImageFile(null); setImagePreview(null); setOriginalUrl(null);
-                                setResultUrl(null); setError(null); setSaveCaseId(null);
-                              }, 1500);
-                            } catch (err) {
-                              setSaveCaseId(null);
-                              alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen"));
-                            }
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[#F5F3EF] transition-colors text-left"
-                          style={{ color: "#1A1A1A" }}
-                          data-testid={`button-floorplan-save-case-${c.id}`}
-                        >
-                          <Home className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9B9690" }} />
-                          <span className="truncate">{c.address}</span>
-                        </button>
-                      ))}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start min-w-0">
+                <div className="min-w-0 space-y-5">
+                  <div className="rounded-2xl overflow-hidden border border-[#E8E4DE] bg-white">
+                    {imagePreview ? (
+                      <div data-testid="slider-floorplan-compare">
+                        <BeforeAfterSlider beforeSrc={imagePreview} afterSrc={displayUrl!} />
+                      </div>
+                    ) : (
+                      <img src={displayUrl!} alt={i18n.t("dashboard.plan3d.tredjeDPlantegningAlt")} className="w-full block" data-testid="img-floorplan-result" />
+                    )}
+                    <div className="p-3 bg-[#F8F6F3] flex items-center gap-2 text-sm" style={{ color: "#4A4A4A" }}>
+                      <Sparkles className="w-4 h-4 shrink-0" style={{ color: "#C8956C" }} />
+                      {tripoRenderedUrl
+                        ? i18n.t("dashboard.plan3d.aiRenderKlarTil360")
+                        : imagePreview ? i18n.t("dashboard.plan3d.traekSliderenForAtSammenligne") : i18n.t("dashboard.plan3d.aiGenereret3dRender")}
                     </div>
-                  )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <DownloadMenu url={displayUrl!} style="3d-floorplan" variant="primary" testIdPrefix="floorplan-download" />
+                    <SaveToCaseButton
+                      cases={activeCases}
+                      mediaUrl={resultUrl}
+                      originalUrl={originalUrl}
+                      generatedImageId={savedImageId}
+                      assignedCaseId={resultAssignedCaseId}
+                      roomType="floorplan"
+                      style="3d-floorplan"
+                      budgetTier="tier2"
+                      promptText="3D plantegning genereret af AI"
+                      isDesignAgent
+                      testIdPrefix="floorplan-save-case"
+                      onSaved={(caseId) => { setSaveCaseId(caseId); setResultAssignedCaseId(caseId); }}
+                    />
+                  </div>
+                  <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
                 </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-      </div>
+                <div className="min-w-0">
+                  <FloorplanTripo3DViewer
+                    resultUrl={resultUrl}
+                    cases={activeCases}
+                    launchCase={resultLaunchCase}
+                    onRenderedImage={setTripoRenderedUrl}
+                  />
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -3719,10 +3938,29 @@ interface FilmCandidate { id: number; before: string; after: string; roomType: s
 const MOOD_LABELS_WT: Record<string, string> = { calm: "dashboard.film.rolig", uplifting: "dashboard.film.oploeftende", modern: "dashboard.film.moderne", tension: "dashboard.film.spaendt" };
 const ALL_MOODS_WT = ["calm", "uplifting", "modern", "tension"] as const;
 
-function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCases: () => void }) {
+function TransformVideoFlow({
+  cases,
+  onOpenCases,
+  launchCase,
+  launchRequestId,
+  launchMode,
+}: {
+  cases: ApiCase[];
+  onOpenCases: () => void;
+  launchCase: LaunchCase | null;
+  launchRequestId: number;
+  launchMode: "cinematic" | "morph" | null;
+}) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const autoSave = useCaseOutputAutosave();
   const [videoMode, setVideoMode] = useState<"cinematic" | "morph" | "magic">("cinematic");
+  const lastLaunchRequestId = useRef(launchRequestId);
+  useEffect(() => {
+    if (launchRequestId === lastLaunchRequestId.current) return;
+    lastLaunchRequestId.current = launchRequestId;
+    if (launchMode) setVideoMode(launchMode);
+  }, [launchRequestId, launchMode]);
 
   // ── Morph mode state ────────────────────────────────────────────────────────
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
@@ -3773,6 +4011,15 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   const magicDropdownRef = useRef<HTMLDivElement>(null);
 
   const activeCases = cases.filter((c) => c.status !== "sold");
+  const morphSaveVersionRef = useRef(0);
+  const morphSaveAttemptRef = useRef<SaveAttemptIdentity | null>(null);
+  const morphDeliveryTrackersRef = useRef(new Map<number, OutputDeliveryTracker>());
+  const magicSaveVersionRef = useRef(0);
+  const magicSaveAttemptRef = useRef<SaveAttemptIdentity | null>(null);
+  const magicDeliveryTrackersRef = useRef(new Map<number, OutputDeliveryTracker>());
+  const wtSaveVersionRef = useRef(0);
+  const wtSaveAttemptRef = useRef<SaveAttemptIdentity | null>(null);
+  const wtDeliveryTrackersRef = useRef(new Map<number, OutputDeliveryTracker>());
 
   const morphHasUnsaved = !!morphVideoUrl && morphSaveCaseId === null;
   const wtHasUnsaved = wtVideoUrls !== null && Object.keys(wtVideoUrls).length > 0 && wtSaveCaseId === null;
@@ -3827,6 +4074,9 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   }, [magicShowCaseDropdown]);
   const handleFile = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMorphError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
+    const version = ++morphSaveVersionRef.current;
+    morphSaveAttemptRef.current = makeSaveAttempt(version, `input:${side}:${file.name}`);
+    morphDeliveryTrackersRef.current.clear();
     setMorphError(null);
     setMorphVideoUrl(null);
     setMorphSaveCaseId(null);
@@ -3843,6 +4093,11 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   // ── Morph: generate ─────────────────────────────────────────────────────────
   const handleMorphGenerate = async () => {
     if (!beforeFile || !afterFile) return;
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    const version = ++morphSaveVersionRef.current;
+    const pendingAttempt = makeSaveAttempt(version, `pending-morph:${version}`);
+    morphSaveAttemptRef.current = pendingAttempt;
+    morphDeliveryTrackersRef.current.clear();
     setMorphGenerating(true);
     setMorphProgressStep(1);
     setMorphError(null);
@@ -3880,9 +4135,40 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
         if (sdata.status === "FAILED") throw new Error(sdata.message || i18n.t("dashboard.common.genereringMislykkedes2"));
       }
       if (!finalUrl) throw new Error(i18n.t("dashboard.common.genereringTogForLangTid"));
+      if (!isCurrentSaveAttempt(morphSaveAttemptRef.current, pendingAttempt)) return;
       setMorphVideoUrl(finalUrl);
+      const attempt = makeSaveAttempt(version, `morph:${finalUrl}`);
+      morphSaveAttemptRef.current = attempt;
+      if (capturedLaunchCase) {
+        morphDeliveryTrackersRef.current.set(capturedLaunchCase.id, beginOutputDelivery(attempt, capturedLaunchCase.id, [attempt.identity]));
+      }
+      const acknowledgeMorphSave = () => {
+        if (!capturedLaunchCase) return;
+        const caseId = acknowledgeSavedOutput(
+          morphDeliveryTrackersRef.current,
+          morphSaveAttemptRef.current,
+          attempt,
+          capturedLaunchCase.id,
+          attempt.identity,
+        );
+        if (caseId != null) setMorphSaveCaseId(caseId);
+      };
+      const saveResult = await autoSave.save(capturedLaunchCase, {
+        imageUrl: finalUrl,
+        originalImageUrl: beforePreview,
+        roomType: "transform-video",
+        style: "transform-video-morph",
+        budgetTier: "tier2",
+        promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"),
+        isDesignAgent: true,
+        language: i18n.language,
+        onSaved: acknowledgeMorphSave,
+      });
+      if (saveResult.saved) acknowledgeMorphSave();
     } catch (err: any) {
-      setMorphError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
+      if (isCurrentSaveAttempt(morphSaveAttemptRef.current, pendingAttempt)) {
+        setMorphError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
+      }
     } finally {
       setMorphGenerating(false);
       setMorphProgressStep(0);
@@ -3891,6 +4177,9 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
 
   const handleMorphReset = () => {
     if (morphHasUnsaved && !window.confirm(i18n.t("dashboard.film.erDuSikkerPaaDu"))) return;
+    const version = ++morphSaveVersionRef.current;
+    morphSaveAttemptRef.current = makeSaveAttempt(version, "reset");
+    morphDeliveryTrackersRef.current.clear();
     setBeforeFile(null); setBeforePreview(null);
     setAfterFile(null); setAfterPreview(null);
     setMorphVideoUrl(null);
@@ -3901,20 +4190,23 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   const morphSaveToCase = async (c: ApiCase) => {
     if (!morphVideoUrl) return;
     setMorphShowCaseDropdown(false);
-    setMorphSaveCaseId(c.id);
+    setMorphSaveCaseId(null);
+    const mediaUrl = morphVideoUrl;
+    const attempt = morphSaveAttemptRef.current;
     try {
       const token = await user?.getIdToken();
       const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ imageUrl: morphVideoUrl, originalImageUrl: null, roomType: "transform-video", style: "transform-video", budgetTier: "tier2", promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"), isDesignAgent: true, language: i18n.language }),
+        body: JSON.stringify({ imageUrl: mediaUrl, originalImageUrl: null, roomType: "transform-video", style: "transform-video", budgetTier: "tier2", promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"), isDesignAgent: true, language: i18n.language }),
       });
-      if (!r.ok) { setMorphSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); return; }
+      if (!r.ok) { alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); return; }
+      if (attempt && isCurrentSaveAttempt(morphSaveAttemptRef.current, attempt) && morphVideoUrl === mediaUrl) setMorphSaveCaseId(c.id);
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-    } catch { setMorphSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
+    } catch { alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
   const handleMorphDownload = async () => {
@@ -3927,6 +4219,9 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   // ── Magisk transformation handlers ──────────────────────────────────────────
   const handleMagicUpload = (side: "before" | "after", file: File) => {
     if (!file.type.startsWith("image/")) { setMagicError(i18n.t("dashboard.plan3d.vaelgVenligstEnBilledfil")); return; }
+    const version = ++magicSaveVersionRef.current;
+    magicSaveAttemptRef.current = makeSaveAttempt(version, `input:${side}:${file.name}`);
+    magicDeliveryTrackersRef.current.clear();
     setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
     if (side === "before") { setMagicBeforeFile(file); setMagicBeforePreview(URL.createObjectURL(file)); }
     else { setMagicAfterFile(file); setMagicAfterPreview(URL.createObjectURL(file)); }
@@ -3934,6 +4229,9 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
 
   const handleMagicReset = () => {
     if (magicHasUnsaved && !window.confirm(i18n.t("dashboard.film.erDuSikkerPaaDu"))) return;
+    const version = ++magicSaveVersionRef.current;
+    magicSaveAttemptRef.current = makeSaveAttempt(version, "reset");
+    magicDeliveryTrackersRef.current.clear();
     setMagicBeforeFile(null); setMagicBeforePreview(null);
     setMagicAfterFile(null); setMagicAfterPreview(null);
     setMagicVideoUrl(null); setMagicSaveCaseId(null); setMagicError(null);
@@ -3941,6 +4239,11 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
 
   const handleMagicGenerate = async () => {
     if (!magicBeforeFile || !magicAfterFile) return;
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    const version = ++magicSaveVersionRef.current;
+    const pendingAttempt = makeSaveAttempt(version, `pending-magic:${version}`);
+    magicSaveAttemptRef.current = pendingAttempt;
+    magicDeliveryTrackersRef.current.clear();
     setMagicGenerating(true); setMagicError(null); setMagicVideoUrl(null); setMagicSaveCaseId(null);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -3970,9 +4273,40 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
         if (sdata.status === "FAILED") throw new Error(sdata.message || i18n.t("dashboard.common.genereringMislykkedes2"));
       }
       if (!finalUrl) throw new Error(i18n.t("dashboard.common.genereringTogForLangTid"));
+      if (!isCurrentSaveAttempt(magicSaveAttemptRef.current, pendingAttempt)) return;
       setMagicVideoUrl(finalUrl);
+      const attempt = makeSaveAttempt(version, `magic:${finalUrl}`);
+      magicSaveAttemptRef.current = attempt;
+      if (capturedLaunchCase) {
+        magicDeliveryTrackersRef.current.set(capturedLaunchCase.id, beginOutputDelivery(attempt, capturedLaunchCase.id, [attempt.identity]));
+      }
+      const acknowledgeMagicSave = () => {
+        if (!capturedLaunchCase) return;
+        const caseId = acknowledgeSavedOutput(
+          magicDeliveryTrackersRef.current,
+          magicSaveAttemptRef.current,
+          attempt,
+          capturedLaunchCase.id,
+          attempt.identity,
+        );
+        if (caseId != null) setMagicSaveCaseId(caseId);
+      };
+      const saveResult = await autoSave.save(capturedLaunchCase, {
+        imageUrl: finalUrl,
+        originalImageUrl: magicBeforePreview,
+        roomType: "magic-transform",
+        style: "magic-transform",
+        budgetTier: "tier2",
+        promptText: "Magisk transformation",
+        isDesignAgent: true,
+        language: i18n.language,
+        onSaved: acknowledgeMagicSave,
+      });
+      if (saveResult.saved) acknowledgeMagicSave();
     } catch (err: any) {
-      setMagicError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
+      if (isCurrentSaveAttempt(magicSaveAttemptRef.current, pendingAttempt)) {
+        setMagicError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
+      }
     } finally {
       setMagicGenerating(false);
     }
@@ -3981,20 +4315,23 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   const magicSaveToCase = async (c: ApiCase) => {
     if (!magicVideoUrl) return;
     setMagicShowCaseDropdown(false);
-    setMagicSaveCaseId(c.id);
+    setMagicSaveCaseId(null);
+    const mediaUrl = magicVideoUrl;
+    const attempt = magicSaveAttemptRef.current;
     try {
       const token = await user?.getIdToken();
       const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ imageUrl: magicVideoUrl, originalImageUrl: null, roomType: "magic-transform", style: "magic-transform", budgetTier: "tier2", promptText: "Magisk transformation", isDesignAgent: true, language: i18n.language }),
+        body: JSON.stringify({ imageUrl: mediaUrl, originalImageUrl: null, roomType: "magic-transform", style: "magic-transform", budgetTier: "tier2", promptText: "Magisk transformation", isDesignAgent: true, language: i18n.language }),
       });
-      if (!r.ok) { setMagicSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeTilMappen")); return; }
+      if (!r.ok) { alert(i18n.t("dashboard.film.kunneIkkeGemmeTilMappen")); return; }
+      if (attempt && isCurrentSaveAttempt(magicSaveAttemptRef.current, attempt) && magicVideoUrl === mediaUrl) setMagicSaveCaseId(c.id);
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-    } catch { setMagicSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
+    } catch { alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
   };
 
   const handleMagicDownload = async () => {
@@ -4007,12 +4344,20 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
   // ── Forvandlingsfilm handlers ───────────────────────────────────────────────
   const tfToggle = (id: number) => {
     if (wtGenerating) return;
+    const version = ++wtSaveVersionRef.current;
+    wtSaveAttemptRef.current = makeSaveAttempt(version, `selection:${id}`);
+    wtDeliveryTrackersRef.current.clear();
     setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null);
     setTfSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : (prev.length >= 8 ? prev : [...prev, id]));
   };
 
   const handleWtGenerate = async () => {
     if (tfSelected.length < 2) { setWtError(i18n.t("dashboard.film.vaelgMindst2DesignsFra")); return; }
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    const version = ++wtSaveVersionRef.current;
+    const pendingAttempt = makeSaveAttempt(version, `pending-wt:${version}`);
+    wtSaveAttemptRef.current = pendingAttempt;
+    wtDeliveryTrackersRef.current.clear();
     setWtGenerating(true); setWtError(null); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtProgressMsg(i18n.t("dashboard.film.forbereder"));
     if (wtEsRef.current) { wtEsRef.current.close(); wtEsRef.current = null; }
     try {
@@ -4027,6 +4372,8 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
       const data = await res.json();
       if (!res.ok || !data.success || !data.job_id) throw new Error(data.message || i18n.t("dashboard.film.indsendelseMislykkedes"));
       const jobId = data.job_id as string;
+      let completedVideoUrls: Record<string, string> = {};
+      let deliveryAttempt: SaveAttemptIdentity | null = null;
       await new Promise<void>((resolve, reject) => {
         const TIMEOUT_MS = 60 * 60 * 1000;
         const MAX_RETRIES = 12;
@@ -4045,7 +4392,28 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
               if (p.message) setWtProgressMsg(p.message);
               if (p.stage === "complete" && p.videoUrls) {
                 clearTimeout(deadlineTimer); es.close(); wtEsRef.current = null;
-                if (!settled) { settled = true; setWtVideoUrls(p.videoUrls); if (p.cleanVideoUrls) setWtCleanVideoUrls(p.cleanVideoUrls); resolve(); }
+                if (!settled) {
+                  settled = true;
+                  if (!isCurrentSaveAttempt(wtSaveAttemptRef.current, pendingAttempt)) {
+                    resolve();
+                    return;
+                  }
+                  completedVideoUrls = p.videoUrls;
+                  const delivered = Object.entries(p.videoUrls).filter((entry): entry is [string, string] => !!entry[1]);
+                  const identity = `wt:${delivered.map(([key, url]) => `${key}:${url}`).sort().join("|")}`;
+                  deliveryAttempt = makeSaveAttempt(version, identity);
+                  wtSaveAttemptRef.current = deliveryAttempt;
+                  wtDeliveryTrackersRef.current.clear();
+                  if (capturedLaunchCase && delivered.length) {
+                    wtDeliveryTrackersRef.current.set(
+                      capturedLaunchCase.id,
+                      beginOutputDelivery(deliveryAttempt, capturedLaunchCase.id, delivered.map(([key, url]) => `${key}:${url}`)),
+                    );
+                  }
+                  setWtVideoUrls(p.videoUrls);
+                  if (p.cleanVideoUrls) setWtCleanVideoUrls(p.cleanVideoUrls);
+                  resolve();
+                }
               } else if (p.stage === "failed") {
                 clearTimeout(deadlineTimer); es.close(); wtEsRef.current = null;
                 if (!settled) { settled = true; reject(new Error(p.message || i18n.t("dashboard.common.genereringMislykkedes2"))); }
@@ -4063,30 +4431,106 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
         };
         resetDeadline(); connect();
       });
-    } catch (err: any) { setWtError(err.message || i18n.t("dashboard.common.nogetGikGalt")); }
+      if (capturedLaunchCase && deliveryAttempt) {
+        const deliveries = Object.entries(completedVideoUrls).filter((entry): entry is [string, string] => !!entry[1]);
+        const saveResults = await Promise.all(deliveries.map(async ([mood, url], index) => {
+          const outputKey = `${mood}:${url}`;
+          const acknowledgeWtOutput = () => {
+            const caseId = acknowledgeSavedOutput(
+              wtDeliveryTrackersRef.current,
+              wtSaveAttemptRef.current,
+              deliveryAttempt!,
+              capturedLaunchCase.id,
+              outputKey,
+            );
+            if (caseId != null) {
+              setWtSaveCaseId(caseId);
+              setWtError(null);
+            }
+          };
+          const result = await autoSave.save(capturedLaunchCase, {
+          imageUrl: url,
+          roomType: "transform-video",
+          style: `transform-video-${index + 1}`,
+          budgetTier: "tier2",
+          promptText: i18n.t("dashboard.film.forvandlingsvideoFoerEfter"),
+          isDesignAgent: true,
+          language: i18n.language,
+          onSaved: acknowledgeWtOutput,
+        });
+          if (result.saved) acknowledgeWtOutput();
+          return result;
+        }));
+        if (
+          saveResults.some((result) => !result.saved) &&
+          isCurrentSaveAttempt(wtSaveAttemptRef.current, deliveryAttempt)
+        ) setWtError(i18n.t("dashboard.film.kunneIkkeGemmeVideoTilMappen"));
+      }
+    } catch (err: any) {
+      if (isCurrentSaveAttempt(wtSaveAttemptRef.current, pendingAttempt)) {
+        setWtError(err.message || i18n.t("dashboard.common.nogetGikGalt"));
+      }
+    }
     finally { setWtGenerating(false); setWtProgressMsg(""); }
   };
 
   const handleWtReset = () => {
     if (wtHasUnsaved && !window.confirm(i18n.t("dashboard.film.erDuSikkerPaaDu2"))) return;
+    const version = ++wtSaveVersionRef.current;
+    wtSaveAttemptRef.current = makeSaveAttempt(version, "reset");
+    wtDeliveryTrackersRef.current.clear();
     setTfSelected([]); setWtVideoUrls(null); setWtCleanVideoUrls(null); setWtSaveCaseId(null); setWtError(null);
   };
 
   const wtSaveToCase = async (c: ApiCase) => {
     if (!wtVideoUrls) return;
-    setWtShowCaseDropdown(false); setWtSaveCaseId(c.id);
+    setWtShowCaseDropdown(false);
+    setWtError(null);
+    setWtSaveCaseId(null);
+    const attempt = wtSaveAttemptRef.current;
+    if (!attempt || !isCurrentSaveAttempt(wtSaveAttemptRef.current, attempt)) return;
+    const deliveries = ALL_MOODS_WT
+      .filter((mood) => !!wtVideoUrls[mood])
+      .map((mood) => ({ mood, url: wtVideoUrls[mood]!, key: `${mood}:${wtVideoUrls[mood]}` }));
+    if (!deliveries.length) return;
+    wtDeliveryTrackersRef.current.set(
+      c.id,
+      beginOutputDelivery(attempt, c.id, deliveries.map((delivery) => delivery.key)),
+    );
     try {
-      const token = await user?.getIdToken();
-      const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-      for (const mood of ALL_MOODS_WT.filter((m) => wtVideoUrls[m])) {
-        const r = await fetch(`/api/bolig/cases/${c.id}/images`, { method: "POST", headers, body: JSON.stringify({ imageUrl: wtVideoUrls[mood], originalImageUrl: wtCleanVideoUrls?.[mood] ?? null, roomType: "transform-film", style: `transform-film-${mood}`, budgetTier: "tier2", promptText: `Forvandlingsfilm — ${i18n.t(MOOD_LABELS_WT[mood])} stemning`, isDesignAgent: true }) });
-        if (!r.ok) { setWtSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeVideoTilMappen")); return; }
+      const results = await Promise.all(deliveries.map(async ({ mood, url, key }) => {
+        const acknowledge = () => {
+          const acknowledged = acknowledgeSavedOutput(
+            wtDeliveryTrackersRef.current,
+            wtSaveAttemptRef.current,
+            attempt,
+            c.id,
+            key,
+          );
+          if (acknowledged != null) setWtSaveCaseId(acknowledged);
+        };
+        const result = await autoSave.save({ id: c.id, address: c.address }, {
+          imageUrl: url,
+          originalImageUrl: wtCleanVideoUrls?.[mood] ?? null,
+          roomType: "transform-film",
+          style: `transform-film-${mood}`,
+          budgetTier: "tier2",
+          promptText: `Forvandlingsfilm — ${i18n.t(MOOD_LABELS_WT[mood])} stemning`,
+          isDesignAgent: true,
+          onSaved: acknowledge,
+        });
+        if (result.saved) acknowledge();
+        return result;
+      }));
+      if (
+        results.some((result) => !result.saved) &&
+        isCurrentSaveAttempt(wtSaveAttemptRef.current, attempt)
+      ) setWtError(i18n.t("dashboard.film.kunneIkkeGemmeVideoTilMappen"));
+    } catch {
+      if (isCurrentSaveAttempt(wtSaveAttemptRef.current, attempt)) {
+        setWtError(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen"));
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-    } catch { setWtSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
+    }
   };
 
   const handleWtDownload = async (url: string, mood: string) => {
@@ -4115,7 +4559,13 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
       ) : (
         <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
           <img src={preview} alt={label} className="w-full h-64 object-contain" data-testid={`img-video-${side}-preview`} />
-          <button onClick={() => { if (side === "before") { setBeforeFile(null); setBeforePreview(null); } else { setAfterFile(null); setAfterPreview(null); } setMorphVideoUrl(null); setMorphSaveCaseId(null); }} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white" data-testid={`button-clear-video-${side}`}>
+          <button onClick={() => {
+            const version = ++morphSaveVersionRef.current;
+            morphSaveAttemptRef.current = makeSaveAttempt(version, `clear:${side}`);
+            morphDeliveryTrackersRef.current.clear();
+            if (side === "before") { setBeforeFile(null); setBeforePreview(null); } else { setAfterFile(null); setAfterPreview(null); }
+            setMorphVideoUrl(null); setMorphSaveCaseId(null);
+          }} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white" data-testid={`button-clear-video-${side}`}>
             <X className="w-4 h-4" style={{ color: "#0F1D2F" }} />
           </button>
         </div>
@@ -4127,6 +4577,7 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
     <div className="w-full min-w-0">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.film.transformeringVideo")}</h1>
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
         <p className="text-sm" style={{ color: "#6B6B6B" }}>
           {videoMode === "cinematic" ? i18n.t("dashboard.film.vaelg28AfDine") : videoMode === "morph" ? i18n.t("dashboard.film.uploadEtFoerBilledeOg") : i18n.t("dashboard.film.uploadEtFoerOgEt")}
         </p>
@@ -4432,7 +4883,13 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
                 ) : (
                   <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
                     <img src={magicBeforePreview} alt={i18n.t("dashboard.film.foerBillede")} className="w-full h-40 object-cover" data-testid="img-magic-before" />
-                    <button onClick={() => { setMagicBeforeFile(null); setMagicBeforePreview(null); }} disabled={magicGenerating} aria-label={i18n.t("dashboard.film.fjernFoerBillede")} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-before">
+                    <button onClick={() => {
+                      const version = ++magicSaveVersionRef.current;
+                      magicSaveAttemptRef.current = makeSaveAttempt(version, "clear:before");
+                      magicDeliveryTrackersRef.current.clear();
+                      setMagicBeforeFile(null); setMagicBeforePreview(null);
+                      setMagicVideoUrl(null); setMagicSaveCaseId(null);
+                    }} disabled={magicGenerating} aria-label={i18n.t("dashboard.film.fjernFoerBillede")} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-before">
                       <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
                     </button>
                   </div>
@@ -4457,7 +4914,13 @@ function TransformVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCa
                 ) : (
                   <div className="relative rounded-xl overflow-hidden border border-[#E8E4DE] bg-[#F8F6F3]">
                     <img src={magicAfterPreview} alt={i18n.t("dashboard.film.efterBillede")} className="w-full h-40 object-cover" data-testid="img-magic-after" />
-                    <button onClick={() => { setMagicAfterFile(null); setMagicAfterPreview(null); }} disabled={magicGenerating} aria-label={i18n.t("dashboard.film.fjernEfterBillede")} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-after">
+                    <button onClick={() => {
+                      const version = ++magicSaveVersionRef.current;
+                      magicSaveAttemptRef.current = makeSaveAttempt(version, "clear:after");
+                      magicDeliveryTrackersRef.current.clear();
+                      setMagicAfterFile(null); setMagicAfterPreview(null);
+                      setMagicVideoUrl(null); setMagicSaveCaseId(null);
+                    }} disabled={magicGenerating} aria-label={i18n.t("dashboard.film.fjernEfterBillede")} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-sm hover:bg-white disabled:opacity-50" data-testid="button-clear-magic-after">
                       <X className="w-3.5 h-3.5" style={{ color: "#0F1D2F" }} />
                     </button>
                   </div>
@@ -4712,9 +5175,10 @@ interface RendyVideo {
   edited?: boolean;
 }
 
-function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCases: () => void }) {
+function ShowcaseVideoFlow({ cases, onOpenCases, launchCase }: { cases: ApiCase[]; onOpenCases: () => void; launchCase: LaunchCase | null }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const autoSave = useCaseOutputAutosave();
   const [images, setImages] = useState<ShowcaseImg[]>([]);
   const [ratio, setRatio] = useState<"portrait" | "landscape">("portrait");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -4745,10 +5209,70 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
   const esRef = useRef<EventSource | null>(null);
   const [showcaseSaveCaseId, setShowcaseSaveCaseId] = useState<number | null>(null);
   const [showcaseShowCaseDropdown, setShowcaseShowCaseDropdown] = useState(false);
+  const showcaseSaveVersionRef = useRef(0);
+  const showcaseSaveAttemptRef = useRef<SaveAttemptIdentity | null>(null);
+  const showcaseDeliveryTrackersRef = useRef(new Map<number, OutputDeliveryTracker>());
+  const showcaseResultTargetRef = useRef<LaunchCase | null>(null);
   const showcaseDropdownRef = useRef<HTMLDivElement>(null);
   const activeCases = cases.filter((c) => c.status !== "sold");
+  const saveShowcaseOutputs = async (
+    target: LaunchCase | null,
+    videos: RendyVideo[],
+    attempt: SaveAttemptIdentity,
+  ) => {
+    const deliveries = videos
+      .map((video, index) => ({ video, index }))
+      .filter(({ video }) => !!video.url);
+    if (!target || !deliveries.length || !isCurrentSaveAttempt(showcaseSaveAttemptRef.current, attempt)) return;
+    showcaseDeliveryTrackersRef.current.set(
+      target.id,
+      beginOutputDelivery(
+        attempt,
+        target.id,
+        deliveries.map(({ video }) => `${video.id}:${video.url}`),
+      ),
+    );
+    const results = await Promise.all(deliveries.map(async ({ video, index }) => {
+      const outputKey = `${video.id}:${video.url}`;
+      const acknowledge = () => {
+        const caseId = acknowledgeSavedOutput(
+          showcaseDeliveryTrackersRef.current,
+          showcaseSaveAttemptRef.current,
+          attempt,
+          target.id,
+          outputKey,
+        );
+        if (caseId != null) {
+          setShowcaseSaveCaseId(caseId);
+          setError(null);
+          if (!showcaseResultTargetRef.current) showcaseResultTargetRef.current = target;
+        }
+      };
+      const result = await autoSave.save(target, {
+        imageUrl: video.url!,
+        roomType: "showcase-video",
+        style: `showcase-video-${index + 1}`,
+        budgetTier: "tier2",
+        promptText: "Showcase-video",
+        isDesignAgent: true,
+        onSaved: acknowledge,
+      });
+      if (result.saved) acknowledge();
+      return result;
+    }));
+    return results;
+  };
+  const invalidateShowcaseSaveAttempt = (identity: string) => {
+    const attempt = makeSaveAttempt(++showcaseSaveVersionRef.current, identity);
+    showcaseSaveAttemptRef.current = attempt;
+    showcaseDeliveryTrackersRef.current.clear();
+    setShowcaseSaveCaseId(null);
+    return attempt;
+  };
   const showcaseResultStorageKey = user?.uid ? `forma-showcase-result:${user.uid}` : null;
   useEffect(() => {
+    invalidateShowcaseSaveAttempt("user-change");
+    showcaseResultTargetRef.current = null;
     setResultVideos([]);
     setListingId(null);
     localStorage.removeItem("forma-showcase-result");
@@ -4804,31 +5328,42 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
   const showcaseSaveToCase = async (c: ApiCase) => {
     if (!resultVideos.length) return;
     setShowcaseShowCaseDropdown(false);
-    setShowcaseSaveCaseId(c.id);
+    setShowcaseSaveCaseId(null);
+    const attempt = showcaseSaveAttemptRef.current ?? invalidateShowcaseSaveAttempt(
+      `showcase-restored:${resultVideos.map((video) => `${video.id}:${video.url ?? ""}`).join("|")}`,
+    );
     try {
-      const token = await user?.getIdToken();
-      const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-      for (const [idx, video] of Array.from(resultVideos.entries())) {
-        if (!video.url) continue;
-        const r = await fetch(`/api/bolig/cases/${c.id}/images`, {
-          method: "POST", headers,
-          body: JSON.stringify({
-            imageUrl: video.url,
-            originalImageUrl: video.url,
-            roomType: "showcase-video",
-            style: `showcase-video-${idx + 1}`,
-            budgetTier: "tier2",
-            promptText: `Bolig showcase video ${idx + 1}`,
-            isDesignAgent: true,
-          }),
-        });
-        if (!r.ok) { setShowcaseSaveCaseId(null); alert(i18n.t("dashboard.film.kunneIkkeGemmeVideoTil")); return; }
+      const results = await saveShowcaseOutputs({ id: c.id, address: c.address }, resultVideos, attempt);
+      if (
+        results?.some((result) => !result.saved) &&
+        isCurrentSaveAttempt(showcaseSaveAttemptRef.current, attempt)
+      ) setError(i18n.t("dashboard.film.kunneIkkeGemmeVideoTil"));
+    } catch {
+      if (isCurrentSaveAttempt(showcaseSaveAttemptRef.current, attempt)) {
+        setError(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen"));
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-    } catch { setShowcaseSaveCaseId(null); alert(i18n.t("dashboard.common.kunneIkkeGemmeTilMappen")); }
+    }
+  };
+  const handleShowcaseOutputReady = (videoId: string, sourceUrl: string, url: string) => {
+    const currentVideo = resultVideos.find((video) => video.id === videoId);
+    if (!currentVideo || currentVideo.url !== sourceUrl) return;
+    const updatedVideos = resultVideos.map((video) =>
+      video.id === videoId ? { ...video, url, edited: true } : video,
+    );
+    setResultVideos(updatedVideos);
+    const batchIdentity = `showcase-edit:${updatedVideos.map((video) => `${video.id}:${video.url ?? ""}`).sort().join("|")}`;
+    const newAttempt = invalidateShowcaseSaveAttempt(batchIdentity);
+    const attempt = makeSaveAttempt(newAttempt.version, batchIdentity);
+    showcaseSaveAttemptRef.current = attempt;
+    const target = showcaseResultTargetRef.current;
+    if (target) {
+      void saveShowcaseOutputs(target, updatedVideos, attempt).then((results) => {
+        if (
+          results?.some((result) => !result.saved) &&
+          isCurrentSaveAttempt(showcaseSaveAttemptRef.current, attempt)
+        ) setError(i18n.t("dashboard.film.kunneIkkeGemmeVideoTil"));
+      });
+    }
   };
 
   const effectsAdded = images.filter((i) => (i.presetKey && i.presetKey !== "DEFAULT") || i.vfxKey).length;
@@ -4844,6 +5379,8 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files).filter(isImageFile);
     if (arr.length === 0) { setError(i18n.t("dashboard.film.vaelgVenligstBilledfiler")); return; }
+    invalidateShowcaseSaveAttempt("new-input");
+    showcaseResultTargetRef.current = null;
     setError(null);
     setResultVideos([]);
     setListingId(null);
@@ -4926,6 +5463,8 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
   };
 
   const removeImage = (id: string) => {
+    invalidateShowcaseSaveAttempt("removed-input");
+    showcaseResultTargetRef.current = null;
     setImages((prev) => prev.filter((i) => i.id !== id));
     if (openPanelId === id) setOpenPanelId(null);
     setResultVideos([]);
@@ -5053,6 +5592,9 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
 
   const handleGenerate = async () => {
     if (images.length < 1) { setError(i18n.t("dashboard.showcase.uploadMindst1Billede")); return; }
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    const pendingAttempt = invalidateShowcaseSaveAttempt(`pending-showcase-${showcaseSaveVersionRef.current + 1}`);
+    showcaseResultTargetRef.current = capturedLaunchCase;
     setIsGenerating(true);
     setOpenPanelId(null);
     setError(null);
@@ -5116,7 +5658,20 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
                     reject(new Error(p.message || i18n.t("dashboard.common.genereringMislykkedes2")));
                     return;
                   }
-                  setResultVideos(p.videos as RendyVideo[]);
+                  const deliveredVideos = p.videos as RendyVideo[];
+                  const identity = `showcase:${deliveredVideos.map((video) => `${video.id}:${video.url ?? ""}`).sort().join("|")}`;
+                  const attempt = makeSaveAttempt(pendingAttempt.version, identity);
+                  showcaseSaveAttemptRef.current = attempt;
+                  showcaseDeliveryTrackersRef.current.clear();
+                  setResultVideos(deliveredVideos);
+                  if (capturedLaunchCase) {
+                    void saveShowcaseOutputs(capturedLaunchCase, deliveredVideos, attempt).then((results) => {
+                      if (
+                        results?.some((result) => !result.saved) &&
+                        isCurrentSaveAttempt(showcaseSaveAttemptRef.current, attempt)
+                      ) setError(i18n.t("dashboard.film.kunneIkkeGemmeVideoTil"));
+                    });
+                  }
                   setRenderingVideos([]);
                   if (p.listingId) {
                     setListingId(p.listingId);
@@ -5184,6 +5739,8 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
 
   const handleReset = () => {
     if (resultVideos.length > 0 && !window.confirm(i18n.t("dashboard.showcase.nulstilShowcaseConfirm"))) return;
+    invalidateShowcaseSaveAttempt("reset");
+    showcaseResultTargetRef.current = null;
     setImages([]);
     setResultVideos([]);
     setListingId(null);
@@ -5208,6 +5765,7 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
 
   return (
     <div className="flex w-full min-w-0 flex-col">
+      <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
       {/* ── Crop Modal ── */}
       {cropModalImg && (
         <div
@@ -5834,7 +6392,14 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => { setImages([]); setResultVideos([]); setError(null); }}
+                onClick={() => {
+                  invalidateShowcaseSaveAttempt("clear");
+                  showcaseResultTargetRef.current = null;
+                  setImages([]);
+                  setResultVideos([]);
+                  setShowcaseSaveCaseId(null);
+                  setError(null);
+                }}
                 disabled={isGenerating}
                 className="h-10 px-4 rounded-full text-sm font-semibold border transition-all disabled:opacity-40"
                 style={{ borderColor: "#D9D5CF", color: "#6B6B6B", background: "#fff" }}
@@ -5997,14 +6562,14 @@ function ShowcaseVideoFlow({ cases, onOpenCases }: { cases: ApiCase[]; onOpenCas
                       listingId={listingId || ""}
                       duration={videoDurations[video.id]}
                       videoElementId={`showcase-video-${video.id}`}
-                      onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url, edited: true } : item))}
+                      onOutputReady={(url) => handleShowcaseOutputReady(video.id, video.url!, url)}
                     />
                     {listingId && (
                       <RendyVideoEditor
                         listingId={listingId}
                         sourceVideoId={video.id}
                         sourceVideoUrl={video.url}
-                        onOutputReady={(url) => setResultVideos((prev) => prev.map((item) => item.id === video.id ? { ...item, url, edited: true } : item))}
+                        onOutputReady={(url) => handleShowcaseOutputReady(video.id, video.url!, url)}
                       />
                     )}
                   </div>
@@ -6025,10 +6590,17 @@ interface AiTourProperty {
   name: string;
   floorplanUrl: string;
   threedPlanUrl: string | null;
+  generating3D?: boolean;
+  threedPlanGenerating?: boolean;
   style: string | null;
   tier: string | null;
   status: string;
   createdAt: string;
+}
+
+interface TourOutputAssignment {
+  caseId: number;
+  generatedImageId: number | null;
 }
 
 interface AiTourRoom {
@@ -6063,8 +6635,48 @@ const TOUR_TIER_OPTIONS: Array<{ key: "budget" | "standard" | "premium"; label: 
 const ROOM_COLORS = ["#C8956C", "#7A8F6F", "#6F8FA8", "#A87B6F", "#8B7AA8", "#A89E6F"];
 const ROOM_NAME_SUGGESTIONS = ["Stue", "Køkken", "Soveværelse", "Badeværelse", "Entré", "Spisestue", "Børneværelse", "Kontor"];
 
-function PropertyTourFlow() {
+interface TrackedTourJob {
+  jobId: string;
+  propertyId: number;
+  target: LaunchCase | null;
+  totalClips: number;
+  status: "running" | "retrieving" | "recovery-error" | "failed";
+  progress: { stage: string; currentClip: number; totalClips: number; message: string } | null;
+  error?: string;
+}
+
+function TourJobRecoveryNotices({ jobs, onRetry }: { jobs: TrackedTourJob[]; onRetry: (jobId: string) => void }) {
+  const { t } = useTranslation();
+  const errors = jobs.filter((job) => job.status === "recovery-error" || job.status === "failed");
+  if (!errors.length) return null;
+  return (
+    <div className="mb-4 space-y-2" aria-live="polite">
+      {errors.map((job) => (
+        <div key={job.jobId} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 flex flex-wrap items-center justify-between gap-2" role="alert">
+          <span>{job.error || t("dashboard.tour.genereringenMislykkedesKvotaRefunderet")}</span>
+          {job.status === "recovery-error" && (
+            <button type="button" onClick={() => onRetry(job.jobId)} className="font-bold underline">
+              {t("dashboard.caseGenerationPicker.retrySave")}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PropertyTourFlow({ cases, launchCase }: { cases: ApiCase[]; launchCase: LaunchCase | null }) {
   const queryClient = useQueryClient();
+  const autoSave = useCaseOutputAutosave();
+  const projectLaunchTargetsRef = useRef(new Map<number, LaunchCase | null>());
+  const pendingPlanTargetsRef = useRef(new Map<number, LaunchCase | null>());
+  const pendingPanoramaTargetsRef = useRef(new Map<string, { propertyId: number; roomId: number; target: LaunchCase }>());
+  const autoPanoramaStartsRef = useRef(new Set<string>());
+  const tourJobsRef = useRef(new Map<string, TrackedTourJob>());
+  const [tourJobs, setTourJobs] = useState<TrackedTourJob[]>([]);
+  const [tourOutputAssignments, setTourOutputAssignments] = useState<Record<string, TourOutputAssignment>>({});
+  const [pendingPlanPropertyIds, setPendingPlanPropertyIds] = useState<number[]>([]);
+  const [pendingPanoramaPropertyIds, setPendingPanoramaPropertyIds] = useState<number[]>([]);
   const [mode, setMode] = useState<"list" | "create" | "detail" | "final" | "tour">("list");
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -6073,6 +6685,248 @@ function PropertyTourFlow() {
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const saveTourOutput = useCallback((target: LaunchCase | null, output: CaseAutosaveOutput) => {
+    const capturedTarget = snapshotLaunchCase(target);
+    if (!capturedTarget) return;
+    const recordSavedOutput = (result: { saved: boolean; generatedImageId: number | null }) => {
+      if (!result.saved) return;
+      setTourOutputAssignments((current) => ({
+        ...current,
+        [output.imageUrl]: {
+          caseId: capturedTarget.id,
+          generatedImageId: result.generatedImageId,
+        },
+      }));
+    };
+    void autoSave.save(capturedTarget, { ...output, onSaved: recordSavedOutput }).then(recordSavedOutput);
+  }, [autoSave.save]);
+  const bindProjectToCurrentLaunch = (propertyId: number) => {
+    bindTourProjectTarget(projectLaunchTargetsRef.current, propertyId, launchCase);
+  };
+  const projectLaunchTarget = (propertyId: number) =>
+    resolveTourProjectTarget(projectLaunchTargetsRef.current, propertyId, launchCase);
+  const markPlanGenerationStarted = (propertyId: number, target: LaunchCase | null): boolean => {
+    const capturedTarget = snapshotLaunchCase(target);
+    if (!reservePendingTourPlan(pendingPlanTargetsRef.current, propertyId, capturedTarget)) return false;
+    setPendingPlanPropertyIds((current) => current.includes(propertyId) ? current : [...current, propertyId]);
+    return true;
+  };
+  const clearPendingPlanTarget = (propertyId: number) => {
+    pendingPlanTargetsRef.current.delete(propertyId);
+    setPendingPlanPropertyIds((current) => current.filter((id) => id !== propertyId));
+  };
+  const publishTourJobs = () => setTourJobs(Array.from(tourJobsRef.current.values()));
+  const updateTourJob = (jobId: string, patch: Partial<TrackedTourJob>) => {
+    const current = tourJobsRef.current.get(jobId);
+    if (!current) return;
+    tourJobsRef.current.set(jobId, { ...current, ...patch });
+    publishTourJobs();
+  };
+  const startTourJob = (propertyId: number, jobId: string, totalClips: number, target: LaunchCase | null) => {
+    tourJobsRef.current.set(jobId, {
+      jobId,
+      propertyId,
+      target: snapshotLaunchCase(target),
+      totalClips,
+      status: "running",
+      progress: { stage: "preparing", currentClip: 0, totalClips, message: i18n.t("dashboard.tour.starterOp") },
+    });
+    publishTourJobs();
+  };
+  const removeTourJob = (jobId: string) => {
+    tourJobsRef.current.delete(jobId);
+    publishTourJobs();
+  };
+
+  const recoverTourJobOutputs = useCallback(async (jobId: string) => {
+    const tracked = tourJobsRef.current.get(jobId);
+    if (!tracked) return;
+    if (!tracked.target) {
+      removeTourJob(jobId);
+      return;
+    }
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(`/api/ai-boligfremvisning/properties/${tracked.propertyId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error(`${response.status}`);
+      const property = await response.json();
+      for (const room of property.rooms ?? []) {
+        const outputs = [
+          { url: room.afterImageUrl, style: "ai-tour-room-design" },
+          { url: room.afterImageUrl2, style: "ai-tour-room-design-angle-2" },
+          { url: room.panoramaUrl, style: "ai-tour-panorama" },
+          { url: room.videoUrl, style: "ai-tour-room-video" },
+        ];
+        for (const output of outputs) {
+          if (!output.url) continue;
+          saveTourOutput(tracked.target, {
+            imageUrl: output.url,
+            originalImageUrl: room.roomPhotoUrl,
+            roomType: room.name,
+            style: output.style,
+            budgetTier: "tier2",
+            promptText: `AI boligfremvisning – ${room.name}`,
+            isDesignAgent: output.style.includes("video"),
+          });
+        }
+      }
+      if (property.tourVideoUrl) {
+        saveTourOutput(tracked.target, {
+          imageUrl: property.tourVideoUrl,
+          roomType: "property-tour",
+          style: "ai-tour-film",
+          budgetTier: "tier2",
+          promptText: "AI boligfremvisning – samlet rundvisning",
+          isDesignAgent: false,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", tracked.propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties"] });
+      removeTourJob(jobId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : i18n.t("dashboard.common.ukendtFejl");
+      updateTourJob(jobId, {
+        status: "recovery-error",
+        error: i18n.t("dashboard.caseGenerationPicker.autosaveError", {
+          address: tracked.target.address,
+          message,
+        }),
+      });
+    }
+  }, [autoSave.save, queryClient, saveTourOutput]);
+  const retryTourJobOutputs = (jobId: string) => {
+    updateTourJob(jobId, { status: "retrieving", error: undefined });
+    void recoverTourJobOutputs(jobId);
+  };
+
+  const activeTourJobIds = useMemo(
+    () => tourJobs.filter((job) => job.status === "running").map((job) => job.jobId),
+    [tourJobs],
+  );
+  const { data: tourJobStatuses } = useQuery<Array<{ jobId: string; status: string; progress?: TrackedTourJob["progress"]; error?: string }>>({
+    queryKey: ["/api/ai-boligfremvisning/tour-statuses", activeTourJobIds],
+    enabled: activeTourJobIds.length > 0,
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      return Promise.all(activeTourJobIds.map(async (jobId) => {
+        const response = await fetch(`/api/ai-boligfremvisning/tour-status/${jobId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) throw new Error(`${response.status}`);
+        return { jobId, ...await response.json() };
+      }));
+    },
+    refetchInterval: activeTourJobIds.length ? 4000 : false,
+  });
+
+  useEffect(() => {
+    for (const result of tourJobStatuses ?? []) {
+      const job = tourJobsRef.current.get(result.jobId);
+      if (!job || job.status !== "running") continue;
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", job.propertyId] });
+      if (result.status === "completed") {
+        updateTourJob(job.jobId, { status: "retrieving" });
+        void recoverTourJobOutputs(job.jobId);
+      } else if (result.status === "failed") {
+        updateTourJob(job.jobId, {
+          status: "failed",
+          error: result.error || result.progress?.message || i18n.t("dashboard.tour.genereringenMislykkedesKvotaRefunderet"),
+        });
+      } else if (result.progress && JSON.stringify(result.progress) !== JSON.stringify(job.progress)) {
+        updateTourJob(job.jobId, { progress: result.progress });
+      }
+    }
+  }, [tourJobStatuses, recoverTourJobOutputs, queryClient]);
+
+  const { data: pendingPlanProperties } = useQuery<Array<AiTourProperty & { rooms: AiTourRoom[] }>>({
+    queryKey: ["/api/ai-boligfremvisning/pending-plan", pendingPlanPropertyIds],
+    enabled: pendingPlanPropertyIds.length > 0,
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      return Promise.all(pendingPlanPropertyIds.map(async (propertyId) => {
+        const response = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) throw new Error(`${response.status}`);
+        return response.json() as Promise<AiTourProperty & { rooms: AiTourRoom[] }>;
+      }));
+    },
+    refetchInterval: pendingPlanPropertyIds.length ? 5000 : false,
+  });
+
+  useEffect(() => {
+    if (!pendingPlanProperties?.length) return;
+    for (const property of pendingPlanProperties) {
+      const target = pendingPlanTargetsRef.current.get(property.id);
+      if (!property.threedPlanUrl) continue;
+      clearPendingPlanTarget(property.id);
+      if (!target) continue;
+      saveTourOutput(target, {
+        imageUrl: property.threedPlanUrl,
+        originalImageUrl: property.floorplanUrl,
+        roomType: "floorplan",
+        style: "ai-tour-3d-plan",
+        budgetTier: "tier2",
+        promptText: "AI boligfremvisning – 3D plantegning",
+        isDesignAgent: true,
+      });
+    }
+  }, [pendingPlanProperties, saveTourOutput]);
+  const markPanoramaGenerationStarted = (propertyId: number, roomId: number, target: LaunchCase | null) => {
+    if (!target) return;
+    pendingPanoramaTargetsRef.current.set(`${propertyId}:${roomId}`, {
+      propertyId,
+      roomId,
+      target: snapshotLaunchCase(target)!,
+    });
+    setPendingPanoramaPropertyIds((current) => current.includes(propertyId) ? current : [...current, propertyId]);
+  };
+
+  const { data: pendingPanoramaProperties } = useQuery<Array<AiTourProperty & { rooms: AiTourRoom[] }>>({
+    queryKey: ["/api/ai-boligfremvisning/pending-panorama", pendingPanoramaPropertyIds],
+    enabled: pendingPanoramaPropertyIds.length > 0,
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      const results = await Promise.all(pendingPanoramaPropertyIds.map(async (propertyId) => {
+        const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.json() as Promise<AiTourProperty & { rooms: AiTourRoom[] }>;
+      }));
+      return results;
+    },
+    refetchInterval: pendingPanoramaPropertyIds.length ? 5000 : false,
+  });
+
+  useEffect(() => {
+    if (!pendingPanoramaProperties?.length) return;
+    for (const property of pendingPanoramaProperties) {
+      for (const room of property.rooms ?? []) {
+        const key = `${property.id}:${room.id}`;
+        const pending = pendingPanoramaTargetsRef.current.get(key);
+        if (!pending || !room.panoramaUrl) continue;
+        pendingPanoramaTargetsRef.current.delete(key);
+        saveTourOutput(pending.target, {
+          imageUrl: room.panoramaUrl,
+          originalImageUrl: room.afterImageUrl ?? room.roomPhotoUrl,
+          roomType: room.name,
+          style: "ai-tour-panorama",
+          budgetTier: "tier2",
+          promptText: `AI boligfremvisning – 360° ${room.name}`,
+          isDesignAgent: true,
+        });
+      }
+    }
+    setPendingPanoramaPropertyIds((current) => {
+      const remaining = current.filter((propertyId) =>
+        Array.from(pendingPanoramaTargetsRef.current.values()).some((pending) => pending.propertyId === propertyId),
+      );
+      return remaining.length === current.length ? current : remaining;
+    });
+  }, [pendingPanoramaProperties, saveTourOutput]);
 
   const { data: properties = [], isLoading } = useQuery<AiTourProperty[]>({
     queryKey: ["/api/ai-boligfremvisning/properties"],
@@ -6104,6 +6958,7 @@ function PropertyTourFlow() {
 
   const handleCreate = async () => {
     if (!name.trim() || !file) return;
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
     setSubmitting(true);
     setError(null);
     try {
@@ -6124,6 +6979,7 @@ function PropertyTourFlow() {
       // rooms immediately — they shouldn't have to bounce back to the list
       // and re-click the card they just created.
       if (data?.id) {
+        bindTourProjectTarget(projectLaunchTargetsRef.current, data.id, capturedLaunchCase);
         setCurrentId(data.id);
         setMode("detail");
       } else {
@@ -6148,36 +7004,67 @@ function PropertyTourFlow() {
 
   if (mode === "detail" && currentId !== null) {
     return (
-      <PropertyTourDetail
-        propertyId={currentId}
-        onBack={() => { setCurrentId(null); setMode("list"); }}
-        onFinish={() => setMode("final")}
-      />
+      <>
+        <TourJobRecoveryNotices jobs={tourJobs} onRetry={retryTourJobOutputs} />
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
+        <PropertyTourDetail
+          propertyId={currentId}
+          launchCase={projectLaunchTarget(currentId)}
+          onPlanGenerationStarted={(target) => markPlanGenerationStarted(currentId, target)}
+          onPlanGenerationFailed={() => clearPendingPlanTarget(currentId)}
+          onBack={() => { setCurrentId(null); setMode("list"); }}
+          onFinish={() => setMode("final")}
+        />
+      </>
     );
   }
 
   if (mode === "final" && currentId !== null) {
     return (
-      <PropertyTourFinal
-        propertyId={currentId}
-        onBack={() => setMode("detail")}
-        onClose={() => { setCurrentId(null); setMode("list"); }}
-      />
+      <>
+        <TourJobRecoveryNotices jobs={tourJobs} onRetry={retryTourJobOutputs} />
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
+        <PropertyTourFinal
+          propertyId={currentId}
+          cases={cases}
+          launchCase={projectLaunchTarget(currentId)}
+          outputAssignments={tourOutputAssignments}
+          isPlanGenerationPending={pendingPlanPropertyIds.includes(currentId)}
+          autoPanoramaStartsRef={autoPanoramaStartsRef}
+          onPlanGenerationStarted={(target) => markPlanGenerationStarted(currentId, target)}
+          onPlanGenerationFailed={() => clearPendingPlanTarget(currentId)}
+          onPanoramaGenerationStarted={markPanoramaGenerationStarted}
+          onBack={() => setMode("detail")}
+          onClose={() => { setCurrentId(null); setMode("list"); }}
+        />
+      </>
     );
   }
 
   if (mode === "tour" && currentId !== null) {
     return (
-      <TourGeneratorPage
-        propertyId={currentId}
-        onBack={() => { setCurrentId(null); setMode("list"); }}
-      />
+      <>
+        <TourJobRecoveryNotices jobs={tourJobs} onRetry={retryTourJobOutputs} />
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
+        <TourGeneratorPage
+          propertyId={currentId}
+          cases={cases}
+          launchCase={projectLaunchTarget(currentId)}
+          outputAssignments={tourOutputAssignments}
+          tourJobs={tourJobs.filter((job) => job.propertyId === currentId)}
+          onJobStart={(jobId, totalClips, target) => startTourJob(currentId, jobId, totalClips, target)}
+          onRetryJob={retryTourJobOutputs}
+          onBack={() => { setCurrentId(null); setMode("list"); }}
+        />
+      </>
     );
   }
 
   if (mode === "create") {
     return (
       <div className="w-full max-w-5xl min-[1440px]:max-w-none">
+        <TourJobRecoveryNotices jobs={tourJobs} onRetry={retryTourJobOutputs} />
+        <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
         <div className="mb-8">
           <button
             onClick={() => { resetCreate(); setMode("list"); }}
@@ -6270,6 +7157,8 @@ function PropertyTourFlow() {
 
   return (
     <div className="w-full max-w-5xl min-[1440px]:max-w-none">
+      <TourJobRecoveryNotices jobs={tourJobs} onRetry={retryTourJobOutputs} />
+      <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }} data-testid="heading-ai-boligfremvisning">{i18n.t("dashboard.tour.aiBoligfremvisning")}</h1>
@@ -6308,7 +7197,7 @@ function PropertyTourFlow() {
           {properties.map((p) => (
             <div
               key={p.id}
-              onClick={() => { setCurrentId(p.id); setMode("detail"); }}
+              onClick={() => { bindProjectToCurrentLaunch(p.id); setCurrentId(p.id); setMode("detail"); }}
               className="group rounded-2xl border border-[#E8E4DE] bg-white overflow-hidden flex flex-col cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg"
               data-testid={`card-tour-project-${p.id}`}
             >
@@ -6339,7 +7228,7 @@ function PropertyTourFlow() {
                     {p.status === "mapping" ? i18n.t("dashboard.tour.klarTilRum") : p.status}
                   </span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCurrentId(p.id); setMode("tour"); }}
+                    onClick={(e) => { e.stopPropagation(); bindProjectToCurrentLaunch(p.id); setCurrentId(p.id); setMode("tour"); }}
                     className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md transition-colors hover:bg-[#0F1D2F] hover:text-white"
                     style={{ background: "#F5F3EF", color: "#0F1D2F" }}
                     data-testid={`button-tour-walkthrough-${p.id}`}
@@ -6391,7 +7280,7 @@ const TOUR_STYLE_OPTIONS: Array<{ key: string; label: string; labelKey: string }
   { key: "farmhouse",    label: "Landlig",       labelKey: "dashboard.styles.farmhouse" },
 ];
 
-function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: number; onBack: () => void; onFinish: () => void }) {
+function PropertyTourDetail({ propertyId, onBack, onFinish, launchCase, onPlanGenerationStarted, onPlanGenerationFailed }: { propertyId: number; onBack: () => void; onFinish: () => void; launchCase: LaunchCase | null; onPlanGenerationStarted: (target: LaunchCase | null) => boolean; onPlanGenerationFailed: () => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [rooms, setRooms] = useState<DraftRoom[]>([]);
@@ -6431,20 +7320,28 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
   }, [property?.id]);
 
   useEffect(() => {
-    if (!property || property.threedPlanUrl) return;
+    if (!property || property.threedPlanUrl || property.generating3D || property.threedPlanGenerating) return;
     if (auto3DRef.current.has(property.id)) return;
     auto3DRef.current.add(property.id);
+    if (!onPlanGenerationStarted(snapshotLaunchCase(launchCase))) return;
     (async () => {
       try {
         const token = await auth.currentUser?.getIdToken();
-        await fetch(`/api/ai-boligfremvisning/properties/${property.id}/generate-3d-plan`, {
+        const response = await fetch(`/api/ai-boligfremvisning/properties/${property.id}/generate-3d-plan`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null) as { message?: string } | null;
+          throw new Error(data?.message || `HTTP ${response.status}`);
+        }
         queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
-      } catch (e) { console.error("[ai-tour] auto 3D plan failed", e); }
+      } catch (e) {
+        onPlanGenerationFailed();
+        console.error("[ai-tour] auto 3D plan failed", e);
+      }
     })();
-  }, [property?.id, property?.threedPlanUrl, propertyId, queryClient]);
+  }, [property?.id, property?.threedPlanUrl, property?.generating3D, property?.threedPlanGenerating, propertyId, queryClient, launchCase, onPlanGenerationStarted, onPlanGenerationFailed]);
 
   useEffect(() => {
     if (!property || (property as any).floorplanAnalysis) return;
@@ -6725,10 +7622,26 @@ function PropertyTourDetail({ propertyId, onBack, onFinish }: { propertyId: numb
 // ─────────────────────────────────────────────────────────────────────────────
 function PropertyTourFinal({
   propertyId,
+  cases,
+  launchCase,
+  outputAssignments,
+  isPlanGenerationPending,
+  autoPanoramaStartsRef,
+  onPlanGenerationStarted,
+  onPlanGenerationFailed,
+  onPanoramaGenerationStarted,
   onBack,
   onClose,
 }: {
   propertyId: number;
+  cases: ApiCase[];
+  launchCase: LaunchCase | null;
+  outputAssignments: Record<string, TourOutputAssignment>;
+  isPlanGenerationPending: boolean;
+  autoPanoramaStartsRef: React.MutableRefObject<Set<string>>;
+  onPlanGenerationStarted: (target: LaunchCase | null) => boolean;
+  onPlanGenerationFailed: () => void;
+  onPanoramaGenerationStarted: (propertyId: number, roomId: number, target: LaunchCase | null) => void;
   onBack: () => void;
   onClose: () => void;
 }) {
@@ -6754,12 +7667,16 @@ function PropertyTourFinal({
 
   const rooms: AiTourRoom[] = property?.rooms ?? [];
   const tourRooms = rooms.filter((r) => r.included && r.afterImageUrl);
+  const planAssignment = property?.threedPlanUrl ? outputAssignments[property.threedPlanUrl] : undefined;
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
 
   // Manual re-trigger in case the auto-generation from the detail view failed
   // (e.g. user closed the tab before it finished). Same endpoint either way.
   const generate3D = async () => {
+    if (generating3D || isPlanGenerationPending || property?.generating3D || property?.threedPlanGenerating) return;
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
+    if (!onPlanGenerationStarted(capturedLaunchCase)) return;
     setGenerating3D(true);
     setError(null);
     try {
@@ -6772,6 +7689,7 @@ function PropertyTourFinal({
       if (!res.ok) throw new Error(data.message || i18n.t("dashboard.tour.kunneIkkeGenerere3dPlan"));
       invalidate();
     } catch (e: any) {
+      onPlanGenerationFailed();
       setError(e.message || i18n.t("dashboard.tour.fejlVed3dGenerering"));
     } finally {
       setGenerating3D(false);
@@ -6779,22 +7697,25 @@ function PropertyTourFinal({
   };
 
   const viewerRoom = tourRooms.find((r) => r.id === viewerRoomId) || null;
+  const viewerMediaUrl = viewerRoom ? viewerRoom.panoramaUrl ?? viewerRoom.afterImageUrl : null;
+  const viewerAssignment = viewerMediaUrl ? outputAssignments[viewerMediaUrl] : undefined;
 
   // Strategy B — auto-generate stitched 360° panoramas for rooms that have
   // both after-images. Runs in the background once per session per room so the
   // panorama is ready by the time the user clicks the hotspot. Single-angle
   // rooms simply fall back to the Ken Burns viewer; no panorama is forced.
-  const autoPanoRef = useRef<Set<number>>(new Set());
   useEffect(() => {
     tourRooms.forEach((r) => {
+      const key = `${propertyId}:${r.id}`;
       if (r.panoramaUrl) return;
       // Auto-fire as soon as we have AT LEAST the first after-image. The
       // server-side panorama pipeline now tops up to 4 anchors via synthetic
       // Collov rotations when the user only uploaded 1 vinkel, so we no
       // longer need to wait for vinkel 2 before kicking off generation.
       if (!r.afterImageUrl) return;
-      if (autoPanoRef.current.has(r.id)) return;
-      autoPanoRef.current.add(r.id);
+      if (autoPanoramaStartsRef.current.has(key)) return;
+      autoPanoramaStartsRef.current.add(key);
+      onPanoramaGenerationStarted(propertyId, r.id, snapshotLaunchCase(launchCase));
       (async () => {
         try {
           const token = await auth.currentUser?.getIdToken();
@@ -6900,16 +7821,31 @@ function PropertyTourFinal({
               </p>
               <button
                 onClick={generate3D}
-                disabled={generating3D}
+                disabled={generating3D || isPlanGenerationPending || !!property?.generating3D || !!property?.threedPlanGenerating}
                 className="h-9 px-4 rounded-full font-semibold text-xs inline-flex items-center gap-2 disabled:opacity-50 border"
                 style={{ borderColor: "#C8956C", color: "#C8956C", background: "white" }}
                 data-testid="button-generate-3d-plan"
               >
-                {generating3D ? i18n.t("dashboard.common.genererer") : i18n.t("dashboard.common.proevIgen")}
+                {generating3D || isPlanGenerationPending || property?.generating3D || property?.threedPlanGenerating
+                  ? i18n.t("dashboard.common.genererer")
+                  : i18n.t("dashboard.common.proevIgen")}
               </button>
             </div>
           )}
         </div>
+        {property?.threedPlanUrl && (
+          <SaveToCaseButton
+            cases={cases}
+            mediaUrl={property.threedPlanUrl}
+            originalUrl={property.floorplanUrl}
+            generatedImageId={planAssignment?.generatedImageId ?? null}
+            assignedCaseId={planAssignment?.caseId ?? null}
+            roomType="floorplan"
+            style="3d-floorplan"
+            testIdPrefix="tour-plan-save-case"
+            className="mt-3"
+          />
+        )}
         {tourRooms.length === 0 && property?.threedPlanUrl && (
           <p className="mt-3 text-xs text-center" style={{ color: "#9B9690" }}>
             {i18n.t("dashboard.tour.ingenRumMedEfterBillede")}
@@ -6942,6 +7878,19 @@ function PropertyTourFinal({
                 onClose={() => setViewerRoomId(null)}
               />
             )}
+            <div className="absolute top-20 right-4 z-[60] rounded-xl bg-white/95 p-2 shadow-lg max-w-[calc(100vw-2rem)]">
+              <SaveToCaseButton
+                key={`${viewerRoom.id}-${viewerRoom.panoramaUrl ?? viewerRoom.afterImageUrl}`}
+                cases={cases}
+                mediaUrl={viewerRoom.panoramaUrl ?? viewerRoom.afterImageUrl!}
+                originalUrl={viewerRoom.panoramaUrl ? viewerRoom.afterImageUrl : viewerRoom.roomPhotoUrl}
+                generatedImageId={viewerAssignment?.generatedImageId ?? null}
+                assignedCaseId={viewerAssignment?.caseId ?? null}
+                roomType={viewerRoom.name}
+                style={viewerRoom.panoramaUrl ? "ai-tour-panorama" : (property?.style ?? "ai-tour")}
+                testIdPrefix="tour-room-save-case"
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -6952,8 +7901,25 @@ function PropertyTourFinal({
 // ── TourGeneratorPage ─────────────────────────────────────────────────────────
 // Selvstændig side under AI Boligfremvisning → Rundvisning-knap på et projekt.
 // Viser GuidedTourSection med tilbageknap til projektlisten.
-function TourGeneratorPage({ propertyId, onBack }: { propertyId: number; onBack: () => void }) {
-  const queryClient = useQueryClient();
+function TourGeneratorPage({
+  propertyId,
+  cases,
+  launchCase,
+  outputAssignments,
+  tourJobs,
+  onJobStart,
+  onRetryJob,
+  onBack,
+}: {
+  propertyId: number;
+  cases: ApiCase[];
+  launchCase: LaunchCase | null;
+  outputAssignments: Record<string, TourOutputAssignment>;
+  tourJobs: TrackedTourJob[];
+  onJobStart: (jobId: string, totalClips: number, target: LaunchCase | null) => void;
+  onRetryJob: (jobId: string) => void;
+  onBack: () => void;
+}) {
   const { data: property } = useQuery<AiTourProperty & { rooms: AiTourRoom[] }>({
     queryKey: ["/api/ai-boligfremvisning/properties", propertyId],
     queryFn: async () => {
@@ -6967,8 +7933,6 @@ function TourGeneratorPage({ propertyId, onBack }: { propertyId: number; onBack:
     refetchInterval: 8000,
   });
   const rooms: AiTourRoom[] = property?.rooms ?? [];
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["/api/ai-boligfremvisning/properties", propertyId] });
 
   return (
     <div className="w-full max-w-5xl min-[1440px]:max-w-none">
@@ -6988,7 +7952,17 @@ function TourGeneratorPage({ propertyId, onBack }: { propertyId: number; onBack:
           {i18n.t("dashboard.tour.aiGenereretVirtuelRundvisning")}
         </p>
       </div>
-      <GuidedTourSection propertyId={propertyId} property={property} rooms={rooms} invalidate={invalidate} />
+      <GuidedTourSection
+        propertyId={propertyId}
+        property={property}
+        rooms={rooms}
+        cases={cases}
+        launchCase={launchCase}
+        outputAssignments={outputAssignments}
+        tourJobs={tourJobs}
+        onJobStart={onJobStart}
+        onRetryJob={onRetryJob}
+      />
     </div>
   );
 }
@@ -7003,16 +7977,24 @@ function GuidedTourSection({
   propertyId,
   property,
   rooms,
-  invalidate,
+  cases,
+  launchCase,
+  outputAssignments,
+  tourJobs,
+  onJobStart,
+  onRetryJob,
 }: {
   propertyId: number;
   property: (AiTourProperty & { rooms: AiTourRoom[] }) | undefined;
   rooms: AiTourRoom[];
-  invalidate: () => void;
+  cases: ApiCase[];
+  launchCase: LaunchCase | null;
+  outputAssignments: Record<string, TourOutputAssignment>;
+  tourJobs: TrackedTourJob[];
+  onJobStart: (jobId: string, totalClips: number, target: LaunchCase | null) => void;
+  onRetryJob: (jobId: string) => void;
 }) {
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ stage: string; currentClip: number; totalClips: number; message: string } | null>(null);
-  const [tourError, setTourError] = useState<string | null>(null);
+  const [tourStartError, setTourStartError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<number | null>(null);
   const [showFullFilm, setShowFullFilm] = useState(false);
@@ -7028,12 +8010,18 @@ function GuidedTourSection({
   const eligibleCount = rooms.filter((r) => r.included && (r.afterImageUrl || r.roomPhotoUrl)).length;
 
   const tourVideoUrl = (property as any)?.tourVideoUrl as string | null | undefined;
-  const generating = !!jobId || (property as any)?.tourStatus === "generating";
+  const activeJob = tourJobs.find((job) => job.status === "running" || job.status === "retrieving") ?? null;
+  const failedJob = [...tourJobs].reverse().find((job) => job.status === "recovery-error" || job.status === "failed") ?? null;
+  const progress = activeJob?.progress ?? null;
+  const tourError = tourStartError || failedJob?.error || null;
+  const completedOutputJobId = failedJob?.status === "recovery-error" ? failedJob.jobId : null;
+  const generating = !!activeJob || (property as any)?.tourStatus === "generating";
   const activeRoom = clipRooms.find((r) => r.id === activeRoomId) || clipRooms[0] || null;
 
   const startTour = async () => {
+    const capturedLaunchCase = snapshotLaunchCase(launchCase);
     setStarting(true);
-    setTourError(null);
+    setTourStartError(null);
     try {
       const token = await auth.currentUser?.getIdToken();
       const res = await fetch(`/api/ai-boligfremvisning/properties/${propertyId}/generate-tour`, {
@@ -7042,55 +8030,13 @@ function GuidedTourSection({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || i18n.t("dashboard.tour.kunneIkkeStarteRundvisningen"));
-      setJobId(data.jobId);
-      setProgress({ stage: "preparing", currentClip: 0, totalClips: data.totalClips || eligibleCount, message: i18n.t("dashboard.tour.starterOp") });
+      onJobStart(data.jobId, data.totalClips || eligibleCount, capturedLaunchCase);
     } catch (e: any) {
-      setTourError(e.message || i18n.t("dashboard.tour.fejlVedStartAfRundvisning"));
+      setTourStartError(e.message || i18n.t("dashboard.tour.fejlVedStartAfRundvisning"));
     } finally {
       setStarting(false);
     }
   };
-
-  // Poll jobstatus hvert 4. sekund mens der genereres. Vi invaliderer projektet
-  // på hvert tick så færdige rum-klip dukker op løbende i viseren. Hvis jobbet
-  // forsvinder på serveren (fx genstart/deploy) stopper vi efter 5 fejl i træk
-  // i stedet for at polle for evigt.
-  useEffect(() => {
-    if (!jobId) return;
-    let misses = 0;
-    const t = setInterval(async () => {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/ai-boligfremvisning/tour-status/${jobId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) {
-          misses++;
-          if (misses >= 5) {
-            setJobId(null);
-            setProgress(null);
-            setTourError(i18n.t("dashboard.tour.forbindelsenTilGenereringenBlevAfbrudt"));
-            invalidate();
-          }
-          return;
-        }
-        misses = 0;
-        const data = await res.json();
-        if (data.progress) setProgress(data.progress);
-        invalidate();
-        if (data.status === "completed") {
-          setJobId(null);
-          setProgress(null);
-          invalidate();
-        } else if (data.status === "failed") {
-          setJobId(null);
-          setProgress(null);
-          setTourError(data.error || data.progress?.message || i18n.t("dashboard.tour.genereringenMislykkedesKvotaRefunderet"));
-        }
-      } catch { /* netværkshik — prøv igen næste tick */ }
-    }, 4000);
-    return () => clearInterval(t);
-  }, [jobId]);
 
   const advanceToNext = () => {
     if (showFullFilm || !activeRoom) return;
@@ -7134,8 +8080,18 @@ function GuidedTourSection({
         </div>
 
         {tourError && (
-          <div className="mx-6 md:mx-8 mb-5 p-3 rounded-lg text-sm" style={{ background: "#FEF2F2", color: "#B91C1C" }} data-testid="text-tour-error">
-            {tourError}
+          <div className="mx-6 md:mx-8 mb-5 p-3 rounded-lg text-sm flex flex-wrap items-center justify-between gap-3" style={{ background: "#FEF2F2", color: "#B91C1C" }} data-testid="text-tour-error">
+            <span>{tourError}</span>
+            {completedOutputJobId && (
+              <button
+                type="button"
+                onClick={() => onRetryJob(completedOutputJobId)}
+                className="font-semibold underline"
+                data-testid="button-retry-tour-save"
+              >
+                {i18n.t("dashboard.caseGenerationPicker.retrySave")}
+              </button>
+            )}
           </div>
         )}
 
@@ -7232,6 +8188,20 @@ function GuidedTourSection({
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
+              {(showFullFilm && tourVideoUrl || !showFullFilm && activeRoom?.videoUrl) && (
+                <SaveToCaseButton
+                  key={showFullFilm ? `film-${tourVideoUrl}` : `room-${activeRoom!.id}-${activeRoom!.videoUrl}`}
+                  cases={cases}
+                  mediaUrl={showFullFilm ? tourVideoUrl! : activeRoom!.videoUrl!}
+                  originalUrl={showFullFilm ? null : activeRoom?.afterImageUrl ?? activeRoom?.roomPhotoUrl}
+                  generatedImageId={outputAssignments[(showFullFilm ? tourVideoUrl : activeRoom?.videoUrl) ?? ""]?.generatedImageId ?? null}
+                  assignedCaseId={outputAssignments[(showFullFilm ? tourVideoUrl : activeRoom?.videoUrl) ?? ""]?.caseId ?? null}
+                  roomType={showFullFilm ? "property-tour" : activeRoom!.name}
+                  style={showFullFilm ? "ai-tour-film" : "ai-tour-room-video"}
+                  isDesignAgent={false}
+                  testIdPrefix="tour-video-save-case"
+                />
+              )}
               {tourVideoUrl && (
                 <a
                   href={tourVideoUrl}
@@ -7617,10 +8587,11 @@ function recordAgentPrompt(text: string) {
   localStorage.setItem(AGENT_SAVED_KEY, JSON.stringify(saved));
 }
 
-function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCase[] }) {
+function AIDesignAgentFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: ApiCase[]; launchCase: LaunchCase | null }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const autoSave = useCaseOutputAutosave();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [promptText, setPromptText] = useState("");
@@ -7635,40 +8606,85 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       .map(([text, count]) => ({ text, count }));
     setSavedPromptSuggestions(list);
   }, []);
-  const quotaData = useQuotaData();
   const [activeCat, setActiveCat] = useState(AGENT_PROMPT_CATEGORIES[0].id);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [satelliteMode, setSatelliteMode] = useState(false);
   const [satelliteTimeIdx, setSatelliteTimeIdx] = useState(3); // default: tidlig solnedgang
   const [isDragging, setIsDragging] = useState(false);
   const [stage, setStage] = useState<"idle" | "loading" | "result">("idle");
+  const [flowStep, setFlowStep] = useState<1 | 2 | 3>(1);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveCaseId, setSaveCaseId] = useState<number | null>(null);
+  const [resultAssignedCaseId, setResultAssignedCaseId] = useState<number | null>(null);
+  const [resultLaunchCase, setResultLaunchCase] = useState<LaunchCase | null>(null);
+  const [savedCaseIds, setSavedCaseIds] = useState<number[]>([]);
   const [showCaseDropdown, setShowCaseDropdown] = useState(false);
   // Tracks the DB id of the last generated result so re-prompts on the same
   // image are sent as free refinements (isRefinement=true) instead of new
   // quota-charged generations.
   const [savedDesignId, setSavedDesignId] = useState<number | null>(null);
   const [refinementCount, setRefinementCount] = useState(0);
+  const resultVersionRef = useRef(0);
   const MAX_AGENT_REFINEMENTS = 5;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const previewColumnRef = useRef<HTMLDivElement>(null);
+  const previewPinStartRef = useRef<number | null>(null);
+  const [pinnedPreview, setPinnedPreview] = useState<{ left: number; width: number } | null>(null);
 
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
+  useEffect(() => {
+    if (flowStep !== 2 || !imagePreview) {
+      previewPinStartRef.current = null;
+      setPinnedPreview(null);
+      return;
+    }
+    const updatePinnedPreview = (resetStart = false) => {
+      const column = previewColumnRef.current;
+      if (!column || window.innerWidth < 1024) {
+        previewPinStartRef.current = null;
+        setPinnedPreview(null);
+        return;
+      }
+      const rect = column.getBoundingClientRect();
+      if (resetStart || previewPinStartRef.current === null) {
+        previewPinStartRef.current = rect.top + window.scrollY;
+      }
+      const sectionBottom = column.parentElement?.parentElement?.getBoundingClientRect().bottom ?? 0;
+      setPinnedPreview(
+        window.scrollY >= previewPinStartRef.current - 144 && sectionBottom > 144 + Math.min(480, window.innerWidth * 0.52)
+          ? { left: rect.left, width: rect.width }
+          : null
+      );
+    };
+    const onScroll = () => updatePinnedPreview();
+    const onResize = () => updatePinnedPreview(true);
+    const frame = window.requestAnimationFrame(() => updatePinnedPreview(true));
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [flowStep, imagePreview]);
+
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) { setError(i18n.t("dashboard.agentX.kunBilledfilerTilladt")); return; }
-    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setError(null);
     setResultUrl(null);
     setOriginalUrl(null);
     setStage("idle");
+    setFlowStep(2);
     setSavedDesignId(null); // new image → start fresh, clear refinement chain
     setRefinementCount(0);
+    setSaveCaseId(null);
+    setResultAssignedCaseId(null);
+    setResultLaunchCase(null);
+    setSavedCaseIds([]);
   };
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
@@ -7678,9 +8694,17 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
     if (!promptText.trim()) return;
     if (!savedDesignId && !imageFile) return; // need at least one source
     if (savedDesignId && refinementCount >= MAX_AGENT_REFINEMENTS) return; // client-side guard
-    if (resetTimerRef.current) { clearTimeout(resetTimerRef.current); resetTimerRef.current = null; }
     const wasRefinement = !!savedDesignId; // capture before async state updates
-    setStage("loading"); setError(null);
+    const priorAssignedCase = resultAssignedCaseId == null
+      ? null
+      : cases.find((item) => item.id === resultAssignedCaseId);
+    const capturedLaunchCase = snapshotLaunchCase(
+      wasRefinement
+        ? resultLaunchCase ?? (priorAssignedCase ? { id: priorAssignedCase.id, address: priorAssignedCase.address } : null)
+        : launchCase,
+    );
+    const resultVersion = ++resultVersionRef.current;
+    setStage("loading"); setFlowStep(3); setError(null);
     try {
       const token = await user?.getIdToken();
       const fd = new FormData();
@@ -7691,11 +8715,13 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         fd.append("isRefinement", "true");
         fd.append("isDesignAgent", "true");
         fd.append("promptText", promptText.trim());
+        if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
       } else {
         // First generation → counts as one AI quota credit
         fd.append("image", imageFile!);
         fd.append("isDesignAgent", "true");
         fd.append("promptText", promptText.trim());
+        if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
       }
 
       const res = await fetch("/api/bolig/generate", {
@@ -7707,9 +8733,48 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
       setResultUrl(data.image_url);
       setOriginalUrl(data.original_url ?? null);
-      setStage("result");
+      setStage("result"); setFlowStep(3);
+      if (!wasRefinement) setResultLaunchCase(capturedLaunchCase);
+      setResultAssignedCaseId(null);
+      setSaveCaseId(null);
+      setSavedCaseIds([]);
       // Track the new result id so next prompt is a free refinement
-      if (data.generation_id) setSavedDesignId(data.generation_id);
+      const generatedImageId = data.generation_id != null && Number.isFinite(Number(data.generation_id))
+        ? Number(data.generation_id)
+        : null;
+      setSavedDesignId(generatedImageId);
+      if (generatedImageId != null && capturedLaunchCase) {
+        setResultAssignedCaseId(capturedLaunchCase.id);
+        setSaveCaseId(capturedLaunchCase.id);
+        setSavedCaseIds((current) => current.includes(capturedLaunchCase.id) ? current : [...current, capturedLaunchCase.id]);
+      }
+      const saveResult = await autoSave.save(capturedLaunchCase, {
+        imageUrl: data.image_url,
+        originalImageUrl: data.original_url ?? originalUrl ?? imagePreview,
+        roomType: "other",
+        style: "ai-agent",
+        budgetTier: "tier2",
+        promptText: promptText.trim(),
+        isDesignAgent: true,
+        generatedImageId,
+        onSaved: (result) => {
+          if (resultVersionRef.current !== resultVersion) return;
+          if (result.generatedImageId != null) setSavedDesignId(result.generatedImageId);
+          if (capturedLaunchCase) {
+            setResultAssignedCaseId(capturedLaunchCase.id);
+            setSaveCaseId(capturedLaunchCase.id);
+            setSavedCaseIds((current) => current.includes(capturedLaunchCase.id) ? current : [...current, capturedLaunchCase.id]);
+          }
+        },
+      });
+      if (resultVersionRef.current === resultVersion && saveResult.generatedImageId != null) {
+        setSavedDesignId(saveResult.generatedImageId);
+      }
+      if (saveResult.saved && capturedLaunchCase) {
+        setResultAssignedCaseId(capturedLaunchCase.id);
+        setSaveCaseId(capturedLaunchCase.id);
+        setSavedCaseIds((current) => current.includes(capturedLaunchCase.id) ? current : [...current, capturedLaunchCase.id]);
+      }
       // Count refinements so client can enforce the 5-max cap
       if (wasRefinement) setRefinementCount(prev => prev + 1);
       recordAgentPrompt(promptText);
@@ -7729,6 +8794,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
     } catch (err: any) {
       setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
       setStage(savedDesignId ? "result" : "idle");
+      setFlowStep(savedDesignId ? 3 : 2);
     }
   };
 
@@ -7741,7 +8807,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
 
   const handleReset = () => {
     if (!confirmDiscard()) return;
-    setStage("idle"); setResultUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null); setRefinementCount(0);
+    setStage("idle"); setFlowStep(imagePreview ? 2 : 1); setResultUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null); setResultAssignedCaseId(null); setResultLaunchCase(null); setSavedCaseIds([]); setRefinementCount(0);
   };
 
   const handleBack = () => { if (confirmDiscard()) onBack(); };
@@ -7768,12 +8834,27 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         <h1 className="text-2xl font-bold mb-1" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>{i18n.t("dashboard.nav.aiDesignAgent")}</h1>
         <p className="text-sm" style={{ color: "#6B6B6B" }}>{t("dashboard.agent.subtitle")}</p>
       </div>
+      <div className="flex items-center gap-2 sm:gap-3 mb-7 max-w-2xl" aria-label="Generation progress">
+        {[
+          { number: 1, label: t("dashboard.wizard.step1") },
+          { number: 2, label: t("dashboard.wizard.step2") },
+          { number: 3, label: t("dashboard.wizard.step3") },
+        ].map((step, index) => (
+          <div key={step.number} className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {index > 0 && <span className="h-px flex-1 bg-[#D9D5CF]" aria-hidden="true" />}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold" style={{ background: flowStep >= step.number ? "#0F1D2F" : "#F0EDE7", color: flowStep >= step.number ? "#fff" : "#9B9690" }}>{step.number}</span>
+              <span className="hidden sm:inline text-xs font-medium" style={{ color: flowStep >= step.number ? "#0F1D2F" : "#9B9690" }}>{step.label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Eksempel */}
-      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mb-6" style={{ order: 2 }}>
+      <div className="rounded-2xl border border-[#E8E4DE] bg-white p-5 mt-10 mb-6" style={{ order: 3 }}>
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase mb-3" style={{ color: "#C8956C" }}>{i18n.t("dashboard.agentX.seEksempel")}</p>
         {satelliteMode ? (
-          <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.satellitScreenshot")}</p>
               <img src="/bolig-images/satellite-example-before.png" alt={i18n.t("dashboard.agentX.satellitBilledeFoer")} className="w-full h-auto rounded-xl object-cover" style={{ aspectRatio: "16/10" }} />
@@ -7784,7 +8865,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.original")}</p>
               <img src="/bolig-images/ai-agent-house-before.png" alt={i18n.t("dashboard.agentX.foerAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
@@ -7793,20 +8874,12 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.efterAiPrompt")}</p>
               <img src="/bolig-images/ai-agent-house-after.png" alt={i18n.t("dashboard.agentX.efterAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
             </div>
-            <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.original")}</p>
-              <img src="/bolig-images/ai-agent-townhouse-before.jpg" alt={i18n.t("dashboard.agentX.foerAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
-            </div>
-            <div>
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.efterAiPrompt")}</p>
-              <img src="/bolig-images/ai-agent-townhouse-after.png" alt={i18n.t("dashboard.agentX.efterAiDesignAgent")} className="w-full h-auto rounded-xl" style={{ aspectRatio: "1264/843" }} />
-            </div>
           </div>
         )}
       </div>
 
       {/* Info card */}
-      <div className="rounded-2xl p-5 mb-6 border border-[#E8E4DE]" style={{ background: "#F5F3EF", order: 2 }}>
+      <div className="rounded-2xl p-5 mt-10 mb-6 border border-[#E8E4DE]" style={{ background: "#F5F3EF", order: 2 }}>
         <div className="flex gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#0F1D2F" }}>
             <Sparkles className="w-4 h-4 text-white" />
@@ -7823,22 +8896,37 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-8 items-start max-w-6xl" style={{ order: 1 }}>
+      <div className={`grid grid-cols-1 ${flowStep === 2 ? "lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]" : ""} gap-6 lg:gap-x-8 items-start max-w-6xl min-w-0 w-full`} style={{ order: 1 }}>
         {/* Left column: form + result */}
-        <div className="grid gap-6 min-w-0">
+        <div className={flowStep === 2 ? "lg:contents grid gap-6 min-w-0 w-full" : "grid gap-6 min-w-0 w-full"}>
+        {flowStep === 1 && (
+          <div className="max-w-2xl w-full mx-auto py-3">
+            <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.uploadImageLabel")}</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold mb-6" style={{ color: "#0F1D2F", letterSpacing: "-0.02em" }}>
+              {satelliteMode ? i18n.t("dashboard.agentX.uploadDitSatellitBilledeHer") : i18n.t("dashboard.wizard.uploadTitle")}
+            </h2>
+          </div>
+        )}
         {/* Upload zone */}
-        <div>
+        {flowStep < 3 && (
+        <div ref={previewColumnRef} className={flowStep === 1 ? "max-w-2xl w-full mx-auto" : "min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-4"}>
           <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.uploadImageLabel")}</p>
           {imagePreview ? (
-            <div className="relative rounded-2xl overflow-hidden border border-[#D9D5CF]">
-              <img src={imagePreview} alt="Preview" className="w-full object-contain max-h-[480px]" style={{ display: "block" }} />
-              <button
-                onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setStage("idle"); setSavedDesignId(null); }}
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-                data-testid="bolig-agent-remove-img"
+            <div className="relative" style={flowStep === 2 ? { minHeight: "min(480px, 52vw)" } : undefined}>
+              <div
+                className="relative rounded-2xl overflow-hidden border border-[#D9D5CF] bg-white"
+                style={pinnedPreview && flowStep === 2 ? { position: "fixed", top: 144, left: pinnedPreview.left, width: pinnedPreview.width, zIndex: 10 } : undefined}
               >
-                <X className="w-4 h-4" />
-              </button>
+                <img src={imagePreview} alt="Uploaded property preview" className="w-full object-contain max-h-[480px]" style={{ display: "block" }} />
+                <button
+                  onClick={() => { setImageFile(null); setImagePreview(null); setResultUrl(null); setStage("idle"); setFlowStep(1); setSavedDesignId(null); }}
+                  aria-label={i18n.t("dashboard.agentX.kunBilledfilerTilladt")}
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                  data-testid="bolig-agent-remove-img"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ) : (
             <div
@@ -7863,11 +8951,17 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             </div>
           )}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {flowStep === 1 && imagePreview && (
+            <button onClick={() => setFlowStep(2)} className="mt-5 h-11 px-6 rounded-full font-semibold text-white text-sm" style={{ background: "#0F1D2F" }}>
+              {i18n.t("dashboard.common.fortsaet")}
+            </button>
+          )}
         </div>
+        )}
 
         {/* Instructions — skjult i satellit-tilstand */}
-        {!satelliteMode && (
-        <div>
+        {flowStep === 2 && (
+        <div className="lg:col-start-1 lg:row-start-1">
           <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.dineInstruktioner")}</p>
           <textarea
             value={promptText}
@@ -7889,8 +8983,8 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
         )}
 
         {/* Saved prompt suggestions — only shown if user has 2+ uses of same prompt */}
-        {savedPromptSuggestions.length > 0 && (
-          <div>
+        {flowStep === 2 && savedPromptSuggestions.length > 0 && (
+          <div className="lg:col-start-1 lg:row-start-2">
             <p className="text-[11px] font-bold tracking-[0.08em] uppercase mb-2" style={{ color: "#9B9690" }}>{i18n.t("dashboard.agentX.dineTidligerePrompts")}</p>
             <div className="flex flex-wrap gap-2">
               {savedPromptSuggestions.map(({ text }) => (
@@ -7913,7 +9007,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             when idle. During loading the gate is bypassed so the background
             quota-poll (30 s) can't swap the spinner for an upgrade banner before
             the image has arrived. Refinements are always free and never gated. */}
-        <div>
+        {flowStep === 2 && <div className="lg:col-start-1 lg:row-start-3">
           {stage === "loading" ? (
             // Active generation — always show spinner, never show quota gate
             <button
@@ -7965,10 +9059,10 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               </button>
             </QuotaGate>
           )}
-        </div>
+        </div>}
 
         {/* Result — dot grid while loading, image when done */}
-        {stage === "loading" && (
+        {flowStep === 3 && stage === "loading" && (
           <div>
             <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.resultLabel")}</p>
             <div className="relative overflow-hidden rounded-2xl border border-[#E8E4DE]" style={{ minHeight: 380, background: "#FAF7F2" }}>
@@ -7994,7 +9088,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
             </div>
           </div>
         )}
-        {stage === "result" && resultUrl && (
+        {flowStep === 3 && stage === "result" && resultUrl && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <p className="text-xs font-bold tracking-[0.08em] uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.resultLabel")}</p>
             <div className="rounded-2xl overflow-hidden border border-[#E8E4DE]">
@@ -8004,7 +9098,15 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 <img src={resultUrl} alt={t("dashboard.wizard.resultLabel")} className="w-full h-auto" />
               )}
             </div>
-            <div className="flex flex-wrap gap-3 mt-4">
+            <div className="flex flex-wrap gap-3 mt-6">
+              <button
+                onClick={() => { setFlowStep(2); setError(null); }}
+                className="h-10 px-5 rounded-full font-semibold text-sm flex items-center gap-2 border transition-all hover:opacity-80"
+                style={{ borderColor: "#D9D5CF", color: "#1A1A1A", background: "#fff" }}
+                data-testid="bolig-agent-refine-prompt"
+              >
+                <Sparkles className="w-4 h-4" /> {i18n.t("dashboard.agentX.tilpasBillede")}
+              </button>
               <DownloadMenu
                 url={resultUrl}
                 beforeUrl={imagePreview}
@@ -8033,10 +9135,14 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                           key={c.id}
                           onClick={async () => {
                             setShowCaseDropdown(false);
-                            setSaveCaseId(c.id);
+                            if (savedCaseIds.includes(c.id)) {
+                              setSaveCaseId(c.id);
+                              return;
+                            }
                             try {
                               const token = await user?.getIdToken();
-                              const r = savedDesignId
+                              const shouldAttachExistingRow = savedDesignId != null && resultAssignedCaseId == null;
+                              const r = shouldAttachExistingRow
                                 ? await fetch(`/api/bolig/generated-images/${savedDesignId}/case`, {
                                     method: "PATCH",
                                     headers: {
@@ -8062,23 +9168,22 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                                     }),
                                   });
                               if (!r.ok) {
-                                setSaveCaseId(null);
                                 const msg = await r.text().catch(() => "");
                                 alert(`${i18n.t("dashboard.agentX.kunneIkkeGemmeTilSag")} ${msg}`);
                                 return;
                               }
+                              const savedImage = await r.json().catch(() => null) as { id?: number | string } | null;
+                              if (savedImage?.id != null && Number.isFinite(Number(savedImage.id))) {
+                                setSavedDesignId(Number(savedImage.id));
+                              }
+                              setSaveCaseId(c.id);
+                              setSavedCaseIds((current) => current.includes(c.id) ? current : [...current, c.id]);
+                              if (resultAssignedCaseId == null) setResultAssignedCaseId(c.id);
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases", c.id, "images"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
                               queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
-                              if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-                              resetTimerRef.current = setTimeout(() => {
-                                resetTimerRef.current = null;
-                                setImageFile(null); setImagePreview(null); setPromptText("");
-                                setStage("idle"); setResultUrl(null); setOriginalUrl(null); setError(null); setSaveCaseId(null); setSavedDesignId(null); setRefinementCount(0);
-                              }, 1500);
                             } catch {
-                              setSaveCaseId(null);
                               alert(i18n.t("dashboard.agentX.kunneIkkeGemmeTilSag"));
                             }
                           }}
@@ -8104,13 +9209,14 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                 <RotateCcw className="w-4 h-4" /> {i18n.t("dashboard.common.proevIgen")}
               </button>
             </div>
+            <CaseOutputAutosaveNotices notices={autoSave.notices} retry={autoSave.retry} />
           </motion.div>
         )}
         </div>
 
         {/* Right column: prompt library */}
-        <div className="lg:sticky lg:top-6">
-          <div className="rounded-2xl border border-[#E8E4DE] overflow-hidden shadow-sm" style={{ background: "#fff" }}>
+        {flowStep === 2 && <div className="lg:col-start-1 lg:row-start-4 min-w-0 w-full max-w-full">
+          <div className="rounded-2xl border border-[#E8E4DE] overflow-hidden shadow-sm min-w-0 w-full" style={{ background: "#fff" }}>
             <div className="px-5 py-4 border-b border-[#E8E4DE]" style={{ background: "#F5F3EF" }}>
               <div className="flex items-center gap-2.5 mb-1.5">
                 <div className="w-6 h-6 rounded-md bg-[#0F1D2F] flex items-center justify-center">
@@ -8125,7 +9231,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               </p>
             </div>
 
-            <div className="p-5">
+            <div className="p-4 sm:p-5 min-w-0 max-w-full overflow-hidden">
               {/* Kategori-chips + Satellit-chip — kun i normal tilstand */}
               {!satelliteMode && (
                 <>
@@ -8170,12 +9276,12 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                     })}
                   </div>
                   <p className="text-xs italic mb-4" style={{ color: "#9B9690" }}>{i18n.t(activeCategory.blurb)}</p>
-                  <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: "calc(100vh - 420px)" }}>
+                  <div className="space-y-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar min-w-0" style={{ maxHeight: "calc(100vh - 420px)" }}>
                     {activeCategory.items.map((item) => (
                       <button
                         key={item.title}
                         onClick={() => handlePickPrompt(item)}
-                        className="w-full text-left p-4 rounded-xl border transition-all group hover:shadow-md hover:-translate-y-0.5 relative overflow-hidden"
+                        className="w-full max-w-full min-w-0 text-left p-4 rounded-xl border transition-all group hover:shadow-md hover:-translate-y-0.5 relative overflow-hidden"
                         style={{ background: "#F8F6F3", borderColor: "#E8E4DE" }}
                         data-testid={`bolig-agent-prompt-${item.title}`}
                       >
@@ -8192,7 +9298,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
                             </div>
                           )}
                         </div>
-                        <p className="text-xs leading-relaxed line-clamp-3 relative z-10" style={{ color: "#6B6B6B" }}>{item.text}</p>
+                        <p className="text-xs leading-relaxed line-clamp-3 relative z-10 break-words" style={{ color: "#6B6B6B" }}>{item.text}</p>
                       </button>
                     ))}
                   </div>
@@ -8202,7 +9308,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               {/* Satellit-tilstand: tidspunkt-vælger */}
               {satelliteMode && (
                 <div>
-                  <div className="space-y-2 mb-5">
+                  <div className="space-y-2 mb-5 max-h-[min(60vh,520px)] overflow-y-auto overflow-x-hidden">
                     {SATELLITE_TIMES_DASH.map((t, idx) => (
                       <button
                         key={t.label}
@@ -8240,7 +9346,7 @@ function AIDesignAgentFlow({ onBack, cases }: { onBack: () => void; cases: ApiCa
               )}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
@@ -9714,6 +10820,8 @@ export default function BoligpotentialeDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null);
+  const [generationLaunch, setGenerationLaunch] = useState<{ case: LaunchCase; requestId: number; feature: CaseGenerationFeature } | null>(null);
+  const launchRequestId = useRef(0);
   const [prevSection, setPrevSection] = useState<Section>("dashboard");
   const [now, setNow] = useState(Date.now());
   const [pendingCase, setPendingCase] = useState<ApiCase | null>(null);
@@ -9750,15 +10858,43 @@ export default function BoligpotentialeDashboard() {
   useEffect(() => { applyBoligBrand(); }, []);
 
   const openCase = (id: number) => {
+    setGenerationLaunch(null);
     setSelectedCaseId(id);
     setPrevSection(section);
     setSection("sag-detail");
   };
 
   const closeCase = () => {
+    setGenerationLaunch(null);
     setSection(prevSection);
     setSelectedCaseId(null);
     setPendingCase(null);
+  };
+
+  const launchCaseTool = (caseInfo: ApiCase, feature: CaseGenerationFeature) => {
+    const target = Object.freeze({ id: caseInfo.id, address: caseInfo.address });
+    if (feature === "image") return;
+    if (feature === "tour" && !isOwner) return;
+    const destinations: Partial<Record<CaseGenerationFeature, Section>> = {
+      "design-agent": "ai-design-agent",
+      floorplan: "3d-plantegning",
+      transform: "transformering-video",
+      morph: "transformering-video",
+      showcase: "showcase-video",
+      tour: "ai-boligfremvisning",
+    };
+    const destination = destinations[feature];
+    if (!destination) return;
+    launchRequestId.current += 1;
+    setGenerationLaunch({ case: target, requestId: launchRequestId.current, feature });
+    setSection(destination);
+  };
+
+  const returnToLaunchCase = () => {
+    if (!generationLaunch) return;
+    setSelectedCaseId(generationLaunch.case.id);
+    setSection("sag-detail");
+    setGenerationLaunch(null);
   };
 
   useEffect(() => {
@@ -10100,7 +11236,7 @@ export default function BoligpotentialeDashboard() {
             <button key={item.id}
               onClick={() => {
                 if (isLocked) return;
-                setSection(item.id); setSidebarOpen(false);
+                setGenerationLaunch(null); setSection(item.id); setSidebarOpen(false);
               }}
               className={`grid grid-cols-[20px_minmax(0,1fr)] items-center gap-2.5 w-full ${item.id === "solgte" ? "pl-7 pr-4" : "px-4"} py-3 rounded-xl text-sm font-medium transition-all text-left`}
               style={{
@@ -10136,7 +11272,7 @@ export default function BoligpotentialeDashboard() {
 
         {NAV_BOTTOM.map((item) => (
           <button key={item.id}
-            onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+            onClick={() => { setGenerationLaunch(null); setSection(item.id); setSidebarOpen(false); }}
             className="grid grid-cols-[20px_minmax(0,1fr)] items-center gap-2.5 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all text-left"
             style={{ background: section === item.id ? "rgba(200,149,108,0.18)" : "transparent", color: section === item.id ? "#C8956C" : "rgba(245,243,239,0.7)" }}
             data-testid={`bolig-nav-${item.id}`}
@@ -10403,6 +11539,20 @@ export default function BoligpotentialeDashboard() {
 
         {/* ── MAIN CONTENT ── */}
         <main className="flex-1 md:ml-72 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-128px)] min-w-0 max-w-full overflow-x-clip" data-testid="bolig-main">
+          {generationLaunch && ["upload", "ai-design-agent", "3d-plantegning", "transformering-video", "showcase-video", "ai-boligfremvisning"].includes(section) && (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E8E4DE] bg-white px-4 py-3" data-testid="launch-case-return-banner">
+              <p className="text-sm text-[#4A4A4A]">
+                {t("dashboard.caseGenerationPicker.caseContext", { address: generationLaunch.case.address })}
+              </p>
+              <button
+                type="button"
+                onClick={returnToLaunchCase}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#D9D5CF] px-4 text-xs font-semibold text-[#0F1D2F] hover:border-[#C8956C]"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> {t("dashboard.caseGenerationPicker.returnToCase")}
+              </button>
+            </div>
+          )}
 
           {/* Dashboard overview */}
           {section === "dashboard" && (
@@ -10802,38 +11952,51 @@ export default function BoligpotentialeDashboard() {
                 survive switching functions. Only the active one is visible. ── */}
           <div className={section === "ai-design-agent" ? "" : "hidden"} aria-hidden={section !== "ai-design-agent"}>
             <PaywallPage allowFreeTrial>
-              <AIDesignAgentFlow onBack={() => setSection("dashboard")} cases={cases} />
+              <AIDesignAgentFlow
+                onBack={() => generationLaunch ? returnToLaunchCase() : setSection("dashboard")}
+                cases={cases}
+                launchCase={generationLaunch?.case ?? null}
+              />
             </PaywallPage>
           </div>
 
           <div className={section === "3d-plantegning" ? "" : "hidden"} aria-hidden={section !== "3d-plantegning"}>
             <PaywallPage>
-              <Floorplan3DFlow cases={cases} />
+              <Floorplan3DFlow cases={cases} launchCase={generationLaunch?.case ?? null} />
             </PaywallPage>
           </div>
 
           <div className={section === "transformering-video" ? "" : "hidden"} aria-hidden={section !== "transformering-video"}>
             <PaywallPage>
-              <TransformVideoFlow cases={cases} onOpenCases={() => setSection("sager")} />
+              <TransformVideoFlow
+                cases={cases}
+                onOpenCases={() => setSection("sager")}
+                launchCase={generationLaunch?.case ?? null}
+                launchRequestId={generationLaunch?.requestId ?? 0}
+                launchMode={generationLaunch?.feature === "morph" ? "morph" : generationLaunch ? "cinematic" : null}
+              />
             </PaywallPage>
           </div>
 
-          {/* AI boligfremvisning section — owner only, requires subscription */}
-          {section === "ai-boligfremvisning" && isOwner && (
-            <motion.div key="ai-boligfremvisning-view" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+          {/* Owner tour stays mounted while hidden so its polling and original
+              project/case targets survive returning to the case view. */}
+          {isOwner && (
+            <div className={section === "ai-boligfremvisning" ? "" : "hidden"} aria-hidden={section !== "ai-boligfremvisning"}>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <PaywallPage>
-                <PropertyTourFlow />
+                <PropertyTourFlow cases={cases} launchCase={generationLaunch?.case ?? null} />
               </PaywallPage>
-            </motion.div>
+              </motion.div>
+            </div>
           )}
 
           <div className={section === "upload" ? "" : "hidden"} aria-hidden={section !== "upload"}>
-            <UploadFlow onBack={() => setSection("dashboard")} />
+            <UploadFlow onBack={() => generationLaunch ? returnToLaunchCase() : setSection("dashboard")} cases={cases} launchCase={generationLaunch?.case ?? null} />
           </div>
 
           <div className={section === "showcase-video" ? "min-w-0" : "hidden"} aria-hidden={section !== "showcase-video"}>
             <PaywallPage>
-              <ShowcaseVideoFlow cases={cases} onOpenCases={() => setSection("sager")} />
+              <ShowcaseVideoFlow cases={cases} onOpenCases={() => setSection("sager")} launchCase={generationLaunch?.case ?? null} />
             </PaywallPage>
           </div>
 
@@ -10937,8 +12100,11 @@ export default function BoligpotentialeDashboard() {
               ?? (pendingCase?.id === selectedCaseId ? pendingCase : null);
             return c ? (
               <CaseDetailPanel
+                key={c.id}
                 caseData={c}
                 allCases={cases}
+                onLaunchTool={(feature) => launchCaseTool(c, feature)}
+                onUpgrade={() => setSection("pris")}
                 onBack={closeCase}
                 onDeleted={() => {
                   showToast(i18n.t("dashboard.homeX.sagSlettet"));

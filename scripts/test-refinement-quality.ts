@@ -11,10 +11,12 @@ const prompt = buildRefinementPrompt(requestedChange);
 
 assert.ok(prompt.startsWith(REFINEMENT_PRESERVATION_PREFIX));
 assert.ok(prompt.includes(`--- BEGIN USER REQUEST ---\n${requestedChange}`));
-assert.ok(prompt.endsWith("\n--- END USER REQUEST ---"));
+assert.ok(prompt.includes("\n--- END USER REQUEST ---\n\n"));
 assert.match(prompt, /NOT a new image generation/i);
 assert.match(prompt, /Do not crop, zoom, pan, tilt, reframe, or reduce the image resolution/i);
 assert.match(prompt, /no blur, haze, smudging/i);
+assert.ok(prompt.endsWith("The result must remain the same original SCENE photographed from the same original view."));
+assert.ok(prompt.lastIndexOf("HIGHEST-PRIORITY FINAL CAMERA AND SCENE CHECK:") > prompt.indexOf(requestedChange));
 
 assert.equal(
   getRefinementInputUrl("/uploads/refinement-source-1.jpg", "/uploads/result-1.jpg"),

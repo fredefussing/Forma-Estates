@@ -29,6 +29,9 @@ import { isLoadTestMode } from "./load-test";
 import { registerRendyVoiceoverRoutes } from "./rendy-voiceover";
 import { collectRendyMediaKeys } from "./rendy-media-keys";
 import { buildCumulativeRefinementRequest, buildRefinementPrompt, getRefinementInputUrl } from "@shared/refinementPrompt";
+import { buildSeasonalCollovPrompt, buildStandardCollovPrompt } from "@shared/collovPrompt";
+import { resolveBoligCaseTarget } from "./bolig-case-target";
+import { localizedBoligCaseVideoFilename } from "./bolig-case-video";
 import {
   buildDesignAgentInitialPrompt,
   DESIGN_AGENT_INITIAL_PROMPT_PROFILE,
@@ -291,7 +294,7 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
 
   // 1) Prøv room-specifik prompt fra det gamle vocab (Skandinavisk/Moderne har dækning her).
   const roomSpecific = getRoomStylePrompt(style, roomType, validTier);
-  if (roomSpecific) return guardedPrefix() + roomSpecific;
+  if (roomSpecific) return buildStandardCollovPrompt(roomSpecific, guardedPrefix());
 
   // 2) Fallback til nye Bolig-prompts (Luksus, Industriel, Kyst, Overgangs, Landlig, Midcentury).
   const tierMap: Record<string, "tier1" | "tier2" | "tier3"> = {
@@ -301,7 +304,7 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
   const boligRoom = BOLIG_ROOM_ALIASES[roomType.toLowerCase()] ?? roomType.toLowerCase();
   try {
     const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
-    return guardedPrefix() + boligPrompt;
+    return buildStandardCollovPrompt(boligPrompt, guardedPrefix());
   } catch (promptErr: any) {
     // FIX: do NOT rethrow — fall through to generic vocab fallback below.
     log(`[PROMPT_NOT_FOUND] ${promptErr.message} — falling back to generic vocab prompt`);
@@ -309,9 +312,10 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
 
   // 3) Generic vocab fallback — runs when boligPrompts has no entry for this room+style combo.
   const vocab = styleVocabulary[style]?.[validTier];
-  return vocab
-    ? guardedPrefix() + `Completely redesign this ${roomType}. ${vocab.prompt} Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`
-    : guardedPrefix() + `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
+  const fallbackPrompt = vocab
+    ? `Completely redesign this ${roomType}. ${vocab.prompt}`
+    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
+  return buildStandardCollovPrompt(fallbackPrompt, guardedPrefix());
 }
 
 // ── Fetch with a hard timeout (AbortController) ──────────────────────────────
@@ -2845,8 +2849,9 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid token" });
       }
 
-      const prompt = (req.body.prompt || "").trim();
-      if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+      const userRequest = (req.body.prompt || "").trim();
+      if (!userRequest) return res.status(400).json({ error: "Prompt is required" });
+      const prompt = buildDesignAgentInitialPrompt(userRequest);
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const host = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
@@ -2888,7 +2893,7 @@ export async function registerRoutes(
       const agentDesign = await storage.createAgentDesign({
         userId,
         originalImageUrl,
-        agentPrompt: prompt,
+        agentPrompt: userRequest,
         status: "processing",
       });
 
@@ -3590,24 +3595,10 @@ export async function registerRoutes(
       if (!existing) return res.status(404).json({ message: "Not found" });
       if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
 
-      // Collect all file paths before deleting DB records
-      const images = await storage.getBoligCaseImages(id);
-      const allPaths = images.flatMap((img) => [img.src, img.beforeSrc].filter(Boolean) as string[]);
-
-      // Delete DB records
+      // Delete case records, but leave uploaded objects to the reference-aware
+      // orphan cleanup. The same media may still belong to a tour, design or
+      // another case, so deleting its R2 key here would break those results.
       await storage.deleteBoligCase(id);
-
-      // Clean up files (non-blocking — DB delete already succeeded)
-      const r2Keys: string[] = [];
-      for (const p of allPaths) {
-        if (!p.startsWith("/uploads/")) continue;
-        const filename = path.basename(p);
-        // Local disk
-        const localPath = path.join(uploadDir, filename);
-        fs.unlink(localPath, () => {});
-        r2Keys.push(filename);
-      }
-      r2DeleteFiles(r2Keys).catch(() => {});
 
       return res.json({ success: true });
     } catch (err: any) {
@@ -3730,16 +3721,27 @@ export async function registerRoutes(
     } catch { return false; }
   }
 
-  async function localizeRemoteVideo(url: string): Promise<string> {
+  async function localizeRemoteVideo(url: string, userId: number, caseId: number): Promise<string> {
     if (!isTrustedVideoHost(url)) {
       console.error(`[case-video] afvist: ikke-godkendt videovært — ${url.slice(0, 120)}`);
       throw new Error("Videoen kom fra en ikke-godkendt vært");
     }
-    const filename = `case-video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
-    const localFilePath = path.join(uploadDir, filename);
+    const filename = localizedBoligCaseVideoFilename(userId, caseId, url);
+    const finalFilePath = path.join(uploadDir, filename);
+    try {
+      const existing = await fs.promises.stat(finalFilePath);
+      if (existing.isFile() && existing.size >= 10_000) return `/uploads/${filename}`;
+      await fs.promises.unlink(finalFilePath);
+    } catch (err: any) {
+      if (err?.code !== "ENOENT") throw err;
+    }
+
+    // Each attempt downloads to its own temporary file. Only a complete file
+    // that has been durably uploaded is atomically published at the stable URL.
+    const tempFilePath = path.join(uploadDir, `.case-video-${crypto.randomUUID()}.tmp.mp4`);
     try {
       const contentType = await new Promise<string>((resolve, reject) => {
-        const curl = spawn("curl", ["-sL", "--fail", "--max-time", "120", "--max-filesize", "524288000", "--proto", "=https", "-o", localFilePath, "-w", "%{content_type}", url]);
+        const curl = spawn("curl", ["-sL", "--fail", "--max-time", "120", "--max-filesize", "524288000", "--proto", "=https", "-o", tempFilePath, "-w", "%{content_type}", url]);
         const out: Buffer[] = [];
         curl.stdout.on("data", (d: Buffer) => out.push(d));
         curl.on("close", (code: number) => code === 0 ? resolve(Buffer.concat(out).toString().trim()) : reject(new Error(`curl exit ${code}`)));
@@ -3748,13 +3750,14 @@ export async function registerRoutes(
       if (contentType && !/^(video\/|application\/octet-stream|binary\/)/i.test(contentType)) {
         throw new Error(`unexpected content-type: ${contentType}`);
       }
-      const size = fs.statSync(localFilePath).size;
+      const size = fs.statSync(tempFilePath).size;
       if (size < 10_000) throw new Error(`downloaded file too small (${size} bytes)`);
-      await r2UploadFile(localFilePath);
+      await r2UploadFile(tempFilePath, filename);
+      await fs.promises.rename(tempFilePath, finalFilePath);
       log(`[case-video] durably localized ${url.slice(0, 80)}… → /uploads/${filename} (${Math.round(size / 1024)} KB)`);
       return `/uploads/${filename}`;
     } catch (e: any) {
-      try { fs.unlinkSync(localFilePath); } catch {}
+      try { fs.unlinkSync(tempFilePath); } catch {}
       throw new Error(`Kunne ikke gemme videoen sikkert: ${e?.message || "ukendt fejl"}`);
     }
   }
@@ -3771,29 +3774,30 @@ export async function registerRoutes(
       const caseId = parseInt(req.params.id);
       if (isNaN(caseId)) return res.status(400).json({ message: "Invalid id" });
       const existing = await storage.getBoligCase(caseId);
-      if (!existing || existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      if (!existing) return res.status(404).json({ message: "Case not found" });
+      if (existing.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
       const {
         imageUrl, originalImageUrl,
         roomType, style, budgetTier,
         promptText, isDesignAgent,
       } = req.body || {};
-      if (!imageUrl) return res.status(400).json({ message: "imageUrl required" });
+      if (typeof imageUrl !== "string" || !imageUrl.trim()) return res.status(400).json({ message: "imageUrl required" });
 
       // Persist provider-hosted videos (Rendy/fal) on our own storage so they
       // remain playable in the case folder even if the provider deletes them.
       let finalImageUrl: string = imageUrl;
       let finalOriginalUrl: string | null = originalImageUrl || null;
       if (isRemoteVideoUrl(imageUrl, roomType)) {
-        const local = await localizeRemoteVideo(imageUrl);
+        const local = await localizeRemoteVideo(imageUrl, user.id, caseId);
         finalImageUrl = local;
         if (finalOriginalUrl === imageUrl) finalOriginalUrl = local;
       }
       if (finalOriginalUrl && finalOriginalUrl !== finalImageUrl && isRemoteVideoUrl(finalOriginalUrl, roomType)) {
-        const localOrig = await localizeRemoteVideo(finalOriginalUrl);
+        const localOrig = await localizeRemoteVideo(finalOriginalUrl, user.id, caseId);
         finalOriginalUrl = localOrig;
       }
 
-      const img = await storage.createGeneratedImage({
+      const img = await storage.createGeneratedImageForCaseIdempotently({
         userId: user.id,
         caseId,
         imageUrl: finalImageUrl,
@@ -3862,24 +3866,13 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
 
-      // Hent billedet inden sletning så vi kan rydde disk + R2
+      // Ownership check before removing the visible record.
       const img = await storage.getGeneratedImage(id);
       if (img && img.userId !== user.id) return res.status(403).json({ message: "Forbidden" });
 
-      // Slet fra DB først
+      // The physical media may be shared by another case, a design or a tour.
+      // Reference-aware orphan cleanup removes it only when no record uses it.
       await storage.deleteGeneratedImage(id, user.id);
-
-      // Ryd lokale filer + R2 (non-blocking — DB delete er allerede sket)
-      if (img) {
-        const r2Keys: string[] = [];
-        for (const url of [img.originalImageUrl, img.imageUrl]) {
-          if (!url?.startsWith("/uploads/")) continue;
-          const filename = path.basename(url);
-          fs.unlink(path.join(uploadDir, filename), () => {});
-          r2Keys.push(filename);
-        }
-        if (r2Keys.length > 0) r2DeleteFiles(r2Keys).catch(() => {});
-      }
 
       return res.json({ success: true });
     } catch (err: any) {
@@ -4327,8 +4320,9 @@ export async function registerRoutes(
       } catch {
         prompt = `Completely redesign this ${room} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
       }
-      // ── Strukturbeskyttelse: samme prefix som hovedflowet ──
-      prompt = guardedPrefix() + prompt;
+      // Keep the locked preset text intact and wrap it with the same guarded
+      // structure contract used by the other standard Collov staging flows.
+      prompt = buildStandardCollovPrompt(prompt, guardedPrefix());
 
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const rawHost = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
@@ -4528,6 +4522,23 @@ export async function registerRoutes(
         return res.status(401).json({ success: false, message: "Log ind for at generere billeder." });
       }
 
+      // A supplied target case must be a valid, existing case owned by this
+      // authenticated user. Resolve it before any quota consumption/provider work.
+      const caseTarget = await resolveBoligCaseTarget(
+        req.body?.caseId,
+        authedUserId,
+        (id) => storage.getBoligCase(id),
+      );
+      if (caseTarget.kind === "invalid") {
+        return res.status(400).json({ success: false, message: "Invalid caseId" });
+      }
+      if (caseTarget.kind === "not-found") {
+        return res.status(404).json({ success: false, message: "Case not found" });
+      }
+      if (caseTarget.kind === "forbidden") {
+        return res.status(403).json({ success: false, message: "Forbidden" });
+      }
+
       const isDesignAgent = req.body.isDesignAgent === "true" || req.body.isDesignAgent === true;
       // Sæsonopdatering: server-styret prompt, der KUN ændrer sæsonpræg
       const SEASON_PROMPTS: Record<string, { label: string; prompt: string }> = {
@@ -4543,7 +4554,7 @@ export async function registerRoutes(
       let room = isDesignAgent ? "Design Agent" : (req.body.room as string) || "living room";
       const tierRaw = (req.body.tier as string) || "tier2";
       const tier = (tierRaw === "tier1" || tierRaw === "tier2" || tierRaw === "tier3") ? tierRaw : "tier2";
-      const caseId = req.body.caseId ? parseInt(req.body.caseId as string) : null;
+      const caseId = caseTarget.kind === "valid" ? caseTarget.caseId : null;
       const isQuickGeneration = req.body.isQuick === "true" || req.body.isQuick === true;
       const promptTextValue = req.body.promptText;
       const customPromptText = typeof promptTextValue === "string" ? promptTextValue : "";
@@ -4682,7 +4693,7 @@ export async function registerRoutes(
       let prompt: string;
       let agentPromptProfile: string | null = null;
       if (season) {
-        prompt = SEASON_PROMPTS[season].prompt + SEASON_SUFFIX;
+        prompt = buildSeasonalCollovPrompt(SEASON_PROMPTS[season].prompt, SEASON_SUFFIX);
       } else if (isDesignAgent && isRefinement) {
         const cumulativeRequest = buildCumulativeRefinementRequest(priorRefinementRequests, customPromptText);
         prompt = buildRefinementPrompt(cumulativeRequest);
@@ -4710,8 +4721,9 @@ export async function registerRoutes(
             detail: guardErr.message,
           });
         }
-        // The approved quality profile sends the locked room/style prompt
-        // directly to Collov, matching the concise visual benchmark.
+        // Preserve exact locked preset text above, then add the guarded
+        // structural wrapper required for every standard Collov image edit.
+        prompt = buildStandardCollovPrompt(prompt, guardedPrefix());
       }
       const agentTraceId = isDesignAgent ? crypto.randomUUID() : null;
       const agentPromptHash = isDesignAgent
@@ -6568,7 +6580,7 @@ export async function registerRoutes(
         return parts.length ? ` Architectural facts from floor plan: ${parts.join(". ")}.` : "";
       })();
       // ── Strukturbeskyttelse: samme prefix som BoligPotentiale-flowet ──
-      const prompt = guardedPrefix() + basePrompt + layoutCtx + archFactsStr;
+      const prompt = buildStandardCollovPrompt(basePrompt, guardedPrefix(), layoutCtx + archFactsStr);
 
       // Helper: run one Collov edit job against a single before-photo URL
       // and return the resulting after-image URL (or throw with reason).

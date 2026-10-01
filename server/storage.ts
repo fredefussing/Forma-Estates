@@ -132,6 +132,7 @@ export interface IStorage {
   setUserQuotas(userId: number, quotas: { ai?: number | null; floorPlans?: number | null; transformVideos?: number | null; showcase?: number | null; resetsAt?: Date; resetUsage?: boolean }): Promise<void>;
   resetMonthlyUsage(userId: number): Promise<void>;
   createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage>;
+  createGeneratedImageForCaseIdempotently(data: InsertGeneratedImage): Promise<GeneratedImage>;
   moveGeneratedImageToCase(id: number, userId: number, caseId: number): Promise<GeneratedImage | undefined>;
   getGeneratedImagesByCaseId(caseId: number, userId: number): Promise<GeneratedImage[]>;
   getAllGeneratedImages(userId: number, limit?: number): Promise<GeneratedImage[]>;
@@ -503,6 +504,27 @@ export class DatabaseStorage implements IStorage {
   async createGeneratedImage(data: InsertGeneratedImage): Promise<GeneratedImage> {
     const [result] = await db.insert(generatedImages).values(data).returning();
     return result;
+  }
+
+  async createGeneratedImageForCaseIdempotently(data: InsertGeneratedImage): Promise<GeneratedImage> {
+    if (data.caseId == null) {
+      throw new Error("Idempotent case image creation requires a caseId");
+    }
+    const lockKey = `${data.userId}:${data.caseId}:${data.imageUrl}`;
+    return db.transaction(async (tx) => {
+      // Serialize concurrent retries for this exact user/case/image tuple.
+      // The row lookup remains authoritative; hash collisions only serialize
+      // unrelated requests and cannot cause one image to match another.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+      const [existing] = await tx.select().from(generatedImages).where(and(
+        eq(generatedImages.userId, data.userId),
+        eq(generatedImages.caseId, data.caseId!),
+        eq(generatedImages.imageUrl, data.imageUrl),
+      )).limit(1);
+      if (existing) return existing;
+      const [created] = await tx.insert(generatedImages).values(data).returning();
+      return created;
+    });
   }
 
   async moveGeneratedImageToCase(id: number, userId: number, caseId: number): Promise<GeneratedImage | undefined> {

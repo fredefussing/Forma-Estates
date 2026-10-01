@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import SaveToCaseButton, { type SaveToCase } from "@/components/save-to-case-button";
 import { apiRequest } from "@/lib/queryClient";
 import { User, Upload, Sparkles, X, RotateCcw, Download, ArrowRight, Globe, ChevronLeft, Sun, Sunrise, Sunset, Cloud, Moon, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -72,10 +73,65 @@ export default function AIDesignAgentPage() {
   const [imageLocked, setImageLocked] = useState(false);
   const [lockedOriginalUrl, setLockedOriginalUrl] = useState<string | null>(null);
   const [freeUsesRemaining, setFreeUsesRemaining] = useState<number | null>(null);
+  const [cases, setCases] = useState<SaveToCase[]>([]);
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [casesError, setCasesError] = useState<string | null>(null);
+  const [casesRetry, setCasesRetry] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    if (!user) {
+      setCases([]);
+      setCasesLoading(false);
+      setCasesError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setCasesLoading(true);
+    setCasesError(null);
+
+    void (async () => {
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch("/api/bolig/cases", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+          const detail = await response.text().catch(() => "");
+          throw new Error(detail || `Failed to load cases (${response.status})`);
+        }
+        const data: unknown = await response.json();
+        if (!Array.isArray(data)) throw new Error("Invalid cases response");
+        const userCases = data
+          .filter((item): item is { id: number | string; address: string; status?: string } =>
+            !!item &&
+            typeof item === "object" &&
+            "id" in item &&
+            "address" in item &&
+            (typeof item.id === "number" || typeof item.id === "string") &&
+            typeof item.address === "string"
+          )
+          .map((item) => ({ id: Number(item.id), address: item.address, status: item.status ?? "" }))
+          .filter((item) => Number.isFinite(item.id));
+        if (!cancelled) setCases(userCases);
+      } catch (error) {
+        if (!cancelled) {
+          setCasesError(error instanceof Error ? error.message : "Could not load your cases.");
+          setCases([]);
+        }
+      } finally {
+        if (!cancelled) setCasesLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, casesRetry]);
 
   // Translated satellite time labels (phrases stay in English for the AI)
   const satelliteTimes = t("aiAgent.satelliteTimes", { returnObjects: true }) as Array<{ label: string; emoji: string }>;
@@ -219,6 +275,7 @@ export default function AIDesignAgentPage() {
         setImageLocked(true);
         setLockedOriginalUrl(data.originalImageUrl);
       }
+      setOriginalUrl(data.originalImageUrl || previewUrl);
       if (typeof data.freeUsesRemaining === "number") {
         setFreeUsesRemaining(data.freeUsesRemaining);
       }
@@ -382,6 +439,35 @@ export default function AIDesignAgentPage() {
                   <p className="text-xs text-muted-foreground" data-testid="text-ai-label-notice">
                     {watermark ? t("aiAgent.result.aiLabelOn") : t("aiAgent.result.aiLabelOff")}
                   </p>
+                  {user && (
+                    <div className="mt-3" data-testid="save-result-to-case">
+                      {casesLoading ? (
+                        <p className="text-sm text-muted-foreground" role="status">Loading your cases…</p>
+                      ) : casesError ? (
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+                          <span>Could not load your cases: {casesError}</span>
+                          <Button variant="outline" size="sm" onClick={() => setCasesRetry((retry) => retry + 1)}>
+                            Retry
+                          </Button>
+                        </div>
+                      ) : cases.length > 0 ? (
+                        <SaveToCaseButton
+                          key={`${designId ?? "design"}:${resultUrl}`}
+                          cases={cases}
+                          mediaUrl={resultUrl}
+                          originalUrl={originalUrl}
+                          // Agent-design IDs are not generated-image row IDs. Let the
+                          // button create one on first save, then move that same row.
+                          generatedImageId={null}
+                          promptText={prompt}
+                          isDesignAgent
+                          testIdPrefix="ai-design-agent-save-to-case"
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No cases are available to save this image to.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : isGenerating ? (
