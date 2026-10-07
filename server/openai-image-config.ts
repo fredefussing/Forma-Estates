@@ -1,14 +1,13 @@
 type ImageEnvironment = {
   [key: string]: string | undefined;
   ASTRA_API_KEY?: string;
-  OPENAI_API_KEY?: string;
   OPENAI_ROOM_FLOW_ENABLED?: string;
   OPENAI_IMAGE_TEST_ENABLED?: string;
 };
 
-/** Credential aliases for the same OpenAI service, never a provider/model fallback. */
+/** The approved image credential must never fall back to a different OpenAI account. */
 export function getOpenAIImageApiKey(env: ImageEnvironment = process.env): string | undefined {
-  return env.ASTRA_API_KEY?.trim() || env.OPENAI_API_KEY?.trim() || undefined;
+  return env.ASTRA_API_KEY?.trim() || undefined;
 }
 
 /** Only non-sensitive operational metadata may be returned to authenticated clients. */
@@ -20,6 +19,7 @@ export function getOpenAIImageAvailability(isAdmin: boolean, env: ImageEnvironme
   return {
     enabled,
     roomFlowAvailable,
+    credentialSource: configured ? "ASTRA_API_KEY" : null,
     availabilityReason: roomFlowAvailable ? "available" : !configured ? "missing_api_key" : "paused",
   } as const;
 }
