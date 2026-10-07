@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 import sharp from "sharp";
+import { getOpenAIImageApiKey } from "./openai-image-config";
 import { prepareOpenAIFramedInput, framePreservationInstructions, openAIImageSize, removeOpenAITransportMargins, type ImageContentFrame } from "./openai-image-frame";
 
 export const IMAGE_TEST_MODEL = "chatgpt-image-latest";
@@ -66,7 +67,7 @@ async function editOnce(imagePath: string, prompt: string, model: ImageTestModel
     if (quality) args.push("-F", `quality=${quality}`);
     const status = await new Promise<number>((resolve, reject) => {
       const child = spawn("curl", args, { stdio: ["pipe", "pipe", "ignore"] });
-      child.stdin.end(`Authorization: Bearer ${process.env.ASTRA_API_KEY}\n`);
+      child.stdin.end(`Authorization: Bearer ${getOpenAIImageApiKey()}\n`);
       let code = "";
       child.stdout.on("data", chunk => { code += chunk.toString(); });
       child.on("error", reject);
@@ -86,7 +87,7 @@ export async function runOpenAIImageTest(
 ): Promise<{ buffer: Buffer; metrics: ImageTestMetrics; contentFrame?: ImageContentFrame }> {
   // Published edits API limit; reject instead of truncating the approved contract.
   if (!prompt.trim() || Array.from(prompt).length > 32_000) throw new Error("OpenAI image prompt exceeds the supported character limit.");
-  if (!process.env.ASTRA_API_KEY) throw new Error("OpenAI image test key is not configured.");
+  if (!getOpenAIImageApiKey()) throw new Error("OpenAI image test key is not configured.");
   // A retained master may already contain transport margins. Remove only those
   // known margins before framing again, preventing compounded padding on refinements.
   const photoInput = existingContentFrame ? await removeOpenAITransportMargins(inputPath, existingContentFrame) : inputPath;

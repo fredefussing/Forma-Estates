@@ -192,11 +192,15 @@ function useRoomImageAvailability() {
     queryKey: ["openai-image-test-status", auth.currentUser?.uid],
     queryFn: async () => {
       const token = await auth.currentUser?.getIdToken();
-      if (!token) return { enabled: false, roomFlowAvailable: false };
+      if (!token) throw new Error("Authentication required for image status.");
       const res = await fetch("/api/bolig/openai-image-test/status", { headers: { Authorization: `Bearer ${token}` } });
-      return res.ok ? await res.json() as { enabled: boolean; roomFlowAvailable: boolean } : { enabled: false, roomFlowAvailable: false };
+      if (!res.ok) throw new Error(`Image status check failed (HTTP ${res.status}).`);
+      return await res.json() as { enabled: boolean; roomFlowAvailable: boolean; availabilityReason?: "available" | "missing_api_key" | "paused" };
     },
-    staleTime: 60_000,
+    enabled: !!auth.currentUser?.uid,
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    retry: 1,
   });
 }
 

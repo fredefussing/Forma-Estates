@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { getOpenAIImageApiKey } from "./openai-image-config";
 
 export type RoomVisionStage = "analysis" | "review";
 const TIMEOUT_SECONDS = 60;
@@ -37,13 +38,13 @@ async function attempt(input: string, output: string) {
       reject(new Error("Billedanalysens forbindelse kunne ikke startes."));
     });
     child.on("close", exit => finish(exit ?? -1));
-    child.stdin.end(`Authorization: Bearer ${process.env.ASTRA_API_KEY}\n`);
+    child.stdin.end(`Authorization: Bearer ${getOpenAIImageApiKey()}\n`);
   });
 }
 
 /** Retry only transient analysis/review failures; never retry billing or auth. */
 export async function requestRoomVision(payload: unknown, stage: RoomVisionStage) {
-  if (!process.env.ASTRA_API_KEY) throw new Error("OpenAI er ikke konfigureret til billedanalyse.");
+  if (!getOpenAIImageApiKey()) throw new Error("OpenAI er ikke konfigureret til billedanalyse.");
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "forma-room-vision-"));
   const input = path.join(dir, "request.json");
   const output = path.join(dir, "response.json");

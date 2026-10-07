@@ -21,6 +21,7 @@ import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
 import { loadOwnedOpenAIImage } from "./openai-source-image";
 import { canUseOpenAIImageRequest, isOpenAIRefinementSource, getOpenAIRefinementModel, isSunburstRolloutEnabled, selectImageProvider } from "./openai-refinement-policy";
+import { getOpenAIImageApiKey, getOpenAIImageAvailability } from "./openai-image-config";
 import { assertPromptLocked, assertStructuralPrefixLocked } from "./promptGuard";
 import { buildValidatedStandardImagePrompt } from "./standardImagePrompt";
 import { buildFourKImageDelivery, orientedImageDimensions, persistFourKImageDelivery } from "./image-delivery";
@@ -4495,11 +4496,11 @@ export async function registerRoutes(
       if (openaiRequested && imageModel !== IMAGE_TEST_MODEL && imageModel !== SUNBURST_IMAGE_MODEL) {
         return res.status(400).json({ success: false, message: "Ukendt billedmodel." });
       }
-      if (openaiRequested && !process.env.ASTRA_API_KEY) {
+      if (openaiRequested && !getOpenAIImageApiKey()) {
         return res.status(503).json({ success: false, message: "Billedgenerering er midlertidigt utilgængelig. Billedmotoren er ikke konfigureret." });
       }
       if (openaiRequested && !canUseOpenAIImageRequest({
-        keyConfigured: !!process.env.ASTRA_API_KEY,
+        keyConfigured: !!getOpenAIImageApiKey(),
         rolloutEnabled,
         adminTestAllowed,
         hasUpload: !!req.file,
@@ -4978,10 +4979,8 @@ export async function registerRoutes(
     try {
       const { uid } = await verifyFirebaseToken(req.headers.authorization);
       const user = await storage.getUserByFirebaseUid(uid);
-      const canTest = !!user?.isAdmin && process.env.OPENAI_IMAGE_TEST_ENABLED === "1" && !!process.env.ASTRA_API_KEY;
       return res.json({
-        enabled: canTest,
-        roomFlowAvailable: (isSunburstRolloutEnabled(process.env.OPENAI_ROOM_FLOW_ENABLED) && !!process.env.ASTRA_API_KEY) || canTest,
+        ...getOpenAIImageAvailability(!!user?.isAdmin),
         model: SUNBURST_IMAGE_MODEL,
       });
     } catch {
