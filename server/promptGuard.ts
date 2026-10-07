@@ -1,6 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { getAllBoligPrompts, normalizeBoligRoom } from "../shared/boligPrompts";
+import { IMAGE_PROMPT_COMMON } from "../shared/canonicalImagePrompt";
+import { SCANDINAVIAN_EXCLUSIVE_DIRECTION, SCANDINAVIAN_EXCLUSIVE_BATHROOM_RENOVATION } from "../shared/scandinavianExclusiveDirection";
+import { MODERN_EXCLUSIVE_TEMPLATE, MODERN_EXCLUSIVE_ROOM_APPLICATIONS, MODERN_EXCLUSIVE_RENOVATION_INVENTORIES } from "../shared/modernExclusivePrompt";
+import { STANDARD_TIER2_REVISION } from "../shared/standardTier2Renovation";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ██████████████████████████  PROMPT LOCK SYSTEM  ██████████████████████████████
@@ -25,7 +30,12 @@ import * as crypto from "crypto";
 
 // ── SHA-256 of shared/promptLock.json — computed 2026-07-28 ──────────────────
 // If this does not match the file on disk the server WILL NOT START.
-const LOCK_FILE_SHA256 = "284d36ead469779fc28631174d089d19d5f999f0a1c08e5917a6fb62afb2bbf9";
+const LOCK_FILE_SHA256 = "d541e7faed2e9199cd045121995902374124632cc8c127465663e31683b0798b";
+// Separately approved style refinement; update only with an intentional revision.
+const EXCLUSIVE_DIRECTION_SHA256 = "2c3f0c4055842ad054cdd53dbf2f0d643b2706fcacca776f853f4876c32f9e23";
+const SCANDINAVIAN_BATHROOM_RENOVATION_SHA256 = "0076bbb9a42c0689cf390f3d9590bb537e0e7dc7f7131396f05108f756b72601";
+const MODERN_EXCLUSIVE_SHA256 = "ec67aa2d567712e10de59d58d2d42d1f41628b796a0360321177707e5c9b5ee3";
+const STANDARD_TIER2_SHA256 = "227babe87cdeaa0e41f2f608e372bd3ab381b629c80df3b944a4ead3e570010b";
 
 let lockedPrompts: Record<string, string> | null = null;
 
@@ -42,7 +52,7 @@ function getLock(): Record<string, string> {
 }
 
 function normalizeRoom(room: string): string {
-  return room.trim().toLowerCase().replace(/\s+/g, "_");
+  return normalizeBoligRoom(room).replace(/\s+/g, "_");
 }
 
 // ── LAYER 1: Lock-file checksum — called once at server startup ───────────────
@@ -68,6 +78,33 @@ export function assertLockFileIntegrity(): void {
   }
 
   console.log(`[prompt-guard] ✓ promptLock.json integrity verified (SHA-256 match)`);
+  const lock = getLock();
+  const common = {
+    __canonical_integrity__: IMAGE_PROMPT_COMMON.image_integrity_and_realism,
+    __canonical_furnishing_scope__: IMAGE_PROMPT_COMMON.edit_scopes.furnishing_only,
+    __canonical_renovation_scope__: IMAGE_PROMPT_COMMON.edit_scopes.renovation_visualization,
+    __canonical_conflicts__: IMAGE_PROMPT_COMMON.conflict_resolution,
+  };
+  for (const [key, text] of Object.entries(common)) {
+    if (lock[key] !== text) throw new Error(`PROMPT_INTEGRITY_VIOLATION: ${key}`);
+  }
+  if (crypto.createHash("sha256").update(SCANDINAVIAN_EXCLUSIVE_DIRECTION).digest("hex") !== EXCLUSIVE_DIRECTION_SHA256) {
+    throw new Error("PROMPT_INTEGRITY_VIOLATION: Scandinavian Exclusive direction");
+  }
+  if (crypto.createHash("sha256").update(SCANDINAVIAN_EXCLUSIVE_BATHROOM_RENOVATION).digest("hex") !== SCANDINAVIAN_BATHROOM_RENOVATION_SHA256) {
+    throw new Error("PROMPT_INTEGRITY_VIOLATION: Scandinavian Exclusive bathroom renovation");
+  }
+  const modernSource = JSON.stringify({ template: MODERN_EXCLUSIVE_TEMPLATE, rooms: MODERN_EXCLUSIVE_ROOM_APPLICATIONS, inventories: MODERN_EXCLUSIVE_RENOVATION_INVENTORIES });
+  if (crypto.createHash("sha256").update(modernSource).digest("hex") !== MODERN_EXCLUSIVE_SHA256) {
+    throw new Error("PROMPT_INTEGRITY_VIOLATION: Modern Exclusive room profiles");
+  }
+  if (crypto.createHash("sha256").update(JSON.stringify(STANDARD_TIER2_REVISION)).digest("hex") !== STANDARD_TIER2_SHA256) {
+    throw new Error("PROMPT_INTEGRITY_VIOLATION: Standard tier2 renovation profiles");
+  }
+  // Reject mixed source/lock releases at boot, before a customer spends quota.
+  for (const preset of getAllBoligPrompts()) {
+    assertPromptLocked(preset.room, preset.style, preset.tier, preset.prompt);
+  }
 }
 
 // ── LAYER 2: Per-request prompt check ────────────────────────────────────────
@@ -88,15 +125,13 @@ export function assertPromptLocked(
 ): void {
   const lock = getLock();
   const roomKey = normalizeRoom(room);
-  const key = `${style.toLowerCase()}/${roomKey}/${tier}`;
+  const key = `${style.toLowerCase().trim()}/${roomKey}/${tier}`;
 
   const expected = lock[key];
 
   if (expected === undefined) {
-    // Key not in lock — new/unsupported combo using generic fallback.
-    // Log a warning but do NOT block generation.
-    console.warn(`[PROMPT_GUARD] Ingen låst reference for "${key}" — tillader generering med fallback-prompt.`);
-    return;
+    // Unsupported combinations must never silently substitute another preset.
+    throw new Error(`PROMPT_INTEGRITY_VIOLATION: Ingen låst reference for "${key}"`);
   }
 
   if (actualPrompt !== expected) {

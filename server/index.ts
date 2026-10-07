@@ -7,6 +7,7 @@ import { createServer } from "http";
 import { startTracker } from "./tracker";
 import { startDripScheduler } from "./drip";
 import { storage } from "./storage";
+import { pool } from "./db";
 import { ensureRendyJobsTable } from "./rendy";
 import { ensureRendyEditorTables } from "./rendy-editor";
 import { assertLockFileIntegrity } from "./promptGuard";
@@ -223,6 +224,7 @@ app.use((req, res, next) => {
   // server/promptGuard.ts. If the lock file has been modified without updating
   // the checksum constant, the server refuses to start.
   assertLockFileIntegrity();
+  await pool.query("ALTER TABLE generated_images ADD COLUMN IF NOT EXISTS provider_metrics jsonb");
 
   // Ensure Rendy job tracking table exists (survives server restarts)
   try { await ensureRendyJobsTable(); } catch (e: any) { console.error("[init] ensureRendyJobsTable:", e.message); }
@@ -250,6 +252,9 @@ app.use((req, res, next) => {
   });
 
   // Serve public/ directory (videos, images, etc.) before Vite/SPA fallback
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ success: false, message: "API endpoint not found." });
+  });
   app.use(express.static(path.join(process.cwd(), "public")));
 
   // importantly only setup vite in development and after

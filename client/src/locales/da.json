@@ -1,4 +1,8 @@
 {
+  "imageGeneration": {
+    "connectionError": "Forbindelsen til billedtjenesten blev afbrudt. Billedet kan stadig være under behandling. Tjek dine seneste billeder, før du starter igen.",
+    "waitExpired": "Billedstatus kunne ikke hentes i tide. Tjek dine seneste billeder, før du starter igen."
+  },
   "nav": {
     "home": "FORSIDE",
     "prices": "PRISER",
@@ -789,6 +793,10 @@
       "roomTypeLabel": "Rumtype",
       "styleLabel": "Designstil",
       "budgetLabel": "Budget niveau",
+      "wishesLabel": "Dine ønsker (valgfrit)",
+      "wishesPlaceholder": "Fortæl hvad du ønsker, fx stue i baggrunden, flere planter eller et bestemt bord",
+      "wishesHint": "Vi tilpasser ønsker til rummet uden at ændre boligens faste detaljer.",
+      "roomFlowGenerating": "Vi planlægger indretningen og kontrollerer billedet. Det kan tage 1–2 minutter.",
       "generateBtn": "Generer visualisering →",
       "generating": "Genererer visualisering...",
       "generatingSubtitle": "AI'en arbejder på dit rum. Ca. 15 sek.",
@@ -807,6 +815,7 @@
       "newDesignStyle": "Ny designstil"
     },
     "roomTypes": {
+      "automatic": "Automatisk",
       "living_room": "Stue",
       "bedroom": "Soveværelse",
       "kitchen": "Køkken",
@@ -977,14 +986,16 @@
     },
     "budgetTiers": {
       "iGaar": "i går",
-      "tier1Label": "Enkel og prisvenlig stil",
-      "tier1Sub": "Enkel stil med enkle møbler",
+      "title": "Indretningsniveau",
+      "helper": "Vælg niveauet for møbler, materialer og detaljer. Det ændrer ikke den valgte stil eller rummets arkitektur.",
+      "tier1Label": "Enkel",
+      "tier1Sub": "Praktiske møbler og materialer med fokus på det enkle.",
       "tier1Short": "Enkel",
-      "tier2Label": "Afbalanceret stil",
-      "tier2Sub": "Standard stil og møblering",
+      "tier2Label": "Afbalanceret",
+      "tier2Sub": "Samstemt indretning med rigere materialer, teksturer og detaljer.",
       "tier2Short": "Afbalanceret",
-      "tier3Label": "Eksklusivt udtryk",
-      "tier3Sub": "Eksklusivt udtryk med kvalitetsmøbler",
+      "tier3Label": "Eksklusiv",
+      "tier3Sub": "Raffinerede premiummaterialer og omhyggeligt håndværk.",
       "tier3Short": "Eksklusiv"
     },
     "caseView": {

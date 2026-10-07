@@ -1,4 +1,8 @@
 {
+  "imageGeneration": {
+    "connectionError": "La connexion au service d’images a été interrompue. Votre image est peut-être encore en cours de traitement. Consultez vos images récentes avant de recommencer.",
+    "waitExpired": "Le statut de l’image n’a pas pu être récupéré à temps. Consultez vos images récentes avant de recommencer."
+  },
   "nav": {
     "home": "ACCUEIL",
     "prices": "TARIFS",
@@ -814,6 +818,10 @@
       "roomTypeLabel": "Type de pièce",
       "styleLabel": "Style de design",
       "budgetLabel": "Niveau de budget",
+      "wishesLabel": "Vos souhaits (facultatif)",
+      "wishesPlaceholder": "Décrivez vos envies : coin salon au fond, plus de plantes ou une table précise",
+      "wishesHint": "Nous adaptons vos souhaits à l’espace sans modifier les éléments fixes.",
+      "roomFlowGenerating": "Nous planifions l’aménagement et vérifions l’image. Cela peut prendre 1 à 2 minutes.",
       "generateBtn": "Générer la visualisation →",
       "generating": "Génération en cours...",
       "generatingSubtitle": "L'IA travaille sur votre pièce. Environ 15 sec.",
@@ -832,6 +840,7 @@
       "newDesignStyle": "Nouveau style de design"
     },
     "roomTypes": {
+      "automatic": "Automatique",
       "living_room": "Salon",
       "bedroom": "Chambre",
       "kitchen": "Cuisine",
@@ -1002,14 +1011,16 @@
     },
     "budgetTiers": {
       "iGaar": "hier",
-      "tier1Label": "Style abordable",
-      "tier1Sub": "Style simple et mobilier sobre",
+      "title": "Niveau d’aménagement",
+      "helper": "Choisissez le niveau de mobilier, de matériaux et de détails. Cela ne change ni le style choisi ni l’architecture de la pièce.",
+      "tier1Label": "Simple",
+      "tier1Sub": "Mobilier et matériaux pratiques, dans un esprit simple.",
       "tier1Short": "Simple",
-      "tier2Label": "Style équilibré",
-      "tier2Sub": "Style et mobilier standards équilibrés",
+      "tier2Label": "Équilibré",
+      "tier2Sub": "Un ensemble coordonné aux matériaux, textures et détails plus riches.",
       "tier2Short": "Équilibré",
-      "tier3Label": "Style exclusif",
-      "tier3Sub": "Aspect haut de gamme avec mobilier raffiné",
+      "tier3Label": "Exclusif",
+      "tier3Sub": "Matériaux premium raffinés et savoir-faire soigné.",
       "tier3Short": "Exclusif"
     },
     "caseView": {

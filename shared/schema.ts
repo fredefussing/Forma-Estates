@@ -310,6 +310,7 @@ export const generatedImages = pgTable("generated_images", {
   sourceImageId: integer("source_image_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   generationTimeMs: integer("generation_time_ms"),
+  providerMetrics: jsonb("provider_metrics"),
   createdDate: date("created_date").defaultNow(),
 });
 

@@ -1,4 +1,5 @@
-import type { Express, Request } from "express";
+import type { Express, Request, Response as ExpressResponse } from "express";
+import { ImageGenerationJobs } from "./image-generation-jobs";
 import express from "express";
 import Stripe from "stripe";
 import { createServer, type Server } from "http";
@@ -6,6 +7,10 @@ import net from "net";
 import { spawn } from "child_process";
 import crypto from "crypto";
 import { storage } from "./storage";
+const imageGenerationJobs = new ImageGenerationJobs({
+  register: (requestId, userId, refundCount) => storage.createVideoJob({ requestId, userId, feature: "ai", refundCount }),
+  settle: (id, success) => success ? storage.completeVideoJob(id) : storage.failVideoJob(id),
+});
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -14,7 +19,11 @@ import sharp from "sharp";
 import { createDesignSchema, createQuoteSchema, freeStyles, type InsertAiTourProperty, SUBSCRIPTION_QUOTAS } from "@shared/schema";
 import { styleVocabulary, getRoomStylePrompt } from "@shared/styleVocabulary";
 import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/boligPrompts";
+import { loadOwnedOpenAIImage } from "./openai-source-image";
+import { canUseOpenAIImageRequest, isOpenAIRefinementSource, getOpenAIRefinementModel, isSunburstRolloutEnabled, selectImageProvider } from "./openai-refinement-policy";
 import { assertPromptLocked, assertStructuralPrefixLocked } from "./promptGuard";
+import { buildValidatedStandardImagePrompt } from "./standardImagePrompt";
+import { buildFourKImageDelivery, orientedImageDimensions, persistFourKImageDelivery } from "./image-delivery";
 import { budgetToTier } from "@shared/budgetUtils";
 import { log } from "./index";
 import { sendOrderConfirmationEmail, sendWelcomeEmail, sendContactFormEmails, sendSubscriptionConfirmationEmail, sendPackageConfirmationEmail, sendVerificationCodeEmail, sendPasswordResetEmail, sendTestEmail, verifySmtpConnection, verifyUnsubscribeSig } from "./email";
@@ -32,11 +41,16 @@ import { buildCumulativeRefinementRequest, buildRefinementPrompt, getRefinementI
 import { buildSeasonalCollovPrompt, buildStandardCollovPrompt } from "@shared/collovPrompt";
 import { resolveBoligCaseTarget } from "./bolig-case-target";
 import { localizedBoligCaseVideoFilename } from "./bolig-case-video";
+import { downloadCollovBuffer, downloadTrustedProxyImage, generateAndPersistCollovMaster, isTrustedProxyImageUrl, saveRawCollovRefinementSource } from "./services/collov-generation";
+import { generatePlannedRoomImage } from "./room-staging";
+import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS, verifyOriginalPerspective, canReusePerspectiveCheck } from "./original-perspective";
 import {
   buildDesignAgentInitialPrompt,
   DESIGN_AGENT_INITIAL_PROMPT_PROFILE,
   DESIGN_AGENT_REFINEMENT_PROMPT_PROFILE,
 } from "@shared/designAgentPrompt";
+import { runOpenAIImageTest, IMAGE_TEST_MODEL, SUNBURST_IMAGE_MODEL, type ImageTestModel } from "./openai-image-test";
+import { removeOpenAITransportMargins, type ImageContentFrame } from "./openai-image-frame";
 
 const LEADS_OWNER_EMAIL = "fredefussing@gmail.com";
 const LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "henrilasse@icloud.com", "emilvoigt@gmail.com"]);
@@ -293,7 +307,8 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
   const validTier = (tier === "budget" || tier === "standard" || tier === "luxury") ? tier : "standard";
 
   // 1) Prøv room-specifik prompt fra det gamle vocab (Skandinavisk/Moderne har dækning her).
-  const roomSpecific = getRoomStylePrompt(style, roomType, validTier);
+  const legacyResolvedRoom = BOLIG_ROOM_ALIASES[roomType.toLowerCase()] ?? roomType.toLowerCase();
+  const roomSpecific = getRoomStylePrompt(style, legacyResolvedRoom, validTier);
   if (roomSpecific) return buildStandardCollovPrompt(roomSpecific, guardedPrefix());
 
   // 2) Fallback til nye Bolig-prompts (Luksus, Industriel, Kyst, Overgangs, Landlig, Midcentury).
@@ -305,17 +320,10 @@ function buildRedesignPrompt(roomType: string, style: string, tier?: string, _in
   try {
     const boligPrompt = getBoligPrompt(boligRoom, style.toLowerCase(), boligTier);
     return buildStandardCollovPrompt(boligPrompt, guardedPrefix());
-  } catch (promptErr: any) {
-    // FIX: do NOT rethrow — fall through to generic vocab fallback below.
-    log(`[PROMPT_NOT_FOUND] ${promptErr.message} — falling back to generic vocab prompt`);
+  } catch (promptErr) {
+    // Unsupported choices must not silently change style, tier or room function.
+    throw promptErr;
   }
-
-  // 3) Generic vocab fallback — runs when boligPrompts has no entry for this room+style combo.
-  const vocab = styleVocabulary[style]?.[validTier];
-  const fallbackPrompt = vocab
-    ? `Completely redesign this ${roomType}. ${vocab.prompt}`
-    : `Completely redesign this ${roomType} in ${style} style. Replace all existing furniture and decor with new pieces that match the style.`;
-  return buildStandardCollovPrompt(fallbackPrompt, guardedPrefix());
 }
 
 // ── Fetch with a hard timeout (AbortController) ──────────────────────────────
@@ -656,111 +664,6 @@ function ssWatermarkEmbed(
   }
   return out;
 }
-
-// Uses the validated curl downloader because Node.js fetch is intercepted by
-// Replit's network layer. Every HTTPS redirect target is checked before follow.
-async function downloadCollovBuffer(collovUrl: string): Promise<Buffer> {
-  return downloadTrustedProxyImage(collovUrl);
-}
-
-function isTrustedProxyImageUrl(value: string): boolean {
-  try {
-    const { protocol, hostname, username, password } = new URL(value);
-    if (protocol !== "https:" || username || password) return false;
-    const h = hostname.toLowerCase();
-    return (
-      h.endsWith(".cloudfront.net") ||
-      h === "fal.media" ||
-      h.endsWith(".fal.media") ||
-      h.endsWith(".rendy.io") ||
-      h.endsWith(".collov.ai") ||
-      h === "tripo3d.ai" ||
-      h.endsWith(".tripo3d.ai")
-    );
-  } catch {
-    return false;
-  }
-}
-
-async function curlImageWithoutRedirect(url: string): Promise<{
-  status: number;
-  headers: Map<string, string>;
-  body: Buffer;
-}> {
-  return await new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const errors: Buffer[] = [];
-    const curl = spawn("curl", [
-      "-sS",
-      "--max-time", "30",
-      "--max-redirs", "0",
-      "--max-filesize", "52428800",
-      "--proto", "=https",
-      "-D", "-",
-      "-o", "-",
-      url,
-    ]);
-    curl.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
-    curl.stderr.on("data", (chunk: Buffer) => errors.push(chunk));
-    curl.on("error", reject);
-    curl.on("close", (code: number) => {
-      if (code !== 0) {
-        reject(new Error(Buffer.concat(errors).toString("utf8").trim() || `curl exit ${code}`));
-        return;
-      }
-      const response = Buffer.concat(chunks);
-      const separator = response.indexOf(Buffer.from("\r\n\r\n"));
-      if (separator < 0) {
-        reject(new Error("Image host returned an invalid HTTP response"));
-        return;
-      }
-      const headerText = response.subarray(0, separator).toString("latin1");
-      const statusMatch = headerText.match(/^HTTP\/\S+\s+(\d{3})/i);
-      if (!statusMatch) {
-        reject(new Error("Image host returned an invalid HTTP status"));
-        return;
-      }
-      const headers = new Map<string, string>();
-      for (const line of headerText.split(/\r\n/).slice(1)) {
-        const colon = line.indexOf(":");
-        if (colon > 0) {
-          headers.set(line.slice(0, colon).trim().toLowerCase(), line.slice(colon + 1).trim());
-        }
-      }
-      resolve({
-        status: Number(statusMatch[1]),
-        headers,
-        body: response.subarray(separator + 4),
-      });
-    });
-  });
-}
-
-async function downloadTrustedProxyImage(initialUrl: string): Promise<Buffer> {
-  let currentUrl = initialUrl;
-  for (let redirectCount = 0; redirectCount <= 3; redirectCount++) {
-    if (!isTrustedProxyImageUrl(currentUrl)) {
-      throw new Error("Proxy-url ikke tilladt");
-    }
-    const response = await curlImageWithoutRedirect(currentUrl);
-    if (response.status >= 200 && response.status < 300) {
-      if (response.body.length < 1000) throw new Error("Image response is too small");
-      return response.body;
-    }
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) throw new Error("Image redirect is missing Location");
-      currentUrl = new URL(location, currentUrl).toString();
-      continue;
-    }
-    throw new Error(`Image host returned HTTP ${response.status}`);
-  }
-  throw new Error("Image host redirected too many times");
-}
-
-// ── VST finalize: download (curl) + sharp post-processing + R2 upload ─────────
-// `sourceBuffer` lets the request reuse the provider download that was already
-// made for the refinement master, avoiding a second network round-trip.
 async function sharpenAndSaveVst(
   collovUrl: string,
   designId: number,
@@ -800,26 +703,6 @@ async function sharpenAndSaveVst(
   );
   return `/uploads/${filename}`;
 }
-
-// Keep an unmodified copy of the provider file exclusively for the next
-// refinement. The customer-facing delivery is separately watermarked/branded,
-// which can require a JPEG encode and must not become the next model input.
-async function saveRawCollovRefinementSource(
-  buffer: Buffer,
-  designId: number,
-): Promise<{ url: string; localFilePath: string }> {
-  const format = (await sharp(buffer).metadata()).format;
-  const extension = format === "png" ? "png" : format === "webp" ? "webp" : "jpg";
-  const filename = `refinement-source-${designId}-${Date.now()}.${extension}`;
-  const localFilePath = path.join(uploadDir, filename);
-  fs.writeFileSync(localFilePath, buffer);
-  await r2UploadFile(localFilePath);
-  log(`Design ${designId}: saved unmodified Collov source to /uploads/${filename}`);
-  return { url: `/uploads/${filename}`, localFilePath };
-}
-
-// ── Main workflow ─────────────────────────────────────────────────────────────
-// Altid edit/generate (Photo Chat Edit) — præcis samme pipeline som agent design #58
 async function runDesignWorkflow(
   originalImageUrl: string,
   roomType: string,
@@ -3626,6 +3509,7 @@ export async function registerRoutes(
         style: img.style,
         tier: img.budgetTier,
         promptUsed: img.promptText ?? null,
+        providerMetrics: img.providerMetrics,
         refinementCount: await storage.countGeneratedImageRefinements(user.id, img.id),
         daysAfterMarket: Math.max(0, Math.floor((new Date(img.createdAt).getTime() - marketMs) / 86_400_000)),
         createdAt: img.createdAt,
@@ -3825,7 +3709,10 @@ export async function registerRoutes(
       const tierRaw = (req.query.tier as string) || "2";
       const tier = tierRaw === "1" || tierRaw === "tier1" ? "tier1" : tierRaw === "3" || tierRaw === "tier3" ? "tier3" : "tier2";
       const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
-      const prompt = getBoligPrompt(resolvedRoom, style, tier as "tier1" | "tier2" | "tier3");
+      const prompt = tier === "tier3" && (style.toLowerCase().trim() === "modern" ||
+        style.toLowerCase().trim() === "scandinavian" && resolvedRoom === "bathroom")
+        ? buildValidatedStandardImagePrompt(resolvedRoom, style, tier)
+        : getBoligPrompt(resolvedRoom, style, tier as "tier1" | "tier2" | "tier3");
       return res.json({ prompt, room, resolvedRoom, style, tier });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3851,6 +3738,7 @@ export async function registerRoutes(
         promptUsed: img.promptText ?? null,
         createdAt: img.createdAt,
         generationTimeMs: img.generationTimeMs,
+        providerMetrics: img.providerMetrics,
       })));
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4318,7 +4206,7 @@ export async function registerRoutes(
       try {
         prompt = getBoligPrompt(resolvedRoom, style, "tier2");
       } catch {
-        prompt = `Completely redesign this ${room} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
+        throw new Error("PROMPT_NOT_FOUND");
       }
       // Keep the locked preset text intact and wrap it with the same guarded
       // structure contract used by the other standard Collov staging flows.
@@ -4490,6 +4378,46 @@ export async function registerRoutes(
     }
   });
 
+  // First visible-result measurement belongs to the saved image, not a later
+  // gallery reload. Owner-scoped, bounded telemetry cannot alter provider costs.
+  app.patch("/api/bolig/images/:id/visible-latency", async (req, res) => {
+    const id = Number(req.params.id);
+    const visibleMs = req.body?.visibleMs;
+    if (!Number.isSafeInteger(id) || id <= 0 || typeof visibleMs !== "number" ||
+        !Number.isFinite(visibleMs) || visibleMs < 0 || visibleMs > 3_600_000) {
+      return res.status(400).json({ success: false, message: "Ugyldig tidsmåling." });
+    }
+    let user;
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      user = await storage.getUserByFirebaseUid(uid);
+    } catch {
+      return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+    }
+    if (!user) return res.status(401).json({ success: false, message: "Ikke autoriseret" });
+    try {
+      const result = await pool.query(
+        `UPDATE generated_images
+         SET provider_metrics = (
+           provider_metrics::jsonb ||
+           CASE WHEN provider_metrics::jsonb ? 'clickToVisibleMs' THEN '{}'::jsonb
+                ELSE jsonb_build_object('clickToVisibleMs', $3::double precision,
+                     'visibleLatencyBasis', 'Browser image decoded and result painted',
+                     'visibleLatencySaved', true) END
+         )
+         WHERE id = $1 AND user_id = $2
+           AND provider_metrics IS NOT NULL
+           AND provider_metrics::jsonb->>'provider' = 'openai'
+         RETURNING id`,
+        [id, user.id, visibleMs],
+      );
+      return result.rowCount ? res.json({ success: true }) :
+        res.status(404).json({ success: false, message: "Billedmålingen findes ikke." });
+    } catch {
+      return res.status(500).json({ success: false, message: "Tidsmålingen kunne ikke gemmes." });
+    }
+  });
+
   // ── AI BoligPotentiale: generate endpoint ──────────────────────────────────
   app.post("/api/bolig/generate", upload.single("image"), async (req, res) => {
     // Hoisted outside try so the catch block can access them (try/catch are separate block scopes)
@@ -4502,7 +4430,10 @@ export async function registerRoutes(
       }
     };
     try {
-      const sourceCaseImageId = req.body?.sourceCaseImageId ? parseInt(req.body.sourceCaseImageId) : null;
+      const sourceCaseImageId = req.body?.sourceCaseImageId ? Number(req.body.sourceCaseImageId) : null;
+      if (sourceCaseImageId !== null && (!Number.isSafeInteger(sourceCaseImageId) || sourceCaseImageId <= 0)) {
+        return res.status(400).json({ success: false, message: "Ugyldigt kildebillede." });
+      }
       if (!req.file && !sourceCaseImageId) {
         return res.status(400).json({ success: false, message: "Intet billede uploadet" });
       }
@@ -4540,6 +4471,46 @@ export async function registerRoutes(
       }
 
       const isDesignAgent = req.body.isDesignAgent === "true" || req.body.isDesignAgent === true;
+      const refinementRequested = (req.body.isRefinement === "true" || req.body.isRefinement === true) && !!req.body.sourceCaseImageId;
+      const providerSource = sourceCaseImageId
+        ? await storage.getGeneratedImage(sourceCaseImageId)
+        : null;
+      if (sourceCaseImageId && (!providerSource || providerSource.userId !== authedUserId)) {
+        return res.status(providerSource ? 403 : 404).json({ success: false, message: "Kildebilledet blev ikke fundet" });
+      }
+      const sourceIsOpenAI = isOpenAIRefinementSource(providerSource?.providerMetrics);
+      const rolloutEnabled = isSunburstRolloutEnabled(process.env.OPENAI_ROOM_FLOW_ENABLED);
+      const adminTestAllowed = process.env.OPENAI_IMAGE_TEST_ENABLED === "1" &&
+        (await storage.getUserById(authedUserId))?.isAdmin === true;
+      const selection = selectImageProvider({
+        rolloutEnabled, adminTestAllowed, requestedProvider: req.body.provider, requestedModel: req.body.imageModel,
+        roomFlowRequested: req.body.roomFlow === "true", hasSource: !!sourceCaseImageId, sourceIsOpenAI,
+        isRefinement: refinementRequested, isDesignAgent, hasSeason: !!req.body.season,
+      });
+      const { plannedRoomFlow, openaiRequested, sourceEdit: openaiSourceEdit } = selection;
+      let imageModel = selection.imageModel;
+      if (!rolloutEnabled && !adminTestAllowed && !(refinementRequested && !sourceIsOpenAI && !req.body.season)) {
+        return res.status(503).json({ success: false, message: "Billedgenerering er midlertidigt sat på pause. Prøv igen senere." });
+      }
+      if (openaiRequested && imageModel !== IMAGE_TEST_MODEL && imageModel !== SUNBURST_IMAGE_MODEL) {
+        return res.status(400).json({ success: false, message: "Ukendt billedmodel." });
+      }
+      if (openaiRequested && !process.env.ASTRA_API_KEY) {
+        return res.status(503).json({ success: false, message: "Billedgenerering er midlertidigt utilgængelig. Billedmotoren er ikke konfigureret." });
+      }
+      if (openaiRequested && !canUseOpenAIImageRequest({
+        keyConfigured: !!process.env.ASTRA_API_KEY,
+        rolloutEnabled,
+        adminTestAllowed,
+        hasUpload: !!req.file,
+        hasSource: !!req.body.sourceCaseImageId,
+        isRefinement: refinementRequested,
+        sourceIsOpenAI,
+        isDesignAgent,
+        hasSeason: !!req.body.season,
+      })) {
+        return res.status(403).json({ success: false, message: "OpenAI image test is not enabled for this request." });
+      }
       // Sæsonopdatering: server-styret prompt, der KUN ændrer sæsonpræg
       const SEASON_PROMPTS: Record<string, { label: string; prompt: string }> = {
         spring: { label: "Forårsklar", prompt: "Refresh this interior photo with a bright spring atmosphere: fresh cut flowers and light green plants, light airy textiles in soft pastel tones, and bright natural daylight. If windows show outdoor greenery, make it fresh spring foliage." },
@@ -4550,14 +4521,28 @@ export async function registerRoutes(
       const SEASON_SUFFIX = " Keep ALL furniture, layout, walls, floors, windows and the camera angle EXACTLY the same. Do not move, add or remove furniture. Only adjust decor accents, textiles, plants, lighting mood and the view outside windows to match the season. Preserve the original perspective and zoom exactly.";
       const seasonRaw = (req.body.season as string) || "";
       const season = Object.keys(SEASON_PROMPTS).includes(seasonRaw) ? seasonRaw : null;
+      if (seasonRaw && !season) return res.status(400).json({ success: false, message: "Ugyldig sæson." });
       let style = season ? SEASON_PROMPTS[season].label : isDesignAgent ? "Custom" : (req.body.style as string) || "scandinavian";
       let room = isDesignAgent ? "Design Agent" : (req.body.room as string) || "living room";
       const tierRaw = (req.body.tier as string) || "tier2";
       const tier = (tierRaw === "tier1" || tierRaw === "tier2" || tierRaw === "tier3") ? tierRaw : "tier2";
       const caseId = caseTarget.kind === "valid" ? caseTarget.caseId : null;
+      if (openaiRequested && caseId) {
+        const ownedCase = await storage.getBoligCase(caseId);
+        if (!ownedCase || ownedCase.userId !== authedUserId) {
+          return res.status(403).json({ success: false, message: "Case access denied." });
+        }
+      }
       const isQuickGeneration = req.body.isQuick === "true" || req.body.isQuick === true;
       const promptTextValue = req.body.promptText;
-      const customPromptText = typeof promptTextValue === "string" ? promptTextValue : "";
+      const roomWishes = typeof req.body.roomWishes === "string" ? req.body.roomWishes.trim() : "";
+      const customPromptText = typeof promptTextValue === "string" ? promptTextValue : plannedRoomFlow ? roomWishes : "";
+      if (plannedRoomFlow && (customPromptText.length > 600 || room.length > 80 || style.length > 80)) {
+        return res.status(400).json({ success: false, message: "Ønsker må højst være 600 tegn; vælg en gyldig rumtype og stil." });
+      }
+      if (!plannedRoomFlow && !isDesignAgent && !req.body.season && (roomWishes.length > 600 || room === "automatic")) {
+        return res.status(400).json({ success: false, message: "Automatisk rumvalg kræver OpenAI, og ønsker må højst være 600 tegn." });
+      }
       if (isDesignAgent && !season && !customPromptText.trim()) {
         return res.status(400).json({ success: false, message: "Skriv hvad du vil ændre, før billedet genereres." });
       }
@@ -4588,11 +4573,14 @@ export async function registerRoutes(
         quotaConsumed = true;
       }
 
-      if (!COLLOV_API_KEY) {
+      if (!openaiRequested && !COLLOV_API_KEY) {
         refundIfNeeded();
         return res.status(500).json({ success: false, message: "API nøgle ikke konfigureret" });
       }
 
+      let imageRequestId: string | undefined;
+      const runGeneration = async (res: ExpressResponse) => {
+      try {
       const protocol = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
       const rawHost = (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
       const isLocalhostHost = !rawHost || rawHost.startsWith("localhost") || rawHost.startsWith("127.");
@@ -4605,11 +4593,13 @@ export async function registerRoutes(
       let originalForRecord: string;
       let publicUrl: string;
       let agentInputLocalPath: string | null = null;
+      let openaiRefinementSourceUrl: string | null = null;
+      let openaiRefinementContentFrame: ImageContentFrame | undefined;
       let priorRefinementRequests: string[] = [];
       if (sourceCaseImageId) {
         const srcImg = await storage.getGeneratedImage(sourceCaseImageId);
         if (!srcImg || srcImg.userId !== authedUserId) {
-          await storage.refundQuota(authedUserId, "ai").catch(() => {});
+          refundIfNeeded();
           return res.status(srcImg ? 403 : 404).json({ success: false, message: "Kildebilledet blev ikke fundet" });
         }
 
@@ -4652,6 +4642,7 @@ export async function registerRoutes(
 
             const parent = await storage.getGeneratedImage(cursor.sourceImageId);
             if (!parent || parent.userId !== authedUserId) {
+              refundIfNeeded();
               return res.status(parent ? 403 : 404).json({
                 success: false,
                 message: "Det oprindelige masterbillede blev ikke fundet",
@@ -4668,10 +4659,21 @@ export async function registerRoutes(
 
         // Always store the root original (the uploaded file) as the before-image,
         // not the intermediate result, so the folder always shows the real before/after.
-        originalForRecord = refinementBase.originalImageUrl ?? srcImg.originalImageUrl ?? refinementBase.imageUrl;
+        const rootOriginalUrl = refinementBase.originalImageUrl ?? srcImg.originalImageUrl;
+        if (!rootOriginalUrl) {
+          throw new Error("Det oprindelige upload mangler. Upload originalbilledet igen, så vinklen kan kontrolleres.");
+        }
+        originalForRecord = rootOriginalUrl;
         const refinementInputUrl = getRefinementInputUrl(refinementBase.refinementSourceUrl, refinementBase.imageUrl);
+        if (openaiSourceEdit) {
+          openaiRefinementSourceUrl = refinementInputUrl;
+          imageModel = isOpenAIRefinementSource(refinementBase.providerMetrics)
+            ? getOpenAIRefinementModel(refinementBase.providerMetrics) : SUNBURST_IMAGE_MODEL;
+          const masterMetrics = refinementBase.providerMetrics as { contentFrame?: ImageContentFrame } | null;
+          openaiRefinementContentFrame = masterMetrics?.contentFrame;
+        }
         publicUrl = refinementInputUrl.startsWith("http") ? refinementInputUrl : `${effectiveProtocol}://${effectiveHost}${refinementInputUrl}`;
-        if (isDesignAgent && refinementInputUrl.startsWith("/uploads/")) {
+        if ((isDesignAgent || openaiRequested) && refinementInputUrl.startsWith("/uploads/")) {
           const localCandidate = path.join(uploadDir, decodeURIComponent(refinementInputUrl.slice("/uploads/".length)));
           if (fs.existsSync(localCandidate)) {
             agentInputLocalPath = localCandidate;
@@ -4701,18 +4703,17 @@ export async function registerRoutes(
       } else if (isDesignAgent) {
         prompt = buildDesignAgentInitialPrompt(customPromptText);
         agentPromptProfile = DESIGN_AGENT_INITIAL_PROMPT_PROFILE;
+      } else if (plannedRoomFlow) {
+        // The planner owns its own prompt; leave approved Collov tier prompts untouched.
+        prompt = customPromptText.trim();
       } else {
-        const resolvedRoom = BOLIG_ROOM_ALIASES[room.toLowerCase()] ?? room.toLowerCase();
         try {
-          prompt = getBoligPrompt(resolvedRoom, style, tier as "tier1" | "tier2" | "tier3");
-        } catch (promptErr: any) {
-          log(`[PROMPT_NOT_FOUND] ${promptErr.message} — using generic fallback`);
-          prompt = `Completely redesign this ${room} in ${style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
-        }
-        // ── Prompt-lås: sammenlign med låst reference — stop generering ved afvigelse ──
-        try {
-          assertPromptLocked(room, style, tier, prompt);
+          prompt = buildValidatedStandardImagePrompt(room, style, tier, roomWishes);
         } catch (guardErr: any) {
+          if (guardErr.message?.startsWith("PROMPT_NOT_FOUND")) {
+            refundIfNeeded();
+            return res.status(400).json({ success: false, message: "PROMPT_NOT_FOUND" });
+          }
           log(guardErr.message);
           refundIfNeeded();
           return res.status(500).json({
@@ -4721,11 +4722,10 @@ export async function registerRoutes(
             detail: guardErr.message,
           });
         }
-        // Preserve exact locked preset text above, then add the guarded
-        // structural wrapper required for every standard Collov image edit.
-        prompt = buildStandardCollovPrompt(prompt, guardedPrefix());
       }
       const agentTraceId = isDesignAgent ? crypto.randomUUID() : null;
+      // Camera changes cannot be authorized by a later customer wish.
+      prompt += `\n\n${ORIGINAL_PERSPECTIVE_INSTRUCTIONS}`;
       const agentPromptHash = isDesignAgent
         ? crypto.createHash("sha256").update(prompt).digest("hex").slice(0, 16)
         : null;
@@ -4743,87 +4743,68 @@ export async function registerRoutes(
       }
       log(`[BoligPotentiale] prompt OK (${agentPromptProfile ?? "locked-standard"}): ${prompt.slice(0, 120)}…`);
 
-      // Identisk pipeline som AI Design Agent: ingen pre-/post-processing, rå Collov CDN URL,
-      // 2 retries med 10s mellem forsøg.
-      const maxRetries = 2;
+      // Validate the original frame before any paid provider request.
+      const originalFrame = await loadOwnedOpenAIImage(originalForRecord, uploadDir);
+      await orientedImageDimensions(originalFrame);
       let collovImageUrl: string | null = null;
-      let lastFailReason: string | null = null;
       let collovJobUuid: string | null = null;
-
-      for (let attempt = 0; attempt <= maxRetries && !collovImageUrl; attempt++) {
-        if (attempt > 0) {
-          log(`[BoligPotentiale] retry ${attempt}/${maxRetries} (waiting 10s)`);
-          await new Promise(r => setTimeout(r, 10000));
-        }
-
-        const form = new FormData();
-        form.append("uploadUrl", publicUrl);
-        form.append("prompt", prompt);
-
-        const collovRes = await fetch(`${COLLOV_BASE}/flair/enterpriseApi/edit/generate`, {
-          method: "POST",
-          headers: { apiKey: COLLOV_API_KEY! },
-          body: form,
+      let providerBuffer: Buffer | null = null;
+      let openaiResult: Awaited<ReturnType<typeof runOpenAIImageTest>> | Awaited<ReturnType<typeof generatePlannedRoomImage>> | null = null;
+      if (openaiRequested) {
+        openaiResult = plannedRoomFlow
+          ? await generatePlannedRoomImage(req.file!.path, room, style, customPromptText.trim(), imageModel as ImageTestModel, undefined, tier)
+          : await runOpenAIImageTest(
+              openaiSourceEdit ? await loadOwnedOpenAIImage(openaiRefinementSourceUrl!, uploadDir) : req.file!.path,
+              prompt, imageModel as ImageTestModel, "high", openaiRefinementContentFrame,
+            );
+        collovImageUrl = "openai-buffer";
+        providerBuffer = openaiResult.buffer;
+      } else {
+        const collovResult = await generateAndPersistCollovMaster({
+          uploadUrl: publicUrl,
+          prompt,
+          designId: Date.now(),
+          uploadDir,
+          logger: message => log(`[BoligPotentiale] ${message}`),
+          onJobAccepted: uuid => {
+            collovJobUuid = uuid;
+            if (isDesignAgent) {
+              log(`[AgentTrace] ${JSON.stringify({
+                traceId: agentTraceId,
+                stage: "provider_accepted",
+                promptProfile: agentPromptProfile,
+                promptHash: agentPromptHash,
+                collovUuid: uuid,
+              })}`);
+            }
+          },
         });
-        const collovJson = (await collovRes.json()) as any;
-        log(`[BoligPotentiale] Collov response: ${JSON.stringify(collovJson).slice(0, 200)}`);
-
-        if (!collovJson.success || !collovJson.data?.uuid) {
-          lastFailReason = collovJson.message || "Collov API fejl";
-          continue;
-        }
-
-        const uuid = collovJson.data.uuid;
-        collovJobUuid = uuid;
-        if (isDesignAgent) {
-          log(`[AgentTrace] ${JSON.stringify({
-            traceId: agentTraceId,
-            stage: "provider_accepted",
-            promptProfile: agentPromptProfile,
-            promptHash: agentPromptHash,
-            collovUuid: uuid,
-          })}`);
-        }
-        const maxAttempts = 45; // 45 × 2s = 90s
-        let attemptFailed = false;
-
-        for (let i = 0; i < maxAttempts; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const pollRes = await fetch(
-            `${COLLOV_BASE}/flair/enterpriseApi/edit/getRecord?uuid=${encodeURIComponent(uuid)}`,
-            { method: "GET", headers: { apiKey: COLLOV_API_KEY! } },
-          );
-          const pollJson = (await pollRes.json()) as any;
-          const status = pollJson.data?.status;
-          log(`[BoligPotentiale] poll ${uuid}: ${status}`);
-
-          if (status === "SUCCESS" && pollJson.data?.generateUrl) {
-            collovImageUrl = pollJson.data.generateUrl;
-            break;
-          }
-          if (status === "FAILED") {
-            lastFailReason = pollJson.data?.failReason || "Generering mislykkedes";
-            attemptFailed = true;
-            break;
-          }
-        }
-
-        if (!collovImageUrl && !attemptFailed) {
-          lastFailReason = "Generering tog for lang tid";
-        }
-      }
-
-      if (!collovImageUrl) {
-        refundIfNeeded();
-        return res.status(500).json({ success: false, message: lastFailReason || "Generering mislykkedes" });
+        collovImageUrl = collovResult.masterUrl;
+        collovJobUuid = collovResult.jobUuid;
+        providerBuffer = collovResult.masterBuffer;
       }
 
       // Preserve the provider pixels as the customer-facing working master.
       // Preview and refinements use these exact Collov bytes. Branding, the
       // visible "AI Redigeret" badge, SS watermarking and XMP are applied only
       // when the customer downloads the finished image.
-      const providerImageUrl = collovImageUrl;
-      const providerBuffer = await downloadCollovBuffer(providerImageUrl);
+      if (!providerBuffer) throw new Error("Billedresultatet mangler billeddata.");
+      // Compare to the real upload before delivery or replacing gallery entries,
+      // including repeated adjustments, seasons, Design Agent and both providers.
+      const perspectiveCandidate = openaiResult?.contentFrame
+        ? await removeOpenAITransportMargins(providerBuffer, openaiResult.contentFrame) : providerBuffer;
+      // Planned initial generations already run this gate inside the two-attempt
+      // correction loop. Other paths (especially refinements) must run it here.
+      const plannedPerspectiveCheck = plannedRoomFlow && openaiResult && "originalPerspectiveCheck" in openaiResult.metrics
+        ? openaiResult.metrics.originalPerspectiveCheck : null;
+      const reusePerspectiveCheck = canReusePerspectiveCheck(plannedPerspectiveCheck, originalFrame, perspectiveCandidate);
+      const originalPerspectiveCheck = reusePerspectiveCheck
+        ? plannedPerspectiveCheck! : await verifyOriginalPerspective(originalFrame, perspectiveCandidate);
+      if (openaiResult && !reusePerspectiveCheck) {
+        openaiResult.metrics.costUsd = openaiResult.metrics.costUsd !== null && originalPerspectiveCheck.costUsd !== null
+          ? openaiResult.metrics.costUsd + originalPerspectiveCheck.costUsd : null;
+        openaiResult.metrics.costBasis += "; inkl. separat kontrol mod originalens perspektiv (gpt-4.1-mini).";
+      }
       const providerDimensions = isDesignAgent ? await inspectImageDimensions(providerBuffer) : null;
       if (isDesignAgent) {
         log(`[AgentTrace] ${JSON.stringify({
@@ -4838,9 +4819,17 @@ export async function registerRoutes(
       // This durable raw master is now also the image shown in the app. Saving
       // it is mandatory: returning an expiring provider URL would strand the
       // preview after the Collov CDN URL expires.
-      const rawSource = await saveRawCollovRefinementSource(providerBuffer, Date.now());
+      const rawSource = openaiResult
+        ? await saveRawCollovRefinementSource(providerBuffer, Date.now(), uploadDir, message => log(message))
+        : { url: collovImageUrl!, localFilePath: "" };
       const refinementSourceUrl = rawSource.url;
-      collovImageUrl = rawSource.url;
+      // Keep the untouched provider master for refinements. Preview/download use
+      // a separate high-quality 4K file with the ORIGINAL photo's aspect ratio.
+      // This applies equally to initial generation and source-image refinements.
+      const delivery = await buildFourKImageDelivery(providerBuffer, originalFrame, openaiResult?.contentFrame);
+      const deliveryFile = await persistFourKImageDelivery(delivery.buffer, uploadDir);
+      collovImageUrl = deliveryFile.url;
+      log(`[ImageDelivery] ${delivery.width}x${delivery.height}; native=${delivery.nativeWidth}x${delivery.nativeHeight}; upscaled=${delivery.upscaled}; cropped=${delivery.croppedToOriginalFormat}`);
       if (isDesignAgent) {
         let deliveryDimensions: ImageDimensionTrace | null = null;
         if (collovImageUrl.startsWith("/uploads/")) {
@@ -4860,6 +4849,9 @@ export async function registerRoutes(
       }
       const processingTimeMs = Date.now() - startTime;
       const processingTime = Math.round(processingTimeMs / 1000);
+      const providerMetrics = openaiResult
+        ? { ...openaiResult.metrics, originalPerspectiveCheck, imageRequestId }
+        : { provider: "collov", originalPerspectiveCheck, imageRequestId };
 
       // Auto-save to universal generated_images table
       let generationId: number | null = null;
@@ -4879,8 +4871,9 @@ export async function registerRoutes(
             roomType: room,
             style,
             budgetTier: isDesignAgent ? "0" : tier,
-            promptText: isDesignAgent ? customPromptText : prompt,
+            promptText: (isDesignAgent || plannedRoomFlow) ? customPromptText.trim() : prompt,
             generationTimeMs: processingTimeMs,
+            providerMetrics,
             createdDate: todayStr,
           });
           generationId = genImg.id;
@@ -4896,6 +4889,7 @@ export async function registerRoutes(
             log(`[BoligPotentiale] refinement: removed source img ${sourceCaseImageId} from case ${caseId} gallery`);
           }
         } catch (saveErr: any) {
+          if (openaiRequested) throw new Error("Could not save OpenAI test result.");
           log(`[BoligPotentiale] auto-save warning: ${saveErr.message}`);
         }
       }
@@ -4905,12 +4899,93 @@ export async function registerRoutes(
         storage.logCrmActivity(authedUserId, "visualization", `${room} · ${style}`).catch(() => {});
       }
 
-      return res.json({ success: true, image_url: collovImageUrl, original_url: originalForRecord, processing_time: processingTime, prompt_used: prompt, generation_id: generationId });
+      return res.json({ success: true, image_url: collovImageUrl, original_url: originalForRecord, processing_time: processingTime, prompt_used: prompt, generation_id: generationId, provider_metrics: providerMetrics });
     } catch (err: any) {
       const _falErr = translateFalError(err); err = _falErr;
       log(`[BoligPotentiale] generate error: ${err.message}`);
       refundIfNeeded();
       return res.status(500).json({ success: false, message: err.message });
+    }
+      };
+      if (req.body.async === "true") {
+        const requestId = await imageGenerationJobs.start(authedUserId, quotaConsumed ? 1 : 0, async id => {
+          imageRequestId = id;
+          let status = 200;
+          let body: Record<string, any> | undefined;
+          const captured = {
+            status(code: number) { status = code; return this; },
+            json(value: Record<string, any>) { body = value; return this; },
+          } as unknown as ExpressResponse;
+          try {
+            await runGeneration(captured);
+            if (!body) throw new Error("Missing image job response");
+            return { status, body };
+          } catch (error) {
+            refundIfNeeded();
+            throw error;
+          }
+        });
+        return res.status(202).json({ success: true, status: "pending", request_id: requestId });
+      }
+      return await runGeneration(res);
+    } catch (err: any) {
+      refundIfNeeded();
+      log(`[BoligPotentiale] submission error: ${err.message}`);
+      return res.status(500).json({ success: false, message: "Billedgenereringen kunne ikke startes. Prøv igen senere." });
+    }
+  });
+
+  app.get("/api/bolig/generate/jobs/:requestId", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    let userId: number;
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      if (!user) return res.status(401).json({ success: false, message: "Log ind for at se billedresultatet." });
+      userId = user.id;
+    } catch {
+      return res.status(401).json({ success: false, message: "Log ind igen for at hente billedstatus." });
+    }
+    try {
+      const id = req.params.requestId;
+      if (!/^image-[a-f0-9-]+$/.test(id)) return res.status(404).json({ success: false, message: "Billedjobbet blev ikke fundet." });
+      const job = imageGenerationJobs.get(id, userId);
+      if (job?.state === "pending") return res.status(202).json({ success: true, status: "pending" });
+      if (job?.result) return res.status(job.result.status).json(job.result.body);
+      // Completed outputs survive both page refresh and a server restart.
+      const saved = await pool.query(
+        `SELECT id, image_url, original_image_url, generation_time_ms, provider_metrics
+         FROM generated_images WHERE user_id = $1 AND provider_metrics->>'imageRequestId' = $2 LIMIT 1`, [userId, id]);
+      if (saved.rows[0]) {
+        const row = saved.rows[0];
+        return res.json({ success: true, image_url: row.image_url, original_url: row.original_image_url,
+          generation_id: row.id, processing_time: Math.round(row.generation_time_ms / 1000), provider_metrics: row.provider_metrics });
+      }
+      const interrupted = await pool.query(
+        `UPDATE video_jobs SET status = 'failed' WHERE request_id = $1 AND user_id = $2 AND status = 'pending'
+         RETURNING refund_count`, [id, userId]);
+      if (interrupted.rows[0]) {
+        for (let i = 0; i < interrupted.rows[0].refund_count; i++) await storage.refundQuota(userId, "ai");
+        return res.status(410).json({ success: false, message: "Billedgenereringen blev afbrudt ved en servergenstart. Din billedkvote er refunderet." });
+      }
+      return res.status(404).json({ success: false, message: "Billedjobbet er udløbet eller blev ikke fundet. Tjek dine seneste billeder." });
+    } catch {
+      return res.status(503).json({ success: false, message: "Billedstatus er midlertidigt utilgængelig." });
+    }
+  });
+
+  app.get("/api/bolig/openai-image-test/status", async (req, res) => {
+    try {
+      const { uid } = await verifyFirebaseToken(req.headers.authorization);
+      const user = await storage.getUserByFirebaseUid(uid);
+      const canTest = !!user?.isAdmin && process.env.OPENAI_IMAGE_TEST_ENABLED === "1" && !!process.env.ASTRA_API_KEY;
+      return res.json({
+        enabled: canTest,
+        roomFlowAvailable: (isSunburstRolloutEnabled(process.env.OPENAI_ROOM_FLOW_ENABLED) && !!process.env.ASTRA_API_KEY) || canTest,
+        model: SUNBURST_IMAGE_MODEL,
+      });
+    } catch {
+      return res.status(401).json({ enabled: false });
     }
   });
 
@@ -6532,8 +6607,7 @@ export async function registerRoutes(
       try {
         basePrompt = getBoligPrompt(resolvedRoomType, property.style, tier);
       } catch (promptErr: any) {
-        log(`[PROMPT_NOT_FOUND] ${promptErr.message} — using generic fallback`);
-        basePrompt = `Completely redesign this ${roomType} in ${property.style} style. Replace all existing furniture and decor with new pieces that match the style. Preserve the original camera angle, perspective, and zoom exactly. Do not change the viewpoint.`;
+        throw promptErr;
       }
       // Floor-plan-aware context: the user explicitly asked the AI to know
       // window/door positions inferred from the plantegning. We append the

@@ -1,0 +1,1 @@
+ALTER TABLE generated_images ADD COLUMN IF NOT EXISTS provider_metrics jsonb;

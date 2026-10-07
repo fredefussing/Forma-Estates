@@ -1,4 +1,8 @@
 {
+  "imageGeneration": {
+    "connectionError": "Die Verbindung zum Bilddienst wurde unterbrochen. Ihr Bild wird möglicherweise noch verarbeitet. Prüfen Sie Ihre neuesten Bilder, bevor Sie erneut starten.",
+    "waitExpired": "Der Bildstatus konnte nicht rechtzeitig abgerufen werden. Prüfen Sie Ihre neuesten Bilder, bevor Sie erneut starten."
+  },
   "nav": {
     "home": "START",
     "prices": "PREISE",
@@ -814,6 +818,10 @@
       "roomTypeLabel": "Zimmertyp",
       "styleLabel": "Designstil",
       "budgetLabel": "Budgetstufe",
+      "wishesLabel": "Ihre Wünsche (optional)",
+      "wishesPlaceholder": "Beschreiben Sie Ihre Wünsche, z. B. Sitzbereich hinten, mehr Pflanzen oder einen bestimmten Tisch",
+      "wishesHint": "Wir passen Ihre Wünsche an den Raum an, ohne feste Bauteile zu ändern.",
+      "roomFlowGenerating": "Die Einrichtung wird geplant und das Bild geprüft. Das kann 1–2 Minuten dauern.",
       "generateBtn": "Visualisierung generieren →",
       "generating": "Visualisierung wird generiert...",
       "generatingSubtitle": "Die KI arbeitet an Ihrem Zimmer. Ca. 15 Sek.",
@@ -832,6 +840,7 @@
       "newDesignStyle": "Neuer Designstil"
     },
     "roomTypes": {
+      "automatic": "Automatisch",
       "living_room": "Wohnzimmer",
       "bedroom": "Schlafzimmer",
       "kitchen": "Küche",
@@ -1002,14 +1011,16 @@
     },
     "budgetTiers": {
       "iGaar": "gestern",
-      "tier1Label": "Erschwinglicher Stil",
-      "tier1Sub": "Einfacher Stil und schlichte Einrichtung",
+      "title": "Einrichtungsniveau",
+      "helper": "Wählen Sie den Umfang von Möbeln, Materialien und Details. Der gewählte Stil und die Architektur des Raums bleiben unverändert.",
+      "tier1Label": "Einfach",
+      "tier1Sub": "Praktische Möbel und Materialien, schlicht gehalten.",
       "tier1Short": "Einfach",
-      "tier2Label": "Ausgewogener Stil",
-      "tier2Sub": "Ausgewogener Standardstil und Einrichtung",
+      "tier2Label": "Ausgewogen",
+      "tier2Sub": "Stimmige Einrichtung mit reicheren Materialien, Texturen und Details.",
       "tier2Short": "Ausgewogen",
-      "tier3Label": "Exklusiver Stil",
-      "tier3Sub": "Hochwertiger Look mit gehobener Einrichtung",
+      "tier3Label": "Exklusiv",
+      "tier3Sub": "Edle Premiummaterialien und sorgfältige Handwerkskunst.",
       "tier3Short": "Exklusiv"
     },
     "caseView": {

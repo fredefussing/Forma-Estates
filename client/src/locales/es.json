@@ -1,4 +1,8 @@
 {
+  "imageGeneration": {
+    "connectionError": "Se interrumpió la conexión con el servicio de imágenes. Es posible que tu imagen siga procesándose. Revisa tus imágenes recientes antes de volver a empezar.",
+    "waitExpired": "No se pudo obtener el estado de la imagen a tiempo. Revisa tus imágenes recientes antes de volver a empezar."
+  },
   "nav": {
     "home": "INICIO",
     "prices": "PRECIOS",
@@ -814,6 +818,10 @@
       "roomTypeLabel": "Tipo de habitación",
       "styleLabel": "Estilo de diseño",
       "budgetLabel": "Nivel de presupuesto",
+      "wishesLabel": "Tus preferencias (opcional)",
+      "wishesPlaceholder": "Cuéntanos qué deseas: una zona de estar al fondo, más plantas o una mesa concreta",
+      "wishesHint": "Adaptamos tus preferencias al espacio sin cambiar los elementos fijos.",
+      "roomFlowGenerating": "Estamos planificando la decoración y revisando la imagen. Puede tardar 1–2 minutos.",
       "generateBtn": "Generar visualización →",
       "generating": "Generando visualización...",
       "generatingSubtitle": "La IA está trabajando en su habitación. Aprox. 15 seg.",
@@ -832,6 +840,7 @@
       "newDesignStyle": "Nuevo estilo de diseño"
     },
     "roomTypes": {
+      "automatic": "Automático",
       "living_room": "Sala de estar",
       "bedroom": "Dormitorio",
       "kitchen": "Cocina",
@@ -1002,14 +1011,16 @@
     },
     "budgetTiers": {
       "iGaar": "ayer",
-      "tier1Label": "Estilo asequible",
-      "tier1Sub": "Estilo sencillo y mobiliario simple",
+      "title": "Nivel de interiorismo",
+      "helper": "Elige el nivel de mobiliario, materiales y detalles. No cambia el estilo seleccionado ni la arquitectura de la estancia.",
+      "tier1Label": "Sencillo",
+      "tier1Sub": "Muebles y materiales prácticos, de diseño sencillo.",
       "tier1Short": "Sencillo",
-      "tier2Label": "Estilo equilibrado",
-      "tier2Sub": "Estilo y mobiliario estándar equilibrados",
+      "tier2Label": "Equilibrado",
+      "tier2Sub": "Una propuesta coordinada con materiales, texturas y detalles más ricos.",
       "tier2Short": "Equilibrado",
-      "tier3Label": "Estilo exclusivo",
-      "tier3Sub": "Aspecto prémium con mobiliario de alta gama",
+      "tier3Label": "Exclusivo",
+      "tier3Sub": "Materiales prémium refinados y una ejecución artesanal cuidada.",
       "tier3Short": "Exclusivo"
     },
     "caseView": {

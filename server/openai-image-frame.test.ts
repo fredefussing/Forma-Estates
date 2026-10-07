@@ -1,0 +1,66 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import sharp from "sharp";
+import { prepareOpenAIFramedInput, removeOpenAITransportMargins, imageContentRect, framePreservationInstructions } from "./openai-image-frame";
+import { buildFourKImageDelivery } from "./image-delivery";
+
+async function cornerPhoto(width: number, height: number) {
+  return sharp(Buffer.from(`<svg width="${width}" height="${height}">
+    <rect width="100%" height="100%" fill="#808080"/>
+    <rect x="0" y="0" width="80" height="80" fill="#ff0000"/>
+    <rect x="${width - 80}" y="0" width="80" height="80" fill="#00ff00"/>
+    <rect x="0" y="${height - 80}" width="80" height="80" fill="#0000ff"/>
+    <rect x="${width - 80}" y="${height - 80}" width="80" height="80" fill="#ffff00"/>
+  </svg>`)).png().toBuffer();
+}
+
+test("supported transport canvas keeps the complete photo pixel-identical at every aspect ratio", async () => {
+  for (const [width, height] of [[800, 1000], [1000, 800], [1600, 900], [900, 1600], [800, 800], [1200, 400], [400, 1200]]) {
+    const original = await cornerPhoto(width, height);
+    const saved = Buffer.from(original);
+    const framed = await prepareOpenAIFramedInput(original);
+    const restored = await removeOpenAITransportMargins(framed.buffer, framed.contentFrame);
+    const originalPixels = await sharp(original).raw().toBuffer();
+    assert.deepEqual(await sharp(restored).raw().toBuffer(), originalPixels);
+    assert.deepEqual(original, saved);
+    assert.ok(framePreservationInstructions(framed.contentFrame).includes("No zoom, crop, tighter composition"));
+  }
+});
+
+test("4K delivery removes only transport margins and retains all four original corner landmarks", async () => {
+  for (const [width, height] of [[800, 1000], [1000, 800], [1600, 900]]) {
+    const original = await cornerPhoto(width, height);
+    const framed = await prepareOpenAIFramedInput(original);
+    const [providerWidth, providerHeight] = framed.size.split("x").map(Number);
+    const provider = await sharp(framed.buffer).resize(providerWidth, providerHeight).png().toBuffer();
+    const master = Buffer.from(provider);
+    const delivered = await buildFourKImageDelivery(provider, original, framed.contentFrame);
+    const { data, info } = await sharp(delivered.buffer).raw().toBuffer({ resolveWithObject: true });
+    const expected = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]];
+    const corners = [[20, 20], [info.width - 21, 20], [20, info.height - 21], [info.width - 21, info.height - 21]];
+    for (let i = 0; i < corners.length; i++) {
+      const [x, y] = corners[i];
+      const offset = (y * info.width + x) * info.channels;
+      for (let channel = 0; channel < 3; channel++) {
+        assert.ok(Math.abs(data[offset + channel] - expected[i][channel]) < 10, `Lost corner ${i}`);
+      }
+    }
+    assert.equal(Math.max(info.width, info.height), 4096);
+    assert.ok(Math.abs(info.width / info.height - width / height) < 1 / info.height);
+    assert.equal(delivered.transportMarginsRemoved, true);
+    assert.deepEqual(provider, master, "raw refinement master must remain untouched");
+  }
+});
+
+test("EXIF rotation and repeated master refinement do not add cropping or compound margins", async () => {
+  const exif = await sharp({ create: { width: 1000, height: 800, channels: 3, background: "red" } })
+    .jpeg().withMetadata({ orientation: 6 }).toBuffer();
+  const initial = await prepareOpenAIFramedInput(exif);
+  const photo = await removeOpenAITransportMargins(initial.buffer, initial.contentFrame);
+  assert.deepEqual((await sharp(photo).metadata()).width, 800);
+  assert.deepEqual((await sharp(photo).metadata()).height, 1000);
+  const repeated = await prepareOpenAIFramedInput(photo);
+  assert.deepEqual(repeated.contentFrame, initial.contentFrame);
+  assert.deepEqual(await sharp(repeated.buffer).raw().toBuffer(), await sharp(initial.buffer).raw().toBuffer());
+  assert.throws(() => imageContentRect(1024, 1536, { x: -1, y: 0, width: 1, height: 1 }), /Invalid/);
+});

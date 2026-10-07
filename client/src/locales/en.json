@@ -1,4 +1,8 @@
 {
+  "imageGeneration": {
+    "connectionError": "The connection to the image service was interrupted. Your image may still be processing. Check your recent images before starting again.",
+    "waitExpired": "Image status could not be retrieved in time. Check your recent images before starting again."
+  },
   "nav": {
     "home": "HOME",
     "prices": "PRICING",
@@ -814,6 +818,10 @@
       "roomTypeLabel": "Room type",
       "styleLabel": "Design style",
       "budgetLabel": "Budget level",
+      "wishesLabel": "Your wishes (optional)",
+      "wishesPlaceholder": "Describe what you want, e.g. seating in the back, more plants or a particular table",
+      "wishesHint": "We adapt your wishes to the space without changing permanent features.",
+      "roomFlowGenerating": "Planning the layout and reviewing the image. This may take 1–2 minutes.",
       "generateBtn": "Generate visualization →",
       "generating": "Generating visualization...",
       "generatingSubtitle": "AI is working on your room. About 15 sec.",
@@ -832,6 +840,7 @@
       "newDesignStyle": "New design style"
     },
     "roomTypes": {
+      "automatic": "Automatic",
       "living_room": "Living room",
       "bedroom": "Bedroom",
       "kitchen": "Kitchen",
@@ -1002,14 +1011,16 @@
     },
     "budgetTiers": {
       "iGaar": "yesterday",
-      "tier1Label": "Affordable style",
-      "tier1Sub": "Simple style and furnishings",
+      "title": "Styling level",
+      "helper": "Choose the level of furnishings, materials and detail. This does not change your selected style or the room’s architecture.",
+      "tier1Label": "Simple",
+      "tier1Sub": "Practical furnishings and materials, kept simple.",
       "tier1Short": "Simple",
-      "tier2Label": "Balanced style",
-      "tier2Sub": "A balanced, standard look",
+      "tier2Label": "Balanced",
+      "tier2Sub": "A coordinated look with richer materials, textures and details.",
       "tier2Short": "Balanced",
-      "tier3Label": "Exclusive style",
-      "tier3Sub": "A premium look with high-end furnishings",
+      "tier3Label": "Exclusive",
+      "tier3Sub": "Refined premium materials and considered craftsmanship.",
       "tier3Short": "Exclusive"
     },
     "caseView": {

@@ -15,8 +15,10 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
 
   const [sliderPos, setSliderPos] = useState(50);
   const [lightbox, setLightbox] = useState<"before" | "after" | null>(null);
+  const [originalFrame, setOriginalFrame] = useState<{ src: string; aspectRatio: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const aspectRatio = originalFrame?.src === before ? originalFrame.aspectRatio : null;
 
   const updatePosition = useCallback((clientX: number) => {
     if (!containerRef.current) return;
@@ -57,42 +59,44 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, className, beforeImage,
       <div className={`rounded-xl overflow-hidden border border-border/60 ${className || ""}`}>
         <div
           ref={containerRef}
-          className="relative w-full select-none touch-none cursor-col-resize overflow-hidden bg-muted/30"
+          className="relative w-full mx-auto select-none touch-none cursor-col-resize overflow-hidden bg-muted/30"
+          style={{
+            aspectRatio: aspectRatio ?? undefined,
+            maxWidth: aspectRatio ? `min(100%, ${aspectRatio * 75}vh)` : undefined,
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           data-testid="before-after-slider"
         >
           <img
-            src={after}
+            key={before}
+            src={before}
             alt=""
             className="w-full h-auto block invisible"
             style={{ maxHeight: "75vh" }}
+            onLoad={(event) => {
+              const image = event.currentTarget;
+              if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                setOriginalFrame({ src: before, aspectRatio: image.naturalWidth / image.naturalHeight });
+              }
+            }}
             draggable={false}
           />
 
           <img
             src={after}
             alt="After redesign"
-            className="absolute inset-0 w-full h-full object-contain"
+            className="absolute inset-0 w-full h-full object-cover"
             draggable={false}
           />
 
-          {/* White mask on the "before" side — covers any areas where the before
-              image doesn't fill the full frame (object-contain letterboxing),
-              preventing the after image from bleeding through at top/bottom. */}
-          <div
-            className="absolute inset-0 bg-white"
-            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
-          />
-
-          {/* Before image clipped to the left of the slider — clipPath keeps it
-              perfectly aligned with the after image (no width measurement needed
-              on first render) and adds no color/shadow distortion. */}
+          {/* The frame follows the original's natural ratio. Covering the same
+              rectangle keeps historical after-images aligned without letterboxing. */}
           <img
             src={before}
             alt="Before redesign"
-            className="absolute inset-0 w-full h-full object-contain"
+            className="absolute inset-0 w-full h-full object-cover"
             style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
             draggable={false}
           />

@@ -1,0 +1,270 @@
+{
+  "scandinavian": {
+    "budget": {
+      "description": "Enkel nordisk indretning med lyse træer og hvide møbler. Stilrent og funktionelt til en god pris.",
+      "exampleRetailers": [
+        "IKEA",
+        "JYSK",
+        "jem & fix"
+      ]
+    },
+    "standard": {
+      "description": "Klassisk nordisk kvalitetsstil med egetræ og naturlige tekstiler i uld og hør. Balanceret og tidløst.",
+      "exampleRetailers": [
+        "Ilva",
+        "BoConcept",
+        "Hay"
+      ]
+    },
+    "luxury": {
+      "description": "Premium nordisk design med massivt egetræ, designerlamper og håndlavede detaljer. Eksklusivt og tidløst.",
+      "exampleRetailers": [
+        "Hay",
+        "Menu",
+        "&Tradition",
+        "Louis Poulsen",
+        "Carl Hansen",
+        "Fredericia"
+      ]
+    }
+  },
+  "modern": {
+    "budget": {
+      "description": "Ren og moderne minimalistisk stil med geometriske former og neutrale farver. Moderne look til fornuftig pris.",
+      "exampleRetailers": [
+        "IKEA",
+        "Kvik",
+        "IDEmøbler"
+      ]
+    },
+    "standard": {
+      "description": "Moderne indretning med kvalitetssofaer, glas og ståldetaljer samt struktureret belysning og kunst.",
+      "exampleRetailers": [
+        "BoConcept",
+        "Ilva",
+        "Sofacompany"
+      ]
+    },
+    "luxury": {
+      "description": "Luksuriøs moderne indretning med premiumitalienske møbler, marmoroverflader og ikonisk designbelysning.",
+      "exampleRetailers": [
+        "Montana",
+        "Fritz Hansen",
+        "Gubi",
+        "Paustian"
+      ]
+    }
+  },
+  "luxury": {
+    "budget": {
+      "description": "Glamourøs luksusindretning med fløjl, gulddetaljer og spejloverflader. Luksusudseende til fornuftig pris.",
+      "exampleRetailers": [
+        "H&M Home",
+        "Zara Home",
+        "Maisons du Monde"
+      ]
+    },
+    "standard": {
+      "description": "Elegant luksusindretning med fløjlssofaer, messinglysestager og dybe smykkefarver i grøn og blå.",
+      "exampleRetailers": [
+        "Sofacompany",
+        "Wendelbo",
+        "Bolia"
+      ]
+    },
+    "luxury": {
+      "description": "Ultra-luksus med skræddersyede møbler, natursten, krystallamper og de fineste tekstiler i silke og cashmere.",
+      "exampleRetailers": [
+        "Cassina",
+        "Poltrona Frau",
+        "Fendi Casa",
+        "Minotti"
+      ]
+    }
+  },
+  "industrial": {
+    "budget": {
+      "description": "Rå industriel stil med teglstenseffekt, sorte metalreoler og Edison-pærer. Autentisk look til god pris.",
+      "exampleRetailers": [
+        "IKEA",
+        "jem & fix",
+        "JYSK"
+      ]
+    },
+    "standard": {
+      "description": "Autentisk industriel indretning med beton, stålmøbler og kornlæder. Robust og karakterfuldt.",
+      "exampleRetailers": [
+        "Vipp",
+        "House Doctor",
+        "Muubs"
+      ]
+    },
+    "luxury": {
+      "description": "Premium industri-loft med poleret beton, skræddersyet stål og italiensk læder. Eksklusivt og råt.",
+      "exampleRetailers": [
+        "Vipp",
+        "Tom Dixon",
+        "Norr11",
+        "&Tradition"
+      ]
+    }
+  },
+  "coastal": {
+    "budget": {
+      "description": "Afslappet kystliv-stil med lyseblå og sandfarver, rattan og naturlige tekstiler. Frisk og hyggeligt.",
+      "exampleRetailers": [
+        "JYSK",
+        "Søstrene Grene",
+        "Bahne"
+      ]
+    },
+    "standard": {
+      "description": "Raffineret kystindretning med teak og rattan, havblå nuancer, naturlige tæpper og linengardiner.",
+      "exampleRetailers": [
+        "Bloomingville",
+        "Ilva",
+        "Bolia"
+      ]
+    },
+    "luxury": {
+      "description": "Luksuriøs feriestemsning med teak, designer-rattan-lamper, belgisk linned og håndlavet keramik.",
+      "exampleRetailers": [
+        "Sika Design",
+        "Cane-line",
+        "Tine K Home"
+      ]
+    }
+  },
+  "transitional": {
+    "budget": {
+      "description": "Tidløs overgangssstil der blander klassisk og moderne. Neutrale varme toner og enkle former.",
+      "exampleRetailers": [
+        "IKEA",
+        "IDEmøbler",
+        "Ilva"
+      ]
+    },
+    "standard": {
+      "description": "Balanceret transitional med kvalitetssofaer, blandede træsorter, lagdelte tæpper og klassiske detaljer.",
+      "exampleRetailers": [
+        "BoConcept",
+        "Sofacompany",
+        "Ethnicraft"
+      ]
+    },
+    "luxury": {
+      "description": "Premium transitional design med skræddersyede skabe, antik messing, arvestykke-kvalitet og kunst.",
+      "exampleRetailers": [
+        "Eilersen",
+        "Paustian",
+        "Flexform"
+      ]
+    }
+  },
+  "farmhouse": {
+    "budget": {
+      "description": "Hyggeligt bondegårds-look med hvid panel-effekt, rustikt træ, ternede tekstiler og vintage detaljer.",
+      "exampleRetailers": [
+        "JYSK",
+        "Søstrene Grene",
+        "H&M Home"
+      ]
+    },
+    "standard": {
+      "description": "Moderne bondegårdsindretning med genbrugstræ, linned, shaker-skabe og jernbeslag. Autentisk og hyggeligt.",
+      "exampleRetailers": [
+        "Bloomingville",
+        "House Doctor",
+        "Broste Copenhagen"
+      ]
+    },
+    "luxury": {
+      "description": "Eksklusiv bondegårds-stil med rå tømmerbjælker, natursten, franske linned og antikke møbler.",
+      "exampleRetailers": [
+        "Tine K Home",
+        "Flamant",
+        "&Tradition"
+      ]
+    }
+  },
+  "midcentury": {
+    "budget": {
+      "description": "Retroinspireret 50er/60er stil med organiske former, varmt valnød-look og sennepsfarver. Tidløst og legende.",
+      "exampleRetailers": [
+        "IKEA",
+        "JYSK",
+        "Maisons du Monde"
+      ]
+    },
+    "standard": {
+      "description": "Autentisk midcentury med teaktræ, Eames-inspirerede stole og klassisk dansk design med ikonisk belysning.",
+      "exampleRetailers": [
+        "Hay",
+        "BoConcept",
+        "House Doctor",
+        "Paustian"
+      ]
+    },
+    "luxury": {
+      "description": "Autentisk midcentury med ikonmøbler af Hans Wegner, Fritz Hansen og PH-lamper. Det bedste af dansk design.",
+      "exampleRetailers": [
+        "Fritz Hansen",
+        "Carl Hansen & Søn",
+        "PP Møbler",
+        "Paustian"
+      ]
+    }
+  },
+  "bohemian": {
+    "budget": {
+      "description": "Afslappet boheme-stil med marokkanske poufs, kilim-tæpper og lagdelte tekstiler. Eklektisk og farverigt.",
+      "exampleRetailers": [
+        "Søstrene Grene",
+        "H&M Home",
+        "Maisons du Monde"
+      ]
+    },
+    "standard": {
+      "description": "Curateret boheme med rattan, kilim-tæpper, makramé og varme jordfarver. Personligt og kreativt.",
+      "exampleRetailers": [
+        "Bloomingville",
+        "House Doctor",
+        "Tine K Home"
+      ]
+    },
+    "luxury": {
+      "description": "Luksuriøs boheme med persiske silketæpper, håndskåret træ og designerlamper. Globalt og eksotisk.",
+      "exampleRetailers": [
+        "Tine K Home",
+        "Muubs",
+        "Broste Copenhagen"
+      ]
+    }
+  },
+  "japandi": {
+    "budget": {
+      "description": "Japansk-skandinavisk fusion med lave møbler, bambus og zen-enkelhed. Rolig og balanceret.",
+      "exampleRetailers": [
+        "IKEA",
+        "Søstrene Grene",
+        "JYSK"
+      ]
+    },
+    "standard": {
+      "description": "Raffineret Japandi med massivt egetræ, washi-papir og natursten. Ro og præcision i balance.",
+      "exampleRetailers": [
+        "Hay",
+        "Muubs",
+        "Menu"
+      ]
+    },
+    "luxury": {
+      "description": "Premium Japandi med bespoke valnød, natursten og designerlamper i washi-silke. Eksklusiv ro.",
+      "exampleRetailers": [
+        "Hay",
+        "Carl Hansen & Søn",
+        "Paustian"
+      ]
+    }
+  }
+}

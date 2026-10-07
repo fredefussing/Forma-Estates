@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import i18n, { setExplicitLang } from "@/i18n";
+import { requestImageGeneration } from "@/lib/image-generation-request";
 const LOCALE_TAGS: Record<string, string> = { da: "da-DK", en: "en-GB", sv: "sv-SE", de: "de-DE", nb: "nb-NO", es: "es-ES", fr: "fr-FR" };
 const localeTag = () => LOCALE_TAGS[(i18n.language || "da").split("-")[0]] ?? "da-DK";
 const ROOM_KEY_ALIASES: Record<string, string> = { hallway: "entryway", kontor: "home_office" };
@@ -20,6 +21,7 @@ import { EnterpriseCalculator } from "@/components/enterprise-calculator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { SaveToCaseButton } from "@/components/save-to-case-button";
 import { CaseGenerationPicker, type CaseGenerationFeature } from "@/components/case-generation-picker";
+import { StyleLevelSelector } from "@/components/style-level-selector";
 import { CaseOutputAutosaveNotices, useCaseOutputAutosave, type LaunchCase } from "@/hooks/use-case-output-autosave";
 import {
   bindTourProjectTarget,
@@ -149,6 +151,106 @@ interface ApiCaseImage {
   refinementCount: number;
   daysAfterMarket: number;
   createdAt: string;
+  providerMetrics?: ImageTestMetrics | null;
+}
+
+type ImageTestMetrics = {
+  provider: string;
+  model: string;
+  providerTimeMs: number;
+  attempts: number;
+  costUsd: number | null;
+  costBasis: string;
+  currency: string;
+  analysisModel?: string;
+  analysisTimeMs?: number;
+  qualityTimeMs?: number;
+  checks?: { pass: boolean; issues: string[] }[];
+  imageCostUsd?: number | null;
+  clickToVisibleMs?: number;
+  visibleLatencySaved?: boolean;
+};
+
+async function saveImageTestVisibleLatency(imageId: number | null, visibleMs: number): Promise<boolean> {
+  if (imageId == null) return false;
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return false;
+    const response = await fetch(`/api/bolig/images/${imageId}/visible-latency`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ visibleMs }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function useRoomImageAvailability() {
+  return useQuery({
+    queryKey: ["openai-image-test-status", auth.currentUser?.uid],
+    queryFn: async () => {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return { enabled: false, roomFlowAvailable: false };
+      const res = await fetch("/api/bolig/openai-image-test/status", { headers: { Authorization: `Bearer ${token}` } });
+      return res.ok ? await res.json() as { enabled: boolean; roomFlowAvailable: boolean } : { enabled: false, roomFlowAvailable: false };
+    },
+    staleTime: 60_000,
+  });
+}
+
+type ImageProviderChoice = "collov" | "openai" | "openai-preset" | "sunburst";
+
+function ImageTestSelector({ value, onChange, id = "image-test-provider" }: {
+  value: ImageProviderChoice;
+  onChange: (provider: ImageProviderChoice) => void;
+  id?: string;
+}) {
+  const { data } = useRoomImageAvailability();
+  if (!data?.enabled) return data && !data.roomFlowAvailable
+    ? <p className="text-xs text-amber-700">Billedmotoren er midlertidigt utilgængelig.</p>
+    : null;
+  return <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
+    <label htmlFor={id} className="block font-semibold mb-1">Test af billedmotor (kun administrator)</label>
+    <select id={id} value={value} onChange={e => onChange(e.target.value as ImageProviderChoice)} className="rounded border p-2 bg-white">
+      <option value="openai">ChatGPT · rum / stil / indretningsniveau (high)</option>
+      <option value="openai-preset">OpenAI · chatgpt-image-latest · kun valgt prompt (high)</option>
+      <option value="sunburst">OpenAI · gpt-image-2.5-sunburst (high)</option>
+      <option value="collov">Collov · eksisterende flow</option>
+    </select>
+    {value === "openai-preset" && <p className="mt-2 text-xs text-amber-900">Kun det godkendte rum-/stil-/indretningsniveau-prompt og den normale struktur-/kamerabeskyttelse. Ingen rumplanlægger eller automatisk billedkontrol.</p>}
+    <p className="mt-2 text-xs text-amber-900">Til sammenligning: brug samme originalfoto, rum, stil og ønsker én gang pr. model. Hvert OpenAI-forsøg kan medføre API-udgifter; billeder og målinger gemmes i galleriet.</p>
+  </div>;
+}
+
+function ImageTestDetails({ metrics, visibleMs }: { metrics?: ImageTestMetrics | null; visibleMs?: number | null }) {
+  const { data } = useRoomImageAvailability();
+  if (!metrics || !data?.enabled) return null;
+  const elapsedVisibleMs = visibleMs ?? metrics.clickToVisibleMs;
+  return <div className="my-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-[#0F1D2F]" data-testid="openai-image-test-metrics">
+    <strong>{metrics.model} · {metrics.attempts} forsøg</strong>
+    <div>Provider-tid: {(metrics.providerTimeMs / 1000).toFixed(1)} s
+      {elapsedVisibleMs != null && <> · Klik til synligt resultat: {(elapsedVisibleMs / 1000).toFixed(1)} s</>}
+    </div>
+    {metrics.visibleLatencySaved === false && <div role="status">Klik-til-resultat-målingen kunne ikke gemmes og vises kun i denne session.</div>}
+    {metrics.analysisModel && <div>Rumanalyse: {((metrics.analysisTimeMs ?? 0) / 1000).toFixed(1)} s · Billedkontrol: {((metrics.qualityTimeMs ?? 0) / 1000).toFixed(1)} s · {metrics.checks?.length ?? 0} billedforsøg kontrolleret</div>}
+    {metrics.checks?.at(-1)?.pass && <div>Automatisk kontrol bestået (kan ikke garantere et fejlfrit billede).</div>}
+    <div>API-omkostning{metrics.analysisModel ? " inkl. analyse, kontrol og alle forsøg" : ""}: {metrics.costUsd == null ? "Ikke tilgængelig" : `ca. ${metrics.costUsd.toFixed(4)} ${metrics.currency}`} (estimat, ikke faktureret beløb)</div>
+    <small>{metrics.costBasis}</small>
+  </div>;
+}
+
+function RoomWishesField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  const { t } = useTranslation();
+  return <div>
+    <label htmlFor={id} className="block text-xs font-semibold tracking-wide uppercase mb-2 text-[#0F1D2F]">{t("dashboard.wizard.wishesLabel")}</label>
+    <textarea id={id} value={value} onChange={e => onChange(e.target.value)} maxLength={600} rows={3}
+      placeholder={t("dashboard.wizard.wishesPlaceholder")}
+      className="w-full rounded-xl border border-[#D9D5CF] bg-white p-3 text-sm text-[#0F1D2F] focus:outline-none focus:ring-2 focus:ring-[#C8956C]"
+      data-testid="bolig-room-wishes" />
+    <p className="text-xs text-[#6B6B6B]">{t("dashboard.wizard.wishesHint")} · {value.length}/600</p>
+  </div>;
 }
 
 
@@ -803,44 +905,29 @@ async function downloadSellerReportPdf(opts: {
     };
 
     // ── FORSIDE ──────────────────────────────────────────────────────────────
-    // Large navy header band with white headline
     const coverHdrH = 54;
     pdf.setFillColor(navy[0], navy[1], navy[2]);
     pdf.rect(0, 0, pageW, coverHdrH, "F");
-
-    // Eyebrow in accent
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
     pdf.setTextColor(accent[0], accent[1], accent[2]);
     pdf.text(i18n.t("dashboard.report.saelgerrapportAiBoligpotentiale").toUpperCase(), margin, 15);
-
-    // Accent rule under eyebrow
     pdf.setDrawColor(accent[0], accent[1], accent[2]);
     pdf.setLineWidth(0.4);
     pdf.line(margin, 19, margin + 18, 19);
-
-    // White main headline
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(22);
     pdf.setTextColor(255, 255, 255);
     pdf.text(i18n.t("dashboard.report.boligensFulde"), margin, 31);
-
-    // Second headline line in accent
     pdf.setTextColor(accent[0], accent[1], accent[2]);
     pdf.text(i18n.t("dashboard.report.potentialeVisualiseret"), margin, 44);
-
-    // Address below navy band
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(15);
     pdf.setTextColor(navy[0], navy[1], navy[2]);
     pdf.text(opts.address, margin, coverHdrH + 14, { maxWidth: pageW - margin * 2 });
-
-    // Accent rule under address
     pdf.setDrawColor(accent[0], accent[1], accent[2]);
     pdf.setLineWidth(0.6);
     pdf.line(margin, coverHdrH + 18, margin + 32, coverHdrH + 18);
-
-    // Metadata rows
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9.5);
     pdf.setTextColor(muted[0], muted[1], muted[2]);
@@ -848,8 +935,6 @@ async function downloadSellerReportPdf(opts: {
     if (opts.caseNo) { pdf.text(i18n.t("dashboard.report.sagsnr", { caseNo: opts.caseNo }), margin, metaY); metaY += 6; }
     pdf.text(i18n.t("dashboard.report.onMarketSince", { date: marketDateStr, days: opts.liveDays }), margin, metaY); metaY += 6;
     pdf.text(i18n.t("dashboard.report.visualiseringCount", { count: fetched.length, date: dateStr }), margin, metaY); metaY += 4;
-
-    // Hero image
     const hero = fetched[0].after;
     const heroMaxW = pageW - margin * 2;
     const heroMaxH = pageH - metaY - 24;
@@ -869,50 +954,44 @@ async function downloadSellerReportPdf(opts: {
       const pageItems = fetched.slice(index, index + 2);
 
       pageItems.forEach(({ img, after, before }, rowIndex) => {
-      const roomLabel = roomLabelLocalized(img.room);
-      const styleLabel = styleLabelLocalized(img.style);
-      const sectionTop = 16 + rowIndex * 128;
-
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(12);
-      pdf.setTextColor(navy[0], navy[1], navy[2]);
-      pdf.text(roomLabel, margin, sectionTop + 5, { maxWidth: pageW - margin * 2 });
-
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(styleLabel, margin, sectionTop + 11, { maxWidth: pageW - margin * 2 });
-
-      const imgTop = sectionTop + 16;
-      const imgBottom = sectionTop + 119;
-
-      if (before) {
-        const gap = 5;
-        const half = (pageW - margin * 2 - gap) / 2;
-
-        const drawHalf = (im: { dataUrl: string; w: number; h: number }, x: number, label: string, addWatermark: boolean) => {
-          const r = im.w / im.h;
-          let w = half, h = half / r;
+        const roomLabel = roomLabelLocalized(img.room);
+        const styleLabel = styleLabelLocalized(img.style);
+        const sectionTop = 16 + rowIndex * 128;
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(12);
+        pdf.setTextColor(navy[0], navy[1], navy[2]);
+        pdf.text(roomLabel, margin, sectionTop + 5, { maxWidth: pageW - margin * 2 });
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.setTextColor(accent[0], accent[1], accent[2]);
+        pdf.text(styleLabel, margin, sectionTop + 11, { maxWidth: pageW - margin * 2 });
+        const imgTop = sectionTop + 16;
+        const imgBottom = sectionTop + 119;
+        if (before) {
+          const gap = 5;
+          const half = (pageW - margin * 2 - gap) / 2;
+          const drawHalf = (im: { dataUrl: string; w: number; h: number }, x: number, label: string, addWatermark: boolean) => {
+            const r = im.w / im.h;
+            let w = half, h = half / r;
+            const maxH = imgBottom - imgTop;
+            if (h > maxH) { h = maxH; w = maxH * r; }
+            const ox = x + (half - w) / 2;
+            pdf.addImage(im.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
+            if (addWatermark && !skipWm) drawWatermark(ox, imgTop, w, h);
+            drawImageLabel(label, ox, imgTop, h);
+          };
+          drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
+          drawHalf(after, margin + half + gap, i18n.t("dashboard.pdf.efter"), true);
+        } else {
+          const maxW = pageW - margin * 2;
           const maxH = imgBottom - imgTop;
+          const r = after.w / after.h;
+          let w = maxW, h = maxW / r;
           if (h > maxH) { h = maxH; w = maxH * r; }
-          const ox = x + (half - w) / 2;
-          pdf.addImage(im.dataUrl, "JPEG", ox, imgTop, w, h, undefined, "FAST");
-          if (addWatermark && !skipWm) drawWatermark(ox, imgTop, w, h);
-          drawImageLabel(label, ox, imgTop, h);
-        };
-
-        drawHalf(before, margin, i18n.t("dashboard.common.foer"), false);
-        drawHalf(after, margin + half + gap, i18n.t("dashboard.pdf.efter"), true);
-      } else {
-        const maxW = pageW - margin * 2;
-        const maxH = imgBottom - imgTop;
-        const r = after.w / after.h;
-        let w = maxW, h = maxW / r;
-        if (h > maxH) { h = maxH; w = maxH * r; }
-        const singleX = (pageW - w) / 2;
-        pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
-        if (!skipWm) drawWatermark(singleX, imgTop, w, h);
-      }
+          const singleX = (pageW - w) / 2;
+          pdf.addImage(after.dataUrl, "JPEG", singleX, imgTop, w, h, undefined, "FAST");
+          if (!skipWm) drawWatermark(singleX, imgTop, w, h);
+        }
       });
       drawFooter();
     }
@@ -950,6 +1029,11 @@ const ROOM_TYPES = [
   { value: "outdoor",          label: "Udendørs",            labelKey: "dashboard.roomTypes.outdoor" },
   { value: "open plan living", label: "Åben stue/spisestue", labelKey: "dashboard.roomTypes.open_plan_living" },
   { value: "entryway",         label: "Entré",               labelKey: "dashboard.roomTypes.entryway" },
+];
+
+const PLANNED_ROOM_TYPES = [
+  { value: "automatic", label: "Automatisk", labelKey: "dashboard.roomTypes.automatic" },
+  ...ROOM_TYPES,
 ];
 
 const STYLES = [
@@ -1016,17 +1100,26 @@ function CaseDetailPanel({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const caseAutoSave = useCaseOutputAutosave();
+  const { data: imageAvailability } = useRoomImageAvailability();
+  const roomFlowAvailable = imageAvailability?.roomFlowAvailable === true;
   const [now, setNow] = useState(Date.now());
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [roomType, setRoomType] = useState("living room");
   const [style, setStyle] = useState("scandinavian");
   const [tier, setTier] = useState("tier2");
+  const [roomWishes, setRoomWishes] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [promptUsed, setPromptUsed] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState<number | null>(null);
+  const [imageProvider, setImageProvider] = useState<ImageProviderChoice>("sunburst");
+  useEffect(() => {
+    if (imageAvailability?.roomFlowAvailable && !imageAvailability.enabled) setImageProvider("sunburst");
+  }, [imageAvailability?.roomFlowAvailable, imageAvailability?.enabled]);
+  const [testMetrics, setTestMetrics] = useState<ImageTestMetrics | null>(null);
+  const [visibleTimeMs, setVisibleTimeMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; desc: string; confirmLabel: string; onConfirm: () => void; variant?: "danger" | "success" } | null>(null);
   const [activityLightbox, setActivityLightbox] = useState<string | null>(null);
@@ -1250,11 +1343,7 @@ function CaseDetailPanel({
       fd.append("sourceCaseImageId", String(srcId));
       fd.append("season", season);
       fd.append("caseId", String(caseData.id));
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.caseView.saesonopdateringenMislykkedesProevIgen"));
       await refetchImages();
@@ -1292,21 +1381,48 @@ function CaseDetailPanel({
       fd.append("image", imageFile);
       fd.append("style", style);
       fd.append("room", roomType);
+      fd.append("promptText", roomWishes.trim());
       fd.append("tier", tier);
+      if (imageProvider !== "collov") {
+        if (imageProvider === "openai-preset" || imageProvider === "openai") {
+          fd.append("provider", "openai");
+          fd.append("roomWishes", roomWishes.trim());
+        }
+        else fd.append("roomFlow", "true");
+        if (imageProvider === "sunburst") fd.append("imageModel", "gpt-image-2.5-sunburst");
+      }
+      else { fd.append("provider", "collov"); fd.append("roomWishes", roomWishes.trim()); }
       fd.append("caseId", String(caseData.id));
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
+      setTestMetrics(data.provider_metrics ?? null);
+      setVisibleTimeMs(null);
       setResultUrl(data.image_url);
       setPromptUsed(data.prompt_used ?? null);
+      setIsGenerating(false);
       setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
       const generationId = data.generation_id != null && Number.isFinite(Number(data.generation_id))
         ? Number(data.generation_id)
         : null;
+      setCaseSavedImageId(generationId);
+      setCaseRefinedUrl(null);
+      setCaseRefinementCount(0);
+      setCaseRefinementError(null);
+      setGenStep(3);
+      if (data.provider_metrics) {
+        const img = new Image();
+        img.src = data.image_url;
+        void img.decode().then(() => {
+          requestAnimationFrame(() => requestAnimationFrame(async () => {
+            const elapsed = Date.now() - startTime;
+            setVisibleTimeMs(elapsed);
+            const saved = await saveImageTestVisibleLatency(generationId, elapsed);
+            setTestMetrics(current => current && current === data.provider_metrics ? { ...current, clickToVisibleMs: elapsed, visibleLatencySaved: saved } : current);
+            queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+          }));
+        }).catch(() => {});
+      }
       let persisted = generationId != null;
       if (!persisted) {
         const saveResult = await caseAutoSave.save(capturedCase, {
@@ -1324,9 +1440,6 @@ function CaseDetailPanel({
       } else {
         setCaseSavedImageId(generationId);
       }
-      setCaseRefinedUrl(null);
-      setCaseRefinementCount(0);
-      setCaseRefinementError(null);
       // Auto-saved — immediately refresh gallery and all live-tracking sections
       if (persisted) {
         await refetchImages();
@@ -1337,7 +1450,6 @@ function CaseDetailPanel({
         queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
         window.dispatchEvent(new Event("quota:refresh"));
       }
-      setGenStep(3);
     } catch (err: any) {
       setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
     } finally {
@@ -1359,15 +1471,13 @@ function CaseDetailPanel({
       fd.append("isDesignAgent", "true");
       fd.append("isRefinement", "true");
       fd.append("promptText", caseRefinementPrompt.trim());
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.justeringMislykkedesProevIgen"));
       setCaseRefinedUrl(data.image_url);
       setResultUrl(data.image_url);
+      setTestMetrics(data.provider_metrics ?? null);
+      setVisibleTimeMs(null);
       const generationId = data.generation_id != null && Number.isFinite(Number(data.generation_id))
         ? Number(data.generation_id)
         : null;
@@ -1783,7 +1893,7 @@ function CaseDetailPanel({
                         <p className="text-sm font-semibold mb-1" style={{ color: "#0F1D2F" }}>{img.room}</p>
                         <div className="flex gap-1.5 flex-wrap">
                           <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(200,149,108,0.13)", color: "#B07848" }}>{img.style}</span>
-                          {img.tier && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(img.tier)}</span>}
+                          {img.tier && img.tier !== "0" && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F" }}>{tierLabel(img.tier)}</span>}
                           {img.refinementCount > 0 && (
                             <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(200,149,108,0.13)", color: "#9A643A" }}>
                               {i18n.t("dashboard.caseView.justeringerCount", { count: img.refinementCount, max: CASE_MAX_REFINEMENTS })}
@@ -2077,7 +2187,7 @@ function CaseDetailPanel({
                     <div>
                       <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>{t("dashboard.wizard.roomTypeLabel")}</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {ROOM_TYPES.map((r) => (
+                        {PLANNED_ROOM_TYPES.filter(r => r.value !== "automatic" || imageProvider === "sunburst").map((r) => (
                           <button
                             key={r.value}
                             onClick={() => setRoomType(r.value)}
@@ -2121,32 +2231,17 @@ function CaseDetailPanel({
 
                     <div className="h-px" style={{ background: "#E8E4DE" }} />
 
-                    {/* ③ BUDGET */}
-                    <div>
-                      <p className="text-xs font-medium tracking-widest uppercase mb-4" style={{ color: "#9B9690" }}>{t("dashboard.wizard.budgetLabel")}</p>
-                      <div className="flex flex-col gap-2">
-                        {BUDGET_TIERS.map((t) => (
-                          <button
-                            key={t.value}
-                            onClick={() => setTier(t.value)}
-                            className="flex items-center justify-between px-4 py-3 rounded-lg border transition-all"
-                            style={{
-                              borderColor: tier === t.value ? "#0F1D2F" : "#D9D5CF",
-                              background: tier === t.value ? "#0F1D2F" : "#fff",
-                              color: tier === t.value ? "#fff" : "#1A1A1A",
-                            }}
-                            data-testid={`bolig-tier-${t.value}`}
-                          >
-                            <span className="text-sm font-medium">{i18n.t(t.label)}</span>
-                            <span className="text-xs" style={{ opacity: 0.6 }}>{i18n.t(t.sub)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <StyleLevelSelector id="case-style-level" value={tier} onChange={setTier} />
+
+                    <div className="h-px" style={{ background: "#E8E4DE" }} />
+
+                    {/* ③ INDIVIDUELLE ØNSKER */}
+                    <RoomWishesField id="case-room-wishes" value={roomWishes} onChange={setRoomWishes} />
 
                     <div className="h-px" style={{ background: "#E8E4DE" }} />
 
                     {/* Generate only after all choices have been reviewed */}
+                    <ImageTestSelector value={imageProvider} onChange={setImageProvider} id="case-image-test-provider" />
                     <QuotaGate feature="ai">
                       <button
                         onClick={handleGenerate}
@@ -2181,6 +2276,7 @@ function CaseDetailPanel({
                 </div>
                 <div>
                   <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={caseRefinedUrl ?? resultUrl} />
+                  <ImageTestDetails metrics={testMetrics} visibleMs={visibleTimeMs} />
 
                   {/* ── Inline refinement chat ─────────────────────────────────────── */}
                   {caseSavedImageId && (
@@ -2372,7 +2468,7 @@ function CaseDetailPanel({
                   <span className="text-[11px] font-semibold text-white truncate">{lightboxImg.room}</span>
                   <span className="text-[11px] text-white/60 hidden sm:inline">·</span>
                   <span className="text-[11px] text-white/70 truncate hidden sm:inline">{lightboxImg.style === "3d-interactive" ? i18n.t("dashboard.caseView.interaktiv3dModel") : lightboxImg.style}</span>
-                  {lightboxImg.tier && <><span className="text-[11px] text-white/60 hidden sm:inline">·</span><span className="text-[11px] text-white/70 hidden sm:inline">{tierLabel(lightboxImg.tier)}</span></>}
+                  {lightboxImg.tier && lightboxImg.tier !== "0" && <><span className="text-[11px] text-white/60 hidden sm:inline">·</span><span className="text-[11px] text-white/70 hidden sm:inline">{tierLabel(lightboxImg.tier)}</span></>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
                   {lightboxImg.style === "3d-interactive" && lightboxImg.beforeSrc ? (
@@ -2458,6 +2554,7 @@ function CaseDetailPanel({
                   </button>
                 </div>
               </div>
+              <ImageTestDetails metrics={lightboxImg.providerMetrics} />
             </motion.div>
           </div>
         )}
@@ -2564,6 +2661,7 @@ interface ApiGeneration {
   promptUsed: string | null;
   createdAt: string;
   generationTimeMs: number | null;
+  providerMetrics?: ImageTestMetrics | null;
 }
 
 function HistoryView({
@@ -2677,11 +2775,7 @@ function HistoryView({
       } else {
         fd.append("isQuick", "true");
       }
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.upload.regenereringMislykkedes"));
       setRegenResult({ url: data.image_url, id: data.generation_id ?? null });
@@ -2889,6 +2983,7 @@ function HistoryView({
               ) : (
                 <img src={lightbox.src} alt={lightbox.room} className="w-full rounded-2xl" />
               )}
+              <ImageTestDetails metrics={lightbox.providerMetrics} />
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <DownloadMenu
                   url={lightbox.src}
@@ -3002,25 +3097,7 @@ function HistoryView({
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-xs font-bold tracking-wider uppercase mb-2" style={{ color: "#6B6B6B" }}>{i18n.t("dashboard.history.budget")}</label>
-                    <div className="flex flex-col gap-2">
-                      {BUDGET_TIERS.map((t) => (
-                        <button
-                          key={t.value}
-                          onClick={() => setRegenTier(t.value)}
-                          className="flex items-center justify-between px-4 py-2 rounded-xl border-2 text-sm transition-all"
-                          style={{
-                            background: regenTier === t.value ? "#0F1D2F" : "#fff",
-                            borderColor: regenTier === t.value ? "#0F1D2F" : "#D9D5CF",
-                            color: regenTier === t.value ? "#fff" : "#1A1A1A",
-                          }}
-                          data-testid={`bolig-history-regen-tier-${t.value}`}
-                        >
-                          <span className="font-medium">{i18n.t(t.label)}</span>
-                          <span className="text-xs opacity-60">{i18n.t(t.sub)}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <StyleLevelSelector id="history-regen-style-level" value={regenTier} onChange={setRegenTier} />
                   </div>
 
                   {cases.filter((c) => c.status !== "sold").length > 0 && (
@@ -3110,16 +3187,25 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const autoSave = useCaseOutputAutosave();
+  const { data: imageAvailability } = useRoomImageAvailability();
+  const roomFlowAvailable = imageAvailability?.roomFlowAvailable === true;
   const [stage, setStage] = useState<Stage>("upload");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [roomType, setRoomType] = useState("living room");
   const [style, setStyle] = useState("scandinavian");
   const [tier, setTier] = useState("tier2");
+  const [roomWishes, setRoomWishes] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState<number | null>(null);
+  const [imageProvider, setImageProvider] = useState<ImageProviderChoice>("sunburst");
+  useEffect(() => {
+    if (imageAvailability?.roomFlowAvailable && !imageAvailability.enabled) setImageProvider("sunburst");
+  }, [imageAvailability?.roomFlowAvailable, imageAvailability?.enabled]);
+  const [testMetrics, setTestMetrics] = useState<ImageTestMetrics | null>(null);
+  const [visibleTimeMs, setVisibleTimeMs] = useState<number | null>(null);
   const [savedImageId, setSavedImageId] = useState<number | null>(null);
   const [resultAssignedCaseId, setResultAssignedCaseId] = useState<number | null>(null);
   const [resultLaunchCase, setResultLaunchCase] = useState<LaunchCase | null>(null);
@@ -3153,20 +3239,46 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
       fd.append("image", imageFile);
       fd.append("style", style);
       fd.append("room", roomType);
+      fd.append("promptText", roomWishes.trim());
       fd.append("tier", tier);
+      if (imageProvider !== "collov") {
+        if (imageProvider === "openai-preset" || imageProvider === "openai") {
+          fd.append("provider", "openai");
+          fd.append("roomWishes", roomWishes.trim());
+        }
+        else fd.append("roomFlow", "true");
+        if (imageProvider === "sunburst") fd.append("imageModel", "gpt-image-2.5-sunburst");
+      }
+      else { fd.append("provider", "collov"); fd.append("roomWishes", roomWishes.trim()); }
       fd.append("isQuick", "true");
       if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
+      setTestMetrics(data.provider_metrics ?? null);
+      setVisibleTimeMs(null);
       setResultUrl(data.image_url);
       setResultLaunchCase(capturedLaunchCase);
+      setRefinedUrl(null);
+      setRefinementCount(0);
+      setRefinementError(null);
+      // The backend has already saved the image durably. Show it now, before case association.
+      setStage("result");
       const generatedImageId = data.generation_id != null ? Number(data.generation_id) : null;
       setSavedImageId(generatedImageId);
+      if (data.provider_metrics) {
+        const img = new Image();
+        img.src = data.image_url;
+        void img.decode().then(() => {
+          requestAnimationFrame(() => requestAnimationFrame(async () => {
+            const elapsed = Date.now() - startTime;
+            setVisibleTimeMs(elapsed);
+            const saved = await saveImageTestVisibleLatency(generatedImageId, elapsed);
+            setTestMetrics(current => current && current === data.provider_metrics ? { ...current, clickToVisibleMs: elapsed, visibleLatencySaved: saved } : current);
+            queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
+          }));
+        }).catch(() => {});
+      }
       if (generatedImageId != null && capturedLaunchCase) setResultAssignedCaseId(capturedLaunchCase.id);
       const saveResult = await autoSave.save(capturedLaunchCase, {
         imageUrl: data.image_url,
@@ -3182,9 +3294,6 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
         },
       });
       if (saveResult.generatedImageId != null) setSavedImageId(saveResult.generatedImageId);
-      setRefinedUrl(null);
-      setRefinementCount(0);
-      setRefinementError(null);
       setProcessingTime(data.processing_time || Math.round((Date.now() - startTime) / 1000));
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/cases"] });
@@ -3192,7 +3301,6 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/most-used"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bolig/recent-images"] });
       window.dispatchEvent(new Event("quota:refresh"));
-      setStage("result");
     } catch (err: any) {
       setError(err.message || i18n.t("dashboard.common.nogetGikGaltProevIgen"));
       setStage("config");
@@ -3214,15 +3322,13 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
       fd.append("isRefinement", "true");
       fd.append("promptText", refinementPrompt.trim());
       if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.justeringMislykkedesProevIgen"));
       setRefinedUrl(data.image_url);
       setResultUrl(data.image_url);
+      setTestMetrics(data.provider_metrics ?? null);
+      setVisibleTimeMs(null);
       const generatedImageId = data.generation_id != null ? Number(data.generation_id) : null;
       if (generatedImageId != null) setSavedImageId(generatedImageId);
       const saveResult = await autoSave.save(capturedLaunchCase, {
@@ -3260,6 +3366,7 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
     setError(null); setProcessingTime(null); setSavedImageId(null);
     setResultAssignedCaseId(null);
     setResultLaunchCase(null);
+    setTestMetrics(null); setVisibleTimeMs(null);
     setRefinedUrl(null); setRefinementCount(0); setRefinementPrompt(""); setRefinementError(null);
   };
 
@@ -3320,7 +3427,7 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
                           <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "4px solid transparent", borderTopColor: "#C8956C" }} />
                         </div>
                         <h2 className="text-lg font-bold mb-1" style={{ color: "#0F1D2F" }}>{t("dashboard.wizard.generating")}</h2>
-                        <p className="text-sm font-medium" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.generatingSubtitle")}</p>
+                        <p className="text-sm font-medium" style={{ color: "#6B6B6B" }}>{t("dashboard.wizard.roomFlowGenerating")}</p>
                         <div className="flex gap-6 mt-5">
                           {[t("dashboard.wizard.analysingRoom"), t("dashboard.wizard.applyingStyle"), t("dashboard.wizard.rendering")].map((step, i) => (
                             <div key={i} className="flex flex-col items-center gap-1.5">
@@ -3349,7 +3456,7 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
                   <div>
                     <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.roomTypeLabel")}</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {ROOM_TYPES.map((r) => (
+                        {PLANNED_ROOM_TYPES.filter(r => r.value !== "automatic" || imageProvider === "sunburst").map((r) => (
                         <button key={r.value} onClick={() => setRoomType(r.value)}
                           className="h-10 px-3.5 rounded-xl text-xs font-semibold border transition-all hover:border-[#0F1D2F] text-left truncate"
                           style={{ background: roomType === r.value ? "#0F1D2F" : "#F8F6F3", borderColor: roomType === r.value ? "#0F1D2F" : "transparent", color: roomType === r.value ? "#fff" : "#1A1A1A" }}>
@@ -3370,20 +3477,10 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
                       ))}
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "#9B9690" }}>{t("dashboard.wizard.budgetLabel")}</label>
-                    <div className="flex flex-col gap-2">
-                      {BUDGET_TIERS.map((t) => (
-                        <button key={t.value} onClick={() => setTier(t.value)}
-                          className="flex items-center justify-between px-4 py-3 rounded-xl border transition-all hover:border-[#0F1D2F]"
-                          style={{ background: tier === t.value ? "#0F1D2F" : "#F8F6F3", borderColor: tier === t.value ? "#0F1D2F" : "transparent", color: tier === t.value ? "#fff" : "#1A1A1A" }}>
-                          <span className="text-sm font-semibold">{i18n.t(t.label)}</span>
-                          <span className="text-xs" style={{ opacity: tier === t.value ? 0.8 : 0.6 }}>{i18n.t(t.sub)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <StyleLevelSelector id="upload-style-level" value={tier} onChange={setTier} />
+                  <RoomWishesField id="quick-room-wishes" value={roomWishes} onChange={setRoomWishes} />
                 </div>
+                <ImageTestSelector value={imageProvider} onChange={setImageProvider} />
                 {error && <div className="text-sm text-[#B91C1C] p-3 rounded-xl bg-[#FEF2F2] font-medium">{error}</div>}
                 <QuotaGate feature="ai">
                   <button onClick={handleGenerate} className="w-full rounded-full font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0" style={{ background: "#0F1D2F", height: "52px", boxShadow: "0 4px 14px rgba(15,29,47,0.15)" }}>
@@ -3406,6 +3503,7 @@ function UploadFlow({ onBack, cases, launchCase }: { onBack: () => void; cases: 
             </div>
             <div className="max-w-4xl">
               <BeforeAfterSlider beforeSrc={imagePreview!} afterSrc={refinedUrl ?? resultUrl} />
+              <ImageTestDetails metrics={testMetrics} visibleMs={visibleTimeMs} />
 
               {/* ── Inline refinement chat ─────────────────────────────────────── */}
               {savedImageId && (
@@ -8724,11 +8822,7 @@ function AIDesignAgentFlow({ onBack, cases, launchCase }: { onBack: () => void; 
         if (capturedLaunchCase) fd.append("caseId", String(capturedLaunchCase.id));
       }
 
-      const res = await fetch("/api/bolig/generate", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await requestImageGeneration(fd, token);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || i18n.t("dashboard.common.genereringMislykkedes"));
       setResultUrl(data.image_url);

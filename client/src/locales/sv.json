@@ -1,4 +1,8 @@
 {
+  "imageGeneration": {
+    "connectionError": "Anslutningen till bildtjänsten avbröts. Bilden kan fortfarande bearbetas. Kontrollera dina senaste bilder innan du börjar igen.",
+    "waitExpired": "Bildstatus kunde inte hämtas i tid. Kontrollera dina senaste bilder innan du börjar igen."
+  },
   "nav": {
     "home": "START",
     "prices": "PRISER",
@@ -814,6 +818,10 @@
       "roomTypeLabel": "Rumstyp",
       "styleLabel": "Designstil",
       "budgetLabel": "Budgetnivå",
+      "wishesLabel": "Dina önskemål (valfritt)",
+      "wishesPlaceholder": "Beskriv dina önskemål, till exempel sittgrupp längst bak, fler växter eller ett särskilt bord",
+      "wishesHint": "Vi anpassar önskemålen till rummet utan att ändra fasta detaljer.",
+      "roomFlowGenerating": "Vi planerar inredningen och granskar bilden. Det kan ta 1–2 minuter.",
       "generateBtn": "Generera visualisering →",
       "generating": "Genererar visualisering...",
       "generatingSubtitle": "AI:n arbetar med ditt rum. Ca 15 sek.",
@@ -832,6 +840,7 @@
       "newDesignStyle": "Ny designstil"
     },
     "roomTypes": {
+      "automatic": "Automatiskt",
       "living_room": "Vardagsrum",
       "bedroom": "Sovrum",
       "kitchen": "Kök",
@@ -1002,14 +1011,16 @@
     },
     "budgetTiers": {
       "iGaar": "i går",
-      "tier1Label": "Enkel och prisvärd stil",
-      "tier1Sub": "Enkel stil och enkel inredning",
+      "title": "Inredningsnivå",
+      "helper": "Välj nivå på möbler, material och detaljer. Det ändrar inte vald stil eller rummets arkitektur.",
+      "tier1Label": "Enkel",
+      "tier1Sub": "Praktiska möbler och material med en enkel utformning.",
       "tier1Short": "Enkel",
-      "tier2Label": "Balanserad stil",
-      "tier2Sub": "Balanserad standardstil och inredning",
+      "tier2Label": "Balanserad",
+      "tier2Sub": "En samordnad inredning med rikare material, texturer och detaljer.",
       "tier2Short": "Balanserad",
-      "tier3Label": "Exklusiv stil",
-      "tier3Sub": "Exklusivt uttryck med exklusiv inredning",
+      "tier3Label": "Exklusiv",
+      "tier3Sub": "Förfinade premiummaterial och omsorgsfullt hantverk.",
       "tier3Short": "Exklusiv"
     },
     "caseView": {
