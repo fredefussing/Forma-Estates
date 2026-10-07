@@ -1,6 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPrompt, roomFlowScope, roomScopeInstructions, roomReviewInstructions } from "./room-staging";
+import { buildPrompt, roomFlowScope, roomScopeInstructions, roomReviewInstructions, ROOM_REVIEW_REQUIREMENTS } from "./room-staging";
+
+test("review distinguishes AI layout suggestions from binding customer and fidelity requirements", () => {
+  assert.ok(ROOM_REVIEW_REQUIREMENTS.includes("NOT a customer instruction"));
+  assert.ok(ROOM_REVIEW_REQUIREMENTS.includes("different sofa shape"));
+  assert.ok(ROOM_REVIEW_REQUIREMENTS.includes("movable chair orientation"));
+  for (const requirement of ["actual user wishes", "selected edit-scope/style contract",
+    "explicitly requested functional zones", "blocked circulation",
+    "protected architectural or camera change", "incomplete authorized renewal"]) {
+    assert.ok(ROOM_REVIEW_REQUIREMENTS.includes(requirement), requirement);
+  }
+});
 import { getBoligPrompt } from "../shared/boligPrompts";
 import { IMAGE_TEST_MODEL, SUNBURST_IMAGE_MODEL } from "./openai-image-test";
 import { MODERN_EXCLUSIVE_ROOM_APPLICATIONS, MODERN_EXCLUSIVE_RENOVATION_INVENTORIES } from "../shared/modernExclusivePrompt";

@@ -21,3 +21,21 @@ test("feature geometry accepts a fixed original view and rejects zoom, rotation 
   const blank = await sharp({ create: { width, height, channels: 3, background: "white" } }).png().toBuffer();
   assert.equal((await measurePerspectiveGeometry(original, blank)).verified, false);
 });
+
+test("authorized furniture and finish replacement uses distributed structural evidence without relaxing camera limits", async () => {
+  const original = await fs.readFile("client/public/bolig-images/examples-empty-room-modern.jpg");
+  const renovated = await fs.readFile("server/test-fixtures/renovated-camera-locked.webp");
+  const check = await measurePerspectiveGeometry(original, renovated);
+  assert.equal(check.verified, true);
+  assert.equal(check.featureMode, "structural_edges");
+  assert.ok(check.inliers >= 12);
+  assert.ok(check.maxCornerDrift! <= 0.025);
+  assert.ok(check.rotationDegrees! <= 1);
+  assert.ok(check.horizontalCoverage >= 0.35 && check.verticalCoverage >= 0.35);
+  const zoomed = await sharp(renovated).extract({ left: 51, top: 51, width: 922, height: 922 })
+    .resize(1024, 1024).png().toBuffer();
+  assert.equal((await measurePerspectiveGeometry(original, zoomed)).verified, false);
+  const rotated = await sharp(renovated).rotate(2, { background: "black" })
+    .resize(1024, 1024, { fit: "fill" }).png().toBuffer();
+  assert.equal((await measurePerspectiveGeometry(original, rotated)).verified, false);
+});

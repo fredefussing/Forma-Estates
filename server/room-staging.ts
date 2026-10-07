@@ -109,9 +109,11 @@ async function analyseRoom(original: string, room: string, wishes: string, scope
   }, call };
 }
 
+export const ROOM_REVIEW_REQUIREMENTS = `The planned layout is an AI-generated design suggestion, NOT a customer instruction or a requirement to retain the source furniture. Distinguish it from the actual user wishes and selected edit-scope/style contract. Do not reject an otherwise compliant design solely for a different sofa shape, movable chair orientation, or additional proportionate movable furniture not explicitly prohibited by the customer. Still reject missing explicitly requested functional zones, blocked circulation, any protected architectural or camera change, and incomplete authorized renewal.`;
+
 async function reviewRoom(original: string, output: Buffer, plan: RoomPlan, style: string, wishes: string, scope: ImageEditScope, tier: BoligTier): Promise<{ check: QualityCheck; usage: VisionUsage | null }> {
   const call = await callVision([
-    { type: "text", text: `Compare the ORIGINAL photograph (first image) with the edited result (second). Planned function: ${plan.function}. Planned layout: ${plan.layout}. Selected style: ${JSON.stringify(style)}. User wishes: ${JSON.stringify(wishes || "none")}. Evaluate CLEAR visible problems: moved/added/removed windows or doors, altered wall/ceiling/floor geometry, changed exterior views, implausible perspective or scale, severely blocked entrances, warped/floating furniture, blurry/muddy detail, unnatural light or gross color cast. Check that explicitly requested functional zones are present without blocking circulation. ${scope === "furnishing_only" ? "Check whether clearly worn or mismatched old MOVABLE furniture remains despite the new style and plan; do not fail for a piece the user asked to keep or one that genuinely fits the design." : "Check renewal of every visible authorized category, not only worn or mismatched pieces. Respect explicit user retain wishes."} Apply the edit-scope instructions below to fixed finishes and equipment. Pass only if there is no significant visible flaw or incomplete authorized transformation. Do not demand literal pixel alignment for harmless texture/light changes or furnishings. Return JSON {"pass":boolean,"issues":string[]}, with at most 3 concise issues. Be honest about uncertainty.` },
+    { type: "text", text: `Compare the ORIGINAL photograph (first image) with the edited result (second). Planned function: ${plan.function}. Planned layout: ${plan.layout}. Selected style: ${JSON.stringify(style)}. User wishes: ${JSON.stringify(wishes || "none")}. ${ROOM_REVIEW_REQUIREMENTS} Evaluate CLEAR visible problems: moved/added/removed windows or doors, altered wall/ceiling/floor geometry, changed exterior views, implausible perspective or scale, severely blocked entrances, warped/floating furniture, blurry/muddy detail, unnatural light or gross color cast. Check that explicitly requested functional zones are present without blocking circulation. ${scope === "furnishing_only" ? "Check whether clearly worn or mismatched old MOVABLE furniture remains despite the new style and plan; do not fail for a piece the user asked to keep or one that genuinely fits the design." : "Check renewal of every visible authorized category, not only worn or mismatched pieces. Respect explicit user retain wishes."} Apply the edit-scope instructions below to fixed finishes and equipment. Pass only if there is no significant visible flaw or incomplete authorized transformation. Do not demand literal pixel alignment for harmless texture/light changes or furnishings. Return JSON {"pass":boolean,"issues":string[]}, with at most 3 concise issues. Be honest about uncertainty.` },
     { type: "text", text: roomReviewInstructions(scope, style, tier) },
     { type: "image_url", image_url: { url: original, detail: "high" } },
     { type: "image_url", image_url: { url: await visionImage(output), detail: "high" } },
@@ -164,7 +166,10 @@ export async function generatePlannedRoomImage(
   inputPath: string, room: string, style: string, wishes: string, imageModel: ImageTestModel = IMAGE_TEST_MODEL,
   prepared?: Awaited<ReturnType<typeof prepareRoomPlan>>,
   tier: BoligTier = "tier2",
-  diagnostics?: { onCandidate: (buffer: Buffer, frame: ImageTestMetrics["contentFrame"], attempt: number) => Promise<void> },
+  diagnostics?: {
+    onCandidate: (buffer: Buffer, frame: ImageTestMetrics["contentFrame"], attempt: number) => Promise<void>;
+    onCheck?: (check: QualityCheck, attempt: number) => Promise<void>;
+  },
 ) {
   const scope = roomFlowScope(imageModel, style, tier, room);
   if (prepared && prepared.scope !== scope) throw new Error("Room plan edit scope does not match image request.");
@@ -210,6 +215,7 @@ export async function generatePlannedRoomImage(
       checks.push(review.check);
       reviewUsages.push(review.usage);
     }
+    await diagnostics?.onCheck?.(checks.at(-1)!, n + 1);
     if (checks.at(-1)?.pass) { accepted = result.buffer; break; }
   }
   if (!accepted) {

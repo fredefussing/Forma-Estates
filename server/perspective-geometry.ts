@@ -6,13 +6,24 @@ let queue = Promise.resolve();
 export type PerspectiveGeometry = {
   verified: boolean; matches: number; inliers: number; maxCornerDrift: number | null;
   rotationDegrees: number | null; horizontalCoverage: number; verticalCoverage: number;
+  featureMode?: "texture" | "structural_edges";
 };
+
+export async function measurePerspectiveGeometry(original: Buffer, candidate: Buffer): Promise<PerspectiveGeometry> {
+  const texture = await measureFeatures(original, candidate);
+  if (texture.verified) return texture;
+  // Renovation legitimately replaces textures. Match structural edge descriptors
+  // as a second hypothesis, with exactly the same evidence and drift thresholds.
+  const edges = await measureFeatures(original, candidate, true);
+  return edges.verified || Math.min(edges.horizontalCoverage, edges.verticalCoverage) >
+    Math.min(texture.horizontalCoverage, texture.verticalCoverage) ? edges : texture;
+}
 
 /** Match invariant image features, then measure their robust projective transform.
  * No registration/warping is applied to customer pixels. Insufficient evidence
  * fails closed. WASM needs no Python, native OpenCV or external image service.
  */
-export async function measurePerspectiveGeometry(original: Buffer, candidate: Buffer): Promise<PerspectiveGeometry> {
+async function measureFeatures(original: Buffer, candidate: Buffer, structuralEdges = false): Promise<PerspectiveGeometry> {
   const previous = queue;
   let release!: () => void;
   queue = new Promise<void>(resolve => { release = resolve; });
@@ -21,6 +32,7 @@ export async function measurePerspectiveGeometry(original: Buffer, candidate: Bu
   const empty: PerspectiveGeometry = {
     verified: false, matches: 0, inliers: 0, maxCornerDrift: null,
     rotationDegrees: null, horizontalCoverage: 0, verticalCoverage: 0,
+    featureMode: structuralEdges ? "structural_edges" : "texture",
   };
   try {
     runtime ??= import("@techstark/opencv-js").then(module => Promise.resolve(module.default));
@@ -37,9 +49,17 @@ export async function measurePerspectiveGeometry(original: Buffer, candidate: Bu
     const a = own(new cv.Mat(height, width, cv.CV_8UC1));
     const b = own(new cv.Mat(height, width, cv.CV_8UC1));
     a.data.set(pixels[0]); b.data.set(pixels[1]);
+    if (structuralEdges) {
+      for (const image of [a, b]) {
+        cv.GaussianBlur(image, image, new cv.Size(5, 5), 0.8);
+        cv.Canny(image, image, 12, 40, 3, true);
+      }
+    }
     const ka = own(new cv.KeyPointVector()), kb = own(new cv.KeyPointVector());
     const da = own(new cv.Mat()), db = own(new cv.Mat()), mask = own(new cv.Mat());
-    const orb = own(new cv.ORB(1800));
+    const orb = own(structuralEdges
+      ? new cv.ORB(5000, 1.2, 8, 10, 0, 2, cv.ORB_HARRIS_SCORE, 31, 3)
+      : new cv.ORB(1800));
     orb.detectAndCompute(a, mask, ka, da);
     orb.detectAndCompute(b, mask, kb, db);
     if (da.rows < 12 || db.rows < 12) return empty;
@@ -85,6 +105,7 @@ export async function measurePerspectiveGeometry(original: Buffer, candidate: Bu
         xs.length / count >= 0.3 && horizontalCoverage >= 0.35 && verticalCoverage >= 0.35,
       matches: count, inliers: xs.length, maxCornerDrift: drift, rotationDegrees: rotation,
       horizontalCoverage, verticalCoverage,
+      featureMode: structuralEdges ? "structural_edges" : "texture",
     };
   } finally {
     for (const object of resources.reverse()) object.delete?.();

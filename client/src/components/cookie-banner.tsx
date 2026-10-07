@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -7,6 +7,23 @@ import { motion, AnimatePresence } from "framer-motion";
 export function CookieBanner() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  // Keep fixed support controls above this bar, including its taller mobile layout.
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => root.style.setProperty("--forma-cookie-banner-height",
+      `${visible ? bannerRef.current?.getBoundingClientRect().height ?? 0 : 0}px`);
+    update();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    if (bannerRef.current) observer?.observe(bannerRef.current);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+      root.style.removeProperty("--forma-cookie-banner-height");
+    };
+  }, [visible]);
 
   useEffect(() => {
     try {
@@ -57,6 +74,7 @@ export function CookieBanner() {
           boxShadow: "0 -4px 24px rgba(0,0,0,0.35)",
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
+        ref={bannerRef}
         data-testid="cookie-banner"
       >
         <div

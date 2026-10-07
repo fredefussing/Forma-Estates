@@ -134,7 +134,7 @@ export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboar
             transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
             style={{
               position: "fixed",
-              bottom: "88px",
+              bottom: "calc(88px + var(--forma-cookie-banner-height, 0px))",
               right: "24px",
               zIndex: 9999,
               width: "360px",
@@ -244,7 +244,7 @@ export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboar
             data-testid="guided-bubble"
             style={{
               position: "fixed",
-              bottom: "90px",
+              bottom: "calc(90px + var(--forma-cookie-banner-height, 0px))",
               right: "24px",
               zIndex: 9998,
               background: C.navyDeep,
@@ -282,7 +282,7 @@ export function SupportChat({ mode = "landing" }: { mode?: "landing" | "dashboar
         whileTap={{ scale: 0.94 }}
         style={{
           position: "fixed",
-          bottom: "24px",
+          bottom: "calc(24px + var(--forma-cookie-banner-height, 0px))",
           right: "24px",
           zIndex: 9999,
           width: "54px",
