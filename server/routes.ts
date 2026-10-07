@@ -22,6 +22,7 @@ import { getBoligPrompt, BOLIG_ROOM_LABELS, BOLIG_STYLE_LABELS } from "@shared/b
 import { loadOwnedOpenAIImage } from "./openai-source-image";
 import { canUseOpenAIImageRequest, isOpenAIRefinementSource, getOpenAIRefinementModel, isSunburstRolloutEnabled, selectImageProvider } from "./openai-refinement-policy";
 import { getOpenAIImageApiKey, getOpenAIImageAvailability } from "./openai-image-config";
+import { imagePromptContractMetadata } from "./image-prompt-contract";
 import { assertPromptLocked, assertStructuralPrefixLocked } from "./promptGuard";
 import { buildValidatedStandardImagePrompt } from "./standardImagePrompt";
 import { buildFourKImageDelivery, orientedImageDimensions, persistFourKImageDelivery } from "./image-delivery";
@@ -4984,7 +4985,9 @@ export async function registerRoutes(
       const user = await storage.getUserByFirebaseUid(uid);
       return res.json({
         ...getOpenAIImageAvailability(!!user?.isAdmin),
-        reviewDiagnosticsVersion: 1,
+        reviewDiagnosticsVersion: 2,
+        imageFraming: "native_aspect",
+        promptContract: imagePromptContractMetadata(),
         model: SUNBURST_IMAGE_MODEL,
       });
     } catch {

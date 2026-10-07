@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import sharp from "sharp";
-import { prepareOpenAIFramedInput, removeOpenAITransportMargins, imageContentRect, framePreservationInstructions } from "./openai-image-frame";
+import { prepareOpenAIFramedInput, removeOpenAITransportMargins, imageContentRect, framePreservationInstructions, openAIImageSize } from "./openai-image-frame";
 import { buildFourKImageDelivery } from "./image-delivery";
 
 async function cornerPhoto(width: number, height: number) {
@@ -13,6 +13,23 @@ async function cornerPhoto(width: number, height: number) {
     <rect x="${width - 80}" y="${height - 80}" width="80" height="80" fill="#ffff00"/>
   </svg>`)).png().toBuffer();
 }
+
+test("Sunburst native-aspect canvas preserves every original pixel and uses only tiny rounding margins", async () => {
+  for (const [width, height] of [[1122, 1402], [800, 1000], [1000, 800], [1600, 900], [900, 1600], [800, 800], [1200, 400], [400, 1200]]) {
+    const photo = await cornerPhoto(width, height);
+    const framed = await prepareOpenAIFramedInput(photo, true);
+    const [w, h] = framed.size.split("x").map(Number);
+    assert.equal(w % 16, 0);
+    assert.equal(h % 16, 0);
+    assert.ok(w / h >= 1 / 3 && w / h <= 3);
+    assert.ok(Math.abs(w / h - width / height) < 0.02);
+    assert.ok(framed.contentFrame.width > 0.98 && framed.contentFrame.height > 0.98);
+    const restored = await removeOpenAITransportMargins(framed.buffer, framed.contentFrame);
+    assert.deepEqual(await sharp(restored).raw().toBuffer(), await sharp(photo).raw().toBuffer());
+  }
+  assert.equal(openAIImageSize(800, 1000), "1024x1536", "other models keep their supported sizes");
+  assert.equal(openAIImageSize(2000, 200, true), "1536x1024", "extreme ratios use safe known margins");
+});
 
 test("supported transport canvas keeps the complete photo pixel-identical at every aspect ratio", async () => {
   for (const [width, height] of [[800, 1000], [1000, 800], [1600, 900], [900, 1600], [800, 800], [1200, 400], [400, 1200]]) {

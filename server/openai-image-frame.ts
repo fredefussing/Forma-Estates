@@ -3,17 +3,27 @@ import sharp from "sharp";
 /** Normalized original-photo bounds within a provider-supported transport canvas. */
 export type ImageContentFrame = { x: number; y: number; width: number; height: number };
 
-export function openAIImageSize(width: number, height: number) {
+export function openAIImageSize(width: number, height: number, nativeAspect = false) {
+  const ratio = width / height;
+  if (nativeAspect && ratio >= 1 / 3 && ratio <= 3) {
+    // Sunburst supports arbitrary multiples of 16. Stay within the existing
+    // standard-canvas pixel budget instead of inserting large white margins
+    // around a complete photograph whose ratio differs from the old API sizes.
+    const scale = Math.min(Math.sqrt(1536 * 1024 / (width * height)), 1536 / Math.max(width, height));
+    const w = Math.max(512, Math.round(width * scale / 16) * 16);
+    const h = Math.max(512, Math.round(height * scale / 16) * 16);
+    return `${w}x${h}`;
+  }
   return width > height * 1.1 ? "1536x1024" : height > width * 1.1 ? "1024x1536" : "1024x1024";
 }
 
 /** Extend around the complete photo, never crop or stretch it to an API ratio. */
-export async function prepareOpenAIFramedInput(input: string | Buffer) {
+export async function prepareOpenAIFramedInput(input: string | Buffer, nativeAspect = false) {
   const photo = await sharp(input).rotate()
     .resize(2048, 2048, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
   const { width, height } = await sharp(photo).metadata();
   if (!width || !height) throw new Error("Original image dimensions are unavailable.");
-  const size = openAIImageSize(width, height);
+  const size = openAIImageSize(width, height, nativeAspect);
   const [targetWidth, targetHeight] = size.split("x").map(Number);
   const ratio = targetWidth / targetHeight;
   const canvasWidth = Math.max(width, Math.round(height * ratio));

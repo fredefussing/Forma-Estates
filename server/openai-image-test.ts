@@ -52,12 +52,12 @@ function estimate(usage: any, model: ImageTestModel): number | null {
 
 // Use curl here because Node's outbound HTTP is intercepted in this environment.
 // Response is never streamed to a browser or logged. A timeout covers transfer too.
-async function editOnce(imagePath: string, prompt: string, model: ImageTestModel, quality?: "high"): Promise<{ status: number; body: any }> {
+async function editOnce(imagePath: string, prompt: string, model: ImageTestModel, quality?: "high", framedSize?: string): Promise<{ status: number; body: any }> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "forma-image-test-"));
   const responsePath = path.join(dir, "response.json");
   try {
     const { width = 0, height = 0 } = await sharp(imagePath).metadata();
-    const size = openAIImageSize(width, height);
+    const size = framedSize ?? openAIImageSize(width, height);
     // -F parses semicolons as field options and silently truncates literal prompts.
     // --form-string preserves the full prompt (including semicolons and newlines).
     const args = ["--silent", "--show-error", "--max-time", "125", "--max-filesize", "20000000",
@@ -92,7 +92,7 @@ export async function runOpenAIImageTest(
   // known margins before framing again, preventing compounded padding on refinements.
   const photoInput = existingContentFrame ? await removeOpenAITransportMargins(inputPath, existingContentFrame) : inputPath;
   const framed = model === SUNBURST_IMAGE_MODEL || existingContentFrame
-    ? await prepareOpenAIFramedInput(photoInput) : null;
+    ? await prepareOpenAIFramedInput(photoInput, model === SUNBURST_IMAGE_MODEL) : null;
   const converted = framed?.buffer ?? await sharp(inputPath).rotate().resize(2048, 2048, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
   const providerPrompt = framed ? `${prompt}\n\n${framePreservationInstructions(framed.contentFrame)}` : prompt;
   if (Array.from(providerPrompt).length > 32_000) throw new Error("OpenAI image prompt exceeds the supported character limit.");
@@ -125,7 +125,7 @@ export async function runOpenAIImageTest(
       const attemptStarted = Date.now();
       let result: { status: number; body: any };
       try {
-        result = await editOnce(imagePath, providerPrompt, model, quality);
+        result = await editOnce(imagePath, providerPrompt, model, quality, framed?.size);
       } catch (error) {
         attemptTimings.push({ attempt: attempts, startedAt: new Date(attemptStarted).toISOString(), elapsedMs: Date.now() - attemptStarted, httpStatus: null });
         if (i === 0) continue;
