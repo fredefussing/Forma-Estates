@@ -43,7 +43,7 @@ import { buildSeasonalCollovPrompt, buildStandardCollovPrompt } from "@shared/co
 import { resolveBoligCaseTarget } from "./bolig-case-target";
 import { localizedBoligCaseVideoFilename } from "./bolig-case-video";
 import { downloadCollovBuffer, downloadTrustedProxyImage, generateAndPersistCollovMaster, isTrustedProxyImageUrl, saveRawCollovRefinementSource } from "./services/collov-generation";
-import { generatePlannedRoomImage } from "./room-staging";
+import { generatePlannedRoomImage, RoomImageReviewError } from "./room-staging";
 import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS, verifyOriginalPerspective, canReusePerspectiveCheck } from "./original-perspective";
 import {
   buildDesignAgentInitialPrompt,
@@ -4902,10 +4902,13 @@ export async function registerRoutes(
 
       return res.json({ success: true, image_url: collovImageUrl, original_url: originalForRecord, processing_time: processingTime, prompt_used: prompt, generation_id: generationId, provider_metrics: providerMetrics });
     } catch (err: any) {
+      // The captured response is persisted by the owner-scoped async job registry.
+      // Preserve bounded review evidence before provider error translation strips it.
+      const reviewFailure = err instanceof RoomImageReviewError ? err.reviewFailure : undefined;
       const _falErr = translateFalError(err); err = _falErr;
       log(`[BoligPotentiale] generate error: ${err.message}`);
       refundIfNeeded();
-      return res.status(500).json({ success: false, message: err.message });
+      return res.status(500).json({ success: false, message: err.message, ...(reviewFailure ? { reviewFailure } : {}) });
     }
       };
       if (req.body.async === "true") {
@@ -4981,6 +4984,7 @@ export async function registerRoutes(
       const user = await storage.getUserByFirebaseUid(uid);
       return res.json({
         ...getOpenAIImageAvailability(!!user?.isAdmin),
+        reviewDiagnosticsVersion: 1,
         model: SUNBURST_IMAGE_MODEL,
       });
     } catch {

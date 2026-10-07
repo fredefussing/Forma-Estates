@@ -11,6 +11,18 @@ import { requestRoomVision } from "./room-vision";
 import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS, verifyOriginalPerspective, OriginalPerspectiveError, type PerspectiveCheck } from "./original-perspective";
 
 const VISION_MODEL = "gpt-4.1-mini";
+
+export class RoomImageReviewError extends Error {
+  constructor(public readonly reviewFailure: {
+    code: "IMAGE_REVIEW_REJECTED";
+    model: string;
+    scope: ImageEditScope;
+    attempts: Array<{ attempt: number; stage: string; issues: string[]; geometry?: unknown }>;
+  }) {
+    super("Billedkontrollen fandt problemer med begge forsøg. Din billedkvote bliver refunderet.");
+    this.name = "RoomImageReviewError";
+  }
+}
 const PRICE_VERSION = "openai-gpt-4.1-mini-standard-2026-09-26";
 // https://developers.openai.com/api/docs/models/gpt-4.1-mini (USD / 1M tokens).
 const VISION_PRICE = { input: 0.40, cachedInput: 0.10, output: 1.60 };
@@ -179,6 +191,7 @@ export async function generatePlannedRoomImage(
   const reviewUsages: Array<VisionUsage | null> = [];
   const originalPhoto = await fs.readFile(inputPath);
   const perspectiveChecks: Array<PerspectiveCheck | null> = [];
+  const perspectiveFailures = new Map<number, { stage: string; geometry?: unknown }>();
   let accepted: Buffer | null = null;
   for (let n = 0; n < 2; n++) {
     const result = await runOpenAIImageTest(inputPath, buildPrompt(plan, room, style, wishes, checks.at(-1)?.issues ?? [], tier, scope), imageModel, "high");
@@ -199,6 +212,10 @@ export async function generatePlannedRoomImage(
           } catch (error) {
             if (!(error instanceof OriginalPerspectiveError)) throw error;
             perspectiveChecks.push(error.check ?? null);
+            perspectiveFailures.set(n + 1, {
+              stage: error.geometry ? "feature_geometry" : error.check ? "visual_perspective" : "image_framing",
+              geometry: error.geometry ?? error.check?.geometry,
+            });
             review.check.pass = false;
             review.check.issues = ["Restore the EXACT original uploaded camera and framing; no zoom, crop, pan, rotation or changed wall/window junction positions.",
               ...(error.check?.issues ?? ["Original viewpoint could not be verified."])].slice(0, 3);
@@ -227,7 +244,13 @@ export async function generatePlannedRoomImage(
       reviewEstimatedUsd: reviewUsages.map(estimateVisionCost),
       reviewTimeMs: checks.map(x => x.elapsedMs),
     }));
-    throw new Error("Billedkontrollen fandt problemer med begge forsøg. Din billedkvote bliver refunderet.");
+    throw new RoomImageReviewError({
+      code: "IMAGE_REVIEW_REJECTED", model: imageRuns[0].model, scope,
+      attempts: checks.map((check, i) => ({
+        attempt: i + 1, stage: "quality_review", ...perspectiveFailures.get(i + 1),
+        issues: check.issues.slice(0, 3).map(issue => issue.slice(0, 350)),
+      })),
+    });
   }
 
   const visionCosts = [planning.usage, ...reviewUsages].map(estimateVisionCost);

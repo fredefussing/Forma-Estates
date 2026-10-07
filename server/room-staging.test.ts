@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPrompt, roomFlowScope, roomScopeInstructions, roomReviewInstructions, ROOM_REVIEW_REQUIREMENTS } from "./room-staging";
+import { buildPrompt, roomFlowScope, roomScopeInstructions, roomReviewInstructions, ROOM_REVIEW_REQUIREMENTS, RoomImageReviewError } from "./room-staging";
+
+test("a rejected room exposes bounded per-attempt stage evidence without changing the refund message", () => {
+  const error = new RoomImageReviewError({ code: "IMAGE_REVIEW_REJECTED", model: SUNBURST_IMAGE_MODEL,
+    scope: "renovation_visualization", attempts: [{ attempt: 1, stage: "feature_geometry",
+      issues: ["Original viewpoint could not be verified."], geometry: { verified: false, inliers: 2 } }] });
+  assert.ok(error instanceof Error);
+  assert.equal(error.message, "Billedkontrollen fandt problemer med begge forsøg. Din billedkvote bliver refunderet.");
+  assert.equal(JSON.parse(JSON.stringify(error.reviewFailure)).attempts[0].stage, "feature_geometry");
+});
 
 test("review distinguishes AI layout suggestions from binding customer and fidelity requirements", () => {
   assert.ok(ROOM_REVIEW_REQUIREMENTS.includes("NOT a customer instruction"));
