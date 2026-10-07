@@ -20,6 +20,7 @@ test("original perspective gate fails closed and receives the real before-photo,
   let calls = 0;
   let response: any = { sameCamera: true, sameFraming: true, sameGeometry: true, verifiable: true, issues: [] };
   let failFirst = false;
+  let resolveDispute = false;
   childProcess.spawn = ((_command: string, args: string[]) => {
     calls++;
     const child = new EventEmitter() as any;
@@ -40,7 +41,8 @@ test("original perspective gate fails closed and receives the real before-photo,
         child.emit("close", 28);
       } else {
         await fs.writeFile(args[args.indexOf("-o") + 1], JSON.stringify({
-          choices: [{ message: { content: JSON.stringify(response) } }],
+          choices: [{ message: { content: JSON.stringify(resolveDispute && content[0].text.includes("DISPUTED VISUAL REVIEW")
+            ? { sameCamera: true, sameFraming: true, sameGeometry: true, verifiable: true, issues: [] } : response) } }],
           usage: { prompt_tokens: 1000, completion_tokens: 100, prompt_tokens_details: { cached_tokens: 200 } },
         }));
         child.stdout.emit("data", "200");
@@ -67,6 +69,18 @@ test("original perspective gate fails closed and receives the real before-photo,
     response.sameCamera = "true";
     await assert.rejects(verifyOriginalPerspective(original, candidate), OriginalPerspectiveError);
     response.sameCamera = true;
+    response.sameFraming = false;
+    response.issues = ["More scene visible on left"];
+    resolveDispute = true;
+    const resolved = await verifyOriginalPerspective(original, candidate);
+    assert.equal(resolved.sameFraming, true);
+    assert.equal(resolved.reviewHistory?.length, 2);
+    assert.equal(resolved.reviewHistory?.[0].sameFraming, false);
+    assert.equal(resolved.costUsd, 0.001);
+    assert.equal(resolved.attempts, 2);
+    resolveDispute = false;
+    response.sameFraming = true;
+    response.issues = [];
     failFirst = true;
     assert.equal((await verifyOriginalPerspective(original, candidate)).costUsd, null);
     const callsBefore = calls;

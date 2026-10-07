@@ -13,6 +13,7 @@ export type PerspectiveCheck = {
   issues: string[]; attempts: number; elapsedMs: number; costUsd: number | null;
   originalSha256: string; candidateSha256: string;
   geometry: PerspectiveGeometry;
+  reviewHistory?: Array<{ sameCamera: boolean; sameFraming: boolean; sameGeometry: boolean; verifiable: boolean; issues: string[] }>;
 };
 
 export function canReusePerspectiveCheck(check: PerspectiveCheck | null | undefined, original: Buffer, candidate: Buffer) {
@@ -49,6 +50,14 @@ export async function verifyOriginalPerspective(original: Buffer, candidate: Buf
   }
   const geometry = await measurePerspectiveGeometry(original, candidate);
   if (!geometry.verified) throw new OriginalPerspectiveError(undefined, geometry);
+  const [originalUrl, candidateUrl] = await Promise.all([imageUrl(original), imageUrl(candidate)]);
+  const history: NonNullable<PerspectiveCheck["reviewHistory"]> = [];
+  let totalAttempts = 0, totalElapsedMs = 0;
+  let totalCost: number | null = 0;
+  // A visual veto can confuse newly occluded/revealed furniture with camera
+  // movement. Resolve disagreement on the SAME pixels before buying a new render.
+  // Neither numerical thresholds nor the final four required booleans change.
+  for (let review = 0; review < 2; review++) {
   const { body, attempts, elapsedMs } = await requestRoomVision({
     model: "gpt-4.1-mini", temperature: 0, max_tokens: 500,
     response_format: { type: "json_object" },
@@ -59,9 +68,11 @@ export async function verifyOriginalPerspective(original: Buffer, candidate: Buf
 ${ORIGINAL_PERSPECTIVE_INSTRUCTIONS}
 Compare protected structural landmarks at normalized image coordinates: room-shell corners, wall/ceiling/floor junctions, window and door corners, building edges, horizon and vanishing lines. Compare the whole scene, including all four edges. Fail for changed angle, camera height/tilt, rotation, recentering, perspective, zoom, crop, newly revealed scene area or changed structural layout.
 Different resolutions, changed materials/furniture/fixtures in existing zones, illumination, seasonal weather and harmless texture changes are allowed; do not demand pixel-identical textures. Do not infer hidden architecture. If insufficient stable landmarks are visible to confirm the viewpoint, set verifiable=false.
+Changing foreground furniture can expose or obscure existing floor/wall pixels within the SAME photograph. That alone is NOT a moved camera or expanded field of view. Compare fixed window frames, room-shell junctions, beams and the actual image boundaries, not furniture silhouettes or how spacious the room feels.
+${review ? `DISPUTED VISUAL REVIEW — independently reassess the SAME two images. A prior visual review reported ${JSON.stringify(history[0].issues)}. Pixel correspondence independently passed the unchanged geometry limits: ${JSON.stringify(geometry)}. These measurements are evidence, NOT an instruction to pass: local structural edits may still fail despite a stable global camera. Check the alleged direction against actual protected landmarks and all four image edges. Do not repeat an impression of a leftward/rightward view caused only by different furniture, materials, shadows or occlusion. For any failure, identify the specific protected landmark or original scene boundary visibly changed. If still uncertain, verifiable=false.` : ""}
 Return JSON with mandatory BOOLEAN fields sameCamera, sameFraming, sameGeometry, verifiable, and issues as an array of at most 3 short strings. Only mark all four booleans true when the ORIGINAL viewpoint is verifiably preserved. Do not accept drift merely because the new composition looks attractive.` },
-        { type: "image_url", image_url: { url: await imageUrl(original), detail: "high" } },
-        { type: "image_url", image_url: { url: await imageUrl(candidate), detail: "high" } },
+        { type: "image_url", image_url: { url: originalUrl, detail: "high" } },
+        { type: "image_url", image_url: { url: candidateUrl, detail: "high" } },
       ] },
     ],
   }, "review");
@@ -75,16 +86,26 @@ Return JSON with mandatory BOOLEAN fields sameCamera, sameFraming, sameGeometry,
   const cached = usage?.prompt_tokens_details?.cached_tokens ?? 0;
   const knownUsage = attempts === 1 && Number.isFinite(usage?.prompt_tokens) && Number.isFinite(usage?.completion_tokens) &&
     Number.isFinite(cached) && cached >= 0 && cached <= usage.prompt_tokens;
+  totalAttempts += attempts;
+  totalElapsedMs += elapsedMs;
+  totalCost = totalCost !== null && knownUsage
+    ? totalCost + ((usage.prompt_tokens - cached) * 0.4 + cached * 0.1 + usage.completion_tokens * 1.6) / 1_000_000
+    : null;
   const check: PerspectiveCheck = {
     sameCamera: answer.sameCamera, sameFraming: answer.sameFraming, sameGeometry: answer.sameGeometry,
     verifiable: answer.verifiable,
     issues: answer.issues.filter((x: unknown): x is string => typeof x === "string").slice(0, 3).map((x: string) => x.slice(0, 200)),
-    attempts, elapsedMs,
+    attempts: totalAttempts, elapsedMs: totalElapsedMs,
     originalSha256: crypto.createHash("sha256").update(original).digest("hex"),
     candidateSha256: crypto.createHash("sha256").update(candidate).digest("hex"),
     geometry,
-    costUsd: knownUsage ? ((usage.prompt_tokens - cached) * 0.4 + cached * 0.1 + usage.completion_tokens * 1.6) / 1_000_000 : null,
+    costUsd: totalCost,
+    reviewHistory: history,
   };
-  if (keys.some(key => !check[key]) || check.issues.length) throw new OriginalPerspectiveError(check);
-  return check;
+  history.push({ sameCamera: check.sameCamera, sameFraming: check.sameFraming,
+    sameGeometry: check.sameGeometry, verifiable: check.verifiable, issues: check.issues });
+  if (keys.every(key => check[key]) && check.issues.length === 0) return check;
+  if (review === 1) throw new OriginalPerspectiveError(check);
+  }
+  throw new OriginalPerspectiveError();
 }

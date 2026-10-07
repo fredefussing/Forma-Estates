@@ -4985,7 +4985,7 @@ export async function registerRoutes(
       const user = await storage.getUserByFirebaseUid(uid);
       return res.json({
         ...getOpenAIImageAvailability(!!user?.isAdmin),
-        reviewDiagnosticsVersion: 2,
+        reviewDiagnosticsVersion: 3,
         imageFraming: "native_aspect",
         promptContract: imagePromptContractMetadata(),
         model: SUNBURST_IMAGE_MODEL,
