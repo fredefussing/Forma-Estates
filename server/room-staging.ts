@@ -6,7 +6,7 @@ import { getBoligPrompt, normalizeBoligRoom, type BoligTier } from "../shared/bo
 import { assertPromptLocked } from "./promptGuard";
 import { composeCanonicalImagePrompt, type ImageEditScope } from "../shared/canonicalImagePrompt";
 import revision from "../shared/forma-prompts.json";
-import { removeOpenAITransportMargins } from "./openai-image-frame";
+import { removeOpenAITransportMargins, hasRequestedImageResolution } from "./openai-image-frame";
 import { requestRoomVision } from "./room-vision";
 import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS, verifyOriginalPerspective, OriginalPerspectiveError, type PerspectiveCheck } from "./original-perspective";
 
@@ -46,7 +46,8 @@ export function roomFlowScope(model: ImageTestModel, style: string, tier: BoligT
     return "renovation_visualization";
   }
   return model === SUNBURST_IMAGE_MODEL && tier === "tier3" &&
-    (selectedStyle === "modern" || selectedStyle === "scandinavian" && normalizeBoligRoom(room) === "bathroom")
+    (selectedStyle === "modern" || selectedStyle === "scandinavian" &&
+      ["bathroom", "living room", "dining room"].includes(normalizeBoligRoom(room)))
     ? "renovation_visualization" : "furnishing_only";
 }
 
@@ -56,15 +57,19 @@ export function roomScopeInstructions(scope: ImageEditScope): string {
     : "This is furnishing-only staging. Preserve fixed fittings, existing floor and wall finishes, sanitaryware and appliances; replace only appropriate movable furniture and decor.";
 }
 
-export function roomReviewInstructions(scope: ImageEditScope, style = "modern", tier: BoligTier = "tier3"): string {
+export function roomReviewInstructions(scope: ImageEditScope, style = "modern", tier: BoligTier = "tier3", room = ""): string {
   const framing = "STRICT ORIGINAL FRAMING CHECK: Compare the entire edited photo with the original, ignoring removed transport margins. Fail for zoom, tighter crop, lost original scene area at any edge, recentering or changed camera/lens perspective. Compare protected architectural landmarks and window/wall junctions at normalized positions within the original photo, not within a padded canvas. Authorized replacement of furniture and finishes does not permit a different field of view.";
   const palette = tier === "tier2"
     ? style.toLowerCase().trim() === "scandinavian"
       ? "standard everyday light-oak/warm-white/pale-sand/gentle-warm-grey Scandinavian"
       : "standard everyday matte warm-greige/medium-warm-grey, restrained walnut detail and warm stone-look Modern"
     : style.toLowerCase().trim() === "scandinavian"
-    ? "warm organic Scandinavian Exclusive beige/sand/cream/taupe, moisture-suitable walnut accents and honed limestone-/travertine-like surfaces with restrained dark-bronze/muted-black fittings"
+    ? "warm Scandinavian minimalism with subtle Japandi influence: off-white/cream/oatmeal/pale-sand/soft-beige, light oak or ash, honed pale limestone-/travertine-like surfaces, darker timber and bronze/muted-black details only small and secondary"
     : "graphite/selective-walnut/warm-light-stone";
+  if (scope === "renovation_visualization" && style.toLowerCase().trim() === "scandinavian" &&
+      tier === "tier3" && ["living room", "dining room"].includes(normalizeBoligRoom(room))) {
+    return `${framing} Check the selected ${palette} style and the explicit user wishes. Wall paint and nonstructural finishes, flooring on the original plane, furnishings and existing light fixtures may be renewed. Require a coherent visible restyling, but do not demand replacement of every compatible existing finish or fixture: retained timber ceiling boards and compatible lamps are allowed. Do not protect the old wall colour or require its retention. Fail if an explicitly requested wall or other surface change is missing. Preserve original architectural geometry, openings and service zones. No new structural niches, camera movement or invented space.`;
+  }
   return scope === "renovation_visualization"
     ? `${framing} ${roomScopeInstructions(scope)} Check whether the selected ${palette} renovation is visibly applied across the whole room. Inspect each visible authorized category: walls and tiles, floor and ceiling finishes, fitted storage, functional equipment, furniture, all existing light fixtures, textiles and accessories. Fail for clearly unchanged original floor or wall finishes, sanitary fixtures, appliances, furniture schemes or lamps when visible and not explicitly retained. An original lamp or piece of furniture already fitting the palette is not an exemption. A changed vanity plus accessories while retaining the old patterned bathroom tiles, floor, bath and shower is an incomplete renovation and must fail. Do not fail because authorized finishes or fixture designs changed within their original zones. Do not infer hidden architecture behind furniture. Be honest when a subtle finish change cannot be determined visually.`
     : `${framing} Freely changed movable furniture and decor are allowed; preserve fixed fittings and do not infer hidden architecture behind furniture.`;
@@ -126,7 +131,7 @@ export const ROOM_REVIEW_REQUIREMENTS = `The planned layout is an AI-generated d
 async function reviewRoom(original: string, output: Buffer, plan: RoomPlan, style: string, wishes: string, scope: ImageEditScope, tier: BoligTier): Promise<{ check: QualityCheck; usage: VisionUsage | null }> {
   const call = await callVision([
     { type: "text", text: `Compare the ORIGINAL photograph (first image) with the edited result (second). Planned function: ${plan.function}. Planned layout: ${plan.layout}. Selected style: ${JSON.stringify(style)}. User wishes: ${JSON.stringify(wishes || "none")}. ${ROOM_REVIEW_REQUIREMENTS} Evaluate CLEAR visible problems: moved/added/removed windows or doors, altered wall/ceiling/floor geometry, changed exterior views, implausible perspective or scale, severely blocked entrances, warped/floating furniture, blurry/muddy detail, unnatural light or gross color cast. Check that explicitly requested functional zones are present without blocking circulation. ${scope === "furnishing_only" ? "Check whether clearly worn or mismatched old MOVABLE furniture remains despite the new style and plan; do not fail for a piece the user asked to keep or one that genuinely fits the design." : "Check renewal of every visible authorized category, not only worn or mismatched pieces. Respect explicit user retain wishes."} Apply the edit-scope instructions below to fixed finishes and equipment. Pass only if there is no significant visible flaw or incomplete authorized transformation. Do not demand literal pixel alignment for harmless texture/light changes or furnishings. Return JSON {"pass":boolean,"issues":string[]}, with at most 3 concise issues. Be honest about uncertainty.` },
-    { type: "text", text: roomReviewInstructions(scope, style, tier) },
+    { type: "text", text: roomReviewInstructions(scope, style, tier, plan.function) },
     { type: "image_url", image_url: { url: original, detail: "high" } },
     { type: "image_url", image_url: { url: await visionImage(output), detail: "high" } },
   ], 350, "review");
@@ -198,7 +203,7 @@ export async function generatePlannedRoomImage(
     imageRuns.push(result.metrics);
     await diagnostics?.onCandidate(result.buffer, result.contentFrame, n + 1);
     const dimensions = await sharp(result.buffer).metadata();
-    if ((dimensions.width ?? 0) < 1024 || (dimensions.height ?? 0) < 640) {
+    if (!hasRequestedImageResolution(dimensions.width, dimensions.height, result.requestedSize)) {
       checks.push({ pass: false, issues: ["Resultatet har for lav opløsning."], elapsedMs: 0 });
     } else {
       let review: Awaited<ReturnType<typeof reviewRoom>>;

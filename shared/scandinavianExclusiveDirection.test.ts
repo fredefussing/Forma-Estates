@@ -5,6 +5,18 @@ import { composeCanonicalImagePrompt, IMAGE_PROMPT_COMMON } from "./canonicalIma
 import { SCANDINAVIAN_EXCLUSIVE_DIRECTION, SCANDINAVIAN_EXCLUSIVE_BATHROOM_RENOVATION } from "./scandinavianExclusiveDirection";
 import { isModernExclusivePreset } from "./modernExclusivePrompt";
 import { tier2RenovationProfile } from "./standardTier2Renovation";
+import { readFileSync } from "node:fs";
+
+test("approved replacement is verbatim and each room has a scoped application", () => {
+  assert.equal(SCANDINAVIAN_EXCLUSIVE_DIRECTION, readFileSync(
+    "attached_assets/Pasted-UPDATED-SCANDINAVIAN-EXCLUSIVE-MATERIAL-AND-DESIGN-DIRE_1791444290311.txt", "utf8").trim());
+  for (const entry of getAllBoligPrompts().filter(e => e.style === "scandinavian" && e.tier === "tier3")) {
+    const prompt = composeCanonicalImagePrompt(entry.prompt, "furnishing_only");
+    assert.ok(prompt.includes(`SCANDINAVIAN EXCLUSIVE ROOM APPLICATION (${entry.room})`));
+    assert.ok(prompt.includes(IMAGE_PROMPT_COMMON.edit_scopes.furnishing_only));
+    assert.ok(!prompt.includes("deeper brown walnut-toned timber"));
+  }
+});
 
 test("the approved warm-organic direction applies only to all sixteen Scandinavian Exclusive rooms", () => {
   let affected = 0;
@@ -35,7 +47,7 @@ test("complete Scandinavian bathroom renovation applies only to bathroom Exclusi
         assert.ok(result.includes("existing bathtub, its surround or apron, shower enclosure or screen"));
         assert.ok(result.includes("shower tray where present, shower fittings, toilet"));
         assert.ok(result.includes("all visible existing ceiling/wall/task/mirror light fixtures"));
-        assert.ok(result.includes("moisture-suitable walnut-toned vanity accents"));
+        assert.ok(result.includes("moisture-suitable light-oak or ash-look vanity finishes"));
         assert.ok(result.includes("Keep the original camera position"));
         assert.ok(result.includes('USER WISHES: "Bevar vinduerne."'));
       }

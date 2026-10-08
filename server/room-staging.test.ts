@@ -47,7 +47,7 @@ test("planned explicit room uses the approved tier direction without weakening g
         assert.ok(prompt.includes(getBoligPrompt("living room", style, tier)));
         assert.ok(prompt.includes(`TIER: ${tier}.`));
       }
-      assert.equal(prompt.includes("EDIT SCOPE: FURNISHING ONLY."),
+       assert.equal(prompt.includes("EDIT SCOPE: FURNISHING ONLY."),
         !(tier === "tier2" && ["modern", "scandinavian"].includes(style)));
       assert.ok(prompt.includes("Keep the original camera position"));
     }
@@ -88,7 +88,8 @@ test("scope rollout preserves other models, styles and lower tiers", () => {
           assert.equal(roomFlowScope(model, style, tier, room),
             tier === "tier2" && ["modern", "scandinavian"].includes(style) ||
             model === SUNBURST_IMAGE_MODEL && tier === "tier3" &&
-              (style === "modern" || style === "scandinavian" && room === "bathroom")
+               (style === "modern" || style === "scandinavian" &&
+                 ["bathroom", "living room", "dining room"].includes(room))
               ? "renovation_visualization" : "furnishing_only");
         }
       }
@@ -107,11 +108,28 @@ test("Sunburst Scandinavian Exclusive bathroom renews the whole room without Mod
     assert.ok(!prompt.includes("TASK: WARM CONTEMPORARY MODERN"));
   }
   const review = roomReviewInstructions(scope, "scandinavian");
-  assert.ok(review.includes("warm organic Scandinavian Exclusive"));
+  assert.ok(review.includes("warm Scandinavian minimalism with subtle Japandi influence"));
   assert.ok(review.includes("retaining the old patterned bathroom tiles, floor, bath and shower"));
   assert.ok(!review.includes("graphite/selective-walnut"));
   assert.ok(!review.includes("preserve fixed fittings"));
   assert.ok(review.includes("Fail for zoom, tighter crop, lost original scene area at any edge"));
+});
+
+test("approved Scandinavian living and dining tests use renovation in the real room selector", () => {
+  for (const room of ["living room", "dining room"]) {
+    const scope = roomFlowScope(SUNBURST_IMAGE_MODEL, "scandinavian", "tier3", room);
+    assert.equal(scope, "renovation_visualization");
+    const prompt = buildPrompt({ ...plan, function: room }, room, "scandinavian", "", [], "tier3", scope);
+    assert.ok(prompt.includes("renew visible wall paint or nonstructural surface finish"));
+    assert.ok(prompt.includes("light natural oak or ash"));
+    assert.ok(prompt.includes("NON-NEGOTIABLE CAMERA LOCK"));
+    assert.ok(!prompt.includes("EDIT SCOPE: FURNISHING ONLY."));
+    const review = roomReviewInstructions(scope, "scandinavian", "tier3", room);
+    assert.ok(review.includes("retained timber ceiling boards"));
+    assert.ok(review.includes("Fail if an explicitly requested wall"));
+    assert.ok(!review.includes("Renew every"));
+  }
+  assert.equal(roomFlowScope(SUNBURST_IMAGE_MODEL, "scandinavian", "tier3", "bedroom"), "furnishing_only");
 });
 
 test("planning and review permit replacements and reject the reported incomplete bathroom", () => {

@@ -3,6 +3,20 @@ import sharp from "sharp";
 /** Normalized original-photo bounds within a provider-supported transport canvas. */
 export type ImageContentFrame = { x: number; y: number; width: number; height: number };
 
+/** Validate raw provider pixels against the canvas we actually requested, before delivery resizing. */
+export function hasRequestedImageResolution(
+  width: number | undefined, height: number | undefined, requestedSize?: string,
+): boolean {
+  if (!width || !height || !Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width <= 0 || height <= 0) return false;
+  if (!requestedSize) return width >= 1024 && height >= 640;
+  const match = /^([1-9]\d*)x([1-9]\d*)$/.exec(requestedSize);
+  if (!match) return false;
+  const [, expectedWidth, expectedHeight] = match.map(Number);
+  return Number.isSafeInteger(expectedWidth) && Number.isSafeInteger(expectedHeight) &&
+    width >= expectedWidth && height >= expectedHeight;
+}
+
 export function openAIImageSize(width: number, height: number, nativeAspect = false) {
   const ratio = width / height;
   if (nativeAspect && ratio >= 1 / 3 && ratio <= 3) {

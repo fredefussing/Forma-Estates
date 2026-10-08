@@ -84,7 +84,7 @@ async function editOnce(imagePath: string, prompt: string, model: ImageTestModel
 export async function runOpenAIImageTest(
   inputPath: string | Buffer, prompt: string, model: ImageTestModel = IMAGE_TEST_MODEL, quality?: "high",
   existingContentFrame?: ImageContentFrame,
-): Promise<{ buffer: Buffer; metrics: ImageTestMetrics; contentFrame?: ImageContentFrame }> {
+): Promise<{ buffer: Buffer; metrics: ImageTestMetrics; contentFrame?: ImageContentFrame; requestedSize?: string }> {
   // Published edits API limit; reject instead of truncating the approved contract.
   if (!prompt.trim() || Array.from(prompt).length > 32_000) throw new Error("OpenAI image prompt exceeds the supported character limit.");
   if (!getOpenAIImageApiKey()) throw new Error("OpenAI image test key is not configured.");
@@ -145,7 +145,7 @@ export async function runOpenAIImageTest(
             throw new Error("OpenAI changed the requested canvas format. The image was not cropped or saved.");
           }
         }
-        return { buffer, metrics: snapshotMetrics(), contentFrame: framed?.contentFrame };
+        return { buffer, metrics: snapshotMetrics(), contentFrame: framed?.contentFrame, requestedSize: framed?.size };
       }
       // Do not leak raw provider errors, prompts, or image payloads.
       if (result.status === 401 || result.status === 403) throw new Error("OpenAI image edit access denied for this key.");

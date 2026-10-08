@@ -1,8 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import sharp from "sharp";
-import { prepareOpenAIFramedInput, removeOpenAITransportMargins, imageContentRect, framePreservationInstructions, openAIImageSize } from "./openai-image-frame";
+import { prepareOpenAIFramedInput, removeOpenAITransportMargins, imageContentRect, framePreservationInstructions, openAIImageSize, hasRequestedImageResolution } from "./openai-image-frame";
 import { buildFourKImageDelivery } from "./image-delivery";
+
+test("resolution gate accepts the requested canvas in every supported orientation", () => {
+  for (const [width, height] of [[941, 1672], [1672, 941], [800, 800], [800, 1000], [1200, 400], [400, 1200], [2000, 200]]) {
+    for (const native of [true, false]) {
+      const size = openAIImageSize(width, height, native);
+      const [w, h] = size.split("x").map(Number);
+      assert.equal(hasRequestedImageResolution(w, h, size), true, size);
+      assert.equal(hasRequestedImageResolution(w - 1, h, size), false);
+      assert.equal(hasRequestedImageResolution(w, h - 1, size), false);
+      assert.equal(hasRequestedImageResolution(w / 2, h / 2, size), false);
+    }
+  }
+  assert.equal(openAIImageSize(941, 1672, true), "864x1536");
+  assert.equal(hasRequestedImageResolution(864, 1536, "864x1536"), true);
+  assert.equal(hasRequestedImageResolution(1536, 864, "864x1536"), false);
+});
+
+test("resolution gate rejects invalid metadata and preserves unframed legacy requirements", () => {
+  for (const value of [undefined, 0, -1, NaN, Infinity, 0.5]) {
+    assert.equal(hasRequestedImageResolution(value, 1536, "864x1536"), false);
+    assert.equal(hasRequestedImageResolution(864, value, "864x1536"), false);
+  }
+  for (const size of ["auto", "0x0", "864x", "-864x1536"]) {
+    assert.equal(hasRequestedImageResolution(864, 1536, size), false);
+  }
+  assert.equal(hasRequestedImageResolution(1024, 640), true);
+  assert.equal(hasRequestedImageResolution(1023, 640), false);
+  assert.equal(hasRequestedImageResolution(1024, 639), false);
+});
 
 async function cornerPhoto(width: number, height: number) {
   return sharp(Buffer.from(`<svg width="${width}" height="${height}">
