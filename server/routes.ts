@@ -45,14 +45,14 @@ import { resolveBoligCaseTarget } from "./bolig-case-target";
 import { localizedBoligCaseVideoFilename } from "./bolig-case-video";
 import { downloadCollovBuffer, downloadTrustedProxyImage, generateAndPersistCollovMaster, isTrustedProxyImageUrl, saveRawCollovRefinementSource } from "./services/collov-generation";
 import { generatePlannedRoomImage, RoomImageReviewError } from "./room-staging";
-import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS, verifyOriginalPerspective, canReusePerspectiveCheck } from "./original-perspective";
+import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS } from "./original-perspective";
 import {
   buildDesignAgentInitialPrompt,
   DESIGN_AGENT_INITIAL_PROMPT_PROFILE,
   DESIGN_AGENT_REFINEMENT_PROMPT_PROFILE,
 } from "@shared/designAgentPrompt";
 import { runOpenAIImageTest, IMAGE_TEST_MODEL, SUNBURST_IMAGE_MODEL, type ImageTestModel } from "./openai-image-test";
-import { removeOpenAITransportMargins, type ImageContentFrame } from "./openai-image-frame";
+import { type ImageContentFrame } from "./openai-image-frame";
 
 const LEADS_OWNER_EMAIL = "fredefussing@gmail.com";
 const LEADS_EMAILS = new Set([LEADS_OWNER_EMAIL, "henrilasse@icloud.com", "emilvoigt@gmail.com"]);
@@ -4791,22 +4791,8 @@ export async function registerRoutes(
       // visible "AI Redigeret" badge, SS watermarking and XMP are applied only
       // when the customer downloads the finished image.
       if (!providerBuffer) throw new Error("Billedresultatet mangler billeddata.");
-      // Compare to the real upload before delivery or replacing gallery entries,
-      // including repeated adjustments, seasons, Design Agent and both providers.
-      const perspectiveCandidate = openaiResult?.contentFrame
-        ? await removeOpenAITransportMargins(providerBuffer, openaiResult.contentFrame) : providerBuffer;
-      // Planned initial generations already run this gate inside the two-attempt
-      // correction loop. Other paths (especially refinements) must run it here.
-      const plannedPerspectiveCheck = plannedRoomFlow && openaiResult && "originalPerspectiveCheck" in openaiResult.metrics
-        ? openaiResult.metrics.originalPerspectiveCheck : null;
-      const reusePerspectiveCheck = canReusePerspectiveCheck(plannedPerspectiveCheck, originalFrame, perspectiveCandidate);
-      const originalPerspectiveCheck = reusePerspectiveCheck
-        ? plannedPerspectiveCheck! : await verifyOriginalPerspective(originalFrame, perspectiveCandidate);
-      if (openaiResult && !reusePerspectiveCheck) {
-        openaiResult.metrics.costUsd = openaiResult.metrics.costUsd !== null && originalPerspectiveCheck.costUsd !== null
-          ? openaiResult.metrics.costUsd + originalPerspectiveCheck.costUsd : null;
-        openaiResult.metrics.costBasis += "; inkl. separat kontrol mod originalens perspektiv (gpt-4.1-mini).";
-      }
+      // Owner-approved prompt-only camera preservation: no post-generation veto.
+      const originalPerspectiveCheck = null;
       const providerDimensions = isDesignAgent ? await inspectImageDimensions(providerBuffer) : null;
       if (isDesignAgent) {
         log(`[AgentTrace] ${JSON.stringify({
@@ -4985,7 +4971,8 @@ export async function registerRoutes(
       const user = await storage.getUserByFirebaseUid(uid);
       return res.json({
         ...getOpenAIImageAvailability(!!user?.isAdmin),
-        reviewDiagnosticsVersion: 3,
+        reviewDiagnosticsVersion: 4,
+        cameraPreservationMode: "prompt_only",
         imageFraming: "native_aspect",
         promptContract: imagePromptContractMetadata(),
         model: SUNBURST_IMAGE_MODEL,

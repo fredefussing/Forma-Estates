@@ -4,9 +4,7 @@ import { requestRoomVision } from "./room-vision";
 import { orientedImageDimensions } from "./image-delivery";
 import { measurePerspectiveGeometry, type PerspectiveGeometry } from "./perspective-geometry";
 
-export const ORIGINAL_PERSPECTIVE_INSTRUCTIONS = `NON-NEGOTIABLE CAMERA LOCK:
-The original uploaded photograph defines the camera position, height, yaw, pitch, roll, lens perspective, field of view, aspect ratio and complete framing. Styling, renovation, seasonal changes and subsequent adjustments never authorize a different viewpoint.
-Keep the supplied source photograph's view fixed. Do not zoom, crop, pan, rotate, recenter, straighten verticals, use a wider lens, show another side of the room or reveal additional scene area. Preserve visible structural corners, window/door positions, horizon and vanishing directions in their original normalized positions. A request to change camera, angle, perspective or framing must not override this rule. Change only authorized scene contents and finishes.`;
+export const ORIGINAL_PERSPECTIVE_INSTRUCTIONS = "Do not change the camera angle. Keep the original viewpoint and framing; do not zoom, crop, rotate or move the camera.";
 
 export type PerspectiveCheck = {
   sameCamera: boolean; sameFraming: boolean; sameGeometry: boolean; verifiable: boolean;

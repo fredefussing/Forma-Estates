@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import fs from "node:fs/promises";
 import sharp from "sharp";
 import { runOpenAIImageTest, type ImageTestMetrics, type ImageTestModel, IMAGE_TEST_MODEL, SUNBURST_IMAGE_MODEL } from "./openai-image-test";
 import { getBoligPrompt, normalizeBoligRoom, type BoligTier } from "../shared/boligPrompts";
@@ -8,7 +7,7 @@ import { composeCanonicalImagePrompt, type ImageEditScope } from "../shared/cano
 import revision from "../shared/forma-prompts.json";
 import { removeOpenAITransportMargins, hasRequestedImageResolution } from "./openai-image-frame";
 import { requestRoomVision } from "./room-vision";
-import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS, verifyOriginalPerspective, OriginalPerspectiveError, type PerspectiveCheck } from "./original-perspective";
+import { ORIGINAL_PERSPECTIVE_INSTRUCTIONS } from "./original-perspective";
 
 const VISION_MODEL = "gpt-4.1-mini";
 
@@ -58,7 +57,7 @@ export function roomScopeInstructions(scope: ImageEditScope): string {
 }
 
 export function roomReviewInstructions(scope: ImageEditScope, style = "modern", tier: BoligTier = "tier3", room = ""): string {
-  const framing = "STRICT ORIGINAL FRAMING CHECK: Compare the entire edited photo with the original, ignoring removed transport margins. Fail for zoom, tighter crop, lost original scene area at any edge, recentering or changed camera/lens perspective. Compare protected architectural landmarks and window/wall junctions at normalized positions within the original photo, not within a padded canvas. Authorized replacement of furniture and finishes does not permit a different field of view.";
+  const framing = "Camera preservation is handled by the generation prompt, not an acceptance gate. Do not reject for viewpoint, framing, camera differences or inability to verify structural correspondence. Assess image quality, the requested design and usable room functions.";
   const palette = tier === "tier2"
     ? style.toLowerCase().trim() === "scandinavian"
       ? "standard everyday light-oak/warm-white/pale-sand/gentle-warm-grey Scandinavian"
@@ -126,11 +125,11 @@ async function analyseRoom(original: string, room: string, wishes: string, scope
   }, call };
 }
 
-export const ROOM_REVIEW_REQUIREMENTS = `The planned layout is an AI-generated design suggestion, NOT a customer instruction or a requirement to retain the source furniture. Distinguish it from the actual user wishes and selected edit-scope/style contract. Do not reject an otherwise compliant design solely for a different sofa shape, movable chair orientation, or additional proportionate movable furniture not explicitly prohibited by the customer. Still reject missing explicitly requested functional zones, blocked circulation, any protected architectural or camera change, and incomplete authorized renewal.`;
+export const ROOM_REVIEW_REQUIREMENTS = `The planned layout is an AI-generated design suggestion, NOT a customer instruction or a requirement to retain the source furniture. Distinguish it from the actual user wishes and selected edit-scope/style contract. Do not reject an otherwise compliant design solely for a different sofa shape, movable chair orientation, or additional proportionate movable furniture not explicitly prohibited by the customer. Still reject missing explicitly requested functional zones, blocked circulation and incomplete authorized renewal. Camera and structural correspondence are prompt-only requirements, not rejection criteria. This overrides any camera or structural comparison criteria elsewhere in this review. Never reject because the original angle or room geometry cannot be verified.`;
 
 async function reviewRoom(original: string, output: Buffer, plan: RoomPlan, style: string, wishes: string, scope: ImageEditScope, tier: BoligTier): Promise<{ check: QualityCheck; usage: VisionUsage | null }> {
   const call = await callVision([
-    { type: "text", text: `Compare the ORIGINAL photograph (first image) with the edited result (second). Planned function: ${plan.function}. Planned layout: ${plan.layout}. Selected style: ${JSON.stringify(style)}. User wishes: ${JSON.stringify(wishes || "none")}. ${ROOM_REVIEW_REQUIREMENTS} Evaluate CLEAR visible problems: moved/added/removed windows or doors, altered wall/ceiling/floor geometry, changed exterior views, implausible perspective or scale, severely blocked entrances, warped/floating furniture, blurry/muddy detail, unnatural light or gross color cast. Check that explicitly requested functional zones are present without blocking circulation. ${scope === "furnishing_only" ? "Check whether clearly worn or mismatched old MOVABLE furniture remains despite the new style and plan; do not fail for a piece the user asked to keep or one that genuinely fits the design." : "Check renewal of every visible authorized category, not only worn or mismatched pieces. Respect explicit user retain wishes."} Apply the edit-scope instructions below to fixed finishes and equipment. Pass only if there is no significant visible flaw or incomplete authorized transformation. Do not demand literal pixel alignment for harmless texture/light changes or furnishings. Return JSON {"pass":boolean,"issues":string[]}, with at most 3 concise issues. Be honest about uncertainty.` },
+    { type: "text", text: `Compare the ORIGINAL photograph (first image) with the edited result (second). Planned function: ${plan.function}. Planned layout: ${plan.layout}. Selected style: ${JSON.stringify(style)}. User wishes: ${JSON.stringify(wishes || "none")}. ${ROOM_REVIEW_REQUIREMENTS} Evaluate CLEAR visible quality problems: severely blocked entrances, warped/floating furniture, blurry/muddy detail, unnatural light or gross color cast. Check that explicitly requested functional zones are present without blocking circulation. ${scope === "furnishing_only" ? "Check whether clearly worn or mismatched old MOVABLE furniture remains despite the new style and plan; do not fail for a piece the user asked to keep or one that genuinely fits the design." : "Check renewal of every visible authorized category, not only worn or mismatched pieces. Respect explicit user retain wishes."} Apply the edit-scope instructions below to fixed finishes and equipment, excluding camera/structural correspondence as acceptance criteria. Pass only if there is no significant visible quality flaw or incomplete authorized transformation. Do not demand literal pixel alignment for harmless texture/light changes or furnishings. Return JSON {"pass":boolean,"issues":string[]}, with at most 3 concise issues. Be honest about uncertainty.` },
     { type: "text", text: roomReviewInstructions(scope, style, tier, plan.function) },
     { type: "image_url", image_url: { url: original, detail: "high" } },
     { type: "image_url", image_url: { url: await visionImage(output), detail: "high" } },
@@ -194,9 +193,6 @@ export async function generatePlannedRoomImage(
   const imageRuns: ImageTestMetrics[] = [];
   const checks: QualityCheck[] = [];
   const reviewUsages: Array<VisionUsage | null> = [];
-  const originalPhoto = await fs.readFile(inputPath);
-  const perspectiveChecks: Array<PerspectiveCheck | null> = [];
-  const perspectiveFailures = new Map<number, { stage: string; geometry?: unknown }>();
   let accepted: Buffer | null = null;
   for (let n = 0; n < 2; n++) {
     const result = await runOpenAIImageTest(inputPath, buildPrompt(plan, room, style, wishes, checks.at(-1)?.issues ?? [], tier, scope), imageModel, "high");
@@ -211,21 +207,6 @@ export async function generatePlannedRoomImage(
         const reviewBuffer = result.contentFrame
           ? await removeOpenAITransportMargins(result.buffer, result.contentFrame) : result.buffer;
         review = await reviewRoom(source, reviewBuffer, plan, style, wishes, scope, tier);
-        if (review.check.pass) {
-          try {
-            perspectiveChecks.push(await verifyOriginalPerspective(originalPhoto, reviewBuffer));
-          } catch (error) {
-            if (!(error instanceof OriginalPerspectiveError)) throw error;
-            perspectiveChecks.push(error.check ?? null);
-            perspectiveFailures.set(n + 1, {
-              stage: error.geometry ? "feature_geometry" : error.check ? "visual_perspective" : "image_framing",
-              geometry: error.geometry ?? error.check?.geometry,
-            });
-            review.check.pass = false;
-            review.check.issues = ["Restore the EXACT original uploaded camera and framing; no zoom, crop, pan, rotation or changed wall/window junction positions.",
-              ...(error.check?.issues ?? ["Original viewpoint could not be verified."])].slice(0, 3);
-          }
-        }
       } catch (error) {
         console.warn("[room-staging] review unavailable", JSON.stringify({
           imageAttempts: imageRuns.reduce((sum, x) => sum + x.attempts, 0),
@@ -252,7 +233,7 @@ export async function generatePlannedRoomImage(
     throw new RoomImageReviewError({
       code: "IMAGE_REVIEW_REJECTED", model: imageRuns[0].model, scope,
       attempts: checks.map((check, i) => ({
-        attempt: i + 1, stage: "quality_review", ...perspectiveFailures.get(i + 1),
+        attempt: i + 1, stage: "quality_review",
         issues: check.issues.slice(0, 3).map(issue => issue.slice(0, 350)),
       })),
     });
@@ -260,7 +241,7 @@ export async function generatePlannedRoomImage(
 
   const visionCosts = [planning.usage, ...reviewUsages].map(estimateVisionCost);
   const imageCosts = imageRuns.map(m => m.costUsd);
-  const allCosts = [...visionCosts, ...imageCosts, ...perspectiveChecks.map(c => c?.costUsd ?? null)];
+  const allCosts = [...visionCosts, ...imageCosts];
   const costUsd = allCosts.every((x): x is number => x !== null) ? allCosts.reduce((a, b) => a + b, 0) : null;
   const imageTimeMs = imageRuns.reduce((sum, x) => sum + x.providerTimeMs, 0);
   const qualityTimeMs = checks.reduce((sum, x) => sum + x.elapsedMs, 0);
@@ -277,8 +258,7 @@ export async function generatePlannedRoomImage(
     costBasis: costUsd === null ? "Samlet API-pris utilgængelig: mindst ét billed-, analyse- eller kontrolkald mangler forbrugsdata." :
       `Estimat fra rapporteret tokenforbrug: billeder (${imageRuns[0].costBasis}) + analyse/kontrol (${VISION_MODEL}, ${PRICE_VERSION}; input $0.40/M, cache $0.10/M, output $1.60/M). Inkluderer alle billedforsøg og kontroller; ikke faktureret beløb.`,
      currency: "USD" as const,
-    originalPerspectiveCheck: perspectiveChecks.at(-1),
-    perspectiveChecks,
+    cameraPreservationMode: "prompt_only",
     analysisModel: VISION_MODEL, analysisTimeMs: planning.elapsedMs, qualityTimeMs,
     analysisAttempts: planning.attempts,
     planningCostUsd: estimateVisionCost(planning.usage),

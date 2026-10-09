@@ -94,15 +94,12 @@ test("original perspective gate fails closed and receives the real before-photo,
   }
 });
 
-test("every main image path uses the uploaded original and checks before delivery or gallery mutation", () => {
+test("every main image path preserves the original record but uses prompt-only camera guidance", () => {
   const routes = requireText("server/routes.ts");
   const endpoint = routes.slice(routes.indexOf('app.post("/api/bolig/generate"'));
-  const gate = endpoint.indexOf("await verifyOriginalPerspective(originalFrame, perspectiveCandidate)");
-  assert.ok(gate > endpoint.indexOf("await loadOwnedOpenAIImage(originalForRecord, uploadDir)"));
-  assert.ok(gate < endpoint.indexOf("const rawSource ="));
-  assert.ok(gate < endpoint.indexOf("await persistFourKImageDelivery"));
-  assert.ok(gate < endpoint.indexOf("await storage.createGeneratedImage"));
-  assert.ok(gate < endpoint.indexOf("UPDATE generated_images SET case_id = NULL"));
+  assert.ok(!endpoint.includes("verifyOriginalPerspective("));
+  assert.ok(!requireText("server/room-staging.ts").includes("verifyOriginalPerspective("));
+  assert.ok(requireText("server/room-staging.ts").includes('cameraPreservationMode: "prompt_only"'));
   assert.ok(endpoint.includes("originalForRecord = rootOriginalUrl"));
   assert.ok(!endpoint.includes("originalForRecord = refinementBase.originalImageUrl ?? srcImg.originalImageUrl ?? refinementBase.imageUrl"));
   assert.ok(endpoint.includes("if (!rootOriginalUrl)"));

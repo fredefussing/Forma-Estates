@@ -17,7 +17,7 @@ test("review distinguishes AI layout suggestions from binding customer and fidel
   assert.ok(ROOM_REVIEW_REQUIREMENTS.includes("movable chair orientation"));
   for (const requirement of ["actual user wishes", "selected edit-scope/style contract",
     "explicitly requested functional zones", "blocked circulation",
-    "protected architectural or camera change", "incomplete authorized renewal"]) {
+    "prompt-only requirements", "incomplete authorized renewal"]) {
     assert.ok(ROOM_REVIEW_REQUIREMENTS.includes(requirement), requirement);
   }
 });
@@ -112,7 +112,7 @@ test("Sunburst Scandinavian Exclusive bathroom renews the whole room without Mod
   assert.ok(review.includes("retaining the old patterned bathroom tiles, floor, bath and shower"));
   assert.ok(!review.includes("graphite/selective-walnut"));
   assert.ok(!review.includes("preserve fixed fittings"));
-  assert.ok(review.includes("Fail for zoom, tighter crop, lost original scene area at any edge"));
+  assert.ok(review.includes("Do not reject for viewpoint"));
 });
 
 test("approved Scandinavian living and dining tests use renovation in the real room selector", () => {
@@ -122,7 +122,7 @@ test("approved Scandinavian living and dining tests use renovation in the real r
     const prompt = buildPrompt({ ...plan, function: room }, room, "scandinavian", "", [], "tier3", scope);
     assert.ok(prompt.includes("renew visible wall paint or nonstructural surface finish"));
     assert.ok(prompt.includes("light natural oak or ash"));
-    assert.ok(prompt.includes("NON-NEGOTIABLE CAMERA LOCK"));
+    assert.ok(prompt.includes("Do not change the camera angle."));
     assert.ok(!prompt.includes("EDIT SCOPE: FURNISHING ONLY."));
     const review = roomReviewInstructions(scope, "scandinavian", "tier3", room);
     assert.ok(review.includes("retained timber ceiling boards"));
