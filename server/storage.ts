@@ -1296,12 +1296,22 @@ export class DatabaseStorage implements IStorage {
     const res = await pool.query(
       `SELECT u.quota_ai_visualizations, u.quota_floor_plans, u.quota_transform_videos, u.quota_showcase_videos,
               u.used_ai_visualizations, u.used_floor_plans, u.used_transform_videos, u.used_showcase_videos,
-              u.quota_resets_at, u.is_admin
+              u.quota_resets_at, u.is_admin, u.subscription_tier, u.subscription_status
        FROM users u WHERE u.id = $1`,
       [userId]
     );
     const r = res.rows[0];
     if (!r) return { ai: { limit: 0, used: 0 }, floorPlan: { limit: 0, used: 0 }, transformVideo: { limit: 0, used: 0 }, showcase: { limit: 0, used: 0 }, resetsAt: null, teamPlan: null, teamName: null, memberCount: null, maxMembers: null };
+    if (r.subscription_tier === "unlimited" && r.subscription_status === "active") {
+      return {
+        ai: { limit: null, used: r.used_ai_visualizations ?? 0 },
+        floorPlan: { limit: null, used: r.used_floor_plans ?? 0 },
+        transformVideo: { limit: null, used: r.used_transform_videos ?? 0 },
+        showcase: { limit: null, used: r.used_showcase_videos ?? 0 },
+        resetsAt: r.quota_resets_at, teamPlan: null, teamName: null,
+        memberCount: null, maxMembers: null, isFreeTrial: false,
+      };
+    }
 
     // If user has no explicit quotas set (all null) and is not admin → check team membership
     const hasOwnQuotas = r.quota_ai_visualizations !== null || r.quota_floor_plans !== null;
@@ -1434,7 +1444,7 @@ export class DatabaseStorage implements IStorage {
     );
 
     const res = await pool.query(
-      `SELECT is_admin, quota_${col}, used_${col} FROM users WHERE id=$1`,
+      `SELECT is_admin, subscription_tier, subscription_status, quota_${col}, used_${col} FROM users WHERE id=$1`,
       [userId]
     );
     const row = res.rows[0];
@@ -1442,6 +1452,10 @@ export class DatabaseStorage implements IStorage {
 
     // Admin bypass — unlimited usage
     if (row.is_admin) return { allowed: true, remaining: null, feature: label };
+    if (row.subscription_tier === "unlimited" && row.subscription_status === "active") {
+      await pool.query(`UPDATE users SET used_${col} = used_${col} + 1 WHERE id=$1`, [userId]);
+      return { allowed: true, remaining: null, feature: label };
+    }
 
     let limit: number | null = row[`quota_${col}`];
 
@@ -1546,13 +1560,13 @@ export class DatabaseStorage implements IStorage {
   // charged the owner's shared pool, everyone else charged their own counter.
   async refundQuota(userId: number, feature: "ai" | "floorPlan" | "transformVideo" | "showcase") {
     const col = feature === "ai" ? "ai_visualizations" : feature === "floorPlan" ? "floor_plans" : feature === "transformVideo" ? "transform_videos" : "showcase_videos";
-    const res = await pool.query(`SELECT is_admin, quota_${col} FROM users WHERE id=$1`, [userId]);
+    const res = await pool.query(`SELECT is_admin, subscription_tier, subscription_status, quota_${col} FROM users WHERE id=$1`, [userId]);
     const row = res.rows[0];
     if (!row) return;
     if (row.is_admin) return; // admin never consumed a credit
 
     let targetId = userId;
-    if (row[`quota_${col}`] === null) {
+    if (row[`quota_${col}`] === null && !(row.subscription_tier === "unlimited" && row.subscription_status === "active")) {
       // No explicit quota → the owner's shared pool may have been charged.
       const teamRes = await pool.query<{ owner_id: number; owner_is_admin: boolean }>(
         `SELECT ou.id AS owner_id, ou.is_admin AS owner_is_admin
