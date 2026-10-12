@@ -1017,6 +1017,26 @@ export async function registerRoutes(
         log(`[auth] Test bypass: auto-verified ${user.email}`);
       }
 
+      // Dedicated social-content account: bind privileges to the provisioned
+      // Firebase identity, never merely to a publicly registerable email.
+      if (uid === "CQrCOaj08KMne0xoVqHTixOMvh52" && email === "socialemedier@forma.invalid") {
+        await storage.updateUser(user.id, {
+          emailVerified: true,
+          isAdmin: false,
+          displayName: "Forma Sociale Medier",
+          subscriptionStatus: "active",
+          subscriptionTier: "unlimited",
+        });
+        await storage.setUserQuotas(user.id, {
+          ai: null, floorPlans: null, transformVideos: null, showcase: null,
+        });
+        user = {
+          ...user, emailVerified: true, isAdmin: false,
+          displayName: "Forma Sociale Medier",
+          subscriptionStatus: "active", subscriptionTier: "unlimited",
+        };
+      }
+
       // Auto-claim purchases made BEFORE the account existed (e.g. paid via
       // Stripe as guest, then signed up). Atomic claim → can never double-grant.
       try {
